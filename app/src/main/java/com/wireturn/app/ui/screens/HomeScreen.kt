@@ -1121,8 +1121,8 @@ private fun RepoLinksContent(
             item {
                 RepoLinkItem(
                     title = stringResource(R.string.android_client),
-                    subtitle = "spkprsnts/turn-proxy-android-wireproxy",
-                    url = "https://github.com/spkprsnts/turn-proxy-android-wireproxy",
+                    subtitle = "spkprsnts/WireTurn",
+                    url = "https://github.com/spkprsnts/WireTurn",
                     containerColor = containerColor,
                     onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
                     onOpen = { uriHandler.openUri(it) }
