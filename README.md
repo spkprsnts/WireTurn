@@ -19,10 +19,12 @@ Android-клиент для [vk-turn-proxy](https://github.com/cacggghp/vk-turn-
 - **История** — сохранение последних конфигураций для быстрого переключения
 - **Кастомное ядро** — возможность использовать собственный бинарник `libvkturn.so`
 
-## Скриншот
+## Скриншоты
 
 <p float="left">
-  <img src="docs/screenshots/Screenshot_20260412-185942.png" width="250" />
+  <img src="docs/screenshots/screenshot_1.jpg" width="250" />
+  <img src="docs/screenshots/screenshot_2.jpg" width="250" />
+  <img src="docs/screenshots/screenshot_3.jpg" width="250" />
 </p>
 
 ## Требования
