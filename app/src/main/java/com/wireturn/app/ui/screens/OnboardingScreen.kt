@@ -83,7 +83,7 @@ fun OnboardingScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.nearby_24px),
+                        painter = painterResource(R.drawable.plug_connect_24px),
                         contentDescription = null,
                         modifier = Modifier.size(100.dp),
                         tint = MaterialTheme.colorScheme.onSurface
