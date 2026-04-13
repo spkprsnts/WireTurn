@@ -1,0 +1,1367 @@
+@file:OptIn(
+    androidx.compose.material3.ExperimentalMaterial3Api::class,
+    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class
+)
+
+package com.wireturn.app.ui.screens
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import com.wireturn.app.R
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemColors
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
+import com.wireturn.app.data.ThemeMode
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.VpnService
+import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.offset
+import androidx.compose.material3.Switch
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import android.content.ClipData
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.VpnKey
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.toClipEntry
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.runtime.DisposableEffect
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import com.wireturn.app.ui.InlineConfigIndicator
+import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.viewmodel.MainViewModel
+import com.wireturn.app.viewmodel.ProxyState
+import com.wireturn.app.viewmodel.UpdateState
+import androidx.core.net.toUri
+import com.wireturn.app.WireproxyServiceState
+import com.wireturn.app.viewmodel.WireproxyState
+
+@SuppressLint("BatteryLife")
+@Composable
+fun HomeScreen(
+    viewModel: MainViewModel
+) {
+    val context = LocalContext.current
+    val proxyState by viewModel.proxyState.collectAsStateWithLifecycle()
+    val wireproxyState by WireproxyServiceState.state.collectAsStateWithLifecycle()
+    val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
+    val customKernelExists by viewModel.customKernelExists.collectAsStateWithLifecycle()
+    val isConfigured = clientConfig.serverAddress.isNotBlank() || (clientConfig.isRawMode && clientConfig.rawCommand.isNotBlank())
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    viewModel.setHomeScreenActive(true)
+                    if (WireproxyServiceState.state.value == WireproxyState.Running) {
+                        viewModel.checkWireproxyPing()
+                    }
+                }
+                Lifecycle.Event.ON_PAUSE -> {
+                    viewModel.setHomeScreenActive(false)
+                }
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            viewModel.setHomeScreenActive(false)
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    // Запрос разрешений при первом открытии главного экрана
+    val batteryOptLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { /* пользователь закрыл диалог батареи — результат нас не интересует */ }
+
+    val notificationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        // После диалога уведомлений — запрашиваем исключение из оптимизации батареи
+        val pm = context.getSystemService(PowerManager::class.java)
+        if (!pm.isIgnoringBatteryOptimizations(context.packageName)) {
+            batteryOptLauncher.launch(
+                Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = "package:${context.packageName}".toUri()
+                }
+            )
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        delay(400) // даём экрану отрисоваться
+        val needsNotification = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+
+        if (needsNotification) {
+            // Запрашиваем нотификации; батарею запросим в callback выше
+            notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            // Нотификации уже есть — сразу проверяем батарею
+            val pm = context.getSystemService(PowerManager::class.java)
+            if (!pm.isIgnoringBatteryOptimizations(context.packageName)) {
+                batteryOptLauncher.launch(
+                    Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                        data = "package:${context.packageName}".toUri()
+                    }
+                )
+            }
+        }
+    }
+
+    val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
+    val showBottomSheet = rememberSaveable { mutableStateOf(false) }
+    val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    val vpnLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            viewModel.saveClientConfig(clientConfig.copy(wireproxyVpnMode = true))
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.turn_proxy_title)) },
+                actions = {
+                    IconButton(onClick = {
+                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                        showBottomSheet.value = true
+                    }) {
+                        Icon(painterResource(R.drawable.info_24px), contentDescription = stringResource(R.string.info_desc))
+                    }
+                }
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(Modifier.height(40.dp))
+
+            ProxyToggleButton(
+                state = proxyState,
+                onClick = {
+                    when (proxyState) {
+                        is ProxyState.Idle, is ProxyState.Error -> {
+                            HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
+                            if (clientConfig.wireproxyVpnMode) {
+                                val intent = VpnService.prepare(context)
+                                if (intent != null) {
+                                    vpnLauncher.launch(intent)
+                                } else {
+                                    viewModel.startProxy()
+                                }
+                            } else {
+                                viewModel.startProxy()
+                            }
+                        }
+                        is ProxyState.Running, is ProxyState.Working, is ProxyState.CaptchaRequired -> {
+                            HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_OFF)
+                            viewModel.stopProxy()
+                        }
+                        else -> {}
+                    }
+                }
+            )
+
+            Spacer(Modifier.height(20.dp))
+
+            Text(
+                text = when (proxyState) {
+                    is ProxyState.Working -> stringResource(if (customKernelExists) R.string.proxy_running else R.string.proxy_active)
+                    is ProxyState.Starting -> stringResource(R.string.proxy_starting)
+                    is ProxyState.Running -> stringResource(R.string.proxy_connecting)
+                    is ProxyState.Error -> (proxyState as ProxyState.Error).message
+                    is ProxyState.CaptchaRequired -> stringResource(R.string.proxy_captcha_required)
+                    else -> stringResource(R.string.proxy_press_to_start)
+                },
+                style = MaterialTheme.typography.titleMedium,
+                color = when (proxyState) {
+                    is ProxyState.Working -> MaterialTheme.colorScheme.primary
+                    is ProxyState.Running, is ProxyState.CaptchaRequired -> MaterialTheme.colorScheme.tertiary
+                    is ProxyState.Error -> MaterialTheme.colorScheme.error
+                    else -> MaterialTheme.colorScheme.onBackground.copy(alpha = 0.65f)
+                },
+                textAlign = TextAlign.Center
+            )
+
+            val wireproxyPing by viewModel.wireproxyPing.collectAsStateWithLifecycle()
+            val wireproxyTransfer by viewModel.wireproxyTransfer.collectAsStateWithLifecycle()
+            val wgConfig by viewModel.wgConfig.collectAsStateWithLifecycle()
+            val runningWgConfig by WireproxyServiceState.runningConfig.collectAsStateWithLifecycle()
+
+            Spacer(Modifier.height(10.dp))
+            
+            AnimatedVisibility(
+                visible = wireproxyState == WireproxyState.Running,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Column (
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Surface(
+                            onClick = {
+                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                viewModel.checkWireproxyPing()
+                            },
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            border = null
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.wifi_24px),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .offset(y = (-0.5).dp)
+                                )
+                                Box(
+                                    modifier = Modifier.widthIn(min = 48.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    when (val ping = wireproxyPing) {
+                                        is MainViewModel.PingResult.Loading -> {
+                                            CircularWavyProgressIndicator(
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+
+                                        is MainViewModel.PingResult.Success -> {
+                                            Text(
+                                                text = stringResource(R.string.ping_ms, ping.ms),
+                                                style = MaterialTheme.typography.labelLarge,
+                                                color = when {
+                                                    ping.ms < 100 -> Color(0xFF4CAF50)
+                                                    ping.ms < 300 -> Color(0xFFFFC107)
+                                                    else -> Color(0xFFF44336)
+                                                },
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+
+                                        is MainViewModel.PingResult.Error -> {
+                                            Text(
+                                                text = stringResource(R.string.ping_error),
+                                                style = MaterialTheme.typography.labelLarge,
+                                                color = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+
+                                        null -> {
+                                            Text(
+                                                text = "?",
+                                                style = MaterialTheme.typography.labelLarge,
+                                                color = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // peer receive/sent
+                    Spacer(Modifier.height(5.dp))
+                    Row (
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        val transfer = wireproxyTransfer
+                        Row (
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowDownward,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = formatBytes(transfer?.rx ?: 0L),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Row (
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowUpward,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = formatBytes(transfer?.tx ?: 0L),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+            
+            Spacer(Modifier.height(10.dp))
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+            ) {
+                Column {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp, horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    )
+                    {
+                        when(wireproxyState) {
+                            WireproxyState.Idle -> Icon(
+                                painter = painterResource(
+                                    R.drawable.stop_24px
+                                ),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(36.dp)
+                            )
+                            WireproxyState.Starting -> CircularWavyProgressIndicator(modifier = Modifier.size(36.dp))
+                            WireproxyState.Running -> Icon(
+                                painter = painterResource(
+                                    R.drawable.check_circle_24px
+                                ),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(36.dp)
+                            )
+                        }
+
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = stringResource(R.string.wireproxy_title),
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            AnimatedVisibility(
+                                visible = !wgConfig.isValid() || wireproxyState != WireproxyState.Idle,
+                                enter = fadeIn() + expandVertically(),
+                                exit = fadeOut() + shrinkVertically()
+                            ) {
+                                Text(
+                                    text = if (!wgConfig.isValid()) {
+                                        stringResource(R.string.wireproxy_config_invalid)
+                                    } else {
+                                        when (wireproxyState) {
+                                            WireproxyState.Starting -> stringResource(R.string.wireproxy_starting_state)
+                                            WireproxyState.Running -> stringResource(R.string.wireproxy_running_state)
+                                            else -> ""
+                                        }
+                                    },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Switch(
+                            checked = clientConfig.wireproxyEnabled,
+                            onCheckedChange = { enabled ->
+                                HapticUtil.perform(
+                                    context,
+                                    if (enabled) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                                )
+                                viewModel.saveClientConfig(clientConfig.copy(wireproxyEnabled = enabled))
+                            },
+                            enabled = wgConfig.isValid()
+                        )
+                    }
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp, horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .padding(start = 6.dp)
+                                .weight(1f),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(18.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.VpnKey,
+                                contentDescription = null,
+                                // tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .offset(y = (-1).dp)
+                            )
+                            Text(
+                                stringResource(R.string.vpn_mode),
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+                        Switch(checked = clientConfig.wireproxyVpnMode, onCheckedChange = { enabled ->
+                            HapticUtil.perform(
+                                context,
+                                if (enabled) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                            )
+                            if (enabled) {
+                                val intent = VpnService.prepare(context)
+                                if (intent != null) {
+                                    vpnLauncher.launch(intent)
+                                } else {
+                                    viewModel.saveClientConfig(clientConfig.copy(wireproxyVpnMode = true))
+                                }
+                            } else {
+                                viewModel.saveClientConfig(clientConfig.copy(wireproxyVpnMode = false))
+                            }
+                        })
+                    }
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+
+                    Column {
+                        Column {
+                            val wgConfig by viewModel.wgConfig.collectAsStateWithLifecycle()
+                            val clipboard = LocalClipboard.current
+                            val scope = rememberCoroutineScope()
+                            val httpCopiedText = stringResource(R.string.wireproxy_http_copied)
+                            val socks5CopiedText = stringResource(R.string.wireproxy_socks5_copied)
+
+                            if (wgConfig.httpBindAddress.isNotBlank()) {
+                                ProxyCopyRow(
+                                    label = stringResource(R.string.wireproxy_http),
+                                    address = wgConfig.httpBindAddress,
+                                    isModified = runningWgConfig != null && wgConfig.httpBindAddress != runningWgConfig?.httpBindAddress,
+                                    onCopy = {
+                                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                        scope.launch {
+                                            clipboard.setClipEntry(ClipData.newPlainText("wireproxy http", it).toClipEntry())
+                                            snackbarHostState.showSnackbar(httpCopiedText)
+                                        }
+                                    }
+                                )
+                            }
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 24.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                            )
+                            if (wgConfig.socks5BindAddress.isNotBlank()) {
+                                ProxyCopyRow(
+                                    label = stringResource(R.string.wireproxy_socks5),
+                                    address = wgConfig.socks5BindAddress,
+                                    isModified = runningWgConfig != null && wgConfig.socks5BindAddress != runningWgConfig?.socks5BindAddress,
+                                    onCopy = {
+                                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                        scope.launch {
+                                            clipboard.setClipEntry(ClipData.newPlainText("wireproxy socks5", it).toClipEntry())
+                                            snackbarHostState.showSnackbar(socks5CopiedText)
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                }
+            }
+
+            if (isConfigured) {
+                Spacer(Modifier.height(21.dp))
+
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp),
+                    elevation = CardDefaults.cardElevation(2.dp)
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Text(stringResource(R.string.current_client_settings), style = MaterialTheme.typography.titleSmall)
+                        Spacer(Modifier.height(12.dp))
+                        if (clientConfig.isRawMode) {
+                            Text(
+                                stringResource(R.string.raw_mode),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(Modifier.height(4.dp))
+
+                            // Разбираем rawCommand с группировкой параметров и значений
+                            val parts = clientConfig.rawCommand.split("\\s+".toRegex())
+                                .filter { it.isNotBlank() }
+                            val args = mutableListOf<String>()
+                            var i = 0
+                            while (i < parts.size) {
+                                val part = parts[i]
+                                if (part.startsWith("-") && i + 1 < parts.size && !parts[i + 1].startsWith(
+                                        "-"
+                                    )
+                                ) {
+                                    // Параметр со значением: объединяем в одну строку
+                                    args.add("$part ${parts[i + 1]}")
+                                    i += 2
+                                } else {
+                                    // Флаг без значения или одиночный элемент
+                                    args.add(part)
+                                    i += 1
+                                }
+                            }
+                            Column {
+                                args.forEach { arg ->
+                                    Text(
+                                        arg,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    )
+                                    Spacer(Modifier.height(4.dp))  // Небольшой отступ между аргументами
+                                }
+                            }
+                        } else {
+                            ConfigRow(
+                                stringResource(R.string.server),
+                                clientConfig.serverAddress.redact(privacyMode)
+                            )
+                            val vkLink = clientConfig.vkLink.redact(privacyMode)
+                            if (vkLink.isNotBlank()) {
+                                ConfigRow(
+                                    stringResource(R.string.call_link),
+                                    if (vkLink.length > 30) {
+                                        vkLink.take(21) + "..." + vkLink.takeLast(6)
+                                    } else {
+                                        vkLink
+                                    }
+                                )
+                            }
+                            ConfigRow(stringResource(R.string.threads), "${clientConfig.threads}")
+                            ConfigRow(
+                                stringResource(R.string.transport_protocol),
+                                if (clientConfig.vlessMode) "VLESS"
+                                else if (clientConfig.useUdp) stringResource(R.string.udp)
+                                else stringResource(R.string.tcp)
+                            )
+                            ConfigRow(
+                                stringResource(R.string.local_port),
+                                clientConfig.localPort.redact(privacyMode)
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(32.dp))
+        }
+    }
+
+    if (showBottomSheet.value) {
+        val sheetColor = MaterialTheme.colorScheme.surfaceContainerLow
+        val showRepoLinks = rememberSaveable { mutableStateOf(false) }
+
+        ModalBottomSheet(
+            onDismissRequest = { showBottomSheet.value = false },
+            sheetState = bottomSheetState,
+            containerColor = sheetColor
+        ) {
+            if (showRepoLinks.value) {
+                RepoLinksContent(
+                    containerColor = sheetColor,
+                    onBack = { showRepoLinks.value = false }
+                )
+            } else {
+                InfoBottomSheet(
+                    viewModel = viewModel,
+                    containerColor = sheetColor,
+                    privacyMode = privacyMode,
+                    onPrivacyModeChange = { viewModel.setPrivacyMode(it) },
+                    onOpenRepoLinks = { showRepoLinks.value = true }
+                )
+            }
+        }
+    }
+
+    UpdateDialogs(viewModel)
+
+}
+
+// Диалоги обновления
+
+@Composable
+private fun UpdateDialogs(viewModel: MainViewModel) {
+    val context = LocalContext.current
+    val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+
+    when (val state = updateState) {
+        is UpdateState.Available -> {
+            AlertDialog(
+                onDismissRequest = { viewModel.resetUpdateState() },
+                title = { Text(stringResource(R.string.update_available_title)) },
+                text = {
+                    Column {
+                        Text(stringResource(R.string.update_available, state.version))
+                        if (state.changelog.isNotEmpty()) {
+                            Spacer(Modifier.height(8.dp))
+                            Column(
+                                modifier = Modifier
+                                    .heightIn(max = 200.dp)
+                                    .verticalScroll(rememberScrollState())
+                            ) {
+                                Text(
+                                    state.changelog,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                        viewModel.downloadUpdate()
+                    }) { Text(stringResource(R.string.update_download)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.resetUpdateState() }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
+            )
+        }
+
+        is UpdateState.Downloading -> {
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text(stringResource(R.string.update_downloading_title)) },
+                text = {
+                    Column {
+                        Text(stringResource(R.string.update_downloading, state.progress))
+                        Spacer(Modifier.height(12.dp))
+                        LinearWavyProgressIndicator(
+                            progress = { state.progress / 100f },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                },
+                confirmButton = {}
+            )
+        }
+
+        is UpdateState.ReadyToInstall -> {
+            AlertDialog(
+                onDismissRequest = { viewModel.resetUpdateState() },
+                title = { Text(stringResource(R.string.update_ready_title)) },
+                text = { Text(stringResource(R.string.update_ready_desc)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                        viewModel.installUpdate()
+                    }) { Text(stringResource(R.string.update_install)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.resetUpdateState() }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
+            )
+        }
+
+        else -> {}
+    }
+}
+
+// Кнопка прокси
+@Composable
+private fun ProxyToggleButton(state: ProxyState, onClick: () -> Unit) {
+    val containerColor by animateColorAsState(
+        targetValue = when (state) {
+            is ProxyState.Working -> MaterialTheme.colorScheme.primary
+            is ProxyState.Running, is ProxyState.CaptchaRequired -> MaterialTheme.colorScheme.tertiary
+            is ProxyState.Error -> MaterialTheme.colorScheme.errorContainer
+            is ProxyState.Starting -> MaterialTheme.colorScheme.secondaryContainer
+            else -> MaterialTheme.colorScheme.surfaceVariant
+        },
+        animationSpec = tween(600),
+        label = "btn_bg"
+    )
+    val contentColor by animateColorAsState(
+        targetValue = when (state) {
+            is ProxyState.Working -> MaterialTheme.colorScheme.onPrimary
+            is ProxyState.Running, is ProxyState.CaptchaRequired -> MaterialTheme.colorScheme.onTertiary
+            is ProxyState.Error -> MaterialTheme.colorScheme.onErrorContainer
+            is ProxyState.Starting -> MaterialTheme.colorScheme.onSecondaryContainer
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        animationSpec = tween(600),
+        label = "btn_fg"
+    )
+    val scale by animateFloatAsState(
+        targetValue = when (state) {
+            is ProxyState.Starting -> 0.94f
+            is ProxyState.Running, is ProxyState.CaptchaRequired -> 0.96f
+            is ProxyState.Idle, is ProxyState.CaptchaRequired -> 0.98f
+            else -> 1f
+        },
+        animationSpec = spring(
+            dampingRatio = 0.3f, // Значения меньше 0.5 дают очень сильный резонанс
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "btn_scale"
+    )
+
+    // Вычисляем размер тени отдельно для анимации (опционально)
+    val elevation by animateDpAsState(
+        targetValue = if (state is ProxyState.Working) 16.dp else 6.dp,
+        label = "elevation"
+    )
+
+    Surface(
+        onClick = onClick,
+        modifier = Modifier
+            .size(148.dp)
+            .scale(scale)
+            // Использование .shadow перед .clip дает более выраженный эффект
+            .shadow(
+                elevation = elevation,
+                shape = CircleShape,
+                ambientColor = Color.Black.copy(alpha = 0.8f), // Тень вокруг
+                spotColor = Color.Black // Направленная тень
+            )
+            .clip(CircleShape),
+        shape = CircleShape,
+        color = containerColor,
+        shadowElevation = 0.dp // if (state is ProxyState.Working) 12.dp else 4.dp
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            when (state) {
+                is ProxyState.Starting, is ProxyState.Running, is ProxyState.CaptchaRequired -> CircularWavyProgressIndicator(color = contentColor)
+                is ProxyState.Working -> Icon(
+                    painterResource(R.drawable.check_circle_24px), stringResource(R.string.proxy_active_stop),
+                    Modifier.size(66.dp), tint = contentColor
+                )
+                is ProxyState.Error -> Icon(
+                    painterResource(R.drawable.error_24px), stringResource(R.string.proxy_error_restart),
+                    Modifier.size(66.dp), tint = contentColor
+                )
+                else -> Icon(
+                    painterResource(R.drawable.play_arrow_24px), stringResource(R.string.start_proxy),
+                    Modifier.size(66.dp), tint = contentColor
+                )
+            }
+        }
+    }
+}
+
+// Bottom sheet
+
+@Composable
+private fun InfoBottomSheet(
+    viewModel: MainViewModel,
+    containerColor: Color,
+    privacyMode: Boolean,
+    onPrivacyModeChange: (Boolean) -> Unit,
+    onOpenRepoLinks: () -> Unit
+) {
+    val context = LocalContext.current
+    val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+    val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
+    val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+    val showResetDialog = rememberSaveable { mutableStateOf(false) }
+
+    val appVersion = remember {
+        try { context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "—" }
+        catch (_: Exception) { "—" }
+    }
+
+    val listColors = ListItemDefaults.colors(containerColor = containerColor)
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+    ) {
+        // Ссылки на репозитории
+        item {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.repo_links)) },
+                supportingContent = { Text(stringResource(R.string.repo_links_desc)) },
+                leadingContent = {
+                    Icon(
+                        painter = painterResource(R.drawable.open_in_new_24px),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                },
+                colors = listColors,
+                modifier = Modifier.clickable {
+                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                    onOpenRepoLinks()
+                }
+            )
+        }
+
+        item { HorizontalDivider() }
+
+        // Настройки интерфейса
+        item {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.theme_title)) },
+                supportingContent = {
+                    SingleChoiceSegmentedButtonRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                    ) {
+                        ThemeMode.entries.forEachIndexed { index, mode ->
+                            SegmentedButton(
+                                selected = themeMode == mode,
+                                onClick = {
+                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                    viewModel.setThemeMode(mode)
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(
+                                    index = index,
+                                    count = ThemeMode.entries.size
+                                ),
+                                label = {
+                                    Text(
+                                        when (mode) {
+                                            ThemeMode.LIGHT -> stringResource(R.string.theme_light)
+                                            ThemeMode.DARK -> stringResource(R.string.theme_dark)
+                                            ThemeMode.SYSTEM -> stringResource(R.string.theme_system)
+                                        }
+                                    )
+                                }
+                            )
+                        }
+                    }
+                },
+                colors = listColors
+            )
+        }
+
+        item {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.dynamic_theme_title)) },
+                supportingContent = { Text(stringResource(R.string.dynamic_theme_desc)) },
+                colors = listColors,
+                trailingContent = {
+                    Switch(
+                        checked = dynamicTheme,
+                        onCheckedChange = { viewModel.setDynamicTheme(it) }
+                    )
+                }
+            )
+        }
+
+        item { HorizontalDivider() }
+
+        item {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.privacy_mode_title)) },
+                supportingContent = { Text(stringResource(R.string.privacy_mode_desc)) },
+                colors = listColors,
+                trailingContent = {
+                    Switch(
+                        checked = privacyMode,
+                        onCheckedChange = onPrivacyModeChange
+                    )
+                }
+            )
+        }
+
+        item { HorizontalDivider() }
+
+        // Обновление
+        item {
+            UpdateListItem(
+                state = updateState,
+                colors = listColors,
+                onCheck = {
+                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                    viewModel.checkForUpdate()
+                },
+                onDownload = {
+                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                    viewModel.downloadUpdate()
+                },
+                onInstall = {
+                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                    viewModel.installUpdate()
+                }
+            )
+        }
+
+        item { HorizontalDivider() }
+
+        // Сброс
+        item {
+            ListItem(
+                headlineContent = {
+                    Text(
+                        stringResource(R.string.reset_settings),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                },
+                colors = listColors,
+                trailingContent = {
+                    Icon(
+                        painterResource(R.drawable.delete_24px),
+                        contentDescription = stringResource(R.string.reset),
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                },
+                modifier = Modifier.clickable {
+                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                    showResetDialog.value = true
+                }
+            )
+        }
+
+        // Версия
+        item {
+            Text(
+                text = "v$appVersion",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+
+    if (showResetDialog.value) {
+        AlertDialog(
+            onDismissRequest = { showResetDialog.value = false },
+            title = { Text(stringResource(R.string.reset_all_settings_title)) },
+            text = { Text(stringResource(R.string.reset_all_settings_desc)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showResetDialog.value = false
+                        viewModel.resetAllSettings(context)
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) { Text(stringResource(R.string.reset)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetDialog.value = false }) { Text(stringResource(R.string.cancel)) }
+            }
+        )
+    }
+}
+
+@Composable
+private fun RepoLinksContent(
+    containerColor: Color,
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.cancel)
+                )
+            }
+            Text(
+                text = stringResource(R.string.repo_links),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(start = 8.dp)
+            )
+        }
+
+        LazyColumn {
+            item {
+                RepoLinkItem(
+                    title = stringResource(R.string.android_client),
+                    subtitle = "spkprsnts/turn-proxy-android-wireproxy",
+                    url = "https://github.com/spkprsnts/turn-proxy-android-wireproxy",
+                    containerColor = containerColor,
+                    onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
+                    onOpen = { uriHandler.openUri(it) }
+                )
+            }
+
+            item {
+                RepoLinkItem(
+                    title = stringResource(R.string.android_client_original),
+                    subtitle = "samosvalishe/turn-proxy-android",
+                    url = "https://github.com/samosvalishe/turn-proxy-android",
+                    containerColor = containerColor,
+                    onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
+                    onOpen = { uriHandler.openUri(it) }
+                )
+            }
+
+            item {
+                RepoLinkItem(
+                    title = stringResource(R.string.proxy_core),
+                    subtitle = "cacggghp/vk-turn-proxy",
+                    url = "https://github.com/cacggghp/vk-turn-proxy",
+                    containerColor = containerColor,
+                    onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
+                    onOpen = { uriHandler.openUri(it) }
+                )
+            }
+
+            item {
+                RepoLinkItem(
+                    title = stringResource(R.string.proxy_core_use),
+                    subtitle = "alxmcp/vk-turn-proxy",
+                    url = "https://github.com/alxmcp/vk-turn-proxy",
+                    containerColor = containerColor,
+                    onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
+                    onOpen = { uriHandler.openUri(it) }
+                )
+            }
+
+            item {
+                RepoLinkItem(
+                    title = stringResource(R.string.wireproxy),
+                    subtitle = "windtf/wireproxy",
+                    url = "https://github.com/windtf/wireproxy",
+                    containerColor = containerColor,
+                    onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
+                    onOpen = { uriHandler.openUri(it) }
+                )
+            }
+
+            item {
+                RepoLinkItem(
+                    title = stringResource(R.string.tun2socks),
+                    subtitle = "xjasonlyu/tun2socks",
+                    url = "https://github.com/xjasonlyu/tun2socks",
+                    containerColor = containerColor,
+                    onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
+                    onOpen = { uriHandler.openUri(it) }
+                )
+            }
+
+            item { Spacer(Modifier.height(16.dp)) }
+        }
+    }
+}
+
+// Пункт обновления в bottom sheet
+
+@Composable
+private fun UpdateListItem(
+    state: UpdateState,
+    colors: ListItemColors,
+    onCheck: () -> Unit,
+    onDownload: () -> Unit,
+    onInstall: () -> Unit
+) {
+    val supportingText = when (state) {
+        is UpdateState.Idle -> stringResource(R.string.update_tap_to_check)
+        is UpdateState.Checking -> stringResource(R.string.update_checking)
+        is UpdateState.Available -> stringResource(R.string.update_available, state.version)
+        is UpdateState.Downloading -> stringResource(R.string.update_downloading, state.progress)
+        is UpdateState.ReadyToInstall -> stringResource(R.string.update_ready_desc_short)
+        is UpdateState.NoUpdate -> stringResource(R.string.update_no_update)
+        is UpdateState.Error -> stringResource(R.string.update_error, state.message)
+    }
+
+    ListItem(
+        headlineContent = {
+            Text(stringResource(R.string.update_title), style = MaterialTheme.typography.titleSmall)
+        },
+        supportingContent = {
+            Column {
+                Text(
+                    supportingText,
+                    color = if (state is UpdateState.Error) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (state is UpdateState.Downloading) {
+                    LinearWavyProgressIndicator(
+                        progress = { state.progress / 100f },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                    )
+                }
+            }
+        },
+        trailingContent = {
+            when (state) {
+                is UpdateState.Available -> TextButton(onClick = onDownload) {
+                    Text(stringResource(R.string.update_download))
+                }
+                is UpdateState.ReadyToInstall -> TextButton(onClick = onInstall) {
+                    Text(stringResource(R.string.update_install))
+                }
+                is UpdateState.Idle, is UpdateState.NoUpdate, is UpdateState.Error ->
+                    TextButton(onClick = onCheck) {
+                        Text(stringResource(R.string.update_check))
+                    }
+                else -> {}
+            }
+        },
+        colors = colors
+    )
+}
+
+// Общие компоненты
+
+@Composable
+private fun RepoLinkItem(
+    title: String,
+    subtitle: String,
+    url: String,
+    containerColor: Color = MaterialTheme.colorScheme.surface,
+    onHaptic: () -> Unit,
+    onOpen: (String) -> Unit
+) {
+    Surface(
+        color = containerColor,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                onHaptic()
+                onOpen(url)
+            }
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
+            Icon(
+                painter = painterResource(R.drawable.open_in_new_24px),
+                contentDescription = stringResource(R.string.btn_open),
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
+
+private fun formatBytes(bytes: Long): String {
+    if (bytes <= 0) return "0 B"
+    if (bytes < 1024) return "$bytes B"
+    val exp = (Math.log(bytes.toDouble()) / Math.log(1024.0)).toInt()
+    val pre = "KMGTPE"[exp - 1]
+    return String.format(java.util.Locale.US, "%.1f %siB", bytes / Math.pow(1024.0, exp.toDouble()), pre)
+}
+
+@Composable
+internal fun String.redact(enabled: Boolean): String {
+    return if (enabled) stringResource(R.string.redacted_value) else this
+}
+
+@Composable
+private fun ConfigRow(label: String, value: String) {
+    Row(
+        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+        )
+        Text(value, style = MaterialTheme.typography.bodySmall)
+    }
+    Spacer(Modifier.height(4.dp))
+}
+
+@Composable
+private fun ProxyCopyRow(
+    label: String,
+    address: String,
+    isModified: Boolean = false,
+    onCopy: (String) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCopy(address) }
+            .padding(vertical = 12.dp, horizontal = 26.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                InlineConfigIndicator(isModified)
+            }
+            Text(
+                address,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+        Icon(
+            painter = painterResource(R.drawable.content_copy_24px),
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+        )
+    }
+}
+

@@ -1,0 +1,67 @@
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.compose)
+}
+
+android {
+    namespace = "com.wireturn.app"
+    compileSdk = project.property("project.compileSdk").toString().toInt()
+
+    defaultConfig {
+        applicationId = "com.wireturn.app"
+        minSdk = project.property("project.minSdk").toString().toInt()
+        targetSdk = project.property("project.targetSdk").toString().toInt()
+        versionCode = 30
+        versionName = "2.0.0"
+    }
+
+    packaging {
+        resources.excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+        jniLibs.useLegacyPackaging = true
+    }
+
+    buildFeatures {
+        compose = true
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+    }
+
+    lint {
+        disable += "ExpiredTargetSdkVersion"
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+    compileSdkMinor = 1
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+    }
+}
+
+dependencies {
+    implementation(libs.androidx.core.splashscreen)
+    implementation(libs.kotlinx.coroutines.android)
+
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.datastore.preferences)
+
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.bundles.compose)
+    implementation("androidx.compose.material:material-icons-extended")
+
+    debugImplementation(libs.androidx.compose.ui.tooling)
+}

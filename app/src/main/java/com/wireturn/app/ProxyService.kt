@@ -1,0 +1,462 @@
+package com.wireturn.app
+
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
+import android.content.Context
+import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.os.Build
+import android.os.Handler
+import android.os.IBinder
+import android.os.Looper
+import android.os.PowerManager
+import androidx.core.app.NotificationCompat
+import com.wireturn.app.data.AppPreferences
+import com.wireturn.app.viewmodel.WireproxyState
+import java.io.BufferedReader
+import java.io.File
+import java.io.InputStreamReader
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
+import java.util.regex.Pattern
+import kotlin.random.Random
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import java.io.InterruptedIOException
+
+sealed class StartupResult {
+    data object Success : StartupResult()
+    data class Failed(val message: String) : StartupResult()
+}
+
+class ProxyService : Service() { 
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var openAppIntent: PendingIntent? = null
+
+    private val process = AtomicReference<Process?>(null)
+    private val userStopped = AtomicBoolean(false)
+    private val sessionKillScheduled = AtomicBoolean(false)
+
+    private val handler = Handler(Looper.getMainLooper())
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    @Volatile private var networkInitialized = false
+    private var lastNetworkHandle: Long = -1
+    private var restartCount = 0
+
+    private lateinit var serviceScope: CoroutineScope
+
+    private val isStarted = AtomicBoolean(false)
+
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onCreate() {
+        super.onCreate()
+        serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+        val channel = NotificationChannel(CHANNEL_ID, "Proxy", NotificationManager.IMPORTANCE_LOW)
+        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        startSupervisor()
+    }
+
+    private fun startSupervisor() {
+        serviceScope.launch {
+            val prefs = AppPreferences(applicationContext)
+            combine(
+                ProxyServiceState.isRunning,
+                prefs.clientConfigFlow
+            ) { isRunning, cfg ->
+                isRunning && cfg.wireproxyEnabled
+            }.collect { shouldRunWireproxy ->
+                withContext(Dispatchers.Main) {
+                    if (shouldRunWireproxy) {
+                        if (WireproxyServiceState.state.value == WireproxyState.Idle) {
+                            val intent = Intent(this@ProxyService, WireproxyService::class.java)
+                            startForegroundService(intent)
+                        }
+                    } else {
+                        if (WireproxyServiceState.state.value != WireproxyState.Idle) {
+                            stopService(Intent(this@ProxyService, WireproxyService::class.java))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (isStarted.getAndSet(true)) return START_STICKY
+
+        openAppIntent = packageManager.getLaunchIntentForPackage(packageName)?.let {
+            PendingIntent.getActivity(this, 0, it, PendingIntent.FLAG_IMMUTABLE)
+        }
+        startForeground(NOTIFICATION_ID, createNotification(getString(R.string.proxy_connecting)))
+
+        ProxyServiceState.setRunning(true)
+        ProxyTileService.requestUpdate(this)
+        userStopped.set(false)
+        restartCount = 0
+
+        val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "VkTurn::BgLock")
+        wakeLock?.acquire(TimeUnit.HOURS.toMillis(24))
+
+        registerNetworkCallback()
+
+        ProxyServiceState.addLog(getString(R.string.log_proxy_start))
+        serviceScope.launch {
+            val cfg = AppPreferences(applicationContext).clientConfigFlow.first()
+            ProxyServiceState.setRunningConfig(cfg)
+            startBinaryProcess(cfg)
+        }
+
+        return START_STICKY
+    }
+
+    private suspend fun startBinaryProcess(cfg: com.wireturn.app.data.ClientConfig) {
+        if (userStopped.get()) return
+
+        val customBin = File(filesDir, "custom_vkturn")
+        val useCustom = customBin.exists()
+        val executable = if (useCustom) {
+            ProxyServiceState.addLog(getString(R.string.log_custom_kernel))
+            customBin.absolutePath
+        } else {
+            ProxyServiceState.addLog(getString(R.string.log_standard_kernel))
+            "${applicationInfo.nativeLibraryDir}/libvkturn.so"
+        }
+
+        val cmdArgs = mutableListOf<String>()
+
+        if (cfg.isRawMode) {
+            val parts = cfg.rawCommand.trim().split("\\s+".toRegex())
+            cmdArgs.add(executable)
+            if (parts.isNotEmpty()) cmdArgs.addAll(parts.subList(0, parts.size))
+        } else {
+            cmdArgs.add(executable)
+            cmdArgs.add("-peer"); cmdArgs.add(cfg.serverAddress)
+
+            if (cfg.vkLink.contains("yandex")) {
+                cmdArgs.add("-yandex-link")
+                cmdArgs.add(cfg.vkLink)
+                if (cfg.telemostDc) cmdArgs.add("-telemost-dc")
+            } else {
+                cmdArgs.add("-vk-link")
+                cmdArgs.add(cfg.vkLink)
+                if (cfg.manualCaptcha) cmdArgs.add("--manual-captcha")
+            }
+            cmdArgs.add("-listen"); cmdArgs.add(cfg.localPort)
+            if (cfg.threads > 0) { cmdArgs.add("-n"); cmdArgs.add(cfg.threads.toString()) }
+            if (cfg.vlessMode) cmdArgs.add("-vless")
+            else if (cfg.useUdp) cmdArgs.add("-udp")
+            if (cfg.noDtls) cmdArgs.add("-no-dtls")
+            if (cfg.forceTurnPort443) { cmdArgs.add("-port"); cmdArgs.add("443") }
+        }
+
+        // Кастомное ядро лежит в filesDir, откуда SELinux (untrusted_app) запрещает execve.
+        // Запускаем через системный линкер: /system/bin/linker* — ему execve разрешён,
+        // а целевой ELF мапится как данные. Работает для PIE-бинарников
+        // (Go-сборки android/arm64 PIE по умолчанию).
+        if (useCustom) {
+            val linker = if (Build.SUPPORTED_ABIS.firstOrNull()?.contains("64") == true) {
+                "/system/bin/linker64"
+            } else {
+                "/system/bin/linker"
+            }
+            cmdArgs.add(0, linker)
+        }
+
+        var exitCode = -1
+        val startedAt = System.currentTimeMillis()
+        var startupEmitted = false
+        var startupFailed = false
+        var captchaActive = false
+        var captchaSessionCounter = 0L
+        try {
+            ProxyServiceState.addLog(getString(R.string.log_command, cmdArgs.joinToString(" ")))
+
+            val proc = withContext(Dispatchers.IO) {
+                ProcessBuilder(cmdArgs)
+                    .redirectErrorStream(true)
+                    .start()
+            }
+            process.set(proc)
+
+            if (useCustom) {
+                ProxyServiceState.setWorking(true)
+                ProxyTileService.requestUpdate(this)
+            }
+
+            BufferedReader(InputStreamReader(proc.inputStream)).use { reader ->
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    val l = line ?: continue
+                    ProxyServiceState.addLog(l)
+
+                    if (!useCustom && (l.contains("Established") || l.contains("listening on")) && !l.contains("[Wireproxy]")) {
+                        ProxyServiceState.setWorking(true)
+                        ProxyTileService.requestUpdate(this)
+                    }
+
+                    // Старт новой капча-сессии: бинарник логирует это перед открытием
+                    // локального HTTP-сервера капчи. Сам URL прилетает следующей строкой.
+                    if (l.contains("Triggering manual captcha fallback")) {
+                        captchaActive = true
+                    }
+
+                    // Детекция URL ручной капчи. Каждый раз выдаём новый sessionId,
+                    // чтобы диалог пересоздавал WebView, даже если URL не поменялся
+                    // (бинарник всегда использует http://localhost:8765).
+                    val captchaMatcher = CAPTCHA_URL_REGEX.matcher(l)
+                    if (captchaMatcher.find()) {
+                        val url = captchaMatcher.group(1)!!
+                        captchaSessionCounter += 1
+                        ProxyServiceState.setCaptchaSession(
+                            CaptchaSession(url, captchaSessionCounter)
+                        )
+                        captchaActive = true
+                        ProxyTileService.requestUpdate(this)
+                    }
+
+                    // Капча-сессия закончилась: бинарник либо завершил auth-чейн
+                    // (Failed/Success), либо сама капча провалилась (timeout). Закрываем
+                    // диалог — следующая капча-сессия откроет его заново через новый sessionId.
+                    if (captchaActive && (
+                            l.contains("[VK Auth] Failed") ||
+                            l.contains("[VK Auth] Success") ||
+                            (l.contains("[Captcha]") && l.contains("failed"))
+                        )) {
+                        ProxyServiceState.setCaptchaSession(null)
+                        captchaActive = false
+                    }
+
+                    if (!startupEmitted) {
+                        val lower = l.lowercase()
+                        if (lower.contains("panic") || lower.contains("fatal") ||
+                            lower.contains("rate limit")) {
+                            ProxyServiceState.setStartupResult(StartupResult.Failed(l))
+                            updateNotification(getString(R.string.error_connecting))
+                            startupFailed = true
+                        } else {
+                            ProxyServiceState.setStartupResult(StartupResult.Success)
+                            updateNotification(getString(R.string.proxy_active))
+                        }
+                        startupEmitted = true
+                    }
+
+                    // compareAndSet гарантирует единственный postDelayed даже при параллельных quota-ошибках
+                    if (isQuotaError(l) && sessionKillScheduled.compareAndSet(false, true)) {
+                        ProxyServiceState.addLog(getString(R.string.log_quota_error))
+                        handler.postDelayed({
+                            sessionKillScheduled.set(false)
+                            if (!userStopped.get()) {
+                                restartCount = 0
+                                process.get()?.destroyForcibly()
+                            }
+                        }, 2_000)
+                    }
+                }
+            }
+
+            exitCode = if (withContext(Dispatchers.IO) {
+                    proc.waitFor(5, TimeUnit.MINUTES)
+                }) proc.exitValue() else -1
+            ProxyServiceState.addLog(getString(R.string.log_process_stopped, exitCode))
+            if (!startupEmitted) {
+                ProxyServiceState.setStartupResult(StartupResult.Failed(
+                    getString(R.string.error_process_no_output, exitCode)))
+            }
+
+        } catch (_: InterruptedIOException) {
+            // pass
+        } catch (e: Exception) {
+            val msg = e.message ?: ""
+            if (msg.contains("error=13") || msg.contains("Permission denied")) {
+                ProxyServiceState.addLog(getString(R.string.error_kernel_permission_denied))
+                ProxyServiceState.setStartupResult(StartupResult.Failed(msg))
+                startupFailed = true
+            } else {
+                ProxyServiceState.addLog(getString(R.string.error_critical_format, e.message))
+            }
+        } finally {
+            ProxyServiceState.setCaptchaSession(null)
+            process.set(null)
+            when {
+                userStopped.get() -> {
+                    ProxyServiceState.setRunning(false)
+                    stopSelf()
+                }
+                startupFailed -> {
+                    ProxyServiceState.addLog(getString(R.string.log_startup_failed_no_watchdog))
+                    ProxyServiceState.setRunning(false)
+                    stopSelf()
+                }
+                exitCode == 0 -> {
+                    val uptime = System.currentTimeMillis() - startedAt
+                    if (uptime < 5_000L) {
+                        ProxyServiceState.addLog(getString(R.string.log_quick_exit, uptime))
+                    } else {
+                        ProxyServiceState.addLog(getString(R.string.log_session_finished))
+                    }
+                    ProxyServiceState.setRunning(false)
+                    stopSelf()
+                }
+                else -> scheduleWatchdogRestart()
+            }
+        }
+    }
+
+    // Watchdog
+
+    private fun scheduleWatchdogRestart() {
+        restartCount++
+        if (restartCount > MAX_RESTARTS) {
+            ProxyServiceState.addLog(getString(R.string.log_watchdog_limit, MAX_RESTARTS))
+            ProxyServiceState.setRunning(false)
+            ProxyServiceState.emitFailed()
+            stopSelf()
+            return
+        }
+        ProxyServiceState.setWorking(false)
+        ProxyTileService.requestUpdate(this)
+        val baseDelay = minOf(1_000L * restartCount, 30_000L)
+        val jitter = Random.nextLong(0, 500)
+        val delay = baseDelay + jitter
+        ProxyServiceState.addLog(getString(R.string.log_watchdog_restart, delay, restartCount, MAX_RESTARTS))
+        updateNotification(getString(R.string.notification_reconnecting, restartCount, MAX_RESTARTS))
+        handler.postDelayed({
+            if (!userStopped.get()) serviceScope.launch { 
+                val cfg = AppPreferences(applicationContext).clientConfigFlow.first()
+                ProxyServiceState.setRunningConfig(cfg)
+                startBinaryProcess(cfg) 
+            }
+        }, delay)
+    }
+
+    // Network handover
+
+    private var networkDebounceJob: Job? = null
+
+    private fun registerNetworkCallback() {
+        networkInitialized = false
+        lastNetworkHandle = -1
+        val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+        val cb = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                val capabilities = cm.getNetworkCapabilities(network)
+                if (capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true) {
+                    return
+                }
+
+                val handle = network.getNetworkHandle()
+                if (handle == lastNetworkHandle) {
+                    return
+                }
+                lastNetworkHandle = handle
+
+                if (!networkInitialized) {
+                    networkInitialized = true
+                    return
+                }
+                
+                networkDebounceJob?.cancel()
+                networkDebounceJob = serviceScope.launch {
+                    delay(2000)
+                    if (!userStopped.get() && process.get() != null) {
+                        ProxyServiceState.addLog(getString(R.string.log_network_change))
+                        updateNotification(getString(R.string.notification_network_change))
+                        restartCount = 0
+                        val p = process.get()
+                        p?.destroyForcibly()
+                    }
+                }
+            }
+        }
+        networkCallback = cb
+        cm.registerDefaultNetworkCallback(cb)
+    }
+
+    private fun unregisterNetworkCallback() {
+        networkCallback?.let { cb ->
+            try {
+                (getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager)
+                    .unregisterNetworkCallback(cb)
+            } catch (_: Exception) {}
+        }
+        networkCallback = null
+    }
+
+    // Notification
+
+    private fun createNotification(text: String) = NotificationCompat.Builder(this, CHANNEL_ID)
+        .setContentTitle(getString(R.string.notification_title))
+        .setContentText(text)
+        .setSmallIcon(android.R.drawable.ic_menu_preferences)
+        .setOngoing(true)
+        .setContentIntent(openAppIntent)
+        .build()
+
+    private fun updateNotification(text: String) {
+        val notification = createNotification(text)
+        getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification)
+    }
+
+    // Helpers
+
+    private fun isQuotaError(line: String): Boolean {
+        val l = line.lowercase()
+        return l.contains("486") || l.contains("quota") || l.contains("allocation quota")
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        isStarted.set(false)
+        userStopped.set(true)
+        ProxyServiceState.setWorking(false)
+        ProxyServiceState.setRunning(false)
+
+        // Explicitly stop child service because the supervisor scope is about to be cancelled
+        stopService(Intent(this, WireproxyService::class.java))
+
+        ProxyTileService.requestUpdate(this)
+        handler.removeCallbacksAndMessages(null)
+        unregisterNetworkCallback()
+        ProxyServiceState.addLog(getString(R.string.log_stop_ui))
+        process.get()?.destroyForcibly()
+        serviceScope.cancel()
+        if (wakeLock?.isHeld == true) wakeLock?.release()
+    }
+    
+    companion object {
+        private const val NOTIFICATION_ID = 1
+        private const val CHANNEL_ID = "ProxyChannel"
+        const val MAX_RESTARTS = 8
+        // Жёстко привязываемся к строке-объявлению капчи в бинарнике, чтобы
+        // случайные localhost-URL в других логах не открывали диалог.
+        private val CAPTCHA_URL_REGEX =
+            Pattern.compile("""Open this URL in your browser:\s*(https?://\S+)""")
+
+        fun start(context: Context, cfg: com.wireturn.app.data.ClientConfig) {
+            cfg.getValidationErrorResId()?.let { errorRes ->
+                ProxyServiceState.setStartupResult(StartupResult.Failed(context.getString(errorRes)))
+                return
+            }
+
+            ProxyServiceState.clearLogs()
+            ProxyServiceState.setStartupResult(null)
+
+            val serviceIntent = Intent(context, ProxyService::class.java)
+            context.startForegroundService(serviceIntent)
+        }
+
+        fun stop(context: Context) {
+            context.stopService(Intent(context, ProxyService::class.java))
+            // Wireproxy and VPN will be stopped by supervisors because states will change
+        }
+    }
+}
+

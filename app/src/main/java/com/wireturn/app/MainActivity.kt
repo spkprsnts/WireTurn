@@ -1,0 +1,58 @@
+package com.wireturn.app
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.navigation.AppNavigation
+import com.wireturn.app.ui.navigation.Routes
+import com.wireturn.app.ui.theme.wireturnTheme
+import com.wireturn.app.viewmodel.MainViewModel
+
+class MainActivity : ComponentActivity() {
+
+    private val viewModel: MainViewModel by viewModels()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
+        super.onCreate(savedInstanceState)
+
+        // Обработка перехода из плитки (QS Tile)
+        val fromTile = intent?.action == "android.service.quicksettings.action.QS_TILE_PREFERENCES"
+        
+        // Удерживаем системный splash пока ViewModel не инициализируется
+        splashScreen.setKeepOnScreenCondition { !viewModel.isInitialized.value }
+
+        HapticUtil.perform(this, HapticUtil.Pattern.LAUNCH)
+        enableEdgeToEdge()
+        setContent {
+            val isInitialized by viewModel.isInitialized.collectAsStateWithLifecycle()
+            val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+            val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
+
+            wireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    if (isInitialized) {
+                        AppNavigation(
+                            viewModel = viewModel,
+                            startDestination = if (fromTile) Routes.HOME else null
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
