@@ -109,10 +109,6 @@ fun OnboardingScreen(
                 )
 
                 Spacer(Modifier.height(28.dp))
-
-                Text(stringResource(R.string.mod_by_speakpresents), style = MaterialTheme.typography.labelSmall)
-
-                Spacer(Modifier.height(28.dp))
             }
 
             // Action buttons

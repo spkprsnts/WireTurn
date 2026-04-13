@@ -138,7 +138,6 @@
     <!-- OnboardingScreen -->
     <string name="onboarding_title">Turn Proxy with Wireproxy</string>
     <string name="onboarding_subtitle">Проксируйте WireGuard‑трафик\nчерез TURN‑серверы VK Calls</string>
-    <string name="mod_by_speakpresents">mod by speakpresents</string>
     <string name="start">Начать</string>
 
     <!-- Update -->
