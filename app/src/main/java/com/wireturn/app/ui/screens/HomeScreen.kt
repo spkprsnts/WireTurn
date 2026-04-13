@@ -90,11 +90,6 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import android.content.ClipData
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -383,7 +378,7 @@ fun HomeScreen(
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.ArrowDownward,
+                                painter = painterResource(R.drawable.arrow_downward_24px),
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                                 modifier = Modifier.size(14.dp)
@@ -399,7 +394,7 @@ fun HomeScreen(
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.ArrowUpward,
+                                painter = painterResource(R.drawable.arrow_upward_24px),
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                                 modifier = Modifier.size(14.dp)
@@ -511,7 +506,7 @@ fun HomeScreen(
                             horizontalArrangement = Arrangement.spacedBy(18.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.VpnKey,
+                                painter = painterResource(R.drawable.vpn_key_24px),
                                 contentDescription = null,
                                 // tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier
@@ -1106,7 +1101,7 @@ private fun RepoLinksContent(
         ) {
             IconButton(onClick = onBack) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    painter = painterResource(R.drawable.arrow_back_24px),
                     contentDescription = stringResource(R.string.cancel)
                 )
             }
