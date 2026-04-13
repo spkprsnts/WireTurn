@@ -548,24 +548,6 @@ fun HomeScreen(
                             val httpCopiedText = stringResource(R.string.wireproxy_http_copied)
                             val socks5CopiedText = stringResource(R.string.wireproxy_socks5_copied)
 
-                            if (wgConfig.httpBindAddress.isNotBlank()) {
-                                ProxyCopyRow(
-                                    label = stringResource(R.string.wireproxy_http),
-                                    address = wgConfig.httpBindAddress,
-                                    isModified = runningWgConfig != null && wgConfig.httpBindAddress != runningWgConfig?.httpBindAddress,
-                                    onCopy = {
-                                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                        scope.launch {
-                                            clipboard.setClipEntry(ClipData.newPlainText("wireproxy http", it).toClipEntry())
-                                            snackbarHostState.showSnackbar(httpCopiedText)
-                                        }
-                                    }
-                                )
-                            }
-                            HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 24.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                            )
                             if (wgConfig.socks5BindAddress.isNotBlank()) {
                                 ProxyCopyRow(
                                     label = stringResource(R.string.wireproxy_socks5),
@@ -576,6 +558,24 @@ fun HomeScreen(
                                         scope.launch {
                                             clipboard.setClipEntry(ClipData.newPlainText("wireproxy socks5", it).toClipEntry())
                                             snackbarHostState.showSnackbar(socks5CopiedText)
+                                        }
+                                    }
+                                )
+                            }
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 24.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                            )
+                            if (wgConfig.httpBindAddress.isNotBlank()) {
+                                ProxyCopyRow(
+                                    label = stringResource(R.string.wireproxy_http),
+                                    address = wgConfig.httpBindAddress,
+                                    isModified = runningWgConfig != null && wgConfig.httpBindAddress != runningWgConfig?.httpBindAddress,
+                                    onCopy = {
+                                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                        scope.launch {
+                                            clipboard.setClipEntry(ClipData.newPlainText("wireproxy http", it).toClipEntry())
+                                            snackbarHostState.showSnackbar(httpCopiedText)
                                         }
                                     }
                                 )
