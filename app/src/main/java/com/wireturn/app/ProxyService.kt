@@ -137,10 +137,14 @@ class ProxyService : Service() {
             cmdArgs.add(executable)
             cmdArgs.add("-peer"); cmdArgs.add(cfg.serverAddress)
 
-            if (cfg.vkLink.contains("yandex")) {
+            if (cfg.isJazz) {
+                cmdArgs.add("-jazz-room")
+                cmdArgs.add(cfg.jazzCreds)
+                if (cfg.dcMode) cmdArgs.add("-dc")
+            } else if (cfg.vkLink.contains("telemost.yandex")) {
                 cmdArgs.add("-yandex-link")
                 cmdArgs.add(cfg.vkLink)
-                if (cfg.telemostDc) cmdArgs.add("-telemost-dc")
+                if (cfg.dcMode) cmdArgs.add("-dc")
             } else {
                 cmdArgs.add("-vk-link")
                 cmdArgs.add(cfg.vkLink)
@@ -173,9 +177,10 @@ class ProxyService : Service() {
             ProxyServiceState.addLog(getString(R.string.log_command, cmdArgs.joinToString(" ")))
 
             val proc = withContext(Dispatchers.IO) {
-                ProcessBuilder(cmdArgs)
-                    .redirectErrorStream(true)
-                    .start()
+                val builder = ProcessBuilder(cmdArgs)
+                builder.redirectErrorStream(true)
+
+                builder.start()
             }
             process.set(proc)
 
@@ -190,11 +195,16 @@ class ProxyService : Service() {
                     val l = line ?: continue
                     ProxyServiceState.addLog(l)
 
-                    if (!useCustom && (l.contains("Established") || l.contains("listening on")) && !l.contains("[Wireproxy]")) {
-                        ProxyServiceState.setWorking(true)
-                        ProxyTileService.requestUpdate(this)
+                    if (!useCustom && !l.contains("[wireproxy]")) {
+                        if (l.contains("Established", ignoreCase = true) || l.contains("listening on") || l.contains("DataChannel connected")) {
+                            ProxyServiceState.setWorking(true)
+                            ProxyTileService.requestUpdate(this)
+                        }
+                        if (l.contains("DataChannel closed", ignoreCase = true)) {
+                            ProxyServiceState.setWorking(false)
+                            ProxyTileService.requestUpdate(this)
+                        }
                     }
-
                     if (l.contains("Triggering manual captcha fallback")) {
                         captchaActive = true
                     }

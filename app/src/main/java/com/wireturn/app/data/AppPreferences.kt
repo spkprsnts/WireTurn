@@ -18,23 +18,31 @@ data class ClientConfig(
     val serverAddress: String = "",
     val vkLink: String = "",
     val threads: Int = 4,
-    val useUdp: Boolean = true,
+    val useUdp: Boolean = false,
     val noDtls: Boolean = false,
     val manualCaptcha: Boolean = false,
     val localPort: String = "127.0.0.1:9000",
     val isRawMode: Boolean = false,
     val rawCommand: String = "",
     val vlessMode: Boolean = false,
-    val telemostDc: Boolean = true,
+    val dcMode: Boolean = true,
     val forceTurnPort443: Boolean = false,
     val wireproxyEnabled: Boolean = false,
-    val wireproxyVpnMode: Boolean = false
+    val wireproxyVpnMode: Boolean = false,
+    val isJazz: Boolean = false,
+    val jazzCreds: String = ""
 ) {
     fun getValidationErrorResId(): Int? {
         return if (isRawMode) {
             if (rawCommand.isBlank()) com.wireturn.app.R.string.error_raw_empty else null
         } else {
-            if (serverAddress.isBlank() || vkLink.isBlank()) com.wireturn.app.R.string.error_settings_empty else null
+            if (isJazz) {
+                if (jazzCreds.isBlank()) com.wireturn.app.R.string.error_settings_empty else null
+            } else {
+                if (vkLink.contains("telemost.yandex", ignoreCase = true)) null else {
+                    if (serverAddress.isBlank() || vkLink.isBlank()) com.wireturn.app.R.string.error_settings_empty else null
+                }
+            }
         }
     }
 }
@@ -156,7 +164,7 @@ class AppPreferences(context: Context) {
         val CLIENT_IS_RAW = booleanPreferencesKey("client_is_raw")
         val CLIENT_RAW_CMD = stringPreferencesKey("client_raw_cmd")
         val CLIENT_VLESS = booleanPreferencesKey("client_vless")
-        val CLIENT_TELEMOST_DC = booleanPreferencesKey("client_telemost_dc")
+        val CLIENT_DC_MODE = booleanPreferencesKey("client_dc_mode")
         val CLIENT_FORCE_PORT_443 = booleanPreferencesKey("client_force_port_443")
         val DYNAMIC_THEME = booleanPreferencesKey("dynamic_theme")
         val THEME_MODE = stringPreferencesKey("theme_mode")
@@ -174,6 +182,9 @@ class AppPreferences(context: Context) {
         val WIRE_HTTP_BIND = stringPreferencesKey("wire_http_bind")
         val VK_LINK_HISTORY = stringPreferencesKey("vk_link_history")
         val SERVER_ADDR_HISTORY = stringPreferencesKey("server_addr_history")
+        val JAZZ_CREDS_HISTORY = stringPreferencesKey("jazz_creds_history")
+        val CLIENT_IS_JAZZ = booleanPreferencesKey("client_is_jazz")
+        val CLIENT_JAZZ_CREDS = stringPreferencesKey("client_jazz_creds")
         val BATTERY_NOTIFICATION_DISMISSED = booleanPreferencesKey("battery_notification_dismissed")
     }
 
@@ -191,10 +202,12 @@ class AppPreferences(context: Context) {
                 isRawMode = prefs[CLIENT_IS_RAW] ?: false,
                 rawCommand = prefs[CLIENT_RAW_CMD] ?: "",
                 vlessMode = prefs[CLIENT_VLESS] ?: false,
-                telemostDc = prefs[CLIENT_TELEMOST_DC] ?: true,
+                dcMode = prefs[CLIENT_DC_MODE] ?: true,
                 forceTurnPort443 = prefs[CLIENT_FORCE_PORT_443] ?: false,
                 wireproxyEnabled = prefs[WIREPROXY_ENABLED] ?: false,
-                wireproxyVpnMode = prefs[WIREPROXY_VPN_MODE] ?: false
+                wireproxyVpnMode = prefs[WIREPROXY_VPN_MODE] ?: false,
+                isJazz = prefs[CLIENT_IS_JAZZ] ?: false,
+                jazzCreds = prefs[CLIENT_JAZZ_CREDS] ?: ""
             )
         }
 
@@ -249,6 +262,14 @@ class AppPreferences(context: Context) {
             else historyString.split("|").filter { it.isNotBlank() }
         }
 
+    val jazzCredsHistoryFlow: Flow<List<String>> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { prefs ->
+            val historyString = prefs[JAZZ_CREDS_HISTORY] ?: ""
+            if (historyString.isBlank()) emptyList()
+            else historyString.split("|").filter { it.isNotBlank() }
+        }
+
     suspend fun addVkLinkToHistory(link: String) {
         if (link.isBlank()) return
         context.dataStore.edit { prefs ->
@@ -264,6 +285,15 @@ class AppPreferences(context: Context) {
             val currentHistory = prefs[SERVER_ADDR_HISTORY]?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
             val newHistory = (listOf(address) + currentHistory.filter { it != address }).take(3)
             prefs[SERVER_ADDR_HISTORY] = newHistory.joinToString("|")
+        }
+    }
+
+    suspend fun addJazzCredsToHistory(creds: String) {
+        if (creds.isBlank()) return
+        context.dataStore.edit { prefs ->
+            val currentHistory = prefs[JAZZ_CREDS_HISTORY]?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
+            val newHistory = (listOf(creds) + currentHistory.filter { it != creds }).take(3)
+            prefs[JAZZ_CREDS_HISTORY] = newHistory.joinToString("|")
         }
     }
 
@@ -283,6 +313,14 @@ class AppPreferences(context: Context) {
         }
     }
 
+    suspend fun removeJazzCredsFromHistory(creds: String) {
+        context.dataStore.edit { prefs ->
+            val currentHistory = prefs[JAZZ_CREDS_HISTORY]?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
+            val newHistory = currentHistory.filter { it != creds }
+            prefs[JAZZ_CREDS_HISTORY] = newHistory.joinToString("|")
+        }
+    }
+
     suspend fun saveClientConfig(config: ClientConfig) {
         context.dataStore.edit { prefs ->
             prefs[CLIENT_SERVER_ADDR] = config.serverAddress
@@ -295,10 +333,12 @@ class AppPreferences(context: Context) {
             prefs[CLIENT_IS_RAW] = config.isRawMode
             prefs[CLIENT_RAW_CMD] = config.rawCommand
             prefs[CLIENT_VLESS] = config.vlessMode
-            prefs[CLIENT_TELEMOST_DC] = config.telemostDc
+            prefs[CLIENT_DC_MODE] = config.dcMode
             prefs[CLIENT_FORCE_PORT_443] = config.forceTurnPort443
             prefs[WIREPROXY_ENABLED] = config.wireproxyEnabled
             prefs[WIREPROXY_VPN_MODE] = config.wireproxyVpnMode
+            prefs[CLIENT_IS_JAZZ] = config.isJazz
+            prefs[CLIENT_JAZZ_CREDS] = config.jazzCreds
         }
     }
 

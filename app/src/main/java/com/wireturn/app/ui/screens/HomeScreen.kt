@@ -130,7 +130,10 @@ fun HomeScreen(
     val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
     val batteryNotificationDismissed by viewModel.batteryNotificationDismissed.collectAsStateWithLifecycle()
     val customKernelExists by viewModel.customKernelExists.collectAsStateWithLifecycle()
+
+    val isTelemost = clientConfig.vkLink.contains("telemost.yandex", ignoreCase = true)
     val isConfigured = clientConfig.serverAddress.isNotBlank() || (clientConfig.isRawMode && clientConfig.rawCommand.isNotBlank())
+            || isTelemost || (clientConfig.isJazz && clientConfig.jazzCreds.isNotBlank())
 
     val lifecycleOwner = LocalLifecycleOwner.current
     val batteryOptLauncher = rememberLauncherForActivityResult(
@@ -740,21 +743,30 @@ fun HomeScreen(
                                 stringResource(R.string.server),
                                 clientConfig.serverAddress.redact(privacyMode)
                             )
-                            val vkLink = clientConfig.vkLink.redact(privacyMode)
-                            if (vkLink.isNotBlank()) {
+                            val jazzCreds = clientConfig.jazzCreds.redact(privacyMode)
+                            if (clientConfig.isJazz) {
                                 ConfigRow(
-                                    stringResource(R.string.call_link),
-                                    if (vkLink.length > 30) {
-                                        vkLink.take(21) + "..." + vkLink.takeLast(6)
-                                    } else {
-                                        vkLink
-                                    }
+                                    stringResource(R.string.jazz_room),
+                                    if (jazzCreds.isNotBlank()) jazzCreds else stringResource(R.string.not_set)
                                 )
+                            } else {
+                                val vkLink = clientConfig.vkLink.redact(privacyMode)
+                                if (clientConfig.vkLink.isNotBlank()) {
+                                    ConfigRow(
+                                        stringResource(R.string.call_link),
+                                        if (vkLink.length > 30) {
+                                            vkLink.take(21) + "..." + vkLink.takeLast(6)
+                                        } else {
+                                            if (vkLink.isNotBlank()) vkLink else stringResource(R.string.not_set)
+                                        }
+                                    )
+                                }
                             }
                             ConfigRow(stringResource(R.string.threads), "${clientConfig.threads}")
                             ConfigRow(
                                 stringResource(R.string.transport_protocol),
-                                if (clientConfig.vlessMode) "VLESS"
+                                if (clientConfig.vlessMode) stringResource(R.string.vless)
+                                else if (clientConfig.dcMode) stringResource(R.string.dc)
                                 else if (clientConfig.useUdp) stringResource(R.string.udp)
                                 else stringResource(R.string.tcp)
                             )

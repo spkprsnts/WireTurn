@@ -205,6 +205,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val serverAddressHistory: StateFlow<List<String>> = prefs.serverAddressHistoryFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    val jazzCredsHistory: StateFlow<List<String>> = prefs.jazzCredsHistoryFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     private val _privacyMode = MutableStateFlow(false)
     val privacyMode: StateFlow<Boolean> = _privacyMode.asStateFlow()
 
@@ -213,7 +216,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun startProxy() {
         viewModelScope.launch {
             val cfg = clientConfig.value
-            prefs.addVkLinkToHistory(cfg.vkLink)
+            if (cfg.isJazz) {
+                prefs.addJazzCredsToHistory(cfg.jazzCreds)
+            } else {
+                prefs.addVkLinkToHistory(cfg.vkLink)
+            }
             prefs.addServerAddressToHistory(cfg.serverAddress)
             proxyManager.startProxy(cfg)
         }
@@ -228,6 +235,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun saveClientConfig(config: ClientConfig) { viewModelScope.launch { prefs.saveClientConfig(config) } }
     fun removeVkLinkFromHistory(link: String) { viewModelScope.launch { prefs.removeVkLinkFromHistory(link) } }
     fun removeServerAddressFromHistory(address: String) { viewModelScope.launch { prefs.removeServerAddressFromHistory(address) } }
+    fun removeJazzCredsFromHistory(creds: String) { viewModelScope.launch { prefs.removeJazzCredsFromHistory(creds) } }
     fun setOnboardingDone() { viewModelScope.launch { prefs.setOnboardingDone(true) } }
     fun setBatteryNotificationDismissed(dismissed: Boolean) { viewModelScope.launch { prefs.setBatteryNotificationDismissed(dismissed) } }
 

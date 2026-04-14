@@ -106,8 +106,8 @@
     <string name="vk_link_support">VK: Звонки → Создать → Скопировать ссылку (не нажимайте «Завершить»)</string>
     <string name="history_label">История</string>
     <string name="history_empty">История пуста</string>
-    <string name="telemost_dc_label">Telemost DC</string>
-    <string name="telemost_dc_desc">Использовать Datachannel для передачи данных в Telemost</string>
+    <string name="dc_mode_label">DC Mode</string>
+    <string name="dc_mode_desc">Использовать DataChannel для передачи данных (Yandex/Salute)</string>
     <string name="local_listen_address">Локальный адрес прослушивания</string>
     <string name="local_listen_placeholder">127.0.0.1:9000</string>
     <string name="local_listen_support">Адрес, на котором клиент принимает трафик от WireGuard/Hysteria</string>
@@ -124,6 +124,12 @@
     <string name="manual_captcha_desc">Решать капчу вручную вместо автоматического распознавания</string>
     <string name="force_turn_port_443">TURN-порт 443</string>
     <string name="force_turn_port_443_desc">Использовать порт 443 вместо стандартного.\nПомогает в сетях, где порт 19302 заблокирован</string>
+    <string name="jazz_label">SaluteJazz</string>
+    <string name="jazz_desc">Использовать SaluteJazz</string>
+    <string name="jazz_creds_label">Данные для SaluteJazz</string>
+    <string name="jazz_creds_placeholder">room:password</string>
+    <string name="jazz_creds_support">Генерируется на сервере</string>
+    <string name="jazz_room">Комната SaluteJazz</string>
     <string name="core_title">Ядро</string>
     <string name="custom_core">Кастомное ядро</string>
     <string name="builtin_core">Встроенное ядро</string>
@@ -216,6 +222,9 @@
     <string name="notification_reconnecting">Переподключение (%1$d/%2$d)…</string>
     <string name="notification_network_change">Смена сети, переподключение…</string>
     <string name="error_with_details">%1$s: %2$s</string>
+    <string name="vless">VLESS</string>
+    <string name="dc">DC</string>
     <string name="redacted_value">••••••</string>
+    <string name="not_set">не задано</string>
 
 </resources>

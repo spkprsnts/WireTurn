@@ -191,6 +191,8 @@ fun WireproxyConfigScreen(
                                 if (text.isNotBlank()) {
                                     viewModel.updateWgConfigText(text)
                                     snackbarHostState.showSnackbar(context.getString(R.string.wireproxy_import_success))
+                                } else {
+                                    snackbarHostState.showSnackbar(context.getString(R.string.wireproxy_import_error))
                                 }
                             }
                         }
