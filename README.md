@@ -30,9 +30,9 @@ Android-клиент для [vk-turn-proxy](https://github.com/cacggghp/vk-turn-
 ## Требования
 
 - Android 8.0+ (API 26)
-- ARM64-устройство (arm64-v8a)
+- Архитектуры: arm64-v8a, armeabi-v7a, x86_64
 - VPS с установленным WireGuard или Hysteria
-- Ссылка на звонок
+- Ссылка на звонок / данные для DataChannel
 
 ## Быстрый старт
 
@@ -40,6 +40,7 @@ Android-клиент для [vk-turn-proxy](https://github.com/cacggghp/vk-turn-
 
 Установите и запустите серверную часть на VPS:
 
+**Обычный режим (через ссылку на звонок):**
 ```bash
 # Скачать бинарник
 wget https://github.com/cacggghp/vk-turn-proxy/releases/latest/download/server-linux-amd64
@@ -48,6 +49,9 @@ wget https://github.com/cacggghp/vk-turn-proxy/releases/latest/download/server-l
 chmod +x server-linux-amd64
 nohup ./server-linux-amd64 -listen 0.0.0.0:56000 -connect 127.0.0.1:<порт_wg> > server.log 2>&1 &
 ```
+
+**Режим DataChannel (DC):**
+Для запуска в этом режиме необходим сервер из ветки [alxmcp/vk-turn-proxy/tree/dc](https://github.com/alxmcp/vk-turn-proxy/tree/dc). Подробные параметры запуска описаны в [инструкции к DC-версии](https://github.com/alxmcp/vk-turn-proxy/tree/dc?tab=readme-ov-file#datachannel).
 
 ### 2. Android-клиент
 
