@@ -41,11 +41,19 @@ object ProxyServiceState {
     private val _runningConfig = MutableStateFlow<com.wireturn.app.data.ClientConfig?>(null)
     val runningConfig: StateFlow<com.wireturn.app.data.ClientConfig?> = _runningConfig.asStateFlow()
 
+    private val _statusText = MutableStateFlow<String?>(null)
+    val statusText: StateFlow<String?> = _statusText.asStateFlow()
+
     fun setRunning(value: Boolean) {
         _isRunning.value = value
         if (!value) {
             _runningConfig.value = null
+            _statusText.value = null
         }
+    }
+
+    fun setStatusText(text: String?) {
+        _statusText.value = text
     }
 
     fun setRunningConfig(config: com.wireturn.app.data.ClientConfig?) {

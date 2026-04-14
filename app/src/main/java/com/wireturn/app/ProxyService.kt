@@ -1,6 +1,5 @@
 package com.wireturn.app
 
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
@@ -58,8 +57,7 @@ class ProxyService : Service() {
     override fun onCreate() {
         super.onCreate()
         serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-        val channel = NotificationChannel(CHANNEL_ID, "Proxy", NotificationManager.IMPORTANCE_LOW)
-        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        NotificationHelper.createChannel(this)
         startSupervisor()
     }
 
@@ -94,9 +92,10 @@ class ProxyService : Service() {
         openAppIntent = packageManager.getLaunchIntentForPackage(packageName)?.let {
             PendingIntent.getActivity(this, 0, it, PendingIntent.FLAG_IMMUTABLE)
         }
-        startForeground(NOTIFICATION_ID, createNotification(getString(R.string.proxy_connecting)))
+        startForeground(NotificationHelper.NOTIFICATION_ID, NotificationHelper.buildNotification(this))
 
         ProxyServiceState.setRunning(true)
+        NotificationHelper.updateNotification(this)
         ProxyTileService.requestUpdate(this)
         userStopped.set(false)
         restartCount = 0
@@ -157,10 +156,6 @@ class ProxyService : Service() {
             if (cfg.forceTurnPort443) { cmdArgs.add("-port"); cmdArgs.add("443") }
         }
 
-        // Кастомное ядро лежит в filesDir, откуда SELinux (untrusted_app) запрещает execve.
-        // Запускаем через системный линкер: /system/bin/linker* — ему execve разрешён,
-        // а целевой ELF мапится как данные. Работает для PIE-бинарников
-        // (Go-сборки android/arm64 PIE по умолчанию).
         if (useCustom) {
             val linker = if (Build.SUPPORTED_ABIS.firstOrNull()?.contains("64") == true) {
                 "/system/bin/linker64"
@@ -202,15 +197,10 @@ class ProxyService : Service() {
                         ProxyTileService.requestUpdate(this)
                     }
 
-                    // Старт новой капча-сессии: бинарник логирует это перед открытием
-                    // локального HTTP-сервера капчи. Сам URL прилетает следующей строкой.
                     if (l.contains("Triggering manual captcha fallback")) {
                         captchaActive = true
                     }
 
-                    // Детекция URL ручной капчи. Каждый раз выдаём новый sessionId,
-                    // чтобы диалог пересоздавал WebView, даже если URL не поменялся
-                    // (бинарник всегда использует http://localhost:8765).
                     val captchaMatcher = CAPTCHA_URL_REGEX.matcher(l)
                     if (captchaMatcher.find()) {
                         val url = captchaMatcher.group(1)!!
@@ -219,18 +209,17 @@ class ProxyService : Service() {
                             CaptchaSession(url, captchaSessionCounter)
                         )
                         captchaActive = true
+                        updateNotification(getString(R.string.proxy_captcha_required))
                         ProxyTileService.requestUpdate(this)
                     }
 
-                    // Капча-сессия закончилась: бинарник либо завершил auth-чейн
-                    // (Failed/Success), либо сама капча провалилась (timeout). Закрываем
-                    // диалог — следующая капча-сессия откроет его заново через новый sessionId.
                     if (captchaActive && (
                             l.contains("[VK Auth] Failed") ||
                             l.contains("[VK Auth] Success") ||
                             (l.contains("[Captcha]") && l.contains("failed"))
                         )) {
                         ProxyServiceState.setCaptchaSession(null)
+                        updateNotification(getString(R.string.proxy_active))
                         captchaActive = false
                     }
 
@@ -248,7 +237,6 @@ class ProxyService : Service() {
                         startupEmitted = true
                     }
 
-                    // compareAndSet гарантирует единственный postDelayed даже при параллельных quota-ошибках
                     if (isQuotaError(l) && sessionKillScheduled.compareAndSet(false, true)) {
                         ProxyServiceState.addLog(getString(R.string.log_quota_error))
                         handler.postDelayed({
@@ -310,8 +298,6 @@ class ProxyService : Service() {
         }
     }
 
-    // Watchdog
-
     private fun scheduleWatchdogRestart() {
         restartCount++
         if (restartCount > MAX_RESTARTS) {
@@ -336,8 +322,6 @@ class ProxyService : Service() {
             }
         }, delay)
     }
-
-    // Network handover
 
     private var networkDebounceJob: Job? = null
 
@@ -390,22 +374,10 @@ class ProxyService : Service() {
         networkCallback = null
     }
 
-    // Notification
-
-    private fun createNotification(text: String) = NotificationCompat.Builder(this, CHANNEL_ID)
-        .setContentTitle(getString(R.string.notification_title))
-        .setContentText(text)
-        .setSmallIcon(android.R.drawable.ic_menu_preferences)
-        .setOngoing(true)
-        .setContentIntent(openAppIntent)
-        .build()
-
     private fun updateNotification(text: String) {
-        val notification = createNotification(text)
-        getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification)
+        ProxyServiceState.setStatusText(text)
+        NotificationHelper.updateNotification(this)
     }
-
-    // Helpers
 
     private fun isQuotaError(line: String): Boolean {
         val l = line.lowercase()
@@ -418,8 +390,8 @@ class ProxyService : Service() {
         userStopped.set(true)
         ProxyServiceState.setWorking(false)
         ProxyServiceState.setRunning(false)
+        NotificationHelper.updateNotification(this)
 
-        // Explicitly stop child service because the supervisor scope is about to be cancelled
         stopService(Intent(this, WireproxyService::class.java))
 
         ProxyTileService.requestUpdate(this)
@@ -432,11 +404,7 @@ class ProxyService : Service() {
     }
     
     companion object {
-        private const val NOTIFICATION_ID = 1
-        private const val CHANNEL_ID = "ProxyChannel"
         const val MAX_RESTARTS = 8
-        // Жёстко привязываемся к строке-объявлению капчи в бинарнике, чтобы
-        // случайные localhost-URL в других логах не открывали диалог.
         private val CAPTCHA_URL_REGEX =
             Pattern.compile("""Open this URL in your browser:\s*(https?://\S+)""")
 
@@ -455,8 +423,6 @@ class ProxyService : Service() {
 
         fun stop(context: Context) {
             context.stopService(Intent(context, ProxyService::class.java))
-            // Wireproxy and VPN will be stopped by supervisors because states will change
         }
     }
 }
-

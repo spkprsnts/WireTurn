@@ -19,6 +19,13 @@ class ProxyReceiver : BroadcastReceiver() {
             "com.wireturn.app.wireproxy.STOP_PROXY" -> {
                 ProxyService.stop(context)
             }
+            "com.wireturn.app.wireproxy.START_VPN" -> {
+                val prefs = AppPreferences(context)
+                runBlocking {
+                    val config = prefs.clientConfigFlow.first()
+                    prefs.saveClientConfig(config.copy(wireproxyVpnMode = true))
+                }
+            }
         }
     }
 }

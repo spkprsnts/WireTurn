@@ -31,8 +31,7 @@ class WireproxyService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        val channel = NotificationChannel(CHANNEL_ID, "Wireproxy", NotificationManager.IMPORTANCE_LOW)
-        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        NotificationHelper.createChannel(this)
         startVpnSupervisor()
     }
 
@@ -72,19 +71,9 @@ class WireproxyService : Service() {
         userStopped.set(false)
         restartCount = 0
         WireproxyServiceState.updateStatus(WireproxyState.Starting)
-        
-        val openAppIntent = packageManager.getLaunchIntentForPackage(packageName)?.let {
-            PendingIntent.getActivity(this, 0, it, PendingIntent.FLAG_IMMUTABLE)
-        }
+        NotificationHelper.updateNotification(this)
 
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Wireproxy")
-            .setContentText("WireGuard tunnel is active")
-            .setSmallIcon(android.R.drawable.ic_menu_preferences)
-            .setOngoing(true)
-            .setContentIntent(openAppIntent)
-            .build()
-        startForeground(NOTIFICATION_ID, notification)
+        startForeground(NotificationHelper.NOTIFICATION_ID, NotificationHelper.buildNotification(this))
 
         serviceScope.launch {
             startWireproxy()
@@ -139,6 +128,7 @@ class WireproxyService : Service() {
             process.set(proc)
             WireproxyServiceState.updateMetricsPort(randomPort)
             WireproxyServiceState.updateStatus(WireproxyState.Running)
+            NotificationHelper.updateNotification(this@WireproxyService)
 
             BufferedReader(InputStreamReader(proc.inputStream)).use { reader ->
                 var line: String?
@@ -159,6 +149,7 @@ class WireproxyService : Service() {
             process.set(null)
             WireproxyServiceState.updateMetricsPort(null)
             WireproxyServiceState.updateStatus(WireproxyState.Idle)
+            NotificationHelper.updateNotification(this@WireproxyService)
             if (userStopped.get()) {
                 ProxyServiceState.addLog("[Wireproxy] stopped by user")
                 stopSelf()
@@ -205,8 +196,6 @@ class WireproxyService : Service() {
     }
 
     companion object {
-        private const val NOTIFICATION_ID = 2
-        private const val CHANNEL_ID = "WireProxyChannel"
         private const val MAX_RESTARTS = 3
     }
 }
