@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -36,6 +37,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import com.wireturn.app.R
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -77,6 +79,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -126,15 +129,30 @@ fun HomeScreen(
     val wireproxyState by WireproxyServiceState.state.collectAsStateWithLifecycle()
     val vpnServiceState by VpnServiceState.state.collectAsStateWithLifecycle()
     val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
+    val batteryNotificationDismissed by viewModel.batteryNotificationDismissed.collectAsStateWithLifecycle()
     val customKernelExists by viewModel.customKernelExists.collectAsStateWithLifecycle()
     val isConfigured = clientConfig.serverAddress.isNotBlank() || (clientConfig.isRawMode && clientConfig.rawCommand.isNotBlank())
 
     val lifecycleOwner = LocalLifecycleOwner.current
+    val batteryOptLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { /* пользователь закрыл диалог батареи — результат нас не интересует */ }
+
+    val pm = remember { context.getSystemService(PowerManager::class.java) }
+    var isIgnoringBatteryOptimizations by remember {
+        mutableStateOf(pm.isIgnoringBatteryOptimizations(context.packageName))
+    }
+
+    val notificationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { _ -> }
+
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_RESUME -> {
                     viewModel.setHomeScreenActive(true)
+                    isIgnoringBatteryOptimizations = pm.isIgnoringBatteryOptimizations(context.packageName)
                     if (WireproxyServiceState.state.value == WireproxyState.Running) {
                         viewModel.checkWireproxyPing()
                     }
@@ -149,47 +167,6 @@ fun HomeScreen(
         onDispose {
             viewModel.setHomeScreenActive(false)
             lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
-
-    // Запрос разрешений при первом открытии главного экрана
-    val batteryOptLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { /* пользователь закрыл диалог батареи — результат нас не интересует */ }
-
-    val notificationLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { _ ->
-        // После диалога уведомлений — запрашиваем исключение из оптимизации батареи
-        val pm = context.getSystemService(PowerManager::class.java)
-        if (!pm.isIgnoringBatteryOptimizations(context.packageName)) {
-            batteryOptLauncher.launch(
-                Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                    data = "package:${context.packageName}".toUri()
-                }
-            )
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        delay(400) // даём экрану отрисоваться
-        val needsNotification = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
-                PackageManager.PERMISSION_GRANTED
-
-        if (needsNotification) {
-            // Запрашиваем нотификации; батарею запросим в callback выше
-            notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        } else {
-            // Нотификации уже есть — сразу проверяем батарею
-            val pm = context.getSystemService(PowerManager::class.java)
-            if (!pm.isIgnoringBatteryOptimizations(context.packageName)) {
-                batteryOptLauncher.launch(
-                    Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                        data = "package:${context.packageName}".toUri()
-                    }
-                )
-            }
         }
     }
 
@@ -231,7 +208,123 @@ fun HomeScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(Modifier.height(20.dp))
+            val hasNotificationPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+            } else true
+
+            LaunchedEffect(hasNotificationPermission, isIgnoringBatteryOptimizations) {
+                if (hasNotificationPermission && isIgnoringBatteryOptimizations) {
+                    viewModel.setBatteryNotificationDismissed(false)
+                }
+            }
+
+            AnimatedVisibility(
+                visible = (!isIgnoringBatteryOptimizations || !hasNotificationPermission) && !batteryNotificationDismissed,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f)
+                    ),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                painter = painterResource(R.drawable.error_24px),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.permissions_title),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = stringResource(R.string.permissions_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(modifier = Modifier.weight(1f)) {
+                                if (!hasNotificationPermission) {
+                                    Button(
+                                        onClick = {
+                                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                                notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                            }
+                                        },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.onErrorContainer,
+                                            contentColor = MaterialTheme.colorScheme.errorContainer
+                                        ),
+                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp),
+                                        modifier = Modifier.height(32.dp)
+                                    ) {
+                                        Icon(painterResource(R.drawable.info_24px), null, Modifier.size(16.dp))
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(stringResource(R.string.permission_notifications), style = MaterialTheme.typography.labelMedium)
+                                    }
+                                }
+                                if (!hasNotificationPermission && !isIgnoringBatteryOptimizations) {
+                                    Spacer(Modifier.width(8.dp))
+                                }
+                                if (!isIgnoringBatteryOptimizations) {
+                                    Button(
+                                        onClick = {
+                                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                            batteryOptLauncher.launch(
+                                                Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                                    data = "package:${context.packageName}".toUri()
+                                                }
+                                            )
+                                        },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.onErrorContainer,
+                                            contentColor = MaterialTheme.colorScheme.errorContainer
+                                        ),
+                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp),
+                                        modifier = Modifier.height(32.dp)
+                                    ) {
+                                        Icon(painterResource(R.drawable.power_24px), null, Modifier.size(16.dp))
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(stringResource(R.string.permission_battery), style = MaterialTheme.typography.labelMedium)
+                                    }
+                                }
+                            }
+                            
+                            TextButton(
+                                onClick = {
+                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                    viewModel.setBatteryNotificationDismissed(true)
+                                }
+                            ) {
+                                Text(
+                                    stringResource(R.string.btn_close),
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+            }
 
             ProxyToggleButton(
                 state = proxyState,
@@ -684,23 +777,29 @@ fun HomeScreen(
         val showRepoLinks = rememberSaveable { mutableStateOf(false) }
 
         ModalBottomSheet(
-            onDismissRequest = { showBottomSheet.value = false },
+            onDismissRequest = { 
+                showBottomSheet.value = false
+                showRepoLinks.value = false
+            },
             sheetState = bottomSheetState,
             containerColor = sheetColor
         ) {
-            if (showRepoLinks.value) {
-                RepoLinksContent(
-                    containerColor = sheetColor,
-                    onBack = { showRepoLinks.value = false }
-                )
-            } else {
-                InfoBottomSheet(
-                    viewModel = viewModel,
-                    containerColor = sheetColor,
-                    privacyMode = privacyMode,
-                    onPrivacyModeChange = { viewModel.setPrivacyMode(it) },
-                    onOpenRepoLinks = { showRepoLinks.value = true }
-                )
+            when {
+                showRepoLinks.value -> {
+                    RepoLinksContent(
+                        containerColor = sheetColor,
+                        onBack = { showRepoLinks.value = false }
+                    )
+                }
+                else -> {
+                    InfoBottomSheet(
+                        viewModel = viewModel,
+                        containerColor = sheetColor,
+                        privacyMode = privacyMode,
+                        onPrivacyModeChange = { viewModel.setPrivacyMode(it) },
+                        onOpenRepoLinks = { showRepoLinks.value = true }
+                    )
+                }
             }
         }
     }

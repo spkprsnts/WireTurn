@@ -30,6 +30,11 @@
     <string name="error_format_short">Ошибка: %1$s</string>
     <string name="repo_links">Ссылки на репозитории</string>
     <string name="repo_links_desc">Исходный код компонентов</string>
+
+    <string name="permissions_title">Разрешения</string>
+    <string name="permissions_desc">Управление доступом для стабильной работы</string>
+    <string name="permission_notifications">Уведомления</string>
+    <string name="permission_battery">Батарея</string>
     <string name="android_client">Android-клиент</string>
     <string name="android_client_original">Android-клиент (оригинал)</string>
     <string name="proxy_core">Прокси-ядро</string>
@@ -212,4 +217,5 @@
     <string name="notification_network_change">Смена сети, переподключение…</string>
     <string name="error_with_details">%1$s: %2$s</string>
     <string name="redacted_value">••••••</string>
+
 </resources>

@@ -58,6 +58,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _clientConfig = MutableStateFlow(ClientConfig())
     val clientConfig: StateFlow<ClientConfig> = _clientConfig.asStateFlow()
 
+    private val _batteryNotificationDismissed = MutableStateFlow(false)
+    val batteryNotificationDismissed: StateFlow<Boolean> = _batteryNotificationDismissed.asStateFlow()
+
     private val _wgConfig = MutableStateFlow(WgConfig())
     val wgConfig: StateFlow<WgConfig> = _wgConfig.asStateFlow()
 
@@ -90,11 +93,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val theme = prefs.themeModeFlow.first()
             val dynamic = prefs.dynamicThemeFlow.first()
             val config = prefs.clientConfigFlow.first()
+            val batteryDismissed = prefs.batteryNotificationDismissedFlow.first()
 
             _onboardingDone.value = done
             _themeMode.value = theme
             _dynamicTheme.value = dynamic
             _clientConfig.value = config
+            _batteryNotificationDismissed.value = batteryDismissed
 
             _isInitialized.value = true
 
@@ -107,6 +112,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.themeModeFlow.collect { _themeMode.value = it } }
             launch { prefs.dynamicThemeFlow.collect { _dynamicTheme.value = it } }
             launch { prefs.clientConfigFlow.collect { _clientConfig.value = it } }
+            launch { prefs.batteryNotificationDismissedFlow.collect { _batteryNotificationDismissed.value = it } }
             launch { prefs.wgConfigFlow.collect { _wgConfig.value = it } }
         }
         viewModelScope.launch { proxyManager.observeProxyLifecycle() }
@@ -223,6 +229,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun removeVkLinkFromHistory(link: String) { viewModelScope.launch { prefs.removeVkLinkFromHistory(link) } }
     fun removeServerAddressFromHistory(address: String) { viewModelScope.launch { prefs.removeServerAddressFromHistory(address) } }
     fun setOnboardingDone() { viewModelScope.launch { prefs.setOnboardingDone(true) } }
+    fun setBatteryNotificationDismissed(dismissed: Boolean) { viewModelScope.launch { prefs.setBatteryNotificationDismissed(dismissed) } }
 
     fun checkWireproxyPing() {
         val socksAddr = _wgConfig.value.socks5BindAddress

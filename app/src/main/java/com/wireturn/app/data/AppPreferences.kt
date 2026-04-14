@@ -78,6 +78,7 @@ class AppPreferences(context: Context) {
         val WIRE_HTTP_BIND = stringPreferencesKey("wire_http_bind")
         val VK_LINK_HISTORY = stringPreferencesKey("vk_link_history")
         val SERVER_ADDR_HISTORY = stringPreferencesKey("server_addr_history")
+        val BATTERY_NOTIFICATION_DISMISSED = booleanPreferencesKey("battery_notification_dismissed")
     }
 
     val clientConfigFlow: Flow<ClientConfig> = context.dataStore.data
@@ -131,6 +132,10 @@ class AppPreferences(context: Context) {
         .map { prefs ->
             ThemeMode.valueOf(prefs[THEME_MODE] ?: ThemeMode.DARK.name)
         }
+
+    val batteryNotificationDismissedFlow: Flow<Boolean> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { prefs -> prefs[BATTERY_NOTIFICATION_DISMISSED] ?: false }
 
     val vkLinkHistoryFlow: Flow<List<String>> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
@@ -201,6 +206,10 @@ class AppPreferences(context: Context) {
         }
     }
 
+    suspend fun setBatteryNotificationDismissed(dismissed: Boolean) {
+        context.dataStore.edit { prefs -> prefs[BATTERY_NOTIFICATION_DISMISSED] = dismissed }
+    }
+
     suspend fun saveWgConfig(config: WgConfig) {
         context.dataStore.edit { prefs ->
             prefs[WIRE_PRIV_KEY] = config.privateKey
@@ -236,4 +245,3 @@ class AppPreferences(context: Context) {
         }
     }
 }
-
