@@ -1,12 +1,8 @@
 package com.wireturn.app
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
-import androidx.core.app.NotificationCompat
 import com.wireturn.app.viewmodel.WireproxyState
 import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.data.AppPreferences

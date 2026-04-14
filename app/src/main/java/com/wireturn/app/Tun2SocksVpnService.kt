@@ -1,7 +1,5 @@
 package com.wireturn.app
 
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Intent
 import android.net.VpnService
 import android.os.Build

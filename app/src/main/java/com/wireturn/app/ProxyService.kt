@@ -1,6 +1,5 @@
 package com.wireturn.app
 
-import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
@@ -13,7 +12,6 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
-import androidx.core.app.NotificationCompat
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.viewmodel.WireproxyState
 import java.io.BufferedReader
