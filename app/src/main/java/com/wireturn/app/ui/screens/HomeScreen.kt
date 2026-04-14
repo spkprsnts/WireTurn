@@ -65,7 +65,6 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.VpnService
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
@@ -89,6 +88,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import android.content.ClipData
+import android.net.VpnService
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
@@ -111,7 +111,9 @@ import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.ProxyState
 import com.wireturn.app.viewmodel.UpdateState
 import androidx.core.net.toUri
+import com.wireturn.app.VpnServiceState
 import com.wireturn.app.WireproxyServiceState
+import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.viewmodel.WireproxyState
 
 @SuppressLint("BatteryLife")
@@ -122,6 +124,7 @@ fun HomeScreen(
     val context = LocalContext.current
     val proxyState by viewModel.proxyState.collectAsStateWithLifecycle()
     val wireproxyState by WireproxyServiceState.state.collectAsStateWithLifecycle()
+    val vpnServiceState by VpnServiceState.state.collectAsStateWithLifecycle()
     val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
     val customKernelExists by viewModel.customKernelExists.collectAsStateWithLifecycle()
     val isConfigured = clientConfig.serverAddress.isNotBlank() || (clientConfig.isRawMode && clientConfig.rawCommand.isNotBlank())
@@ -508,7 +511,10 @@ fun HomeScreen(
                             Icon(
                                 painter = painterResource(R.drawable.vpn_key_24px),
                                 contentDescription = null,
-                                // tint = MaterialTheme.colorScheme.primary,
+                                tint = when (vpnServiceState) {
+                                    VpnState.Running -> MaterialTheme.colorScheme.primary
+                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                },
                                 modifier = Modifier
                                     .size(24.dp)
                                     .offset(y = (-1).dp)
@@ -867,7 +873,7 @@ private fun ProxyToggleButton(state: ProxyState, onClick: () -> Unit) {
                     Modifier.size(66.dp), tint = contentColor
                 )
                 else -> Icon(
-                    painterResource(R.drawable.play_arrow_24px), stringResource(R.string.start_proxy),
+                    painterResource(R.drawable.power_24px), stringResource(R.string.start_proxy),
                     Modifier.size(66.dp), tint = contentColor
                 )
             }
