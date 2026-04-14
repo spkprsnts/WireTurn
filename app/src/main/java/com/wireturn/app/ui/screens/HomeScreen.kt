@@ -766,7 +766,7 @@ fun HomeScreen(
                             ConfigRow(
                                 stringResource(R.string.transport_protocol),
                                 if (clientConfig.vlessMode) stringResource(R.string.vless)
-                                else if (clientConfig.dcMode) stringResource(R.string.dc)
+                                else if (clientConfig.dcMode && (isTelemost || clientConfig.isJazz)) stringResource(R.string.dc)
                                 else if (clientConfig.useUdp) stringResource(R.string.udp)
                                 else stringResource(R.string.tcp)
                             )
