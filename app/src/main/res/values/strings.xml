@@ -56,6 +56,7 @@
     <string name="wireproxy_import_clipboard">Из буфера</string>
     <string name="wireproxy_import_success">Конфигурация импортирована</string>
     <string name="wireproxy_import_error">Ошибка импорта</string>
+    <string name="wireproxy_export_success">Конфигурация скопирована</string>
     <string name="wireproxy_proxy_addresses">Адреса прокси</string>
     <string name="wireproxy_http">HTTP</string>
     <string name="wireproxy_http_placeholder">127.0.0.1:8080</string>

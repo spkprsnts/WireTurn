@@ -4,7 +4,6 @@ package com.wireturn.app.ui.screens
 
 import android.annotation.SuppressLint
 import android.content.ClipData
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -44,6 +43,7 @@ fun WireproxyConfigScreen(
     val context = LocalContext.current
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
     val savedWgConfig by viewModel.wgConfig.collectAsStateWithLifecycle()
     val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
@@ -105,12 +105,16 @@ fun WireproxyConfigScreen(
                     context.contentResolver.openInputStream(uri)?.use { input ->
                         val text = input.bufferedReader().use { r -> r.readText() }
                         viewModel.updateWgConfigText(text)
-                        Toast.makeText(context, R.string.wireproxy_import_success, Toast.LENGTH_SHORT).show()
+                        scope.launch {
+                            snackbarHostState.showSnackbar(context.getString(R.string.wireproxy_import_success))
+                        }
                     }
                 } catch (e: Exception) {
                     val errorMessage = context.getString(R.string.wireproxy_import_error)
                     val fullError = context.getString(R.string.error_with_details, errorMessage, e.message ?: "")
-                    Toast.makeText(context, fullError, Toast.LENGTH_LONG).show()
+                    scope.launch {
+                        snackbarHostState.showSnackbar(fullError)
+                    }
                 }
             }
         }
@@ -130,6 +134,7 @@ fun WireproxyConfigScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.wireproxy_config_title)) },
@@ -139,7 +144,7 @@ fun WireproxyConfigScreen(
                         scope.launch {
                             clipboard.setClipEntry(ClipData.newPlainText("wg_config", savedWgConfig.toWgString()).toClipEntry())
                             HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
-                            Toast.makeText(context, R.string.copy, Toast.LENGTH_SHORT).show()
+                            snackbarHostState.showSnackbar(context.getString(R.string.wireproxy_export_success))
                         }
                     }) {
                         Icon(painterResource(R.drawable.content_copy_24px), stringResource(R.string.copy))
@@ -185,7 +190,7 @@ fun WireproxyConfigScreen(
                                 val text = clipEntry.clipData.getItemAt(0).text?.toString() ?: ""
                                 if (text.isNotBlank()) {
                                     viewModel.updateWgConfigText(text)
-                                    Toast.makeText(context, R.string.wireproxy_import_success, Toast.LENGTH_SHORT).show()
+                                    snackbarHostState.showSnackbar(context.getString(R.string.wireproxy_import_success))
                                 }
                             }
                         }
