@@ -11,7 +11,7 @@ Android-клиент для [vk-turn-proxy](https://github.com/cacggghp/vk-turn-
 ## Возможности
 
 - **VPN Mode (Global)** — полноценный VPN-режим (TUN) для перенаправления трафика всего устройства через прокси (на базе `tun2socks`)
-- **Wireproxy** — встроенный клиент WireGuard, работающий в режиме локального SOCKS5/HTTP прокси
+- **awgproxy** — встроенный клиент WireGuard (форк wireproxy), работающий в режиме локального SOCKS5/HTTP прокси
 - **Метрики в реальном времени** — отображение пинга до цели и скорости передачи данных (RX/TX)
 - **GUI и Raw режимы** — удобный интерфейс с полями или прямой ввод аргументов ядра для продвинутых пользователей
 - **Автоматизация** — управление через Quick Settings Tile (шторка) или через Broadcast Intent (`START_PROXY` / `STOP_PROXY`)
@@ -73,7 +73,7 @@ nohup ./server-linux-amd64 -listen 0.0.0.0:56000 -connect 127.0.0.1:<порт_wg
 - [cacggghp/vk-turn-proxy](https://github.com/cacggghp/vk-turn-proxy) — [@cacggghp](https://github.com/cacggghp), оригинальный vk-turn-proxy
 - [alxmcp/vk-turn-proxy](https://github.com/alxmcp/vk-turn-proxy) — [@alxmcp](https://github.com/alxmcp), форк ядра с поддержкой новых DC
 - [samosvalishe/turn-proxy-android](https://github.com/samosvalishe/turn-proxy-android) — [@samosvalishe](https://github.com/samosvalishe), основа UI и логики клиента
-- [windtf/wireproxy](https://github.com/windtf/wireproxy) — [@windtf](https://github.com/windtf), реализация wireproxy
+- [mishamosher/awgproxy](https://github.com/mishamosher/awgproxy) — [@mishamosher](https://github.com/mishamosher), реализация awgproxy (форк wireproxy)
 - [xjasonlyu/tun2socks](https://github.com/xjasonlyu/tun2socks) — [@xjasonlyu](https://github.com/xjasonlyu), реализация tun2socks
 
 ## Лицензия

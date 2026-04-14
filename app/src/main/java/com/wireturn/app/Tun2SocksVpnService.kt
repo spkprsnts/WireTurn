@@ -111,7 +111,7 @@ class Tun2SocksVpnService : VpnService() {
                 "--loglevel", "warn"
             )
 
-            ProxyServiceState.addLog("[VPN] starting tun2socks via inherited stdin (FD $fd)")
+            ProxyServiceState.addLog("[VPN] starting libtun2socks.so via inherited stdin (FD $fd)")
             
             if (isStopping.get()) {
                 ProxyServiceState.addLog("[VPN] Stop requested before binary start")
@@ -145,7 +145,8 @@ class Tun2SocksVpnService : VpnService() {
             val exitCode = withContext(Dispatchers.IO) {
                 proc.waitFor()
             }
-            ProxyServiceState.addLog("[VPN] tun2socks exited with code $exitCode")
+            ProxyServiceState.addLog("[VPN] libtun2socks.so exited with code $exitCode")
+            disableVpnMode()
         } catch (_: InterruptedIOException) {
             // pass
         } catch (e: Exception) {
