@@ -11,8 +11,8 @@ android {
         applicationId = "com.wireturn.app"
         minSdk = project.property("project.minSdk").toString().toInt()
         targetSdk = project.property("project.targetSdk").toString().toInt()
-        versionCode = 31
-        versionName = "2.0.1"
+        versionCode = 32
+        versionName = "2.1.0"
     }
 
     packaging {
