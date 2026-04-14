@@ -134,7 +134,7 @@
     <string name="no_logs">Нет логов</string>
 
     <!-- OnboardingScreen -->
-    <string name="onboarding_title">Turn Proxy with Wireproxy</string>
+    <string name="onboarding_title">TURN-proxy</string>
     <string name="onboarding_subtitle">Проксируйте WireGuard‑трафик\nчерез TURN‑серверы VK Calls</string>
     <string name="start">Начать</string>
 
@@ -177,7 +177,7 @@
     <string name="error_file_empty">Файл пустой</string>
     <string name="error_file_too_large">Файл слишком большой (максимум %1$d МБ)</string>
     <string name="log_custom_kernel_installed">Кастомное ядро установлено: %1$d КБ</string>
-    <string name="log_wireproxy_invalid_config">[Wireproxy] Некорректный или отсутствующий конфиг, запуск отменен</string>
+    <string name="log_wireproxy_invalid_config">[wireproxy] Некорректный или отсутствующий конфиг, запуск отменен</string>
     <string name="error_kernel_install_failed">Ошибка установки ядра: %1$s</string>
     <string name="log_custom_kernel_deleted">Кастомное ядро удалено, используется встроенное</string>
     <string name="error_update_url_not_found">URL обновления не найден</string>
