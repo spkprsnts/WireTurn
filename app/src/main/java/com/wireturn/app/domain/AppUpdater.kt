@@ -3,6 +3,7 @@ package com.wireturn.app.domain
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import androidx.core.content.FileProvider
 import com.wireturn.app.R
 import com.wireturn.app.viewmodel.UpdateState
@@ -187,13 +188,33 @@ class AppUpdater(private val context: Context) {
 
     private fun findApkUrl(release: JSONObject): String? {
         val assets = release.getJSONArray("assets")
+        val apkAssets = mutableListOf<JSONObject>()
+        
         for (i in 0 until assets.length()) {
             val asset = assets.getJSONObject(i)
-            if (asset.getString("name").endsWith(".apk")) {
-                return asset.getString("browser_download_url")
+            if (asset.getString("name").endsWith(".apk", ignoreCase = true)) {
+                apkAssets.add(asset)
             }
         }
-        return null
+
+        if (apkAssets.isEmpty()) return null
+
+        // 1. Поиск под конкретную архитектуру устройства (в порядке приоритета ОС)
+        for (abi in Build.SUPPORTED_ABIS) {
+            val match = apkAssets.find { 
+                it.getString("name").lowercase().contains(abi.lowercase()) 
+            }
+            if (match != null) return match.getString("browser_download_url")
+        }
+
+        // 2. Поиск универсальной сборки
+        val universal = apkAssets.find { 
+            it.getString("name").lowercase().contains("universal") 
+        }
+        if (universal != null) return universal.getString("browser_download_url")
+
+        // 3. Фолбэк на любой найденный APK
+        return apkAssets.firstOrNull()?.getString("browser_download_url")
     }
 
     companion object {

@@ -106,7 +106,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.runtime.DisposableEffect
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.wireturn.app.ui.InlineConfigIndicator
 import com.wireturn.app.ui.HapticUtil
