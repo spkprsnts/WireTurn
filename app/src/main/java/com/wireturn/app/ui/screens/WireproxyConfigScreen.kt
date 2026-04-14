@@ -80,7 +80,7 @@ fun WireproxyConfigScreen(
         privateKey, address, dns, mtu, publicKey, endpoint,
         allowedIps, persistentKeepalive, socks5BindAddress, httpBindAddress
     ) {
-        delay(600)
+        delay(200)
         viewModel.updateWgConfig(
             WgConfig(
                 privateKey = privateKey,

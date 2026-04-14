@@ -122,11 +122,11 @@ fun ClientSetupScreen(
         ValidatorUtils.isValidHostPort(localPort)
     }
 
-    // Авто-сохранение с дебаунсом 600 мс на каждое изменение поля.
+    // Авто-сохранение с дебаунсом 200 мс на каждое изменение поля.
     LaunchedEffect(isRawMode, rawCommand, serverAddress, vkLink, threads, useUdp, noDtls,
         manualCaptcha, localPort, vlessMode, dcMode, forcePort443, isJazz, jazzCreds
     ) {
-        delay(600)
+        delay(200)
         viewModel.saveClientConfig(
             viewModel.clientConfig.value.copy(
                 isRawMode        = isRawMode,
