@@ -195,7 +195,7 @@ class AppPreferences(context: Context) {
                 serverAddress = prefs[CLIENT_SERVER_ADDR] ?: "",
                 vkLink = prefs[CLIENT_VK_LINK] ?: "",
                 threads = prefs[CLIENT_THREADS] ?: 4,
-                useUdp = prefs[CLIENT_UDP] ?: true,
+                useUdp = prefs[CLIENT_UDP] ?: false,
                 noDtls = prefs[CLIENT_NO_DTLS] ?: false,
                 manualCaptcha = prefs[CLIENT_MANUAL_CAPTCHA] ?: false,
                 localPort = prefs[CLIENT_LOCAL_PORT] ?: "127.0.0.1:9000",
