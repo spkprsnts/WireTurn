@@ -106,7 +106,12 @@ class ProxyService : Service() {
 
         ProxyServiceState.addLog(getString(R.string.log_proxy_start))
         serviceScope.launch {
-            val cfg = AppPreferences(applicationContext).clientConfigFlow.first()
+            val prefs = AppPreferences(applicationContext)
+            var cfg = prefs.clientConfigFlow.first()
+            if (cfg.jazzCreds.contains("@salutejazz.ru", ignoreCase = true)) {
+                cfg = cfg.copy(jazzCreds = cfg.jazzCreds.replace("@salutejazz.ru", "", ignoreCase = true))
+                prefs.saveClientConfig(cfg)
+            }
             ProxyServiceState.setRunningConfig(cfg)
             startBinaryProcess(cfg)
         }
