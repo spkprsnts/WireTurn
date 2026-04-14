@@ -231,7 +231,7 @@ fun HomeScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(Modifier.height(40.dp))
+            Spacer(Modifier.height(20.dp))
 
             ProxyToggleButton(
                 state = proxyState,
@@ -675,7 +675,7 @@ fun HomeScreen(
                 }
             }
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(20.dp))
         }
     }
 
