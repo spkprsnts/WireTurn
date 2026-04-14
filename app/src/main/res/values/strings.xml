@@ -24,7 +24,6 @@
     <string name="captcha_title">Проверка VK</string>
     <string name="captcha_desc">Пройдите проверку для продолжения</string>
     <string name="start_proxy">Запустить прокси</string>
-    <string name="wireproxy_idle">Остановлен</string>
     <string name="wireproxy_starting_state">Запускается</string>
     <string name="wireproxy_running_state">Запущен</string>
     <string name="wireproxy_config_invalid">Некорректный конфиг</string>
@@ -45,10 +44,8 @@
     <string name="reset_all_settings_desc">Все настройки будут удалены, прокси остановлен. Приложение перезапустится.</string>
     <string name="cancel">Отмена</string>
     <string name="vpn_mode">Режим VPN</string>
-    <string name="vpn_active">VPN активен</string>
     <string name="vpn_start">Включить VPN</string>
     <string name="vpn_stop">Выключить VPN</string>
-    <string name="vpn_service_desc">Маршрутизация трафика через прокси для обхода ограничений</string>
 
     <!-- WireproxyConfigScreen -->
     <string name="wireproxy_title">Wireproxy</string>
@@ -65,7 +62,6 @@
     <string name="wireproxy_socks5">SOCKS5</string>
     <string name="wireproxy_socks5_placeholder">127.0.0.1:1080</string>
     <string name="wireproxy_edit_config">Редактирование WG конфига</string>
-    <string name="wireproxy_config_placeholder">[Interface]\nPrivateKey = …\n\n[Peer]\nPublicKey = …</string>
     <string name="wireproxy_interface">Interface</string>
     <string name="wireproxy_private_key">Private Key</string>
     <string name="wireproxy_private_key_placeholder">WG_PRIVATE_KEY</string>
@@ -89,7 +85,6 @@
     <string name="wireproxy_http_copied">HTTP прокси скопирован</string>
     <string name="wireproxy_socks5_copied">SOCKS5 прокси скопирован</string>
     <string name="wireproxy_mtu_recommendation">Рекомендуемое значение — 1280</string>
-    <string name="wireproxy_raw_config">Raw wg.conf</string>
 
 
     <!-- ClientSetupScreen -->
