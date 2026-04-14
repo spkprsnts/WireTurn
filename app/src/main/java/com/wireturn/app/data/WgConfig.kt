@@ -56,7 +56,6 @@ data class WgConfig(
         const val DEFAULT_ENDPOINT = "127.0.0.1:9000"
         const val DEFAULT_ALLOWED_IPS = "0.0.0.0/0"
         const val DEFAULT_PERSISTENT_KEEPALIVE = "25"
-        const val DEFAULT_HTTP_BIND_ADDRESS = "127.0.0.1:8080"
         const val DEFAULT_SOCKS5_BIND_ADDRESS = "127.0.0.1:2080"
 
         fun parse(text: String): WgConfig {
