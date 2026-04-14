@@ -120,11 +120,11 @@ fun WireproxyConfigScreen(
         }
     )
 
+    val isSocks5Valid = remember(socks5BindAddress) {
+        ValidatorUtils.isValidHostPort(socks5BindAddress)
+    }
     val isHttpValid = remember(httpBindAddress) {
         ValidatorUtils.isValidHostPort(httpBindAddress)
-    }
-    val isSocksValid = remember(socks5BindAddress) {
-        ValidatorUtils.isValidHostPort(socks5BindAddress)
     }
     val isEndpointValid = remember(endpoint) {
         ValidatorUtils.isValidHostPort(endpoint)
@@ -212,7 +212,7 @@ fun WireproxyConfigScreen(
                 value = socks5BindAddress,
                 onValueChange = { socks5BindAddress = it },
                 label = { Text(stringResource(R.string.wireproxy_socks5)) },
-                isError = !isSocksValid || socks5BindAddress == httpBindAddress || socks5BindAddress.isBlank(),
+                isError = !isSocks5Valid || socks5BindAddress == httpBindAddress || socks5BindAddress.isBlank(),
                 placeholder = { Text(stringResource(R.string.wireproxy_socks5_placeholder)) },
                 modifier = Modifier.fillMaxWidth(),
                 trailingIcon = {

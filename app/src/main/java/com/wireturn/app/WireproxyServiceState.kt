@@ -30,4 +30,3 @@ object WireproxyServiceState {
         _runningConfig.value = config
     }
 }
-

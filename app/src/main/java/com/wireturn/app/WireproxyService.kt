@@ -80,7 +80,7 @@ class WireproxyService : Service() {
 
     private suspend fun startWireproxy() {
         val executable = "${applicationInfo.nativeLibraryDir}/libwireproxy.so"
-        val configFile = File(filesDir, "wg.conf")
+        val configFile = File(filesDir, "wireproxy.conf")
 
         try {
             val prefs = AppPreferences(this)
@@ -115,7 +115,7 @@ class WireproxyService : Service() {
                 "-i", "127.0.0.1:$randomPort"
             )
 
-            ProxyServiceState.addLog("[Wireproxy] starting: ${cmdArgs.joinToString(" ")}")
+            ProxyServiceState.addLog("[wireproxy] starting: ${cmdArgs.joinToString(" ")}")
             val proc = withContext(Dispatchers.IO) {
                 ProcessBuilder(cmdArgs)
                     .redirectErrorStream(true)
@@ -130,24 +130,24 @@ class WireproxyService : Service() {
                 var line: String?
                 while (reader.readLine().also { line = it } != null) {
                     if (line?.contains("Health metric request") ?: false) continue
-                    ProxyServiceState.addLog("[Wireproxy] $line")
+                    ProxyServiceState.addLog("[wireproxy] $line")
                 }
             }
             val exitCode = withContext(Dispatchers.IO) {
                 proc.waitFor()
             }
-            ProxyServiceState.addLog("[Wireproxy] process exited with code $exitCode")
+            ProxyServiceState.addLog("[wireproxy] process exited with code $exitCode")
         } catch (_: InterruptedIOException) {
             // pass
         } catch (e: Exception) {
-            ProxyServiceState.addLog("[Wireproxy] Error: ${e.message}")
+            ProxyServiceState.addLog("[wireproxy] Error: ${e.message}")
         } finally {
             process.set(null)
             WireproxyServiceState.updateMetricsPort(null)
             WireproxyServiceState.updateStatus(WireproxyState.Idle)
             NotificationHelper.updateNotification(this@WireproxyService)
             if (userStopped.get()) {
-                ProxyServiceState.addLog("[Wireproxy] stopped by user")
+                ProxyServiceState.addLog("[wireproxy] stopped by user")
                 stopSelf()
             } else {
                 scheduleWatchdogRestart()
@@ -158,14 +158,14 @@ class WireproxyService : Service() {
     private fun scheduleWatchdogRestart() {
         restartCount++
         if (restartCount > MAX_RESTARTS) {
-            ProxyServiceState.addLog("[Wireproxy] watchdog limit reached ($MAX_RESTARTS)")
+            ProxyServiceState.addLog("[wireproxy] watchdog limit reached ($MAX_RESTARTS)")
             stopSelf()
             return
         }
         
         WireproxyServiceState.updateStatus(WireproxyState.Starting)
         val delay = minOf(1000L * restartCount, 10000L)
-        ProxyServiceState.addLog("[Wireproxy] restarting in ${delay}ms (attempt $restartCount/$MAX_RESTARTS)")
+        ProxyServiceState.addLog("[wireproxy] restarting in ${delay}ms (attempt $restartCount/$MAX_RESTARTS)")
         
         handler.postDelayed({
             if (!userStopped.get()) {
@@ -179,7 +179,6 @@ class WireproxyService : Service() {
         userStopped.set(true)
         handler.removeCallbacksAndMessages(null)
         process.get()?.destroyForcibly()
-        WireproxyServiceState.updateMetricsPort(null)
 
         // Explicitly stop child VPN service
         val stopIntent = Intent(this, Tun2SocksVpnService::class.java).apply {
@@ -195,4 +194,3 @@ class WireproxyService : Service() {
         private const val MAX_RESTARTS = 3
     }
 }
-

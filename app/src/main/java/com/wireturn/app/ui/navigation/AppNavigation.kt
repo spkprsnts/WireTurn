@@ -42,14 +42,14 @@ import com.wireturn.app.viewmodel.MainViewModel
 
 object Routes {
     const val ONBOARDING = "onboarding"
-    const val WIREGUARD_CONFIG = "wireguard_config"
+    const val WIREPROXY_CONFIG = "wireproxy_config"
     const val CLIENT_SETUP = "client_setup"
     const val HOME = "home"
     const val LOGS = "logs"
 }
 
 // Нижнее меню видно только в основном потоке, не во время онбординга
-private val BOTTOM_NAV_ROUTES = setOf(Routes.HOME, Routes.LOGS, Routes.CLIENT_SETUP, Routes.WIREGUARD_CONFIG)
+private val BOTTOM_NAV_ROUTES = setOf(Routes.HOME, Routes.LOGS, Routes.CLIENT_SETUP, Routes.WIREPROXY_CONFIG)
 
 @Composable
 fun AppNavigation(
@@ -125,7 +125,7 @@ fun AppNavigation(
 
                 // Основной поток (с нижним меню)
 
-                composable(Routes.WIREGUARD_CONFIG) {
+                composable(Routes.WIREPROXY_CONFIG) {
                     Box(Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
                         WireproxyConfigScreen(
                             viewModel = viewModel,
@@ -184,7 +184,7 @@ private data class NavItem(
 private val navItems = listOf(
     NavItem(Routes.HOME, R.string.nav_home, R.drawable.home_24px, R.drawable.home_outlined_24px),
     NavItem(Routes.CLIENT_SETUP, R.string.client_title, R.drawable.mobile_24px, R.drawable.mobile_outlined_24px),
-    NavItem(Routes.WIREGUARD_CONFIG, R.string.wireproxy_title, R.drawable.wifi_24px, R.drawable.wifi_24px),
+    NavItem(Routes.WIREPROXY_CONFIG, R.string.wireproxy_title, R.drawable.wifi_24px, R.drawable.wifi_24px),
     NavItem(Routes.LOGS, R.string.logs_title, R.drawable.terminal_24px, R.drawable.terminal_24px)
 )
 

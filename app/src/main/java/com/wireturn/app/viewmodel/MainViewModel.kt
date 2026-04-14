@@ -160,14 +160,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 connection.connectTimeout = 2000
                 connection.readTimeout = 2000
                 val content = connection.inputStream.bufferedReader().use { it.readText() }
-                
+
                 var rx = 0L
                 var tx = 0L
-                
+
                 content.lines().forEach { line ->
                     val trimmed = line.trim()
                     if (trimmed.startsWith("#")) return@forEach
-                    
+
                     if (trimmed.startsWith("rx_bytes")) {
                         rx += trimmed.split("=").lastOrNull()?.toLongOrNull() ?: 0L
                     } else if (trimmed.startsWith("tx_bytes")) {

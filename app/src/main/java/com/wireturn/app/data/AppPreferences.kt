@@ -74,8 +74,8 @@ class AppPreferences(context: Context) {
         val WIRE_ENDPOINT = stringPreferencesKey("wire_endpoint")
         val WIRE_ALLOWED_IPS = stringPreferencesKey("wire_allowed_ips")
         val WIRE_KEEPALIVE = stringPreferencesKey("wire_keepalive")
+        val WIRE_SOCKS5_BIND = stringPreferencesKey("wire_socks5_bind")
         val WIRE_HTTP_BIND = stringPreferencesKey("wire_http_bind")
-        val WIRE_SOCKS_BIND = stringPreferencesKey("wire_socks_bind")
         val VK_LINK_HISTORY = stringPreferencesKey("vk_link_history")
         val SERVER_ADDR_HISTORY = stringPreferencesKey("server_addr_history")
     }
@@ -113,8 +113,8 @@ class AppPreferences(context: Context) {
                 endpoint = prefs[WIRE_ENDPOINT] ?: "",
                 allowedIps = prefs[WIRE_ALLOWED_IPS] ?: "",
                 persistentKeepalive = prefs[WIRE_KEEPALIVE] ?: "",
-                httpBindAddress = prefs[WIRE_HTTP_BIND] ?: WgConfig.DEFAULT_HTTP_BIND_ADDRESS,
-                socks5BindAddress = prefs[WIRE_SOCKS_BIND] ?: WgConfig.DEFAULT_SOCKS5_BIND_ADDRESS
+                socks5BindAddress = prefs[WIRE_SOCKS5_BIND] ?: WgConfig.DEFAULT_SOCKS5_BIND_ADDRESS,
+                httpBindAddress = prefs[WIRE_HTTP_BIND] ?: ""
             )
         }
 
@@ -211,8 +211,8 @@ class AppPreferences(context: Context) {
             prefs[WIRE_ENDPOINT] = config.endpoint
             prefs[WIRE_ALLOWED_IPS] = config.allowedIps
             prefs[WIRE_KEEPALIVE] = config.persistentKeepalive
+            prefs[WIRE_SOCKS5_BIND] = config.socks5BindAddress
             prefs[WIRE_HTTP_BIND] = config.httpBindAddress
-            prefs[WIRE_SOCKS_BIND] = config.socks5BindAddress
         }
     }
 

@@ -9,8 +9,8 @@ data class WgConfig(
     val endpoint: String = "",
     val allowedIps: String = "",
     val persistentKeepalive: String = "",
-    val httpBindAddress: String = "",
-    val socks5BindAddress: String = DEFAULT_SOCKS5_BIND_ADDRESS
+    val socks5BindAddress: String = DEFAULT_SOCKS5_BIND_ADDRESS,
+    val httpBindAddress: String = ""
 ) {
     fun isValid(): Boolean {
         return privateKey.isNotBlank() && address.isNotBlank() && publicKey.isNotBlank()
@@ -63,7 +63,7 @@ data class WgConfig(
             var privateKey = ""; var address = ""; var dns = ""; var mtu = ""
             var publicKey = ""; var endpoint = ""; var allowedIps = ""
             var persistentKeepalive = ""
-            var httpBindAddress = ""; var socks5BindAddress = ""
+            var httpBindAddress = ""; var socks5BindAddress = DEFAULT_SOCKS5_BIND_ADDRESS
 
             var currentSection = ""
             text.lineSequence().forEach { line ->

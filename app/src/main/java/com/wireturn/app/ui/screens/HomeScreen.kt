@@ -1166,8 +1166,8 @@ private fun RepoLinksContent(
             item {
                 RepoLinkItem(
                     title = stringResource(R.string.wireproxy),
-                    subtitle = "windtf/wireproxy",
-                    url = "https://github.com/windtf/wireproxy",
+                    subtitle = "mishamosher/awgproxy",
+                    url = "https://github.com/mishamosher/awgproxy",
                     containerColor = containerColor,
                     onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
                     onOpen = { uriHandler.openUri(it) }
@@ -1177,7 +1177,7 @@ private fun RepoLinksContent(
             item {
                 RepoLinkItem(
                     title = stringResource(R.string.tun2socks),
-                    subtitle = "xjasonlyu/tun2socks",
+                    subtitle = "xjasonlyu/libtun2socks.so",
                     url = "https://github.com/xjasonlyu/tun2socks",
                     containerColor = containerColor,
                     onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
