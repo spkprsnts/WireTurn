@@ -178,7 +178,7 @@ fun HomeScreen(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
-            viewModel.saveClientConfig(clientConfig.copy(wireproxyVpnMode = true))
+            viewModel.saveClientConfig(viewModel.clientConfig.value.copy(wireproxyVpnMode = true))
         }
     }
 
@@ -576,7 +576,7 @@ fun HomeScreen(
                                     context,
                                     if (enabled) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
                                 )
-                                viewModel.saveClientConfig(clientConfig.copy(wireproxyEnabled = enabled))
+                                viewModel.saveClientConfig(viewModel.clientConfig.value.copy(wireproxyEnabled = enabled))
                             },
                             enabled = wgConfig.isValid()
                         )
@@ -626,10 +626,10 @@ fun HomeScreen(
                                 if (intent != null) {
                                     vpnLauncher.launch(intent)
                                 } else {
-                                    viewModel.saveClientConfig(clientConfig.copy(wireproxyVpnMode = true))
+                                    viewModel.saveClientConfig(viewModel.clientConfig.value.copy(wireproxyVpnMode = true))
                                 }
                             } else {
-                                viewModel.saveClientConfig(clientConfig.copy(wireproxyVpnMode = false))
+                                viewModel.saveClientConfig(viewModel.clientConfig.value.copy(wireproxyVpnMode = false))
                             }
                         })
                     }

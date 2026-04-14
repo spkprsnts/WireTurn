@@ -91,7 +91,7 @@ data class WgConfig(
                     }
                 }
             }
-            return WgConfig(privateKey, address, dns, mtu, publicKey, endpoint, allowedIps, persistentKeepalive, httpBindAddress, socks5BindAddress)
+            return WgConfig(privateKey, address, dns, mtu, publicKey, endpoint, allowedIps, persistentKeepalive, socks5BindAddress, httpBindAddress)
         }
     }
 }

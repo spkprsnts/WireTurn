@@ -65,7 +65,7 @@
     <string name="wireproxy_http">HTTP</string>
     <string name="wireproxy_http_placeholder">127.0.0.1:8080</string>
     <string name="wireproxy_socks5">SOCKS5</string>
-    <string name="wireproxy_socks5_placeholder">127.0.0.1:1080</string>
+    <string name="wireproxy_socks5_placeholder">127.0.0.1:2080</string>
     <string name="wireproxy_edit_config">Редактирование WG конфига</string>
     <string name="wireproxy_interface">Interface</string>
     <string name="wireproxy_private_key">Private Key</string>
