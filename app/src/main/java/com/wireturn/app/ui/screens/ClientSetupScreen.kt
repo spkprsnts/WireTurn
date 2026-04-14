@@ -67,7 +67,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.ui.ConfigFieldIndicator
 import com.wireturn.app.ui.InlineConfigIndicator
 import com.wireturn.app.ui.HapticUtil
