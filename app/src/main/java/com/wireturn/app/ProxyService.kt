@@ -143,6 +143,16 @@ class ProxyService : Service() {
             cmdArgs.add("-peer"); cmdArgs.add(cfg.serverAddress)
 
             if (cfg.isJazz) {
+                if (!checkJazzAvailability()) {
+                    ProxyServiceState.addLog(getString(R.string.log_jazz_unavailable))
+                    ProxyServiceState.setStartupResult(StartupResult.Failed(getString(R.string.error_jazz_unavailable)))
+                    withContext(Dispatchers.Main) {
+                        userStopped.set(true)
+                        stopSelf()
+                    }
+                    return
+                }
+
                 cmdArgs.add("-jazz-room")
                 cmdArgs.add(cfg.jazzCreds)
                 if (cfg.dcMode) cmdArgs.add("-dc")
@@ -208,6 +218,19 @@ class ProxyService : Service() {
                         if (l.contains("DataChannel closed", ignoreCase = true)) {
                             ProxyServiceState.setWorking(false)
                             ProxyTileService.requestUpdate(this)
+
+                            if (cfg.isJazz) {
+                                serviceScope.launch {
+                                    if (!checkJazzAvailability()) {
+                                        ProxyServiceState.addLog(getString(R.string.log_jazz_unavailable))
+                                        userStopped.set(true)
+                                        process.get()?.destroyForcibly()
+                                        withContext(Dispatchers.Main) {
+                                            stopSelf()
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                     if (l.contains("Triggering manual captcha fallback")) {
@@ -385,6 +408,17 @@ class ProxyService : Service() {
             } catch (_: Exception) {}
         }
         networkCallback = null
+    }
+
+    private suspend fun checkJazzAvailability(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            java.net.Socket().use { socket ->
+                socket.connect(java.net.InetSocketAddress("bk.salutejazz.ru", 443), 3000)
+                true
+            }
+        } catch (_: Exception) {
+            false
+        }
     }
 
     private fun updateNotification(text: String) {
