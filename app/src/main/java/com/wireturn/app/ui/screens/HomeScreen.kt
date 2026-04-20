@@ -115,6 +115,7 @@ import com.wireturn.app.viewmodel.UpdateState
 import androidx.core.net.toUri
 import com.wireturn.app.VpnServiceState
 import com.wireturn.app.WireproxyServiceState
+import com.wireturn.app.ui.theme.extendedColorScheme
 import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.viewmodel.WireproxyState
 
@@ -435,9 +436,9 @@ fun HomeScreen(
                                                 text = stringResource(R.string.ping_ms, ping.ms),
                                                 style = MaterialTheme.typography.labelLarge,
                                                 color = when {
-                                                    ping.ms < 100 -> Color(0xFF4CAF50)
-                                                    ping.ms < 300 -> Color(0xFFFFC107)
-                                                    else -> Color(0xFFF44336)
+                                                    ping.ms < 100 -> MaterialTheme.extendedColorScheme.success
+                                                    ping.ms < 300 -> MaterialTheme.extendedColorScheme.warning
+                                                    else -> MaterialTheme.colorScheme.error
                                                 },
                                                 fontWeight = FontWeight.Bold
                                             )

@@ -15,7 +15,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.navigation.AppNavigation
 import com.wireturn.app.ui.navigation.Routes
-import com.wireturn.app.ui.theme.wireturnTheme
+import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
 
 class MainActivity : ComponentActivity() {
@@ -39,7 +39,7 @@ class MainActivity : ComponentActivity() {
             val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
 
-            wireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
+            WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background

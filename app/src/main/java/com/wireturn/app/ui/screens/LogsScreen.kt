@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.theme.extendedColorScheme
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
 
@@ -137,8 +138,8 @@ private fun LogLine(line: String) {
 
     val textColor = when {
         isError   -> MaterialTheme.colorScheme.error
-        isWarning -> MaterialTheme.colorScheme.tertiary
-        isSuccess -> Color(0xFF4CAF50)
+        isWarning -> MaterialTheme.extendedColorScheme.warning
+        isSuccess -> MaterialTheme.extendedColorScheme.success
         isHeader  -> MaterialTheme.colorScheme.primary
         else      -> MaterialTheme.colorScheme.onSurfaceVariant
     }
