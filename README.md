@@ -55,7 +55,7 @@ nohup ./server-linux-amd64 -listen 0.0.0.0:56000 -connect 127.0.0.1:<порт_wg
 
 ### 2. Android-клиент
 
-1. Установите APK из [Releases](https://github.com/spkprsnts/turn-proxy-android-wireproxy/releases/latest)
+1. Установите APK из [Releases](https://github.com/spkprsnts/WireTurn/releases/latest)
 2. Заполните настройки:
    - **Адрес сервера** — IP:порт вашего VPS (например `1.2.3.4:56000`)
    - **Ссылка** — ссылка на звонок
