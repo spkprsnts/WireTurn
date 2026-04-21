@@ -135,10 +135,6 @@ fun HomeScreen(
     val batteryNotificationDismissed by viewModel.batteryNotificationDismissed.collectAsStateWithLifecycle()
     val customKernelExists by viewModel.customKernelExists.collectAsStateWithLifecycle()
 
-    val isTelemost = clientConfig.vkLink.contains("telemost.yandex", ignoreCase = true)
-    val isConfigured = clientConfig.serverAddress.isNotBlank() || (clientConfig.isRawMode && clientConfig.rawCommand.isNotBlank())
-            || isTelemost || (clientConfig.isJazz && clientConfig.jazzCreds.isNotBlank())
-
     val lifecycleOwner = LocalLifecycleOwner.current
     val batteryOptLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -694,7 +690,7 @@ fun HomeScreen(
                 }
             }
 
-            if (isConfigured) {
+            if (clientConfig.isValid) {
                 Spacer(Modifier.height(21.dp))
 
                 Card(
@@ -746,17 +742,36 @@ fun HomeScreen(
                                 }
                             }
                         } else {
-                            ConfigRow(
-                                stringResource(R.string.server),
-                                clientConfig.serverAddress.redact(privacyMode)
-                            )
-                            val jazzCreds = clientConfig.jazzCreds.redact(privacyMode)
-                            if (clientConfig.isJazz) {
-                                ConfigRow(
-                                    stringResource(R.string.jazz_room),
-                                    jazzCreds.ifBlank { stringResource(R.string.not_set) }
-                                )
+                            if (clientConfig.dcMode) {
+                                if (clientConfig.isJazz) {
+                                    ConfigRow(
+                                        stringResource(R.string.jazz_room),
+                                        clientConfig.jazzCreds.redact(privacyMode)
+                                    )
+                                } else {
+                                    val telemostLink = clientConfig.telemostLink.redact(privacyMode)
+                                    if (clientConfig.telemostLink.isNotBlank()) {
+                                        ConfigRow(
+                                            stringResource(R.string.call_link),
+                                            if (telemostLink.length > 30) {
+                                                telemostLink.take(21) + "..." + telemostLink.takeLast(6)
+                                            } else {
+                                                telemostLink.ifBlank { stringResource(R.string.not_set) }
+                                            }
+                                        )
+                                    }
+                                }
+                                if (clientConfig.vlessMode) {
+                                    ConfigRow(
+                                        stringResource(R.string.transport_protocol),
+                                        stringResource(R.string.vless)
+                                    )
+                                }
                             } else {
+                                ConfigRow(
+                                    stringResource(R.string.server),
+                                    clientConfig.serverAddress.redact(privacyMode)
+                                )
                                 val vkLink = clientConfig.vkLink.redact(privacyMode)
                                 if (clientConfig.vkLink.isNotBlank()) {
                                     ConfigRow(
@@ -768,15 +783,14 @@ fun HomeScreen(
                                         }
                                     )
                                 }
+                                ConfigRow(stringResource(R.string.threads), "${clientConfig.threads}")
+                                ConfigRow(
+                                    stringResource(R.string.transport_protocol),
+                                    if (clientConfig.vlessMode) stringResource(R.string.vless)
+                                    else if (clientConfig.useUdp) stringResource(R.string.udp)
+                                    else stringResource(R.string.tcp)
+                                )
                             }
-                            ConfigRow(stringResource(R.string.threads), "${clientConfig.threads}")
-                            ConfigRow(
-                                stringResource(R.string.transport_protocol),
-                                if (clientConfig.vlessMode) stringResource(R.string.vless)
-                                else if (clientConfig.dcMode && (isTelemost || clientConfig.isJazz)) stringResource(R.string.dc)
-                                else if (clientConfig.useUdp) stringResource(R.string.udp)
-                                else stringResource(R.string.tcp)
-                            )
                             ConfigRow(
                                 stringResource(R.string.local_port),
                                 clientConfig.localPort.redact(privacyMode)

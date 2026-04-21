@@ -48,6 +48,8 @@ data class ClientConfig(
             if (serverAddress.isBlank() || vkLink.isBlank()) com.wireturn.app.R.string.error_settings_empty else null
         }
     }
+
+    val isValid: Boolean get() = getValidationErrorResId() == null
 }
 
 data class WgConfig(
