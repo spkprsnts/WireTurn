@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -118,6 +119,8 @@ import com.wireturn.app.WireproxyServiceState
 import com.wireturn.app.ui.theme.extendedColorScheme
 import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.viewmodel.WireproxyState
+import kotlin.math.ln
+import kotlin.math.pow
 
 @SuppressLint("BatteryLife")
 @Composable
@@ -207,6 +210,9 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .fillMaxWidth()
+                .wrapContentWidth(Alignment.CenterHorizontally)
+                .widthIn(max = 600.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
@@ -748,7 +754,7 @@ fun HomeScreen(
                             if (clientConfig.isJazz) {
                                 ConfigRow(
                                     stringResource(R.string.jazz_room),
-                                    if (jazzCreds.isNotBlank()) jazzCreds else stringResource(R.string.not_set)
+                                    jazzCreds.ifBlank { stringResource(R.string.not_set) }
                                 )
                             } else {
                                 val vkLink = clientConfig.vkLink.redact(privacyMode)
@@ -758,7 +764,7 @@ fun HomeScreen(
                                         if (vkLink.length > 30) {
                                             vkLink.take(21) + "..." + vkLink.takeLast(6)
                                         } else {
-                                            if (vkLink.isNotBlank()) vkLink else stringResource(R.string.not_set)
+                                            vkLink.ifBlank { stringResource(R.string.not_set) }
                                         }
                                     )
                                 }
@@ -1412,9 +1418,9 @@ private fun RepoLinkItem(
 private fun formatBytes(bytes: Long): String {
     if (bytes <= 0) return "0 B"
     if (bytes < 1024) return "$bytes B"
-    val exp = (Math.log(bytes.toDouble()) / Math.log(1024.0)).toInt()
+    val exp = (ln(bytes.toDouble()) / ln(1024.0)).toInt()
     val pre = "KMGTPE"[exp - 1]
-    return String.format(java.util.Locale.US, "%.1f %siB", bytes / Math.pow(1024.0, exp.toDouble()), pre)
+    return String.format(java.util.Locale.US, "%.1f %siB", bytes / 1024.0.pow(exp.toDouble()), pre)
 }
 
 @Composable

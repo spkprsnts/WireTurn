@@ -157,6 +157,9 @@ fun WireproxyConfigScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .fillMaxWidth()
+                .wrapContentWidth(Alignment.CenterHorizontally)
+                .widthIn(max = 840.dp)
                 .padding(padding)
                 .consumeWindowInsets(padding)
                 .imePadding()
