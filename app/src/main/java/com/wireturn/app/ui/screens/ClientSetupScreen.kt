@@ -4,7 +4,10 @@ package com.wireturn.app.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -88,6 +91,7 @@ fun ClientSetupScreen(
     val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
 
     val vkLinkHistory by viewModel.vkLinkHistory.collectAsStateWithLifecycle()
+    val telemostLinkHistory by viewModel.telemostLinkHistory.collectAsStateWithLifecycle()
     val serverAddressHistory by viewModel.serverAddressHistory.collectAsStateWithLifecycle()
     val jazzCredsHistory by viewModel.jazzCredsHistory.collectAsStateWithLifecycle()
     val runningConfig by com.wireturn.app.ProxyServiceState.runningConfig.collectAsStateWithLifecycle()
@@ -103,6 +107,7 @@ fun ClientSetupScreen(
     var rawCommand by rememberSaveable(saved.rawCommand) { mutableStateOf(saved.rawCommand) }
     var serverAddress by rememberSaveable(saved.serverAddress) { mutableStateOf(saved.serverAddress) }
     var vkLink       by rememberSaveable(saved.vkLink)         { mutableStateOf(saved.vkLink) }
+    var telemostLink by rememberSaveable(saved.telemostLink)   { mutableStateOf(saved.telemostLink) }
     var threads      by rememberSaveable(saved.threads)        { mutableFloatStateOf(saved.threads.toFloat()) }
     var useUdp       by rememberSaveable(saved.useUdp)         { mutableStateOf(saved.useUdp) }
     var noDtls       by rememberSaveable(saved.noDtls)         { mutableStateOf(saved.noDtls) }
@@ -123,7 +128,7 @@ fun ClientSetupScreen(
     }
 
     // Авто-сохранение с дебаунсом 200 мс на каждое изменение поля.
-    LaunchedEffect(isRawMode, rawCommand, serverAddress, vkLink, threads, useUdp, noDtls,
+    LaunchedEffect(isRawMode, rawCommand, serverAddress, vkLink, telemostLink, threads, useUdp, noDtls,
         manualCaptcha, localPort, vlessMode, dcMode, forcePort443, isJazz, jazzCreds
     ) {
         delay(200)
@@ -133,6 +138,7 @@ fun ClientSetupScreen(
                 rawCommand       = rawCommand,
                 serverAddress    = serverAddress.trim(),
                 vkLink           = vkLink.trim(),
+                telemostLink     = telemostLink.trim(),
                 threads          = threads.roundToInt(),
                 useUdp           = useUdp,
                 noDtls           = noDtls,
@@ -147,6 +153,9 @@ fun ClientSetupScreen(
         )
     }
 
+    val contentAnimationSpec = tween<androidx.compose.ui.unit.IntSize>(300, easing = FastOutSlowInEasing)
+    val visibilityAnimationSpec = tween<Float>(300, easing = FastOutSlowInEasing)
+
     Scaffold(
         topBar = {
             TopAppBar(title = { Text(stringResource(R.string.client_title)) })
@@ -160,15 +169,20 @@ fun ClientSetupScreen(
                 .consumeWindowInsets(padding)
                 .imePadding()
                 .padding(horizontal = 24.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .animateContentSize(animationSpec = contentAnimationSpec)
+                .verticalScroll(rememberScrollState())
         ) {
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(20.dp))
 
             // Подключение
             Text(stringResource(R.string.connection_title), style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(16.dp))
 
-            if (isRawMode) {
+            AnimatedVisibility(
+                visible = isRawMode,
+                enter = fadeIn(animationSpec = visibilityAnimationSpec) + expandVertically(animationSpec = contentAnimationSpec),
+                exit = fadeOut(animationSpec = visibilityAnimationSpec) + shrinkVertically(animationSpec = contentAnimationSpec)
+            ) {
                 OutlinedTextField(
                     value = rawCommand,
                     onValueChange = { rawCommand = it },
@@ -179,459 +193,629 @@ fun ClientSetupScreen(
                         ConfigFieldIndicator(runningConfig != null && (rawCommand != runningConfig?.rawCommand || !runningConfig!!.isRawMode))
                     }
                 )
-            } else {
-                var showServerHistoryMenu by remember { mutableStateOf(false) }
-                val isTelemost = vkLink.contains("telemost.yandex", ignoreCase = true)
-
-                OutlinedTextField(
-                    value = serverAddress.redact(privacyMode),
-                    onValueChange = { if (!privacyMode) serverAddress = it },
-                    label = { Text(stringResource(R.string.server_address_label)) },
-                    placeholder = { Text(stringResource(R.string.server_address_placeholder)) },
-                    isError = if (!isTelemost && !isJazz) {
-                        !isServerAddressValid || serverAddress.isBlank()
-                    } else false,
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    readOnly = privacyMode,
-                    supportingText = { Text(stringResource(R.string.server_address_support)) },
-                    trailingIcon = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            ConfigFieldIndicator(runningConfig != null && (serverAddress.trim() != runningConfig?.serverAddress || runningConfig!!.isRawMode))
-                            Box {
-                                IconButton(onClick = { showServerHistoryMenu = true }) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.database_outlined_24px),
-                                        contentDescription = stringResource(R.string.history_label)
-                                    )
-                                }
-                                DropdownMenu(
-                                    expanded = showServerHistoryMenu,
-                                    onDismissRequest = { showServerHistoryMenu = false }
-                                )
-                                {
-                                    if (serverAddressHistory.isEmpty()) {
-                                        DropdownMenuItem(
-                                            text = { Text(stringResource(R.string.history_empty)) },
-                                            onClick = { showServerHistoryMenu = false },
-                                            enabled = false
-                                        )
-                                    } else {
-                                        serverAddressHistory.forEach { historyItem ->
-                                            DropdownMenuItem(
-                                                modifier = Modifier.pointerInput(historyItem) {
-                                                    awaitEachGesture {
-                                                        awaitFirstDown(requireUnconsumed = false)
-                                                        var isLongPress = false
-                                                        val job = scope.launch {
-                                                            delay(1500)
-                                                            HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
-                                                            delay(1500)
-                                                            isLongPress = true
-                                                            HapticUtil.perform(context, HapticUtil.Pattern.ERROR)
-                                                            viewModel.removeServerAddressFromHistory(historyItem)
-                                                        }
-                                                        val up = waitForUpOrCancellation()
-                                                        job.cancel()
-                                                        if (isLongPress) {
-                                                            up?.consume()
-                                                        }
-                                                    }
-                                                },
-                                                text = {
-                                                    val text = historyItem.redact(privacyMode)
-                                                    Text(
-                                                        text = if (text.length > 30) {
-                                                            text.take(21) + "..." + text.takeLast(6)
-                                                        } else {
-                                                            text
-                                                        },
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Visible
-                                                    )
-                                                },
-                                                onClick = {
-                                                    HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
-                                                    serverAddress = historyItem
-                                                    showServerHistoryMenu = false
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                )
-
-                var showHistoryMenu by remember { mutableStateOf(false) }
-
-                SwitchRow(
-                    label = stringResource(R.string.jazz_label),
-                    description = stringResource(R.string.jazz_desc),
-                    checked = isJazz,
-                    onCheckedChange = {
-                        HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
-                        isJazz = it
-                    },
-                    isModified = runningConfig != null && isJazz != runningConfig?.isJazz
-                )
-
-                AnimatedVisibility(
-                    visible = isJazz,
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically()
-                ) {
-                    OutlinedTextField(
-                        value = jazzCreds.redact(privacyMode),
-                        onValueChange = { if (!privacyMode) jazzCreds = it },
-                        label = { Text(stringResource(R.string.jazz_creds_label)) },
-                        placeholder = { Text(stringResource(R.string.jazz_creds_placeholder)) },
-                        isError = jazzCreds.isBlank() || !jazzCreds.contains(":"),
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        readOnly = privacyMode,
-                        supportingText = { Text(stringResource(R.string.jazz_creds_support)) },
-                        trailingIcon = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                ConfigFieldIndicator(runningConfig != null && (jazzCreds.trim() != runningConfig?.jazzCreds || runningConfig!!.isRawMode))
-                                Box {
-                                    IconButton(onClick = { showHistoryMenu = true }) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.database_outlined_24px),
-                                            contentDescription = stringResource(R.string.history_label)
-                                        )
-                                    }
-                                    DropdownMenu(
-                                        expanded = showHistoryMenu,
-                                        onDismissRequest = { showHistoryMenu = false }
-                                    ) {
-                                        if (jazzCredsHistory.isEmpty()) {
-                                            DropdownMenuItem(
-                                                text = { Text(stringResource(R.string.history_empty)) },
-                                                onClick = { showHistoryMenu = false },
-                                                enabled = false
-                                            )
-                                        } else {
-                                            jazzCredsHistory.forEach { historyItem ->
-                                                DropdownMenuItem(
-                                                    modifier = Modifier.pointerInput(historyItem) {
-                                                        awaitEachGesture {
-                                                            awaitFirstDown(requireUnconsumed = false)
-                                                            var isLongPress = false
-                                                            val job = scope.launch {
-                                                                delay(1500)
-                                                                HapticUtil.perform(
-                                                                    context,
-                                                                    HapticUtil.Pattern.SELECTION
-                                                                )
-                                                                delay(1500)
-                                                                isLongPress = true
-                                                                HapticUtil.perform(
-                                                                    context,
-                                                                    HapticUtil.Pattern.ERROR
-                                                                )
-                                                                viewModel.removeJazzCredsFromHistory(
-                                                                    historyItem
-                                                                )
-                                                            }
-                                                            val up = waitForUpOrCancellation()
-                                                            job.cancel()
-                                                            if (isLongPress) {
-                                                                up?.consume()
-                                                            }
-                                                        }
-                                                    },
-                                                    text = {
-                                                        val text = historyItem.redact(privacyMode)
-                                                        Text(
-                                                            text = if (text.length > 30) {
-                                                                text.take(21) + "..." + text.takeLast(
-                                                                    6
-                                                                )
-                                                            } else {
-                                                                text
-                                                            },
-                                                            maxLines = 1,
-                                                            overflow = TextOverflow.Visible
-                                                        )
-                                                    },
-                                                    onClick = {
-                                                        HapticUtil.perform(
-                                                            context,
-                                                            HapticUtil.Pattern.SELECTION
-                                                        )
-                                                        jazzCreds = historyItem
-                                                        showHistoryMenu = false
-                                                    }
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    )
-                }
-
-                AnimatedVisibility(
-                    visible = !isJazz,
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically()
-                ) {
-                    OutlinedTextField(
-                        value = vkLink.redact(privacyMode),
-                        onValueChange = { if (!privacyMode) vkLink = it },
-                        label = { Text(stringResource(R.string.vk_link_label)) },
-                        placeholder = { Text(stringResource(R.string.vk_link_placeholder)) },
-                        isError = !ValidatorUtils.isValidUrl(vkLink) || vkLink.isBlank(),
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        readOnly = privacyMode,
-                        supportingText = { Text(stringResource(R.string.vk_link_support)) },
-                        trailingIcon = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                ConfigFieldIndicator(runningConfig != null && (vkLink.trim() != runningConfig?.vkLink || runningConfig!!.isRawMode))
-                                Box {
-                                    IconButton(onClick = { showHistoryMenu = true }) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.database_outlined_24px),
-                                            contentDescription = stringResource(R.string.history_label)
-                                        )
-                                    }
-                                    DropdownMenu(
-                                        expanded = showHistoryMenu,
-                                        onDismissRequest = { showHistoryMenu = false }
-                                    ) {
-                                        if (vkLinkHistory.isEmpty()) {
-                                            DropdownMenuItem(
-                                                text = { Text(stringResource(R.string.history_empty)) },
-                                                onClick = { showHistoryMenu = false },
-                                                enabled = false
-                                            )
-                                        } else {
-                                            vkLinkHistory.forEach { historyItem ->
-                                                DropdownMenuItem(
-                                                    modifier = Modifier.pointerInput(historyItem) {
-                                                        awaitEachGesture {
-                                                            awaitFirstDown(requireUnconsumed = false)
-                                                            var isLongPress = false
-                                                            val job = scope.launch {
-                                                                delay(1500)
-                                                                HapticUtil.perform(
-                                                                    context,
-                                                                    HapticUtil.Pattern.SELECTION
-                                                                )
-                                                                delay(1500)
-                                                                isLongPress = true
-                                                                HapticUtil.perform(
-                                                                    context,
-                                                                    HapticUtil.Pattern.ERROR
-                                                                )
-                                                                viewModel.removeVkLinkFromHistory(
-                                                                    historyItem
-                                                                )
-                                                            }
-                                                            val up = waitForUpOrCancellation()
-                                                            job.cancel()
-                                                            if (isLongPress) {
-                                                                up?.consume()
-                                                            }
-                                                        }
-                                                    },
-                                                    text = {
-                                                        val text = historyItem.redact(privacyMode)
-                                                        Text(
-                                                            text = if (text.length > 30) {
-                                                                text.take(21) + "..." + text.takeLast(
-                                                                    6
-                                                                )
-                                                            } else {
-                                                                text
-                                                            },
-                                                            maxLines = 1,
-                                                            overflow = TextOverflow.Visible
-                                                        )
-                                                    },
-                                                    onClick = {
-                                                        HapticUtil.perform(
-                                                            context,
-                                                            HapticUtil.Pattern.SELECTION
-                                                        )
-                                                        vkLink = historyItem
-                                                        showHistoryMenu = false
-                                                    }
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    )
-                }
-
-                AnimatedVisibility(
-                    visible = isTelemost || isJazz,
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically()
-                ) {
-                    SwitchRow(
-                        label = stringResource(R.string.dc_mode_label),
-                        description = stringResource(R.string.dc_mode_desc),
-                        checked = dcMode,
-                        onCheckedChange = {
-                            HapticUtil.perform(
-                                context,
-                                if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
-                            )
-                            dcMode = it
-                        },
-                        isModified = runningConfig != null && dcMode != runningConfig?.dcMode
-                    )
-                }
-
-                OutlinedTextField(
-                    value = localPort.redact(privacyMode),
-                    onValueChange = { if (!privacyMode) localPort = it },
-                    label = { Text(stringResource(R.string.local_listen_address)) },
-                    placeholder = { Text(stringResource(R.string.local_listen_placeholder)) },
-                    isError = !isLocalPortValid || localPort.isBlank(),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    readOnly = privacyMode,
-                    supportingText = { Text(stringResource(R.string.local_listen_support)) },
-                    trailingIcon = {
-                        ConfigFieldIndicator(runningConfig != null && localPort.trim() != runningConfig?.localPort)
-                    }
-                )
-
-                HorizontalDivider(Modifier, DividerDefaults.Thickness, DividerDefaults.color)
-
-                // Параметры
-                Text(stringResource(R.string.parameters_title), style = MaterialTheme.typography.titleMedium)
-
+            }
+            AnimatedVisibility(
+                visible = !isRawMode,
+                enter = fadeIn(animationSpec = visibilityAnimationSpec) + expandVertically(animationSpec = contentAnimationSpec),
+                exit = fadeOut(animationSpec = visibilityAnimationSpec) + shrinkVertically(animationSpec = contentAnimationSpec)
+            ) {
                 Column {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(stringResource(R.string.threads_format, threads.roundToInt()), style = MaterialTheme.typography.bodyMedium)
-                                InlineConfigIndicator(runningConfig != null && threads.roundToInt() != runningConfig?.threads)
-                            }
-                            Text(
-                                stringResource(R.string.threads_recommendation),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                            )
-                        }
-                    }
-                    Slider(
-                        value = threads,
-                        onValueChange = {
-                            val newInt = it.roundToInt()
-                            if (newInt != lastSliderInt) {
-                                HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
-                                lastSliderInt = newInt
-                            }
-                            threads = it
-                        },
-                        valueRange = 1f..8f,
-                        steps = 6,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                SwitchRow(
-                    label = stringResource(R.string.vless_mode),
-                    description = stringResource(R.string.vless_mode_desc),
-                    checked = vlessMode,
-                    onCheckedChange = {
-                        HapticUtil.perform(
-                            context,
-                            if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
-                        )
-                        vlessMode = it
-                    },
-                    isModified = runningConfig != null && vlessMode != runningConfig?.vlessMode
-                )
-
-                if (!vlessMode) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Column(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(stringResource(R.string.transport_protocol), style = MaterialTheme.typography.bodyMedium)
+                                Text(stringResource(R.string.protocol), style = MaterialTheme.typography.bodyMedium)
                                 InlineConfigIndicator(runningConfig != null && useUdp != runningConfig?.useUdp)
                             }
-                            Text(
-                                stringResource(R.string.transport_protocol_desc),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                            )
                         }
                         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                             SegmentedButton(
-                                selected = !useUdp,
+                                selected = !dcMode,
                                 onClick = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                                    useUdp = false
-                                    noDtls = false
+                                    dcMode = false
                                 },
                                 shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-                            ) { Text(stringResource(R.string.tcp)) }
+                            ) { Text(stringResource(R.string.turn_protocol)) }
                             SegmentedButton(
-                                selected = useUdp,
+                                selected = dcMode,
                                 onClick = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                                    useUdp = true
+                                    dcMode = true
                                 },
                                 shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-                            ) { Text(stringResource(R.string.udp)) }
+                            ) { Text(stringResource(R.string.dc_protocol)) }
                         }
                     }
 
-                    if (useUdp) {
-                        SwitchRow(
-                            label = stringResource(R.string.no_dtls),
-                            description = stringResource(R.string.no_dtls_desc),
-                            checked = noDtls,
-                            onCheckedChange = {
-                                HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
-                                noDtls = it
-                            },
-                            isModified = runningConfig != null && noDtls != runningConfig?.noDtls
+                    ScreenSectionDivider()
+
+                    var showServerHistoryMenu by remember { mutableStateOf(false) }
+
+                    AnimatedVisibility(
+                        visible = !dcMode,
+                        enter = fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
+                                expandVertically(animationSpec = tween(300, easing = FastOutSlowInEasing)),
+                        exit = fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
+                               shrinkVertically(animationSpec = tween(300, easing = FastOutSlowInEasing))
+                    ) {
+                        Column {
+                            OutlinedTextField(
+                                value = serverAddress.redact(privacyMode),
+                                onValueChange = { if (!privacyMode) serverAddress = it },
+                                label = { Text(stringResource(R.string.server_address_label)) },
+                                placeholder = { Text(stringResource(R.string.server_address_placeholder)) },
+                                isError = !isServerAddressValid || serverAddress.isBlank(),
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                readOnly = privacyMode,
+                                supportingText = { Text(stringResource(R.string.server_address_support)) },
+                                trailingIcon = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        ConfigFieldIndicator(runningConfig != null && (serverAddress.trim() != runningConfig?.serverAddress || runningConfig!!.isRawMode))
+                                        Box {
+                                            IconButton(onClick = { showServerHistoryMenu = true }) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.database_outlined_24px),
+                                                    contentDescription = stringResource(R.string.history_label)
+                                                )
+                                            }
+                                            DropdownMenu(
+                                                expanded = showServerHistoryMenu,
+                                                onDismissRequest = { showServerHistoryMenu = false }
+                                            )
+                                            {
+                                                if (serverAddressHistory.isEmpty()) {
+                                                    DropdownMenuItem(
+                                                        text = { Text(stringResource(R.string.history_empty)) },
+                                                        onClick = { showServerHistoryMenu = false },
+                                                        enabled = false
+                                                    )
+                                                } else {
+                                                    serverAddressHistory.forEach { historyItem ->
+                                                        DropdownMenuItem(
+                                                            modifier = Modifier.pointerInput(
+                                                                historyItem
+                                                            ) {
+                                                                awaitEachGesture {
+                                                                    awaitFirstDown(requireUnconsumed = false)
+                                                                    var isLongPress = false
+                                                                    val job = scope.launch {
+                                                                        delay(1500)
+                                                                        HapticUtil.perform(
+                                                                            context,
+                                                                            HapticUtil.Pattern.SELECTION
+                                                                        )
+                                                                        delay(1500)
+                                                                        isLongPress = true
+                                                                        HapticUtil.perform(
+                                                                            context,
+                                                                            HapticUtil.Pattern.ERROR
+                                                                        )
+                                                                        viewModel.removeServerAddressFromHistory(
+                                                                            historyItem
+                                                                        )
+                                                                    }
+                                                                    val up =
+                                                                        waitForUpOrCancellation()
+                                                                    job.cancel()
+                                                                    if (isLongPress) {
+                                                                        up?.consume()
+                                                                    }
+                                                                }
+                                                            },
+                                                            text = {
+                                                                val text =
+                                                                    historyItem.redact(privacyMode)
+                                                                Text(
+                                                                    text = if (text.length > 30) {
+                                                                        text.take(21) + "..." + text.takeLast(
+                                                                            6
+                                                                        )
+                                                                    } else {
+                                                                        text
+                                                                    },
+                                                                    maxLines = 1,
+                                                                    overflow = TextOverflow.Visible
+                                                                )
+                                                            },
+                                                            onClick = {
+                                                                HapticUtil.perform(
+                                                                    context,
+                                                                    HapticUtil.Pattern.SELECTION
+                                                                )
+                                                                serverAddress = historyItem
+                                                                showServerHistoryMenu = false
+                                                            }
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            )
+                            Spacer(Modifier.height(12.dp))
+                        }
+                    }
+
+                    AnimatedVisibility(
+                        visible = dcMode,
+                        enter = fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
+                                expandVertically(animationSpec = tween(300, easing = FastOutSlowInEasing)),
+                        exit = fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
+                               shrinkVertically(animationSpec = tween(300, easing = FastOutSlowInEasing))
+                    ) {
+                        Column {
+                            SwitchRow(
+                                label = stringResource(R.string.jazz_label),
+                                description = stringResource(R.string.jazz_desc),
+                                checked = isJazz,
+                                onCheckedChange = {
+                                    HapticUtil.perform(
+                                        context,
+                                        if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                                    )
+                                    isJazz = it
+                                },
+                                isModified = runningConfig != null && isJazz != runningConfig?.isJazz
+                            )
+                            Spacer(Modifier.height(8.dp))
+                        }
+                    }
+
+                    var showHistoryMenu by remember { mutableStateOf(false) }
+
+                    AnimatedVisibility(
+                        visible = isJazz && dcMode,
+                        enter = fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
+                                expandVertically(animationSpec = tween(300, easing = FastOutSlowInEasing)),
+                        exit = fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
+                               shrinkVertically(animationSpec = tween(300, easing = FastOutSlowInEasing))
+                    ) {
+                        OutlinedTextField(
+                            value = jazzCreds.redact(privacyMode),
+                            onValueChange = { if (!privacyMode) jazzCreds = it },
+                            label = { Text(stringResource(R.string.jazz_creds_label)) },
+                            placeholder = { Text(stringResource(R.string.jazz_creds_placeholder)) },
+                            isError = jazzCreds.isBlank() || !jazzCreds.contains(":"),
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            readOnly = privacyMode,
+                            supportingText = { Text(stringResource(R.string.jazz_creds_support)) },
+                            trailingIcon = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    ConfigFieldIndicator(runningConfig != null && (jazzCreds.trim() != runningConfig?.jazzCreds || runningConfig!!.isRawMode))
+                                    Box {
+                                        IconButton(onClick = { showHistoryMenu = true }) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.database_outlined_24px),
+                                                contentDescription = stringResource(R.string.history_label)
+                                            )
+                                        }
+                                        DropdownMenu(
+                                            expanded = showHistoryMenu,
+                                            onDismissRequest = { showHistoryMenu = false }
+                                        ) {
+                                            if (jazzCredsHistory.isEmpty()) {
+                                                DropdownMenuItem(
+                                                    text = { Text(stringResource(R.string.history_empty)) },
+                                                    onClick = { showHistoryMenu = false },
+                                                    enabled = false
+                                                )
+                                            } else {
+                                                jazzCredsHistory.forEach { historyItem ->
+                                                    DropdownMenuItem(
+                                                        modifier = Modifier.pointerInput(historyItem) {
+                                                            awaitEachGesture {
+                                                                awaitFirstDown(requireUnconsumed = false)
+                                                                var isLongPress = false
+                                                                val job = scope.launch {
+                                                                    delay(1500)
+                                                                    HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
+                                                                    delay(1500)
+                                                                    isLongPress = true
+                                                                    HapticUtil.perform(context, HapticUtil.Pattern.ERROR)
+                                                                    viewModel.removeJazzCredsFromHistory(historyItem)
+                                                                }
+                                                                val up = waitForUpOrCancellation()
+                                                                job.cancel()
+                                                                if (isLongPress) {
+                                                                    up?.consume()
+                                                                }
+                                                            }
+                                                        },
+                                                        text = {
+                                                            val text = historyItem.redact(privacyMode)
+                                                            Text(
+                                                                text = if (text.length > 30) {
+                                                                    text.take(21) + "..." + text.takeLast(6)
+                                                                } else {
+                                                                text
+                                                                },
+                                                                maxLines = 1,
+                                                                overflow = TextOverflow.Visible
+                                                            )
+                                                        },
+                                                        onClick = {
+                                                            HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
+                                                            jazzCreds = historyItem
+                                                            showHistoryMenu = false
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         )
                     }
+
+                    AnimatedVisibility(
+                        visible = !isJazz && dcMode,
+                        enter = fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
+                                expandVertically(animationSpec = tween(300, easing = FastOutSlowInEasing)),
+                        exit = fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
+                               shrinkVertically(animationSpec = tween(300, easing = FastOutSlowInEasing))
+                    ) {
+                        OutlinedTextField(
+                            value = telemostLink.redact(privacyMode),
+                            onValueChange = { if (!privacyMode) telemostLink = it },
+                            label = { Text(stringResource(R.string.telemost_link_label)) },
+                            placeholder = { Text(stringResource(R.string.telemost_link_placeholder)) },
+                            isError = !ValidatorUtils.isValidUrl(telemostLink) || telemostLink.isBlank(),
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            readOnly = privacyMode,
+                            supportingText = { Text(stringResource(R.string.telemost_link_support)) },
+                            trailingIcon = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    ConfigFieldIndicator(runningConfig != null && (telemostLink.trim() != runningConfig?.telemostLink || runningConfig!!.isRawMode))
+                                    Box {
+                                        IconButton(onClick = { showHistoryMenu = true }) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.database_outlined_24px),
+                                                contentDescription = stringResource(R.string.history_label)
+                                            )
+                                        }
+                                        DropdownMenu(
+                                            expanded = showHistoryMenu,
+                                            onDismissRequest = { showHistoryMenu = false }
+                                        ) {
+                                            if (telemostLinkHistory.isEmpty()) {
+                                                DropdownMenuItem(
+                                                    text = { Text(stringResource(R.string.history_empty)) },
+                                                    onClick = { showHistoryMenu = false },
+                                                    enabled = false
+                                                )
+                                            } else {
+                                                telemostLinkHistory.forEach { historyItem ->
+                                                    DropdownMenuItem(
+                                                        modifier = Modifier.pointerInput(historyItem) {
+                                                            awaitEachGesture {
+                                                                awaitFirstDown(requireUnconsumed = false)
+                                                                var isLongPress = false
+                                                                val job = scope.launch {
+                                                                    delay(1500)
+                                                                    HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
+                                                                    delay(1500)
+                                                                    isLongPress = true
+                                                                    HapticUtil.perform(context, HapticUtil.Pattern.ERROR)
+                                                                    viewModel.removeTelemostLinkFromHistory(historyItem)
+                                                                }
+                                                                val up = waitForUpOrCancellation()
+                                                                job.cancel()
+                                                                if (isLongPress) {
+                                                                    up?.consume()
+                                                                }
+                                                            }
+                                                        },
+                                                        text = {
+                                                            val text = historyItem.redact(privacyMode)
+                                                            Text(
+                                                                text = if (text.length > 30) {
+                                                                    text.take(21) + "..." + text.takeLast(6)
+                                                                } else {
+                                                                    text
+                                                                },
+                                                                maxLines = 1,
+                                                                overflow = TextOverflow.Visible
+                                                            )
+                                                        },
+                                                        onClick = {
+                                                            HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
+                                                            telemostLink = historyItem
+                                                            showHistoryMenu = false
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        )
+                    }
+
+                    AnimatedVisibility(
+                        visible = !dcMode,
+                        enter = fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
+                                expandVertically(animationSpec = tween(300, easing = FastOutSlowInEasing)),
+                        exit = fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
+                               shrinkVertically(animationSpec = tween(300, easing = FastOutSlowInEasing))
+                    ) {
+                        OutlinedTextField(
+                            value = vkLink.redact(privacyMode),
+                            onValueChange = { if (!privacyMode) vkLink = it },
+                            label = { Text(stringResource(R.string.vk_link_label)) },
+                            placeholder = { Text(stringResource(R.string.vk_link_placeholder)) },
+                            isError = !ValidatorUtils.isValidUrl(vkLink) || vkLink.isBlank(),
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            readOnly = privacyMode,
+                            supportingText = { Text(stringResource(R.string.vk_link_support)) },
+                            trailingIcon = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    ConfigFieldIndicator(runningConfig != null && (vkLink.trim() != runningConfig?.vkLink || runningConfig!!.isRawMode))
+                                    Box {
+                                        IconButton(onClick = { showHistoryMenu = true }) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.database_outlined_24px),
+                                                contentDescription = stringResource(R.string.history_label)
+                                            )
+                                        }
+                                        DropdownMenu(
+                                            expanded = showHistoryMenu,
+                                            onDismissRequest = { showHistoryMenu = false }
+                                        ) {
+                                            if (vkLinkHistory.isEmpty()) {
+                                                DropdownMenuItem(
+                                                    text = { Text(stringResource(R.string.history_empty)) },
+                                                    onClick = { showHistoryMenu = false },
+                                                    enabled = false
+                                                )
+                                            } else {
+                                                vkLinkHistory.forEach { historyItem ->
+                                                    DropdownMenuItem(
+                                                        modifier = Modifier.pointerInput(historyItem) {
+                                                            awaitEachGesture {
+                                                                awaitFirstDown(requireUnconsumed = false)
+                                                                var isLongPress = false
+                                                                val job = scope.launch {
+                                                                    delay(1500)
+                                                                    HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
+                                                                    delay(1500)
+                                                                    isLongPress = true
+                                                                    HapticUtil.perform(context, HapticUtil.Pattern.ERROR)
+                                                                    viewModel.removeVkLinkFromHistory(historyItem)
+                                                                }
+                                                                val up = waitForUpOrCancellation()
+                                                                job.cancel()
+                                                                if (isLongPress) {
+                                                                    up?.consume()
+                                                                }
+                                                            }
+                                                        },
+                                                        text = {
+                                                            val text = historyItem.redact(privacyMode)
+                                                            Text(
+                                                                text = if (text.length > 30) {
+                                                                    text.take(21) + "..." + text.takeLast(6)
+                                                                } else {
+                                                                    text
+                                                                },
+                                                                maxLines = 1,
+                                                                overflow = TextOverflow.Visible
+                                                            )
+                                                        },
+                                                        onClick = {
+                                                            HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
+                                                            vkLink = historyItem
+                                                            showHistoryMenu = false
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        )
+                    }
+
+
+                    ScreenSectionDivider()
+
+                    OutlinedTextField(
+                        value = localPort.redact(privacyMode),
+                        onValueChange = { if (!privacyMode) localPort = it },
+                        label = { Text(stringResource(R.string.local_listen_address)) },
+                        placeholder = { Text(stringResource(R.string.local_listen_placeholder)) },
+                        isError = !isLocalPortValid || localPort.isBlank(),
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        readOnly = privacyMode,
+                        supportingText = { Text(stringResource(R.string.local_listen_support)) },
+                        trailingIcon = {
+                            ConfigFieldIndicator(runningConfig != null && localPort.trim() != runningConfig?.localPort)
+                        }
+                    )
+
+                    ScreenSectionDivider()
+
+                    // Параметры
+                    Text(stringResource(R.string.parameters_title), style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(16.dp))
+
+                    AnimatedVisibility(
+                        visible = !dcMode,
+                        enter = fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
+                                expandVertically(animationSpec = tween(300, easing = FastOutSlowInEasing)),
+                        exit = fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
+                               shrinkVertically(animationSpec = tween(300, easing = FastOutSlowInEasing))
+                    ) {
+                        Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(stringResource(R.string.threads_format, threads.roundToInt()), style = MaterialTheme.typography.bodyMedium)
+                                        InlineConfigIndicator(runningConfig != null && threads.roundToInt() != runningConfig?.threads)
+                                    }
+                                    Text(
+                                        stringResource(R.string.threads_recommendation),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                    )
+                                }
+                            }
+                            Slider(
+                                value = threads,
+                                onValueChange = {
+                                    val newInt = it.roundToInt()
+                                    if (newInt != lastSliderInt) {
+                                        HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
+                                        lastSliderInt = newInt
+                                    }
+                                    threads = it
+                                },
+                                valueRange = 1f..8f,
+                                steps = 6,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                        Spacer(Modifier.height(12.dp))
+                    }
+
+                    SwitchRow(
+                        label = stringResource(R.string.vless_mode),
+                        description = stringResource(R.string.vless_mode_desc),
+                        checked = vlessMode,
+                        onCheckedChange = {
+                            HapticUtil.perform(
+                                context,
+                                if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                            )
+                            vlessMode = it
+                        },
+                        isModified = runningConfig != null && vlessMode != runningConfig?.vlessMode
+                    )
+
+                    AnimatedVisibility(
+                        visible = !vlessMode && !dcMode,
+                        enter = fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
+                                expandVertically(animationSpec = tween(300, easing = FastOutSlowInEasing)),
+                        exit = fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
+                               shrinkVertically(animationSpec = tween(300, easing = FastOutSlowInEasing))
+                    ) {
+                        Column {
+                            Spacer(Modifier.height(12.dp))
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(stringResource(R.string.transport_protocol), style = MaterialTheme.typography.bodyMedium)
+                                        InlineConfigIndicator(runningConfig != null && useUdp != runningConfig?.useUdp)
+                                    }
+                                    Text(
+                                        stringResource(R.string.transport_protocol_desc),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                    )
+                                }
+                                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                                    SegmentedButton(
+                                        selected = !useUdp,
+                                        onClick = {
+                                            HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
+                                            useUdp = false
+                                            noDtls = false
+                                        },
+                                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                                    ) { Text(stringResource(R.string.tcp)) }
+                                    SegmentedButton(
+                                        selected = useUdp,
+                                        onClick = {
+                                            HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
+                                            useUdp = true
+                                        },
+                                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                                    ) { Text(stringResource(R.string.udp)) }
+                                }
+                            }
+
+                            AnimatedVisibility(
+                                visible = useUdp,
+                                enter = fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
+                                        expandVertically(animationSpec = tween(300, easing = FastOutSlowInEasing)),
+                                exit = fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
+                                       shrinkVertically(animationSpec = tween(300, easing = FastOutSlowInEasing))
+                            ) {
+                                Column {
+                                    Spacer(Modifier.height(12.dp))
+                                    SwitchRow(
+                                        label = stringResource(R.string.no_dtls),
+                                        description = stringResource(R.string.no_dtls_desc),
+                                        checked = noDtls,
+                                        onCheckedChange = {
+                                            HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                                            noDtls = it
+                                        },
+                                        isModified = runningConfig != null && noDtls != runningConfig?.noDtls,
+                                        enabled = customKernelExists
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    AnimatedVisibility(
+                        visible = !dcMode,
+                        enter = fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
+                                expandVertically(animationSpec = tween(300, easing = FastOutSlowInEasing)),
+                        exit = fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
+                               shrinkVertically(animationSpec = tween(300, easing = FastOutSlowInEasing))
+                    ) {
+                        Column {
+                            Spacer(Modifier.height(12.dp))
+                            SwitchRow(
+                                label = stringResource(R.string.manual_captcha),
+                                description = stringResource(R.string.manual_captcha_desc),
+                                checked = manualCaptcha,
+                                onCheckedChange = {
+                                    HapticUtil.perform(
+                                        context,
+                                        if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                                    )
+                                    manualCaptcha = it
+                                },
+                                isModified = runningConfig != null && manualCaptcha != runningConfig?.manualCaptcha
+                            )
+
+                            Spacer(Modifier.height(12.dp))
+                            SwitchRow(
+                                label = stringResource(R.string.force_turn_port_443),
+                                description = stringResource(R.string.force_turn_port_443_desc),
+                                checked = forcePort443,
+                                onCheckedChange = {
+                                    HapticUtil.perform(
+                                        context,
+                                        if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                                    )
+                                    forcePort443 = it
+                                },
+                                isModified = runningConfig != null && forcePort443 != runningConfig?.forceTurnPort443
+                            )
+                        }
+                    }
                 }
-
-                SwitchRow(
-                    label = stringResource(R.string.manual_captcha),
-                    description = stringResource(R.string.manual_captcha_desc),
-                    checked = manualCaptcha,
-                    onCheckedChange = {
-                        HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
-                        manualCaptcha = it
-                    },
-                    isModified = runningConfig != null && manualCaptcha != runningConfig?.manualCaptcha
-                )
-
-                SwitchRow(
-                    label = stringResource(R.string.force_turn_port_443),
-                    description = stringResource(R.string.force_turn_port_443_desc),
-                    checked = forcePort443,
-                    onCheckedChange = {
-                        HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
-                        forcePort443 = it
-                    },
-                    isModified = runningConfig != null && forcePort443 != runningConfig?.forceTurnPort443
-                )
             }
 
-            HorizontalDivider(Modifier, DividerDefaults.Thickness, DividerDefaults.color)
+            ScreenSectionDivider()
 
             SwitchRow(
                 label = stringResource(R.string.raw_mode),
@@ -641,10 +825,11 @@ fun ClientSetupScreen(
                 isModified = runningConfig != null && isRawMode != runningConfig?.isRawMode
             )
 
-            HorizontalDivider(Modifier, DividerDefaults.Thickness, DividerDefaults.color)
+            ScreenSectionDivider()
 
             // Ядро
             Text(stringResource(R.string.core_title), style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(16.dp))
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -716,6 +901,7 @@ fun ClientSetupScreen(
             }
 
             if (kernelError != null) {
+                Spacer(Modifier.height(12.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -736,7 +922,7 @@ fun ClientSetupScreen(
 
             // Кнопка «Завершить» — только в онбординг-флоу
             if (showFinishButton && onFinish != null) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(24.dp))
                 Button(
                     onClick = onFinish,
                     modifier = Modifier
@@ -749,9 +935,17 @@ fun ClientSetupScreen(
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(28.dp))
         }
+
     }
+}
+
+@Composable
+private fun ScreenSectionDivider() {
+    Spacer(Modifier.height(16.dp))
+    HorizontalDivider(Modifier, DividerDefaults.Thickness, DividerDefaults.color)
+    Spacer(Modifier.height(16.dp))
 }
 
 @Composable
@@ -760,7 +954,8 @@ private fun SwitchRow(
     description: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
-    isModified: Boolean = false
+    isModified: Boolean = false,
+    enabled: Boolean = true
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -778,7 +973,6 @@ private fun SwitchRow(
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
             )
         }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
     }
 }
-

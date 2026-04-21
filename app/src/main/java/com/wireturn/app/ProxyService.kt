@@ -140,37 +140,37 @@ class ProxyService : Service() {
             if (parts.isNotEmpty()) cmdArgs.addAll(parts.subList(0, parts.size))
         } else {
             cmdArgs.add(executable)
-            cmdArgs.add("-peer"); cmdArgs.add(cfg.serverAddress)
-
-            if (cfg.isJazz) {
-                if (!checkJazzAvailability()) {
-                    ProxyServiceState.addLog(getString(R.string.log_jazz_unavailable))
-                    ProxyServiceState.setStartupResult(StartupResult.Failed(getString(R.string.error_jazz_unavailable)))
-                    withContext(Dispatchers.Main) {
-                        userStopped.set(true)
-                        stopSelf()
-                    }
-                    return
-                }
-
-                cmdArgs.add("-jazz-room")
-                cmdArgs.add(cfg.jazzCreds)
-                if (cfg.dcMode) cmdArgs.add("-dc")
-            } else if (cfg.vkLink.contains("telemost.yandex")) {
-                cmdArgs.add("-yandex-link")
-                cmdArgs.add(cfg.vkLink)
-                if (cfg.dcMode) cmdArgs.add("-dc")
-            } else {
-                cmdArgs.add("-vk-link")
-                cmdArgs.add(cfg.vkLink)
-                if (cfg.manualCaptcha) cmdArgs.add("--manual-captcha")
-            }
             cmdArgs.add("-listen"); cmdArgs.add(cfg.localPort)
-            if (cfg.threads > 0) { cmdArgs.add("-n"); cmdArgs.add(cfg.threads.toString()) }
-            if (cfg.vlessMode) cmdArgs.add("-vless")
-            else if (cfg.useUdp) cmdArgs.add("-udp")
-            if (cfg.noDtls) cmdArgs.add("-no-dtls")
-            if (cfg.forceTurnPort443) { cmdArgs.add("-port"); cmdArgs.add("443") }
+            if(cfg.dcMode) {
+                if (cfg.isJazz) {
+                    if (!checkJazzAvailability()) {
+                        ProxyServiceState.addLog(getString(R.string.log_jazz_unavailable))
+                        ProxyServiceState.setStartupResult(StartupResult.Failed(getString(R.string.error_jazz_unavailable)))
+                        withContext(Dispatchers.Main) {
+                            userStopped.set(true)
+                            stopSelf()
+                        }
+                        return
+                    }
+
+                    cmdArgs.add("-jazz-room")
+                    cmdArgs.add(cfg.jazzCreds)
+                } else {
+                    cmdArgs.add("-yandex-link")
+                    cmdArgs.add(cfg.telemostLink)
+                }
+                if (cfg.vlessMode) cmdArgs.add("-vless")
+                cmdArgs.add("-dc")
+            } else {
+                cmdArgs.add("-peer"); cmdArgs.add(cfg.serverAddress)
+                cmdArgs.add("-vk-link"); cmdArgs.add(cfg.vkLink)
+                if (cfg.threads > 0) { cmdArgs.add("-n"); cmdArgs.add(cfg.threads.toString()) }
+                if (cfg.vlessMode) cmdArgs.add("-vless")
+                else if (cfg.useUdp) cmdArgs.add("-udp")
+                if (cfg.forceTurnPort443) { cmdArgs.add("-port"); cmdArgs.add("443") }
+                if (cfg.manualCaptcha) cmdArgs.add("--manual-captcha")
+                if (cfg.noDtls && useCustom) cmdArgs.add("-no-dtls")
+            }
         }
 
         if (useCustom) {

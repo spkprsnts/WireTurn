@@ -17,6 +17,7 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 data class ClientConfig(
     val serverAddress: String = "",
     val vkLink: String = "",
+    val telemostLink: String = "",
     val threads: Int = 4,
     val useUdp: Boolean = false,
     val noDtls: Boolean = false,
@@ -29,20 +30,22 @@ data class ClientConfig(
     val forceTurnPort443: Boolean = false,
     val wireproxyEnabled: Boolean = false,
     val wireproxyVpnMode: Boolean = false,
-    val isJazz: Boolean = false,
+    val isJazz: Boolean = true,
     val jazzCreds: String = ""
 ) {
     fun getValidationErrorResId(): Int? {
-        return if (isRawMode) {
-            if (rawCommand.isBlank()) com.wireturn.app.R.string.error_raw_empty else null
-        } else {
+        if (isRawMode) {
+            return if (rawCommand.isBlank()) com.wireturn.app.R.string.error_raw_empty else null
+        }
+
+        return if (dcMode) {
             if (isJazz) {
-                if (jazzCreds.isBlank()) com.wireturn.app.R.string.error_settings_empty else null
-            } else {
-                if (vkLink.contains("telemost.yandex", ignoreCase = true)) null else {
-                    if (serverAddress.isBlank() || vkLink.isBlank()) com.wireturn.app.R.string.error_settings_empty else null
-                }
+                return if (jazzCreds.isBlank()) com.wireturn.app.R.string.error_settings_empty else null
             }
+            if (telemostLink.isNotBlank()) null
+            else com.wireturn.app.R.string.error_settings_empty
+        } else {
+            if (serverAddress.isBlank() || vkLink.isBlank()) com.wireturn.app.R.string.error_settings_empty else null
         }
     }
 }
@@ -156,6 +159,7 @@ class AppPreferences(context: Context) {
         val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
         val CLIENT_SERVER_ADDR = stringPreferencesKey("client_server_addr")
         val CLIENT_VK_LINK = stringPreferencesKey("client_vk_link")
+        val CLIENT_TELEMOST_LINK = stringPreferencesKey("client_telemost_link")
         val CLIENT_THREADS = intPreferencesKey("client_threads")
         val CLIENT_UDP = booleanPreferencesKey("client_udp")
         val CLIENT_NO_DTLS = booleanPreferencesKey("client_no_dtls")
@@ -181,6 +185,7 @@ class AppPreferences(context: Context) {
         val WIRE_SOCKS5_BIND = stringPreferencesKey("wire_socks5_bind")
         val WIRE_HTTP_BIND = stringPreferencesKey("wire_http_bind")
         val VK_LINK_HISTORY = stringPreferencesKey("vk_link_history")
+        val TELEMOST_LINK_HISTORY = stringPreferencesKey("telemost_link_history")
         val SERVER_ADDR_HISTORY = stringPreferencesKey("server_addr_history")
         val JAZZ_CREDS_HISTORY = stringPreferencesKey("jazz_creds_history")
         val CLIENT_IS_JAZZ = booleanPreferencesKey("client_is_jazz")
@@ -194,6 +199,7 @@ class AppPreferences(context: Context) {
             ClientConfig(
                 serverAddress = prefs[CLIENT_SERVER_ADDR] ?: "",
                 vkLink = prefs[CLIENT_VK_LINK] ?: "",
+                telemostLink = prefs[CLIENT_TELEMOST_LINK] ?: "",
                 threads = prefs[CLIENT_THREADS] ?: 4,
                 useUdp = prefs[CLIENT_UDP] ?: false,
                 noDtls = prefs[CLIENT_NO_DTLS] ?: false,
@@ -206,7 +212,7 @@ class AppPreferences(context: Context) {
                 forceTurnPort443 = prefs[CLIENT_FORCE_PORT_443] ?: false,
                 wireproxyEnabled = prefs[WIREPROXY_ENABLED] ?: false,
                 wireproxyVpnMode = prefs[WIREPROXY_VPN_MODE] ?: false,
-                isJazz = prefs[CLIENT_IS_JAZZ] ?: false,
+                isJazz = prefs[CLIENT_IS_JAZZ] ?: true,
                 jazzCreds = prefs[CLIENT_JAZZ_CREDS] ?: ""
             )
         }
@@ -254,6 +260,14 @@ class AppPreferences(context: Context) {
             else historyString.split("|").filter { it.isNotBlank() }
         }
 
+    val telemostLinkHistoryFlow: Flow<List<String>> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { prefs ->
+            val historyString = prefs[TELEMOST_LINK_HISTORY] ?: ""
+            if (historyString.isBlank()) emptyList()
+            else historyString.split("|").filter { it.isNotBlank() }
+        }
+
     val serverAddressHistoryFlow: Flow<List<String>> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { prefs ->
@@ -276,6 +290,15 @@ class AppPreferences(context: Context) {
             val currentHistory = prefs[VK_LINK_HISTORY]?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
             val newHistory = (listOf(link) + currentHistory.filter { it != link }).take(3)
             prefs[VK_LINK_HISTORY] = newHistory.joinToString("|")
+        }
+    }
+
+    suspend fun addTelemostLinkToHistory(link: String) {
+        if (link.isBlank()) return
+        context.dataStore.edit { prefs ->
+            val currentHistory = prefs[TELEMOST_LINK_HISTORY]?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
+            val newHistory = (listOf(link) + currentHistory.filter { it != link }).take(3)
+            prefs[TELEMOST_LINK_HISTORY] = newHistory.joinToString("|")
         }
     }
 
@@ -305,6 +328,14 @@ class AppPreferences(context: Context) {
         }
     }
 
+    suspend fun removeTelemostLinkFromHistory(link: String) {
+        context.dataStore.edit { prefs ->
+            val currentHistory = prefs[TELEMOST_LINK_HISTORY]?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
+            val newHistory = currentHistory.filter { it != link }
+            prefs[TELEMOST_LINK_HISTORY] = newHistory.joinToString("|")
+        }
+    }
+
     suspend fun removeServerAddressFromHistory(address: String) {
         context.dataStore.edit { prefs ->
             val currentHistory = prefs[SERVER_ADDR_HISTORY]?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
@@ -325,6 +356,7 @@ class AppPreferences(context: Context) {
         context.dataStore.edit { prefs ->
             prefs[CLIENT_SERVER_ADDR] = config.serverAddress
             prefs[CLIENT_VK_LINK] = config.vkLink
+            prefs[CLIENT_TELEMOST_LINK] = config.telemostLink
             prefs[CLIENT_THREADS] = config.threads
             prefs[CLIENT_UDP] = config.useUdp
             prefs[CLIENT_NO_DTLS] = config.noDtls

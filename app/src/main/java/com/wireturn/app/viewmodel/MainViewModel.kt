@@ -204,6 +204,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val vkLinkHistory: StateFlow<List<String>> = prefs.vkLinkHistoryFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    val telemostLinkHistory: StateFlow<List<String>> = prefs.telemostLinkHistoryFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     val serverAddressHistory: StateFlow<List<String>> = prefs.serverAddressHistoryFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -222,6 +225,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 prefs.addJazzCredsToHistory(cfg.jazzCreds)
             } else {
                 prefs.addVkLinkToHistory(cfg.vkLink)
+                if (cfg.dcMode) {
+                    prefs.addTelemostLinkToHistory(cfg.telemostLink)
+                }
             }
             prefs.addServerAddressToHistory(cfg.serverAddress)
             proxyManager.startProxy(cfg)
@@ -236,6 +242,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun clearLogs() { ProxyServiceState.clearLogs() }
     fun saveClientConfig(config: ClientConfig) { viewModelScope.launch { prefs.saveClientConfig(config) } }
     fun removeVkLinkFromHistory(link: String) { viewModelScope.launch { prefs.removeVkLinkFromHistory(link) } }
+    fun removeTelemostLinkFromHistory(link: String) { viewModelScope.launch { prefs.removeTelemostLinkFromHistory(link) } }
     fun removeServerAddressFromHistory(address: String) { viewModelScope.launch { prefs.removeServerAddressFromHistory(address) } }
     fun removeJazzCredsFromHistory(creds: String) { viewModelScope.launch { prefs.removeJazzCredsFromHistory(creds) } }
     fun setOnboardingDone() { viewModelScope.launch { prefs.setOnboardingDone(true) } }
