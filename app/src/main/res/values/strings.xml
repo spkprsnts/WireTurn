@@ -114,7 +114,7 @@
     <string name="dc_protocol">DC</string>
     <string name="local_listen_address">Локальный адрес прослушивания</string>
     <string name="local_listen_placeholder">127.0.0.1:9000</string>
-    <string name="local_listen_support">Адрес, на котором клиент принимает трафик от WireGuard/Hysteria</string>
+    <string name="local_listen_support">Адрес, на котором клиент принимает трафик от WireGuard</string>
     <string name="parameters_title">Параметры</string>
     <string name="threads_format">Потоки: %1$d</string>
     <string name="threads_recommendation">Рекомендуется 4–8</string>
