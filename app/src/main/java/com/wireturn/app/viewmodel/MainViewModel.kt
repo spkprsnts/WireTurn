@@ -265,7 +265,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         val parts = socksAddr.split(":")
                         val proxy = Proxy(Proxy.Type.SOCKS, InetSocketAddress(parts[0], parts[1].toInt()))
                         val time = measureTimeMillis {
-                            Socket(proxy).use { it.connect(InetSocketAddress("1.1.1.1", 53), 2000) }
+                            Socket(proxy).use { it.connect(InetSocketAddress("149.154.167.50", 443), 2000) }
                         }
                         PingResult.Success(time)
                     } catch (_: Exception) { null }
