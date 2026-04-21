@@ -24,16 +24,16 @@ object NotificationHelper {
             context.getString(R.string.notification_title),
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "Уведомление о состоянии и для управления"
+            description = context.getString(R.string.notification_channel_description)
         }
         nm.createNotificationChannel(channel)
 
         val captchaChannel = NotificationChannel(
             CAPTCHA_CHANNEL_ID,
-            "Captcha Notifications",
+            context.getString(R.string.captcha_channel_name),
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = "Уведомления о необходимости прохождения капчи"
+            description = context.getString(R.string.captcha_channel_description)
             enableLights(true)
             enableVibration(true)
         }
@@ -58,8 +58,8 @@ object NotificationHelper {
             statusParts.add(pStatus)
         }
         
-        if (wireproxyState != WireproxyState.Idle && wireproxyState is WireproxyState.Running) statusParts.add("WG")
-        if (vpnState != VpnState.Idle && vpnState is VpnState.Running) statusParts.add("VPN")
+        if (wireproxyState != WireproxyState.Idle && wireproxyState is WireproxyState.Running) statusParts.add(context.getString(R.string.wireproxy_short))
+        if (vpnState != VpnState.Idle && vpnState is VpnState.Running) statusParts.add(context.getString(R.string.vpn_short))
 
         val contentText = if (statusParts.isEmpty()) {
             context.getString(R.string.proxy_press_to_start)
@@ -108,7 +108,7 @@ object NotificationHelper {
                 context.getString(R.string.vpn_stop),
                 stopVpnPendingIntent
             )
-        } else if (wireproxyState == WireproxyState.Running) {
+        } else if (wireproxyState == WireproxyState.Running && VpnServiceState.wasManuallyDisabled.value) {
             val startVpnIntent = Intent(context, ProxyReceiver::class.java).apply {
                 action = "com.wireturn.app.wireproxy.START_VPN"
             }
@@ -144,8 +144,8 @@ object NotificationHelper {
         )
 
         val builder = NotificationCompat.Builder(context, CAPTCHA_CHANNEL_ID)
-            .setContentTitle("Требуется капча")
-            .setContentText("Нажмите, чтобы пройти проверку")
+            .setContentTitle(context.getString(R.string.captcha_notification_title))
+            .setContentText(context.getString(R.string.captcha_notification_text))
             .setSmallIcon(android.R.drawable.stat_notify_error)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)

@@ -47,6 +47,7 @@ class Tun2SocksVpnService : VpnService() {
 
         if (action == ACTION_STOP_BY_USER) {
             isStopping.set(true)
+            VpnServiceState.setManuallyDisabled(true)
             disableVpnMode()
             stopVpn()
             return START_NOT_STICKY
