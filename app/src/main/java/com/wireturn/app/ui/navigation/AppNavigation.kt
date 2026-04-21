@@ -1,9 +1,12 @@
 package com.wireturn.app.ui.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
@@ -69,6 +72,7 @@ fun AppNavigation(
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+    val routesList = remember { listOf(Routes.HOME, Routes.CLIENT_SETUP, Routes.WIREPROXY_CONFIG, Routes.LOGS) }
 
     // Определяем, видна ли клавиатура
     val isKeyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
@@ -100,18 +104,47 @@ fun AppNavigation(
             modifier = Modifier.fillMaxSize()
         ) {
             NavHost(
-                navController = navController, 
+                navController = navController,
                 startDestination = finalStartDestination,
-                modifier = Modifier.statusBarsPadding(),
-                enterTransition = { fadeIn(animationSpec = tween(200)) },
-                exitTransition = { fadeOut(animationSpec = tween(200)) },
-                popEnterTransition = { fadeIn(animationSpec = tween(200)) },
-                popExitTransition = { fadeOut(animationSpec = tween(200)) }
+                modifier = Modifier
+                    .statusBarsPadding()
+                    .padding(bottom = innerPadding.calculateBottomPadding()),
+                // M3 Transition Style
+                enterTransition = {
+                    val targetIndex = routesList.indexOf(targetState.destination.route)
+                    val initialIndex = routesList.indexOf(initialState.destination.route)
+                    if (targetIndex > initialIndex || (initialIndex == -1 && targetIndex != -1)) {
+                        slideLeft()
+                    } else {
+                        slideRight()
+                    }
+                },
+                exitTransition = {
+                    val targetIndex = routesList.indexOf(targetState.destination.route)
+                    val initialIndex = routesList.indexOf(initialState.destination.route)
+                    if (targetIndex > initialIndex) {
+                        popSlideLeft()
+                    } else {
+                        popSlideRight()
+                    }
+                },
+                popEnterTransition = {
+                    slideRight()
+                },
+                popExitTransition = {
+                    popSlideRight()
+                }
             ) {
 
                 // Онбординг-мастер (без нижнего меню)
 
-                composable(Routes.ONBOARDING) {
+                composable(
+                    route = Routes.ONBOARDING,
+                    enterTransition = { fadeIn(animationSpec = tween(700)) + scaleIn(initialScale = 1.1f, animationSpec = tween(700)) },
+                    exitTransition = {
+                        fadeOut(animationSpec = tween(400)) + scaleOut(targetScale = 0.9f, animationSpec = tween(400))
+                    }
+                ) {
                     OnboardingScreen(
                         onSkip = {
                             viewModel.setOnboardingDone()
@@ -123,38 +156,39 @@ fun AppNavigation(
                     )
                 }
 
-                // Основной поток (с нижним меню)
-
                 composable(Routes.WIREPROXY_CONFIG) {
-                    Box(Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
-                        WireproxyConfigScreen(
-                            viewModel = viewModel,
-                            showFinishButton = false
-                        )
-                    }
+                    WireproxyConfigScreen(
+                        viewModel = viewModel,
+                        showFinishButton = false
+                    )
                 }
 
-                composable(Routes.CLIENT_SETUP) {
-                    Box(Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
-                        ClientSetupScreen(
-                            viewModel = viewModel,
-                            showFinishButton = false
-                        )
+                composable(
+                    route = Routes.CLIENT_SETUP,
+                    enterTransition = {
+                        if (initialState.destination.route == Routes.ONBOARDING) {
+                            fadeIn(animationSpec = tween(700))
+                        } else {
+                            val targetIndex = routesList.indexOf(targetState.destination.route)
+                            val initialIndex = routesList.indexOf(initialState.destination.route)
+                            if (targetIndex > initialIndex || initialIndex == -1) slideLeft() else slideRight()
+                        }
                     }
+                ) {
+                    ClientSetupScreen(
+                        viewModel = viewModel,
+                        showFinishButton = false
+                    )
                 }
 
                 composable(Routes.HOME) {
-                    Box(Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
-                        HomeScreen(
-                            viewModel = viewModel
-                        )
-                    }
+                    HomeScreen(
+                        viewModel = viewModel
+                    )
                 }
 
                 composable(Routes.LOGS) {
-                    Box(Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
-                        LogsScreen(viewModel = viewModel)
-                    }
+                    LogsScreen(viewModel = viewModel)
                 }
             }
         }
@@ -173,6 +207,18 @@ fun AppNavigation(
         }
     }
 }
+
+private fun AnimatedContentTransitionScope<*>.slideLeft() =
+    slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(300)) + fadeIn(tween(300))
+
+private fun AnimatedContentTransitionScope<*>.slideRight() =
+    slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(300)) + fadeIn(tween(300))
+
+private fun AnimatedContentTransitionScope<*>.popSlideLeft() =
+    slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(300)) + fadeOut(tween(300))
+
+private fun AnimatedContentTransitionScope<*>.popSlideRight() =
+    slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(300)) + fadeOut(tween(300))
 
 private data class NavItem(
     val route: String,

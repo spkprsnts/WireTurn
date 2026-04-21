@@ -115,11 +115,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.batteryNotificationDismissedFlow.collect { _batteryNotificationDismissed.value = it } }
             launch { prefs.wgConfigFlow.collect { _wgConfig.value = it } }
         }
+
         viewModelScope.launch { proxyManager.observeProxyLifecycle() }
         viewModelScope.launch { proxyManager.observeProxyServiceStatus() }
         viewModelScope.launch { proxyManager.observeCaptchaEvents() }
         viewModelScope.launch { proxyManager.observeProxyServiceWorking() }
         viewModelScope.launch {
+            delay(1500)
             WireproxyServiceState.state.collect { state ->
                 val isRunning = state is WireproxyState.Running
                 if (isRunning) {

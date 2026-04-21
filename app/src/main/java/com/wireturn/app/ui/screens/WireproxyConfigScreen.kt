@@ -282,8 +282,8 @@ fun WireproxyConfigScreen(
                 onValueChange = { mtu = it },
                 label = { Text(stringResource(R.string.wireproxy_mtu)) },
                 placeholder = { Text(stringResource(R.string.wireproxy_mtu_placeholder)) },
-                supportingText = {
-                    if (mtu != "1280") {
+                supportingText = if (mtu != "1280") {
+                    {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -292,7 +292,7 @@ fun WireproxyConfigScreen(
                             Text(stringResource(R.string.wireproxy_mtu_recommendation))
                         }
                     }
-                },
+                } else null,
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 trailingIcon = {
@@ -321,8 +321,8 @@ fun WireproxyConfigScreen(
                 onValueChange = { if (!privacyMode) endpoint = it },
                 label = { Text(stringResource(R.string.wireproxy_endpoint)) },
                 isError = !isTargetEndpoint || !isEndpointValid,
-                supportingText = {
-                    if (!isTargetEndpoint) {
+                supportingText = if (!isTargetEndpoint) {
+                    {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -343,7 +343,7 @@ fun WireproxyConfigScreen(
                             )
                         }
                     }
-                },
+                } else null,
                 placeholder = { Text(stringResource(R.string.wireproxy_endpoint_placeholder)) },
                 modifier = Modifier.fillMaxWidth(),
                 trailingIcon = {
