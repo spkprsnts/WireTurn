@@ -674,7 +674,7 @@ fun ClientSetupScreen(
                                     Text(
                                         stringResource(R.string.threads_recommendation),
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
@@ -730,7 +730,7 @@ fun ClientSetupScreen(
                                     Text(
                                         stringResource(R.string.transport_protocol_desc),
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
@@ -878,7 +878,7 @@ fun ClientSetupScreen(
                                 if (customKernelExists) stringResource(R.string.loaded_from_memory)
                                 else stringResource(R.string.from_apk),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -975,7 +975,7 @@ private fun SwitchRow(
             Text(
                 description,
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)

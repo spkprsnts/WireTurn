@@ -706,7 +706,7 @@ fun HomeScreen(
                             Text(
                                 stringResource(R.string.raw_mode),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.Medium
                             )
                             Spacer(Modifier.height(4.dp))
@@ -736,7 +736,7 @@ fun HomeScreen(
                                     Text(
                                         arg,
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Spacer(Modifier.height(4.dp))  // Небольшой отступ между аргументами
                                 }
@@ -1451,7 +1451,7 @@ private fun ConfigRow(label: String, value: String) {
         Text(
             label,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(value, style = MaterialTheme.typography.bodySmall)
     }
