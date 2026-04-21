@@ -11,15 +11,15 @@ class ProxyReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
-            "com.wireturn.app.wireproxy.START_PROXY" -> {
+            "com.wireturn.app.START_PROXY" -> {
                 val prefs = AppPreferences(context)
                 val cfg = runBlocking { prefs.clientConfigFlow.first() }
                 ProxyService.start(context, cfg)
             }
-            "com.wireturn.app.wireproxy.STOP_PROXY" -> {
+            "com.wireturn.app.STOP_PROXY" -> {
                 ProxyService.stop(context)
             }
-            "com.wireturn.app.wireproxy.START_VPN" -> {
+            "com.wireturn.app.START_VPN" -> {
                 val prefs = AppPreferences(context)
                 runBlocking {
                     val config = prefs.clientConfigFlow.first()
