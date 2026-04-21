@@ -1,5 +1,7 @@
 package com.wireturn.app.viewmodel
 
+import kotlinx.coroutines.flow.MutableStateFlow
+
 // Wireproxy states
 sealed class WireproxyState {
     object Idle : WireproxyState()
@@ -36,3 +38,6 @@ sealed class UpdateState {
     data class Error(val message: String) : UpdateState()
 }
 
+object AppLifecycleState {
+    val isAppInForeground = MutableStateFlow(false)
+}

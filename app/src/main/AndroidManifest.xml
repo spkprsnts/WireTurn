@@ -75,6 +75,13 @@
                 android:value="Maintaining a VPN tunnel via tun2socks to route system traffic through a SOCKS5 proxy." />
         </service>
 
+        <activity
+            android:name=".CaptchaActivity"
+            android:theme="@style/Theme.AppCompat.Dialog"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:taskAffinity="" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

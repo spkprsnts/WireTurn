@@ -21,6 +21,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -198,11 +200,16 @@ fun AppNavigation(
     // каждой новой капча-сессии Compose пересоздавал диалог и WebView грузил URL заново
     // (бинарник цикличит креды и для каждой выдаёт новую капчу с тем же localhost-URL).
     val captchaState = proxyState as? ProxyState.CaptchaRequired
-    if (captchaState != null) {
-        androidx.compose.runtime.key(captchaState.sessionId) {
+    val showCaptcha = remember(captchaState?.sessionId) {
+        mutableStateOf(captchaState != null)
+    }
+
+    if (showCaptcha.value && captchaState != null) {
+        key(captchaState.sessionId) {
             CaptchaWebViewDialog(
                 captchaUrl = captchaState.url,
-                onDismiss = { viewModel.dismissCaptcha() }
+                onDismiss = { viewModel.dismissCaptcha() },
+                onSuccess = { showCaptcha.value = false }
             )
         }
     }

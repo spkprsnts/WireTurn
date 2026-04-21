@@ -70,6 +70,7 @@ dependencies {
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.bundles.compose)
+    implementation(libs.androidx.lifecycle.process)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

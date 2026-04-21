@@ -1,5 +1,6 @@
 package com.wireturn.app
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -11,11 +12,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.navigation.AppNavigation
 import com.wireturn.app.ui.navigation.Routes
+import com.wireturn.app.ui.screens.CaptchaWebViewDialog
 import com.wireturn.app.ui.theme.WireturnTheme
+import com.wireturn.app.viewmodel.AppLifecycleState
 import com.wireturn.app.viewmodel.MainViewModel
 
 class MainActivity : ComponentActivity() {
@@ -28,9 +34,19 @@ class MainActivity : ComponentActivity() {
 
         // Обработка перехода из плитки (QS Tile)
         val fromTile = intent?.action == "android.service.quicksettings.action.QS_TILE_PREFERENCES"
-        
+
         // Удерживаем системный splash пока ViewModel не инициализируется
         splashScreen.setKeepOnScreenCondition { !viewModel.isInitialized.value }
+
+        ProcessLifecycleOwner.get().lifecycle.addObserver(object :
+            DefaultLifecycleObserver {
+            override fun onStart(owner: LifecycleOwner) {
+                AppLifecycleState.isAppInForeground.value = true
+            }
+            override fun onStop(owner: LifecycleOwner) {
+                AppLifecycleState.isAppInForeground.value = false
+            }
+        })
 
         HapticUtil.perform(this, HapticUtil.Pattern.LAUNCH)
         enableEdgeToEdge()
@@ -38,6 +54,8 @@ class MainActivity : ComponentActivity() {
             val isInitialized by viewModel.isInitialized.collectAsStateWithLifecycle()
             val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
+
+            val captchaUrl = intent?.getStringExtra("CAPTCHA_URL")
 
             WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
                 Surface(
@@ -50,9 +68,29 @@ class MainActivity : ComponentActivity() {
                             startDestination = if (fromTile) Routes.HOME else null
                         )
                     }
+
+                    if (captchaUrl != null) {
+                        CaptchaWebViewDialog(
+                            captchaUrl = captchaUrl,
+                            onDismiss = {
+                                intent?.removeExtra("CAPTCHA_URL")
+                            }
+                        )
+                    }
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        NotificationHelper.cancelCaptchaNotification(this)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        NotificationHelper.cancelCaptchaNotification(this)
     }
 }
 

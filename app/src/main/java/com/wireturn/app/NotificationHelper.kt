@@ -12,15 +12,32 @@ import com.wireturn.app.viewmodel.VpnState
 
 object NotificationHelper {
     const val NOTIFICATION_ID = 1
+    const val CAPTCHA_NOTIFICATION_ID = 2
     const val CHANNEL_ID = "ProxyChannel"
+    const val CAPTCHA_CHANNEL_ID = "CaptchaChannel"
 
     fun createChannel(context: Context) {
+        val nm = context.getSystemService(NotificationManager::class.java)
+        
         val channel = NotificationChannel(
             CHANNEL_ID,
             context.getString(R.string.notification_title),
             NotificationManager.IMPORTANCE_LOW
-        )
-        context.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        ).apply {
+            description = "Уведомление о состоянии и для управления"
+        }
+        nm.createNotificationChannel(channel)
+
+        val captchaChannel = NotificationChannel(
+            CAPTCHA_CHANNEL_ID,
+            "Captcha Notifications",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Уведомления о необходимости прохождения капчи"
+            enableLights(true)
+            enableVibration(true)
+        }
+        nm.createNotificationChannel(captchaChannel)
     }
 
     fun buildNotification(context: Context): Notification {
@@ -110,6 +127,37 @@ object NotificationHelper {
         }
 
         return builder.build()
+    }
+
+    fun notifyCaptcha(context: Context, captchaUrl: String, sessionId: String) {
+        val intent = Intent(context, CaptchaActivity::class.java).apply {
+            putExtra("CAPTCHA_URL", captchaUrl)
+            putExtra("SESSION_ID", sessionId)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            1,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = NotificationCompat.Builder(context, CAPTCHA_CHANNEL_ID)
+            .setContentTitle("Требуется капча")
+            .setContentText("Нажмите, чтобы пройти проверку")
+            .setSmallIcon(android.R.drawable.stat_notify_error)
+            .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+
+        context.getSystemService(NotificationManager::class.java)
+            .notify(CAPTCHA_NOTIFICATION_ID, builder.build())
+    }
+
+    fun cancelCaptchaNotification(context: Context) {
+        context.getSystemService(NotificationManager::class.java)
+            .cancel(CAPTCHA_NOTIFICATION_ID)
     }
 
     fun updateNotification(context: Context) {

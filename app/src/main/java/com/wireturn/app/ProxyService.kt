@@ -13,6 +13,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
 import com.wireturn.app.data.AppPreferences
+import com.wireturn.app.viewmodel.AppLifecycleState
 import com.wireturn.app.viewmodel.WireproxyState
 import java.io.BufferedReader
 import java.io.File
@@ -57,6 +58,33 @@ class ProxyService : Service() {
         serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
         NotificationHelper.createChannel(this)
         startSupervisor()
+        observeCaptchaForNotification()
+    }
+
+    private fun observeCaptchaForNotification() {
+        serviceScope.launch {
+            combine(
+                ProxyServiceState.captchaSession,
+                AppLifecycleState.isAppInForeground
+            ) { session, isForeground ->
+                session to isForeground
+            }.collect { (session, isForeground) ->
+                if (session != null && !isForeground) {
+                    // Даем небольшую задержку, чтобы избежать "мигания" уведомления 
+                    // при закрытии CaptchaActivity до того, как лог об успехе будет обработан
+                    delay(1000)
+                    if (ProxyServiceState.captchaSession.value != null && !AppLifecycleState.isAppInForeground.value) {
+                        NotificationHelper.notifyCaptcha(
+                            this@ProxyService,
+                            session.url,
+                            session.sessionId.toString()
+                        )
+                    }
+                } else {
+                    NotificationHelper.cancelCaptchaNotification(this@ProxyService)
+                }
+            }
+        }
     }
 
     private fun startSupervisor() {
@@ -239,10 +267,10 @@ class ProxyService : Service() {
 
                     val captchaMatcher = CAPTCHA_URL_REGEX.matcher(l)
                     if (captchaMatcher.find()) {
-                        val url = captchaMatcher.group(1)!!
+                        val captchaUrl = captchaMatcher.group(1)!!
                         captchaSessionCounter += 1
                         ProxyServiceState.setCaptchaSession(
-                            CaptchaSession(url, captchaSessionCounter)
+                            CaptchaSession(captchaUrl, captchaSessionCounter)
                         )
                         captchaActive = true
                         updateNotification(getString(R.string.proxy_captcha_required))
