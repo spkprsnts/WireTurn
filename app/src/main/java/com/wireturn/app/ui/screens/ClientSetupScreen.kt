@@ -211,7 +211,7 @@ fun ClientSetupScreen(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(stringResource(R.string.protocol), style = MaterialTheme.typography.bodyMedium)
-                                InlineConfigIndicator(runningConfig != null && useUdp != runningConfig?.useUdp)
+                                InlineConfigIndicator(runningConfig != null && dcMode != runningConfig?.dcMode)
                             }
                         }
                         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
