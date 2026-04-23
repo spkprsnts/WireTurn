@@ -1,16 +1,16 @@
 [versions]
-agp = "9.1.1"
-kotlin = "2.3.20"
+agp = "9.2.0"
+kotlin = "2.3.21"
 coreKtx = "1.18.0"
 appcompat = "1.7.1"
 activity = "1.13.0"
-composeBom = "2026.03.01"
-navigationCompose = "2.9.7"
+composeBom = "2026.04.01"
+navigationCompose = "2.9.8"
 datastorePreferences = "1.2.1"
 lifecycleViewmodelCompose = "2.10.0"
 coreSplashscreen = "1.2.0"
 kotlinxCoroutines = "1.10.2"
-composeMaterial3 = "1.5.0-alpha17"
+composeMaterial3 = "1.5.0-alpha18"
 lifecycleProcess = "2.10.0"
 
 
