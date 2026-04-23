@@ -11,8 +11,8 @@ android {
         applicationId = "com.wireturn.app"
         minSdk = project.property("project.minSdk").toString().toInt()
         targetSdk = project.property("project.targetSdk").toString().toInt()
-        versionCode = 37
-        versionName = "2.3.3"
+        versionCode = 38
+        versionName = "3.0"
     }
 
     splits {
