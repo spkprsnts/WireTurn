@@ -3,19 +3,18 @@ package com.wireturn.app
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
-import com.wireturn.app.viewmodel.WireproxyState
+import com.wireturn.app.viewmodel.XrayState
 import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.data.AppPreferences
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import java.io.BufferedReader
-import java.io.File
 import java.io.InputStreamReader
 import java.io.InterruptedIOException
 import java.util.concurrent.atomic.AtomicReference
 
-class WireproxyService : Service() {
+class XrayService : Service() {
 
     private val process = AtomicReference<Process?>()
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -28,31 +27,31 @@ class WireproxyService : Service() {
     override fun onCreate() {
         super.onCreate()
         NotificationHelper.createChannel(this)
-        startVpnSupervisor()
+        startXraySupervisor()
     }
 
-    private fun startVpnSupervisor() {
+    private fun startXraySupervisor() {
         serviceScope.launch {
             val prefs = AppPreferences(applicationContext)
             combine(
-                WireproxyServiceState.state,
-                prefs.clientConfigFlow,
+                XrayServiceState.state,
+                prefs.xrayConfigFlow,
                 prefs.wgConfigFlow
-            ) { state, cfg, wgCfg ->
-                Triple(state == WireproxyState.Running, cfg.wireproxyVpnMode, wgCfg)
-            }.collect { (isRunning, vpnEnabled, wgCfg) ->
+            ) { state, xrayCfg, wgCfg ->
+                DataBundle(state == XrayState.Running, xrayCfg.xrayVpnMode, wgCfg, xrayCfg)
+            }.collect { bundle ->
                 withContext(Dispatchers.Main) {
-                    if (isRunning && vpnEnabled) {
+                    if (bundle.isRunning && bundle.vpnEnabled) {
                         if (VpnServiceState.state.value == VpnState.Idle) {
-                            val vpnIntent = Intent(this@WireproxyService, Tun2SocksVpnService::class.java).apply {
-                                putExtra(Tun2SocksVpnService.EXTRA_SOCKS5_ADDR, wgCfg.socks5BindAddress)
-                                putExtra(Tun2SocksVpnService.EXTRA_MTU, wgCfg.mtu.toIntOrNull() ?: 1280)
+                            val vpnIntent = Intent(this@XrayService, Tun2SocksVpnService::class.java).apply {
+                                putExtra(Tun2SocksVpnService.EXTRA_SOCKS5_ADDR, bundle.xrayCfg.mixedBindAddress)
+                                putExtra(Tun2SocksVpnService.EXTRA_MTU, bundle.wgCfg.mtu.toIntOrNull() ?: 1280)
                             }
                             startService(vpnIntent)
                         }
                     } else {
                         if (VpnServiceState.state.value != VpnState.Idle) {
-                            val stopIntent = Intent(this@WireproxyService, Tun2SocksVpnService::class.java).apply {
+                            val stopIntent = Intent(this@XrayService, Tun2SocksVpnService::class.java).apply {
                                 action = Tun2SocksVpnService.ACTION_STOP
                             }
                             startService(stopIntent)
@@ -63,44 +62,47 @@ class WireproxyService : Service() {
         }
     }
 
+    private data class DataBundle(
+        val isRunning: Boolean,
+        val vpnEnabled: Boolean,
+        val wgCfg: com.wireturn.app.data.WgConfig,
+        val xrayCfg: com.wireturn.app.data.XrayConfig
+    )
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         userStopped.set(false)
         restartCount = 0
-        WireproxyServiceState.updateStatus(WireproxyState.Starting)
+        XrayServiceState.updateStatus(XrayState.Starting)
         NotificationHelper.updateNotification(this)
 
         startForeground(NotificationHelper.NOTIFICATION_ID, NotificationHelper.buildNotification(this))
 
         serviceScope.launch {
-            startWireproxy()
+            startXray()
         }
 
         return START_STICKY
     }
 
-    private suspend fun startWireproxy() {
-        val executable = "${applicationInfo.nativeLibraryDir}/libwireproxy.so"
-        val configFile = File(filesDir, "wireproxy.conf")
+    private suspend fun startXray() {
+        val executable = "${applicationInfo.nativeLibraryDir}/libxray.so"
 
         try {
             val prefs = AppPreferences(this)
-            val rawConfig = prefs.wgConfigFlow.first()
+            val rawWgConfig = prefs.wgConfigFlow.first()
+            val rawXrayConfig = prefs.xrayConfigFlow.first()
             
-            if (!rawConfig.isValid()) {
-                ProxyServiceState.addLog(getString(R.string.log_wireproxy_invalid_config))
+            if (!rawWgConfig.isValid()) {
+                ProxyServiceState.addLog(getString(R.string.log_proxy_invalid_config))
                 stopSelf()
                 return
             }
 
-            val wgConfig = rawConfig.fillDefaults()
-            WireproxyServiceState.setRunningConfig(wgConfig)
+            val wgConfig = rawWgConfig.fillDefaults()
+            XrayServiceState.setRunningConfigs(wgConfig, rawXrayConfig)
             prefs.saveWgConfig(wgConfig)
             
-            withContext(Dispatchers.IO) {
-                configFile.writeText(wgConfig.toWgString())
-            }
-
-            val randomPort = withContext(Dispatchers.IO) {
+            val randomMetricsPort = withContext(Dispatchers.IO) {
                 try {
                     java.net.ServerSocket(0).use { it.localPort }
                 } catch (_: Exception) {
@@ -110,44 +112,53 @@ class WireproxyService : Service() {
 
             val cmdArgs = mutableListOf(
                 executable,
-                "--config", configFile.absolutePath,
-                "--silent",
-                "-i", "127.0.0.1:$randomPort"
+                "-wg-private-key", wgConfig.privateKey,
+                "-wg-public-key", wgConfig.publicKey,
+                "-wg-endpoint", wgConfig.endpoint,
+                "-wg-address", wgConfig.address,
+                "-wg-mtu", wgConfig.mtu,
+                "-wg-keepalive", wgConfig.persistentKeepalive,
+                "-listen", rawXrayConfig.mixedBindAddress,
+                "-metrics", "127.0.0.1:$randomMetricsPort"
             )
 
-            ProxyServiceState.addLog("[wireproxy] starting: ${cmdArgs.joinToString(" ")}")
+            if (rawXrayConfig.httpBindAddress.isNotBlank()) {
+                cmdArgs.add("-http")
+                cmdArgs.add(rawXrayConfig.httpBindAddress)
+            }
+
+            ProxyServiceState.addLog("[Xray] starting: ${cmdArgs.joinToString(" ")}")
             val proc = withContext(Dispatchers.IO) {
                 ProcessBuilder(cmdArgs)
                     .redirectErrorStream(true)
                     .start()
             }
             process.set(proc)
-            WireproxyServiceState.updateMetricsPort(randomPort)
-            WireproxyServiceState.updateStatus(WireproxyState.Running)
-            NotificationHelper.updateNotification(this@WireproxyService)
+            XrayServiceState.updateMetricsPort(randomMetricsPort)
+            XrayServiceState.updateStatus(XrayState.Running)
+            NotificationHelper.updateNotification(this@XrayService)
 
             BufferedReader(InputStreamReader(proc.inputStream)).use { reader ->
                 var line: String?
                 while (reader.readLine().also { line = it } != null) {
-                    if (line?.contains("Health metric request") ?: false) continue
-                    ProxyServiceState.addLog("[wireproxy] $line")
+                    ProxyServiceState.addLog("[Xray] $line")
                 }
             }
             val exitCode = withContext(Dispatchers.IO) {
                 proc.waitFor()
             }
-            ProxyServiceState.addLog("[wireproxy] process exited with code $exitCode")
+            ProxyServiceState.addLog("[Xray] process exited with code $exitCode")
         } catch (_: InterruptedIOException) {
             // pass
         } catch (e: Exception) {
-            ProxyServiceState.addLog("[wireproxy] Error: ${e.message}")
+            ProxyServiceState.addLog("[Xray] Error: ${e.message}")
         } finally {
             process.set(null)
-            WireproxyServiceState.updateMetricsPort(null)
-            WireproxyServiceState.updateStatus(WireproxyState.Idle)
-            NotificationHelper.updateNotification(this@WireproxyService)
+            XrayServiceState.updateMetricsPort(null)
+            XrayServiceState.updateStatus(XrayState.Idle)
+            NotificationHelper.updateNotification(this@XrayService)
             if (userStopped.get()) {
-                ProxyServiceState.addLog("[wireproxy] stopped by user")
+                ProxyServiceState.addLog("[Xray] stopped by user")
                 stopSelf()
             } else {
                 scheduleWatchdogRestart()
@@ -158,18 +169,18 @@ class WireproxyService : Service() {
     private fun scheduleWatchdogRestart() {
         restartCount++
         if (restartCount > MAX_RESTARTS) {
-            ProxyServiceState.addLog("[wireproxy] watchdog limit reached ($MAX_RESTARTS)")
+            ProxyServiceState.addLog("[Xray] watchdog limit reached ($MAX_RESTARTS)")
             stopSelf()
             return
         }
         
-        WireproxyServiceState.updateStatus(WireproxyState.Starting)
+        XrayServiceState.updateStatus(XrayState.Starting)
         val delay = minOf(1000L * restartCount, 10000L)
-        ProxyServiceState.addLog("[wireproxy] restarting in ${delay}ms (attempt $restartCount/$MAX_RESTARTS)")
+        ProxyServiceState.addLog("[Xray] restarting in ${delay}ms (attempt $restartCount/$MAX_RESTARTS)")
         
         handler.postDelayed({
             if (!userStopped.get()) {
-                serviceScope.launch { startWireproxy() }
+                serviceScope.launch { startXray() }
             }
         }, delay)
     }
@@ -187,7 +198,7 @@ class WireproxyService : Service() {
         startService(stopIntent)
 
         serviceScope.cancel()
-        WireproxyServiceState.updateStatus(WireproxyState.Idle)
+        XrayServiceState.updateStatus(XrayState.Idle)
     }
 
     companion object {

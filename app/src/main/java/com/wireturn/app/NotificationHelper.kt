@@ -7,7 +7,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
-import com.wireturn.app.viewmodel.WireproxyState
+import com.wireturn.app.viewmodel.XrayState
 import com.wireturn.app.viewmodel.VpnState
 
 object NotificationHelper {
@@ -50,7 +50,7 @@ object NotificationHelper {
         val proxyRunning = ProxyServiceState.isRunning.value
         val proxyWorking = ProxyServiceState.isWorking.value
         val proxyStatusText = ProxyServiceState.statusText.value
-        val wireproxyState = WireproxyServiceState.state.value
+        val xrayState = XrayServiceState.state.value
         val vpnState = VpnServiceState.state.value
 
         if (proxyRunning) {
@@ -58,7 +58,7 @@ object NotificationHelper {
             statusParts.add(pStatus)
         }
         
-        if (wireproxyState != WireproxyState.Idle && wireproxyState is WireproxyState.Running) statusParts.add(context.getString(R.string.wireproxy_short))
+        if (xrayState != XrayState.Idle && xrayState is XrayState.Running) statusParts.add(context.getString(R.string.xray_short))
         if (vpnState != VpnState.Idle && vpnState is VpnState.Running) statusParts.add(context.getString(R.string.vpn_short))
 
         val contentText = if (statusParts.isEmpty()) {
@@ -74,7 +74,7 @@ object NotificationHelper {
             .setOngoing(true)
             .setContentIntent(openAppIntent)
 
-        if (proxyRunning || wireproxyState != WireproxyState.Idle) {
+        if (proxyRunning || xrayState != XrayState.Idle) {
             val stopProxyIntent = Intent(context, ProxyReceiver::class.java).apply {
                 action = "com.wireturn.app.STOP_PROXY"
             }
@@ -108,7 +108,7 @@ object NotificationHelper {
                 context.getString(R.string.vpn_stop),
                 stopVpnPendingIntent
             )
-        } else if (wireproxyState == WireproxyState.Running && VpnServiceState.wasManuallyDisabled.value) {
+        } else if (xrayState == XrayState.Running && VpnServiceState.wasManuallyDisabled.value) {
             val startVpnIntent = Intent(context, ProxyReceiver::class.java).apply {
                 action = "com.wireturn.app.START_VPN"
             }
@@ -163,7 +163,7 @@ object NotificationHelper {
     fun updateNotification(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java)
         if (ProxyServiceState.isRunning.value || 
-            WireproxyServiceState.state.value != WireproxyState.Idle || 
+            XrayServiceState.state.value != XrayState.Idle ||
             VpnServiceState.state.value != VpnState.Idle) {
             nm.notify(NOTIFICATION_ID, buildNotification(context))
         } else {

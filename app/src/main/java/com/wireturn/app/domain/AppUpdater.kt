@@ -43,8 +43,8 @@ class AppUpdater(private val context: Context) {
             var release = withContext(Dispatchers.IO) { fetchLatestRelease() }
             
             if (release == null) {
-                // Try again with wireproxy if conditions are met
-                val proxy = getWireproxyIfRunning()
+                // Try again with xray if conditions are met
+                val proxy = getXrayIfRunning()
                 if (proxy != null) {
                     release = withContext(Dispatchers.IO) { fetchLatestRelease(proxy) }
                 }
@@ -85,7 +85,7 @@ class AppUpdater(private val context: Context) {
         _state.value = UpdateState.Downloading(0)
         try {
             withContext(Dispatchers.IO) {
-                val proxy = getWireproxyIfRunning()
+                val proxy = getXrayIfRunning()
                 val connection = if (proxy != null) {
                     URL(url).openConnection(proxy)
                 } else {
@@ -167,14 +167,14 @@ class AppUpdater(private val context: Context) {
         }
     }
 
-    private fun getWireproxyIfRunning(): java.net.Proxy? {
-        val runningConfig = com.wireturn.app.WireproxyServiceState.runningConfig.value ?: return null
-        if (com.wireturn.app.WireproxyServiceState.state.value != com.wireturn.app.viewmodel.WireproxyState.Running) return null
+    private fun getXrayIfRunning(): java.net.Proxy? {
+        val runningXrayConfig = com.wireturn.app.XrayServiceState.runningXrayConfig.value ?: return null
+        if (com.wireturn.app.XrayServiceState.state.value != com.wireturn.app.viewmodel.XrayState.Running) return null
 
         return try {
-            val socksAddr = runningConfig.socks5BindAddress
-            if (socksAddr.isNotBlank()) {
-                val parts = socksAddr.split(":")
+            val mixedAddr = runningXrayConfig.mixedBindAddress
+            if (mixedAddr.isNotBlank()) {
+                val parts = mixedAddr.split(":")
                 if (parts.size == 2) {
                     val host = parts[0]
                     val port = parts[1].toInt()

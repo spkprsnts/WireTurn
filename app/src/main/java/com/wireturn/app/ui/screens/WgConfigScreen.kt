@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 
 package com.wireturn.app.ui.screens
 
@@ -7,13 +7,45 @@ import android.content.ClipData
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.DividerDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
@@ -35,7 +67,7 @@ import kotlinx.coroutines.launch
 
 @SuppressLint("LocalContextGetResourceValueCall")
 @Composable
-fun WireproxyConfigScreen(
+fun WgConfigScreen(
     viewModel: MainViewModel,
     showFinishButton: Boolean = false,
     onFinish: (() -> Unit)? = null
@@ -47,7 +79,7 @@ fun WireproxyConfigScreen(
     val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
     val savedWgConfig by viewModel.wgConfig.collectAsStateWithLifecycle()
     val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
-    val runningConfig by com.wireturn.app.WireproxyServiceState.runningConfig.collectAsStateWithLifecycle()
+    val runningConfig by com.wireturn.app.XrayServiceState.runningConfig.collectAsStateWithLifecycle()
 
     // Local states for auto-save logic
     var privateKey by rememberSaveable(savedWgConfig.privateKey) { mutableStateOf(savedWgConfig.privateKey) }
@@ -58,8 +90,6 @@ fun WireproxyConfigScreen(
     var endpoint by rememberSaveable(savedWgConfig.endpoint) { mutableStateOf(savedWgConfig.endpoint) }
     var allowedIps by rememberSaveable(savedWgConfig.allowedIps) { mutableStateOf(savedWgConfig.allowedIps) }
     var persistentKeepalive by rememberSaveable(savedWgConfig.persistentKeepalive) { mutableStateOf(savedWgConfig.persistentKeepalive) }
-    var socks5BindAddress by rememberSaveable(savedWgConfig.socks5BindAddress) { mutableStateOf(savedWgConfig.socks5BindAddress) }
-    var httpBindAddress by rememberSaveable(savedWgConfig.httpBindAddress) { mutableStateOf(savedWgConfig.httpBindAddress) }
 
     // Sync local state with saved config when it changes externally (e.g. from service)
     LaunchedEffect(savedWgConfig) {
@@ -71,14 +101,12 @@ fun WireproxyConfigScreen(
         endpoint = savedWgConfig.endpoint
         allowedIps = savedWgConfig.allowedIps
         persistentKeepalive = savedWgConfig.persistentKeepalive
-        socks5BindAddress = savedWgConfig.socks5BindAddress
-        httpBindAddress = savedWgConfig.httpBindAddress
     }
 
     // Auto-save debounced for individual fields
     LaunchedEffect(
         privateKey, address, dns, mtu, publicKey, endpoint,
-        allowedIps, persistentKeepalive, socks5BindAddress, httpBindAddress
+        allowedIps, persistentKeepalive
     ) {
         delay(200)
         viewModel.updateWgConfig(
@@ -90,9 +118,7 @@ fun WireproxyConfigScreen(
                 publicKey = publicKey,
                 endpoint = endpoint,
                 allowedIps = allowedIps,
-                persistentKeepalive = persistentKeepalive,
-                socks5BindAddress = socks5BindAddress,
-                httpBindAddress = httpBindAddress
+                persistentKeepalive = persistentKeepalive
             )
         )
     }
@@ -106,11 +132,11 @@ fun WireproxyConfigScreen(
                         val text = input.bufferedReader().use { r -> r.readText() }
                         viewModel.updateWgConfigText(text)
                         scope.launch {
-                            snackbarHostState.showSnackbar(context.getString(R.string.wireproxy_import_success))
+                            snackbarHostState.showSnackbar(context.getString(R.string.wg_import_success))
                         }
                     }
                 } catch (e: Exception) {
-                    val errorMessage = context.getString(R.string.wireproxy_import_error)
+                    val errorMessage = context.getString(R.string.wg_import_error)
                     val fullError = context.getString(R.string.error_with_details, errorMessage, e.message ?: "")
                     scope.launch {
                         snackbarHostState.showSnackbar(fullError)
@@ -120,12 +146,6 @@ fun WireproxyConfigScreen(
         }
     )
 
-    val isSocks5Valid = remember(socks5BindAddress) {
-        ValidatorUtils.isValidHostPort(socks5BindAddress)
-    }
-    val isHttpValid = remember(httpBindAddress) {
-        ValidatorUtils.isValidHostPort(httpBindAddress)
-    }
     val isEndpointValid = remember(endpoint) {
         ValidatorUtils.isValidHostPort(endpoint)
     }
@@ -137,17 +157,34 @@ fun WireproxyConfigScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.wireproxy_config_title)) },
+                title = { Text(stringResource(R.string.wg_config_title)) },
                 actions = {
-                    IconButton(onClick = {
-                        // Копирование всего конфига в буфер
-                        scope.launch {
-                            clipboard.setClipEntry(ClipData.newPlainText("wg_config", savedWgConfig.toWgString()).toClipEntry())
-                            HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
-                            snackbarHostState.showSnackbar(context.getString(R.string.wireproxy_export_success))
+                    var isCopied by remember { mutableStateOf(false) }
+                    LaunchedEffect(isCopied) {
+                        if (isCopied) {
+                            delay(1500)
+                            isCopied = false
                         }
-                    }) {
-                        Icon(painterResource(R.drawable.content_copy_24px), stringResource(R.string.copy))
+                    }
+                    IconButton(
+                        onClick = {
+                            isCopied = true
+                            scope.launch {
+                                clipboard.setClipEntry(ClipData.newPlainText("wg_config", savedWgConfig.toWgString()).toClipEntry())
+                                HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
+                            }
+                        },
+                        enabled = savedWgConfig.isValid()
+                    ) {
+                        Icon(
+                            painterResource(if (isCopied) R.drawable.check_circle_24px else R.drawable.content_copy_24px),
+                            stringResource(R.string.copy),
+                            tint = when {
+                                isCopied -> MaterialTheme.colorScheme.primary
+                                !savedWgConfig.isValid() -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                else -> MaterialTheme.colorScheme.onSurface
+                            }
+                        )
                     }
                 }
             )
@@ -170,7 +207,7 @@ fun WireproxyConfigScreen(
             Spacer(Modifier.height(4.dp))
 
             // ── Способы импорта ─────────────────────────────────────
-            Text(stringResource(R.string.wireproxy_import_config), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.wg_import_config), style = MaterialTheme.typography.titleMedium)
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -183,7 +220,7 @@ fun WireproxyConfigScreen(
                 ) {
                     Icon(painterResource(R.drawable.file_open_24px), null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.wireproxy_import_file))
+                    Text(stringResource(R.string.wg_import_file))
                 }
                 Button(
                     onClick = {
@@ -193,9 +230,9 @@ fun WireproxyConfigScreen(
                                 val text = clipEntry.clipData.getItemAt(0).text?.toString() ?: ""
                                 if (text.isNotBlank()) {
                                     viewModel.updateWgConfigText(text)
-                                    snackbarHostState.showSnackbar(context.getString(R.string.wireproxy_import_success))
+                                    snackbarHostState.showSnackbar(context.getString(R.string.wg_import_success))
                                 } else {
-                                    snackbarHostState.showSnackbar(context.getString(R.string.wireproxy_import_error))
+                                    snackbarHostState.showSnackbar(context.getString(R.string.wg_import_error))
                                 }
                             }
                         }
@@ -205,50 +242,22 @@ fun WireproxyConfigScreen(
                 ) {
                     Icon(painterResource(R.drawable.content_paste_24px), null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.wireproxy_import_clipboard))
+                    Text(stringResource(R.string.wg_import_clipboard))
                 }
             }
 
             HorizontalDivider(Modifier, DividerDefaults.Thickness, DividerDefaults.color)
 
-            Text(stringResource(R.string.wireproxy_proxy_addresses), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.wg_edit_config), style = MaterialTheme.typography.titleMedium)
 
-            OutlinedTextField(
-                value = socks5BindAddress,
-                onValueChange = { socks5BindAddress = it },
-                label = { Text(stringResource(R.string.wireproxy_socks5)) },
-                isError = !isSocks5Valid || socks5BindAddress == httpBindAddress || socks5BindAddress.isBlank(),
-                placeholder = { Text(stringResource(R.string.wireproxy_socks5_placeholder)) },
-                modifier = Modifier.fillMaxWidth(),
-                trailingIcon = {
-                    ConfigFieldIndicator(runningConfig != null && socks5BindAddress != runningConfig?.socks5BindAddress)
-                }
-            )
-
-            OutlinedTextField(
-                value = httpBindAddress,
-                onValueChange = { httpBindAddress = it },
-                label = { Text(stringResource(R.string.wireproxy_http)) },
-                isError = !isHttpValid || socks5BindAddress == httpBindAddress,
-                placeholder = { Text(stringResource(R.string.wireproxy_http_placeholder)) },
-                modifier = Modifier.fillMaxWidth(),
-                trailingIcon = {
-                    ConfigFieldIndicator(runningConfig != null && httpBindAddress != runningConfig?.httpBindAddress)
-                }
-            )
-
-            HorizontalDivider(Modifier, DividerDefaults.Thickness, DividerDefaults.color)
-
-            Text(stringResource(R.string.wireproxy_edit_config), style = MaterialTheme.typography.titleMedium)
-
-            Text(stringResource(R.string.wireproxy_interface), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.wg_interface), style = MaterialTheme.typography.titleMedium)
 
             OutlinedTextField(
                 value = privateKey.redact(privacyMode),
                 onValueChange = { if (!privacyMode) privateKey = it },
-                label = { Text(stringResource(R.string.wireproxy_private_key)) },
+                label = { Text(stringResource(R.string.wg_private_key)) },
                 isError = privateKey.isBlank(),
-                placeholder = { Text(stringResource(R.string.wireproxy_private_key_placeholder)) },
+                placeholder = { Text(stringResource(R.string.wg_private_key_placeholder)) },
                 modifier = Modifier.fillMaxWidth(),
                 readOnly = privacyMode,
                 trailingIcon = {
@@ -259,9 +268,9 @@ fun WireproxyConfigScreen(
             OutlinedTextField(
                 value = address.redact(privacyMode),
                 onValueChange = { if (!privacyMode) address = it },
-                label = { Text(stringResource(R.string.wireproxy_address)) },
+                label = { Text(stringResource(R.string.wg_address)) },
                 isError = address.isBlank(),
-                placeholder = { Text(stringResource(R.string.wireproxy_address_placeholder)) },
+                placeholder = { Text(stringResource(R.string.wg_address_placeholder)) },
                 modifier = Modifier.fillMaxWidth(),
                 readOnly = privacyMode,
                 trailingIcon = {
@@ -272,8 +281,8 @@ fun WireproxyConfigScreen(
             OutlinedTextField(
                 value = dns,
                 onValueChange = { dns = it },
-                label = { Text(stringResource(R.string.wireproxy_dns)) },
-                placeholder = { Text(stringResource(R.string.wireproxy_dns_placeholder)) },
+                label = { Text(stringResource(R.string.wg_dns)) },
+                placeholder = { Text(stringResource(R.string.wg_dns_placeholder)) },
                 modifier = Modifier.fillMaxWidth(),
                 trailingIcon = {
                     ConfigFieldIndicator(runningConfig != null && dns != runningConfig?.dns)
@@ -283,8 +292,8 @@ fun WireproxyConfigScreen(
             OutlinedTextField(
                 value = mtu,
                 onValueChange = { mtu = it },
-                label = { Text(stringResource(R.string.wireproxy_mtu)) },
-                placeholder = { Text(stringResource(R.string.wireproxy_mtu_placeholder)) },
+                label = { Text(stringResource(R.string.wg_mtu)) },
+                placeholder = { Text(stringResource(R.string.wg_mtu_placeholder)) },
                 supportingText = if (mtu != "1280") {
                     {
                         Row(
@@ -292,7 +301,7 @@ fun WireproxyConfigScreen(
                                 .fillMaxWidth()
                                 .padding(top = 4.dp)
                         ) {
-                            Text(stringResource(R.string.wireproxy_mtu_recommendation))
+                            Text(stringResource(R.string.wg_mtu_recommendation))
                         }
                     }
                 } else null,
@@ -304,14 +313,14 @@ fun WireproxyConfigScreen(
             )
 
             HorizontalDivider(Modifier, DividerDefaults.Thickness, DividerDefaults.color)
-            Text(stringResource(R.string.wireproxy_peer), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.wg_peer), style = MaterialTheme.typography.titleMedium)
 
             OutlinedTextField(
                 value = publicKey.redact(privacyMode),
                 onValueChange = { if (!privacyMode) publicKey = it },
-                label = { Text(stringResource(R.string.wireproxy_public_key)) },
+                label = { Text(stringResource(R.string.wg_public_key)) },
                 isError = publicKey.isBlank(),
-                placeholder = { Text(stringResource(R.string.wireproxy_public_key_placeholder)) },
+                placeholder = { Text(stringResource(R.string.wg_public_key_placeholder)) },
                 modifier = Modifier.fillMaxWidth(),
                 readOnly = privacyMode,
                 trailingIcon = {
@@ -322,7 +331,7 @@ fun WireproxyConfigScreen(
             OutlinedTextField(
                 value = endpoint.redact(privacyMode),
                 onValueChange = { if (!privacyMode) endpoint = it },
-                label = { Text(stringResource(R.string.wireproxy_endpoint)) },
+                label = { Text(stringResource(R.string.wg_endpoint)) },
                 isError = !isTargetEndpoint || !isEndpointValid,
                 supportingText = if (!isTargetEndpoint) {
                     {
@@ -334,11 +343,11 @@ fun WireproxyConfigScreen(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                text = stringResource(R.string.wireproxy_endpoint_mismatch),
+                                text = stringResource(R.string.wg_endpoint_mismatch),
                                 color = MaterialTheme.colorScheme.error
                             )
                             Text(
-                                text = stringResource(R.string.wireproxy_endpoint_fix),
+                                text = stringResource(R.string.wg_endpoint_fix),
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.clickable {
                                     endpoint = clientConfig.localPort
@@ -347,7 +356,7 @@ fun WireproxyConfigScreen(
                         }
                     }
                 } else null,
-                placeholder = { Text(stringResource(R.string.wireproxy_endpoint_placeholder)) },
+                placeholder = { Text(stringResource(R.string.wg_endpoint_placeholder)) },
                 modifier = Modifier.fillMaxWidth(),
                 trailingIcon = {
                     ConfigFieldIndicator(runningConfig != null && endpoint != runningConfig?.endpoint)
@@ -357,8 +366,8 @@ fun WireproxyConfigScreen(
             OutlinedTextField(
                 value = allowedIps,
                 onValueChange = { allowedIps = it },
-                label = { Text(stringResource(R.string.wireproxy_allowed_ips)) },
-                placeholder = { Text(stringResource(R.string.wireproxy_allowed_ips_placeholder)) },
+                label = { Text(stringResource(R.string.wg_allowed_ips)) },
+                placeholder = { Text(stringResource(R.string.wg_allowed_ips_placeholder)) },
                 modifier = Modifier.fillMaxWidth(),
                 trailingIcon = {
                     ConfigFieldIndicator(runningConfig != null && allowedIps != runningConfig?.allowedIps)
@@ -368,8 +377,8 @@ fun WireproxyConfigScreen(
             OutlinedTextField(
                 value = persistentKeepalive,
                 onValueChange = { persistentKeepalive = it },
-                label = { Text(stringResource(R.string.wireproxy_persistent_keepalive)) },
-                placeholder = { Text(stringResource(R.string.wireproxy_persistent_keepalive_placeholder)) },
+                label = { Text(stringResource(R.string.wg_persistent_keepalive)) },
+                placeholder = { Text(stringResource(R.string.wg_persistent_keepalive_placeholder)) },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 trailingIcon = {
@@ -393,4 +402,3 @@ fun WireproxyConfigScreen(
         }
     }
 }
-

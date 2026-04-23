@@ -7,9 +7,9 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.wireturn.app.ProxyService
-import com.wireturn.app.WireproxyService
+import com.wireturn.app.XrayService
 import com.wireturn.app.ProxyServiceState
-import com.wireturn.app.WireproxyServiceState
+import com.wireturn.app.XrayServiceState
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.ThemeMode
@@ -64,15 +64,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _wgConfig = MutableStateFlow(WgConfig())
     val wgConfig: StateFlow<WgConfig> = _wgConfig.asStateFlow()
 
+    private val _xrayConfig = MutableStateFlow(com.wireturn.app.data.XrayConfig())
+    val xrayConfig: StateFlow<com.wireturn.app.data.XrayConfig> = _xrayConfig.asStateFlow()
+
     // Custom kernel
     private val _kernelError = MutableStateFlow<String?>(null)
     val kernelError: StateFlow<String?> = _kernelError.asStateFlow()
 
-    private val _wireproxyPing = MutableStateFlow<PingResult?>(null)
-    val wireproxyPing: StateFlow<PingResult?> = _wireproxyPing.asStateFlow()
+    private val _proxyPing = MutableStateFlow<PingResult?>(null)
+    val proxyPing: StateFlow<PingResult?> = _proxyPing.asStateFlow()
 
-    private val _wireproxyTransfer = MutableStateFlow<TransferResult?>(null)
-    val wireproxyTransfer: StateFlow<TransferResult?> = _wireproxyTransfer.asStateFlow()
+    private val _proxyTransfer = MutableStateFlow<TransferResult?>(null)
+    val proxyTransfer: StateFlow<TransferResult?> = _proxyTransfer.asStateFlow()
 
     private val _isHomeScreenActive = MutableStateFlow(false)
 
@@ -95,11 +98,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val config = prefs.clientConfigFlow.first()
             val batteryDismissed = prefs.batteryNotificationDismissedFlow.first()
 
+            val wgConfig = prefs.wgConfigFlow.first()
+            val xrayConfig = prefs.xrayConfigFlow.first()
+
             _onboardingDone.value = done
             _themeMode.value = theme
             _dynamicTheme.value = dynamic
             _clientConfig.value = config
             _batteryNotificationDismissed.value = batteryDismissed
+            _wgConfig.value = wgConfig
+            _xrayConfig.value = xrayConfig
 
             _isInitialized.value = true
 
@@ -114,6 +122,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.clientConfigFlow.collect { _clientConfig.value = it } }
             launch { prefs.batteryNotificationDismissedFlow.collect { _batteryNotificationDismissed.value = it } }
             launch { prefs.wgConfigFlow.collect { _wgConfig.value = it } }
+            launch { prefs.xrayConfigFlow.collect { _xrayConfig.value = it } }
         }
 
         viewModelScope.launch { proxyManager.observeProxyLifecycle() }
@@ -122,10 +131,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { proxyManager.observeProxyServiceWorking() }
         viewModelScope.launch {
             delay(1500)
-            WireproxyServiceState.state.collect { state ->
-                val isRunning = state is WireproxyState.Running
+            XrayServiceState.state.collect { state ->
+                val isRunning = state is XrayState.Running
                 if (isRunning) {
-                    checkWireproxyPing()
+                    checkProxyPing()
                     startMetricsPoller()
                 } else {
                     stopMetricsPoller()
@@ -144,7 +153,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         metricsJob = viewModelScope.launch {
             while (true) {
                 if (_isHomeScreenActive.value) {
-                    val port = WireproxyServiceState.metricsPort.value
+                    val port = XrayServiceState.metricsPort.value
                     if (port != null) {
                         updateMetrics(port)
                     }
@@ -157,7 +166,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun stopMetricsPoller() {
         metricsJob?.cancel()
         metricsJob = null
-        _wireproxyTransfer.value = null
+        _proxyTransfer.value = null
     }
 
     private suspend fun updateMetrics(port: Int) {
@@ -182,7 +191,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         tx += trimmed.split("=").lastOrNull()?.toLongOrNull() ?: 0L
                     }
                 }
-                _wireproxyTransfer.value = TransferResult(rx, tx)
+                _proxyTransfer.value = TransferResult(rx, tx)
             } catch (_: Exception) {
                 // pass
             }
@@ -248,21 +257,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setOnboardingDone() { viewModelScope.launch { prefs.setOnboardingDone(true) } }
     fun setBatteryNotificationDismissed(dismissed: Boolean) { viewModelScope.launch { prefs.setBatteryNotificationDismissed(dismissed) } }
 
-    fun checkWireproxyPing() {
-        val socksAddr = _wgConfig.value.socks5BindAddress
-        if (!isValidHostPort(socksAddr) || socksAddr.isBlank()) return
+    fun checkProxyPing() {
+        val mixedAddr = _xrayConfig.value.mixedBindAddress
+        if (!isValidHostPort(mixedAddr) || mixedAddr.isBlank()) return
 
         pingJob?.cancel()
         pingJob = viewModelScope.launch {
-            _wireproxyPing.value = PingResult.Loading
+            _proxyPing.value = PingResult.Loading
             repeat(5) { attempt ->
-                if (WireproxyServiceState.state.value != WireproxyState.Running) {
-                    _wireproxyPing.value = null
+                if (XrayServiceState.state.value != XrayState.Running) {
+                    _proxyPing.value = null
                     return@launch
                 }
                 val result = withContext(Dispatchers.IO) {
                     try {
-                        val parts = socksAddr.split(":")
+                        val parts = mixedAddr.split(":")
                         val proxy = Proxy(Proxy.Type.SOCKS, InetSocketAddress(parts[0], parts[1].toInt()))
                         val time = measureTimeMillis {
                             Socket(proxy).use { it.connect(InetSocketAddress("149.154.167.50", 443), 2000) }
@@ -271,12 +280,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     } catch (_: Exception) { null }
                 }
                 if (result is PingResult.Success) {
-                    _wireproxyPing.value = result
+                    _proxyPing.value = result
                     return@launch
                 }
                 if (attempt < 2) delay(500)
             }
-            _wireproxyPing.value = PingResult.Error
+            _proxyPing.value = PingResult.Error
         }
     }
 
@@ -292,6 +301,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _wgConfig.value = config
         viewModelScope.launch {
             prefs.saveWgConfig(config)
+        }
+    }
+
+    fun updateXrayConfig(config: com.wireturn.app.data.XrayConfig) {
+        _xrayConfig.value = config
+        viewModelScope.launch {
+            prefs.saveXrayConfig(config)
         }
     }
 
@@ -313,12 +329,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             if (ProxyServiceState.isRunning.value) {
                 context.stopService(Intent(context, ProxyService::class.java))
-                context.stopService(Intent(context, WireproxyService::class.java))
+                context.stopService(Intent(context, XrayService::class.java))
             }
             prefs.resetAll()
             proxyManager.clearState()
             ProxyServiceState.clearLogs()
             _wgConfig.value = WgConfig()
+            _xrayConfig.value = com.wireturn.app.data.XrayConfig()
             val intent = (context as? android.app.Activity)?.intent
                 ?: Intent(context, com.wireturn.app.MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)

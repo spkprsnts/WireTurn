@@ -1,12 +1,13 @@
 package com.wireturn.app
 
 import com.wireturn.app.data.WgConfig
-import com.wireturn.app.viewmodel.WireproxyState
+import com.wireturn.app.data.XrayConfig
+import com.wireturn.app.viewmodel.XrayState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-object WireproxyServiceState {
-    private val _state = MutableStateFlow<WireproxyState>(WireproxyState.Idle)
+object XrayServiceState {
+    private val _state = MutableStateFlow<XrayState>(XrayState.Idle)
     val state = _state.asStateFlow()
 
     private val _metricsPort = MutableStateFlow<Int?>(null)
@@ -15,10 +16,14 @@ object WireproxyServiceState {
     private val _runningConfig = MutableStateFlow<WgConfig?>(null)
     val runningConfig = _runningConfig.asStateFlow()
 
-    fun updateStatus(newStatus: WireproxyState) {
+    private val _runningXrayConfig = MutableStateFlow<XrayConfig?>(null)
+    val runningXrayConfig = _runningXrayConfig.asStateFlow()
+
+    fun updateStatus(newStatus: XrayState) {
         _state.value = newStatus
-        if (newStatus == WireproxyState.Idle) {
+        if (newStatus == XrayState.Idle) {
             _runningConfig.value = null
+            _runningXrayConfig.value = null
         }
     }
 
@@ -26,7 +31,8 @@ object WireproxyServiceState {
         _metricsPort.value = port
     }
 
-    fun setRunningConfig(config: WgConfig?) {
-        _runningConfig.value = config
+    fun setRunningConfigs(wg: WgConfig?, xray: XrayConfig?) {
+        _runningConfig.value = wg
+        _runningXrayConfig.value = xray
     }
 }

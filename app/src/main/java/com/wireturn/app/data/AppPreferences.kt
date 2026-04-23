@@ -28,8 +28,6 @@ data class ClientConfig(
     val vlessMode: Boolean = false,
     val dcMode: Boolean = false,
     val forceTurnPort443: Boolean = false,
-    val wireproxyEnabled: Boolean = false,
-    val wireproxyVpnMode: Boolean = false,
     val isJazz: Boolean = true,
     val jazzCreds: String = ""
 ) {
@@ -52,6 +50,17 @@ data class ClientConfig(
     val isValid: Boolean get() = getValidationErrorResId() == null
 }
 
+data class XrayConfig(
+    val xrayEnabled: Boolean = false,
+    val xrayVpnMode: Boolean = false,
+    val mixedBindAddress: String = DEFAULT_MIXED_BIND_ADDRESS,
+    val httpBindAddress: String = ""
+) {
+    companion object {
+        const val DEFAULT_MIXED_BIND_ADDRESS = "127.0.0.1:9080"
+    }
+}
+
 data class WgConfig(
     val privateKey: String = "",
     val address: String = "",
@@ -60,9 +69,7 @@ data class WgConfig(
     val publicKey: String = "",
     val endpoint: String = "",
     val allowedIps: String = "",
-    val persistentKeepalive: String = "",
-    val socks5BindAddress: String = DEFAULT_SOCKS5_BIND_ADDRESS,
-    val httpBindAddress: String = ""
+    val persistentKeepalive: String = ""
 ) {
     fun isValid(): Boolean {
         return privateKey.isNotBlank() && address.isNotBlank() && publicKey.isNotBlank()
@@ -74,8 +81,7 @@ data class WgConfig(
             mtu = mtu.ifBlank { DEFAULT_MTU },
             endpoint = endpoint.ifBlank { DEFAULT_ENDPOINT },
             allowedIps = allowedIps.ifBlank { DEFAULT_ALLOWED_IPS },
-            persistentKeepalive = persistentKeepalive.ifBlank { DEFAULT_PERSISTENT_KEEPALIVE },
-            socks5BindAddress = socks5BindAddress.ifBlank { DEFAULT_SOCKS5_BIND_ADDRESS }
+            persistentKeepalive = persistentKeepalive.ifBlank { DEFAULT_PERSISTENT_KEEPALIVE }
         )
     }
 
@@ -91,14 +97,6 @@ data class WgConfig(
         sb.append("Endpoint = $endpoint\n")
         sb.append("AllowedIPs = $allowedIps\n")
         if (persistentKeepalive.isNotBlank()) sb.append("PersistentKeepalive = $persistentKeepalive\n")
-        if (httpBindAddress.isNotBlank()) {
-            sb.append("\n[http]\n")
-            sb.append("BindAddress = $httpBindAddress\n")
-        }
-        if (socks5BindAddress.isNotBlank()) {
-            sb.append("\n[Socks5]\n")
-            sb.append("BindAddress = $socks5BindAddress\n")
-        }
         return sb.toString()
     }
 
@@ -108,13 +106,11 @@ data class WgConfig(
         const val DEFAULT_ENDPOINT = "127.0.0.1:9000"
         const val DEFAULT_ALLOWED_IPS = "0.0.0.0/0"
         const val DEFAULT_PERSISTENT_KEEPALIVE = "25"
-        const val DEFAULT_SOCKS5_BIND_ADDRESS = "127.0.0.1:2080"
 
         fun parse(text: String): WgConfig {
             var privateKey = ""; var address = ""; var dns = ""; var mtu = ""
             var publicKey = ""; var endpoint = ""; var allowedIps = ""
             var persistentKeepalive = ""
-            var httpBindAddress = ""; var socks5BindAddress = DEFAULT_SOCKS5_BIND_ADDRESS
 
             var currentSection = ""
             text.lineSequence().forEach { line ->
@@ -138,12 +134,10 @@ data class WgConfig(
                             "allowedips" -> allowedIps = value
                             "persistentkeepalive" -> persistentKeepalive = value
                         }
-                        "http" -> if (key == "bindaddress") httpBindAddress = value
-                        "socks5" -> if (key == "bindaddress") socks5BindAddress = value
                     }
                 }
             }
-            return WgConfig(privateKey, address, dns, mtu, publicKey, endpoint, allowedIps, persistentKeepalive, socks5BindAddress, httpBindAddress)
+            return WgConfig(privateKey, address, dns, mtu, publicKey, endpoint, allowedIps, persistentKeepalive)
         }
     }
 }
@@ -174,8 +168,8 @@ class AppPreferences(context: Context) {
         val CLIENT_FORCE_PORT_443 = booleanPreferencesKey("client_force_port_443")
         val DYNAMIC_THEME = booleanPreferencesKey("dynamic_theme")
         val THEME_MODE = stringPreferencesKey("theme_mode")
-        val WIREPROXY_ENABLED = booleanPreferencesKey("wireproxy_enabled")
-        val WIREPROXY_VPN_MODE = booleanPreferencesKey("wireproxy_vpn_mode")
+        val XRAY_ENABLED = booleanPreferencesKey("proxy_enabled")
+        val XRAY_VPN_MODE = booleanPreferencesKey("proxy_vpn_mode")
         val WIRE_PRIV_KEY = stringPreferencesKey("wire_priv_key")
         val WIRE_ADDRESS = stringPreferencesKey("wire_address")
         val WIRE_DNS = stringPreferencesKey("wire_dns")
@@ -184,8 +178,8 @@ class AppPreferences(context: Context) {
         val WIRE_ENDPOINT = stringPreferencesKey("wire_endpoint")
         val WIRE_ALLOWED_IPS = stringPreferencesKey("wire_allowed_ips")
         val WIRE_KEEPALIVE = stringPreferencesKey("wire_keepalive")
-        val WIRE_SOCKS5_BIND = stringPreferencesKey("wire_socks5_bind")
-        val WIRE_HTTP_BIND = stringPreferencesKey("wire_http_bind")
+        val MIXED_BIND = stringPreferencesKey("mixed_bind")
+        val HTTP_BIND = stringPreferencesKey("http_bind")
         val VK_LINK_HISTORY = stringPreferencesKey("vk_link_history")
         val TELEMOST_LINK_HISTORY = stringPreferencesKey("telemost_link_history")
         val SERVER_ADDR_HISTORY = stringPreferencesKey("server_addr_history")
@@ -212,8 +206,6 @@ class AppPreferences(context: Context) {
                 vlessMode = prefs[CLIENT_VLESS] ?: false,
                 dcMode = prefs[CLIENT_DC_MODE] ?: false,
                 forceTurnPort443 = prefs[CLIENT_FORCE_PORT_443] ?: false,
-                wireproxyEnabled = prefs[WIREPROXY_ENABLED] ?: false,
-                wireproxyVpnMode = prefs[WIREPROXY_VPN_MODE] ?: false,
                 isJazz = prefs[CLIENT_IS_JAZZ] ?: true,
                 jazzCreds = prefs[CLIENT_JAZZ_CREDS] ?: ""
             )
@@ -230,9 +222,18 @@ class AppPreferences(context: Context) {
                 publicKey = prefs[WIRE_PUB_KEY] ?: "",
                 endpoint = prefs[WIRE_ENDPOINT] ?: "",
                 allowedIps = prefs[WIRE_ALLOWED_IPS] ?: "",
-                persistentKeepalive = prefs[WIRE_KEEPALIVE] ?: "",
-                socks5BindAddress = prefs[WIRE_SOCKS5_BIND] ?: WgConfig.DEFAULT_SOCKS5_BIND_ADDRESS,
-                httpBindAddress = prefs[WIRE_HTTP_BIND] ?: ""
+                persistentKeepalive = prefs[WIRE_KEEPALIVE] ?: ""
+            )
+        }
+
+    val xrayConfigFlow: Flow<XrayConfig> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { prefs ->
+            XrayConfig(
+                xrayEnabled = prefs[XRAY_ENABLED] ?: false,
+                xrayVpnMode = prefs[XRAY_VPN_MODE] ?: false,
+                mixedBindAddress = prefs[MIXED_BIND] ?: XrayConfig.DEFAULT_MIXED_BIND_ADDRESS,
+                httpBindAddress = prefs[HTTP_BIND] ?: ""
             )
         }
 
@@ -369,8 +370,6 @@ class AppPreferences(context: Context) {
             prefs[CLIENT_VLESS] = config.vlessMode
             prefs[CLIENT_DC_MODE] = config.dcMode
             prefs[CLIENT_FORCE_PORT_443] = config.forceTurnPort443
-            prefs[WIREPROXY_ENABLED] = config.wireproxyEnabled
-            prefs[WIREPROXY_VPN_MODE] = config.wireproxyVpnMode
             prefs[CLIENT_IS_JAZZ] = config.isJazz
             prefs[CLIENT_JAZZ_CREDS] = config.jazzCreds
         }
@@ -390,8 +389,15 @@ class AppPreferences(context: Context) {
             prefs[WIRE_ENDPOINT] = config.endpoint
             prefs[WIRE_ALLOWED_IPS] = config.allowedIps
             prefs[WIRE_KEEPALIVE] = config.persistentKeepalive
-            prefs[WIRE_SOCKS5_BIND] = config.socks5BindAddress
-            prefs[WIRE_HTTP_BIND] = config.httpBindAddress
+        }
+    }
+
+    suspend fun saveXrayConfig(config: XrayConfig) {
+        context.dataStore.edit { prefs ->
+            prefs[XRAY_ENABLED] = config.xrayEnabled
+            prefs[XRAY_VPN_MODE] = config.xrayVpnMode
+            prefs[MIXED_BIND] = config.mixedBindAddress
+            prefs[HTTP_BIND] = config.httpBindAddress
         }
     }
 

@@ -14,7 +14,7 @@ import android.os.Looper
 import android.os.PowerManager
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.viewmodel.AppLifecycleState
-import com.wireturn.app.viewmodel.WireproxyState
+import com.wireturn.app.viewmodel.XrayState
 import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
@@ -92,19 +92,19 @@ class ProxyService : Service() {
             val prefs = AppPreferences(applicationContext)
             combine(
                 ProxyServiceState.isRunning,
-                prefs.clientConfigFlow
+                prefs.xrayConfigFlow
             ) { isRunning, cfg ->
-                isRunning && cfg.wireproxyEnabled
-            }.collect { shouldRunWireproxy ->
+                isRunning && cfg.xrayEnabled
+            }.collect { shouldRunProxy ->
                 withContext(Dispatchers.Main) {
-                    if (shouldRunWireproxy) {
-                        if (WireproxyServiceState.state.value == WireproxyState.Idle) {
-                            val intent = Intent(this@ProxyService, WireproxyService::class.java)
+                    if (shouldRunProxy) {
+                        if (XrayServiceState.state.value == XrayState.Idle) {
+                            val intent = Intent(this@ProxyService, XrayService::class.java)
                             startForegroundService(intent)
                         }
                     } else {
-                        if (WireproxyServiceState.state.value != WireproxyState.Idle) {
-                            stopService(Intent(this@ProxyService, WireproxyService::class.java))
+                        if (XrayServiceState.state.value != XrayState.Idle) {
+                            stopService(Intent(this@ProxyService, XrayService::class.java))
                         }
                     }
                 }
@@ -238,7 +238,7 @@ class ProxyService : Service() {
                     val l = line ?: continue
                     ProxyServiceState.addLog(l)
 
-                    if (!useCustom && !l.contains("[wireproxy]")) {
+                    if (!useCustom && !l.contains("[xray]")) {
                         if (l.contains("Established", ignoreCase = true) || l.contains("listening on") || l.contains("DataChannel connected")) {
                             ProxyServiceState.setWorking(true)
                             ProxyTileService.requestUpdate(this)
@@ -467,7 +467,7 @@ class ProxyService : Service() {
         ProxyServiceState.setRunning(false)
         NotificationHelper.updateNotification(this)
 
-        stopService(Intent(this, WireproxyService::class.java))
+        stopService(Intent(this, XrayService::class.java))
 
         ProxyTileService.requestUpdate(this)
         handler.removeCallbacksAndMessages(null)

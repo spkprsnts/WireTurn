@@ -27,7 +27,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
@@ -62,18 +65,31 @@ fun LogsScreen(viewModel: MainViewModel) {
             TopAppBar(
                 title = { Text(stringResource(R.string.logs_title)) },
                 actions = {
+                    var isCopied by remember { mutableStateOf(false) }
+                    LaunchedEffect(isCopied) {
+                        if (isCopied) {
+                            kotlinx.coroutines.delay(1500)
+                            isCopied = false
+                        }
+                    }
                     IconButton(
                         onClick = {
+                            isCopied = true
                             scope.launch {
-                                clipboard.setClipEntry(ClipData.newPlainText("proxy_logs", logs.joinToString("\n")).toClipEntry())
+                                clipboard.setClipEntry(ClipData.newPlainText("wireturn logs", logs.joinToString("\n")).toClipEntry())
                                 HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
                             }
                         },
                         enabled = logs.isNotEmpty()
                     ) {
                         Icon(
-                            painterResource(R.drawable.content_copy_24px),
-                            contentDescription = stringResource(R.string.copy)
+                            painterResource(if (isCopied) R.drawable.check_circle_24px else R.drawable.content_copy_24px),
+                            contentDescription = stringResource(R.string.copy),
+                            tint = when {
+                                isCopied -> MaterialTheme.colorScheme.primary
+                                !logs.isNotEmpty() -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            }
                         )
                     }
                     IconButton(
@@ -127,7 +143,7 @@ fun LogsScreen(viewModel: MainViewModel) {
 private fun LogLine(line: String) {
     val lower = line.lowercase()
     val isHeader = line.startsWith("===")
-    val isWireproxy = line.startsWith("[Wireproxy]")
+    val isProxyLog = line.startsWith("[Proxy]") || line.startsWith("[Xray]")
     val isError = lower.contains("ошибка") || lower.contains("error") ||
                   lower.contains("критическая") || lower.contains("failed") ||
                   lower.contains("fatal") || lower.contains("panic") ||
@@ -168,7 +184,7 @@ private fun LogLine(line: String) {
             style = MaterialTheme.typography.bodySmall.copy(
                 fontFamily = FontFamily.Monospace,
                 fontWeight = when {
-                    isHeader || isWireproxy -> FontWeight.SemiBold
+                    isHeader || isProxyLog -> FontWeight.SemiBold
                     else -> FontWeight.Normal
                 }
             ),

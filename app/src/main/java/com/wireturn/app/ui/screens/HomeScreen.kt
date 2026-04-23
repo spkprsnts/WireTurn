@@ -56,8 +56,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -76,6 +74,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.offset
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -115,10 +114,10 @@ import com.wireturn.app.viewmodel.ProxyState
 import com.wireturn.app.viewmodel.UpdateState
 import androidx.core.net.toUri
 import com.wireturn.app.VpnServiceState
-import com.wireturn.app.WireproxyServiceState
+import com.wireturn.app.XrayServiceState
 import com.wireturn.app.ui.theme.extendedColorScheme
 import com.wireturn.app.viewmodel.VpnState
-import com.wireturn.app.viewmodel.WireproxyState
+import com.wireturn.app.viewmodel.XrayState
 import kotlin.math.ln
 import kotlin.math.pow
 
@@ -129,9 +128,10 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val proxyState by viewModel.proxyState.collectAsStateWithLifecycle()
-    val wireproxyState by WireproxyServiceState.state.collectAsStateWithLifecycle()
+    val xrayState by XrayServiceState.state.collectAsStateWithLifecycle()
     val vpnServiceState by VpnServiceState.state.collectAsStateWithLifecycle()
     val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
+    val xrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
     val batteryNotificationDismissed by viewModel.batteryNotificationDismissed.collectAsStateWithLifecycle()
     val customKernelExists by viewModel.customKernelExists.collectAsStateWithLifecycle()
 
@@ -155,8 +155,8 @@ fun HomeScreen(
                 Lifecycle.Event.ON_RESUME -> {
                     viewModel.setHomeScreenActive(true)
                     isIgnoringBatteryOptimizations = pm.isIgnoringBatteryOptimizations(context.packageName)
-                    if (WireproxyServiceState.state.value == WireproxyState.Running) {
-                        viewModel.checkWireproxyPing()
+                    if (XrayServiceState.state.value == XrayState.Running) {
+                        viewModel.checkProxyPing()
                     }
                 }
                 Lifecycle.Event.ON_PAUSE -> {
@@ -174,14 +174,14 @@ fun HomeScreen(
 
     val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
     val showBottomSheet = rememberSaveable { mutableStateOf(false) }
+    val showProxyEditDialog = rememberSaveable { mutableStateOf(false) }
     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val snackbarHostState = remember { SnackbarHostState() }
 
     val vpnLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
-            viewModel.saveClientConfig(viewModel.clientConfig.value.copy(wireproxyVpnMode = true))
+            viewModel.updateXrayConfig(viewModel.xrayConfig.value.copy(xrayVpnMode = true))
         }
     }
 
@@ -199,7 +199,7 @@ fun HomeScreen(
                 }
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { padding ->
         Column(
@@ -337,7 +337,7 @@ fun HomeScreen(
                     when (proxyState) {
                         is ProxyState.Idle, is ProxyState.Error -> {
                             HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                            if (clientConfig.wireproxyVpnMode) {
+                            if (xrayConfig.xrayVpnMode) {
                                 val intent = VpnService.prepare(context)
                                 if (intent != null) {
                                     vpnLauncher.launch(intent)
@@ -378,15 +378,16 @@ fun HomeScreen(
                 textAlign = TextAlign.Center
             )
 
-            val wireproxyPing by viewModel.wireproxyPing.collectAsStateWithLifecycle()
-            val wireproxyTransfer by viewModel.wireproxyTransfer.collectAsStateWithLifecycle()
+            val proxyPing by viewModel.proxyPing.collectAsStateWithLifecycle()
+            val proxyTransfer by viewModel.proxyTransfer.collectAsStateWithLifecycle()
             val wgConfig by viewModel.wgConfig.collectAsStateWithLifecycle()
-            val runningWgConfig by WireproxyServiceState.runningConfig.collectAsStateWithLifecycle()
+            val runningWgConfig by XrayServiceState.runningConfig.collectAsStateWithLifecycle()
+            val runningXrayConfig by XrayServiceState.runningXrayConfig.collectAsStateWithLifecycle()
 
             Spacer(Modifier.height(10.dp))
             
             AnimatedVisibility(
-                visible = wireproxyState == WireproxyState.Running,
+                visible = xrayState == XrayState.Running,
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
@@ -403,7 +404,7 @@ fun HomeScreen(
                         Surface(
                             onClick = {
                                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                viewModel.checkWireproxyPing()
+                                viewModel.checkProxyPing()
                             },
                             shape = CircleShape,
                             color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -426,7 +427,7 @@ fun HomeScreen(
                                     modifier = Modifier.widthIn(min = 48.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    when (val ping = wireproxyPing) {
+                                    when (val ping = proxyPing) {
                                         is MainViewModel.PingResult.Loading -> {
                                             CircularWavyProgressIndicator(
                                                 modifier = Modifier.size(14.dp)
@@ -473,7 +474,7 @@ fun HomeScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        val transfer = wireproxyTransfer
+                        val transfer = proxyTransfer
                         Row (
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -526,8 +527,8 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     )
                     {
-                        when(wireproxyState) {
-                            WireproxyState.Idle -> Icon(
+                        when(xrayState) {
+                            XrayState.Idle -> Icon(
                                 painter = painterResource(
                                     R.drawable.stop_24px
                                 ),
@@ -535,8 +536,8 @@ fun HomeScreen(
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(36.dp)
                             )
-                            WireproxyState.Starting -> CircularWavyProgressIndicator(modifier = Modifier.size(36.dp))
-                            WireproxyState.Running -> Icon(
+                            XrayState.Starting -> CircularWavyProgressIndicator(modifier = Modifier.size(36.dp))
+                            XrayState.Running -> Icon(
                                 painter = painterResource(
                                     R.drawable.check_circle_24px
                                 ),
@@ -551,21 +552,21 @@ fun HomeScreen(
                             verticalArrangement = Arrangement.Center
                         ) {
                             Text(
-                                text = stringResource(R.string.wireproxy_title),
+                                text = stringResource(R.string.xray_title),
                                 style = MaterialTheme.typography.titleMedium
                             )
                             AnimatedVisibility(
-                                visible = !wgConfig.isValid() || wireproxyState != WireproxyState.Idle,
+                                visible = !wgConfig.isValid() || xrayState != XrayState.Idle,
                                 enter = fadeIn() + expandVertically(),
                                 exit = fadeOut() + shrinkVertically()
                             ) {
                                 Text(
                                     text = if (!wgConfig.isValid()) {
-                                        stringResource(R.string.wireproxy_config_invalid)
+                                        stringResource(R.string.xray_config_invalid)
                                     } else {
-                                        when (wireproxyState) {
-                                            WireproxyState.Starting -> stringResource(R.string.wireproxy_starting_state)
-                                            WireproxyState.Running -> stringResource(R.string.wireproxy_running_state)
+                                        when (xrayState) {
+                                            XrayState.Starting -> stringResource(R.string.xray_starting_state)
+                                            XrayState.Running -> stringResource(R.string.xray_running_state)
                                             else -> ""
                                         }
                                     },
@@ -576,13 +577,13 @@ fun HomeScreen(
                         }
 
                         Switch(
-                            checked = clientConfig.wireproxyEnabled,
+                            checked = xrayConfig.xrayEnabled,
                             onCheckedChange = { enabled ->
                                 HapticUtil.perform(
                                     context,
                                     if (enabled) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
                                 )
-                                viewModel.saveClientConfig(viewModel.clientConfig.value.copy(wireproxyEnabled = enabled))
+                                viewModel.updateXrayConfig(viewModel.xrayConfig.value.copy(xrayEnabled = enabled))
                             },
                             enabled = wgConfig.isValid()
                         )
@@ -599,30 +600,36 @@ fun HomeScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .padding(start = 6.dp)
-                                .weight(1f),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(18.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.vpn_key_24px),
-                                contentDescription = null,
-                                tint = when (vpnServiceState) {
-                                    VpnState.Running -> MaterialTheme.colorScheme.primary
-                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                                },
+                            Row(
                                 modifier = Modifier
-                                    .size(24.dp)
-                                    .offset(y = (-1).dp)
-                            )
-                            Text(
-                                stringResource(R.string.vpn_mode),
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                        }
-                        Switch(checked = clientConfig.wireproxyVpnMode, onCheckedChange = { enabled ->
+                                    .padding(start = 6.dp)
+                                    .weight(1f),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(18.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.vpn_key_24px),
+                                    contentDescription = null,
+                                    tint = when (vpnServiceState) {
+                                        VpnState.Running -> MaterialTheme.colorScheme.primary
+                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .offset(y = (-1).dp)
+                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        stringResource(R.string.vpn_mode),
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                    InlineConfigIndicator(runningWgConfig != null && xrayConfig.xrayVpnMode != (vpnServiceState == VpnState.Running))
+                                }
+                            }
+                        Switch(checked = xrayConfig.xrayVpnMode, onCheckedChange = { enabled ->
                             HapticUtil.perform(
                                 context,
                                 if (enabled) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
@@ -632,10 +639,10 @@ fun HomeScreen(
                                 if (intent != null) {
                                     vpnLauncher.launch(intent)
                                 } else {
-                                    viewModel.saveClientConfig(viewModel.clientConfig.value.copy(wireproxyVpnMode = true))
+                                    viewModel.updateXrayConfig(viewModel.xrayConfig.value.copy(xrayVpnMode = true))
                                 }
                             } else {
-                                viewModel.saveClientConfig(viewModel.clientConfig.value.copy(wireproxyVpnMode = false))
+                                viewModel.updateXrayConfig(viewModel.xrayConfig.value.copy(xrayVpnMode = false))
                             }
                         })
                     }
@@ -646,41 +653,63 @@ fun HomeScreen(
 
                     Column {
                         Column {
-                            val wgConfig by viewModel.wgConfig.collectAsStateWithLifecycle()
                             val clipboard = LocalClipboard.current
                             val scope = rememberCoroutineScope()
-                            val httpCopiedText = stringResource(R.string.wireproxy_http_copied)
-                            val socks5CopiedText = stringResource(R.string.wireproxy_socks5_copied)
 
-                            if (wgConfig.socks5BindAddress.isNotBlank()) {
-                                ProxyCopyRow(
-                                    label = stringResource(R.string.wireproxy_socks5),
-                                    address = wgConfig.socks5BindAddress,
-                                    isModified = runningWgConfig != null && wgConfig.socks5BindAddress != runningWgConfig?.socks5BindAddress,
-                                    onCopy = {
-                                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                        scope.launch {
-                                            clipboard.setClipEntry(ClipData.newPlainText("wireproxy socks5", it).toClipEntry())
-                                            snackbarHostState.showSnackbar(socks5CopiedText)
-                                        }
-                                    }
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.xray_proxy_addresses),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 24.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+
+                            ProxyAddressRow(
+                                label = if (xrayConfig.httpBindAddress.isBlank()) stringResource(R.string.xray_mixed) else stringResource(R.string.xray_socks5),
+                                address = xrayConfig.mixedBindAddress,
+                                isModified = runningXrayConfig != null && xrayConfig.mixedBindAddress != runningXrayConfig?.mixedBindAddress,
+                                onCopy = {
+                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                    scope.launch {
+                                        clipboard.setClipEntry(ClipData.newPlainText(if (xrayConfig.httpBindAddress.isBlank()) "xray mixed" else "xray socks5", it).toClipEntry())
+                                    }
+                                },
+                                onEdit = {
+                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                    showProxyEditDialog.value = true
+                                }
                             )
-                            if (wgConfig.httpBindAddress.isNotBlank()) {
-                                ProxyCopyRow(
-                                    label = stringResource(R.string.wireproxy_http),
-                                    address = wgConfig.httpBindAddress,
-                                    isModified = runningWgConfig != null && wgConfig.httpBindAddress != runningWgConfig?.httpBindAddress,
+
+                            if (xrayConfig.httpBindAddress.isNotBlank()) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(horizontal = 24.dp),
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                                )
+
+                                ProxyAddressRow(
+                                    label = stringResource(R.string.xray_http),
+                                    address = xrayConfig.httpBindAddress,
+                                    isModified = runningXrayConfig != null && xrayConfig.httpBindAddress != runningXrayConfig?.httpBindAddress,
                                     onCopy = {
                                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                         scope.launch {
-                                            clipboard.setClipEntry(ClipData.newPlainText("wireproxy http", it).toClipEntry())
-                                            snackbarHostState.showSnackbar(httpCopiedText)
+                                            clipboard.setClipEntry(
+                                                ClipData.newPlainText(
+                                                    "xray http",
+                                                    it
+                                                ).toClipEntry()
+                                            )
                                         }
+                                    },
+                                    onEdit = {
+                                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                        showProxyEditDialog.value = true
                                     }
                                 )
                             }
@@ -838,6 +867,76 @@ fun HomeScreen(
 
     UpdateDialogs(viewModel)
 
+    if (showProxyEditDialog.value) {
+        ProxyEditDialog(
+            currentConfig = xrayConfig,
+            onDismiss = { showProxyEditDialog.value = false },
+            onConfirm = { newConfig ->
+                viewModel.updateXrayConfig(newConfig)
+                showProxyEditDialog.value = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun ProxyEditDialog(
+    currentConfig: com.wireturn.app.data.XrayConfig,
+    onDismiss: () -> Unit,
+    onConfirm: (com.wireturn.app.data.XrayConfig) -> Unit
+) {
+    var mixed by remember { mutableStateOf(currentConfig.mixedBindAddress) }
+    var http by remember { mutableStateOf(currentConfig.httpBindAddress) }
+
+    val isMixedValid = remember(mixed) {
+        com.wireturn.app.ui.ValidatorUtils.isValidHostPort(mixed)
+    }
+    val isHttpValid = remember(http) {
+        http.isEmpty() || com.wireturn.app.ui.ValidatorUtils.isValidHostPort(http)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.xray_proxy_addresses)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                OutlinedTextField(
+                    value = mixed,
+                    onValueChange = { mixed = it },
+                    label = { Text(if (http.isBlank()) stringResource(R.string.xray_mixed) else stringResource(R.string.xray_socks5)) },
+                    isError = !isMixedValid || (mixed.isNotEmpty() && mixed == http),
+                    placeholder = { Text(stringResource(R.string.xray_socks5_placeholder)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = http,
+                    onValueChange = { http = it },
+                    label = { Text(stringResource(R.string.xray_http)) },
+                    isError = !isHttpValid || (http.isNotEmpty() && mixed == http),
+                    placeholder = { Text(stringResource(R.string.xray_http_placeholder)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onConfirm(currentConfig.copy(mixedBindAddress = mixed, httpBindAddress = http))
+                },
+                enabled = isMixedValid && isHttpValid && mixed != http
+            ) {
+                Text(stringResource(R.string.btn_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
 }
 
 // Диалоги обновления
@@ -1296,9 +1395,9 @@ private fun RepoLinksContent(
 
             item {
                 RepoLinkItem(
-                    title = stringResource(R.string.wireproxy),
-                    subtitle = "mishamosher/awgproxy",
-                    url = "https://github.com/mishamosher/awgproxy",
+                    title = stringResource(R.string.xray_core_name),
+                    subtitle = "XTLS/Xray-core",
+                    url = "https://github.com/XTLS/Xray-core",
                     containerColor = containerColor,
                     onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
                     onOpen = { uriHandler.openUri(it) }
@@ -1459,21 +1558,29 @@ private fun ConfigRow(label: String, value: String) {
 }
 
 @Composable
-private fun ProxyCopyRow(
+private fun ProxyAddressRow(
     label: String,
     address: String,
-    isModified: Boolean = false,
-    onCopy: (String) -> Unit
+    isModified: Boolean,
+    onCopy: (String) -> Unit,
+    onEdit: () -> Unit
 ) {
+    var isCopied by remember { mutableStateOf(false) }
+    LaunchedEffect(isCopied) {
+        if (isCopied) {
+            kotlinx.coroutines.delay(1500)
+            isCopied = false
+        }
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onCopy(address) }
+            .clickable { onEdit() }
             .padding(vertical = 12.dp, horizontal = 26.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Column {
+        Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     label,
@@ -1483,17 +1590,38 @@ private fun ProxyCopyRow(
                 InlineConfigIndicator(isModified)
             }
             Text(
-                address,
+                address.ifBlank { "—" },
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
+                color = if (address.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                else MaterialTheme.colorScheme.onSurface
             )
         }
-        Icon(
-            painter = painterResource(R.drawable.content_copy_24px),
-            contentDescription = null,
-            modifier = Modifier.size(18.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (address.isNotBlank()) {
+                IconButton(
+                    onClick = {
+                        isCopied = true
+                        onCopy(address)
+                    },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(if (isCopied) R.drawable.check_circle_24px else R.drawable.content_copy_24px),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = if (isCopied) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+            }
+            Icon(
+                painter = painterResource(R.drawable.edit_24px),
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+            )
+        }
     }
 }
 

@@ -41,20 +41,20 @@ import com.wireturn.app.ui.screens.ClientSetupScreen
 import com.wireturn.app.ui.screens.HomeScreen
 import com.wireturn.app.ui.screens.LogsScreen
 import com.wireturn.app.ui.screens.OnboardingScreen
-import com.wireturn.app.ui.screens.WireproxyConfigScreen
+import com.wireturn.app.ui.screens.WgConfigScreen
 import com.wireturn.app.viewmodel.ProxyState
 import com.wireturn.app.viewmodel.MainViewModel
 
 object Routes {
     const val ONBOARDING = "onboarding"
-    const val WIREPROXY_CONFIG = "wireproxy_config"
+    const val WG_CONFIG = "wg_config"
     const val CLIENT_SETUP = "client_setup"
     const val HOME = "home"
     const val LOGS = "logs"
 }
 
 // Нижнее меню видно только в основном потоке, не во время онбординга
-private val BOTTOM_NAV_ROUTES = setOf(Routes.HOME, Routes.LOGS, Routes.CLIENT_SETUP, Routes.WIREPROXY_CONFIG)
+private val BOTTOM_NAV_ROUTES = setOf(Routes.HOME, Routes.LOGS, Routes.CLIENT_SETUP, Routes.WG_CONFIG)
 
 @Composable
 fun AppNavigation(
@@ -74,7 +74,7 @@ fun AppNavigation(
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
-    val routesList = remember { listOf(Routes.HOME, Routes.CLIENT_SETUP, Routes.WIREPROXY_CONFIG, Routes.LOGS) }
+    val routesList = remember { listOf(Routes.HOME, Routes.CLIENT_SETUP, Routes.WG_CONFIG, Routes.LOGS) }
 
     // Определяем, видна ли клавиатура
     val isKeyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
@@ -158,8 +158,8 @@ fun AppNavigation(
                     )
                 }
 
-                composable(Routes.WIREPROXY_CONFIG) {
-                    WireproxyConfigScreen(
+                composable(Routes.WG_CONFIG) {
+                    WgConfigScreen(
                         viewModel = viewModel,
                         showFinishButton = false
                     )
@@ -237,7 +237,7 @@ private data class NavItem(
 private val navItems = listOf(
     NavItem(Routes.HOME, R.string.nav_home, R.drawable.home_24px, R.drawable.home_outlined_24px),
     NavItem(Routes.CLIENT_SETUP, R.string.client_title, R.drawable.mobile_24px, R.drawable.mobile_outlined_24px),
-    NavItem(Routes.WIREPROXY_CONFIG, R.string.wireproxy_title, R.drawable.wifi_24px, R.drawable.wifi_24px),
+    NavItem(Routes.WG_CONFIG, R.string.wg_title, R.drawable.wifi_24px, R.drawable.wifi_24px),
     NavItem(Routes.LOGS, R.string.logs_title, R.drawable.terminal_24px, R.drawable.terminal_24px)
 )
 

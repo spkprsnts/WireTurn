@@ -2,11 +2,11 @@ package com.wireturn.app.viewmodel
 
 import kotlinx.coroutines.flow.MutableStateFlow
 
-// Wireproxy states
-sealed class WireproxyState {
-    object Idle : WireproxyState()
-    object Starting : WireproxyState()
-    object Running : WireproxyState()
+// Xray states
+sealed class XrayState {
+    object Idle : XrayState()
+    object Starting : XrayState()
+    object Running : XrayState()
 }
 
 // VPN states

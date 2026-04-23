@@ -24,9 +24,9 @@
     <string name="captcha_title">Проверка VK</string>
     <string name="captcha_desc">Пройдите проверку для продолжения</string>
     <string name="start_proxy">Запустить прокси</string>
-    <string name="wireproxy_starting_state">Запускается</string>
-    <string name="wireproxy_running_state">Запущен</string>
-    <string name="wireproxy_config_invalid">Некорректный конфиг</string>
+    <string name="xray_starting_state">Xray запускается</string>
+    <string name="xray_running_state">Xray запущен</string>
+    <string name="xray_config_invalid">Некорректный конфиг</string>
     <string name="error_format_short">Ошибка: %1$s</string>
     <string name="repo_links">Ссылки на репозитории</string>
     <string name="repo_links_desc">Исходный код компонентов</string>
@@ -39,10 +39,11 @@
     <string name="android_client_original">Android-клиент (оригинал)</string>
     <string name="proxy_core">Прокси-ядро</string>
     <string name="proxy_core_use">Прокси-ядро (используемое)</string>
-    <string name="wireproxy">Wireproxy</string>
+    <string name="xray_core_name">Xray</string>
     <string name="tun2socks">tun2socks</string>
     <string name="btn_open">Открыть</string>
     <string name="btn_close">Закрыть</string>
+    <string name="btn_save">Сохранить</string>
     <string name="reset_settings">Сбросить настройки</string>
     <string name="reset">Сбросить</string>
     <string name="reset_all_settings_title">Сбросить все настройки?</string>
@@ -52,44 +53,49 @@
     <string name="vpn_start">Включить VPN</string>
     <string name="vpn_stop">Выключить VPN</string>
 
-    <!-- WireproxyConfigScreen -->
-    <string name="wireproxy_title">Wireproxy</string>
-    <string name="wireproxy_config_title">Конфигурация WireGuard</string>
-    <string name="wireproxy_import_config">Импорт</string>
-    <string name="wireproxy_import_file">Из файла</string>
-    <string name="wireproxy_import_clipboard">Из буфера</string>
-    <string name="wireproxy_import_success">Конфигурация импортирована</string>
-    <string name="wireproxy_import_error">Ошибка импорта</string>
-    <string name="wireproxy_export_success">Конфигурация скопирована</string>
-    <string name="wireproxy_proxy_addresses">Адреса прокси</string>
-    <string name="wireproxy_http">HTTP</string>
-    <string name="wireproxy_http_placeholder">127.0.0.1:8080</string>
-    <string name="wireproxy_socks5">SOCKS5</string>
-    <string name="wireproxy_socks5_placeholder">127.0.0.1:2080</string>
-    <string name="wireproxy_edit_config">Редактирование WG конфига</string>
-    <string name="wireproxy_interface">Interface</string>
-    <string name="wireproxy_private_key">Private Key</string>
-    <string name="wireproxy_private_key_placeholder">WG_PRIVATE_KEY</string>
-    <string name="wireproxy_address">Address</string>
-    <string name="wireproxy_address_placeholder">10.0.0.1/32</string>
-    <string name="wireproxy_dns">DNS</string>
-    <string name="wireproxy_dns_placeholder">1.1.1.1</string>
-    <string name="wireproxy_mtu">MTU</string>
-    <string name="wireproxy_mtu_placeholder">1280</string>
-    <string name="wireproxy_peer">Peer</string>
-    <string name="wireproxy_public_key">Public Key</string>
-    <string name="wireproxy_public_key_placeholder">WG_PUBLIC_KEY</string>
-    <string name="wireproxy_endpoint">Endpoint (host:port)</string>
-    <string name="wireproxy_endpoint_placeholder">127.0.0.1:9000</string>
-    <string name="wireproxy_endpoint_mismatch">Не равен локальному адресу\nпрослушивания!</string>
-    <string name="wireproxy_endpoint_fix">Изменить?</string>
-    <string name="wireproxy_allowed_ips">Allowed IPs</string>
-    <string name="wireproxy_allowed_ips_placeholder">0.0.0.0/0</string>
-    <string name="wireproxy_persistent_keepalive">Persistent Keepalive</string>
-    <string name="wireproxy_persistent_keepalive_placeholder">25</string>
-    <string name="wireproxy_http_copied">HTTP прокси скопирован</string>
-    <string name="wireproxy_socks5_copied">SOCKS5 прокси скопирован</string>
-    <string name="wireproxy_mtu_recommendation">Рекомендуемое значение — 1280</string>
+    <!-- WgConfigScreen -->
+    <string name="wg_title">WireGuard</string>
+    <string name="wg_config_title">Конфигурация WireGuard</string>
+    <string name="wg_import_config">Импорт</string>
+    <string name="wg_import_file">Из файла</string>
+    <string name="wg_import_clipboard">Из буфера</string>
+    <string name="wg_import_success">Конфигурация импортирована</string>
+    <string name="wg_import_error">Ошибка импорта</string>
+    <string name="wg_export_success">Конфигурация скопирована</string>
+    <string name="wg_edit_config">Редактирование WG конфига</string>
+    <string name="wg_interface">Interface</string>
+    <string name="wg_private_key">Private Key</string>
+    <string name="wg_private_key_placeholder">WG_PRIVATE_KEY</string>
+    <string name="wg_address">Address</string>
+    <string name="wg_address_placeholder">10.0.0.1/32</string>
+    <string name="wg_dns">DNS</string>
+    <string name="wg_dns_placeholder">1.1.1.1</string>
+    <string name="wg_mtu">MTU</string>
+    <string name="wg_mtu_placeholder">1280</string>
+    <string name="wg_peer">Peer</string>
+    <string name="wg_public_key">Public Key</string>
+    <string name="wg_public_key_placeholder">WG_PUBLIC_KEY</string>
+    <string name="wg_endpoint">Endpoint (host:port)</string>
+    <string name="wg_endpoint_placeholder">127.0.0.1:9000</string>
+    <string name="wg_endpoint_mismatch">Не равен локальному адресу\nпрослушивания!</string>
+    <string name="wg_endpoint_fix">Изменить?</string>
+    <string name="wg_allowed_ips">Allowed IPs</string>
+    <string name="wg_allowed_ips_placeholder">0.0.0.0/0</string>
+    <string name="wg_persistent_keepalive">Persistent Keepalive</string>
+    <string name="wg_persistent_keepalive_placeholder">25</string>
+    <string name="wg_mtu_recommendation">Рекомендуемое значение — 1280</string>
+
+    <!-- Xray Settings -->
+    <string name="xray_title">Xray</string>
+    <string name="xray_proxy_addresses">Адреса прокси</string>
+    <string name="xray_http">HTTP</string>
+    <string name="xray_http_placeholder">127.0.0.1:8080</string>
+    <string name="xray_socks5">SOCKS5</string>
+    <string name="xray_socks5_placeholder">127.0.0.1:2080</string>
+    <string name="xray_http_copied">HTTP прокси скопирован</string>
+    <string name="xray_socks5_copied">SOCKS5 прокси скопирован</string>
+    <string name="xray_mixed_copied">Mixed прокси скопирован</string>
+    <string name="xray_mixed">Mixed (SOCKS5+HTTP)</string>
 
 
     <!-- ClientSetupScreen -->
@@ -192,7 +198,7 @@
     <string name="error_file_empty">Файл пустой</string>
     <string name="error_file_too_large">Файл слишком большой (максимум %1$d МБ)</string>
     <string name="log_custom_kernel_installed">Кастомное ядро установлено: %1$d КБ</string>
-    <string name="log_wireproxy_invalid_config">[wireproxy] Некорректный или отсутствующий конфиг, запуск отменен</string>
+    <string name="log_proxy_invalid_config">[Proxy] Некорректный или отсутствующий конфиг, запуск отменен</string>
     <string name="error_kernel_install_failed">Ошибка установки ядра: %1$s</string>
     <string name="log_custom_kernel_deleted">Кастомное ядро удалено, используется встроенное</string>
     <string name="error_update_url_not_found">URL обновления не найден</string>
@@ -226,7 +232,7 @@
     <string name="notification_channel_description">Уведомление о состоянии и для управления</string>
     <string name="captcha_channel_name">Уведомления о капче</string>
     <string name="captcha_channel_description">Уведомления о необходимости прохождения капчи</string>
-    <string name="wireproxy_short">WG</string>
+    <string name="xray_short">Xray</string>
     <string name="vpn_short">VPN</string>
     <string name="captcha_notification_title">Требуется капча</string>
     <string name="captcha_notification_text">Нажмите, чтобы пройти проверку</string>

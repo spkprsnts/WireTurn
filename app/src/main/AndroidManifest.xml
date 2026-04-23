@@ -52,13 +52,13 @@
         </service>
 
         <service
-            android:name=".WireproxyService"
+            android:name=".XrayService"
             android:exported="false"
             android:foregroundServiceType="specialUse"
             tools:targetApi="34">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Maintaining a WireGuard tunnel via wireproxy for traffic routing." />
+                android:value="Maintaining a WireGuard tunnel via Xray for traffic routing." />
         </service>
 
         <service
