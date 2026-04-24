@@ -119,7 +119,7 @@
     <string name="wbstream_uuid_support">Создаётся на сервере</string>
     <string name="history_label">История</string>
     <string name="history_empty">История пуста</string>
-    <string name="protocol">Протокол</string>
+    <string name="tunnel">Туннель</string>
     <string name="turn_protocol">TURN</string>
     <string name="dc_protocol">DC</string>
     <string name="local_listen_address">Локальный адрес прослушивания</string>

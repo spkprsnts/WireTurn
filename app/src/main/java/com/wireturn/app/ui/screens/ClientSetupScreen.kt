@@ -241,7 +241,7 @@ fun ClientSetupScreen(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(stringResource(R.string.protocol), style = MaterialTheme.typography.bodyMedium)
+                                Text(stringResource(R.string.tunnel), style = MaterialTheme.typography.bodyMedium)
                                 InlineConfigIndicator(runningConfig != null && dcMode != runningConfig?.dcMode)
                             }
                         }
@@ -488,18 +488,20 @@ fun ClientSetupScreen(
                                 placeholder = { Text(stringResource(R.string.vless_link_placeholder)) },
                                 isError = !ValidatorUtils.isValidVlessLink(vlessLink) || (vlessLink.isBlank() && xrayConfig.xrayEnabled),
                                 modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
+                                maxLines = 4,
                                 readOnly = privacyMode,
                                 supportingText = { Text(stringResource(R.string.vless_link_config_desc)) },
+                                leadingIcon = {
+                                    IconButton(onClick = { showVlessQrScanner.value = true }) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.qr_code_24px),
+                                            contentDescription = stringResource(R.string.wg_import_qr)
+                                        )
+                                    }
+                                },
                                 trailingIcon = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         ConfigFieldIndicator(runningVlessConfig != null && vlessLink.trim() != runningVlessConfig?.vlessLink)
-                                        IconButton(onClick = { showVlessQrScanner.value = true }) {
-                                            Icon(
-                                                painter = painterResource(R.drawable.qr_code_24px),
-                                                contentDescription = stringResource(R.string.wg_import_qr)
-                                            )
-                                        }
                                         HistoryIconButton(
                                             history = vlessLinkHistory,
                                             onSelect = { vlessLink = it },
