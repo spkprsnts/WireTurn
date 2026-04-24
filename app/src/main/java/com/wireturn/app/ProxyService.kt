@@ -185,8 +185,8 @@ class ProxyService : Service() {
                     cmdArgs.add("-jazz-room")
                     cmdArgs.add(cfg.jazzCreds)
                 } else {
-                    cmdArgs.add("-yandex-link")
-                    cmdArgs.add(cfg.telemostLink)
+                    cmdArgs.add("-wb-room")
+                    cmdArgs.add(cfg.wbstreamUuid)
                 }
                 if (cfg.vlessMode) cmdArgs.add("-vless")
                 cmdArgs.add("-dc")

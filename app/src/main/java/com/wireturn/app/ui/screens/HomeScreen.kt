@@ -791,14 +791,14 @@ fun HomeScreen(
                                         clientConfig.jazzCreds.redact(privacyMode)
                                     )
                                 } else {
-                                    val telemostLink = clientConfig.telemostLink.redact(privacyMode)
-                                    if (clientConfig.telemostLink.isNotBlank()) {
+                                    val wbstreamUuid = clientConfig.wbstreamUuid.redact(privacyMode)
+                                    if (clientConfig.wbstreamUuid.isNotBlank()) {
                                         ConfigRow(
-                                            stringResource(R.string.call_link),
-                                            if (telemostLink.length > 30) {
-                                                telemostLink.take(21) + "..." + telemostLink.takeLast(6)
+                                            stringResource(R.string.wbstream_uuid_label),
+                                            if (wbstreamUuid.length > 30) {
+                                                wbstreamUuid.take(21) + "..." + wbstreamUuid.takeLast(6)
                                             } else {
-                                                telemostLink.ifBlank { stringResource(R.string.not_set) }
+                                                wbstreamUuid.ifBlank { stringResource(R.string.not_set) }
                                             }
                                         )
                                     }

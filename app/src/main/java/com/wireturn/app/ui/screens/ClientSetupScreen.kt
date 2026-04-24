@@ -93,7 +93,7 @@ fun ClientSetupScreen(
     val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
 
     val vkLinkHistory by viewModel.vkLinkHistory.collectAsStateWithLifecycle()
-    val telemostLinkHistory by viewModel.telemostLinkHistory.collectAsStateWithLifecycle()
+    val wbstreamUuidHistory by viewModel.wbstreamUuidHistory.collectAsStateWithLifecycle()
     val serverAddressHistory by viewModel.serverAddressHistory.collectAsStateWithLifecycle()
     val jazzCredsHistory by viewModel.jazzCredsHistory.collectAsStateWithLifecycle()
     val vlessLinkHistory by viewModel.vlessLinkHistory.collectAsStateWithLifecycle()
@@ -113,7 +113,7 @@ fun ClientSetupScreen(
     var rawCommand by rememberSaveable(saved.rawCommand) { mutableStateOf(saved.rawCommand) }
     var serverAddress by rememberSaveable(saved.serverAddress) { mutableStateOf(saved.serverAddress) }
     var vkLink       by rememberSaveable(saved.vkLink)         { mutableStateOf(saved.vkLink) }
-    var telemostLink by rememberSaveable(saved.telemostLink)   { mutableStateOf(saved.telemostLink) }
+    var wbstreamUuid by rememberSaveable(saved.wbstreamUuid)   { mutableStateOf(saved.wbstreamUuid) }
     var threads      by rememberSaveable(saved.threads)        { mutableFloatStateOf(saved.threads.toFloat()) }
     var useUdp       by rememberSaveable(saved.useUdp)         { mutableStateOf(saved.useUdp) }
     var noDtls       by rememberSaveable(saved.noDtls)         { mutableStateOf(saved.noDtls) }
@@ -136,7 +136,7 @@ fun ClientSetupScreen(
     }
 
     // Авто-сохранение с дебаунсом 200 мс на каждое изменение поля.
-    LaunchedEffect(isRawMode, rawCommand, serverAddress, vkLink, telemostLink, threads, useUdp, noDtls,
+    LaunchedEffect(isRawMode, rawCommand, serverAddress, vkLink, wbstreamUuid, threads, useUdp, noDtls,
         manualCaptcha, localPort, vlessMode, dcMode, forcePort443, isJazz, jazzCreds
     ) {
         delay(200)
@@ -146,7 +146,7 @@ fun ClientSetupScreen(
                 rawCommand       = rawCommand,
                 serverAddress    = serverAddress.trim(),
                 vkLink           = vkLink.trim(),
-                telemostLink     = telemostLink.trim(),
+                wbstreamUuid     = wbstreamUuid.trim(),
                 threads          = threads.roundToInt(),
                 useUdp           = useUdp,
                 noDtls           = noDtls,
@@ -387,7 +387,7 @@ fun ClientSetupScreen(
                     }
 
                     var showJazzHistoryMenu by remember { mutableStateOf(false) }
-                    var showTelemostHistoryMenu by remember { mutableStateOf(false) }
+                    var showWbstreamHistoryMenu by remember { mutableStateOf(false) }
 
                     AnimatedVisibility(
                         visible = isJazz && dcMode,
@@ -483,37 +483,37 @@ fun ClientSetupScreen(
                                shrinkVertically(animationSpec = tween(300, easing = FastOutSlowInEasing))
                     ) {
                         OutlinedTextField(
-                            value = telemostLink.redact(privacyMode),
-                            onValueChange = { if (!privacyMode) telemostLink = it },
-                            label = { Text(stringResource(R.string.telemost_link_label)) },
-                            placeholder = { Text(stringResource(R.string.telemost_link_placeholder)) },
-                            isError = !ValidatorUtils.isValidUrl(telemostLink) || telemostLink.isBlank(),
+                            value = wbstreamUuid.redact(privacyMode),
+                            onValueChange = { if (!privacyMode) wbstreamUuid = it },
+                            label = { Text(stringResource(R.string.wbstream_uuid_label)) },
+                            placeholder = { Text(stringResource(R.string.wbstream_uuid_placeholder)) },
+                            isError = wbstreamUuid.isBlank(),
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             readOnly = privacyMode,
-                            supportingText = { Text(stringResource(R.string.telemost_link_support)) },
+                            supportingText = { Text(stringResource(R.string.wbstream_uuid_support)) },
                             trailingIcon = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    ConfigFieldIndicator(runningConfig != null && (telemostLink.trim() != runningConfig?.telemostLink || runningConfig!!.isRawMode))
+                                    ConfigFieldIndicator(runningConfig != null && (wbstreamUuid.trim() != runningConfig?.wbstreamUuid || runningConfig!!.isRawMode))
                                     Box {
-                                        IconButton(onClick = { showTelemostHistoryMenu = true }) {
+                                        IconButton(onClick = { showWbstreamHistoryMenu = true }) {
                                             Icon(
                                                 painter = painterResource(R.drawable.database_outlined_24px),
                                                 contentDescription = stringResource(R.string.history_label)
                                             )
                                         }
                                         DropdownMenu(
-                                            expanded = showTelemostHistoryMenu,
-                                            onDismissRequest = { showTelemostHistoryMenu = false }
+                                            expanded = showWbstreamHistoryMenu,
+                                            onDismissRequest = { showWbstreamHistoryMenu = false }
                                         ) {
-                                            if (telemostLinkHistory.isEmpty()) {
+                                            if (wbstreamUuidHistory.isEmpty()) {
                                                 DropdownMenuItem(
                                                     text = { Text(stringResource(R.string.history_empty)) },
-                                                    onClick = { showTelemostHistoryMenu = false },
+                                                    onClick = { showWbstreamHistoryMenu = false },
                                                     enabled = false
                                                 )
                                             } else {
-                                                telemostLinkHistory.forEach { historyItem ->
+                                                wbstreamUuidHistory.forEach { historyItem ->
                                                     DropdownMenuItem(
                                                         modifier = Modifier.pointerInput(historyItem) {
                                                             awaitEachGesture {
@@ -525,7 +525,7 @@ fun ClientSetupScreen(
                                                                     delay(1500)
                                                                     isLongPress = true
                                                                     HapticUtil.perform(context, HapticUtil.Pattern.ERROR)
-                                                                    viewModel.removeTelemostLinkFromHistory(historyItem)
+                                                                    viewModel.removeWbstreamUuidFromHistory(historyItem)
                                                                 }
                                                                 val up = waitForUpOrCancellation()
                                                                 job.cancel()
@@ -548,8 +548,8 @@ fun ClientSetupScreen(
                                                         },
                                                         onClick = {
                                                             HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
-                                                            telemostLink = historyItem
-                                                            showTelemostHistoryMenu = false
+                                                            wbstreamUuid = historyItem
+                                                            showWbstreamHistoryMenu = false
                                                         }
                                                     )
                                                 }
