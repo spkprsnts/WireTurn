@@ -41,6 +41,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val proxyState: StateFlow<ProxyState> = proxyManager.proxyState
     val logs: StateFlow<List<String>> = ProxyServiceState.logs
     val customKernelExists: StateFlow<Boolean> = proxyManager.customKernelExists
+    val customKernelLastModified: StateFlow<Long?> = proxyManager.customKernelLastModified
     val updateState: StateFlow<UpdateState> = appUpdater.state
 
     private val _isInitialized = MutableStateFlow(false)

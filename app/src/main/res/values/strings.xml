@@ -125,7 +125,7 @@
     <string name="threads_format">Потоки: %1$d</string>
     <string name="threads_recommendation">Рекомендуется 4–8</string>
     <string name="vless_mode">VLESS-режим</string>
-    <string name="vless_mode_desc">Проброс VLESS через TURN-туннель (требует -vless на сервере)</string>
+    <string name="vless_mode_desc">Проброс VLESS через TURN-туннель\n(требует -vless на сервере)</string>
     <string name="transport_protocol">Транспорт</string>
     <string name="transport_protocol_desc">UDP снижает задержки, TCP — стабильнее</string>
     <string name="no_dtls">Без DTLS-шифрования</string>
@@ -146,6 +146,7 @@
     <string name="custom_core">Кастомное ядро</string>
     <string name="builtin_core">Встроенное ядро</string>
     <string name="loaded_from_memory">Загружено из памяти устройства</string>
+    <string name="kernel_date_format">Изменён: %1$s</string>
     <string name="from_apk">Из APK</string>
     <string name="btn_load">Загрузить</string>
     <string name="finish_setup">Завершить настройку</string>

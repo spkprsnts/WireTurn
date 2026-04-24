@@ -31,11 +31,18 @@ class LocalProxyManager(private val context: Context) {
     private val _customKernelExists = MutableStateFlow(false)
     val customKernelExists: StateFlow<Boolean> = _customKernelExists.asStateFlow()
 
+    private val _customKernelLastModified = MutableStateFlow<Long?>(null)
+    val customKernelLastModified: StateFlow<Long?> = _customKernelLastModified.asStateFlow()
+
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var resetJob: kotlinx.coroutines.Job? = null
 
     init {
-        _customKernelExists.value = File(context.filesDir, "custom_vkturn").exists()
+        val file = File(context.filesDir, "custom_vkturn")
+        _customKernelExists.value = file.exists()
+        if (file.exists()) {
+            _customKernelLastModified.value = file.lastModified()
+        }
     }
 
     suspend fun observeProxyLifecycle() {
@@ -181,6 +188,20 @@ class LocalProxyManager(private val context: Context) {
                 dest.outputStream().use { output -> input.copyTo(output) }
             }
 
+            // Пытаемся получить дату изменения оригинала
+            val originalLastModified = try {
+                context.contentResolver.query(uri, arrayOf(android.provider.DocumentsContract.Document.COLUMN_LAST_MODIFIED), null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val index = cursor.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_LAST_MODIFIED)
+                        if (index != -1) cursor.getLong(index) else null
+                    } else null
+                }
+            } catch (_: Exception) { null }
+
+            if (originalLastModified != null && originalLastModified > 0) {
+                dest.setLastModified(originalLastModified)
+            }
+
             if (dest.length() == 0L) {
                 dest.delete()
                 return@withContext context.getString(R.string.error_file_empty)
@@ -194,7 +215,10 @@ class LocalProxyManager(private val context: Context) {
             try {
                 Runtime.getRuntime().exec(arrayOf("chmod", "755", dest.absolutePath)).waitFor()
             } catch (_: Exception) {}
-            withContext(Dispatchers.Main) { _customKernelExists.value = true }
+            withContext(Dispatchers.Main) { 
+                _customKernelExists.value = true
+                _customKernelLastModified.value = dest.lastModified()
+            }
             ProxyServiceState.addLog(context.getString(R.string.log_custom_kernel_installed, dest.length() / 1024))
             null
         } catch (e: Exception) {
@@ -206,6 +230,7 @@ class LocalProxyManager(private val context: Context) {
     fun clearCustomKernel() {
         File(context.filesDir, "custom_vkturn").delete()
         _customKernelExists.value = false
+        _customKernelLastModified.value = null
         ProxyServiceState.addLog(context.getString(R.string.log_custom_kernel_deleted))
     }
 
@@ -213,6 +238,7 @@ class LocalProxyManager(private val context: Context) {
         _proxyState.value = ProxyState.Idle
         File(context.filesDir, "custom_vkturn").delete()
         _customKernelExists.value = false
+        _customKernelLastModified.value = null
     }
 
     fun destroy() {

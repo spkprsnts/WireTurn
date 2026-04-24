@@ -53,7 +53,7 @@ fun CaptchaWebViewDialog(
         sheetState = sheetState
     ) {
         Scaffold(
-            modifier = Modifier.fillMaxHeight(0.6f),
+            modifier = Modifier.fillMaxHeight(0.77f),
             topBar = {
                 TopAppBar(
                     colors = TopAppBarDefaults.topAppBarColors(

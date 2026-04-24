@@ -70,6 +70,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -82,6 +83,8 @@ import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.data.DCType
+import java.text.SimpleDateFormat
+import java.util.Date
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -94,6 +97,7 @@ fun ClientSetupScreen(
 ) {
     val saved by viewModel.clientConfig.collectAsStateWithLifecycle()
     val customKernelExists by viewModel.customKernelExists.collectAsStateWithLifecycle()
+    val customKernelLastModified by viewModel.customKernelLastModified.collectAsStateWithLifecycle()
     val kernelError by viewModel.kernelError.collectAsStateWithLifecycle()
     val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
 
@@ -517,7 +521,7 @@ fun ClientSetupScreen(
                                 },
                                 isModified = runningVlessConfig != null && vlessUseLocalAddress != runningVlessConfig?.vlessUseLocalAddress
                             )
-                            ScreenSectionDivider()
+                            if (!dcMode) ScreenSectionDivider()
                         }
                     }
 
@@ -728,8 +732,17 @@ fun ClientSetupScreen(
                                 style = MaterialTheme.typography.bodyMedium
                             )
                             Text(
-                                if (customKernelExists) stringResource(R.string.loaded_from_memory)
-                                else stringResource(R.string.from_apk),
+                                if (customKernelExists) {
+                                    val dateStr = customKernelLastModified?.let {
+                                        val currentLocale = LocalLocale.current.platformLocale
+                                        SimpleDateFormat("dd.MM.yyyy HH:mm", currentLocale).format(Date(it))
+                                    }
+                                    if (dateStr != null) {
+                                        stringResource(R.string.kernel_date_format, dateStr)
+                                    } else {
+                                        stringResource(R.string.loaded_from_memory)
+                                    }
+                                } else stringResource(R.string.from_apk),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
