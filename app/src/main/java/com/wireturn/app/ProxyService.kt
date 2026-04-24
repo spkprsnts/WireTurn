@@ -342,6 +342,7 @@ class ProxyService : Service() {
         } finally {
             ProxyServiceState.setCaptchaSession(null)
             process.set(null)
+            val uptime = System.currentTimeMillis() - startedAt
             when {
                 userStopped.get() -> {
                     ProxyServiceState.setRunning(false)
@@ -350,19 +351,22 @@ class ProxyService : Service() {
                 startupFailed -> {
                     ProxyServiceState.addLog(getString(R.string.log_startup_failed_no_watchdog))
                     ProxyServiceState.setRunning(false)
-                    stopSelf()
                 }
-                exitCode == 0 -> {
-                    val uptime = System.currentTimeMillis() - startedAt
-                    if (uptime < 5_000L) {
-                        ProxyServiceState.addLog(getString(R.string.log_quick_exit, uptime))
-                    } else {
-                        ProxyServiceState.addLog(getString(R.string.log_session_finished))
+                uptime < 5_000L -> {
+                    ProxyServiceState.addLog(getString(R.string.log_quick_exit, uptime))
+                    if (ProxyServiceState.startupResult.value is StartupResult.Success) {
+                        ProxyServiceState.setStartupResult(
+                            StartupResult.Failed(getString(R.string.error_kernel_or_settings))
+                        )
                     }
                     ProxyServiceState.setRunning(false)
-                    stopSelf()
                 }
-                else -> scheduleWatchdogRestart()
+                else -> {
+                    if (exitCode == 0) {
+                        ProxyServiceState.addLog(getString(R.string.log_session_finished))
+                    }
+                    scheduleWatchdogRestart()
+                }
             }
         }
     }
@@ -395,7 +399,6 @@ class ProxyService : Service() {
     private fun handleStopAction() {
         if (userStopped.getAndSet(true)) return
         serviceScope.launch {
-            updateNotification(getString(R.string.log_stop_ui))
             stopBinaryProcessGracefully()
             withContext(Dispatchers.Main) {
                 stopSelf()
@@ -496,7 +499,7 @@ class ProxyService : Service() {
 
     private fun isQuotaError(line: String): Boolean {
         val l = line.lowercase()
-        return l.contains("486") || l.contains("quota") || l.contains("allocation quota")
+        return l.contains("quota") || l.contains("allocation quota")
     }
 
     override fun onDestroy() {

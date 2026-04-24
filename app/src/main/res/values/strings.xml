@@ -234,6 +234,7 @@
     <string name="error_kernel_permission_denied">КРИТИЧЕСКАЯ ОШИБКА: Отказано в запуске ядра — ваше устройство блокирует выполнение файлов из внутреннего хранилища (SELinux/noexec). Используйте встроенное ядро.</string>
     <string name="error_critical_format">КРИТИЧЕСКАЯ ОШИБКА: %1$s</string>
     <string name="error_connecting">Ошибка подключения</string>
+    <string name="error_kernel_or_settings">Проблема с ядром или настройками</string>
 
     <string name="notification_title">WireTurn</string>
     <string name="notification_channel_description">Уведомление о состоянии и для управления</string>
