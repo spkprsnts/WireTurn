@@ -12,6 +12,7 @@ import com.wireturn.app.ProxyServiceState
 import com.wireturn.app.XrayServiceState
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.ClientConfig
+import com.wireturn.app.data.DCType
 import com.wireturn.app.data.ThemeMode
 import com.wireturn.app.data.WgConfig
 import com.wireturn.app.domain.AppUpdater
@@ -238,13 +239,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun startProxy() {
         viewModelScope.launch {
             val cfg = clientConfig.value
-            if (cfg.isJazz) {
-                prefs.addJazzCredsToHistory(cfg.jazzCreds)
+            if (cfg.dcMode) {
+                when (cfg.dcType) {
+                    DCType.SALUTE_JAZZ -> prefs.addJazzCredsToHistory(cfg.jazzCreds)
+                    DCType.WB_STREAM -> prefs.addWbstreamUuidToHistory(cfg.wbstreamUuid)
+                }
             } else {
                 prefs.addVkLinkToHistory(cfg.vkLink)
-                if (cfg.dcMode) {
-                    prefs.addWbstreamUuidToHistory(cfg.wbstreamUuid)
-                }
             }
             prefs.addServerAddressToHistory(cfg.serverAddress)
             proxyManager.startProxy(cfg)

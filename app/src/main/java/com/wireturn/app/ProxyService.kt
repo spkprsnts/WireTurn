@@ -14,6 +14,7 @@ import android.os.Looper
 import android.os.PowerManager
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.ClientConfig
+import com.wireturn.app.data.DCType
 import com.wireturn.app.viewmodel.AppLifecycleState
 import com.wireturn.app.viewmodel.XrayState
 import java.io.BufferedReader
@@ -171,7 +172,7 @@ class ProxyService : Service() {
             cmdArgs.add(executable)
             cmdArgs.add("-listen"); cmdArgs.add(cfg.localPort.ifBlank { ClientConfig.DEFAULT_LOCAL_PORT })
             if(cfg.dcMode) {
-                if (cfg.isJazz) {
+                if (cfg.dcType == DCType.SALUTE_JAZZ) {
                     if (!checkJazzAvailability()) {
                         ProxyServiceState.addLog(getString(R.string.log_jazz_unavailable))
                         ProxyServiceState.setStartupResult(StartupResult.Failed(getString(R.string.error_jazz_unavailable)))
@@ -248,7 +249,7 @@ class ProxyService : Service() {
                             ProxyServiceState.setWorking(false)
                             ProxyTileService.requestUpdate(this)
 
-                            if (cfg.isJazz) {
+                            if (cfg.dcType == DCType.SALUTE_JAZZ) {
                                 serviceScope.launch {
                                     if (!checkJazzAvailability()) {
                                         ProxyServiceState.addLog(getString(R.string.log_jazz_unavailable))

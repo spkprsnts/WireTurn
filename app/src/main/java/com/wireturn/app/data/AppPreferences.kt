@@ -14,6 +14,10 @@ import java.io.IOException
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "app_prefs")
 
+enum class DCType {
+    SALUTE_JAZZ, WB_STREAM
+}
+
 data class ClientConfig(
     val serverAddress: String = "",
     val vkLink: String = "",
@@ -28,7 +32,7 @@ data class ClientConfig(
     val vlessMode: Boolean = false,
     val dcMode: Boolean = false,
     val forceTurnPort443: Boolean = false,
-    val isJazz: Boolean = true,
+    val dcType: DCType = DCType.SALUTE_JAZZ,
     val jazzCreds: String = ""
 ) {
     fun getValidationErrorResId(): Int? {
@@ -37,11 +41,15 @@ data class ClientConfig(
         }
 
         return if (dcMode) {
-            if (isJazz) {
-                return if (jazzCreds.isBlank()) com.wireturn.app.R.string.error_settings_empty else null
+            when (dcType) {
+                DCType.SALUTE_JAZZ -> {
+                    if (jazzCreds.isBlank()) com.wireturn.app.R.string.error_settings_empty else null
+                }
+                DCType.WB_STREAM -> {
+                    if (wbstreamUuid.isNotBlank()) null
+                    else com.wireturn.app.R.string.error_settings_empty
+                }
             }
-            if (wbstreamUuid.isNotBlank()) null
-            else com.wireturn.app.R.string.error_settings_empty
         } else {
             if (serverAddress.isBlank() || vkLink.isBlank()) com.wireturn.app.R.string.error_settings_empty else null
         }
@@ -226,7 +234,7 @@ class AppPreferences(context: Context) {
         val WBSTREAM_UUID_HISTORY = stringPreferencesKey("wbstream_uuid_history")
         val SERVER_ADDR_HISTORY = stringPreferencesKey("server_addr_history")
         val JAZZ_CREDS_HISTORY = stringPreferencesKey("jazz_creds_history")
-        val CLIENT_IS_JAZZ = booleanPreferencesKey("client_is_jazz")
+        val CLIENT_DC_TYPE = stringPreferencesKey("client_dc_type")
         val CLIENT_JAZZ_CREDS = stringPreferencesKey("client_jazz_creds")
         val BATTERY_NOTIFICATION_DISMISSED = booleanPreferencesKey("battery_notification_dismissed")
     }
@@ -248,7 +256,7 @@ class AppPreferences(context: Context) {
                 vlessMode = prefs[CLIENT_VLESS] ?: false,
                 dcMode = prefs[CLIENT_DC_MODE] ?: false,
                 forceTurnPort443 = prefs[CLIENT_FORCE_PORT_443] ?: false,
-                isJazz = prefs[CLIENT_IS_JAZZ] ?: true,
+                dcType = DCType.valueOf(prefs[CLIENT_DC_TYPE] ?: DCType.SALUTE_JAZZ.name),
                 jazzCreds = prefs[CLIENT_JAZZ_CREDS] ?: ""
             ).fillDefaults()
         }
@@ -446,7 +454,7 @@ class AppPreferences(context: Context) {
             prefs[CLIENT_VLESS] = config.vlessMode
             prefs[CLIENT_DC_MODE] = config.dcMode
             prefs[CLIENT_FORCE_PORT_443] = config.forceTurnPort443
-            prefs[CLIENT_IS_JAZZ] = config.isJazz
+            prefs[CLIENT_DC_TYPE] = config.dcType.name
             prefs[CLIENT_JAZZ_CREDS] = config.jazzCreds
         }
     }

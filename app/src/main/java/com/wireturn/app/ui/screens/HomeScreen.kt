@@ -62,6 +62,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import com.wireturn.app.data.ThemeMode
+import com.wireturn.app.data.DCType
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
@@ -785,7 +786,7 @@ fun HomeScreen(
                             }
                         } else {
                             if (clientConfig.dcMode) {
-                                if (clientConfig.isJazz) {
+                                if (clientConfig.dcType == DCType.SALUTE_JAZZ) {
                                     ConfigRow(
                                         stringResource(R.string.jazz_room),
                                         clientConfig.jazzCreds.redact(privacyMode)
@@ -796,7 +797,7 @@ fun HomeScreen(
                                         ConfigRow(
                                             stringResource(R.string.wbstream_uuid_label),
                                             if (wbstreamUuid.length > 30) {
-                                                wbstreamUuid.take(21) + "..." + wbstreamUuid.takeLast(6)
+                                                wbstreamUuid.take(8) + "..." + wbstreamUuid.takeLast(6)
                                             } else {
                                                 wbstreamUuid.ifBlank { stringResource(R.string.not_set) }
                                             }

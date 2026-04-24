@@ -133,6 +133,8 @@
     <string name="force_turn_port_443">TURN-порт 443</string>
     <string name="force_turn_port_443_desc">Использовать порт 443 вместо стандартного.\nПомогает в сетях, где порт 19302 заблокирован</string>
     <string name="jazz_label">SaluteJazz</string>
+    <string name="wb_stream_label">WB Stream</string>
+    <string name="dc_type_label">Тип DC</string>
     <string name="jazz_desc">Использовать SaluteJazz</string>
     <string name="jazz_creds_label">Код:пароль комнаты SaluteJazz</string>
     <string name="jazz_creds_placeholder">room:password</string>
