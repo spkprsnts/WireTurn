@@ -115,6 +115,10 @@ class ProxyService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_STOP) {
+            handleStopAction()
+            return START_NOT_STICKY
+        }
         if (isStarted.getAndSet(true)) return START_STICKY
 
         openAppIntent = packageManager.getLaunchIntentForPackage(packageName)?.let {
@@ -254,10 +258,7 @@ class ProxyService : Service() {
                                     if (!checkJazzAvailability()) {
                                         ProxyServiceState.addLog(getString(R.string.log_jazz_unavailable))
                                         userStopped.set(true)
-                                        process.get()?.destroyForcibly()
-                                        withContext(Dispatchers.Main) {
-                                            stopSelf()
-                                        }
+                                        stopBinaryProcessGracefully()
                                     }
                                 }
                             }
@@ -309,7 +310,7 @@ class ProxyService : Service() {
                             sessionKillScheduled.set(false)
                             if (!userStopped.get()) {
                                 restartCount = 0
-                                process.get()?.destroyForcibly()
+                                serviceScope.launch { stopBinaryProcessGracefully() }
                             }
                         }, 2_000)
                     }
@@ -326,6 +327,8 @@ class ProxyService : Service() {
             }
 
         } catch (_: InterruptedIOException) {
+            // pass
+        } catch (_: CancellationException) {
             // pass
         } catch (e: Exception) {
             val msg = e.message ?: ""
@@ -360,6 +363,42 @@ class ProxyService : Service() {
                     stopSelf()
                 }
                 else -> scheduleWatchdogRestart()
+            }
+        }
+    }
+
+    private suspend fun stopBinaryProcessGracefully() {
+        val proc = process.getAndSet(null) ?: return
+        withContext(Dispatchers.IO) {
+            sendSigTerm(proc)
+            try {
+                if (!proc.waitFor(10, TimeUnit.SECONDS)) {
+                    proc.destroyForcibly() // SIGKILL
+                }
+            } catch (_: Exception) {
+                proc.destroyForcibly()
+            }
+        }
+    }
+
+    private fun sendSigTerm(proc: Process) {
+        try {
+            val field = proc.javaClass.getDeclaredField("pid")
+            field.isAccessible = true
+            val pid = field.getInt(proc)
+            android.os.Process.sendSignal(pid, 15)
+        } catch (_: Exception) {
+            proc.destroy()
+        }
+    }
+
+    private fun handleStopAction() {
+        if (userStopped.getAndSet(true)) return
+        serviceScope.launch {
+            updateNotification(getString(R.string.log_stop_ui))
+            stopBinaryProcessGracefully()
+            withContext(Dispatchers.Main) {
+                stopSelf()
             }
         }
     }
@@ -420,8 +459,7 @@ class ProxyService : Service() {
                         ProxyServiceState.addLog(getString(R.string.log_network_change))
                         updateNotification(getString(R.string.notification_network_change))
                         restartCount = 0
-                        val p = process.get()
-                        p?.destroyForcibly()
+                        stopBinaryProcessGracefully()
                     }
                 }
             }
@@ -475,12 +513,26 @@ class ProxyService : Service() {
         handler.removeCallbacksAndMessages(null)
         unregisterNetworkCallback()
         ProxyServiceState.addLog(getString(R.string.log_stop_ui))
-        process.get()?.destroyForcibly()
+
+        process.getAndSet(null)?.let { proc ->
+            sendSigTerm(proc)
+            Thread {
+                try {
+                    if (!proc.waitFor(10, TimeUnit.SECONDS)) {
+                        proc.destroyForcibly()
+                    }
+                } catch (_: Exception) {
+                    proc.destroyForcibly()
+                }
+            }.start()
+        }
+
         serviceScope.cancel()
         if (wakeLock?.isHeld == true) wakeLock?.release()
     }
-    
+
     companion object {
+        const val ACTION_STOP = "com.wireturn.app.ACTION_STOP"
         const val MAX_RESTARTS = 8
         private val CAPTCHA_URL_REGEX =
             Pattern.compile("""Open this URL in your browser:\s*(https?://\S+)""")
@@ -499,7 +551,10 @@ class ProxyService : Service() {
         }
 
         fun stop(context: Context) {
-            context.stopService(Intent(context, ProxyService::class.java))
+            val intent = Intent(context, ProxyService::class.java).apply {
+                action = ACTION_STOP
+            }
+            context.startService(intent)
         }
     }
 }
