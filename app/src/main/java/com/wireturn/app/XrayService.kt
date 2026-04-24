@@ -106,7 +106,13 @@ class XrayService : Service() {
                 return
             }
             
-            if (!rawWgConfig.isValid()) {
+            val isConfigValid = if (clientConfig.vlessMode) {
+                rawVlessConfig.isValid()
+            } else {
+                rawWgConfig.isValid()
+            }
+
+            if (!isConfigValid) {
                 ProxyServiceState.addLog(getString(R.string.log_proxy_invalid_config))
                 stopSelf()
                 return
@@ -144,9 +150,7 @@ class XrayService : Service() {
             }
 
             if (clientConfig.vlessMode) {
-                if (rawVlessConfig.isValid()) {
-                    prefs.addVlessLinkToHistory(rawVlessConfig.vlessLink)
-                }
+                prefs.addVlessLinkToHistory(rawVlessConfig.vlessLink)
                 cmdArgs.addAll(listOf("-link", rawVlessConfig.vlessLink))
             } else {
                 cmdArgs.addAll(listOf(
