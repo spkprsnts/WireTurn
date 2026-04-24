@@ -36,14 +36,12 @@ class XrayService : Service() {
             combine(
                 XrayServiceState.state,
                 prefs.xrayConfigFlow,
-                XrayServiceState.runningXrayConfig,
-                XrayServiceState.runningWgConfig
-            ) { state, xrayCfg, runningXray, runningWg ->
+                XrayServiceState.runningXrayConfig
+            ) { state, xrayCfg, runningXray ->
                 DataBundle(
                     isRunning = state == XrayState.Running,
                     vpnEnabled = xrayCfg.xrayVpnMode,
-                    runningXray = runningXray,
-                    runningWg = runningWg
+                    runningXray = runningXray
                 )
             }.collect { bundle ->
                 withContext(Dispatchers.Main) {
@@ -71,8 +69,7 @@ class XrayService : Service() {
     private data class DataBundle(
         val isRunning: Boolean,
         val vpnEnabled: Boolean,
-        val runningXray: com.wireturn.app.data.XrayConfig?,
-        val runningWg: com.wireturn.app.data.WgConfig?
+        val runningXray: com.wireturn.app.data.XrayConfig?
     )
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

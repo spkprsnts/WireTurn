@@ -86,40 +86,33 @@ fun WgConfigScreen(
     // Local states for auto-save logic
     var privateKey by rememberSaveable(savedWgConfig.privateKey) { mutableStateOf(savedWgConfig.privateKey) }
     var address by rememberSaveable(savedWgConfig.address) { mutableStateOf(savedWgConfig.address) }
-    var dns by rememberSaveable(savedWgConfig.dns) { mutableStateOf(savedWgConfig.dns) }
     var mtu by rememberSaveable(savedWgConfig.mtu) { mutableStateOf(savedWgConfig.mtu) }
     var publicKey by rememberSaveable(savedWgConfig.publicKey) { mutableStateOf(savedWgConfig.publicKey) }
     var endpoint by rememberSaveable(savedWgConfig.endpoint) { mutableStateOf(savedWgConfig.endpoint) }
-    var allowedIps by rememberSaveable(savedWgConfig.allowedIps) { mutableStateOf(savedWgConfig.allowedIps) }
     var persistentKeepalive by rememberSaveable(savedWgConfig.persistentKeepalive) { mutableStateOf(savedWgConfig.persistentKeepalive) }
 
     // Sync local state with saved config when it changes externally (e.g. from service)
     LaunchedEffect(savedWgConfig) {
         privateKey = savedWgConfig.privateKey
         address = savedWgConfig.address
-        dns = savedWgConfig.dns
         mtu = savedWgConfig.mtu
         publicKey = savedWgConfig.publicKey
         endpoint = savedWgConfig.endpoint
-        allowedIps = savedWgConfig.allowedIps
         persistentKeepalive = savedWgConfig.persistentKeepalive
     }
 
     // Auto-save debounced for individual fields
     LaunchedEffect(
-        privateKey, address, dns, mtu, publicKey, endpoint,
-        allowedIps, persistentKeepalive
+        privateKey, address, mtu, publicKey, endpoint, persistentKeepalive
     ) {
         delay(200)
         viewModel.updateWgConfig(
             WgConfig(
                 privateKey = privateKey,
                 address = address,
-                dns = dns,
                 mtu = mtu,
                 publicKey = publicKey,
                 endpoint = endpoint,
-                allowedIps = allowedIps,
                 persistentKeepalive = persistentKeepalive
             )
         )
@@ -298,17 +291,6 @@ fun WgConfigScreen(
             )
 
             OutlinedTextField(
-                value = dns,
-                onValueChange = { dns = it },
-                label = { Text(stringResource(R.string.wg_dns)) },
-                placeholder = { Text(stringResource(R.string.wg_dns_placeholder)) },
-                modifier = Modifier.fillMaxWidth(),
-                trailingIcon = {
-                    ConfigFieldIndicator(runningConfig != null && dns != runningConfig?.dns)
-                }
-            )
-
-            OutlinedTextField(
                 value = mtu,
                 onValueChange = { mtu = it },
                 label = { Text(stringResource(R.string.wg_mtu)) },
@@ -379,17 +361,6 @@ fun WgConfigScreen(
                 modifier = Modifier.fillMaxWidth(),
                 trailingIcon = {
                     ConfigFieldIndicator(runningConfig != null && endpoint != runningConfig?.endpoint)
-                }
-            )
-
-            OutlinedTextField(
-                value = allowedIps,
-                onValueChange = { allowedIps = it },
-                label = { Text(stringResource(R.string.wg_allowed_ips)) },
-                placeholder = { Text(stringResource(R.string.wg_allowed_ips_placeholder)) },
-                modifier = Modifier.fillMaxWidth(),
-                trailingIcon = {
-                    ConfigFieldIndicator(runningConfig != null && allowedIps != runningConfig?.allowedIps)
                 }
             )
 

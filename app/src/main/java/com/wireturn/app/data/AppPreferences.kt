@@ -111,11 +111,9 @@ data class XrayConfig(
 data class WgConfig(
     val privateKey: String = "",
     val address: String = "",
-    val dns: String = "",
     val mtu: String = "",
     val publicKey: String = "",
     val endpoint: String = "",
-    val allowedIps: String = "",
     val persistentKeepalive: String = ""
 ) {
     fun isValid(): Boolean {
@@ -124,10 +122,8 @@ data class WgConfig(
 
     fun fillDefaults(): WgConfig {
         return copy(
-            dns = dns.ifBlank { DEFAULT_DNS },
             mtu = mtu.ifBlank { DEFAULT_MTU },
             endpoint = endpoint.ifBlank { DEFAULT_ENDPOINT },
-            allowedIps = allowedIps.ifBlank { DEFAULT_ALLOWED_IPS },
             persistentKeepalive = persistentKeepalive.ifBlank { DEFAULT_PERSISTENT_KEEPALIVE }
         )
     }
@@ -137,27 +133,22 @@ data class WgConfig(
         sb.append("[Interface]\n")
         sb.append("PrivateKey = $privateKey\n")
         sb.append("Address = $address\n")
-        if (dns.isNotBlank()) sb.append("DNS = $dns\n")
         if (mtu.isNotBlank()) sb.append("MTU = $mtu\n")
         sb.append("\n[Peer]\n")
         sb.append("PublicKey = $publicKey\n")
         sb.append("Endpoint = $endpoint\n")
-        sb.append("AllowedIPs = $allowedIps\n")
         if (persistentKeepalive.isNotBlank()) sb.append("PersistentKeepalive = $persistentKeepalive\n")
         return sb.toString()
     }
 
     companion object {
-        const val DEFAULT_DNS = "1.1.1.1"
         const val DEFAULT_MTU = "1280"
         const val DEFAULT_ENDPOINT = "127.0.0.1:9000"
-        const val DEFAULT_ALLOWED_IPS = "0.0.0.0/0"
         const val DEFAULT_PERSISTENT_KEEPALIVE = "25"
 
         fun parse(text: String): WgConfig {
-            var privateKey = ""; var address = ""; var dns = ""; var mtu = ""
-            var publicKey = ""; var endpoint = ""; var allowedIps = ""
-            var persistentKeepalive = ""
+            var privateKey = ""; var address = ""; var mtu = ""
+            var publicKey = ""; var endpoint = ""; var persistentKeepalive = ""
 
             var currentSection = ""
             text.lineSequence().forEach { line ->
@@ -172,19 +163,17 @@ data class WgConfig(
                         "interface" -> when (key) {
                             "privatekey" -> privateKey = value
                             "address" -> address = value
-                            "dns" -> dns = value
                             "mtu" -> mtu = value
                         }
                         "peer" -> when (key) {
                             "publickey" -> publicKey = value
                             "endpoint" -> endpoint = value
-                            "allowedips" -> allowedIps = value
                             "persistentkeepalive" -> persistentKeepalive = value
                         }
                     }
                 }
             }
-            return WgConfig(privateKey, address, dns, mtu, publicKey, endpoint, allowedIps, persistentKeepalive)
+            return WgConfig(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive)
         }
     }
 }
@@ -222,11 +211,9 @@ class AppPreferences(context: Context) {
         val XRAY_VPN_MODE = booleanPreferencesKey("proxy_vpn_mode")
         val WIRE_PRIV_KEY = stringPreferencesKey("wire_priv_key")
         val WIRE_ADDRESS = stringPreferencesKey("wire_address")
-        val WIRE_DNS = stringPreferencesKey("wire_dns")
         val WIRE_MTU = stringPreferencesKey("wire_mtu")
         val WIRE_PUB_KEY = stringPreferencesKey("wire_pub_key")
         val WIRE_ENDPOINT = stringPreferencesKey("wire_endpoint")
-        val WIRE_ALLOWED_IPS = stringPreferencesKey("wire_allowed_ips")
         val WIRE_KEEPALIVE = stringPreferencesKey("wire_keepalive")
         val SOCKS_BIND = stringPreferencesKey("socks_bind")
         val HTTP_BIND = stringPreferencesKey("http_bind")
@@ -267,11 +254,9 @@ class AppPreferences(context: Context) {
             WgConfig(
                 privateKey = prefs[WIRE_PRIV_KEY] ?: "",
                 address = prefs[WIRE_ADDRESS] ?: "",
-                dns = prefs[WIRE_DNS] ?: "",
                 mtu = prefs[WIRE_MTU] ?: "",
                 publicKey = prefs[WIRE_PUB_KEY] ?: "",
                 endpoint = prefs[WIRE_ENDPOINT] ?: "",
-                allowedIps = prefs[WIRE_ALLOWED_IPS] ?: "",
                 persistentKeepalive = prefs[WIRE_KEEPALIVE] ?: ""
             )
         }
@@ -467,11 +452,9 @@ class AppPreferences(context: Context) {
         context.dataStore.edit { prefs ->
             prefs[WIRE_PRIV_KEY] = config.privateKey
             prefs[WIRE_ADDRESS] = config.address
-            prefs[WIRE_DNS] = config.dns
             prefs[WIRE_MTU] = config.mtu
             prefs[WIRE_PUB_KEY] = config.publicKey
             prefs[WIRE_ENDPOINT] = config.endpoint
-            prefs[WIRE_ALLOWED_IPS] = config.allowedIps
             prefs[WIRE_KEEPALIVE] = config.persistentKeepalive
         }
     }
