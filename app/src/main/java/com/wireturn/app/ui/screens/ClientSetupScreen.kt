@@ -53,6 +53,8 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -112,6 +114,7 @@ fun ClientSetupScreen(
     val vlessSaved by viewModel.vlessConfig.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     val kernelPickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -136,6 +139,7 @@ fun ClientSetupScreen(
     var jazzCreds    by rememberSaveable(saved.jazzCreds)      { mutableStateOf(saved.jazzCreds) }
     var lastSliderInt by rememberSaveable { mutableIntStateOf(saved.threads) }
 
+    val snackbarHostState = remember { SnackbarHostState() }
     val showVlessQrScanner = remember { mutableStateOf(false) }
 
     val isServerAddressValid = remember(serverAddress) {
@@ -185,6 +189,7 @@ fun ClientSetupScreen(
     val visibilityAnimationSpec = tween<Float>(300, easing = FastOutSlowInEasing)
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(title = { Text(stringResource(R.string.client_title)) })
         },
@@ -825,7 +830,16 @@ fun ClientSetupScreen(
             message = stringResource(R.string.vless_qr_scan_desc),
             onDismiss = { showVlessQrScanner.value = false },
             onResult = { result ->
-                vlessLink = result
+                if (ValidatorUtils.isValidVlessLink(result)) {
+                    vlessLink = result
+                    scope.launch {
+                        snackbarHostState.showSnackbar(context.getString(R.string.wg_import_success))
+                    }
+                } else {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(context.getString(R.string.wg_import_error))
+                    }
+                }
             }
         )
     }

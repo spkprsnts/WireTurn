@@ -132,9 +132,16 @@ fun WgConfigScreen(
                 try {
                     context.contentResolver.openInputStream(uri)?.use { input ->
                         val text = input.bufferedReader().use { r -> r.readText() }
-                        viewModel.updateWgConfigText(text)
-                        scope.launch {
-                            snackbarHostState.showSnackbar(context.getString(R.string.wg_import_success))
+                        val parsed = WgConfig.parse(text)
+                        if (parsed.isValid()) {
+                            viewModel.updateWgConfigText(text)
+                            scope.launch {
+                                snackbarHostState.showSnackbar(context.getString(R.string.wg_import_success))
+                            }
+                        } else {
+                            scope.launch {
+                                snackbarHostState.showSnackbar(context.getString(R.string.wg_import_error))
+                            }
                         }
                     }
                 } catch (e: Exception) {
@@ -231,7 +238,7 @@ fun WgConfigScreen(
                 ) {
                     Icon(painterResource(R.drawable.qr_code_24px), null, Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text(stringResource(R.string.wg_import_qr), maxLines = 1)
+                    Text(stringResource(R.string.qr_import), maxLines = 1)
                 }
                 Button(
                     onClick = {
@@ -239,7 +246,8 @@ fun WgConfigScreen(
                             val clipEntry = clipboard.getClipEntry()
                             if (clipEntry != null) {
                                 val text = clipEntry.clipData.getItemAt(0).text?.toString() ?: ""
-                                if (text.isNotBlank()) {
+                                val parsed = WgConfig.parse(text)
+                                if (parsed.isValid()) {
                                     viewModel.updateWgConfigText(text)
                                     snackbarHostState.showSnackbar(context.getString(R.string.wg_import_success))
                                 } else {
@@ -419,9 +427,16 @@ fun WgConfigScreen(
             message = stringResource(R.string.wg_qr_scan_desc),
             onDismiss = { showQrScanner.value = false },
             onResult = { result ->
-                viewModel.updateWgConfigText(result)
-                scope.launch {
-                    snackbarHostState.showSnackbar(context.getString(R.string.wg_import_success))
+                val parsed = WgConfig.parse(result)
+                if (parsed.isValid()) {
+                    viewModel.updateWgConfigText(result)
+                    scope.launch {
+                        snackbarHostState.showSnackbar(context.getString(R.string.wg_import_success))
+                    }
+                } else {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(context.getString(R.string.wg_import_error))
+                    }
                 }
             }
         )

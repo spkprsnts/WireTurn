@@ -260,4 +260,6 @@
     <string name="vless_qr_scan_desc">Наведите камеру на QR-код конфигурации VLESS для импорта</string>
     <string name="use_local_listen_address">Использовать адрес прослушивания</string>
     <string name="use_local_listen_desc">Вместо указанного сервера VLESS\nбудет использоваться локальный</string>
+
+    <string name="qr_import">QR-код</string>
 </resources>
