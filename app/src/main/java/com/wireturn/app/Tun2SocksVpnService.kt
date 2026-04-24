@@ -53,7 +53,7 @@ class Tun2SocksVpnService : VpnService() {
         }
 
         if (tunInterface != null) {
-            ProxyServiceState.addLog("[VPN] Service already running")
+            AppLogsState.addLog("[VPN] Service already running")
             return START_STICKY
         }
         isStopping.set(false)
@@ -81,7 +81,7 @@ class Tun2SocksVpnService : VpnService() {
 
     private suspend fun startVpn(socks5Addr: String) {
         try {
-            ProxyServiceState.addLog("[VPN] Establishing tunnel")
+            AppLogsState.addLog("[tun2socks] Establishing tunnel")
             val builder = this.Builder()
                 .setSession("wireturn VPN")
                 .addAddress("10.0.0.1", 32)
@@ -92,7 +92,7 @@ class Tun2SocksVpnService : VpnService() {
 
             tunInterface = builder.establish()
             if (tunInterface == null) {
-                ProxyServiceState.addLog("[VPN] Failed to establish TUN interface")
+                AppLogsState.addLog("[tun2socks] Failed to establish TUN interface")
                 disableVpnMode()
                 stopSelf()
                 return
@@ -108,17 +108,17 @@ class Tun2SocksVpnService : VpnService() {
                 "--loglevel", "warn"
             )
 
-            ProxyServiceState.addLog("[VPN] starting libtun2socks.so via inherited stdin (FD $fd)")
+            AppLogsState.addLog("[tun2socks] starting libtun2socks.so via inherited stdin (FD $fd)")
             
             if (isStopping.get()) {
-                ProxyServiceState.addLog("[VPN] Stop requested before binary start")
+                AppLogsState.addLog("[tun2socks] Stop requested before binary start")
                 return
             }
 
             try {
                 android.system.Os.dup2(tunInterface!!.fileDescriptor, android.system.OsConstants.STDIN_FILENO)
             } catch (e: Exception) {
-                ProxyServiceState.addLog("[VPN] dup2 error: ${e.message}")
+                AppLogsState.addLog("[tun2socks] dup2 error: ${e.message}")
             }
 
             val proc = withContext(Dispatchers.IO) {
@@ -135,19 +135,19 @@ class Tun2SocksVpnService : VpnService() {
                 var line: String?
                 while (reader.readLine().also { line = it } != null) {
                     val l = line ?: continue
-                    ProxyServiceState.addLog("[VPN] $l")
+                    AppLogsState.addLog("[tun2socks] $l")
                 }
             }
             
             val exitCode = withContext(Dispatchers.IO) {
                 proc.waitFor()
             }
-            ProxyServiceState.addLog("[VPN] libtun2socks.so exited with code $exitCode")
+            AppLogsState.addLog("[tun2socks] libtun2socks.so exited with code $exitCode")
             disableVpnMode()
         } catch (_: InterruptedIOException) {
             // pass
         } catch (e: Exception) {
-            ProxyServiceState.addLog("[VPN] Error: ${e.message}")
+            AppLogsState.addLog("[tun2socks] Error: ${e.message}")
             VpnServiceState.updateStatus(VpnState.Error(e.message ?: "Unknown error"))
         } finally {
             stopVpn()
@@ -168,13 +168,13 @@ class Tun2SocksVpnService : VpnService() {
             android.system.Os.dup2(devNull, android.system.OsConstants.STDIN_FILENO)
             android.system.Os.close(devNull)
         } catch (e: Exception) {
-            ProxyServiceState.addLog("[VPN] Error releasing stdin: ${e.message}")
+            AppLogsState.addLog("[tun2socks] Error releasing stdin: ${e.message}")
         }
 
         try {
             tunInterface?.close()
         } catch (e: Exception) {
-            ProxyServiceState.addLog("[VPN] Error closing TUN: ${e.message}")
+            AppLogsState.addLog("[tun2socks] Error closing TUN: ${e.message}")
         }
         tunInterface = null
         VpnServiceState.updateStatus(VpnState.Idle)

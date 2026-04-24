@@ -1,6 +1,5 @@
 package com.wireturn.app
 
-import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -28,6 +27,7 @@ import kotlin.random.Random
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.collectLatest
 import java.io.InterruptedIOException
 
 sealed class StartupResult {
@@ -35,14 +35,12 @@ sealed class StartupResult {
     data class Failed(val message: String) : StartupResult()
 }
 
-class ProxyService : Service() { 
+class ProxyService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
-    private var openAppIntent: PendingIntent? = null
-
     private val process = AtomicReference<Process?>(null)
     private val userStopped = AtomicBoolean(false)
-    private val sessionKillScheduled = AtomicBoolean(false)
-
+    private val isStarted = AtomicBoolean(false)
+    
     private val handler = Handler(Looper.getMainLooper())
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     @Volatile private var networkInitialized = false
@@ -50,8 +48,9 @@ class ProxyService : Service() {
     private var restartCount = 0
 
     private lateinit var serviceScope: CoroutineScope
-
-    private val isStarted = AtomicBoolean(false)
+    private var proxyJob: Job? = null
+    private var xraySupervisorJob: Job? = null
+    private var networkDebounceJob: Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -59,59 +58,8 @@ class ProxyService : Service() {
         super.onCreate()
         serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
         NotificationHelper.createChannel(this)
-        startSupervisor()
         observeCaptchaForNotification()
-    }
-
-    private fun observeCaptchaForNotification() {
-        serviceScope.launch {
-            combine(
-                ProxyServiceState.captchaSession,
-                AppLifecycleState.isAppInForeground
-            ) { session, isForeground ->
-                session to isForeground
-            }.collect { (session, isForeground) ->
-                if (session != null && !isForeground) {
-                    // Даем небольшую задержку, чтобы избежать "мигания" уведомления 
-                    // при закрытии CaptchaActivity до того, как лог об успехе будет обработан
-                    delay(1000)
-                    if (ProxyServiceState.captchaSession.value != null && !AppLifecycleState.isAppInForeground.value) {
-                        NotificationHelper.notifyCaptcha(
-                            this@ProxyService,
-                            session.url,
-                            session.sessionId.toString()
-                        )
-                    }
-                } else {
-                    NotificationHelper.cancelCaptchaNotification(this@ProxyService)
-                }
-            }
-        }
-    }
-
-    private fun startSupervisor() {
-        serviceScope.launch {
-            val prefs = AppPreferences(applicationContext)
-            combine(
-                ProxyServiceState.isRunning,
-                prefs.xrayConfigFlow
-            ) { isRunning, cfg ->
-                isRunning && cfg.xrayEnabled
-            }.collect { shouldRunProxy ->
-                withContext(Dispatchers.Main) {
-                    if (shouldRunProxy) {
-                        if (XrayServiceState.state.value == XrayState.Idle) {
-                            val intent = Intent(this@ProxyService, XrayService::class.java)
-                            startForegroundService(intent)
-                        }
-                    } else {
-                        if (XrayServiceState.state.value != XrayState.Idle) {
-                            stopService(Intent(this@ProxyService, XrayService::class.java))
-                        }
-                    }
-                }
-            }
-        }
+        startXraySupervisor()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -119,50 +67,247 @@ class ProxyService : Service() {
             handleStopAction()
             return START_NOT_STICKY
         }
-        if (isStarted.getAndSet(true)) return START_STICKY
+        
+        // Если уже запущено и основной цикл работает — ничего не делаем.
+        if (ProxyServiceState.isRunning.value && proxyJob?.isActive == true) return START_STICKY
 
-        openAppIntent = packageManager.getLaunchIntentForPackage(packageName)?.let {
-            PendingIntent.getActivity(this, 0, it, PendingIntent.FLAG_IMMUTABLE)
-        }
-        startForeground(NotificationHelper.NOTIFICATION_ID, NotificationHelper.buildNotification(this))
-
-        ProxyServiceState.setRunning(true)
-        NotificationHelper.updateNotification(this)
-        ProxyTileService.requestUpdate(this)
-        userStopped.set(false)
-        restartCount = 0
-
-        val powerManager = getSystemService(POWER_SERVICE) as PowerManager
-        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "VkTurn::BgLock")
-        wakeLock?.acquire(TimeUnit.HOURS.toMillis(24))
-
-        registerNetworkCallback()
-
-        ProxyServiceState.addLog(getString(R.string.log_proxy_start))
-        serviceScope.launch {
-            val prefs = AppPreferences(applicationContext)
-            var cfg = prefs.clientConfigFlow.first()
-            if (cfg.jazzCreds.contains("@salutejazz.ru", ignoreCase = true)) {
-                cfg = cfg.copy(jazzCreds = cfg.jazzCreds.replace("@salutejazz.ru", "", ignoreCase = true))
-                prefs.saveClientConfig(cfg)
-            }
-            ProxyServiceState.setRunningConfig(cfg)
-            startBinaryProcess(cfg)
+        initStartup()
+        
+        proxyJob?.cancel()
+        proxyJob = serviceScope.launch {
+            mainSupervisor()
         }
 
         return START_STICKY
     }
 
-    private suspend fun startBinaryProcess(cfg: ClientConfig) {
-        if (userStopped.get()) return
+    private fun initStartup() {
+        ProxyServiceState.setStartupResult(null)
+        ProxyServiceState.setRunning(true)
+        userStopped.set(false)
+        restartCount = 0
 
+        startForeground(NotificationHelper.NOTIFICATION_ID, NotificationHelper.buildNotification(this))
+        NotificationHelper.updateNotification(this)
+        ProxyTileService.requestUpdate(this)
+
+        val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WireTurn::BgLock")
+        wakeLock?.acquire(TimeUnit.HOURS.toMillis(24))
+
+        registerNetworkCallback()
+        AppLogsState.addLog(getString(R.string.log_proxy_start))
+    }
+
+    private suspend fun mainSupervisor() = coroutineScope {
+        val prefs = AppPreferences(applicationContext)
+        
+        while (isActive && !userStopped.get()) {
+            var cfg = prefs.clientConfigFlow.first()
+            
+            // Cleanup jazz creds if needed
+            if (cfg.jazzCreds.contains("@salutejazz.ru", ignoreCase = true)) {
+                cfg = cfg.copy(jazzCreds = cfg.jazzCreds.replace("@salutejazz.ru", "", ignoreCase = true))
+                prefs.saveClientConfig(cfg)
+            }
+            
+            ProxyServiceState.setRunningConfig(cfg)
+            
+            val startTime = System.currentTimeMillis()
+            runBinary(cfg)
+            val duration = System.currentTimeMillis() - startTime
+            
+            if (userStopped.get()) break
+
+            // Check for rapid failure (e.g. invalid arguments or kernel issue)
+            val currentResult = ProxyServiceState.startupResult.value
+            if (currentResult !is StartupResult.Success && duration < 2500) {
+                AppLogsState.addLog(getString(R.string.log_quick_exit, duration))
+                AppLogsState.addLog(getString(R.string.log_startup_failed_no_watchdog))
+                ProxyServiceState.setStartupResult(StartupResult.Failed(getString(R.string.error_kernel_or_settings)))
+                ProxyServiceState.setRunning(false)
+                withContext(Dispatchers.Main) { stopSelf() }
+                break
+            }
+
+            // Logic for restarts
+            restartCount++
+            if (restartCount > MAX_RESTARTS) {
+                AppLogsState.addLog(getString(R.string.log_watchdog_limit, MAX_RESTARTS))
+                ProxyServiceState.setRunning(false)
+                ProxyServiceState.emitFailed()
+                withContext(Dispatchers.Main) { stopSelf() }
+                break
+            }
+
+            ProxyServiceState.setWorking(false)
+            ProxyTileService.requestUpdate(this@ProxyService)
+            
+            // Backoff delay: if ran for more than 30s, reset backoff to 1s
+            val baseDelay = if (duration > 30_000) 1000L else minOf(1000L * restartCount, 30_000L)
+            val delayMs = baseDelay + Random.nextLong(0, 500)
+            
+            AppLogsState.addLog(getString(R.string.log_watchdog_restart, delayMs, restartCount, MAX_RESTARTS))
+            updateNotification(getString(R.string.notification_reconnecting, restartCount, MAX_RESTARTS))
+            
+            delay(delayMs)
+        }
+    }
+
+    private suspend fun runBinary(cfg: ClientConfig) = coroutineScope {
+        val cmdArgs = buildCommandArgs(cfg)
+        
+        var startupEmitted = false
+        var startupFailed = false
+        var captchaActive = false
+        var captchaSessionCounter = 0L
+        val sessionKillScheduled = AtomicBoolean(false)
+
+        try {
+            AppLogsState.addLog(getString(R.string.log_command, cmdArgs.joinToString(" ")))
+
+            val proc = withContext(Dispatchers.IO) {
+                ProcessBuilder(cmdArgs).redirectErrorStream(true).start()
+            }
+            process.set(proc)
+
+            val useCustom = cmdArgs.any { it.contains("custom_vkturn") }
+            if (useCustom) {
+                ProxyServiceState.setWorking(true)
+                ProxyServiceState.setStartupResult(StartupResult.Success)
+                startupEmitted = true
+                ProxyTileService.requestUpdate(this@ProxyService)
+            }
+
+            withContext(Dispatchers.IO) {
+                BufferedReader(InputStreamReader(proc.inputStream)).use { reader ->
+                    while (true) {
+                        val l = reader.readLine() ?: break
+                        AppLogsState.addLog(l)
+
+                        if (!isActive) continue
+
+                        // Process logic
+                        if (!useCustom && !l.contains("[xray]") && !l.contains("[tun2socks]")) {
+                            if (l.contains("[VK Auth]", ignoreCase = true) || l.contains("joining room", ignoreCase = true)) {
+                                if (!startupEmitted) {
+                                    ProxyServiceState.setStartupResult(StartupResult.Success)
+                                    updateNotification(getString(R.string.proxy_connecting))
+                                    startupEmitted = true
+                                }
+                            }
+
+                            if (l.contains("Established", ignoreCase = true) || 
+                                l.contains("listening on", ignoreCase = true) || 
+                                l.contains("DataChannel connected", ignoreCase = true)) {
+                                ProxyServiceState.setWorking(true)
+                                updateNotification(getString(R.string.proxy_active))
+                                if (!startupEmitted) {
+                                    ProxyServiceState.setStartupResult(StartupResult.Success)
+                                    startupEmitted = true
+                                }
+                                ProxyTileService.requestUpdate(this@ProxyService)
+                            }
+                            if (l.contains("DataChannel closed", ignoreCase = true)) {
+                                ProxyServiceState.setWorking(false)
+                                ProxyTileService.requestUpdate(this@ProxyService)
+
+                                if (cfg.dcType == DCType.SALUTE_JAZZ) {
+                                    if (!checkJazzAvailability()) {
+                                        AppLogsState.addLog(getString(R.string.log_jazz_unavailable))
+                                        break // Trigger restart
+                                    }
+                                }
+                            }
+                        }
+
+                        // Captcha logic
+                        if (l.contains("Triggering manual captcha fallback")) {
+                            captchaActive = true
+                            if (!startupEmitted) {
+                                ProxyServiceState.setStartupResult(StartupResult.Success)
+                                startupEmitted = true
+                            }
+                        }
+
+                        val captchaMatcher = CAPTCHA_URL_REGEX.matcher(l)
+                        if (captchaMatcher.find()) {
+                            val captchaUrl = captchaMatcher.group(1)!!
+                            captchaSessionCounter += 1
+                            ProxyServiceState.setCaptchaSession(CaptchaSession(captchaUrl, captchaSessionCounter))
+                            captchaActive = true
+                            updateNotification(getString(R.string.proxy_captcha_required))
+                            ProxyTileService.requestUpdate(this@ProxyService)
+                            
+                            if (!startupEmitted) {
+                                ProxyServiceState.setStartupResult(StartupResult.Success)
+                                startupEmitted = true
+                            }
+                        }
+
+                        if (captchaActive && (
+                                l.contains("[VK Auth] Failed") ||
+                                l.contains("[VK Auth] Success") ||
+                                (l.contains("[Captcha]") && l.contains("failed"))
+                            )) {
+                            ProxyServiceState.setCaptchaSession(null)
+                            updateNotification(getString(R.string.proxy_active))
+                            captchaActive = false
+                        }
+
+                        // Error detection
+                        if (!startupEmitted) {
+                            val lower = l.lowercase()
+                            if (lower.contains("panic") || lower.contains("fatal") || lower.contains("rate limit")) {
+                                ProxyServiceState.setStartupResult(StartupResult.Failed(l))
+                                updateNotification(getString(R.string.error_connecting))
+                                startupFailed = true
+                            }
+                        }
+
+                        // Quota error handling
+                        if (isQuotaError(l) && sessionKillScheduled.compareAndSet(false, true)) {
+                            AppLogsState.addLog(getString(R.string.log_quota_error))
+                            launch {
+                                delay(2000)
+                                sessionKillScheduled.set(false)
+                                if (!userStopped.get()) {
+                                    stopBinaryProcessGracefully()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            val exitCode = withContext(Dispatchers.IO) {
+                if (proc.waitFor(5, TimeUnit.SECONDS)) proc.exitValue() else -1
+            }
+            AppLogsState.addLog(getString(R.string.log_process_stopped, exitCode))
+            
+            if (!startupEmitted && !startupFailed) {
+                ProxyServiceState.setStartupResult(StartupResult.Failed(getString(R.string.error_process_no_output, exitCode)))
+            }
+
+        } catch (_: InterruptedIOException) {
+        } catch (_: CancellationException) {
+        } catch (e: Exception) {
+            handleProcessException(e)
+        } finally {
+            ProxyServiceState.setCaptchaSession(null)
+            process.set(null)
+            // Decisions on what to do next are made in mainSupervisor based on userStopped
+        }
+    }
+
+    private suspend fun buildCommandArgs(cfg: ClientConfig): List<String> {
         val customBin = File(filesDir, "custom_vkturn")
         val useCustom = customBin.exists()
         val executable = if (useCustom) {
-            ProxyServiceState.addLog(getString(R.string.log_custom_kernel))
+            AppLogsState.addLog(getString(R.string.log_custom_kernel))
             customBin.absolutePath
         } else {
-            ProxyServiceState.addLog(getString(R.string.log_standard_kernel))
+            AppLogsState.addLog(getString(R.string.log_standard_kernel))
             "${applicationInfo.nativeLibraryDir}/libvkturn.so"
         }
 
@@ -171,22 +316,17 @@ class ProxyService : Service() {
         if (cfg.isRawMode) {
             val parts = cfg.rawCommand.trim().split("\\s+".toRegex())
             cmdArgs.add(executable)
-            if (parts.isNotEmpty()) cmdArgs.addAll(parts.subList(0, parts.size))
+            if (parts.isNotEmpty()) cmdArgs.addAll(parts)
         } else {
             cmdArgs.add(executable)
             cmdArgs.add("-listen"); cmdArgs.add(cfg.localPort.ifBlank { ClientConfig.DEFAULT_LOCAL_PORT })
             if(cfg.dcMode) {
                 if (cfg.dcType == DCType.SALUTE_JAZZ) {
                     if (!checkJazzAvailability()) {
-                        ProxyServiceState.addLog(getString(R.string.log_jazz_unavailable))
+                        AppLogsState.addLog(getString(R.string.log_jazz_unavailable))
                         ProxyServiceState.setStartupResult(StartupResult.Failed(getString(R.string.error_jazz_unavailable)))
-                        withContext(Dispatchers.Main) {
-                            userStopped.set(true)
-                            stopSelf()
-                        }
-                        return
                     }
-
+                    // If unavailable, we still try to run but it will likely fail or we can abort
                     cmdArgs.add("-jazz-room")
                     cmdArgs.add(cfg.jazzCreds)
                 } else {
@@ -208,166 +348,20 @@ class ProxyService : Service() {
         }
 
         if (useCustom) {
-            val linker = if (Build.SUPPORTED_ABIS.firstOrNull()?.contains("64") == true) {
-                "/system/bin/linker64"
-            } else {
-                "/system/bin/linker"
-            }
+            val linker = if (Build.SUPPORTED_ABIS.firstOrNull()?.contains("64") == true) "/system/bin/linker64" else "/system/bin/linker"
             cmdArgs.add(0, linker)
         }
+        
+        return cmdArgs
+    }
 
-        var exitCode = -1
-        val startedAt = System.currentTimeMillis()
-        var startupEmitted = false
-        var startupFailed = false
-        var captchaActive = false
-        var captchaSessionCounter = 0L
-        try {
-            ProxyServiceState.addLog(getString(R.string.log_command, cmdArgs.joinToString(" ")))
-
-            val proc = withContext(Dispatchers.IO) {
-                val builder = ProcessBuilder(cmdArgs)
-                builder.redirectErrorStream(true)
-
-                builder.start()
-            }
-            process.set(proc)
-
-            if (useCustom) {
-                ProxyServiceState.setWorking(true)
-                ProxyTileService.requestUpdate(this)
-            }
-
-            BufferedReader(InputStreamReader(proc.inputStream)).use { reader ->
-                var line: String?
-                while (reader.readLine().also { line = it } != null) {
-                    val l = line ?: continue
-                    ProxyServiceState.addLog(l)
-
-                    if (!useCustom && !l.contains("[xray]")) {
-                        if (l.contains("Established", ignoreCase = true) || l.contains("listening on") || l.contains("DataChannel connected")) {
-                            ProxyServiceState.setWorking(true)
-                            ProxyTileService.requestUpdate(this)
-                        }
-                        if (l.contains("DataChannel closed", ignoreCase = true)) {
-                            ProxyServiceState.setWorking(false)
-                            ProxyTileService.requestUpdate(this)
-
-                            if (cfg.dcType == DCType.SALUTE_JAZZ) {
-                                serviceScope.launch {
-                                    if (!checkJazzAvailability()) {
-                                        ProxyServiceState.addLog(getString(R.string.log_jazz_unavailable))
-                                        userStopped.set(true)
-                                        stopBinaryProcessGracefully()
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    if (l.contains("Triggering manual captcha fallback")) {
-                        captchaActive = true
-                    }
-
-                    val captchaMatcher = CAPTCHA_URL_REGEX.matcher(l)
-                    if (captchaMatcher.find()) {
-                        val captchaUrl = captchaMatcher.group(1)!!
-                        captchaSessionCounter += 1
-                        ProxyServiceState.setCaptchaSession(
-                            CaptchaSession(captchaUrl, captchaSessionCounter)
-                        )
-                        captchaActive = true
-                        updateNotification(getString(R.string.proxy_captcha_required))
-                        ProxyTileService.requestUpdate(this)
-                    }
-
-                    if (captchaActive && (
-                            l.contains("[VK Auth] Failed") ||
-                            l.contains("[VK Auth] Success") ||
-                            (l.contains("[Captcha]") && l.contains("failed"))
-                        )) {
-                        ProxyServiceState.setCaptchaSession(null)
-                        updateNotification(getString(R.string.proxy_active))
-                        captchaActive = false
-                    }
-
-                    if (!startupEmitted) {
-                        val lower = l.lowercase()
-                        if (lower.contains("panic") || lower.contains("fatal") ||
-                            lower.contains("rate limit")) {
-                            ProxyServiceState.setStartupResult(StartupResult.Failed(l))
-                            updateNotification(getString(R.string.error_connecting))
-                            startupFailed = true
-                        } else {
-                            ProxyServiceState.setStartupResult(StartupResult.Success)
-                            updateNotification(getString(R.string.proxy_active))
-                        }
-                        startupEmitted = true
-                    }
-
-                    if (isQuotaError(l) && sessionKillScheduled.compareAndSet(false, true)) {
-                        ProxyServiceState.addLog(getString(R.string.log_quota_error))
-                        handler.postDelayed({
-                            sessionKillScheduled.set(false)
-                            if (!userStopped.get()) {
-                                restartCount = 0
-                                serviceScope.launch { stopBinaryProcessGracefully() }
-                            }
-                        }, 2_000)
-                    }
-                }
-            }
-
-            exitCode = if (withContext(Dispatchers.IO) {
-                    proc.waitFor(5, TimeUnit.MINUTES)
-                }) proc.exitValue() else -1
-            ProxyServiceState.addLog(getString(R.string.log_process_stopped, exitCode))
-            if (!startupEmitted) {
-                ProxyServiceState.setStartupResult(StartupResult.Failed(
-                    getString(R.string.error_process_no_output, exitCode)))
-            }
-
-        } catch (_: InterruptedIOException) {
-            // pass
-        } catch (_: CancellationException) {
-            // pass
-        } catch (e: Exception) {
-            val msg = e.message ?: ""
-            if (msg.contains("error=13") || msg.contains("Permission denied")) {
-                ProxyServiceState.addLog(getString(R.string.error_kernel_permission_denied))
-                ProxyServiceState.setStartupResult(StartupResult.Failed(msg))
-                startupFailed = true
-            } else {
-                ProxyServiceState.addLog(getString(R.string.error_critical_format, e.message))
-            }
-        } finally {
-            ProxyServiceState.setCaptchaSession(null)
-            process.set(null)
-            val uptime = System.currentTimeMillis() - startedAt
-            when {
-                userStopped.get() -> {
-                    ProxyServiceState.setRunning(false)
-                    stopSelf()
-                }
-                startupFailed -> {
-                    ProxyServiceState.addLog(getString(R.string.log_startup_failed_no_watchdog))
-                    ProxyServiceState.setRunning(false)
-                }
-                uptime < 5_000L -> {
-                    ProxyServiceState.addLog(getString(R.string.log_quick_exit, uptime))
-                    if (ProxyServiceState.startupResult.value is StartupResult.Success) {
-                        ProxyServiceState.setStartupResult(
-                            StartupResult.Failed(getString(R.string.error_kernel_or_settings))
-                        )
-                    }
-                    ProxyServiceState.setRunning(false)
-                }
-                else -> {
-                    if (exitCode == 0) {
-                        ProxyServiceState.addLog(getString(R.string.log_session_finished))
-                    }
-                    scheduleWatchdogRestart()
-                }
-            }
+    private fun handleProcessException(e: Exception) {
+        val msg = e.message ?: ""
+        if (msg.contains("error=13") || msg.contains("Permission denied")) {
+            AppLogsState.addLog(getString(R.string.error_kernel_permission_denied))
+            ProxyServiceState.setStartupResult(StartupResult.Failed(msg))
+        } else {
+            AppLogsState.addLog(getString(R.string.error_critical_format, e.message))
         }
     }
 
@@ -376,8 +370,8 @@ class ProxyService : Service() {
         withContext(Dispatchers.IO) {
             sendSigTerm(proc)
             try {
-                if (!proc.waitFor(10, TimeUnit.SECONDS)) {
-                    proc.destroyForcibly() // SIGKILL
+                if (!proc.waitFor(5, TimeUnit.SECONDS)) {
+                    proc.destroyForcibly()
                 }
             } catch (_: Exception) {
                 proc.destroyForcibly()
@@ -390,64 +384,76 @@ class ProxyService : Service() {
             val field = proc.javaClass.getDeclaredField("pid")
             field.isAccessible = true
             val pid = field.getInt(proc)
-            android.os.Process.sendSignal(pid, 15)
+            android.os.Process.sendSignal(pid, 15) // SIGTERM
         } catch (_: Exception) {
             proc.destroy()
         }
     }
 
-    private fun handleStopAction() {
-        if (userStopped.getAndSet(true)) return
+    private fun startXraySupervisor() {
+        xraySupervisorJob = serviceScope.launch {
+            val prefs = AppPreferences(applicationContext)
+            ProxyServiceState.isRunning.collectLatest { running ->
+                if (running) {
+                    // Ждем первого появления isWorking в рамках текущего запуска сессии
+                    ProxyServiceState.isWorking.first { it }
+                    
+                    // После того как прокси заработал хотя бы раз, следим за конфигом Xray
+                    prefs.xrayConfigFlow.collect { cfg ->
+                        withContext(Dispatchers.Main) {
+                            val currentState = XrayServiceState.state.value
+                            if (cfg.xrayEnabled) {
+                                if (currentState == XrayState.Idle) {
+                                    startForegroundService(Intent(this@ProxyService, XrayService::class.java))
+                                }
+                            } else {
+                                if (currentState != XrayState.Idle) {
+                                    stopService(Intent(this@ProxyService, XrayService::class.java))
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        stopService(Intent(this@ProxyService, XrayService::class.java))
+                    }
+                }
+            }
+        }
+    }
+
+    private fun observeCaptchaForNotification() {
         serviceScope.launch {
-            stopBinaryProcessGracefully()
-            withContext(Dispatchers.Main) {
-                stopSelf()
+            combine(
+                ProxyServiceState.captchaSession,
+                AppLifecycleState.isAppInForeground
+            ) { session, isForeground ->
+                session to isForeground
+            }.collect { (session, isForeground) ->
+                if (session != null && !isForeground) {
+                    delay(1000)
+                    if (ProxyServiceState.captchaSession.value != null && !AppLifecycleState.isAppInForeground.value) {
+                        NotificationHelper.notifyCaptcha(this@ProxyService, session.url, session.sessionId.toString())
+                    }
+                } else {
+                    NotificationHelper.cancelCaptchaNotification(this@ProxyService)
+                }
             }
         }
     }
-
-    private fun scheduleWatchdogRestart() {
-        restartCount++
-        if (restartCount > MAX_RESTARTS) {
-            ProxyServiceState.addLog(getString(R.string.log_watchdog_limit, MAX_RESTARTS))
-            ProxyServiceState.setRunning(false)
-            ProxyServiceState.emitFailed()
-            stopSelf()
-            return
-        }
-        ProxyServiceState.setWorking(false)
-        ProxyTileService.requestUpdate(this)
-        val baseDelay = minOf(1_000L * restartCount, 30_000L)
-        val jitter = Random.nextLong(0, 500)
-        val delay = baseDelay + jitter
-        ProxyServiceState.addLog(getString(R.string.log_watchdog_restart, delay, restartCount, MAX_RESTARTS))
-        updateNotification(getString(R.string.notification_reconnecting, restartCount, MAX_RESTARTS))
-        handler.postDelayed({
-            if (!userStopped.get()) serviceScope.launch { 
-                val cfg = AppPreferences(applicationContext).clientConfigFlow.first()
-                ProxyServiceState.setRunningConfig(cfg)
-                startBinaryProcess(cfg) 
-            }
-        }, delay)
-    }
-
-    private var networkDebounceJob: Job? = null
 
     private fun registerNetworkCallback() {
+        unregisterNetworkCallback()
         networkInitialized = false
         lastNetworkHandle = -1
         val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
         val cb = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 val capabilities = cm.getNetworkCapabilities(network)
-                if (capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true) {
-                    return
-                }
+                if (capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true) return
 
                 val handle = network.getNetworkHandle()
-                if (handle == lastNetworkHandle) {
-                    return
-                }
+                if (handle == lastNetworkHandle) return
                 lastNetworkHandle = handle
 
                 if (!networkInitialized) {
@@ -459,7 +465,7 @@ class ProxyService : Service() {
                 networkDebounceJob = serviceScope.launch {
                     delay(2000)
                     if (!userStopped.get() && process.get() != null) {
-                        ProxyServiceState.addLog(getString(R.string.log_network_change))
+                        AppLogsState.addLog(getString(R.string.log_network_change))
                         updateNotification(getString(R.string.notification_network_change))
                         restartCount = 0
                         stopBinaryProcessGracefully()
@@ -474,11 +480,21 @@ class ProxyService : Service() {
     private fun unregisterNetworkCallback() {
         networkCallback?.let { cb ->
             try {
-                (getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager)
-                    .unregisterNetworkCallback(cb)
+                (getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager).unregisterNetworkCallback(cb)
             } catch (_: Exception) {}
         }
         networkCallback = null
+    }
+
+    private fun handleStopAction() {
+        if (userStopped.getAndSet(true)) return
+        ProxyServiceState.setRunning(false)
+        serviceScope.launch {
+            stopBinaryProcessGracefully()
+            withContext(Dispatchers.Main) {
+                stopSelf()
+            }
+        }
     }
 
     private suspend fun checkJazzAvailability(): Boolean = withContext(Dispatchers.IO) {
@@ -506,49 +522,36 @@ class ProxyService : Service() {
         super.onDestroy()
         isStarted.set(false)
         userStopped.set(true)
+        
         ProxyServiceState.setWorking(false)
         ProxyServiceState.setRunning(false)
         NotificationHelper.updateNotification(this)
-
-        stopService(Intent(this, XrayService::class.java))
-
         ProxyTileService.requestUpdate(this)
+        
+        stopService(Intent(this, XrayService::class.java))
+        
         handler.removeCallbacksAndMessages(null)
         unregisterNetworkCallback()
-        ProxyServiceState.addLog(getString(R.string.log_stop_ui))
+        AppLogsState.addLog(getString(R.string.log_stop_ui))
 
-        process.getAndSet(null)?.let { proc ->
-            sendSigTerm(proc)
-            Thread {
-                try {
-                    if (!proc.waitFor(10, TimeUnit.SECONDS)) {
-                        proc.destroyForcibly()
-                    }
-                } catch (_: Exception) {
-                    proc.destroyForcibly()
-                }
-            }.start()
+        serviceScope.launch {
+            stopBinaryProcessGracefully()
+            serviceScope.cancel()
         }
 
-        serviceScope.cancel()
         if (wakeLock?.isHeld == true) wakeLock?.release()
     }
 
     companion object {
         const val ACTION_STOP = "com.wireturn.app.ACTION_STOP"
         const val MAX_RESTARTS = 8
-        private val CAPTCHA_URL_REGEX =
-            Pattern.compile("""Open this URL in your browser:\s*(https?://\S+)""")
+        private val CAPTCHA_URL_REGEX = Pattern.compile("""Open this URL in your browser:\s*(https?://\S+)""")
 
         fun start(context: Context, cfg: ClientConfig) {
             cfg.getValidationErrorResId()?.let { errorRes ->
                 ProxyServiceState.setStartupResult(StartupResult.Failed(context.getString(errorRes)))
                 return
             }
-
-            ProxyServiceState.clearLogs()
-            ProxyServiceState.setStartupResult(null)
-
             val serviceIntent = Intent(context, ProxyService::class.java)
             context.startForegroundService(serviceIntent)
         }

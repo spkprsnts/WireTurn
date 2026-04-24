@@ -3,6 +3,7 @@ package com.wireturn.app.domain
 import android.content.Context
 import android.net.Uri
 import com.wireturn.app.R
+import com.wireturn.app.AppLogsState
 import com.wireturn.app.ProxyService
 import com.wireturn.app.ProxyServiceState
 import com.wireturn.app.StartupResult
@@ -69,10 +70,13 @@ class LocalProxyManager(private val context: Context) {
 
     suspend fun observeProxyServiceStatus() {
         ProxyServiceState.isRunning.collect { running ->
-            if (running && _proxyState.value !is ProxyState.Running && _proxyState.value !is ProxyState.Starting && _proxyState.value !is ProxyState.Working) {
-                // Сервис запущен внешним источником (например, ProxyReceiver)
-                updateStateAfterSuccess()
-            } else if (!running && (_proxyState.value is ProxyState.Running || _proxyState.value is ProxyState.Working || _proxyState.value is ProxyState.CaptchaRequired)) {
+            if (running) {
+                // Если сервис запущен, но мы еще в Idle, переходим в Starting.
+                // Переход в Running (Подключение) теперь управляется через StartupResult.Success в обычном режиме.
+                if (_proxyState.value is ProxyState.Idle) {
+                    _proxyState.value = ProxyState.Starting
+                }
+            } else if (_proxyState.value is ProxyState.Running || _proxyState.value is ProxyState.Working || _proxyState.value is ProxyState.CaptchaRequired) {
                 ProxyService.stop(context)
                 _proxyState.value = ProxyState.Idle
             }
@@ -82,7 +86,14 @@ class LocalProxyManager(private val context: Context) {
     suspend fun observeProxyServiceWorking() {
         ProxyServiceState.isWorking.collect { working ->
             if (working) {
-                _proxyState.value = ProxyState.Working
+                // Если сейчас висит ошибка, не перебиваем её сразу (пусть пользователь увидит)
+                // Но если это состояние запуска, то переходим в Working
+                if (_proxyState.value !is ProxyState.Error && _proxyState.value !is ProxyState.CaptchaRequired) {
+                    _proxyState.value = ProxyState.Working
+                } else if (_proxyState.value is ProxyState.CaptchaRequired) {
+                    // Если капча была решена и пошли данные — переходим в Working
+                    _proxyState.value = ProxyState.Working
+                }
             } else if (_proxyState.value is ProxyState.Working) {
                 // Больше не "Working" — если сервис всё еще запущен, возвращаемся в Running
                 if (ProxyServiceState.isRunning.value) {
@@ -97,7 +108,7 @@ class LocalProxyManager(private val context: Context) {
     }
 
     private fun updateStateAfterSuccess() {
-        if (_customKernelExists.value) {
+        if (_customKernelExists.value || ProxyServiceState.isWorking.value) {
             _proxyState.value = ProxyState.Working
         } else {
             _proxyState.value = ProxyState.Running
@@ -121,9 +132,13 @@ class LocalProxyManager(private val context: Context) {
 
         _proxyState.value = ProxyState.Starting
 
+        // Сбрасываем старые результаты перед запуском, чтобы не подхватить их из Flow
+        ProxyServiceState.setStartupResult(null)
+        ProxyServiceState.setWorking(false)
+
         ProxyService.start(context, cfg)
 
-        val result = withTimeoutOrNull(5_000L) {
+        val result = withTimeoutOrNull(20_000L) {
             ProxyServiceState.startupResult.filterNotNull().first()
         }
 
@@ -219,10 +234,10 @@ class LocalProxyManager(private val context: Context) {
                 _customKernelExists.value = true
                 _customKernelLastModified.value = dest.lastModified()
             }
-            ProxyServiceState.addLog(context.getString(R.string.log_custom_kernel_installed, dest.length() / 1024))
+            AppLogsState.addLog(context.getString(R.string.log_custom_kernel_installed, dest.length() / 1024))
             null
         } catch (e: Exception) {
-            ProxyServiceState.addLog(context.getString(R.string.error_kernel_install_failed, e.message ?: ""))
+            AppLogsState.addLog(context.getString(R.string.error_kernel_install_failed, e.message ?: ""))
             context.getString(R.string.error_format_short, e.message ?: "")
         }
     }
@@ -231,7 +246,7 @@ class LocalProxyManager(private val context: Context) {
         File(context.filesDir, "custom_vkturn").delete()
         _customKernelExists.value = false
         _customKernelLastModified.value = null
-        ProxyServiceState.addLog(context.getString(R.string.log_custom_kernel_deleted))
+        AppLogsState.addLog(context.getString(R.string.log_custom_kernel_deleted))
     }
 
     fun clearState() {

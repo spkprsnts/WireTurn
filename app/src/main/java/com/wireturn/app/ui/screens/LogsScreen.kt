@@ -143,7 +143,7 @@ fun LogsScreen(viewModel: MainViewModel) {
 private fun LogLine(line: String) {
     val lower = line.lowercase()
     val isHeader = line.startsWith("===")
-    val isProxyLog = line.startsWith("[Proxy]") || line.startsWith("[Xray]")
+    val isProxyLog = line.startsWith("[Proxy]") || line.startsWith("[Xray]") || line.startsWith("[VPN]")
     val isError = lower.contains("ошибка") || lower.contains("error") ||
                   lower.contains("критическая") || lower.contains("failed") ||
                   lower.contains("fatal") || lower.contains("panic") ||

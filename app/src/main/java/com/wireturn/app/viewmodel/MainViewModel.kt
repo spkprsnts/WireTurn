@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.wireturn.app.AppLogsState
 import com.wireturn.app.ProxyService
 import com.wireturn.app.XrayService
 import com.wireturn.app.ProxyServiceState
@@ -39,7 +40,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val appUpdater = AppUpdater(application)
 
     val proxyState: StateFlow<ProxyState> = proxyManager.proxyState
-    val logs: StateFlow<List<String>> = ProxyServiceState.logs
+    val logs: StateFlow<List<String>> = AppLogsState.logs
     val customKernelExists: StateFlow<Boolean> = proxyManager.customKernelExists
     val customKernelLastModified: StateFlow<Long?> = proxyManager.customKernelLastModified
     val updateState: StateFlow<UpdateState> = appUpdater.state
@@ -258,7 +259,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun dismissCaptcha() { proxyManager.dismissCaptcha() }
-    fun clearLogs() { ProxyServiceState.clearLogs() }
+    fun clearLogs() { AppLogsState.clearLogs() }
     fun saveClientConfig(config: ClientConfig) { viewModelScope.launch { prefs.saveClientConfig(config) } }
     fun removeVkLinkFromHistory(link: String) { viewModelScope.launch { prefs.removeVkLinkFromHistory(link) } }
     fun removeWbstreamUuidFromHistory(uuid: String) { viewModelScope.launch { prefs.removeWbstreamUuidFromHistory(uuid) } }
@@ -300,7 +301,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         }
                         if (isSuccess) PingResult.Success(time) else null
                     } catch (e: Exception) {
-                        ProxyServiceState.addLog("[Ping] Error: ${e.message}")
+                        AppLogsState.addLog("[Ping] Error: ${e.message}")
                         null
                     }
                 }
@@ -365,7 +366,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             prefs.resetAll()
             proxyManager.clearState()
-            ProxyServiceState.clearLogs()
+            AppLogsState.clearLogs()
             _wgConfig.value = WgConfig()
             _xrayConfig.value = com.wireturn.app.data.XrayConfig()
             val intent = (context as? android.app.Activity)?.intent

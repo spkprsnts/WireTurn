@@ -98,7 +98,7 @@ class XrayService : Service() {
             val rawVlessConfig = prefs.vlessConfigFlow.first()
 
             if (clientConfig == null) {
-                ProxyServiceState.addLog("[Xray] Error: clientConfig is null")
+                AppLogsState.addLog("[Xray] Error: clientConfig is null")
                 stopSelf()
                 return
             }
@@ -110,7 +110,7 @@ class XrayService : Service() {
             }
 
             if (!isConfigValid) {
-                ProxyServiceState.addLog(getString(R.string.log_proxy_invalid_config))
+                AppLogsState.addLog(getString(R.string.log_proxy_invalid_config))
                 stopSelf()
                 return
             }
@@ -160,7 +160,7 @@ class XrayService : Service() {
                 )
             }
 
-            ProxyServiceState.addLog("[Xray] starting: ${cmdArgs.joinToString(" ")}")
+            AppLogsState.addLog("[Xray] starting: ${cmdArgs.joinToString(" ")}")
             val proc = withContext(Dispatchers.IO) {
                 ProcessBuilder(cmdArgs)
                     .redirectErrorStream(true)
@@ -174,24 +174,24 @@ class XrayService : Service() {
             BufferedReader(InputStreamReader(proc.inputStream)).use { reader ->
                 var line: String?
                 while (reader.readLine().also { line = it } != null) {
-                    ProxyServiceState.addLog("[Xray] $line")
+                    AppLogsState.addLog("[Xray] $line")
                 }
             }
             val exitCode = withContext(Dispatchers.IO) {
                 proc.waitFor()
             }
-            ProxyServiceState.addLog("[Xray] process exited with code $exitCode")
+            AppLogsState.addLog("[Xray] process exited with code $exitCode")
         } catch (_: InterruptedIOException) {
             // pass
         } catch (e: Exception) {
-            ProxyServiceState.addLog("[Xray] Error: ${e.message}")
+            AppLogsState.addLog("[Xray] Error: ${e.message}")
         } finally {
             process.set(null)
             XrayServiceState.updateMetricsPort(null)
             XrayServiceState.updateStatus(XrayState.Idle)
             NotificationHelper.updateNotification(this@XrayService)
             if (userStopped.get()) {
-                ProxyServiceState.addLog("[Xray] stopped by user")
+                AppLogsState.addLog("[Xray] stopped by user")
                 stopSelf()
             } else {
                 scheduleWatchdogRestart()
@@ -202,14 +202,14 @@ class XrayService : Service() {
     private fun scheduleWatchdogRestart() {
         restartCount++
         if (restartCount > MAX_RESTARTS) {
-            ProxyServiceState.addLog("[Xray] watchdog limit reached ($MAX_RESTARTS)")
+            AppLogsState.addLog("[Xray] watchdog limit reached ($MAX_RESTARTS)")
             stopSelf()
             return
         }
         
         XrayServiceState.updateStatus(XrayState.Starting)
         val delay = minOf(1000L * restartCount, 10000L)
-        ProxyServiceState.addLog("[Xray] restarting in ${delay}ms (attempt $restartCount/$MAX_RESTARTS)")
+        AppLogsState.addLog("[Xray] restarting in ${delay}ms (attempt $restartCount/$MAX_RESTARTS)")
         
         handler.postDelayed({
             if (!userStopped.get()) {

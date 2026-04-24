@@ -241,6 +241,7 @@
     <string name="captcha_channel_name">Уведомления о капче</string>
     <string name="captcha_channel_description">Уведомления о необходимости прохождения капчи</string>
     <string name="xray_short">Xray</string>
+    <string name="wg_short">WG</string>
     <string name="vpn_short">VPN</string>
     <string name="captcha_notification_title">Требуется капча</string>
     <string name="captcha_notification_text">Нажмите, чтобы пройти проверку</string>
