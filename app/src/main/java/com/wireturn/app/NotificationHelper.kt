@@ -58,7 +58,10 @@ object NotificationHelper {
             statusParts.add(pStatus)
         }
         
-        if (xrayState != XrayState.Idle && xrayState is XrayState.Running) statusParts.add(context.getString(R.string.xray_short))
+        if (xrayState != XrayState.Idle && xrayState is XrayState.Running) {
+            val isVless = ProxyServiceState.runningConfig.value?.vlessMode == true
+            statusParts.add(context.getString(if (isVless) R.string.vless else R.string.wg_short))
+        }
         if (vpnState != VpnState.Idle && vpnState is VpnState.Running) statusParts.add(context.getString(R.string.vpn_short))
 
         val contentText = if (statusParts.isEmpty()) {
