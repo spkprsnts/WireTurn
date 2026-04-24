@@ -70,25 +70,21 @@ class Tun2SocksVpnService : VpnService() {
         }
 
         val defaultSocks = DEFAULT_SOCKS_BIND_ADDRESS
-        val defaultMtu = WgConfig.DEFAULT_MTU.toIntOrNull() ?: 1280
-
         val socks5Addr = intent?.getStringExtra(EXTRA_SOCKS5_ADDR)?.takeIf { it.isNotBlank() } ?: defaultSocks
-        val mtu = intent?.getIntExtra(EXTRA_MTU, defaultMtu)?.takeIf { it > 0 } ?: defaultMtu
         
         VpnServiceState.updateStatus(VpnState.Starting)
         NotificationHelper.updateNotification(this)
         serviceScope.launch {
-            startVpn(socks5Addr, mtu)
+            startVpn(socks5Addr)
         }
         return START_STICKY
     }
 
-    private suspend fun startVpn(socks5Addr: String, mtu: Int) {
+    private suspend fun startVpn(socks5Addr: String) {
         try {
-            ProxyServiceState.addLog("[VPN] Establishing tunnel (MTU: $mtu, excluding $packageName)")
-            val builder = Builder()
-                .setSession("wireturnWP VPN")
-                .setMtu(mtu)
+            ProxyServiceState.addLog("[VPN] Establishing tunnel")
+            val builder = this.Builder()
+                .setSession("wireturn VPN")
                 .addAddress("10.0.0.1", 32)
                 .addRoute("0.0.0.0", 0)
                 .addDnsServer("1.1.1.1")

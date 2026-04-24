@@ -52,8 +52,6 @@ class XrayService : Service() {
                         if (runningXray != null && VpnServiceState.state.value == VpnState.Idle) {
                             val vpnIntent = Intent(this@XrayService, Tun2SocksVpnService::class.java).apply {
                                 putExtra(Tun2SocksVpnService.EXTRA_SOCKS5_ADDR, runningXray.connectableAddress)
-                                val mtu = bundle.runningWg?.mtu?.toIntOrNull() ?: 1280
-                                putExtra(Tun2SocksVpnService.EXTRA_MTU, mtu)
                             }
                             startService(vpnIntent)
                         }
@@ -132,7 +130,7 @@ class XrayService : Service() {
             val cmdArgs = mutableListOf(
                 executable,
                 "-listen", xrayConfig.socksBindAddress,
-                "-metrics", "127.0.0.1:$randomMetricsPort", "-debug"
+                "-metrics", "127.0.0.1:$randomMetricsPort"
             )
 
             if (xrayConfig.httpBindAddress.isNotBlank()) {
