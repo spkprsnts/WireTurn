@@ -13,6 +13,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
 import com.wireturn.app.data.AppPreferences
+import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.viewmodel.AppLifecycleState
 import com.wireturn.app.viewmodel.XrayState
 import java.io.BufferedReader
@@ -147,7 +148,7 @@ class ProxyService : Service() {
         return START_STICKY
     }
 
-    private suspend fun startBinaryProcess(cfg: com.wireturn.app.data.ClientConfig) {
+    private suspend fun startBinaryProcess(cfg: ClientConfig) {
         if (userStopped.get()) return
 
         val customBin = File(filesDir, "custom_vkturn")
@@ -168,7 +169,7 @@ class ProxyService : Service() {
             if (parts.isNotEmpty()) cmdArgs.addAll(parts.subList(0, parts.size))
         } else {
             cmdArgs.add(executable)
-            cmdArgs.add("-listen"); cmdArgs.add(cfg.localPort)
+            cmdArgs.add("-listen"); cmdArgs.add(cfg.localPort.ifBlank { ClientConfig.DEFAULT_LOCAL_PORT })
             if(cfg.dcMode) {
                 if (cfg.isJazz) {
                     if (!checkJazzAvailability()) {
@@ -483,7 +484,7 @@ class ProxyService : Service() {
         private val CAPTCHA_URL_REGEX =
             Pattern.compile("""Open this URL in your browser:\s*(https?://\S+)""")
 
-        fun start(context: Context, cfg: com.wireturn.app.data.ClientConfig) {
+        fun start(context: Context, cfg: ClientConfig) {
             cfg.getValidationErrorResId()?.let { errorRes ->
                 ProxyServiceState.setStartupResult(StartupResult.Failed(context.getString(errorRes)))
                 return

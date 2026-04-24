@@ -94,8 +94,6 @@
     <string name="xray_socks5_placeholder">127.0.0.1:2080</string>
     <string name="xray_http_copied">HTTP прокси скопирован</string>
     <string name="xray_socks5_copied">SOCKS5 прокси скопирован</string>
-    <string name="xray_mixed_copied">Mixed прокси скопирован</string>
-    <string name="xray_mixed">Mixed (SOCKS5+HTTP)</string>
 
 
     <!-- ClientSetupScreen -->
@@ -198,7 +196,7 @@
     <string name="error_file_empty">Файл пустой</string>
     <string name="error_file_too_large">Файл слишком большой (максимум %1$d МБ)</string>
     <string name="log_custom_kernel_installed">Кастомное ядро установлено: %1$d КБ</string>
-    <string name="log_proxy_invalid_config">[Proxy] Некорректный или отсутствующий конфиг, запуск отменен</string>
+    <string name="log_proxy_invalid_config">[Xray] Некорректный или отсутствующий конфиг, запуск отменен</string>
     <string name="error_kernel_install_failed">Ошибка установки ядра: %1$s</string>
     <string name="log_custom_kernel_deleted">Кастомное ядро удалено, используется встроенное</string>
     <string name="error_update_url_not_found">URL обновления не найден</string>
@@ -246,4 +244,9 @@
     <string name="redacted_value">••••••</string>
     <string name="not_set">не задано</string>
 
+    <string name="vless_link_label">VLESS-ссылка</string>
+    <string name="vless_link_placeholder">vless://…</string>
+    <string name="vless_link_config_desc">Конфигурация VLESS</string>
+    <string name="use_local_listen_address">Использовать адрес прослушивания</string>
+    <string name="use_local_listen_desc">Вместо указанного сервера VLESS\nбудет использоваться локальный</string>
 </resources>

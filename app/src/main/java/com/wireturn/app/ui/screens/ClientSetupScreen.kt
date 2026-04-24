@@ -96,7 +96,11 @@ fun ClientSetupScreen(
     val telemostLinkHistory by viewModel.telemostLinkHistory.collectAsStateWithLifecycle()
     val serverAddressHistory by viewModel.serverAddressHistory.collectAsStateWithLifecycle()
     val jazzCredsHistory by viewModel.jazzCredsHistory.collectAsStateWithLifecycle()
+    val vlessLinkHistory by viewModel.vlessLinkHistory.collectAsStateWithLifecycle()
     val runningConfig by com.wireturn.app.ProxyServiceState.runningConfig.collectAsStateWithLifecycle()
+    val runningVlessConfig by com.wireturn.app.XrayServiceState.runningVlessConfig.collectAsStateWithLifecycle()
+    val xrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
+    val vlessSaved by viewModel.vlessConfig.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -116,6 +120,8 @@ fun ClientSetupScreen(
     var manualCaptcha by rememberSaveable(saved.manualCaptcha) { mutableStateOf(saved.manualCaptcha) }
     var localPort    by rememberSaveable(saved.localPort)      { mutableStateOf(saved.localPort) }
     var vlessMode    by rememberSaveable(saved.vlessMode)      { mutableStateOf(saved.vlessMode) }
+    var vlessLink    by rememberSaveable(vlessSaved.vlessLink)      { mutableStateOf(vlessSaved.vlessLink) }
+    var vlessUseLocalAddress by rememberSaveable(vlessSaved.vlessUseLocalAddress)      { mutableStateOf(vlessSaved.vlessUseLocalAddress) }
     var dcMode       by rememberSaveable(saved.dcMode)         { mutableStateOf(saved.dcMode) }
     var forcePort443 by rememberSaveable(saved.forceTurnPort443) { mutableStateOf(saved.forceTurnPort443) }
     var isJazz       by rememberSaveable(saved.isJazz)         { mutableStateOf(saved.isJazz) }
@@ -151,6 +157,16 @@ fun ClientSetupScreen(
                 forceTurnPort443 = forcePort443,
                 isJazz           = isJazz,
                 jazzCreds        = jazzCreds.trim()
+            )
+        )
+    }
+
+    LaunchedEffect(vlessLink, vlessUseLocalAddress) {
+        delay(200)
+        viewModel.updateVlessConfig(
+            com.wireturn.app.data.VlessConfig(
+                vlessLink = vlessLink,
+                vlessUseLocalAddress = vlessUseLocalAddress
             )
         )
     }
@@ -370,7 +386,8 @@ fun ClientSetupScreen(
                         }
                     }
 
-                    var showHistoryMenu by remember { mutableStateOf(false) }
+                    var showJazzHistoryMenu by remember { mutableStateOf(false) }
+                    var showTelemostHistoryMenu by remember { mutableStateOf(false) }
 
                     AnimatedVisibility(
                         visible = isJazz && dcMode,
@@ -393,20 +410,20 @@ fun ClientSetupScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     ConfigFieldIndicator(runningConfig != null && (jazzCreds.trim() != runningConfig?.jazzCreds || runningConfig!!.isRawMode))
                                     Box {
-                                        IconButton(onClick = { showHistoryMenu = true }) {
+                                        IconButton(onClick = { showJazzHistoryMenu = true }) {
                                             Icon(
                                                 painter = painterResource(R.drawable.database_outlined_24px),
                                                 contentDescription = stringResource(R.string.history_label)
                                             )
                                         }
                                         DropdownMenu(
-                                            expanded = showHistoryMenu,
-                                            onDismissRequest = { showHistoryMenu = false }
+                                            expanded = showJazzHistoryMenu,
+                                            onDismissRequest = { showJazzHistoryMenu = false }
                                         ) {
                                             if (jazzCredsHistory.isEmpty()) {
                                                 DropdownMenuItem(
                                                     text = { Text(stringResource(R.string.history_empty)) },
-                                                    onClick = { showHistoryMenu = false },
+                                                    onClick = { showJazzHistoryMenu = false },
                                                     enabled = false
                                                 )
                                             } else {
@@ -446,7 +463,7 @@ fun ClientSetupScreen(
                                                         onClick = {
                                                             HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
                                                             jazzCreds = historyItem
-                                                            showHistoryMenu = false
+                                                            showJazzHistoryMenu = false
                                                         }
                                                     )
                                                 }
@@ -479,20 +496,20 @@ fun ClientSetupScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     ConfigFieldIndicator(runningConfig != null && (telemostLink.trim() != runningConfig?.telemostLink || runningConfig!!.isRawMode))
                                     Box {
-                                        IconButton(onClick = { showHistoryMenu = true }) {
+                                        IconButton(onClick = { showTelemostHistoryMenu = true }) {
                                             Icon(
                                                 painter = painterResource(R.drawable.database_outlined_24px),
                                                 contentDescription = stringResource(R.string.history_label)
                                             )
                                         }
                                         DropdownMenu(
-                                            expanded = showHistoryMenu,
-                                            onDismissRequest = { showHistoryMenu = false }
+                                            expanded = showTelemostHistoryMenu,
+                                            onDismissRequest = { showTelemostHistoryMenu = false }
                                         ) {
                                             if (telemostLinkHistory.isEmpty()) {
                                                 DropdownMenuItem(
                                                     text = { Text(stringResource(R.string.history_empty)) },
-                                                    onClick = { showHistoryMenu = false },
+                                                    onClick = { showTelemostHistoryMenu = false },
                                                     enabled = false
                                                 )
                                             } else {
@@ -532,7 +549,7 @@ fun ClientSetupScreen(
                                                         onClick = {
                                                             HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
                                                             telemostLink = historyItem
-                                                            showHistoryMenu = false
+                                                            showTelemostHistoryMenu = false
                                                         }
                                                     )
                                                 }
@@ -543,6 +560,8 @@ fun ClientSetupScreen(
                             }
                         )
                     }
+
+                    var showVkLinkHistoryMenu by remember { mutableStateOf(false) }
 
                     AnimatedVisibility(
                         visible = !dcMode,
@@ -565,20 +584,20 @@ fun ClientSetupScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     ConfigFieldIndicator(runningConfig != null && (vkLink.trim() != runningConfig?.vkLink || runningConfig!!.isRawMode))
                                     Box {
-                                        IconButton(onClick = { showHistoryMenu = true }) {
+                                        IconButton(onClick = { showVkLinkHistoryMenu = true }) {
                                             Icon(
                                                 painter = painterResource(R.drawable.database_outlined_24px),
                                                 contentDescription = stringResource(R.string.history_label)
                                             )
                                         }
                                         DropdownMenu(
-                                            expanded = showHistoryMenu,
-                                            onDismissRequest = { showHistoryMenu = false }
+                                            expanded = showVkLinkHistoryMenu,
+                                            onDismissRequest = { showVkLinkHistoryMenu = false }
                                         ) {
                                             if (vkLinkHistory.isEmpty()) {
                                                 DropdownMenuItem(
                                                     text = { Text(stringResource(R.string.history_empty)) },
-                                                    onClick = { showHistoryMenu = false },
+                                                    onClick = { showVkLinkHistoryMenu = false },
                                                     enabled = false
                                                 )
                                             } else {
@@ -618,7 +637,7 @@ fun ClientSetupScreen(
                                                         onClick = {
                                                             HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
                                                             vkLink = historyItem
-                                                            showHistoryMenu = false
+                                                            showVkLinkHistoryMenu = false
                                                         }
                                                     )
                                                 }
@@ -654,6 +673,135 @@ fun ClientSetupScreen(
                     Text(stringResource(R.string.parameters_title), style = MaterialTheme.typography.titleMedium)
                     Spacer(Modifier.height(16.dp))
 
+                    SwitchRow(
+                        label = stringResource(R.string.vless_mode),
+                        description = stringResource(R.string.vless_mode_desc),
+                        checked = vlessMode,
+                        onCheckedChange = {
+                            HapticUtil.perform(
+                                context,
+                                if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                            )
+                            vlessMode = it
+                        },
+                        isModified = runningConfig != null && vlessMode != runningConfig?.vlessMode
+                    )
+
+                    var showVlessLinkHistoryMenu by remember { mutableStateOf(false) }
+
+                    AnimatedVisibility(
+                        visible = vlessMode,
+                        enter = fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) +
+                                expandVertically(animationSpec = tween(300, easing = FastOutSlowInEasing)),
+                        exit = fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing)) +
+                                shrinkVertically(animationSpec = tween(300, easing = FastOutSlowInEasing))
+                    ) {
+                        Column {
+                            Spacer(Modifier.height(12.dp))
+                            OutlinedTextField(
+                                value = vlessLink.redact(privacyMode),
+                                onValueChange = { if (!privacyMode) vlessLink = it },
+                                label = { Text(stringResource(R.string.vless_link_label)) },
+                                placeholder = { Text(stringResource(R.string.vless_link_placeholder)) },
+                                isError = !ValidatorUtils.isValidVlessLink(vlessLink) || (vlessLink.isBlank() && xrayConfig.xrayEnabled),
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                readOnly = privacyMode,
+                                supportingText = { Text(stringResource(R.string.vless_link_config_desc)) },
+                                trailingIcon = {
+                                    ConfigFieldIndicator(runningVlessConfig != null && vlessLink.trim() != runningVlessConfig?.vlessLink)
+                                    Box {
+                                        IconButton(onClick = { showVlessLinkHistoryMenu = true }) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.database_outlined_24px),
+                                                contentDescription = stringResource(R.string.history_label)
+                                            )
+                                        }
+                                        DropdownMenu(
+                                            expanded = showVlessLinkHistoryMenu,
+                                            onDismissRequest = { showVlessLinkHistoryMenu = false }
+                                        ) {
+                                            if (vlessLinkHistory.isEmpty()) {
+                                                DropdownMenuItem(
+                                                    text = { Text(stringResource(R.string.history_empty)) },
+                                                    onClick = { showVlessLinkHistoryMenu = false },
+                                                    enabled = false
+                                                )
+                                            } else {
+                                                vlessLinkHistory.forEach { historyItem ->
+                                                    DropdownMenuItem(
+                                                        modifier = Modifier.pointerInput(historyItem) {
+                                                            awaitEachGesture {
+                                                                awaitFirstDown(requireUnconsumed = false)
+                                                                var isLongPress = false
+                                                                val job = scope.launch {
+                                                                    delay(1500)
+                                                                    HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
+                                                                    delay(1500)
+                                                                    isLongPress = true
+                                                                    HapticUtil.perform(context, HapticUtil.Pattern.ERROR)
+                                                                    viewModel.removeVlessLinkFromHistory(historyItem)
+                                                                }
+                                                                val up = waitForUpOrCancellation()
+                                                                job.cancel()
+                                                                if (isLongPress) {
+                                                                    up?.consume()
+                                                                }
+                                                            }
+                                                        },
+                                                        text = {
+                                                            val text = historyItem.redact(privacyMode)
+                                                            Text(
+                                                                text = if (text.length > 30) {
+                                                                    text.take(21) + "..." + text.takeLast(6)
+                                                                } else {
+                                                                    text
+                                                                },
+                                                                maxLines = 1,
+                                                                overflow = TextOverflow.Visible
+                                                            )
+                                                        },
+                                                        onClick = {
+                                                            HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
+                                                            vlessLink = historyItem
+                                                            showVlessLinkHistoryMenu = false
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                    }
+
+                    AnimatedVisibility(
+                        visible = vlessMode,
+                        enter = fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) +
+                                expandVertically(animationSpec = tween(300, easing = FastOutSlowInEasing)),
+                        exit = fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing)) +
+                                shrinkVertically(animationSpec = tween(300, easing = FastOutSlowInEasing))
+                    ) {
+                        Column {
+                            Spacer(Modifier.height(12.dp))
+                            SwitchRow(
+                                label = stringResource(R.string.use_local_listen_address),
+                                description = stringResource(R.string.use_local_listen_desc),
+                                checked = vlessUseLocalAddress,
+                                onCheckedChange = {
+                                    HapticUtil.perform(
+                                        context,
+                                        if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                                    )
+                                    vlessUseLocalAddress = it
+                                },
+                                isModified = runningVlessConfig != null && vlessUseLocalAddress != runningVlessConfig?.vlessUseLocalAddress
+                            )
+                            ScreenSectionDivider()
+                        }
+                    }
+
                     AnimatedVisibility(
                         visible = !dcMode,
                         enter = fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
@@ -662,6 +810,7 @@ fun ClientSetupScreen(
                                shrinkVertically(animationSpec = tween(300, easing = FastOutSlowInEasing))
                     ) {
                         Column {
+                            if(!vlessMode) Spacer(Modifier.height(12.dp))
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.fillMaxWidth()
@@ -693,22 +842,7 @@ fun ClientSetupScreen(
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
-                        Spacer(Modifier.height(12.dp))
                     }
-
-                    SwitchRow(
-                        label = stringResource(R.string.vless_mode),
-                        description = stringResource(R.string.vless_mode_desc),
-                        checked = vlessMode,
-                        onCheckedChange = {
-                            HapticUtil.perform(
-                                context,
-                                if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
-                            )
-                            vlessMode = it
-                        },
-                        isModified = runningConfig != null && vlessMode != runningConfig?.vlessMode
-                    )
 
                     AnimatedVisibility(
                         visible = !vlessMode && !dcMode,

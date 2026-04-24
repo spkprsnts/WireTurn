@@ -115,6 +115,7 @@ import com.wireturn.app.viewmodel.UpdateState
 import androidx.core.net.toUri
 import com.wireturn.app.VpnServiceState
 import com.wireturn.app.XrayServiceState
+import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.theme.extendedColorScheme
 import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.viewmodel.XrayState
@@ -134,6 +135,7 @@ fun HomeScreen(
     val xrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
     val batteryNotificationDismissed by viewModel.batteryNotificationDismissed.collectAsStateWithLifecycle()
     val customKernelExists by viewModel.customKernelExists.collectAsStateWithLifecycle()
+    val vlessConfig by viewModel.vlessConfig.collectAsStateWithLifecycle()
 
     val lifecycleOwner = LocalLifecycleOwner.current
     val batteryOptLauncher = rememberLauncherForActivityResult(
@@ -381,7 +383,7 @@ fun HomeScreen(
             val proxyPing by viewModel.proxyPing.collectAsStateWithLifecycle()
             val proxyTransfer by viewModel.proxyTransfer.collectAsStateWithLifecycle()
             val wgConfig by viewModel.wgConfig.collectAsStateWithLifecycle()
-            val runningWgConfig by XrayServiceState.runningConfig.collectAsStateWithLifecycle()
+            val runningWgConfig by XrayServiceState.runningWgConfig.collectAsStateWithLifecycle()
             val runningXrayConfig by XrayServiceState.runningXrayConfig.collectAsStateWithLifecycle()
 
             Spacer(Modifier.height(10.dp))
@@ -439,7 +441,7 @@ fun HomeScreen(
                                                 text = stringResource(R.string.ping_ms, ping.ms),
                                                 style = MaterialTheme.typography.labelLarge,
                                                 color = when {
-                                                    ping.ms < 100 -> MaterialTheme.extendedColorScheme.success
+                                                    ping.ms < 150 -> MaterialTheme.extendedColorScheme.success
                                                     ping.ms < 300 -> MaterialTheme.extendedColorScheme.warning
                                                     else -> MaterialTheme.colorScheme.error
                                                 },
@@ -547,21 +549,32 @@ fun HomeScreen(
                             )
                         }
 
+
+
+                        val isSettingsValid = if (clientConfig.vlessMode) vlessConfig.isValid() else wgConfig.isValid()
+                        val configValid = isSettingsValid || xrayState != XrayState.Idle
+
+                        LaunchedEffect(configValid, xrayConfig.xrayEnabled) {
+                            if(!configValid && xrayConfig.xrayEnabled) {
+                                viewModel.updateXrayConfig(viewModel.xrayConfig.value.copy(xrayEnabled = false))
+                            }
+                        }
+
                         Column(
                             modifier = Modifier.weight(1f),
                             verticalArrangement = Arrangement.Center
                         ) {
                             Text(
-                                text = stringResource(R.string.xray_title),
+                                text = stringResource(R.string.xray_title) + " " + (if (clientConfig.vlessMode) "VLESS" else "WG"),
                                 style = MaterialTheme.typography.titleMedium
                             )
                             AnimatedVisibility(
-                                visible = !wgConfig.isValid() || xrayState != XrayState.Idle,
+                                visible = !configValid || xrayState != XrayState.Idle,
                                 enter = fadeIn() + expandVertically(),
                                 exit = fadeOut() + shrinkVertically()
                             ) {
                                 Text(
-                                    text = if (!wgConfig.isValid()) {
+                                    text = if (!configValid) {
                                         stringResource(R.string.xray_config_invalid)
                                     } else {
                                         when (xrayState) {
@@ -585,7 +598,7 @@ fun HomeScreen(
                                 )
                                 viewModel.updateXrayConfig(viewModel.xrayConfig.value.copy(xrayEnabled = enabled))
                             },
-                            enabled = wgConfig.isValid()
+                            enabled = configValid
                         )
                     }
 
@@ -671,13 +684,13 @@ fun HomeScreen(
                             }
 
                             ProxyAddressRow(
-                                label = if (xrayConfig.httpBindAddress.isBlank()) stringResource(R.string.xray_mixed) else stringResource(R.string.xray_socks5),
-                                address = xrayConfig.mixedBindAddress,
-                                isModified = runningXrayConfig != null && xrayConfig.mixedBindAddress != runningXrayConfig?.mixedBindAddress,
+                                label = stringResource(R.string.xray_socks5),
+                                address = xrayConfig.socksBindAddress,
+                                isModified = runningXrayConfig != null && xrayConfig.socksBindAddress != runningXrayConfig?.socksBindAddress,
                                 onCopy = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                     scope.launch {
-                                        clipboard.setClipEntry(ClipData.newPlainText(if (xrayConfig.httpBindAddress.isBlank()) "xray mixed" else "xray socks5", it).toClipEntry())
+                                        clipboard.setClipEntry(ClipData.newPlainText("xray socks5", it).toClipEntry())
                                     }
                                 },
                                 onEdit = {
@@ -686,7 +699,7 @@ fun HomeScreen(
                                 }
                             )
 
-                            if (xrayConfig.httpBindAddress.isNotBlank()) {
+                            if (xrayConfig.httpBindAddress.isNotBlank() || (runningXrayConfig != null && xrayConfig.httpBindAddress != runningXrayConfig?.httpBindAddress)) {
                                 HorizontalDivider(
                                     modifier = Modifier.padding(horizontal = 24.dp),
                                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
@@ -885,14 +898,14 @@ private fun ProxyEditDialog(
     onDismiss: () -> Unit,
     onConfirm: (com.wireturn.app.data.XrayConfig) -> Unit
 ) {
-    var mixed by remember { mutableStateOf(currentConfig.mixedBindAddress) }
+    var socks by remember { mutableStateOf(currentConfig.socksBindAddress) }
     var http by remember { mutableStateOf(currentConfig.httpBindAddress) }
 
-    val isMixedValid = remember(mixed) {
-        com.wireturn.app.ui.ValidatorUtils.isValidHostPort(mixed)
+    val isSocksValid = remember(socks) {
+        socks.isNotBlank() && ValidatorUtils.isValidHostPort(socks)
     }
     val isHttpValid = remember(http) {
-        http.isEmpty() || com.wireturn.app.ui.ValidatorUtils.isValidHostPort(http)
+        http.isEmpty() || ValidatorUtils.isValidHostPort(http)
     }
 
     AlertDialog(
@@ -901,10 +914,10 @@ private fun ProxyEditDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 OutlinedTextField(
-                    value = mixed,
-                    onValueChange = { mixed = it },
-                    label = { Text(if (http.isBlank()) stringResource(R.string.xray_mixed) else stringResource(R.string.xray_socks5)) },
-                    isError = !isMixedValid || (mixed.isNotEmpty() && mixed == http),
+                    value = socks,
+                    onValueChange = { socks = it },
+                    label = { Text(stringResource(R.string.xray_socks5)) },
+                    isError = !isSocksValid || (socks.isNotEmpty() && socks == http),
                     placeholder = { Text(stringResource(R.string.xray_socks5_placeholder)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
@@ -914,7 +927,7 @@ private fun ProxyEditDialog(
                     value = http,
                     onValueChange = { http = it },
                     label = { Text(stringResource(R.string.xray_http)) },
-                    isError = !isHttpValid || (http.isNotEmpty() && mixed == http),
+                    isError = !isHttpValid || (http.isNotEmpty() && socks == http),
                     placeholder = { Text(stringResource(R.string.xray_http_placeholder)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
@@ -924,9 +937,9 @@ private fun ProxyEditDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    onConfirm(currentConfig.copy(mixedBindAddress = mixed, httpBindAddress = http))
+                    onConfirm(currentConfig.copy(socksBindAddress = socks, httpBindAddress = http))
                 },
-                enabled = isMixedValid && isHttpValid && mixed != http
+                enabled = isSocksValid && isHttpValid && socks != http
             ) {
                 Text(stringResource(R.string.btn_save))
             }

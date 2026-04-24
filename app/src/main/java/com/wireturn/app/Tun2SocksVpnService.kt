@@ -6,7 +6,7 @@ import android.os.Build
 import android.os.ParcelFileDescriptor
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.viewmodel.VpnState
-import com.wireturn.app.data.XrayConfig.Companion.DEFAULT_MIXED_BIND_ADDRESS
+import com.wireturn.app.data.XrayConfig.Companion.DEFAULT_SOCKS_BIND_ADDRESS
 import com.wireturn.app.data.WgConfig
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
@@ -69,7 +69,7 @@ class Tun2SocksVpnService : VpnService() {
             startForeground(NotificationHelper.NOTIFICATION_ID, notification)
         }
 
-        val defaultSocks = DEFAULT_MIXED_BIND_ADDRESS
+        val defaultSocks = DEFAULT_SOCKS_BIND_ADDRESS
         val defaultMtu = WgConfig.DEFAULT_MTU.toIntOrNull() ?: 1280
 
         val socks5Addr = intent?.getStringExtra(EXTRA_SOCKS5_ADDR)?.takeIf { it.isNotBlank() } ?: defaultSocks

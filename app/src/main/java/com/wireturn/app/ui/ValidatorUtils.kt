@@ -30,4 +30,12 @@ object ValidatorUtils {
         if (input.isBlank()) return true
         return android.util.Patterns.WEB_URL.matcher(input).matches()
     }
+
+    /**
+     * Проверяет, является ли строка валидной VLESS-ссылкой.
+     */
+    fun isValidVlessLink(input: String): Boolean {
+        if (input.isBlank()) return true
+        return input.startsWith("vless://", ignoreCase = true) && input.contains("@")
+    }
 }

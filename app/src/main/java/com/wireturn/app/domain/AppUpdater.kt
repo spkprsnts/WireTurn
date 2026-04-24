@@ -172,9 +172,9 @@ class AppUpdater(private val context: Context) {
         if (com.wireturn.app.XrayServiceState.state.value != com.wireturn.app.viewmodel.XrayState.Running) return null
 
         return try {
-            val mixedAddr = runningXrayConfig.mixedBindAddress
-            if (mixedAddr.isNotBlank()) {
-                val parts = mixedAddr.split(":")
+            val socksAddr = runningXrayConfig.connectableAddress
+            if (socksAddr.isNotBlank()) {
+                val parts = socksAddr.split(":")
                 if (parts.size == 2) {
                     val host = parts[0]
                     val port = parts[1].toInt()

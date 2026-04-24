@@ -29,7 +29,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.InetSocketAddress
 import java.net.Proxy
-import java.net.Socket
 import kotlin.system.measureTimeMillis
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -67,6 +66,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _xrayConfig = MutableStateFlow(com.wireturn.app.data.XrayConfig())
     val xrayConfig: StateFlow<com.wireturn.app.data.XrayConfig> = _xrayConfig.asStateFlow()
 
+    private val _vlessConfig = MutableStateFlow(com.wireturn.app.data.VlessConfig())
+    val vlessConfig: StateFlow<com.wireturn.app.data.VlessConfig> = _vlessConfig.asStateFlow()
+
     // Custom kernel
     private val _kernelError = MutableStateFlow<String?>(null)
     val kernelError: StateFlow<String?> = _kernelError.asStateFlow()
@@ -100,6 +102,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             val wgConfig = prefs.wgConfigFlow.first()
             val xrayConfig = prefs.xrayConfigFlow.first()
+            val vlessConfig = prefs.vlessConfigFlow.first()
 
             _onboardingDone.value = done
             _themeMode.value = theme
@@ -108,6 +111,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _batteryNotificationDismissed.value = batteryDismissed
             _wgConfig.value = wgConfig
             _xrayConfig.value = xrayConfig
+            _vlessConfig.value = vlessConfig
 
             _isInitialized.value = true
 
@@ -123,6 +127,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.batteryNotificationDismissedFlow.collect { _batteryNotificationDismissed.value = it } }
             launch { prefs.wgConfigFlow.collect { _wgConfig.value = it } }
             launch { prefs.xrayConfigFlow.collect { _xrayConfig.value = it } }
+            launch { prefs.vlessConfigFlow.collect { _vlessConfig.value = it } }
         }
 
         viewModelScope.launch { proxyManager.observeProxyLifecycle() }
@@ -222,6 +227,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val jazzCredsHistory: StateFlow<List<String>> = prefs.jazzCredsHistoryFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    val vlessLinkHistory: StateFlow<List<String>> = prefs.vlessLinkHistoryFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     private val _privacyMode = MutableStateFlow(false)
     val privacyMode: StateFlow<Boolean> = _privacyMode.asStateFlow()
 
@@ -254,12 +262,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun removeTelemostLinkFromHistory(link: String) { viewModelScope.launch { prefs.removeTelemostLinkFromHistory(link) } }
     fun removeServerAddressFromHistory(address: String) { viewModelScope.launch { prefs.removeServerAddressFromHistory(address) } }
     fun removeJazzCredsFromHistory(creds: String) { viewModelScope.launch { prefs.removeJazzCredsFromHistory(creds) } }
+    fun removeVlessLinkFromHistory(link: String) { viewModelScope.launch { prefs.removeVlessLinkFromHistory(link) } }
     fun setOnboardingDone() { viewModelScope.launch { prefs.setOnboardingDone(true) } }
     fun setBatteryNotificationDismissed(dismissed: Boolean) { viewModelScope.launch { prefs.setBatteryNotificationDismissed(dismissed) } }
 
     fun checkProxyPing() {
-        val mixedAddr = _xrayConfig.value.mixedBindAddress
-        if (!isValidHostPort(mixedAddr) || mixedAddr.isBlank()) return
+        val socksAddr = XrayServiceState.runningXrayConfig.value?.connectableAddress ?: return
+        if (socksAddr.isBlank() || !isValidHostPort(socksAddr)) return
 
         pingJob?.cancel()
         pingJob = viewModelScope.launch {
@@ -271,13 +280,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 val result = withContext(Dispatchers.IO) {
                     try {
-                        val parts = mixedAddr.split(":")
+                        val parts = socksAddr.split(":")
                         val proxy = Proxy(Proxy.Type.SOCKS, InetSocketAddress(parts[0], parts[1].toInt()))
-                        val time = measureTimeMillis {
-                            Socket(proxy).use { it.connect(InetSocketAddress("149.154.167.50", 443), 2000) }
+                        var time = 0L
+                        val isSuccess = try {
+                            time = measureTimeMillis {
+                                val url = java.net.URL("https://1.1.1.1/")
+                                val conn = url.openConnection(proxy) as java.net.HttpURLConnection
+                                conn.connectTimeout = 2000
+                                conn.readTimeout = 2000
+                                conn.instanceFollowRedirects = false
+                                conn.responseCode
+                            }
+                            true
+                        } catch (_: Exception) {
+                            false
                         }
-                        PingResult.Success(time)
-                    } catch (_: Exception) { null }
+                        if (isSuccess) PingResult.Success(time) else null
+                    } catch (e: Exception) {
+                        ProxyServiceState.addLog("[Ping] Error: ${e.message}")
+                        null
+                    }
                 }
                 if (result is PingResult.Success) {
                     _proxyPing.value = result
@@ -308,6 +331,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _xrayConfig.value = config
         viewModelScope.launch {
             prefs.saveXrayConfig(config)
+        }
+    }
+
+    fun updateVlessConfig(config: com.wireturn.app.data.VlessConfig) {
+        _vlessConfig.value = config
+        viewModelScope.launch {
+            prefs.saveVlessConfig(config)
         }
     }
 

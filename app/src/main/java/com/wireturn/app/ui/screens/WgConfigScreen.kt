@@ -79,7 +79,7 @@ fun WgConfigScreen(
     val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
     val savedWgConfig by viewModel.wgConfig.collectAsStateWithLifecycle()
     val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
-    val runningConfig by com.wireturn.app.XrayServiceState.runningConfig.collectAsStateWithLifecycle()
+    val runningConfig by com.wireturn.app.XrayServiceState.runningWgConfig.collectAsStateWithLifecycle()
 
     // Local states for auto-save logic
     var privateKey by rememberSaveable(savedWgConfig.privateKey) { mutableStateOf(savedWgConfig.privateKey) }
@@ -149,8 +149,8 @@ fun WgConfigScreen(
     val isEndpointValid = remember(endpoint) {
         ValidatorUtils.isValidHostPort(endpoint)
     }
-    val isTargetEndpoint = remember(endpoint) {
-        clientConfig.localPort == endpoint
+    val isTargetEndpoint = remember(endpoint, clientConfig.connectableAddress) {
+        clientConfig.connectableAddress == endpoint
     }
 
     Scaffold(
@@ -350,7 +350,7 @@ fun WgConfigScreen(
                                 text = stringResource(R.string.wg_endpoint_fix),
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.clickable {
-                                    endpoint = clientConfig.localPort
+                                    endpoint = clientConfig.connectableAddress
                                 }
                             )
                         }

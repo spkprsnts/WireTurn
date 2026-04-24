@@ -22,7 +22,7 @@ data class ClientConfig(
     val useUdp: Boolean = false,
     val noDtls: Boolean = false,
     val manualCaptcha: Boolean = false,
-    val localPort: String = "127.0.0.1:9000",
+    val localPort: String = DEFAULT_LOCAL_PORT,
     val isRawMode: Boolean = false,
     val rawCommand: String = "",
     val vlessMode: Boolean = false,
@@ -48,16 +48,55 @@ data class ClientConfig(
     }
 
     val isValid: Boolean get() = getValidationErrorResId() == null
+
+    val connectableAddress: String
+        get() {
+            val port = localPort.ifBlank { DEFAULT_LOCAL_PORT }
+            return if (port.startsWith("0.0.0.0:")) {
+                port.replace("0.0.0.0:", "127.0.0.1:")
+            } else {
+                port
+            }
+        }
+
+    fun fillDefaults(): ClientConfig {
+        return copy(
+            localPort = localPort.ifBlank { DEFAULT_LOCAL_PORT }
+        )
+    }
+
+    companion object {
+        const val DEFAULT_LOCAL_PORT = "127.0.0.1:9000"
+    }
+}
+
+data class VlessConfig(
+    val vlessLink: String = "",
+    val vlessUseLocalAddress: Boolean = true
+) {
+    fun isValid(): Boolean = vlessLink.isNotBlank() && com.wireturn.app.ui.ValidatorUtils.isValidVlessLink(vlessLink)
 }
 
 data class XrayConfig(
     val xrayEnabled: Boolean = false,
     val xrayVpnMode: Boolean = false,
-    val mixedBindAddress: String = DEFAULT_MIXED_BIND_ADDRESS,
+    val socksBindAddress: String = DEFAULT_SOCKS_BIND_ADDRESS,
     val httpBindAddress: String = ""
 ) {
+    fun fillDefaults(): XrayConfig {
+        val isValid = socksBindAddress.isNotBlank() && com.wireturn.app.ui.ValidatorUtils.isValidHostPort(socksBindAddress)
+        return if (isValid) this else copy(socksBindAddress = DEFAULT_SOCKS_BIND_ADDRESS)
+    }
+
+    val connectableAddress: String
+        get() = if (socksBindAddress.startsWith("0.0.0.0:")) {
+            socksBindAddress.replace("0.0.0.0:", "127.0.0.1:")
+        } else {
+            socksBindAddress
+        }
+
     companion object {
-        const val DEFAULT_MIXED_BIND_ADDRESS = "127.0.0.1:9080"
+        const val DEFAULT_SOCKS_BIND_ADDRESS = "127.0.0.1:1080"
     }
 }
 
@@ -164,6 +203,9 @@ class AppPreferences(context: Context) {
         val CLIENT_IS_RAW = booleanPreferencesKey("client_is_raw")
         val CLIENT_RAW_CMD = stringPreferencesKey("client_raw_cmd")
         val CLIENT_VLESS = booleanPreferencesKey("client_vless")
+        val CLIENT_VLESS_LINK = stringPreferencesKey("client_vless_link")
+        val CLIENT_VLESS_USE_LOCAL_ADDRESS = booleanPreferencesKey("client_vless_use_local_address")
+        val VLESS_LINK_HISTORY = stringPreferencesKey("vless_link_history")
         val CLIENT_DC_MODE = booleanPreferencesKey("client_dc_mode")
         val CLIENT_FORCE_PORT_443 = booleanPreferencesKey("client_force_port_443")
         val DYNAMIC_THEME = booleanPreferencesKey("dynamic_theme")
@@ -178,7 +220,7 @@ class AppPreferences(context: Context) {
         val WIRE_ENDPOINT = stringPreferencesKey("wire_endpoint")
         val WIRE_ALLOWED_IPS = stringPreferencesKey("wire_allowed_ips")
         val WIRE_KEEPALIVE = stringPreferencesKey("wire_keepalive")
-        val MIXED_BIND = stringPreferencesKey("mixed_bind")
+        val SOCKS_BIND = stringPreferencesKey("socks_bind")
         val HTTP_BIND = stringPreferencesKey("http_bind")
         val VK_LINK_HISTORY = stringPreferencesKey("vk_link_history")
         val TELEMOST_LINK_HISTORY = stringPreferencesKey("telemost_link_history")
@@ -200,7 +242,7 @@ class AppPreferences(context: Context) {
                 useUdp = prefs[CLIENT_UDP] ?: false,
                 noDtls = prefs[CLIENT_NO_DTLS] ?: false,
                 manualCaptcha = prefs[CLIENT_MANUAL_CAPTCHA] ?: false,
-                localPort = prefs[CLIENT_LOCAL_PORT] ?: "127.0.0.1:9000",
+                localPort = prefs[CLIENT_LOCAL_PORT] ?: ClientConfig.DEFAULT_LOCAL_PORT,
                 isRawMode = prefs[CLIENT_IS_RAW] ?: false,
                 rawCommand = prefs[CLIENT_RAW_CMD] ?: "",
                 vlessMode = prefs[CLIENT_VLESS] ?: false,
@@ -208,7 +250,7 @@ class AppPreferences(context: Context) {
                 forceTurnPort443 = prefs[CLIENT_FORCE_PORT_443] ?: false,
                 isJazz = prefs[CLIENT_IS_JAZZ] ?: true,
                 jazzCreds = prefs[CLIENT_JAZZ_CREDS] ?: ""
-            )
+            ).fillDefaults()
         }
 
     val wgConfigFlow: Flow<WgConfig> = context.dataStore.data
@@ -232,8 +274,17 @@ class AppPreferences(context: Context) {
             XrayConfig(
                 xrayEnabled = prefs[XRAY_ENABLED] ?: false,
                 xrayVpnMode = prefs[XRAY_VPN_MODE] ?: false,
-                mixedBindAddress = prefs[MIXED_BIND] ?: XrayConfig.DEFAULT_MIXED_BIND_ADDRESS,
+                socksBindAddress = prefs[SOCKS_BIND] ?: XrayConfig.DEFAULT_SOCKS_BIND_ADDRESS,
                 httpBindAddress = prefs[HTTP_BIND] ?: ""
+            )
+        }
+
+    val vlessConfigFlow: Flow<VlessConfig> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { prefs ->
+            VlessConfig(
+                vlessLink = prefs[CLIENT_VLESS_LINK] ?: "",
+                vlessUseLocalAddress = prefs[CLIENT_VLESS_USE_LOCAL_ADDRESS] ?: true
             )
         }
 
@@ -287,6 +338,14 @@ class AppPreferences(context: Context) {
             else historyString.split("|").filter { it.isNotBlank() }
         }
 
+    val vlessLinkHistoryFlow: Flow<List<String>> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { prefs ->
+            val historyString = prefs[VLESS_LINK_HISTORY] ?: ""
+            if (historyString.isBlank()) emptyList()
+            else historyString.split("|").filter { it.isNotBlank() }
+        }
+
     suspend fun addVkLinkToHistory(link: String) {
         if (link.isBlank()) return
         context.dataStore.edit { prefs ->
@@ -323,6 +382,15 @@ class AppPreferences(context: Context) {
         }
     }
 
+    suspend fun addVlessLinkToHistory(link: String) {
+        if (link.isBlank()) return
+        context.dataStore.edit { prefs ->
+            val currentHistory = prefs[VLESS_LINK_HISTORY]?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
+            val newHistory = (listOf(link) + currentHistory.filter { it != link }).take(3)
+            prefs[VLESS_LINK_HISTORY] = newHistory.joinToString("|")
+        }
+    }
+
     suspend fun removeVkLinkFromHistory(link: String) {
         context.dataStore.edit { prefs ->
             val currentHistory = prefs[VK_LINK_HISTORY]?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
@@ -352,6 +420,14 @@ class AppPreferences(context: Context) {
             val currentHistory = prefs[JAZZ_CREDS_HISTORY]?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
             val newHistory = currentHistory.filter { it != creds }
             prefs[JAZZ_CREDS_HISTORY] = newHistory.joinToString("|")
+        }
+    }
+
+    suspend fun removeVlessLinkFromHistory(link: String) {
+        context.dataStore.edit { prefs ->
+            val currentHistory = prefs[VLESS_LINK_HISTORY]?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
+            val newHistory = currentHistory.filter { it != link }
+            prefs[VLESS_LINK_HISTORY] = newHistory.joinToString("|")
         }
     }
 
@@ -396,8 +472,15 @@ class AppPreferences(context: Context) {
         context.dataStore.edit { prefs ->
             prefs[XRAY_ENABLED] = config.xrayEnabled
             prefs[XRAY_VPN_MODE] = config.xrayVpnMode
-            prefs[MIXED_BIND] = config.mixedBindAddress
+            prefs[SOCKS_BIND] = config.socksBindAddress
             prefs[HTTP_BIND] = config.httpBindAddress
+        }
+    }
+
+    suspend fun saveVlessConfig(config: VlessConfig) {
+        context.dataStore.edit { prefs ->
+            prefs[CLIENT_VLESS_LINK] = config.vlessLink
+            prefs[CLIENT_VLESS_USE_LOCAL_ADDRESS] = config.vlessUseLocalAddress
         }
     }
 

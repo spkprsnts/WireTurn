@@ -36,16 +36,24 @@ class XrayService : Service() {
             combine(
                 XrayServiceState.state,
                 prefs.xrayConfigFlow,
-                prefs.wgConfigFlow
-            ) { state, xrayCfg, wgCfg ->
-                DataBundle(state == XrayState.Running, xrayCfg.xrayVpnMode, wgCfg, xrayCfg)
+                XrayServiceState.runningXrayConfig,
+                XrayServiceState.runningWgConfig
+            ) { state, xrayCfg, runningXray, runningWg ->
+                DataBundle(
+                    isRunning = state == XrayState.Running,
+                    vpnEnabled = xrayCfg.xrayVpnMode,
+                    runningXray = runningXray,
+                    runningWg = runningWg
+                )
             }.collect { bundle ->
                 withContext(Dispatchers.Main) {
                     if (bundle.isRunning && bundle.vpnEnabled) {
-                        if (VpnServiceState.state.value == VpnState.Idle) {
+                        val runningXray = bundle.runningXray
+                        if (runningXray != null && VpnServiceState.state.value == VpnState.Idle) {
                             val vpnIntent = Intent(this@XrayService, Tun2SocksVpnService::class.java).apply {
-                                putExtra(Tun2SocksVpnService.EXTRA_SOCKS5_ADDR, bundle.xrayCfg.mixedBindAddress)
-                                putExtra(Tun2SocksVpnService.EXTRA_MTU, bundle.wgCfg.mtu.toIntOrNull() ?: 1280)
+                                putExtra(Tun2SocksVpnService.EXTRA_SOCKS5_ADDR, runningXray.connectableAddress)
+                                val mtu = bundle.runningWg?.mtu?.toIntOrNull() ?: 1280
+                                putExtra(Tun2SocksVpnService.EXTRA_MTU, mtu)
                             }
                             startService(vpnIntent)
                         }
@@ -65,8 +73,8 @@ class XrayService : Service() {
     private data class DataBundle(
         val isRunning: Boolean,
         val vpnEnabled: Boolean,
-        val wgCfg: com.wireturn.app.data.WgConfig,
-        val xrayCfg: com.wireturn.app.data.XrayConfig
+        val runningXray: com.wireturn.app.data.XrayConfig?,
+        val runningWg: com.wireturn.app.data.WgConfig?
     )
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -89,8 +97,16 @@ class XrayService : Service() {
 
         try {
             val prefs = AppPreferences(this)
+            val clientConfig = ProxyServiceState.runningConfig.value
             val rawWgConfig = prefs.wgConfigFlow.first()
             val rawXrayConfig = prefs.xrayConfigFlow.first()
+            val rawVlessConfig = prefs.vlessConfigFlow.first()
+
+            if (clientConfig == null) {
+                ProxyServiceState.addLog("[Xray] Error: clientConfig is null")
+                stopSelf()
+                return
+            }
             
             if (!rawWgConfig.isValid()) {
                 ProxyServiceState.addLog(getString(R.string.log_proxy_invalid_config))
@@ -99,8 +115,11 @@ class XrayService : Service() {
             }
 
             val wgConfig = rawWgConfig.fillDefaults()
-            XrayServiceState.setRunningConfigs(wgConfig, rawXrayConfig)
+            val xrayConfig = rawXrayConfig.fillDefaults()
+            XrayServiceState.setRunningConfigs(wgConfig, xrayConfig, rawVlessConfig)
+            
             prefs.saveWgConfig(wgConfig)
+            prefs.saveXrayConfig(xrayConfig)
             
             val randomMetricsPort = withContext(Dispatchers.IO) {
                 try {
@@ -112,19 +131,34 @@ class XrayService : Service() {
 
             val cmdArgs = mutableListOf(
                 executable,
-                "-wg-private-key", wgConfig.privateKey,
-                "-wg-public-key", wgConfig.publicKey,
-                "-wg-endpoint", wgConfig.endpoint,
-                "-wg-address", wgConfig.address,
-                "-wg-mtu", wgConfig.mtu,
-                "-wg-keepalive", wgConfig.persistentKeepalive,
-                "-listen", rawXrayConfig.mixedBindAddress,
-                "-metrics", "127.0.0.1:$randomMetricsPort"
+                "-listen", xrayConfig.socksBindAddress,
+                "-metrics", "127.0.0.1:$randomMetricsPort", "-debug"
             )
 
-            if (rawXrayConfig.httpBindAddress.isNotBlank()) {
+            if (xrayConfig.httpBindAddress.isNotBlank()) {
                 cmdArgs.add("-http")
-                cmdArgs.add(rawXrayConfig.httpBindAddress)
+                cmdArgs.add(xrayConfig.httpBindAddress)
+            }
+            
+            if (rawVlessConfig.vlessUseLocalAddress) {
+                cmdArgs.add("-local-address")
+                cmdArgs.add(clientConfig.connectableAddress)
+            }
+
+            if (clientConfig.vlessMode) {
+                if (rawVlessConfig.isValid()) {
+                    prefs.addVlessLinkToHistory(rawVlessConfig.vlessLink)
+                }
+                cmdArgs.addAll(listOf("-link", rawVlessConfig.vlessLink))
+            } else {
+                cmdArgs.addAll(listOf(
+                    "-wg-private-key", wgConfig.privateKey,
+                    "-wg-public-key", wgConfig.publicKey,
+                    "-wg-endpoint", wgConfig.endpoint,
+                    "-wg-address", wgConfig.address,
+                    "-wg-mtu", wgConfig.mtu,
+                    "-wg-keepalive", wgConfig.persistentKeepalive)
+                )
             }
 
             ProxyServiceState.addLog("[Xray] starting: ${cmdArgs.joinToString(" ")}")
