@@ -116,6 +116,9 @@ fun ClientSetupScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    val importSuccessMessage = stringResource(R.string.wg_import_success)
+    val importErrorMessage = stringResource(R.string.wg_import_error)
+
     val kernelPickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri -> uri?.let { viewModel.setCustomKernel(it) } }
@@ -835,11 +838,11 @@ fun ClientSetupScreen(
                 if (ValidatorUtils.isValidVlessLink(result)) {
                     vlessLink = result
                     scope.launch {
-                        snackbarHostState.showSnackbar(context.getString(R.string.wg_import_success))
+                        snackbarHostState.showSnackbar(importSuccessMessage)
                     }
                 } else {
                     scope.launch {
-                        snackbarHostState.showSnackbar(context.getString(R.string.wg_import_error))
+                        snackbarHostState.showSnackbar(importErrorMessage)
                     }
                 }
             }

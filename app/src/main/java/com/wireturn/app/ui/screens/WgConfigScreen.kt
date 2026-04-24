@@ -2,7 +2,6 @@
 
 package com.wireturn.app.ui.screens
 
-import android.annotation.SuppressLint
 import android.content.ClipData
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -65,7 +64,6 @@ import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-@SuppressLint("LocalContextGetResourceValueCall")
 @Composable
 fun WgConfigScreen(
     viewModel: MainViewModel,
@@ -76,6 +74,11 @@ fun WgConfigScreen(
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val importSuccessMessage = stringResource(R.string.wg_import_success)
+    val importErrorMessage = stringResource(R.string.wg_import_error)
+    val errorWithDetailsFormat = stringResource(R.string.error_with_details)
+
     val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
     val savedWgConfig by viewModel.wgConfig.collectAsStateWithLifecycle()
     val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
@@ -129,17 +132,16 @@ fun WgConfigScreen(
                         if (parsed.isValid()) {
                             viewModel.updateWgConfigText(text)
                             scope.launch {
-                                snackbarHostState.showSnackbar(context.getString(R.string.wg_import_success))
+                                snackbarHostState.showSnackbar(importSuccessMessage)
                             }
                         } else {
                             scope.launch {
-                                snackbarHostState.showSnackbar(context.getString(R.string.wg_import_error))
+                                snackbarHostState.showSnackbar(importErrorMessage)
                             }
                         }
                     }
                 } catch (e: Exception) {
-                    val errorMessage = context.getString(R.string.wg_import_error)
-                    val fullError = context.getString(R.string.error_with_details, errorMessage, e.message ?: "")
+                    val fullError = errorWithDetailsFormat.format(importErrorMessage, e.message ?: "")
                     scope.launch {
                         snackbarHostState.showSnackbar(fullError)
                     }
@@ -242,9 +244,9 @@ fun WgConfigScreen(
                                 val parsed = WgConfig.parse(text)
                                 if (parsed.isValid()) {
                                     viewModel.updateWgConfigText(text)
-                                    snackbarHostState.showSnackbar(context.getString(R.string.wg_import_success))
+                                    snackbarHostState.showSnackbar(importSuccessMessage)
                                 } else {
-                                    snackbarHostState.showSnackbar(context.getString(R.string.wg_import_error))
+                                    snackbarHostState.showSnackbar(importErrorMessage)
                                 }
                             }
                         }
@@ -402,11 +404,11 @@ fun WgConfigScreen(
                 if (parsed.isValid()) {
                     viewModel.updateWgConfigText(result)
                     scope.launch {
-                        snackbarHostState.showSnackbar(context.getString(R.string.wg_import_success))
+                        snackbarHostState.showSnackbar(importSuccessMessage)
                     }
                 } else {
                     scope.launch {
-                        snackbarHostState.showSnackbar(context.getString(R.string.wg_import_error))
+                        snackbarHostState.showSnackbar(importErrorMessage)
                     }
                 }
             }
