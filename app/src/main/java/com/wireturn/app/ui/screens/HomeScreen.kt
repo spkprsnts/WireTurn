@@ -1387,9 +1387,9 @@ private fun RepoLinksContent(
 
             item {
                 RepoLinkItem(
-                    title = stringResource(R.string.proxy_core),
-                    subtitle = "cacggghp/vk-turn-proxy",
-                    url = "https://github.com/cacggghp/vk-turn-proxy",
+                    title = stringResource(R.string.proxy_core_current),
+                    subtitle = "spkprsnts/vk-turn-proxy (branch: dc)",
+                    url = "https://github.com/spkprsnts/vk-turn-proxy/tree/dc",
                     containerColor = containerColor,
                     onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
                     onOpen = { uriHandler.openUri(it) }
@@ -1409,7 +1409,29 @@ private fun RepoLinksContent(
 
             item {
                 RepoLinkItem(
+                    title = stringResource(R.string.proxy_core),
+                    subtitle = "cacggghp/vk-turn-proxy",
+                    url = "https://github.com/cacggghp/vk-turn-proxy",
+                    containerColor = containerColor,
+                    onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
+                    onOpen = { uriHandler.openUri(it) }
+                )
+            }
+
+            item {
+                RepoLinkItem(
                     title = stringResource(R.string.xray_core_name),
+                    subtitle = "spkprsnts/vless-client",
+                    url = "https://github.com/spkprsnts/vless-client",
+                    containerColor = containerColor,
+                    onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
+                    onOpen = { uriHandler.openUri(it) }
+                )
+            }
+
+            item {
+                RepoLinkItem(
+                    title = stringResource(R.string.xray_core_original),
                     subtitle = "XTLS/Xray-core",
                     url = "https://github.com/XTLS/Xray-core",
                     containerColor = containerColor,

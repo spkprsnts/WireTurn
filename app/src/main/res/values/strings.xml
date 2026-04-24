@@ -37,9 +37,11 @@
     <string name="permission_battery">Батарея</string>
     <string name="android_client">Android-клиент</string>
     <string name="android_client_original">Android-клиент (оригинал)</string>
-    <string name="proxy_core">Прокси-ядро</string>
-    <string name="proxy_core_use">Прокси-ядро (используемое)</string>
-    <string name="xray_core_name">Xray</string>
+    <string name="proxy_core_current">Прокси-ядро (используемое)</string>
+    <string name="proxy_core">Прокси-ядро (базовое)</string>
+    <string name="proxy_core_use">Прокси-ядро (старое)</string>
+    <string name="xray_core_name">vless-client</string>
+    <string name="xray_core_original">Xray-core</string>
     <string name="tun2socks">tun2socks</string>
     <string name="btn_open">Открыть</string>
     <string name="btn_close">Закрыть</string>
