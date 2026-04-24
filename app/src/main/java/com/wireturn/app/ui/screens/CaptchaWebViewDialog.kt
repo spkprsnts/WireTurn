@@ -12,6 +12,8 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,6 +42,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
@@ -54,7 +58,15 @@ fun CaptchaWebViewDialog(
     onSuccess: (() -> Unit)? = null
 ) {
     var isLoading by remember { mutableStateOf(true) }
+    val isContentVisible = remember { mutableStateOf(false) }
     var webViewHeight by remember { mutableIntStateOf(0) }
+    val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
+    val contentAlpha by animateFloatAsState(
+        targetValue = if (isContentVisible.value) 1f else 0f,
+        animationSpec = tween(durationMillis = 400),
+        label = "CaptchaVisibility"
+    )
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -144,34 +156,89 @@ fun CaptchaWebViewDialog(
 
                                     override fun onPageFinished(view: WebView?, url: String?) {
                                         super.onPageFinished(view, url)
-                                        isLoading = false
-
+                                        // Не выключаем isLoading сразу, ждем применения стилей
+                                        
                                         view?.evaluateJavascript(
                                             """
                                             (function() {
+                                                var isDark = $isDarkTheme;
+                                                
+                                                var applyTheme = function() {
+                                                    var appRoot = document.querySelector('.vkc__AppRoot-module__host');
+                                                    if (!appRoot) return;
+
+                                                    var target = isDark ? 'vkui--vkAccessibilityIOS--dark' : 'vkui--vkAccessibilityIOS--light';
+                                                    var others = isDark ? 
+                                                        ['vkui--vkAccessibility--dark', 'vkui--vkAccessibilityIOS--light', 'vkui--vkAccessibility--light'] : 
+                                                        ['vkui--vkAccessibility--dark', 'vkui--vkAccessibilityIOS--dark', 'vkui--vkAccessibility--light'];
+                                                    
+                                                    var needsUpdate = !appRoot.classList.contains(target);
+                                                    if (!needsUpdate) {
+                                                        for (var i = 0; i < others.length; i++) {
+                                                            if (appRoot.classList.contains(others[i])) {
+                                                                needsUpdate = true;
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
+
+                                                    if (needsUpdate) {
+                                                        AndroidBridge.logDebug('Updating theme classes on .vkc__AppRoot-module__host');
+                                                        others.forEach(function(c) { appRoot.classList.remove(c); });
+                                                        appRoot.classList.add(target);
+                                                    }
+                                                };
+
                                                 var style = document.createElement('style');
                                                 style.innerHTML = `
-                                                    html, body, .vkc__ModalOverlay-module__host { 
+                                                    html, body, .vkc__ModalOverlay-module__host, .vkc__ModalCardBase-module__container { 
                                                         background: transparent !important; 
                                                         background-color: transparent !important; 
+                                                        box-shadow: none !important; 
+                                                    }
+                                                    .vkc__ModalCardBase-module__container {
+                                                        padding: 0 !important;
+                                                    }
+                                                    .vkc__NotRobotCaptcha-module__appRoot > div,
+                                                    .vkc__ModalCard-module__hostMobile {
+                                                        animation: none !important;
+                                                        transition: none !important;
+                                                        transform: none !important;
+                                                    }
+                                                    .vkc__ModalCardBase-module__dismiss, 
+                                                    .vkc__CheckboxPopupCaptcha-module__captchaId, 
+                                                    .vkc__CheckboxPopupCaptcha-module__termsLink { 
+                                                        display: none !important; 
+                                                    }
+                                                    .vkc__CheckboxPopupCaptcha-module__checkboxBlock { 
+                                                        padding: 0 !important;
+                                                    }
+                                                    .vkc__Checkbox-module__Checkbox { 
+                                                        transform: scale(1.2) !important;
                                                     }
                                                 `;
                                                 document.head.appendChild(style);
+                                                
+                                                applyTheme();
 
                                                 var checkCaptcha = function() {
+                                                    applyTheme();
                                                     if (document.body.innerText.includes('Done! You can close the page.')) {
                                                         AndroidBridge.onCaptchaSuccess();
                                                         return true;
                                                     }
                                                     
-                                                    var dialog = document.querySelector('[role="dialog"]');
-                                                    if (!dialog) dialog = document.querySelector('.vkc__Captcha-module__container');
-                                                    if (!dialog) dialog = document.querySelector('body > div');
+                                                    var dialog = document.querySelector('[role="dialog"]') || 
+                                                                 document.querySelector('.vkc__ModalCardBase-module__container') || 
+                                                                 document.querySelector('.vkc__Captcha-module__container') || 
+                                                                 document.querySelector('body > div');
                                                     
                                                     if (dialog) {
                                                         var height = dialog.offsetHeight || dialog.getBoundingClientRect().height;
                                                         if (height > 0) {
                                                             AndroidBridge.updateSize(Math.ceil(height));
+                                                            // Сообщаем, что контент готов к показу
+                                                            AndroidBridge.showContent();
                                                         }
                                                     }
                                                     return false;
@@ -188,6 +255,11 @@ fun CaptchaWebViewDialog(
                                                         attributes: true 
                                                     });
                                                 }
+                                                
+                                                // На всякий случай показываем через небольшую задержку, если высота не определилась
+                                                setTimeout(function() {
+                                                    AndroidBridge.showContent();
+                                                }, 500);
                                             })();
                                             """.trimIndent(), null
                                         )
@@ -208,12 +280,27 @@ fun CaptchaWebViewDialog(
                                             webViewHeight = height
                                         }
                                     }
+
+                                    @JavascriptInterface
+                                    fun showContent() {
+                                        post {
+                                            isLoading = false
+                                            isContentVisible.value = true
+                                        }
+                                    }
+
+                                    @JavascriptInterface
+                                    fun logDebug(message: String) {
+                                        android.util.Log.d("CaptchaWebView", message)
+                                    }
                                 }, "AndroidBridge")
 
                                 loadUrl(captchaUrl)
                             }
                         },
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer { alpha = contentAlpha }
                     )
 
                     if (isLoading) {
@@ -222,8 +309,6 @@ fun CaptchaWebViewDialog(
                         )
                     }
                 }
-
-                Spacer(modifier = Modifier.height(24.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
