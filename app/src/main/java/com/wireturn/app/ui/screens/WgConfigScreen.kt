@@ -81,6 +81,8 @@ fun WgConfigScreen(
     val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
     val runningConfig by com.wireturn.app.XrayServiceState.runningWgConfig.collectAsStateWithLifecycle()
 
+    val showQrScanner = remember { mutableStateOf(false) }
+
     // Local states for auto-save logic
     var privateKey by rememberSaveable(savedWgConfig.privateKey) { mutableStateOf(savedWgConfig.privateKey) }
     var address by rememberSaveable(savedWgConfig.address) { mutableStateOf(savedWgConfig.address) }
@@ -211,16 +213,25 @@ fun WgConfigScreen(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Button(
                     onClick = { filePickerLauncher.launch("*/*") },
                     modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 8.dp)
+                    contentPadding = PaddingValues(horizontal = 4.dp)
                 ) {
                     Icon(painterResource(R.drawable.file_open_24px), null, Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.wg_import_file))
+                    Spacer(Modifier.width(4.dp))
+                    Text(stringResource(R.string.wg_import_file), maxLines = 1)
+                }
+                Button(
+                    onClick = { showQrScanner.value = true },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 4.dp)
+                ) {
+                    Icon(painterResource(R.drawable.qr_code_24px), null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(stringResource(R.string.wg_import_qr), maxLines = 1)
                 }
                 Button(
                     onClick = {
@@ -238,11 +249,11 @@ fun WgConfigScreen(
                         }
                     },
                     modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 8.dp)
+                    contentPadding = PaddingValues(horizontal = 4.dp)
                 ) {
                     Icon(painterResource(R.drawable.content_paste_24px), null, Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.wg_import_clipboard))
+                    Spacer(Modifier.width(4.dp))
+                    Text(stringResource(R.string.wg_import_clipboard), maxLines = 1)
                 }
             }
 
@@ -400,5 +411,19 @@ fun WgConfigScreen(
 
             Spacer(Modifier.height(24.dp))
         }
+    }
+
+    if (showQrScanner.value) {
+        QrScannerDialog(
+            title = stringResource(R.string.wg_import_qr),
+            message = stringResource(R.string.wg_qr_scan_desc),
+            onDismiss = { showQrScanner.value = false },
+            onResult = { result ->
+                viewModel.updateWgConfigText(result)
+                scope.launch {
+                    snackbarHostState.showSnackbar(context.getString(R.string.wg_import_success))
+                }
+            }
+        )
     }
 }

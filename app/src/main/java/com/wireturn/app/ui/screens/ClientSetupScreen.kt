@@ -136,6 +136,8 @@ fun ClientSetupScreen(
     var jazzCreds    by rememberSaveable(saved.jazzCreds)      { mutableStateOf(saved.jazzCreds) }
     var lastSliderInt by rememberSaveable { mutableIntStateOf(saved.threads) }
 
+    val showVlessQrScanner = remember { mutableStateOf(false) }
+
     val isServerAddressValid = remember(serverAddress) {
         ValidatorUtils.isValidHostPort(serverAddress)
     }
@@ -487,6 +489,12 @@ fun ClientSetupScreen(
                                 trailingIcon = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         ConfigFieldIndicator(runningVlessConfig != null && vlessLink.trim() != runningVlessConfig?.vlessLink)
+                                        IconButton(onClick = { showVlessQrScanner.value = true }) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.qr_code_24px),
+                                                contentDescription = stringResource(R.string.wg_import_qr)
+                                            )
+                                        }
                                         HistoryIconButton(
                                             history = vlessLinkHistory,
                                             onSelect = { vlessLink = it },
@@ -809,6 +817,17 @@ fun ClientSetupScreen(
             Spacer(Modifier.height(28.dp))
         }
 
+    }
+
+    if (showVlessQrScanner.value) {
+        QrScannerDialog(
+            title = stringResource(R.string.vless_import_qr),
+            message = stringResource(R.string.vless_qr_scan_desc),
+            onDismiss = { showVlessQrScanner.value = false },
+            onResult = { result ->
+                vlessLink = result
+            }
+        )
     }
 }
 

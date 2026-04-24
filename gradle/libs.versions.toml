@@ -12,6 +12,9 @@ coreSplashscreen = "1.2.0"
 kotlinxCoroutines = "1.10.2"
 composeMaterial3 = "1.5.0-alpha18"
 lifecycleProcess = "2.10.0"
+barcodeScanning = "17.3.0"
+camera = "1.6.0"
+guava = "33.6.0-android"
 
 
 [libraries]
@@ -31,6 +34,11 @@ androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lif
 androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
 androidx-lifecycle-process = { group = "androidx.lifecycle", name = "lifecycle-process", version.ref = "lifecycleProcess" }
+mlkit-barcode-scanning = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "barcodeScanning" }
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camera" }
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camera" }
+androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camera" }
+guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
 
 
 [plugins]
