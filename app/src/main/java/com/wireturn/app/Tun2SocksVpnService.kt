@@ -7,7 +7,6 @@ import android.os.ParcelFileDescriptor
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.data.XrayConfig.Companion.DEFAULT_SOCKS_BIND_ADDRESS
-import com.wireturn.app.data.WgConfig
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
 import java.io.BufferedReader
@@ -198,6 +197,5 @@ class Tun2SocksVpnService : VpnService() {
         const val ACTION_STOP = "com.wireturn.app.vpn.STOP"
         const val ACTION_STOP_BY_USER = "com.wireturn.app.vpn.STOP_BY_USER"
         const val EXTRA_SOCKS5_ADDR = "socks5_addr"
-        const val EXTRA_MTU = "mtu"
     }
 }
