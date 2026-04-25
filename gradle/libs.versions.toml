@@ -15,7 +15,7 @@ lifecycleProcess = "2.10.0"
 barcodeScanning = "17.3.0"
 camera = "1.6.0"
 guava = "33.6.0-android"
-material3 = "1.4.0"
+gson = "2.14.0"
 
 
 [libraries]
@@ -40,7 +40,7 @@ androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", 
 androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camera" }
 androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camera" }
 guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
-androidx-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
+gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 
 
 [plugins]

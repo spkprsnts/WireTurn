@@ -200,13 +200,24 @@ enum class ThemeMode {
     DARK, LIGHT, SYSTEM
 }
 
+data class Profile(
+    val id: String,
+    val name: String,
+    val clientConfig: ClientConfig = ClientConfig(),
+    val xrayConfig: XrayConfig = XrayConfig(),
+    val wgConfig: WgConfig = WgConfig(),
+    val vlessConfig: VlessConfig = VlessConfig()
+)
+
 // P2-3 / P3-6: всегда используем applicationContext, чтобы lazy-init encryptedPrefs
-// не мог сработать на уничтоженном контексте (например Service после onDestroy)
 class AppPreferences(context: Context) {
     private val context = context.applicationContext
+    private val gson = com.google.gson.Gson()
 
     companion object {
         val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
+        val PROFILES_JSON = stringPreferencesKey("profiles_json")
+        val CURRENT_PROFILE_ID = stringPreferencesKey("current_profile_id")
         val CLIENT_SERVER_ADDR = stringPreferencesKey("client_server_addr")
         val CLIENT_VK_LINK = stringPreferencesKey("client_vk_link")
         val CLIENT_WBSTREAM_UUID = stringPreferencesKey("client_wbstream_uuid")
@@ -246,6 +257,33 @@ class AppPreferences(context: Context) {
         val CLIENT_KERNEL_VARIANT = stringPreferencesKey("client_kernel_variant")
         val TURNABLE_URL_HISTORY = stringPreferencesKey("turnable_url_history")
         val BATTERY_NOTIFICATION_DISMISSED = booleanPreferencesKey("battery_notification_dismissed")
+    }
+
+    val profilesFlow: Flow<List<Profile>> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { prefs ->
+            val json = prefs[PROFILES_JSON] ?: ""
+            if (json.isBlank()) emptyList()
+            else try {
+                val type = object : com.google.gson.reflect.TypeToken<List<Profile>>() {}.type
+                gson.fromJson<List<Profile>>(json, type)
+            } catch (_: Exception) { emptyList() }
+        }
+
+    val currentProfileIdFlow: Flow<String> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { it[CURRENT_PROFILE_ID] ?: "default" }
+
+    suspend fun saveProfiles(profiles: List<Profile>) {
+        context.dataStore.edit { prefs ->
+            prefs[PROFILES_JSON] = gson.toJson(profiles)
+        }
+    }
+
+    suspend fun setCurrentProfileId(id: String) {
+        context.dataStore.edit { prefs ->
+            prefs[CURRENT_PROFILE_ID] = id
+        }
     }
 
     val clientConfigFlow: Flow<ClientConfig> = context.dataStore.data

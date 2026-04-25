@@ -12,8 +12,6 @@
     <string name="proxy_press_to_start">Нажмите для запуска</string>
     <string name="proxy_stop">Остановить</string>
     <string name="current_client_settings">Текущие настройки клиента</string>
-    <string name="call_link">Ссылка на звонок</string>
-    <string name="turnable_url">Turnable-ссылка</string>
     <string name="server">Сервер</string>
     <string name="threads">Потоки</string>
     <string name="tcp">TCP</string>
@@ -51,33 +49,25 @@
     <string name="reset_settings">Сбросить настройки</string>
     <string name="reset">Сбросить</string>
     <string name="reset_all_settings_title">Сбросить все настройки?</string>
-    <string name="reset_all_settings_desc">Все настройки будут удалены, прокси остановлен. Приложение перезапустится.</string>
+    <string name="reset_all_settings_desc">Все профили, история и настройки будут полностью удалены. Приложение перезапустится.</string>
     <string name="cancel">Отмена</string>
     <string name="vpn_mode">Режим VPN</string>
     <string name="vpn_start">Включить VPN</string>
     <string name="vpn_stop">Выключить VPN</string>
 
     <!-- WgConfigScreen -->
-    <string name="wg_title">WireGuard</string>
-    <string name="wg_config_title">Конфигурация WireGuard</string>
     <string name="wg_import_config">Импорт WireGuard</string>
     <string name="wg_import_file">Из файла</string>
     <string name="wg_import_qr">Импорт WireGuard</string>
     <string name="wg_import_clipboard">Из буфера</string>
     <string name="wg_qr_scan_desc">Наведите камеру на QR-код конфигурации WireGuard для импорта</string>
-    <string name="wg_no_qr_found">QR-код не найден</string>
-    <string name="wg_camera_permission_denied">Доступ к камере отклонен</string>
     <string name="wg_import_success">Конфигурация импортирована</string>
     <string name="wg_import_error">Ошибка импорта</string>
-    <string name="wg_export_success">Конфигурация скопирована</string>
-    <string name="wg_edit_config">Редактирование WG конфига</string>
     <string name="wg_interface">Interface</string>
     <string name="wg_private_key">Private Key</string>
     <string name="wg_private_key_placeholder">WG_PRIVATE_KEY</string>
     <string name="wg_address">Address</string>
     <string name="wg_address_placeholder">10.0.0.1/32</string>
-    <string name="wg_dns">DNS</string>
-    <string name="wg_dns_placeholder">1.1.1.1</string>
     <string name="wg_mtu">MTU</string>
     <string name="wg_mtu_placeholder">1280</string>
     <string name="wg_peer">Peer</string>
@@ -87,21 +77,16 @@
     <string name="wg_endpoint_placeholder">127.0.0.1:9000</string>
     <string name="wg_endpoint_mismatch">Не равен локальному адресу\nпрослушивания!</string>
     <string name="wg_endpoint_fix">Изменить?</string>
-    <string name="wg_allowed_ips">Allowed IPs</string>
-    <string name="wg_allowed_ips_placeholder">0.0.0.0/0</string>
     <string name="wg_persistent_keepalive">Persistent Keepalive</string>
     <string name="wg_persistent_keepalive_placeholder">25</string>
     <string name="wg_mtu_recommendation">Рекомендуемое значение — 1280</string>
 
     <!-- Xray Settings -->
     <string name="xray_title">Xray</string>
-    <string name="xray_proxy_addresses">Адреса прокси</string>
     <string name="xray_http">HTTP</string>
     <string name="xray_http_placeholder">127.0.0.1:8080</string>
     <string name="xray_socks5">SOCKS5</string>
     <string name="xray_socks5_placeholder">127.0.0.1:2080</string>
-    <string name="xray_http_copied">HTTP прокси скопирован</string>
-    <string name="xray_socks5_copied">SOCKS5 прокси скопирован</string>
 
 
     <!-- ClientSetupScreen -->
@@ -124,7 +109,6 @@
     <string name="wbstream_uuid_placeholder">UUID</string>
     <string name="wbstream_uuid_support">Создаётся на сервере</string>
     <string name="history_label">История</string>
-    <string name="history_empty">История пуста</string>
     <string name="tunnel_label">Туннель</string>
     <string name="kernel_label">Ядро</string>
     <string name="kernel_vk_turn_proxy">vk-turn-proxy</string>
@@ -139,7 +123,6 @@
     <string name="threads_recommendation">Рекомендуется 4–8</string>
     <string name="vless_mode">VLESS-режим</string>
     <string name="vless_mode_desc">Проброс VLESS через туннель</string>
-    <string name="vless_mode_support">\n(требует -vless на сервере)</string>
     <string name="transport_protocol">Транспорт</string>
     <string name="transport_protocol_desc">UDP снижает задержки, TCP — стабильнее</string>
     <string name="no_dtls">Без DTLS-шифрования</string>
@@ -151,7 +134,6 @@
     <string name="jazz_label">SaluteJazz</string>
     <string name="wb_stream_label">WB Stream</string>
     <string name="dc_type_label">Сервис DC</string>
-    <string name="jazz_desc">Использовать SaluteJazz</string>
     <string name="jazz_creds_label">Код:пароль комнаты SaluteJazz</string>
     <string name="jazz_creds_placeholder">room:password</string>
     <string name="jazz_creds_support">Создаётся на сервере</string>
@@ -232,7 +214,6 @@
     <string name="log_process_stopped">=== ПРОЦЕСС ОСТАНОВЛЕН (Код: %1$d) ===</string>
     <string name="log_startup_failed_no_watchdog">=== Ошибка при запуске, watchdog не активирован ===</string>
     <string name="log_quick_exit">=== Быстрый выход (%1$dмс) — проверьте VK-ссылку и настройки ===</string>
-    <string name="log_session_finished">=== Сессия завершена нормально ===</string>
     <string name="log_watchdog_limit">=== WATCHDOG: превышен лимит попыток (%1$d), остановка ===</string>
     <string name="log_watchdog_restart">=== WATCHDOG: перезапуск через %1$dмс (попытка %2$d/%3$d) ===</string>
     <string name="log_network_change">=== СМЕНА СЕТИ — ПЕРЕЗАПУСК ===</string>
@@ -255,7 +236,6 @@
     <string name="captcha_channel_description">Уведомления о необходимости прохождения капчи</string>
     <string name="xray_short">Xray</string>
     <string name="xray_protocol_label">Протокол</string>
-    <string name="xray_settings_title">Настройки Xray</string>
     <string name="wg_short">WG</string>
     <string name="vpn_short">VPN</string>
     <string name="captcha_notification_title">Требуется капча</string>
@@ -266,7 +246,6 @@
     <string name="notification_network_change">Смена сети, переподключение…</string>
     <string name="error_with_details">%1$s: %2$s</string>
     <string name="vless">VLESS</string>
-    <string name="dc">DC</string>
     <string name="redacted_value">••••••</string>
     <string name="not_set">не задано</string>
     <string name="dash">—</string>
@@ -306,4 +285,17 @@
     <string name="url_param_value">Значение</string>
     <string name="url_base">Базовый URL</string>
     <string name="add_parameter">Добавить параметр</string>
+
+    <!-- Profiles -->
+    <string name="profiles_title">Профили</string>
+    <string name="btn_change_profile">Сменить</string>
+    <string name="profile_create">Создать профиль</string>
+    <string name="profile_clone">Клонировать</string>
+    <string name="profile_rename">Переименовать</string>
+    <string name="profile_delete">Удалить</string>
+    <string name="profile_export">Экспортировать</string>
+    <string name="profile_import">Импортировать</string>
+    <string name="profile_name_label">Название профиля</string>
+    <string name="profile_delete_confirm">Удалить профиль %1$s?</string>
+    <string name="profile_delete_desc">Все настройки этого профиля будут удалены.</string>
 </resources>

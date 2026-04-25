@@ -14,10 +14,14 @@ import com.wireturn.app.XrayServiceState
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.DCType
+import com.wireturn.app.data.Profile
 import com.wireturn.app.data.ThemeMode
+import com.wireturn.app.data.VlessConfig
 import com.wireturn.app.data.WgConfig
+import com.wireturn.app.data.XrayConfig
 import com.wireturn.app.domain.AppUpdater
 import com.wireturn.app.domain.LocalProxyManager
+import com.wireturn.app.domain.ProfileManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -38,6 +42,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val prefs = AppPreferences(application)
     private val proxyManager = LocalProxyManager(application)
     private val appUpdater = AppUpdater(application)
+    private val profileManager = ProfileManager(prefs, viewModelScope)
 
     val proxyState: StateFlow<ProxyState> = proxyManager.proxyState
     val logs: StateFlow<List<String>> = AppLogsState.logs
@@ -66,11 +71,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _wgConfig = MutableStateFlow(WgConfig())
     val wgConfig: StateFlow<WgConfig> = _wgConfig.asStateFlow()
 
-    private val _xrayConfig = MutableStateFlow(com.wireturn.app.data.XrayConfig())
-    val xrayConfig: StateFlow<com.wireturn.app.data.XrayConfig> = _xrayConfig.asStateFlow()
+    private val _xrayConfig = MutableStateFlow(XrayConfig())
+    val xrayConfig: StateFlow<XrayConfig> = _xrayConfig.asStateFlow()
 
-    private val _vlessConfig = MutableStateFlow(com.wireturn.app.data.VlessConfig())
-    val vlessConfig: StateFlow<com.wireturn.app.data.VlessConfig> = _vlessConfig.asStateFlow()
+    private val _vlessConfig = MutableStateFlow(VlessConfig())
+    val vlessConfig: StateFlow<VlessConfig> = _vlessConfig.asStateFlow()
+
+    val profiles: StateFlow<List<Profile>> = profileManager.profiles
+    val currentProfileId: StateFlow<String> = profileManager.currentProfileId
 
     // Custom kernel
     private val _kernelError = MutableStateFlow<String?>(null)
@@ -124,6 +132,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _wgConfig.value = wgConfig
             _xrayConfig.value = xrayConfig
             _vlessConfig.value = vlessConfig
+
+            val currentProfiles = prefs.profilesFlow.first()
+            if (currentProfiles.isEmpty()) {
+                val defaultProfile = Profile(
+                    id = "default",
+                    name = "Default",
+                    clientConfig = config,
+                    xrayConfig = xrayConfig,
+                    wgConfig = wgConfig,
+                    vlessConfig = vlessConfig
+                )
+                prefs.saveProfiles(listOf(defaultProfile))
+                prefs.setCurrentProfileId("default")
+            }
 
             _isInitialized.value = true
 
@@ -294,7 +316,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun dismissCaptcha() { proxyManager.dismissCaptcha() }
     fun clearLogs() { AppLogsState.clearLogs() }
-    fun saveClientConfig(config: ClientConfig) { viewModelScope.launch { prefs.saveClientConfig(config) } }
+    fun saveClientConfig(config: ClientConfig) {
+        _clientConfig.value = config
+        viewModelScope.launch {
+            prefs.saveClientConfig(config)
+            updateCurrentProfileInList()
+        }
+    }
     fun removeVkLinkFromHistory(link: String) { viewModelScope.launch { prefs.removeVkLinkFromHistory(link) } }
     fun removeWbstreamUuidFromHistory(uuid: String) { viewModelScope.launch { prefs.removeWbstreamUuidFromHistory(uuid) } }
     fun removeServerAddressFromHistory(address: String) { viewModelScope.launch { prefs.removeServerAddressFromHistory(address) } }
@@ -362,20 +390,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _wgConfig.value = config
         viewModelScope.launch {
             prefs.saveWgConfig(config)
+            updateCurrentProfileInList()
         }
     }
 
-    fun updateXrayConfig(config: com.wireturn.app.data.XrayConfig) {
+    fun updateXrayConfig(config: XrayConfig) {
         _xrayConfig.value = config
         viewModelScope.launch {
             prefs.saveXrayConfig(config)
+            updateCurrentProfileInList()
         }
     }
 
-    fun updateVlessConfig(config: com.wireturn.app.data.VlessConfig) {
+    fun updateVlessConfig(config: VlessConfig) {
         _vlessConfig.value = config
         viewModelScope.launch {
             prefs.saveVlessConfig(config)
+            updateCurrentProfileInList()
         }
     }
 
@@ -385,9 +416,36 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _wgConfig.value = parsed
             viewModelScope.launch {
                 prefs.saveWgConfig(parsed)
+                updateCurrentProfileInList()
             }
         }
     }
+
+    private fun updateCurrentProfileInList() {
+        profileManager.updateCurrentProfile(
+            _clientConfig.value,
+            _xrayConfig.value,
+            _wgConfig.value,
+            _vlessConfig.value
+        )
+    }
+
+    fun selectProfile(id: String) {
+        profileManager.selectProfile(id) { client, xray, wg, vless ->
+            _clientConfig.value = client
+            _xrayConfig.value = xray
+            _wgConfig.value = wg
+            _vlessConfig.value = vless
+        }
+    }
+
+    fun createProfile(name: String) = profileManager.createProfile(name)
+    fun cloneProfile(id: String, newName: String) = profileManager.cloneProfile(id, newName)
+    fun deleteProfile(id: String) = profileManager.deleteProfile(id) { selectProfile("default") }
+    fun renameProfile(id: String, newName: String) = profileManager.renameProfile(id, newName)
+    fun reorderProfiles(newList: List<Profile>) = profileManager.reorderProfiles(newList)
+    fun getProfileJson(id: String): String? = profileManager.getProfileJson(id)
+    fun importProfile(json: String) = profileManager.importProfile(json)
 
     private fun isValidHostPort(address: String): Boolean {
         return com.wireturn.app.ui.ValidatorUtils.isValidHostPort(address)
@@ -403,7 +461,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             proxyManager.clearState()
             AppLogsState.clearLogs()
             _wgConfig.value = WgConfig()
-            _xrayConfig.value = com.wireturn.app.data.XrayConfig()
+            _xrayConfig.value = XrayConfig()
             val intent = (context as? android.app.Activity)?.intent
                 ?: Intent(context, com.wireturn.app.MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)

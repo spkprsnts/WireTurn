@@ -138,6 +138,7 @@ import kotlin.math.pow
 fun HomeScreen(
     viewModel: MainViewModel
 ) {
+    // --- State & Data ---
     val context = LocalContext.current
     val proxyState by viewModel.proxyState.collectAsStateWithLifecycle()
     val xrayState by XrayServiceState.state.collectAsStateWithLifecycle()
@@ -154,6 +155,8 @@ fun HomeScreen(
 
     val proxyPing by viewModel.proxyPing.collectAsStateWithLifecycle()
     var lastSuccessPing by remember { mutableStateOf<MainViewModel.PingResult.Success?>(null) }
+    
+    // --- Effects & Lifecycle ---
     LaunchedEffect(proxyPing) {
         if (proxyPing is MainViewModel.PingResult.Success) {
             lastSuccessPing = proxyPing as MainViewModel.PingResult.Success
@@ -173,6 +176,8 @@ fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     val lifecycleOwner = LocalLifecycleOwner.current
+    
+    // --- Launchers ---
     val batteryOptLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { /* пользователь закрыл диалог батареи — результат нас не интересует */ }
@@ -185,6 +190,17 @@ fun HomeScreen(
     val notificationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { _ -> }
+
+    val profileImportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let {
+            context.contentResolver.openInputStream(it)?.use { stream ->
+                val json = stream.bufferedReader().readText()
+                viewModel.importProfile(json)
+            }
+        }
+    }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -221,6 +237,7 @@ fun HomeScreen(
         }
     }
 
+    // --- Business Logic Logic (Mismatches & Alerts) ---
     val warnVlessMismatch = stringResource(R.string.warn_proxy_vless_mismatch)
     val warnWgMismatch = stringResource(R.string.warn_proxy_wg_mismatch)
 
@@ -249,6 +266,7 @@ fun HomeScreen(
         }
     }
 
+    // --- UI Layout ---
     Scaffold(
         topBar = {
             TopAppBar(
@@ -287,6 +305,7 @@ fun HomeScreen(
                 }
             }
 
+            // 1. Permission & Optimization Banner
             AnimatedVisibility(
                 visible = (!isIgnoringBatteryOptimizations || !hasNotificationPermission) && !batteryNotificationDismissed,
                 enter = fadeIn() + expandVertically(),
@@ -395,6 +414,7 @@ fun HomeScreen(
                 Spacer(Modifier.height(10.dp))
             }
 
+            // 2. Proxy Toggle Button
             ProxyToggleButton(
                 state = proxyState,
                 onClick = {
@@ -444,6 +464,7 @@ fun HomeScreen(
 
             Spacer(Modifier.height(10.dp))
             
+            // 4. Ping & Transfer Stats
             AnimatedVisibility(
                 visible = xrayState == XrayState.Running,
                 enter = fadeIn() + expandVertically(),
@@ -614,9 +635,26 @@ fun HomeScreen(
                     }
                 }
             }
-            
+
             Spacer(Modifier.height(10.dp))
 
+            // 3. Profiles Block
+            val showProfilesDialog = rememberSaveable { mutableStateOf(false) }
+            ProfilesBlock(viewModel) {
+                showProfilesDialog.value = true
+            }
+
+            if (showProfilesDialog.value) {
+                ProfilesDialog(
+                    viewModel = viewModel,
+                    onImport = { profileImportLauncher.launch(arrayOf("application/json")) },
+                    onDismiss = { showProfilesDialog.value = false }
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // 5. Xray & VPN Settings Card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -819,8 +857,9 @@ fun HomeScreen(
                 }
             }
 
+            // 6. Current Connection Details
             if (activeConfig.isValid) {
-                Spacer(Modifier.height(21.dp))
+                Spacer(Modifier.height(16.dp))
 
                 Card(
                     modifier = Modifier
@@ -1010,6 +1049,8 @@ fun HomeScreen(
     UpdateDialogs(viewModel)
 }
 
+// --- Dialogs & Sheets ---
+
 @Composable
 private fun UpdateDialogs(viewModel: MainViewModel) {
     val context = LocalContext.current
@@ -1093,6 +1134,8 @@ private fun UpdateDialogs(viewModel: MainViewModel) {
         else -> {}
     }
 }
+
+// --- UI Components ---
 
 // Кнопка прокси
 @Composable
@@ -1630,6 +1673,8 @@ private fun RepoLinkItem(
     }
 }
 
+
+// --- Utils ---
 
 private fun formatBytes(bytes: Long): String {
     if (bytes <= 0) return "0 B"

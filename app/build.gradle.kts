@@ -63,8 +63,8 @@ kotlin {
 
 dependencies {
     implementation(libs.androidx.core.splashscreen)
-    implementation(libs.androidx.material3)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.gson)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
