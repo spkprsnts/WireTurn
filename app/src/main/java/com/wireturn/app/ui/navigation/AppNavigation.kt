@@ -2,7 +2,6 @@ package com.wireturn.app.ui.navigation
 
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -10,25 +9,37 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.ime
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
@@ -105,12 +116,21 @@ fun AppNavigation(
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
+            val navBarsPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+            val bottomPadding = if (showBottomBar) {
+                innerPadding.calculateBottomPadding()
+            } else if (!isKeyboardVisible) {
+                navBarsPadding
+            } else {
+                0.dp
+            }
+
             NavHost(
                 navController = navController,
                 startDestination = finalStartDestination,
                 modifier = Modifier
                     .statusBarsPadding()
-                    .padding(bottom = innerPadding.calculateBottomPadding()),
+                    .padding(bottom = bottomPadding),
                 // M3 Transition Style
                 enterTransition = {
                     val targetIndex = routesList.indexOf(targetState.destination.route)
@@ -237,7 +257,7 @@ private data class NavItem(
 private val navItems = listOf(
     NavItem(Routes.HOME, R.string.nav_home, R.drawable.home_24px, R.drawable.home_outlined_24px),
     NavItem(Routes.CLIENT_SETUP, R.string.client_title, R.drawable.mobile_24px, R.drawable.mobile_outlined_24px),
-    NavItem(Routes.XRAY_CONFIG, R.string.xray_short, R.drawable.wifi_24px, R.drawable.wifi_24px),
+    NavItem(Routes.XRAY_CONFIG, R.string.xray_short, R.drawable.ic_xray_24px, R.drawable.ic_xray_24px),
     NavItem(Routes.LOGS, R.string.logs_title, R.drawable.terminal_24px, R.drawable.terminal_24px)
 )
 
@@ -247,27 +267,51 @@ private fun AppNavigationBar(
     onNavigate: (String) -> Unit
 ) {
     val context = LocalContext.current
-    NavigationBar {
-        navItems.forEach { item ->
-            val selected = currentRoute == item.route
-            NavigationBarItem(
-                selected = selected,
-                onClick = {
-                    if (!selected) HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
-                    onNavigate(item.route)
-                },
-                icon = {
-                    Crossfade(targetState = selected, label = "nav_icon_${item.route}") { isSelected ->
-                        Icon(
-                            painter = painterResource(
-                                if (isSelected) item.selectedIconRes else item.unselectedIconRes
-                            ),
-                            contentDescription = stringResource(item.labelResId)
-                        )
-                    }
-                },
-                label = { Text(stringResource(item.labelResId)) }
-            )
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(NavigationBarDefaults.windowInsets),
+            contentAlignment = Alignment.Center
+        ) {
+            NavigationBar(
+                modifier = Modifier
+                    .height(64.dp)
+                    .widthIn(max = 600.dp), // Ограничитель ширины для больших экранов
+                containerColor = Color.Transparent,
+                tonalElevation = 0.dp
+            ) {
+                navItems.forEach { item ->
+                    val selected = currentRoute == item.route
+                    NavigationBarItem(
+                        selected = selected,
+                        label = {
+                            Text(
+                                text = stringResource(item.labelResId),
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        },
+                        alwaysShowLabel = true,
+                        onClick = {
+                            if (!selected) {
+                                HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
+                                onNavigate(item.route)
+                            }
+                        },
+                        icon = {
+                            Icon(
+                                painter = painterResource(
+                                    if (selected) item.selectedIconRes else item.unselectedIconRes
+                                ),
+                                contentDescription = stringResource(item.labelResId)
+                            )
+                        }
+                    )
+                }
+            }
         }
     }
 }
