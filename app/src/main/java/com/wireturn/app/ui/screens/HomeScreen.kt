@@ -11,10 +11,16 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -90,6 +96,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
@@ -146,6 +153,16 @@ fun HomeScreen(
     val runningXrayConfig by XrayServiceState.runningXrayConfig.collectAsStateWithLifecycle()
 
     val proxyPing by viewModel.proxyPing.collectAsStateWithLifecycle()
+    var lastSuccessPing by remember { mutableStateOf<MainViewModel.PingResult.Success?>(null) }
+    LaunchedEffect(proxyPing) {
+        if (proxyPing is MainViewModel.PingResult.Success) {
+            lastSuccessPing = proxyPing as MainViewModel.PingResult.Success
+        }
+    }
+    LaunchedEffect(runningXrayConfig) {
+        lastSuccessPing = null
+    }
+
     val proxyTransfer by viewModel.proxyTransfer.collectAsStateWithLifecycle()
     val wgConfig by viewModel.wgConfig.collectAsStateWithLifecycle()
 
@@ -468,20 +485,51 @@ fun HomeScreen(
                                     modifier = Modifier.widthIn(min = 48.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    when (val ping = proxyPing) {
+                                    val currentPing = proxyPing
+                                    val infiniteTransition = rememberInfiniteTransition(label = "ping_pulse")
+                                    val pulseAlpha by infiniteTransition.animateFloat(
+                                        initialValue = 0.3f,
+                                        targetValue = 0.9f,
+                                        animationSpec = infiniteRepeatable(
+                                            animation = tween(1000, easing = LinearEasing),
+                                            repeatMode = RepeatMode.Reverse
+                                        ),
+                                        label = "pulse_alpha"
+                                    )
+
+                                    when (currentPing) {
                                         is MainViewModel.PingResult.Loading -> {
-                                            CircularWavyProgressIndicator(
-                                                modifier = Modifier.size(14.dp)
-                                            )
+                                            if (lastSuccessPing != null) {
+                                                Text(
+                                                    text = stringResource(R.string.ping_ms, lastSuccessPing!!.ms),
+                                                    style = MaterialTheme.typography.labelLarge,
+                                                    color = when {
+                                                        lastSuccessPing!!.ms < 150 -> MaterialTheme.extendedColorScheme.success
+                                                        lastSuccessPing!!.ms < 300 -> MaterialTheme.extendedColorScheme.warning
+                                                        else -> MaterialTheme.colorScheme.error
+                                                    }.copy(alpha = pulseAlpha),
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            } else {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(width = 42.dp, height = 14.dp)
+                                                        .graphicsLayer { alpha = pulseAlpha }
+                                                        .background(
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
+                                                            shape = CircleShape
+                                                        )
+                                                )
+                                            }
                                         }
 
                                         is MainViewModel.PingResult.Success -> {
                                             Text(
-                                                text = stringResource(R.string.ping_ms, ping.ms),
+                                                text = stringResource(R.string.ping_ms, currentPing.ms),
                                                 style = MaterialTheme.typography.labelLarge,
                                                 color = when {
-                                                    ping.ms < 150 -> MaterialTheme.extendedColorScheme.success
-                                                    ping.ms < 300 -> MaterialTheme.extendedColorScheme.warning
+                                                    currentPing.ms < 150 -> MaterialTheme.extendedColorScheme.success
+                                                    currentPing.ms < 300 -> MaterialTheme.extendedColorScheme.warning
                                                     else -> MaterialTheme.colorScheme.error
                                                 },
                                                 fontWeight = FontWeight.Bold
