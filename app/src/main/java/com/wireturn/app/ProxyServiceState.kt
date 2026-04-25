@@ -46,6 +46,7 @@ object ProxyServiceState {
             _statusText.value = null
             _isWorking.value = false
             _captchaSession.value = null
+            _startupResult.value = null
         }
     }
 

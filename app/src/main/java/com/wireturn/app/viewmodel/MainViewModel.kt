@@ -134,6 +134,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         viewModelScope.launch { proxyManager.observeProxyLifecycle() }
+        viewModelScope.launch { proxyManager.observeStartupResult() }
         viewModelScope.launch { proxyManager.observeProxyServiceStatus() }
         viewModelScope.launch { proxyManager.observeCaptchaEvents() }
         viewModelScope.launch { proxyManager.observeProxyServiceWorking() }

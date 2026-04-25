@@ -77,6 +77,9 @@ class ProxyService : Service() {
         proxyJob?.cancel()
         proxyJob = serviceScope.launch {
             mainSupervisor()
+            if (!userStopped.get()) {
+                stopSelf()
+            }
         }
 
         return START_STICKY
@@ -118,14 +121,14 @@ class ProxyService : Service() {
             ProxyServiceState.setRunningConfig(cfg)
             
             val startTime = System.currentTimeMillis()
-            runBinary(cfg)
+            val startupSuccessful = runBinary(cfg)
             val duration = System.currentTimeMillis() - startTime
             
             if (userStopped.get()) break
 
             // Check for rapid failure (e.g. invalid arguments or kernel issue)
             val currentResult = ProxyServiceState.startupResult.value
-            if (currentResult !is StartupResult.Success && duration < 2500) {
+            if (!startupSuccessful || (currentResult !is StartupResult.Success && duration < 2500)) {
                 AppLogsState.addLog(getString(R.string.log_quick_exit, duration))
                 AppLogsState.addLog(getString(R.string.log_startup_failed_no_watchdog))
                 ProxyServiceState.setStartupResult(StartupResult.Failed(getString(R.string.error_kernel_or_settings)))
@@ -158,7 +161,7 @@ class ProxyService : Service() {
         }
     }
 
-    private suspend fun runBinary(cfg: ClientConfig) = coroutineScope {
+    private suspend fun runBinary(cfg: ClientConfig): Boolean = coroutineScope {
         val cmdArgs = buildCommandArgs(cfg)
         
         var startupEmitted = false
@@ -195,12 +198,25 @@ class ProxyService : Service() {
                         // Process logic
                         if (!useCustom && !l.contains("[xray]") && !l.contains("[tun2socks]")) {
                             if (l.contains("[VK Auth]", ignoreCase = true) || l.contains("joining room", ignoreCase = true) ||
-                                l.contains("vk signaling connected")) {
+                                l.contains("starting turnable client")) {
                                 if (!startupEmitted) {
                                     ProxyServiceState.setStartupResult(StartupResult.Success)
                                     updateNotification(getString(R.string.proxy_connecting))
                                     startupEmitted = true
                                 }
+                            }
+                            
+                            if (l.contains("failed to validate connection URL")) {
+                                ProxyServiceState.setStartupResult(StartupResult.Failed(getString(R.string.error_invalid_turnable_url)))
+                                startupFailed = true
+                                break
+                            }
+
+                            if (l.contains("failed to start vpn client")) {
+                                val errorPart = l.substringAfterLast(":").trim()
+                                ProxyServiceState.setStartupResult(StartupResult.Failed(getString(R.string.error_turnable_failed, errorPart)))
+                                startupFailed = true
+                                break
                             }
 
                             if (l.contains("Established", ignoreCase = true) || 
@@ -264,13 +280,12 @@ class ProxyService : Service() {
                         }
 
                         // Error detection
-                        if (!startupEmitted) {
-                            val lower = l.lowercase()
-                            if (lower.contains("panic") || lower.contains("fatal") || lower.contains("rate limit")) {
-                                ProxyServiceState.setStartupResult(StartupResult.Failed(l))
-                                updateNotification(getString(R.string.error_connecting))
-                                startupFailed = true
-                            }
+                        val lower = l.lowercase()
+                        if (lower.contains("panic") || lower.contains("fatal") || lower.contains("rate limit")) {
+                            ProxyServiceState.setStartupResult(StartupResult.Failed(l))
+                            updateNotification(getString(R.string.error_connecting))
+                            startupFailed = true
+                            break
                         }
 
                         // Quota error handling
@@ -299,10 +314,14 @@ class ProxyService : Service() {
                 ProxyServiceState.setStartupResult(StartupResult.Failed(getString(R.string.error_process_no_output, exitCode)))
             }
 
+            !startupFailed
         } catch (_: InterruptedIOException) {
+            true
         } catch (_: CancellationException) {
+            true
         } catch (e: Exception) {
             handleProcessException(e)
+            false
         } finally {
             ProxyServiceState.setCaptchaSession(null)
             process.set(null)

@@ -52,6 +52,14 @@ class LocalProxyManager(private val context: Context) {
         }
     }
 
+    suspend fun observeStartupResult() {
+        ProxyServiceState.startupResult.collect { result ->
+            if (result is StartupResult.Failed) {
+                setErrorWithAutoReset(result.message)
+            }
+        }
+    }
+
     suspend fun observeCaptchaEvents() {
         ProxyServiceState.captchaSession.collect { session ->
             if (session != null) {
