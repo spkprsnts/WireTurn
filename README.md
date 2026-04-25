@@ -37,7 +37,6 @@ Android-клиент для [vk-turn-proxy](https://github.com/spkprsnts/vk-turn
   <img src="docs/screenshots/screenshot_1.jpg" width="250" />
   <img src="docs/screenshots/screenshot_2.jpg" width="250" />
   <img src="docs/screenshots/screenshot_3.jpg" width="250" />
-  <img src="docs/screenshots/screenshot_4.jpg" width="250" />
 </p>
 
 ## Требования
