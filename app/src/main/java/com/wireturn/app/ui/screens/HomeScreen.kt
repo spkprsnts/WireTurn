@@ -111,6 +111,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.runtime.DisposableEffect
 import kotlinx.coroutines.launch
 import com.wireturn.app.ui.InlineConfigIndicator
+import com.wireturn.app.ui.redact
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.ProxyState
@@ -1575,10 +1576,7 @@ private fun formatBytes(bytes: Long): String {
     return String.format(java.util.Locale.US, "%.1f %siB", bytes / 1024.0.pow(exp.toDouble()), pre)
 }
 
-@Composable
-internal fun String.redact(enabled: Boolean): String {
-    return if (enabled) stringResource(R.string.redacted_value) else this
-}
+
 
 @Composable
 private fun ConfigRow(label: String, value: String) {

@@ -60,7 +60,7 @@
     <!-- WgConfigScreen -->
     <string name="wg_title">WireGuard</string>
     <string name="wg_config_title">Конфигурация WireGuard</string>
-    <string name="wg_import_config">Импорт</string>
+    <string name="wg_import_config">Импорт WireGuard</string>
     <string name="wg_import_file">Из файла</string>
     <string name="wg_import_qr">Импорт WireGuard</string>
     <string name="wg_import_clipboard">Из буфера</string>
@@ -298,4 +298,9 @@
     <string name="dc_type_desc">Тип DataChannel</string>
     <string name="math_minus">−</string>
     <string name="math_plus">+</string>
+    <string name="edit_url_params">Параметры ссылки</string>
+    <string name="url_param_key">Ключ</string>
+    <string name="url_param_value">Значение</string>
+    <string name="url_base">Базовый URL</string>
+    <string name="add_parameter">Добавить параметр</string>
 </resources>

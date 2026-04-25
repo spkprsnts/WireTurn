@@ -2,6 +2,8 @@
 
 package com.wireturn.app.ui.screens
 
+import android.annotation.SuppressLint
+import androidx.core.net.toUri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -17,9 +19,6 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,11 +36,11 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -52,13 +51,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.SingleChoiceSegmentedButtonRowScope
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -72,21 +69,25 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.data.DCType
 import com.wireturn.app.data.KernelVariant
-import com.wireturn.app.ui.ConfigFieldIndicator
+import com.wireturn.app.ui.ConfigLabelRow
+import com.wireturn.app.ui.FieldTrailingIcons
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.InlineConfigIndicator
+import com.wireturn.app.ui.LabeledSegmentedButton
+import com.wireturn.app.ui.SectionHeader
+import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.ValidatorUtils
+import com.wireturn.app.ui.redact
 import com.wireturn.app.viewmodel.MainViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -137,8 +138,11 @@ fun ClientSetupScreen(
     var jazzCreds    by rememberSaveable(saved.jazzCreds)      { mutableStateOf(saved.jazzCreds) }
     var kernelVariant by rememberSaveable(saved.kernelVariant) { mutableStateOf(saved.kernelVariant) }
     var lastSliderInt by rememberSaveable { mutableIntStateOf(saved.threads) }
+    var showUrlEditor by remember { mutableStateOf(false) }
+    var isUrlParsing by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     val isServerAddressValid = remember(serverAddress) { ValidatorUtils.isValidHostPort(serverAddress) }
     val isLocalPortValid = remember(localPort) { ValidatorUtils.isValidHostPort(localPort) }
@@ -309,11 +313,12 @@ fun ClientSetupScreen(
                                 placeholder = { Text(stringResource(R.string.raw_placeholder)) },
                                 onValueChange = { rawCommand = it },
                                 isError = rawCommand.isBlank(),
-                                label = { Text(stringResource(R.string.raw_label)) },
-                                modifier = Modifier.fillMaxWidth(),
-                                trailingIcon = if (runningConfig != null && (rawCommand != runningConfig?.rawCommand || !runningConfig!!.isRawMode)) {
-                                    { ConfigFieldIndicator(true) }
-                                } else null
+                                label = { 
+                                    ConfigLabelRow(runningConfig != null && (rawCommand != runningConfig?.rawCommand || !runningConfig!!.isRawMode)) {
+                                        Text(stringResource(R.string.raw_label))
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
                     }
@@ -382,7 +387,11 @@ fun ClientSetupScreen(
                                                         OutlinedTextField(
                                                             value = jazzCreds.redact(privacyMode),
                                                             onValueChange = { if (!privacyMode) jazzCreds = it },
-                                                            label = { Text(stringResource(R.string.jazz_creds_label)) },
+                                                        label = { 
+                                                            ConfigLabelRow(runningConfig != null && (jazzCreds.trim() != runningConfig?.jazzCreds || runningConfig!!.isRawMode)) {
+                                                                Text(stringResource(R.string.jazz_creds_label))
+                                                            }
+                                                        },
                                                             placeholder = { Text(stringResource(R.string.jazz_creds_placeholder)) },
                                                             isError = jazzCreds.isBlank() || !jazzCreds.contains(":"),
                                                             modifier = Modifier.fillMaxWidth(),
@@ -391,7 +400,6 @@ fun ClientSetupScreen(
                                                             supportingText = { Text(stringResource(R.string.jazz_creds_support)) },
                                                             trailingIcon = {
                                                                 FieldTrailingIcons(
-                                                                    isModified = runningConfig != null && (jazzCreds.trim() != runningConfig?.jazzCreds || runningConfig!!.isRawMode),
                                                                     history = jazzCredsHistory,
                                                                     onSelect = { jazzCreds = it },
                                                                     onRemove = { viewModel.removeJazzCredsFromHistory(it) },
@@ -404,7 +412,11 @@ fun ClientSetupScreen(
                                                         OutlinedTextField(
                                                             value = wbstreamUuid.redact(privacyMode),
                                                             onValueChange = { if (!privacyMode) wbstreamUuid = it },
-                                                            label = { Text(stringResource(R.string.wbstream_uuid_label)) },
+                                                        label = { 
+                                                            ConfigLabelRow(runningConfig != null && (wbstreamUuid.trim() != runningConfig?.wbstreamUuid || runningConfig!!.isRawMode)) {
+                                                                Text(stringResource(R.string.wbstream_uuid_label))
+                                                            }
+                                                        },
                                                             placeholder = { Text(stringResource(R.string.wbstream_uuid_placeholder)) },
                                                             isError = wbstreamUuid.isBlank(),
                                                             modifier = Modifier.fillMaxWidth(),
@@ -413,7 +425,6 @@ fun ClientSetupScreen(
                                                             supportingText = { Text(stringResource(R.string.wbstream_uuid_support)) },
                                                             trailingIcon = {
                                                                 FieldTrailingIcons(
-                                                                    isModified = runningConfig != null && (wbstreamUuid.trim() != runningConfig?.wbstreamUuid || runningConfig!!.isRawMode),
                                                                     history = wbstreamUuidHistory,
                                                                     onSelect = { wbstreamUuid = it },
                                                                     onRemove = { viewModel.removeWbstreamUuidFromHistory(it) },
@@ -441,7 +452,11 @@ fun ClientSetupScreen(
                                                     OutlinedTextField(
                                                         value = serverAddress.redact(privacyMode),
                                                         onValueChange = { if (!privacyMode) serverAddress = it },
-                                                        label = { Text(stringResource(R.string.server_address_label)) },
+                                                        label = { 
+                                                            ConfigLabelRow(runningConfig != null && (serverAddress.trim() != runningConfig?.serverAddress || runningConfig!!.isRawMode)) {
+                                                                Text(stringResource(R.string.server_address_label))
+                                                            }
+                                                        },
                                                         placeholder = { Text(stringResource(R.string.server_address_placeholder)) },
                                                         isError = !isServerAddressValid || serverAddress.isBlank(),
                                                         modifier = Modifier.fillMaxWidth(),
@@ -450,7 +465,6 @@ fun ClientSetupScreen(
                                                         supportingText = { Text(stringResource(R.string.server_address_support)) },
                                                         trailingIcon = {
                                                             FieldTrailingIcons(
-                                                                isModified = runningConfig != null && (serverAddress.trim() != runningConfig?.serverAddress || runningConfig!!.isRawMode),
                                                                 history = serverAddressHistory,
                                                                 onSelect = { serverAddress = it },
                                                                 onRemove = { viewModel.removeServerAddressFromHistory(it) },
@@ -462,7 +476,11 @@ fun ClientSetupScreen(
                                                     OutlinedTextField(
                                                         value = vkLink.redact(privacyMode),
                                                         onValueChange = { if (!privacyMode) vkLink = it },
-                                                        label = { Text(stringResource(R.string.vk_link_label)) },
+                                                        label = { 
+                                                            ConfigLabelRow(runningConfig != null && (vkLink.trim() != runningConfig?.vkLink || runningConfig!!.isRawMode)) {
+                                                                Text(stringResource(R.string.vk_link_label))
+                                                            }
+                                                        },
                                                         placeholder = { Text(stringResource(R.string.vk_link_placeholder)) },
                                                         isError = !ValidatorUtils.isValidUrl(vkLink) || vkLink.isBlank(),
                                                         modifier = Modifier.fillMaxWidth(),
@@ -471,7 +489,6 @@ fun ClientSetupScreen(
                                                         supportingText = { Text(stringResource(R.string.vk_link_support)) },
                                                         trailingIcon = {
                                                             FieldTrailingIcons(
-                                                                isModified = runningConfig != null && (vkLink.trim() != runningConfig?.vkLink || runningConfig!!.isRawMode),
                                                                 history = vkLinkHistory,
                                                                 onSelect = { vkLink = it },
                                                                 onRemove = { viewModel.removeVkLinkFromHistory(it) },
@@ -483,7 +500,11 @@ fun ClientSetupScreen(
                                                     OutlinedTextField(
                                                         value = turnableUrl.redact(privacyMode),
                                                         onValueChange = { if (!privacyMode) turnableUrl = it },
-                                                        label = { Text(stringResource(R.string.turnable_url_label)) },
+                                                        label = { 
+                                                            ConfigLabelRow(runningConfig != null && (turnableUrl.trim() != runningConfig?.turnableUrl || runningConfig!!.isRawMode)) {
+                                                                Text(stringResource(R.string.turnable_url_label))
+                                                            }
+                                                        },
                                                         placeholder = { Text(stringResource(R.string.turnable_url_placeholder)) },
                                                         isError = !isTurnableUrlValid || turnableUrl.isBlank(),
                                                         modifier = Modifier.fillMaxWidth(),
@@ -491,13 +512,43 @@ fun ClientSetupScreen(
                                                         readOnly = privacyMode,
                                                         supportingText = { Text(stringResource(R.string.turnable_url_support)) },
                                                         trailingIcon = {
-                                                            FieldTrailingIcons(
-                                                                isModified = runningConfig != null && (turnableUrl.trim() != runningConfig?.turnableUrl || runningConfig!!.isRawMode),
-                                                                history = turnableUrlHistory,
-                                                                onSelect = { turnableUrl = it },
-                                                                onRemove = { viewModel.removeTurnableUrlFromHistory(it) },
-                                                                privacyMode = privacyMode
-                                                            )
+                                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                                if (!privacyMode && turnableUrl.isNotBlank()) {
+                                                                    Box(
+                                                                        modifier = Modifier.size(40.dp),
+                                                                        contentAlignment = Alignment.Center
+                                                                    ) {
+                                                                        if (isUrlParsing) {
+                                                                            CircularWavyProgressIndicator(
+                                                                                modifier = Modifier.size(20.dp)
+                                                                            )
+                                                                        } else {
+                                                                            IconButton(onClick = {
+                                                                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                                                                scope.launch {
+                                                                                    isUrlParsing = true
+                                                                                    delay(400)
+                                                                                    showUrlEditor = true
+                                                                                    isUrlParsing = false
+                                                                                }
+                                                                            }) {
+                                                                                Icon(
+                                                                                    painter = painterResource(R.drawable.edit_24px),
+                                                                                    contentDescription = null,
+                                                                                    modifier = Modifier.size(20.dp)
+                                                                                )
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                                FieldTrailingIcons(
+                                                                    history = turnableUrlHistory,
+                                                                    onSelect = { turnableUrl = it },
+                                                                    onRemove = { viewModel.removeTurnableUrlFromHistory(it) },
+                                                                    privacyMode = privacyMode,
+                                                                    iconSize = 20.dp
+                                                                )
+                                                            }
                                                         }
                                                     )
                                                 }
@@ -527,16 +578,17 @@ fun ClientSetupScreen(
                             OutlinedTextField(
                                 value = localPort.redact(privacyMode),
                                 onValueChange = { if (!privacyMode) localPort = it },
-                                label = { Text(stringResource(R.string.local_listen_address)) },
+                                label = { 
+                                    ConfigLabelRow(runningConfig != null && localPort.trim() != runningConfig?.localPort) {
+                                        Text(stringResource(R.string.local_listen_address))
+                                    }
+                                },
                                 placeholder = { Text(stringResource(R.string.local_listen_placeholder)) },
                                 isError = !isLocalPortValid || localPort.isBlank(),
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
                                 readOnly = privacyMode,
-                                supportingText = { Text(stringResource(R.string.local_listen_support)) },
-                                trailingIcon = if (runningConfig != null && localPort.trim() != runningConfig?.localPort) {
-                                    { ConfigFieldIndicator(true) }
-                                } else null
+                                supportingText = { Text(stringResource(R.string.local_listen_support)) }
                             )
 
                             AnimatedVisibility(
@@ -747,6 +799,17 @@ fun ClientSetupScreen(
                 }
             }
 
+            if (showUrlEditor) {
+                TurnableUrlEditorDialog(
+                    url = turnableUrl,
+                    onDismiss = { showUrlEditor = false },
+                    onConfirm = {
+                        turnableUrl = it
+                        showUrlEditor = false
+                    }
+                )
+            }
+
             if (showFinishButton && onFinish != null) {
                 Spacer(Modifier.height(16.dp))
                 val isValid = remember(isRawMode, rawCommand, dcMode, dcType, jazzCreds, wbstreamUuid, serverAddress, vkLink, turnableUrl, kernelVariant) {
@@ -777,149 +840,128 @@ fun ClientSetupScreen(
     }
 }
 
+@SuppressLint("AuthLeak")
 @Composable
-private fun SectionHeader(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(bottom = 4.dp)
-    )
-}
-
-@Composable
-private fun LabeledSegmentedButton(
-    label: String,
-    subLabel: String,
-    isModified: Boolean,
-    content: @Composable SingleChoiceSegmentedButtonRowScope.() -> Unit
+private fun TurnableUrlEditorDialog(
+    url: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(label, style = MaterialTheme.typography.bodyMedium)
-                InlineConfigIndicator(isModified)
-            }
-            Text(subLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth(), content = content)
-    }
-}
-
-@Composable
-private fun FieldTrailingIcons(
-    isModified: Boolean,
-    history: List<String>,
-    onSelect: (String) -> Unit,
-    onRemove: (String) -> Unit,
-    privacyMode: Boolean
-) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        if (isModified) ConfigFieldIndicator(true)
-        if (history.isNotEmpty()) {
-            HistoryIconButton(
-                history = history,
-                onSelect = onSelect,
-                onRemove = onRemove,
-                privacyMode = privacyMode
-            )
+    val initialData = remember(url) {
+        try {
+            val uri = url.toUri()
+            val userInfo = uri.encodedUserInfo?.let { "$it@" } ?: ""
+            val scheme = uri.scheme ?: "turnable"
+            val host = uri.host ?: ""
+            val path = uri.path ?: ""
+            val baseUrl = "$scheme://$userInfo$host$path"
+            val params = uri.queryParameterNames.map { it to (uri.getQueryParameter(it) ?: "") }
+            baseUrl to params
+        } catch (_: Exception) {
+            url to emptyList()
         }
     }
-}
 
-@Composable
-private fun HistoryIconButton(
-    history: List<String>,
-    onSelect: (String) -> Unit,
-    onRemove: (String) -> Unit,
-    privacyMode: Boolean
-) {
-    if (history.isEmpty()) return
+    var baseUrl by remember { mutableStateOf(initialData.first) }
+    var params by remember { mutableStateOf(initialData.second) }
 
-    var expanded by remember { mutableStateOf(false) }
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-
-    Box {
-        IconButton(onClick = { expanded = true }) {
-            Icon(
-                painter = painterResource(R.drawable.database_outlined_24px),
-                contentDescription = stringResource(R.string.history_label)
-            )
-        }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            history.forEach { historyItem ->
-                DropdownMenuItem(
-                    modifier = Modifier.pointerInput(historyItem) {
-                        awaitEachGesture {
-                            awaitFirstDown(requireUnconsumed = false)
-                            var isLongPress = false
-                            val job = scope.launch {
-                                delay(1500)
-                                HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
-                                delay(1500)
-                                isLongPress = true
-                                HapticUtil.perform(context, HapticUtil.Pattern.ERROR)
-                                onRemove(historyItem)
-                            }
-                            val up = waitForUpOrCancellation()
-                            job.cancel()
-                            if (isLongPress) {
-                                up?.consume()
-                            }
-                        }
-                    },
-                    text = {
-                        val text = historyItem.redact(privacyMode)
-                        Text(
-                            text = if (text.length > 30) {
-                                text.take(21) + "..." + text.takeLast(6)
-                            } else {
-                                text
-                            },
-                            maxLines = 1,
-                            overflow = TextOverflow.Visible
-                        )
-                    },
-                    onClick = {
-                        HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
-                        onSelect(historyItem)
-                        expanded = false
-                    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        modifier = Modifier
+            .widthIn(max = 840.dp)
+            .fillMaxWidth(0.95f)
+            .padding(vertical = 24.dp),
+        title = { Text(stringResource(R.string.edit_url_params)) },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
+                    value = baseUrl,
+                    onValueChange = { baseUrl = it },
+                    label = { Text(stringResource(R.string.url_base)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    supportingText = { Text("scheme://user:pass@host/path") }
                 )
-            }
-        }
-    }
-}
 
-@Composable
-private fun SwitchRow(
-    label: String,
-    description: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    isModified: Boolean = false,
-    enabled: Boolean = true
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(label, style = MaterialTheme.typography.bodyMedium)
-                InlineConfigIndicator(isModified)
+                HorizontalDivider(thickness = 0.5.dp)
+                Text(stringResource(R.string.edit_url_params), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+
+                params.forEachIndexed { index, pair ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = pair.first,
+                            onValueChange = { newKey ->
+                                params = params.toMutableList().apply { this[index] = newKey to pair.second }
+                            },
+                            label = { Text(stringResource(R.string.url_param_key)) },
+                            modifier = Modifier.weight(0.8f),
+                            singleLine = true
+                        )
+                        OutlinedTextField(
+                            value = pair.second,
+                            onValueChange = { newValue ->
+                                params = params.toMutableList().apply { this[index] = pair.first to newValue }
+                            },
+                            label = { Text(stringResource(R.string.url_param_value)) },
+                            modifier = Modifier.weight(2f),
+                            singleLine = true,
+                            trailingIcon = {
+                                IconButton(
+                                    onClick = {
+                                        params = params.toMutableList().apply { removeAt(index) }
+                                    }
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.delete_24px),
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        )
+                    }
+                }
+
+                FilledTonalButton(
+                    onClick = { params = params + ("" to "") },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.add_parameter))
+                }
             }
-            Text(
-                description,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        },
+        confirmButton = {
+            Button(onClick = {
+                try {
+                    val builder = baseUrl.toUri().buildUpon()
+                    builder.clearQuery()
+                    params.forEach { (key, value) ->
+                        if (key.isNotBlank()) {
+                            builder.appendQueryParameter(key, value)
+                        }
+                    }
+                    onConfirm(builder.build().toString())
+                } catch (_: Exception) {
+                    onConfirm(baseUrl)
+                }
+            }) {
+                Text(stringResource(R.string.btn_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
         }
-        Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
-    }
+    )
 }

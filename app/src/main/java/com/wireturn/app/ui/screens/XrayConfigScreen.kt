@@ -10,11 +10,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -34,8 +30,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -44,11 +38,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.SingleChoiceSegmentedButtonRowScope
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -61,23 +52,30 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.data.WgConfig
 import com.wireturn.app.data.XrayConfiguration
-import com.wireturn.app.ui.ConfigFieldIndicator
+import com.wireturn.app.ui.ConfigLabelRow
+import com.wireturn.app.ui.FieldTrailingIcons
 import com.wireturn.app.ui.HapticUtil
-import com.wireturn.app.ui.InlineConfigIndicator
+import com.wireturn.app.ui.LabeledSegmentedButton
+import com.wireturn.app.ui.SectionHeader
+import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.ValidatorUtils
+import com.wireturn.app.ui.redact
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -288,29 +286,31 @@ fun XrayConfigScreen(
                     OutlinedTextField(
                         value = socksBindAddress,
                         onValueChange = { socksBindAddress = it },
-                        label = { Text(stringResource(R.string.xray_socks5)) },
+                        label = { 
+                            ConfigLabelRow(runningXrayConfig != null && socksBindAddress != runningXrayConfig?.socksBindAddress) {
+                                Text(stringResource(R.string.xray_socks5)) 
+                            }
+                        },
                         placeholder = { Text(stringResource(R.string.xray_socks5_placeholder)) },
                         isError = !isSocksValid || (socksBindAddress.isNotEmpty() && socksBindAddress == httpBindAddress),
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        supportingText = { Text(stringResource(R.string.xray_socks_desc)) },
-                        trailingIcon = if (runningXrayConfig != null && socksBindAddress != runningXrayConfig?.socksBindAddress) {
-                            { ConfigFieldIndicator(true) }
-                        } else null
+                        supportingText = { Text(stringResource(R.string.xray_socks_desc)) }
                     )
 
                     OutlinedTextField(
                         value = httpBindAddress,
                         onValueChange = { httpBindAddress = it },
-                        label = { Text(stringResource(R.string.xray_http)) },
+                        label = { 
+                            ConfigLabelRow(runningXrayConfig != null && httpBindAddress != runningXrayConfig?.httpBindAddress) {
+                                Text(stringResource(R.string.xray_http))
+                            }
+                        },
                         placeholder = { Text(stringResource(R.string.xray_http_placeholder)) },
                         isError = !isHttpValid || (httpBindAddress.isNotEmpty() && socksBindAddress == httpBindAddress),
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        supportingText = { Text(stringResource(R.string.xray_http_desc)) },
-                        trailingIcon = if (runningXrayConfig != null && httpBindAddress != runningXrayConfig?.httpBindAddress) {
-                            { ConfigFieldIndicator(true) }
-                        } else null
+                        supportingText = { Text(stringResource(R.string.xray_http_desc)) }
                     )
                 }
             }
@@ -520,40 +520,43 @@ private fun WireGuardSettings(
                 OutlinedTextField(
                     value = privateKey.redact(privacyMode),
                     onValueChange = onPrivateKeyChange,
-                    label = { Text(stringResource(R.string.wg_private_key)) },
+                    label = { 
+                        ConfigLabelRow(runningWgConfig != null && privateKey != runningWgConfig.privateKey) {
+                            Text(stringResource(R.string.wg_private_key))
+                        }
+                    },
                     placeholder = { Text(stringResource(R.string.wg_private_key_placeholder)) },
                     isError = privateKey.isBlank(),
                     modifier = Modifier.fillMaxWidth(),
-                    readOnly = privacyMode,
-                    trailingIcon = if (runningWgConfig != null && privateKey != runningWgConfig.privateKey) {
-                        { ConfigFieldIndicator(true) }
-                    } else null
+                    readOnly = privacyMode
                 )
 
                 OutlinedTextField(
                     value = address.redact(privacyMode),
                     onValueChange = onAddressChange,
-                    label = { Text(stringResource(R.string.wg_address)) },
+                    label = { 
+                        ConfigLabelRow(runningWgConfig != null && address != runningWgConfig.address) {
+                            Text(stringResource(R.string.wg_address))
+                        }
+                    },
                     placeholder = { Text(stringResource(R.string.wg_address_placeholder)) },
                     isError = address.isBlank(),
                     modifier = Modifier.fillMaxWidth(),
-                    readOnly = privacyMode,
-                    trailingIcon = if (runningWgConfig != null && address != runningWgConfig.address) {
-                        { ConfigFieldIndicator(true) }
-                    } else null
+                    readOnly = privacyMode
                 )
 
                 OutlinedTextField(
                     value = mtu,
                     onValueChange = onMtuChange,
-                    label = { Text(stringResource(R.string.wg_mtu)) },
+                    label = { 
+                        ConfigLabelRow(runningWgConfig != null && mtu != runningWgConfig.mtu) {
+                            Text(stringResource(R.string.wg_mtu))
+                        }
+                    },
                     placeholder = { Text(stringResource(R.string.wg_mtu_placeholder)) },
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    supportingText = if (mtu != "1280") { { Text(stringResource(R.string.wg_mtu_recommendation)) } } else null,
-                    trailingIcon = if (runningWgConfig != null && mtu != runningWgConfig.mtu) {
-                        { ConfigFieldIndicator(true) }
-                    } else null
+                    supportingText = if (mtu != "1280") { { Text(stringResource(R.string.wg_mtu_recommendation)) } } else null
                 )
             }
         }
@@ -565,20 +568,25 @@ private fun WireGuardSettings(
                 OutlinedTextField(
                     value = publicKey.redact(privacyMode),
                     onValueChange = onPublicKeyChange,
-                    label = { Text(stringResource(R.string.wg_public_key)) },
+                    label = { 
+                        ConfigLabelRow(runningWgConfig != null && publicKey != runningWgConfig.publicKey) {
+                            Text(stringResource(R.string.wg_public_key))
+                        }
+                    },
                     placeholder = { Text(stringResource(R.string.wg_public_key_placeholder)) },
                     isError = publicKey.isBlank(),
                     modifier = Modifier.fillMaxWidth(),
-                    readOnly = privacyMode,
-                    trailingIcon = if (runningWgConfig != null && publicKey != runningWgConfig.publicKey) {
-                        { ConfigFieldIndicator(true) }
-                    } else null
+                    readOnly = privacyMode
                 )
 
                 OutlinedTextField(
                     value = endpoint.redact(privacyMode),
                     onValueChange = onEndpointChange,
-                    label = { Text(stringResource(R.string.wg_endpoint)) },
+                    label = { 
+                        ConfigLabelRow(runningWgConfig != null && endpoint != runningWgConfig.endpoint) {
+                            Text(stringResource(R.string.wg_endpoint))
+                        }
+                    },
                     placeholder = { Text(stringResource(R.string.wg_endpoint_placeholder)) },
                     isError = !isTargetEndpoint || !isEndpointValid,
                     modifier = Modifier.fillMaxWidth(),
@@ -590,22 +598,20 @@ private fun WireGuardSettings(
                                 Text(text = stringResource(R.string.wg_endpoint_fix), color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { onFixEndpoint() })
                             }
                         }
-                    } else null,
-                    trailingIcon = if (runningWgConfig != null && endpoint != runningWgConfig.endpoint) {
-                        { ConfigFieldIndicator(true) }
                     } else null
                 )
 
                 OutlinedTextField(
                     value = persistentKeepalive,
                     onValueChange = onPersistentKeepaliveChange,
-                    label = { Text(stringResource(R.string.wg_persistent_keepalive)) },
+                    label = { 
+                        ConfigLabelRow(runningWgConfig != null && persistentKeepalive != runningWgConfig.persistentKeepalive) {
+                            Text(stringResource(R.string.wg_persistent_keepalive))
+                        }
+                    },
                     placeholder = { Text(stringResource(R.string.wg_persistent_keepalive_placeholder)) },
                     modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    trailingIcon = if (runningWgConfig != null && persistentKeepalive != runningWgConfig.persistentKeepalive) {
-                        { ConfigFieldIndicator(true) }
-                    } else null
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
             }
         }
@@ -624,6 +630,11 @@ private fun VlessSettings(
     privacyMode: Boolean,
     onImportQr: () -> Unit
 ) {
+    val vlessName = remember(vlessLink) {
+        val fragment = vlessLink.substringAfterLast('#', "")
+        if (fragment.isNotEmpty()) " #${android.net.Uri.decode(fragment)}" else ""
+    }
+
     OutlinedCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             SectionHeader(stringResource(R.string.vless_settings))
@@ -631,26 +642,40 @@ private fun VlessSettings(
             OutlinedTextField(
                 value = vlessLink.redact(privacyMode),
                 onValueChange = onVlessLinkChange,
-                label = { Text(stringResource(R.string.vless_link_label)) },
+                label = { 
+                    ConfigLabelRow(runningVlessConfig != null && vlessLink.trim() != runningVlessConfig.vlessLink) {
+                        Text(
+                            text = buildAnnotatedString {
+                                append(stringResource(R.string.vless_link_label))
+                                if (vlessName.isNotEmpty()) {
+                                    withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                                        append(vlessName)
+                                    }
+                                }
+                            }
+                        )
+                    }
+                },
                 placeholder = { Text(stringResource(R.string.vless_link_placeholder)) },
                 isError = !ValidatorUtils.isValidVlessLink(vlessLink) || vlessLink.isBlank(),
                 modifier = Modifier.fillMaxWidth(),
+                minLines = 4,
                 maxLines = 4,
                 readOnly = privacyMode,
                 supportingText = { Text(stringResource(R.string.vless_link_config_desc)) },
-                leadingIcon = {
-                    IconButton(onClick = onImportQr) {
-                        Icon(painter = painterResource(R.drawable.qr_code_24px), contentDescription = null)
-                    }
-                },
                 trailingIcon = {
-                    XrayFieldTrailingIcons(
-                        isModified = runningVlessConfig != null && vlessLink.trim() != runningVlessConfig.vlessLink,
-                        history = vlessLinkHistory,
-                        onSelect = onVlessLinkChange,
-                        onRemove = onRemoveHistory,
-                        privacyMode = privacyMode
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        IconButton(onClick = onImportQr) {
+                            Icon(painter = painterResource(R.drawable.qr_code_24px), contentDescription = null, modifier = Modifier.size(20.dp))
+                        }
+                        FieldTrailingIcons(
+                            history = vlessLinkHistory,
+                            onSelect = onVlessLinkChange,
+                            onRemove = onRemoveHistory,
+                            privacyMode = privacyMode,
+                            iconSize = 20.dp
+                        )
+                    }
                 }
             )
 
@@ -680,149 +705,5 @@ private fun ImportButton(
         Icon(painterResource(icon), null, Modifier.size(18.dp))
         Spacer(Modifier.width(4.dp))
         Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelSmall)
-    }
-}
-
-@Composable
-private fun SectionHeader(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(bottom = 4.dp)
-    )
-}
-
-@Composable
-private fun LabeledSegmentedButton(
-    label: String,
-    subLabel: String,
-    isModified: Boolean,
-    content: @Composable SingleChoiceSegmentedButtonRowScope.() -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(label, style = MaterialTheme.typography.bodyMedium)
-                InlineConfigIndicator(isModified)
-            }
-            Text(subLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth(), content = content)
-    }
-}
-
-@Composable
-private fun XrayFieldTrailingIcons(
-    isModified: Boolean,
-    history: List<String>,
-    onSelect: (String) -> Unit,
-    onRemove: (String) -> Unit,
-    privacyMode: Boolean
-) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        if (isModified) ConfigFieldIndicator(true)
-        if (history.isNotEmpty()) {
-            XrayHistoryIconButton(
-                history = history,
-                onSelect = onSelect,
-                onRemove = onRemove,
-                privacyMode = privacyMode
-            )
-        }
-    }
-}
-
-@Composable
-private fun XrayHistoryIconButton(
-    history: List<String>,
-    onSelect: (String) -> Unit,
-    onRemove: (String) -> Unit,
-    privacyMode: Boolean
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-
-    Box {
-        IconButton(onClick = { expanded = true }) {
-            Icon(
-                painter = painterResource(R.drawable.database_outlined_24px),
-                contentDescription = stringResource(R.string.history_label)
-            )
-        }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            history.forEach { historyItem ->
-                DropdownMenuItem(
-                    modifier = Modifier.pointerInput(historyItem) {
-                        awaitEachGesture {
-                            awaitFirstDown(requireUnconsumed = false)
-                            var isLongPress = false
-                            val job = scope.launch {
-                                delay(1500)
-                                HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
-                                isLongPress = true
-                                HapticUtil.perform(context, HapticUtil.Pattern.ERROR)
-                                onRemove(historyItem)
-                            }
-                            val up = waitForUpOrCancellation()
-                            job.cancel()
-                            if (isLongPress) {
-                                up?.consume()
-                            }
-                        }
-                    },
-                    text = {
-                        val text = historyItem.redact(privacyMode)
-                        Text(
-                            text = if (text.length > 30) {
-                                text.take(21) + "..." + text.takeLast(6)
-                            } else {
-                                text
-                            },
-                            maxLines = 1,
-                            overflow = TextOverflow.Visible
-                        )
-                    },
-                    onClick = {
-                        HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
-                        onSelect(historyItem)
-                        expanded = false
-                    }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SwitchRow(
-    label: String,
-    description: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    isModified: Boolean = false,
-    enabled: Boolean = true
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(label, style = MaterialTheme.typography.bodyMedium)
-                InlineConfigIndicator(isModified)
-            }
-            Text(
-                description,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
     }
 }
