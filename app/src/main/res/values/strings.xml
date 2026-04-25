@@ -284,6 +284,7 @@
     <string name="warn_proxy_wg_mismatch">Внимание! Прокси-туннель запущен для WireGuard!</string>
 
     <string name="qr_import">QR-код</string>
+    <string name="qr_scan_desc">Наведите камеру на QR-код конфигурации (WireGuard или VLESS) для импорта</string>
     <string name="xray_local_addresses">Локальные адреса</string>
     <string name="xray_socks_desc">Адрес для SOCKS5 прокси</string>
     <string name="xray_http_desc">Адрес для HTTP прокси (опционально)</string>

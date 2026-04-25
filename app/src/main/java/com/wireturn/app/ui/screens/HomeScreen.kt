@@ -216,7 +216,9 @@ fun HomeScreen(
     LaunchedEffect(xrayState, runningConfig, runningVlessConfig, runningWgConfig) {
         if (xrayState != XrayState.Running || hasShownMismatchForCurrentRun) return@LaunchedEffect
         val config = runningConfig ?: return@LaunchedEffect
-        if (config.kernelVariant != KernelVariant.VK_TURN_PROXY || config.isRawMode) return@LaunchedEffect
+        if (config.isRawMode) return@LaunchedEffect
+        val supportsMismatchCheck = config.dcMode || config.kernelVariant == KernelVariant.VK_TURN_PROXY
+        if (!supportsMismatchCheck) return@LaunchedEffect
 
         val xrayIsVlessRunning = runningVlessConfig != null
         val xrayShouldBeVless = config.vlessMode
