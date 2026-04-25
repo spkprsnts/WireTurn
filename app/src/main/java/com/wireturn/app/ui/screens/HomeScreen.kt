@@ -1412,6 +1412,17 @@ private fun RepoLinksContent(
 
             item {
                 RepoLinkItem(
+                    title = stringResource(R.string.turnable_core),
+                    subtitle = "TheAirBlow/Turnable",
+                    url = "https://github.com/TheAirBlow/Turnable",
+                    containerColor = containerColor,
+                    onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
+                    onOpen = { uriHandler.openUri(it) }
+                )
+            }
+
+            item {
+                RepoLinkItem(
                     title = stringResource(R.string.xray_core_name),
                     subtitle = "spkprsnts/vless-client",
                     url = "https://github.com/spkprsnts/vless-client",

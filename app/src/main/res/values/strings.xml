@@ -41,6 +41,7 @@
     <string name="proxy_core_current">Прокси-ядро (используемое)</string>
     <string name="proxy_core">Прокси-ядро (базовое)</string>
     <string name="proxy_core_use">Прокси-ядро (старое)</string>
+    <string name="turnable_core">Прокси-ядро (Turnable)</string>
     <string name="xray_core_name">vless-client</string>
     <string name="xray_core_original">Xray-core</string>
     <string name="tun2socks">tun2socks</string>
