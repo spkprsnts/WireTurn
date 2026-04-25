@@ -98,17 +98,6 @@ class ProfileManager(
         return com.google.gson.Gson().toJson(profile)
     }
 
-    fun exportProfile(context: Context, id: String) {
-        val profile = profiles.value.find { it.id == id } ?: return
-        val json = com.google.gson.Gson().toJson(profile)
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "application/json"
-            putExtra(Intent.EXTRA_TEXT, json)
-            putExtra(Intent.EXTRA_SUBJECT, "WireTurn Profile: ${profile.name}")
-        }
-        context.startActivity(Intent.createChooser(intent, "Export Profile"))
-    }
-
     fun importProfile(json: String) {
         try {
             val profile = com.google.gson.Gson().fromJson(json, Profile::class.java)
