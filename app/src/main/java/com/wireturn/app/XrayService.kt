@@ -6,6 +6,7 @@ import android.os.IBinder
 import com.wireturn.app.viewmodel.XrayState
 import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.data.AppPreferences
+import com.wireturn.app.data.XrayConfig
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -69,7 +70,7 @@ class XrayService : Service() {
     private data class DataBundle(
         val isRunning: Boolean,
         val vpnEnabled: Boolean,
-        val runningXray: com.wireturn.app.data.XrayConfig?
+        val runningXray: XrayConfig?
     )
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -92,18 +93,20 @@ class XrayService : Service() {
 
         try {
             val prefs = AppPreferences(this)
-            val clientConfig = ProxyServiceState.runningConfig.value
+            val runningClientConfig = ProxyServiceState.runningConfig.value
             val rawWgConfig = prefs.wgConfigFlow.first()
             val rawXrayConfig = prefs.xrayConfigFlow.first()
             val rawVlessConfig = prefs.vlessConfigFlow.first()
 
-            if (clientConfig == null) {
-                AppLogsState.addLog("[Xray] Error: clientConfig is null")
+            if (runningClientConfig == null) {
+                AppLogsState.addLog("[Xray] Error: runningClientConfig is null")
                 stopSelf()
                 return
             }
-            
-            val isConfigValid = if (clientConfig.vlessMode) {
+
+            val isXrayVless = rawXrayConfig.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS
+
+            val isConfigValid = if (isXrayVless) {
                 rawVlessConfig.isValid()
             } else {
                 rawWgConfig.isValid()
@@ -117,10 +120,13 @@ class XrayService : Service() {
 
             val wgConfig = rawWgConfig.fillDefaults()
             val xrayConfig = rawXrayConfig.fillDefaults()
-            XrayServiceState.setRunningConfigs(wgConfig, xrayConfig, rawVlessConfig)
             
-            prefs.saveWgConfig(wgConfig)
-            prefs.saveXrayConfig(xrayConfig)
+            // Фиксируем только тот конфиг, который реально запускаем
+            XrayServiceState.setRunningConfigs(
+                wg = if (isXrayVless) null else wgConfig,
+                xray = xrayConfig,
+                vless = if (isXrayVless) rawVlessConfig else null
+            )
             
             val randomMetricsPort = withContext(Dispatchers.IO) {
                 try {
@@ -143,10 +149,10 @@ class XrayService : Service() {
             
             if (rawVlessConfig.vlessUseLocalAddress) {
                 cmdArgs.add("-local-address")
-                cmdArgs.add(clientConfig.connectableAddress)
+                cmdArgs.add(runningClientConfig.connectableAddress)
             }
 
-            if (clientConfig.vlessMode) {
+            if (isXrayVless) {
                 prefs.addVlessLinkToHistory(rawVlessConfig.vlessLink)
                 cmdArgs.addAll(listOf("-link", rawVlessConfig.vlessLink))
             } else {
@@ -172,9 +178,10 @@ class XrayService : Service() {
             NotificationHelper.updateNotification(this@XrayService)
 
             BufferedReader(InputStreamReader(proc.inputStream)).use { reader ->
-                var line: String?
-                while (reader.readLine().also { line = it } != null) {
-                    AppLogsState.addLog("[Xray] $line")
+                while (true) {
+                    val rawLine = reader.readLine() ?: break
+                    val cleanLine = AppLogsState.stripAnsi(rawLine)
+                    AppLogsState.addLog("[Xray] $cleanLine")
                 }
             }
             val exitCode = withContext(Dispatchers.IO) {

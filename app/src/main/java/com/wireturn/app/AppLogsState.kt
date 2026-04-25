@@ -14,10 +14,15 @@ object AppLogsState {
     val logs: StateFlow<List<String>> = _logs.asStateFlow()
 
     fun addLog(msg: String) {
+        val cleanMsg = stripAnsi(msg)
         _logs.update { current ->
-            val next = current + msg
+            val next = current + cleanMsg
             if (next.size > MAX_LOG_LINES) next.drop(next.size - MAX_LOG_LINES) else next
         }
+    }
+
+    fun stripAnsi(msg: String): String {
+        return msg.replace("\u001B\\[[;\\d]*[mK]".toRegex(), "")
     }
 
     fun clearLogs() {

@@ -230,6 +230,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val jazzCredsHistory: StateFlow<List<String>> = prefs.jazzCredsHistoryFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    val turnableUrlHistory: StateFlow<List<String>> = prefs.turnableUrlHistoryFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     val vlessLinkHistory: StateFlow<List<String>> = prefs.vlessLinkHistoryFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -248,6 +251,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             } else {
                 prefs.addVkLinkToHistory(cfg.vkLink)
+                prefs.addTurnableUrlToHistory(cfg.turnableUrl)
             }
             prefs.addServerAddressToHistory(cfg.serverAddress)
             proxyManager.startProxy(cfg)
@@ -265,6 +269,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun removeWbstreamUuidFromHistory(uuid: String) { viewModelScope.launch { prefs.removeWbstreamUuidFromHistory(uuid) } }
     fun removeServerAddressFromHistory(address: String) { viewModelScope.launch { prefs.removeServerAddressFromHistory(address) } }
     fun removeJazzCredsFromHistory(creds: String) { viewModelScope.launch { prefs.removeJazzCredsFromHistory(creds) } }
+    fun removeTurnableUrlFromHistory(url: String) { viewModelScope.launch { prefs.removeTurnableUrlFromHistory(url) } }
     fun removeVlessLinkFromHistory(link: String) { viewModelScope.launch { prefs.removeVlessLinkFromHistory(link) } }
     fun setOnboardingDone() { viewModelScope.launch { prefs.setOnboardingDone(true) } }
     fun setBatteryNotificationDismissed(dismissed: Boolean) { viewModelScope.launch { prefs.setBatteryNotificationDismissed(dismissed) } }

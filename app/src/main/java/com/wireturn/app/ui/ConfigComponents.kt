@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun ConfigFieldIndicator(isModified: Boolean) {
     if (isModified) {
+        // Используем Box с нулевым размером в layout, чтобы не сдвигать соседние элементы (например, в trailingIcon)
         Box(
             modifier = Modifier
                 .offset(y = (-15).dp, x = 12.dp)

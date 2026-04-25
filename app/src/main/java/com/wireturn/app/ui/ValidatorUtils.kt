@@ -38,4 +38,12 @@ object ValidatorUtils {
         if (input.isBlank()) return true
         return input.startsWith("vless://", ignoreCase = true) && input.contains("@")
     }
+
+    /**
+     * Проверяет, является ли строка валидной Turnable-ссылкой.
+     */
+    fun isValidTurnableUrl(input: String): Boolean {
+        if (input.isBlank()) return true
+        return input.startsWith("turnable://", ignoreCase = true) && input.contains("@")
+    }
 }

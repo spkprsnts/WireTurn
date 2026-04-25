@@ -121,7 +121,7 @@ fun QrScannerDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "−",
+                            text = stringResource(R.string.math_minus),
                             style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -131,7 +131,7 @@ fun QrScannerDialog(
                             modifier = Modifier.weight(1f).padding(horizontal = 12.dp)
                         )
                         Text(
-                            text = "+",
+                            text = stringResource(R.string.math_plus),
                             style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

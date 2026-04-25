@@ -4,11 +4,12 @@ package com.wireturn.app.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -16,10 +17,10 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,28 +31,29 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DividerDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SingleChoiceSegmentedButtonRowScope
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -77,14 +79,15 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.wireturn.app.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.wireturn.app.R
+import com.wireturn.app.data.DCType
+import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.ui.ConfigFieldIndicator
-import com.wireturn.app.ui.InlineConfigIndicator
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.InlineConfigIndicator
 import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.viewmodel.MainViewModel
-import com.wireturn.app.data.DCType
 import java.text.SimpleDateFormat
 import java.util.Date
 import kotlin.math.roundToInt
@@ -106,18 +109,11 @@ fun ClientSetupScreen(
     val vkLinkHistory by viewModel.vkLinkHistory.collectAsStateWithLifecycle()
     val wbstreamUuidHistory by viewModel.wbstreamUuidHistory.collectAsStateWithLifecycle()
     val serverAddressHistory by viewModel.serverAddressHistory.collectAsStateWithLifecycle()
+    val turnableUrlHistory by viewModel.turnableUrlHistory.collectAsStateWithLifecycle()
     val jazzCredsHistory by viewModel.jazzCredsHistory.collectAsStateWithLifecycle()
-    val vlessLinkHistory by viewModel.vlessLinkHistory.collectAsStateWithLifecycle()
     val runningConfig by com.wireturn.app.ProxyServiceState.runningConfig.collectAsStateWithLifecycle()
-    val runningVlessConfig by com.wireturn.app.XrayServiceState.runningVlessConfig.collectAsStateWithLifecycle()
-    val xrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
-    val vlessSaved by viewModel.vlessConfig.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-
-    val importSuccessMessage = stringResource(R.string.wg_import_success)
-    val importErrorMessage = stringResource(R.string.wg_import_error)
 
     val kernelPickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -126,6 +122,7 @@ fun ClientSetupScreen(
     var isRawMode by rememberSaveable(saved.isRawMode) { mutableStateOf(saved.isRawMode) }
     var rawCommand by rememberSaveable(saved.rawCommand) { mutableStateOf(saved.rawCommand) }
     var serverAddress by rememberSaveable(saved.serverAddress) { mutableStateOf(saved.serverAddress) }
+    var turnableUrl  by rememberSaveable(saved.turnableUrl)    { mutableStateOf(saved.turnableUrl) }
     var vkLink       by rememberSaveable(saved.vkLink)         { mutableStateOf(saved.vkLink) }
     var wbstreamUuid by rememberSaveable(saved.wbstreamUuid)   { mutableStateOf(saved.wbstreamUuid) }
     var threads      by rememberSaveable(saved.threads)        { mutableFloatStateOf(saved.threads.toFloat()) }
@@ -134,27 +131,21 @@ fun ClientSetupScreen(
     var manualCaptcha by rememberSaveable(saved.manualCaptcha) { mutableStateOf(saved.manualCaptcha) }
     var localPort    by rememberSaveable(saved.localPort)      { mutableStateOf(saved.localPort) }
     var vlessMode    by rememberSaveable(saved.vlessMode)      { mutableStateOf(saved.vlessMode) }
-    var vlessLink    by rememberSaveable(vlessSaved.vlessLink)      { mutableStateOf(vlessSaved.vlessLink) }
-    var vlessUseLocalAddress by rememberSaveable(vlessSaved.vlessUseLocalAddress)      { mutableStateOf(vlessSaved.vlessUseLocalAddress) }
     var dcMode       by rememberSaveable(saved.dcMode)         { mutableStateOf(saved.dcMode) }
     var forcePort443 by rememberSaveable(saved.forceTurnPort443) { mutableStateOf(saved.forceTurnPort443) }
     var dcType       by rememberSaveable(saved.dcType)         { mutableStateOf(saved.dcType) }
     var jazzCreds    by rememberSaveable(saved.jazzCreds)      { mutableStateOf(saved.jazzCreds) }
+    var kernelVariant by rememberSaveable(saved.kernelVariant) { mutableStateOf(saved.kernelVariant) }
     var lastSliderInt by rememberSaveable { mutableIntStateOf(saved.threads) }
 
     val snackbarHostState = remember { SnackbarHostState() }
-    val showVlessQrScanner = remember { mutableStateOf(false) }
 
-    val isServerAddressValid = remember(serverAddress) {
-        ValidatorUtils.isValidHostPort(serverAddress)
-    }
-    val isLocalPortValid = remember(localPort) {
-        ValidatorUtils.isValidHostPort(localPort)
-    }
+    val isServerAddressValid = remember(serverAddress) { ValidatorUtils.isValidHostPort(serverAddress) }
+    val isLocalPortValid = remember(localPort) { ValidatorUtils.isValidHostPort(localPort) }
+    val isTurnableUrlValid = remember(turnableUrl) { ValidatorUtils.isValidTurnableUrl(turnableUrl) }
 
-    // Авто-сохранение с дебаунсом 200 мс на каждое изменение поля.
-    LaunchedEffect(isRawMode, rawCommand, serverAddress, vkLink, wbstreamUuid, threads, useUdp, noDtls,
-        manualCaptcha, localPort, vlessMode, dcMode, forcePort443, dcType, jazzCreds
+    LaunchedEffect(isRawMode, rawCommand, serverAddress, turnableUrl, vkLink, wbstreamUuid, threads, useUdp, noDtls,
+        manualCaptcha, localPort, vlessMode, dcMode, forcePort443, dcType, jazzCreds, kernelVariant
     ) {
         delay(200)
         viewModel.saveClientConfig(
@@ -162,6 +153,7 @@ fun ClientSetupScreen(
                 isRawMode        = isRawMode,
                 rawCommand       = rawCommand,
                 serverAddress    = serverAddress.trim(),
+                turnableUrl      = turnableUrl.trim(),
                 vkLink           = vkLink.trim(),
                 wbstreamUuid     = wbstreamUuid.trim(),
                 threads          = threads.roundToInt(),
@@ -173,29 +165,19 @@ fun ClientSetupScreen(
                 dcMode           = dcMode,
                 forceTurnPort443 = forcePort443,
                 dcType           = dcType,
-                jazzCreds        = jazzCreds.trim()
-            )
-        )
-    }
-
-    LaunchedEffect(vlessLink, vlessUseLocalAddress) {
-        delay(200)
-        viewModel.updateVlessConfig(
-            com.wireturn.app.data.VlessConfig(
-                vlessLink = vlessLink,
-                vlessUseLocalAddress = vlessUseLocalAddress
+                jazzCreds        = jazzCreds.trim(),
+                kernelVariant    = kernelVariant
             )
         )
     }
 
     val contentAnimationSpec = tween<androidx.compose.ui.unit.IntSize>(300, easing = FastOutSlowInEasing)
     val visibilityAnimationSpec = tween<Float>(300, easing = FastOutSlowInEasing)
+    val expandCollapseSpec = tween<androidx.compose.ui.unit.IntSize>(300, easing = FastOutSlowInEasing)
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(title = { Text(stringResource(R.string.client_title)) })
-        },
+        topBar = { TopAppBar(title = { Text(stringResource(R.string.client_title)) }) },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { padding ->
         Column(
@@ -207,646 +189,641 @@ fun ClientSetupScreen(
                 .padding(padding)
                 .consumeWindowInsets(padding)
                 .imePadding()
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = 16.dp)
                 .animateContentSize(animationSpec = contentAnimationSpec)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.Top
         ) {
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(8.dp))
 
-            // Подключение
-            Text(stringResource(R.string.connection_title), style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(16.dp))
+            // 1. Конфигурация режима и способа подключения
+            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    SectionHeader(stringResource(R.string.connection_title))
 
-            AnimatedVisibility(
-                visible = isRawMode,
-                enter = fadeIn(animationSpec = visibilityAnimationSpec) + expandVertically(animationSpec = contentAnimationSpec),
-                exit = fadeOut(animationSpec = visibilityAnimationSpec) + shrinkVertically(animationSpec = contentAnimationSpec)
-            ) {
-                OutlinedTextField(
-                    value = rawCommand,
-                    onValueChange = { rawCommand = it },
-                    isError = rawCommand.isBlank(),
-                    label = { Text(stringResource(R.string.raw_label)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    trailingIcon = {
-                        ConfigFieldIndicator(runningConfig != null && (rawCommand != runningConfig?.rawCommand || !runningConfig!!.isRawMode))
-                    }
-                )
-            }
-            AnimatedVisibility(
-                visible = !isRawMode,
-                enter = fadeIn(animationSpec = visibilityAnimationSpec) + expandVertically(animationSpec = contentAnimationSpec),
-                exit = fadeOut(animationSpec = visibilityAnimationSpec) + shrinkVertically(animationSpec = contentAnimationSpec)
-            ) {
-                Column {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(stringResource(R.string.tunnel), style = MaterialTheme.typography.bodyMedium)
-                                InlineConfigIndicator(runningConfig != null && dcMode != runningConfig?.dcMode)
+                    AnimatedVisibility(
+                        visible = !isRawMode,
+                        enter = expandVertically(animationSpec = expandCollapseSpec) + fadeIn(animationSpec = visibilityAnimationSpec),
+                        exit = shrinkVertically(animationSpec = expandCollapseSpec) + fadeOut(animationSpec = visibilityAnimationSpec)
+                    ) {
+                        Column {
+                            Spacer(Modifier.height(16.dp))
+                            LabeledSegmentedButton(
+                                label = stringResource(R.string.tunnel_label),
+                                subLabel = stringResource(R.string.connection_method_desc),
+                                isModified = runningConfig != null && dcMode != runningConfig?.dcMode
+                            ) {
+                                SegmentedButton(
+                                    selected = !dcMode,
+                                    onClick = {
+                                        HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
+                                        dcMode = false
+                                    },
+                                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                                ) { Text(stringResource(R.string.turn_tunnel)) }
+                                SegmentedButton(
+                                    selected = dcMode,
+                                    onClick = {
+                                        HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
+                                        dcMode = true
+                                    },
+                                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                                ) { Text(stringResource(R.string.dc_tunnel)) }
                             }
                         }
-                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                            SegmentedButton(
-                                selected = !dcMode,
-                                onClick = {
-                                    HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                                    dcMode = false
-                                },
-                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-                            ) { Text(stringResource(R.string.turn_protocol)) }
-                            SegmentedButton(
-                                selected = dcMode,
-                                onClick = {
-                                    HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                                    dcMode = true
-                                },
-                                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-                            ) { Text(stringResource(R.string.dc_protocol)) }
+                    }
+
+                    AnimatedVisibility(
+                        visible = !isRawMode && !dcMode,
+                        enter = expandVertically(animationSpec = expandCollapseSpec) + fadeIn(animationSpec = visibilityAnimationSpec),
+                        exit = shrinkVertically(animationSpec = expandCollapseSpec) + fadeOut(animationSpec = visibilityAnimationSpec)
+                    ) {
+                        Column {
+                            Spacer(Modifier.height(16.dp))
+                            HorizontalDivider(thickness = 0.5.dp)
                         }
                     }
 
-                    ScreenSectionDivider()
-
                     AnimatedVisibility(
-                        visible = !dcMode,
-                        enter = fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
-                                expandVertically(animationSpec = tween(300, easing = FastOutSlowInEasing)),
-                        exit = fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
-                               shrinkVertically(animationSpec = tween(300, easing = FastOutSlowInEasing))
+                        visible = isRawMode || !dcMode,
+                        enter = expandVertically(animationSpec = expandCollapseSpec) + fadeIn(animationSpec = visibilityAnimationSpec),
+                        exit = shrinkVertically(animationSpec = expandCollapseSpec) + fadeOut(animationSpec = visibilityAnimationSpec)
                     ) {
                         Column {
+                            Spacer(Modifier.height(16.dp))
+                            LabeledSegmentedButton(
+                                label = stringResource(R.string.kernel_label),
+                                subLabel = stringResource(R.string.client_variants_desc),
+                                isModified = runningConfig != null && kernelVariant != runningConfig?.kernelVariant
+                            ) {
+                                SegmentedButton(
+                                    selected = kernelVariant == KernelVariant.VK_TURN_PROXY,
+                                    onClick = {
+                                        HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
+                                        kernelVariant = KernelVariant.VK_TURN_PROXY
+                                    },
+                                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                                ) { Text(stringResource(R.string.kernel_vk_turn_proxy)) }
+                                SegmentedButton(
+                                    selected = kernelVariant == KernelVariant.TURNABLE,
+                                    onClick = {
+                                        HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
+                                        kernelVariant = KernelVariant.TURNABLE
+                                    },
+                                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                                ) { Text(stringResource(R.string.kernel_turnable)) }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // 1.1 Raw режим
+            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    SectionHeader(stringResource(R.string.raw_label))
+                    Spacer(Modifier.height(16.dp))
+
+                    SwitchRow(
+                        label = stringResource(R.string.raw_mode),
+                        description = stringResource(R.string.raw_mode_desc),
+                        checked = isRawMode,
+                        onCheckedChange = { isRawMode = it },
+                        isModified = runningConfig != null && isRawMode != runningConfig?.isRawMode
+                    )
+
+                    AnimatedVisibility(
+                        visible = isRawMode,
+                        enter = expandVertically(animationSpec = expandCollapseSpec) + fadeIn(animationSpec = visibilityAnimationSpec),
+                        exit = shrinkVertically(animationSpec = expandCollapseSpec) + fadeOut(animationSpec = visibilityAnimationSpec)
+                    ) {
+                        Column {
+                            Spacer(Modifier.height(16.dp))
+                            HorizontalDivider(thickness = 0.5.dp)
+                            Spacer(Modifier.height(16.dp))
+
                             OutlinedTextField(
-                                value = serverAddress.redact(privacyMode),
-                                onValueChange = { if (!privacyMode) serverAddress = it },
-                                label = { Text(stringResource(R.string.server_address_label)) },
-                                placeholder = { Text(stringResource(R.string.server_address_placeholder)) },
-                                isError = !isServerAddressValid || serverAddress.isBlank(),
+                                value = rawCommand,
+                                placeholder = { Text(stringResource(R.string.raw_placeholder)) },
+                                onValueChange = { rawCommand = it },
+                                isError = rawCommand.isBlank(),
+                                label = { Text(stringResource(R.string.raw_label)) },
                                 modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                readOnly = privacyMode,
-                                supportingText = { Text(stringResource(R.string.server_address_support)) },
-                                trailingIcon = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        ConfigFieldIndicator(runningConfig != null && (serverAddress.trim() != runningConfig?.serverAddress || runningConfig!!.isRawMode))
-                                        HistoryIconButton(
-                                            history = serverAddressHistory,
-                                            onSelect = { serverAddress = it },
-                                            onRemove = { viewModel.removeServerAddressFromHistory(it) },
-                                            privacyMode = privacyMode
-                                        )
-                                    }
-                                }
+                                trailingIcon = if (runningConfig != null && (rawCommand != runningConfig?.rawCommand || !runningConfig!!.isRawMode)) {
+                                    { ConfigFieldIndicator(true) }
+                                } else null
                             )
-                            Spacer(Modifier.height(12.dp))
                         }
                     }
+                }
+            }
 
-                    AnimatedVisibility(
-                        visible = dcMode,
-                        enter = fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
-                                expandVertically(animationSpec = tween(300, easing = FastOutSlowInEasing)),
-                        exit = fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
-                               shrinkVertically(animationSpec = tween(300, easing = FastOutSlowInEasing))
-                    ) {
-                        Column {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(stringResource(R.string.dc_type_label), style = MaterialTheme.typography.bodyMedium)
-                                        InlineConfigIndicator(runningConfig != null && dcType != runningConfig?.dcType)
-                                    }
+            // 2. Детали подключения (адреса, ссылки, UUID)
+            AnimatedVisibility(
+                visible = !isRawMode,
+                enter = expandVertically(animationSpec = expandCollapseSpec) + fadeIn(animationSpec = visibilityAnimationSpec),
+                exit = shrinkVertically(animationSpec = expandCollapseSpec) + fadeOut(animationSpec = visibilityAnimationSpec)
+            ) {
+                Column {
+                    Spacer(Modifier.height(16.dp))
+                    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            SectionHeader(stringResource(R.string.connection_details))
+                            Spacer(Modifier.height(16.dp))
+
+                            AnimatedContent(
+                                targetState = dcMode,
+                                label = "tunnel_mode_fields",
+                                transitionSpec = {
+                                    (fadeIn(animationSpec = visibilityAnimationSpec)).togetherWith(fadeOut(animationSpec = visibilityAnimationSpec))
+                                        .using(SizeTransform(clip = false))
                                 }
-                                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                                    DCType.entries.forEachIndexed { index, type ->
-                                        SegmentedButton(
-                                            selected = dcType == type,
-                                            onClick = {
-                                                HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                                                dcType = type
-                                            },
-                                            shape = SegmentedButtonDefaults.itemShape(index = index, count = DCType.entries.size)
+                            ) { targetDcMode ->
+                                Column {
+                                    if (targetDcMode) {
+                                        LabeledSegmentedButton(
+                                            label = stringResource(R.string.dc_type_label),
+                                            subLabel = stringResource(R.string.dc_type_desc),
+                                            isModified = runningConfig != null && dcType != runningConfig?.dcType
                                         ) {
-                                            Text(when(type) {
-                                                DCType.SALUTE_JAZZ -> stringResource(R.string.jazz_label)
-                                                DCType.WB_STREAM -> stringResource(R.string.wb_stream_label)
-                                            })
+                                            DCType.entries.forEachIndexed { index, type ->
+                                                SegmentedButton(
+                                                    selected = dcType == type,
+                                                    onClick = {
+                                                        HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
+                                                        dcType = type
+                                                    },
+                                                    shape = SegmentedButtonDefaults.itemShape(index = index, count = DCType.entries.size)
+                                                ) {
+                                                    Text(when (type) {
+                                                        DCType.SALUTE_JAZZ -> stringResource(R.string.jazz_label)
+                                                        DCType.WB_STREAM -> stringResource(R.string.wb_stream_label)
+                                                    })
+                                                }
+                                            }
+                                        }
+
+                                        AnimatedContent(
+                                            targetState = dcType,
+                                            label = "dc_fields",
+                                            transitionSpec = {
+                                                val direction = if (targetState.ordinal > initialState.ordinal) 1 else -1
+                                                (slideInHorizontally(animationSpec = tween(200)) { width -> direction * width } + fadeIn(animationSpec = visibilityAnimationSpec))
+                                                    .togetherWith(slideOutHorizontally(animationSpec = tween(200)) { width -> -direction * width } + fadeOut(animationSpec = visibilityAnimationSpec))
+                                                    .using(SizeTransform(clip = false))
+                                            }
+                                        ) { targetDcType ->
+                                            Column {
+                                                Spacer(Modifier.height(16.dp))
+                                                when (targetDcType) {
+                                                    DCType.SALUTE_JAZZ -> {
+                                                        OutlinedTextField(
+                                                            value = jazzCreds.redact(privacyMode),
+                                                            onValueChange = { if (!privacyMode) jazzCreds = it },
+                                                            label = { Text(stringResource(R.string.jazz_creds_label)) },
+                                                            placeholder = { Text(stringResource(R.string.jazz_creds_placeholder)) },
+                                                            isError = jazzCreds.isBlank() || !jazzCreds.contains(":"),
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                            singleLine = true,
+                                                            readOnly = privacyMode,
+                                                            supportingText = { Text(stringResource(R.string.jazz_creds_support)) },
+                                                            trailingIcon = {
+                                                                FieldTrailingIcons(
+                                                                    isModified = runningConfig != null && (jazzCreds.trim() != runningConfig?.jazzCreds || runningConfig!!.isRawMode),
+                                                                    history = jazzCredsHistory,
+                                                                    onSelect = { jazzCreds = it },
+                                                                    onRemove = { viewModel.removeJazzCredsFromHistory(it) },
+                                                                    privacyMode = privacyMode
+                                                                )
+                                                            }
+                                                        )
+                                                    }
+                                                    DCType.WB_STREAM -> {
+                                                        OutlinedTextField(
+                                                            value = wbstreamUuid.redact(privacyMode),
+                                                            onValueChange = { if (!privacyMode) wbstreamUuid = it },
+                                                            label = { Text(stringResource(R.string.wbstream_uuid_label)) },
+                                                            placeholder = { Text(stringResource(R.string.wbstream_uuid_placeholder)) },
+                                                            isError = wbstreamUuid.isBlank(),
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                            singleLine = true,
+                                                            readOnly = privacyMode,
+                                                            supportingText = { Text(stringResource(R.string.wbstream_uuid_support)) },
+                                                            trailingIcon = {
+                                                                FieldTrailingIcons(
+                                                                    isModified = runningConfig != null && (wbstreamUuid.trim() != runningConfig?.wbstreamUuid || runningConfig!!.isRawMode),
+                                                                    history = wbstreamUuidHistory,
+                                                                    onSelect = { wbstreamUuid = it },
+                                                                    onRemove = { viewModel.removeWbstreamUuidFromHistory(it) },
+                                                                    privacyMode = privacyMode
+                                                                )
+                                                            }
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        AnimatedContent(
+                                            targetState = kernelVariant,
+                                            label = "kernel_fields",
+                                            transitionSpec = {
+                                                val direction = if (targetState.ordinal > initialState.ordinal) 1 else -1
+                                                (slideInHorizontally(animationSpec = tween(200)) { width -> direction * width } + fadeIn(animationSpec = visibilityAnimationSpec))
+                                                    .togetherWith(slideOutHorizontally(animationSpec = tween(200)) { width -> -direction * width } + fadeOut(animationSpec = visibilityAnimationSpec))
+                                                    .using(SizeTransform(clip = false))
+                                            }
+                                        ) { targetKernel ->
+                                            Column {
+                                                if (targetKernel == KernelVariant.VK_TURN_PROXY) {
+                                                    OutlinedTextField(
+                                                        value = serverAddress.redact(privacyMode),
+                                                        onValueChange = { if (!privacyMode) serverAddress = it },
+                                                        label = { Text(stringResource(R.string.server_address_label)) },
+                                                        placeholder = { Text(stringResource(R.string.server_address_placeholder)) },
+                                                        isError = !isServerAddressValid || serverAddress.isBlank(),
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        singleLine = true,
+                                                        readOnly = privacyMode,
+                                                        supportingText = { Text(stringResource(R.string.server_address_support)) },
+                                                        trailingIcon = {
+                                                            FieldTrailingIcons(
+                                                                isModified = runningConfig != null && (serverAddress.trim() != runningConfig?.serverAddress || runningConfig!!.isRawMode),
+                                                                history = serverAddressHistory,
+                                                                onSelect = { serverAddress = it },
+                                                                onRemove = { viewModel.removeServerAddressFromHistory(it) },
+                                                                privacyMode = privacyMode
+                                                            )
+                                                        }
+                                                    )
+                                                    Spacer(Modifier.height(16.dp))
+                                                    OutlinedTextField(
+                                                        value = vkLink.redact(privacyMode),
+                                                        onValueChange = { if (!privacyMode) vkLink = it },
+                                                        label = { Text(stringResource(R.string.vk_link_label)) },
+                                                        placeholder = { Text(stringResource(R.string.vk_link_placeholder)) },
+                                                        isError = !ValidatorUtils.isValidUrl(vkLink) || vkLink.isBlank(),
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        singleLine = true,
+                                                        readOnly = privacyMode,
+                                                        supportingText = { Text(stringResource(R.string.vk_link_support)) },
+                                                        trailingIcon = {
+                                                            FieldTrailingIcons(
+                                                                isModified = runningConfig != null && (vkLink.trim() != runningConfig?.vkLink || runningConfig!!.isRawMode),
+                                                                history = vkLinkHistory,
+                                                                onSelect = { vkLink = it },
+                                                                onRemove = { viewModel.removeVkLinkFromHistory(it) },
+                                                                privacyMode = privacyMode
+                                                            )
+                                                        }
+                                                    )
+                                                } else {
+                                                    OutlinedTextField(
+                                                        value = turnableUrl.redact(privacyMode),
+                                                        onValueChange = { if (!privacyMode) turnableUrl = it },
+                                                        label = { Text(stringResource(R.string.turnable_url_label)) },
+                                                        placeholder = { Text(stringResource(R.string.turnable_url_placeholder)) },
+                                                        isError = !isTurnableUrlValid || turnableUrl.isBlank(),
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        maxLines = 5,
+                                                        readOnly = privacyMode,
+                                                        supportingText = { Text(stringResource(R.string.turnable_url_support)) },
+                                                        trailingIcon = {
+                                                            FieldTrailingIcons(
+                                                                isModified = runningConfig != null && (turnableUrl.trim() != runningConfig?.turnableUrl || runningConfig!!.isRawMode),
+                                                                history = turnableUrlHistory,
+                                                                onSelect = { turnableUrl = it },
+                                                                onRemove = { viewModel.removeTurnableUrlFromHistory(it) },
+                                                                privacyMode = privacyMode
+                                                            )
+                                                        }
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+            }
+
+            // 3. Тонкая настройка
+            AnimatedVisibility(
+                visible = !isRawMode,
+                enter = expandVertically(animationSpec = expandCollapseSpec) + fadeIn(animationSpec = visibilityAnimationSpec),
+                exit = shrinkVertically(animationSpec = expandCollapseSpec) + fadeOut(animationSpec = visibilityAnimationSpec)
+            ) {
+                Column {
+                    Spacer(Modifier.height(16.dp))
+                    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            SectionHeader(stringResource(R.string.parameters_title))
                             Spacer(Modifier.height(16.dp))
 
-                            AnimatedContent(
-                                targetState = dcType,
-                                transitionSpec = {
-                                    if (targetState.ordinal > initialState.ordinal) {
-                                        (slideInHorizontally { it } + fadeIn()).togetherWith(
-                                            slideOutHorizontally { -it } + fadeOut())
-                                    } else {
-                                        (slideInHorizontally { -it } + fadeIn()).togetherWith(
-                                            slideOutHorizontally { it } + fadeOut())
-                                    }
-                                },
-                                label = "dc_type_fields"
-                            ) { targetDcType ->
-                                when (targetDcType) {
-                                    DCType.SALUTE_JAZZ -> {
-                                        OutlinedTextField(
-                                            value = jazzCreds.redact(privacyMode),
-                                            onValueChange = { if (!privacyMode) jazzCreds = it },
-                                            label = { Text(stringResource(R.string.jazz_creds_label)) },
-                                            placeholder = { Text(stringResource(R.string.jazz_creds_placeholder)) },
-                                            isError = jazzCreds.isBlank() || !jazzCreds.contains(":"),
-                                            modifier = Modifier.fillMaxWidth(),
-                                            singleLine = true,
-                                            readOnly = privacyMode,
-                                            supportingText = { Text(stringResource(R.string.jazz_creds_support)) },
-                                            trailingIcon = {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    ConfigFieldIndicator(runningConfig != null && (jazzCreds.trim() != runningConfig?.jazzCreds || runningConfig!!.isRawMode))
-                                                    HistoryIconButton(
-                                                        history = jazzCredsHistory,
-                                                        onSelect = { jazzCreds = it },
-                                                        onRemove = { viewModel.removeJazzCredsFromHistory(it) },
-                                                        privacyMode = privacyMode
-                                                    )
-                                                }
-                                            }
-                                        )
-                                    }
-                                    DCType.WB_STREAM -> {
-                                        OutlinedTextField(
-                                            value = wbstreamUuid.redact(privacyMode),
-                                            onValueChange = { if (!privacyMode) wbstreamUuid = it },
-                                            label = { Text(stringResource(R.string.wbstream_uuid_label)) },
-                                            placeholder = { Text(stringResource(R.string.wbstream_uuid_placeholder)) },
-                                            isError = wbstreamUuid.isBlank(),
-                                            modifier = Modifier.fillMaxWidth(),
-                                            singleLine = true,
-                                            readOnly = privacyMode,
-                                            supportingText = { Text(stringResource(R.string.wbstream_uuid_support)) },
-                                            trailingIcon = {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    ConfigFieldIndicator(runningConfig != null && (wbstreamUuid.trim() != runningConfig?.wbstreamUuid || runningConfig!!.isRawMode))
-                                                    HistoryIconButton(
-                                                        history = wbstreamUuidHistory,
-                                                        onSelect = { wbstreamUuid = it },
-                                                        onRemove = { viewModel.removeWbstreamUuidFromHistory(it) },
-                                                        privacyMode = privacyMode
-                                                    )
-                                                }
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    AnimatedVisibility(
-                        visible = !dcMode,
-                        enter = fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
-                                expandVertically(animationSpec = tween(300, easing = FastOutSlowInEasing)),
-                        exit = fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
-                               shrinkVertically(animationSpec = tween(300, easing = FastOutSlowInEasing))
-                    ) {
-                        OutlinedTextField(
-                            value = vkLink.redact(privacyMode),
-                            onValueChange = { if (!privacyMode) vkLink = it },
-                            label = { Text(stringResource(R.string.vk_link_label)) },
-                            placeholder = { Text(stringResource(R.string.vk_link_placeholder)) },
-                            isError = !ValidatorUtils.isValidUrl(vkLink) || vkLink.isBlank(),
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            readOnly = privacyMode,
-                            supportingText = { Text(stringResource(R.string.vk_link_support)) },
-                            trailingIcon = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    ConfigFieldIndicator(runningConfig != null && (vkLink.trim() != runningConfig?.vkLink || runningConfig!!.isRawMode))
-                                    HistoryIconButton(
-                                        history = vkLinkHistory,
-                                        onSelect = { vkLink = it },
-                                        onRemove = { viewModel.removeVkLinkFromHistory(it) },
-                                        privacyMode = privacyMode
-                                    )
-                                }
-                            }
-                        )
-                    }
-
-
-                    ScreenSectionDivider()
-
-                    OutlinedTextField(
-                        value = localPort.redact(privacyMode),
-                        onValueChange = { if (!privacyMode) localPort = it },
-                        label = { Text(stringResource(R.string.local_listen_address)) },
-                        placeholder = { Text(stringResource(R.string.local_listen_placeholder)) },
-                        isError = !isLocalPortValid || localPort.isBlank(),
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        readOnly = privacyMode,
-                        supportingText = { Text(stringResource(R.string.local_listen_support)) },
-                        trailingIcon = {
-                            ConfigFieldIndicator(runningConfig != null && localPort.trim() != runningConfig?.localPort)
-                        }
-                    )
-
-                    ScreenSectionDivider()
-
-                    // Параметры
-                    Text(stringResource(R.string.parameters_title), style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(16.dp))
-
-                    SwitchRow(
-                        label = stringResource(R.string.vless_mode),
-                        description = stringResource(R.string.vless_mode_desc),
-                        checked = vlessMode,
-                        onCheckedChange = {
-                            HapticUtil.perform(
-                                context,
-                                if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
-                            )
-                            vlessMode = it
-                        },
-                        isModified = runningConfig != null && vlessMode != runningConfig?.vlessMode
-                    )
-
-                    AnimatedVisibility(
-                        visible = vlessMode,
-                        enter = fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) +
-                                expandVertically(animationSpec = tween(300, easing = FastOutSlowInEasing)),
-                        exit = fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing)) +
-                                shrinkVertically(animationSpec = tween(300, easing = FastOutSlowInEasing))
-                    ) {
-                        Column {
-                            Spacer(Modifier.height(12.dp))
                             OutlinedTextField(
-                                value = vlessLink.redact(privacyMode),
-                                onValueChange = { if (!privacyMode) vlessLink = it },
-                                label = { Text(stringResource(R.string.vless_link_label)) },
-                                placeholder = { Text(stringResource(R.string.vless_link_placeholder)) },
-                                isError = !ValidatorUtils.isValidVlessLink(vlessLink) || (vlessLink.isBlank() && xrayConfig.xrayEnabled),
+                                value = localPort.redact(privacyMode),
+                                onValueChange = { if (!privacyMode) localPort = it },
+                                label = { Text(stringResource(R.string.local_listen_address)) },
+                                placeholder = { Text(stringResource(R.string.local_listen_placeholder)) },
+                                isError = !isLocalPortValid || localPort.isBlank(),
                                 modifier = Modifier.fillMaxWidth(),
-                                maxLines = 4,
+                                singleLine = true,
                                 readOnly = privacyMode,
-                                supportingText = { Text(stringResource(R.string.vless_link_config_desc)) },
-                                leadingIcon = {
-                                    IconButton(onClick = { showVlessQrScanner.value = true }) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.qr_code_24px),
-                                            contentDescription = stringResource(R.string.wg_import_qr)
-                                        )
-                                    }
-                                },
-                                trailingIcon = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        ConfigFieldIndicator(runningVlessConfig != null && vlessLink.trim() != runningVlessConfig?.vlessLink)
-                                        HistoryIconButton(
-                                            history = vlessLinkHistory,
-                                            onSelect = { vlessLink = it },
-                                            onRemove = { viewModel.removeVlessLinkFromHistory(it) },
-                                            privacyMode = privacyMode
-                                        )
-                                    }
-                                }
+                                supportingText = { Text(stringResource(R.string.local_listen_support)) },
+                                trailingIcon = if (runningConfig != null && localPort.trim() != runningConfig?.localPort) {
+                                    { ConfigFieldIndicator(true) }
+                                } else null
                             )
-                        }
-                    }
 
-                    AnimatedVisibility(
-                        visible = vlessMode,
-                        enter = fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) +
-                                expandVertically(animationSpec = tween(300, easing = FastOutSlowInEasing)),
-                        exit = fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing)) +
-                                shrinkVertically(animationSpec = tween(300, easing = FastOutSlowInEasing))
-                    ) {
-                        Column {
-                            Spacer(Modifier.height(12.dp))
-                            SwitchRow(
-                                label = stringResource(R.string.use_local_listen_address),
-                                description = stringResource(R.string.use_local_listen_desc),
-                                checked = vlessUseLocalAddress,
-                                onCheckedChange = {
-                                    HapticUtil.perform(
-                                        context,
-                                        if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
-                                    )
-                                    vlessUseLocalAddress = it
-                                },
-                                isModified = runningVlessConfig != null && vlessUseLocalAddress != runningVlessConfig?.vlessUseLocalAddress
-                            )
-                            if (!dcMode) ScreenSectionDivider()
-                        }
-                    }
-
-                    AnimatedVisibility(
-                        visible = !dcMode,
-                        enter = fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
-                                expandVertically(animationSpec = tween(300, easing = FastOutSlowInEasing)),
-                        exit = fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
-                               shrinkVertically(animationSpec = tween(300, easing = FastOutSlowInEasing))
-                    ) {
-                        Column {
-                            if(!vlessMode) Spacer(Modifier.height(12.dp))
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
+                            AnimatedVisibility(
+                                visible = !dcMode && kernelVariant == KernelVariant.VK_TURN_PROXY,
+                                enter = expandVertically(animationSpec = expandCollapseSpec) + fadeIn(animationSpec = visibilityAnimationSpec),
+                                exit = shrinkVertically(animationSpec = expandCollapseSpec) + fadeOut(animationSpec = visibilityAnimationSpec)
                             ) {
-                                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(stringResource(R.string.threads_format, threads.roundToInt()), style = MaterialTheme.typography.bodyMedium)
-                                        InlineConfigIndicator(runningConfig != null && threads.roundToInt() != runningConfig?.threads)
-                                    }
-                                    Text(
-                                        stringResource(R.string.threads_recommendation),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                            Slider(
-                                value = threads,
-                                onValueChange = {
-                                    val newInt = it.roundToInt()
-                                    if (newInt != lastSliderInt) {
-                                        HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
-                                        lastSliderInt = newInt
-                                    }
-                                    threads = it
-                                },
-                                valueRange = 1f..8f,
-                                steps = 6,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
+                                Column {
+                                    Spacer(Modifier.height(16.dp))
+                                    HorizontalDivider(thickness = 0.5.dp)
+                                    Spacer(Modifier.height(16.dp))
 
-                    AnimatedVisibility(
-                        visible = !vlessMode && !dcMode,
-                        enter = fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
-                                expandVertically(animationSpec = tween(300, easing = FastOutSlowInEasing)),
-                        exit = fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
-                               shrinkVertically(animationSpec = tween(300, easing = FastOutSlowInEasing))
-                    ) {
-                        Column {
-                            Spacer(Modifier.height(12.dp))
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Column(
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(stringResource(R.string.transport_protocol), style = MaterialTheme.typography.bodyMedium)
-                                        InlineConfigIndicator(runningConfig != null && useUdp != runningConfig?.useUdp)
+                                    Column {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(stringResource(R.string.threads_format, threads.roundToInt()), style = MaterialTheme.typography.bodyMedium)
+                                            InlineConfigIndicator(runningConfig != null && threads.roundToInt() != runningConfig?.threads)
+                                        }
+                                        Spacer(Modifier.height(8.dp))
+                                        Slider(
+                                            value = threads,
+                                            onValueChange = {
+                                                val newInt = it.roundToInt()
+                                                if (newInt != lastSliderInt) {
+                                                    HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
+                                                    lastSliderInt = newInt
+                                                }
+                                                threads = it
+                                            },
+                                            valueRange = 1f..8f,
+                                            steps = 6,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                        Spacer(Modifier.height(8.dp))
+                                        Text(stringResource(R.string.threads_recommendation), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
-                                    Text(
-                                        stringResource(R.string.transport_protocol_desc),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                                    SegmentedButton(
-                                        selected = !useUdp,
-                                        onClick = {
-                                            HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                                            useUdp = false
-                                            noDtls = false
-                                        },
-                                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-                                    ) { Text(stringResource(R.string.tcp)) }
-                                    SegmentedButton(
-                                        selected = useUdp,
-                                        onClick = {
-                                            HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                                            useUdp = true
-                                        },
-                                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-                                    ) { Text(stringResource(R.string.udp)) }
                                 }
                             }
 
                             AnimatedVisibility(
-                                visible = useUdp,
-                                enter = fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
-                                        expandVertically(animationSpec = tween(300, easing = FastOutSlowInEasing)),
-                                exit = fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
-                                       shrinkVertically(animationSpec = tween(300, easing = FastOutSlowInEasing))
+                                visible = dcMode || kernelVariant == KernelVariant.VK_TURN_PROXY,
+                                enter = expandVertically(animationSpec = expandCollapseSpec) + fadeIn(animationSpec = visibilityAnimationSpec),
+                                exit = shrinkVertically(animationSpec = expandCollapseSpec) + fadeOut(animationSpec = visibilityAnimationSpec)
                             ) {
                                 Column {
-                                    Spacer(Modifier.height(12.dp))
+                                    Spacer(Modifier.height(16.dp))
+                                    HorizontalDivider(thickness = 0.5.dp)
+                                    Spacer(Modifier.height(16.dp))
+
                                     SwitchRow(
-                                        label = stringResource(R.string.no_dtls),
-                                        description = stringResource(R.string.no_dtls_desc),
-                                        checked = noDtls,
+                                        label = stringResource(R.string.vless_mode),
+                                        description = stringResource(R.string.vless_mode_desc),
+                                        checked = vlessMode,
                                         onCheckedChange = {
                                             HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
-                                            noDtls = it
+                                            vlessMode = it
                                         },
-                                        isModified = runningConfig != null && noDtls != runningConfig?.noDtls,
-                                        enabled = customKernelExists
+                                        isModified = runningConfig != null && vlessMode != runningConfig?.vlessMode
+                                    )
+                                }
+                            }
+
+                            AnimatedVisibility(
+                                visible = !vlessMode && !dcMode && kernelVariant == KernelVariant.VK_TURN_PROXY,
+                                enter = expandVertically(animationSpec = expandCollapseSpec) + fadeIn(animationSpec = visibilityAnimationSpec),
+                                exit = shrinkVertically(animationSpec = expandCollapseSpec) + fadeOut(animationSpec = visibilityAnimationSpec)
+                            ) {
+                                Column {
+                                    Spacer(Modifier.height(16.dp))
+                                    LabeledSegmentedButton(
+                                        label = stringResource(R.string.transport_protocol),
+                                        subLabel = stringResource(R.string.transport_protocol_desc),
+                                        isModified = runningConfig != null && useUdp != runningConfig?.useUdp
+                                    ) {
+                                        SegmentedButton(
+                                            selected = !useUdp,
+                                            onClick = {
+                                                HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
+                                                useUdp = false
+                                                noDtls = false
+                                            },
+                                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                                        ) { Text(stringResource(R.string.tcp)) }
+                                        SegmentedButton(
+                                            selected = useUdp,
+                                            onClick = {
+                                                HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
+                                                useUdp = true
+                                            },
+                                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                                        ) { Text(stringResource(R.string.udp)) }
+                                    }
+
+                                    AnimatedVisibility(
+                                        visible = useUdp,
+                                        enter = expandVertically(animationSpec = expandCollapseSpec) + fadeIn(animationSpec = visibilityAnimationSpec),
+                                        exit = shrinkVertically(animationSpec = expandCollapseSpec) + fadeOut(animationSpec = visibilityAnimationSpec)
+                                    ) {
+                                        Column {
+                                            Spacer(Modifier.height(12.dp))
+                                            SwitchRow(
+                                                label = stringResource(R.string.no_dtls),
+                                                description = stringResource(R.string.no_dtls_desc),
+                                                checked = noDtls,
+                                                onCheckedChange = {
+                                                    HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                                                    noDtls = it
+                                                },
+                                                isModified = runningConfig != null && noDtls != runningConfig?.noDtls,
+                                                enabled = customKernelExists
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            AnimatedVisibility(
+                                visible = !dcMode && kernelVariant != KernelVariant.TURNABLE,
+                                enter = expandVertically(animationSpec = expandCollapseSpec) + fadeIn(animationSpec = visibilityAnimationSpec),
+                                exit = shrinkVertically(animationSpec = expandCollapseSpec) + fadeOut(animationSpec = visibilityAnimationSpec)
+                            ) {
+                                Column {
+                                    Spacer(Modifier.height(16.dp))
+                                    SwitchRow(
+                                        label = stringResource(R.string.manual_captcha),
+                                        description = stringResource(R.string.manual_captcha_desc),
+                                        checked = manualCaptcha,
+                                        onCheckedChange = {
+                                            HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                                            manualCaptcha = it
+                                        },
+                                        isModified = runningConfig != null && manualCaptcha != runningConfig?.manualCaptcha
+                                    )
+
+                                    Spacer(Modifier.height(16.dp))
+                                    SwitchRow(
+                                        label = stringResource(R.string.force_turn_port_443),
+                                        description = stringResource(R.string.force_turn_port_443_desc),
+                                        checked = forcePort443,
+                                        onCheckedChange = {
+                                            HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                                            forcePort443 = it
+                                        },
+                                        isModified = runningConfig != null && forcePort443 != runningConfig?.forceTurnPort443
                                     )
                                 }
                             }
                         }
                     }
-                    AnimatedVisibility(
-                        visible = !dcMode,
-                        enter = fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
-                                expandVertically(animationSpec = tween(300, easing = FastOutSlowInEasing)),
-                        exit = fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing)) + 
-                               shrinkVertically(animationSpec = tween(300, easing = FastOutSlowInEasing))
-                    ) {
-                        Column {
-                            Spacer(Modifier.height(12.dp))
-                            SwitchRow(
-                                label = stringResource(R.string.manual_captcha),
-                                description = stringResource(R.string.manual_captcha_desc),
-                                checked = manualCaptcha,
-                                onCheckedChange = {
-                                    HapticUtil.perform(
-                                        context,
-                                        if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
-                                    )
-                                    manualCaptcha = it
-                                },
-                                isModified = runningConfig != null && manualCaptcha != runningConfig?.manualCaptcha
-                            )
-
-                            Spacer(Modifier.height(12.dp))
-                            SwitchRow(
-                                label = stringResource(R.string.force_turn_port_443),
-                                description = stringResource(R.string.force_turn_port_443_desc),
-                                checked = forcePort443,
-                                onCheckedChange = {
-                                    HapticUtil.perform(
-                                        context,
-                                        if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
-                                    )
-                                    forcePort443 = it
-                                },
-                                isModified = runningConfig != null && forcePort443 != runningConfig?.forceTurnPort443
-                            )
-                        }
-                    }
                 }
             }
 
-            ScreenSectionDivider()
-
-            SwitchRow(
-                label = stringResource(R.string.raw_mode),
-                description = stringResource(R.string.raw_mode_desc),
-                checked = isRawMode,
-                onCheckedChange = { isRawMode = it },
-                isModified = runningConfig != null && isRawMode != runningConfig?.isRawMode
-            )
-
-            ScreenSectionDivider()
-
-            // Ядро
-            Text(stringResource(R.string.core_title), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(16.dp))
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (customKernelExists)
-                        MaterialTheme.colorScheme.secondaryContainer
-                    else
-                        MaterialTheme.colorScheme.surfaceVariant
-                )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+            // 5. Ядро (Kernel file management)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SectionHeader(stringResource(R.string.core_title))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (customKernelExists) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                    )
                 ) {
                     Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.weight(1f)
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Icon(
-                            painter = painterResource(
-                                if (customKernelExists) R.drawable.check_circle_24px
-                                else R.drawable.memory_24px
-                            ),
-                            contentDescription = null,
-                            tint = if (customKernelExists)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(
-                                if (customKernelExists) stringResource(R.string.custom_core)
-                                else stringResource(R.string.builtin_core),
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Text(
-                                if (customKernelExists) {
-                                    val dateStr = customKernelLastModified?.let {
-                                        val currentLocale = LocalLocale.current.platformLocale
-                                        SimpleDateFormat("dd.MM.yyyy HH:mm", currentLocale).format(Date(it))
-                                    }
-                                    if (dateStr != null) {
-                                        stringResource(R.string.kernel_date_format, dateStr)
-                                    } else {
-                                        stringResource(R.string.loaded_from_memory)
-                                    }
-                                } else stringResource(R.string.from_apk),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                    if (customKernelExists) {
-                        IconButton(onClick = {
-                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                            viewModel.clearCustomKernel()
-                        }) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.weight(1f)) {
                             Icon(
-                                painter = painterResource(R.drawable.delete_24px),
-                                contentDescription = stringResource(R.string.reset),
-                                tint = MaterialTheme.colorScheme.error
+                                painter = painterResource(if (customKernelExists) R.drawable.check_circle_24px else R.drawable.memory_24px),
+                                contentDescription = null,
+                                tint = if (customKernelExists) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(if (customKernelExists) stringResource(R.string.custom_core) else stringResource(R.string.builtin_core), style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    text = if (customKernelExists) {
+                                        customKernelLastModified?.let {
+                                            SimpleDateFormat("dd.MM.yyyy HH:mm", LocalLocale.current.platformLocale).format(Date(it))
+                                        }?.let { stringResource(R.string.kernel_date_format, it) } ?: stringResource(R.string.loaded_from_memory)
+                                    } else stringResource(R.string.from_apk),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
-                    } else {
-                        FilledTonalButton(onClick = {
-                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                            viewModel.clearKernelError()
-                            kernelPickerLauncher.launch(arrayOf("*/*"))
-                        }) {
-                            Text(stringResource(R.string.btn_load))
+                        if (customKernelExists) {
+                            IconButton(onClick = {
+                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                viewModel.clearCustomKernel()
+                            }) {
+                                Icon(painter = painterResource(R.drawable.delete_24px), contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                            }
+                        } else {
+                            FilledTonalButton(onClick = {
+                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                viewModel.clearKernelError()
+                                kernelPickerLauncher.launch(arrayOf("*/*"))
+                            }) { Text(stringResource(R.string.btn_load)) }
                         }
+                    }
+                }
+                if (kernelError != null) {
+                    Row(modifier = Modifier.padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(painter = painterResource(R.drawable.error_24px), contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+                        Text(kernelError!!, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
 
-            if (kernelError != null) {
-                Spacer(Modifier.height(12.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.error_24px),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        kernelError!!,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
-
-            // Кнопка «Завершить» — только в онбординг-флоу
             if (showFinishButton && onFinish != null) {
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(16.dp))
+                val isValid = remember(isRawMode, rawCommand, dcMode, dcType, jazzCreds, wbstreamUuid, serverAddress, vkLink, turnableUrl, kernelVariant) {
+                    com.wireturn.app.data.ClientConfig(
+                        isRawMode = isRawMode,
+                        rawCommand = rawCommand,
+                        dcMode = dcMode,
+                        dcType = dcType,
+                        jazzCreds = jazzCreds,
+                        wbstreamUuid = wbstreamUuid,
+                        serverAddress = serverAddress,
+                        vkLink = vkLink,
+                        turnableUrl = turnableUrl,
+                        kernelVariant = kernelVariant
+                    ).isValid
+                }
                 Button(
                     onClick = onFinish,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    enabled = serverAddress.isNotBlank() && vkLink.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    enabled = isValid,
                     shape = MaterialTheme.shapes.large
                 ) {
                     Text(stringResource(R.string.finish_setup), style = MaterialTheme.typography.labelLarge)
                 }
             }
-
             Spacer(Modifier.height(28.dp))
         }
-
     }
+}
 
-    if (showVlessQrScanner.value) {
-        QrScannerDialog(
-            title = stringResource(R.string.vless_import_qr),
-            message = stringResource(R.string.vless_qr_scan_desc),
-            onDismiss = { showVlessQrScanner.value = false },
-            onResult = { result ->
-                if (ValidatorUtils.isValidVlessLink(result)) {
-                    vlessLink = result
-                    scope.launch {
-                        snackbarHostState.showSnackbar(importSuccessMessage)
-                    }
-                } else {
-                    scope.launch {
-                        snackbarHostState.showSnackbar(importErrorMessage)
-                    }
-                }
+@Composable
+private fun SectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(bottom = 4.dp)
+    )
+}
+
+@Composable
+private fun LabeledSegmentedButton(
+    label: String,
+    subLabel: String,
+    isModified: Boolean,
+    content: @Composable SingleChoiceSegmentedButtonRowScope.() -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(label, style = MaterialTheme.typography.bodyMedium)
+                InlineConfigIndicator(isModified)
             }
-        )
+            Text(subLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth(), content = content)
+    }
+}
+
+@Composable
+private fun FieldTrailingIcons(
+    isModified: Boolean,
+    history: List<String>,
+    onSelect: (String) -> Unit,
+    onRemove: (String) -> Unit,
+    privacyMode: Boolean
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (isModified) ConfigFieldIndicator(true)
+        if (history.isNotEmpty()) {
+            HistoryIconButton(
+                history = history,
+                onSelect = onSelect,
+                onRemove = onRemove,
+                privacyMode = privacyMode
+            )
+        }
     }
 }
 
@@ -916,13 +893,6 @@ private fun HistoryIconButton(
             }
         }
     }
-}
-
-@Composable
-private fun ScreenSectionDivider() {
-    Spacer(Modifier.height(16.dp))
-    HorizontalDivider(Modifier, DividerDefaults.Thickness, DividerDefaults.color)
-    Spacer(Modifier.height(16.dp))
 }
 
 @Composable

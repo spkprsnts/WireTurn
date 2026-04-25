@@ -14,6 +14,7 @@ import android.os.PowerManager
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.DCType
+import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.viewmodel.AppLifecycleState
 import com.wireturn.app.viewmodel.XrayState
 import java.io.BufferedReader
@@ -96,6 +97,9 @@ class ProxyService : Service() {
         wakeLock?.acquire(TimeUnit.HOURS.toMillis(24))
 
         registerNetworkCallback()
+        if (AppLogsState.logs.value.isNotEmpty()) {
+            AppLogsState.addLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        }
         AppLogsState.addLog(getString(R.string.log_proxy_start))
     }
 
@@ -182,14 +186,16 @@ class ProxyService : Service() {
             withContext(Dispatchers.IO) {
                 BufferedReader(InputStreamReader(proc.inputStream)).use { reader ->
                     while (true) {
-                        val l = reader.readLine() ?: break
+                        val rawLine = reader.readLine() ?: break
+                        val l = AppLogsState.stripAnsi(rawLine)
                         AppLogsState.addLog(l)
 
                         if (!isActive) continue
 
                         // Process logic
                         if (!useCustom && !l.contains("[xray]") && !l.contains("[tun2socks]")) {
-                            if (l.contains("[VK Auth]", ignoreCase = true) || l.contains("joining room", ignoreCase = true)) {
+                            if (l.contains("[VK Auth]", ignoreCase = true) || l.contains("joining room", ignoreCase = true) ||
+                                l.contains("vk signaling connected")) {
                                 if (!startupEmitted) {
                                     ProxyServiceState.setStartupResult(StartupResult.Success)
                                     updateNotification(getString(R.string.proxy_connecting))
@@ -199,7 +205,9 @@ class ProxyService : Service() {
 
                             if (l.contains("Established", ignoreCase = true) || 
                                 l.contains("listening on", ignoreCase = true) || 
-                                l.contains("DataChannel connected", ignoreCase = true)) {
+                                l.contains("DataChannel connected", ignoreCase = true) ||
+                                l.contains("peer online"))
+                            {
                                 ProxyServiceState.setWorking(true)
                                 updateNotification(getString(R.string.proxy_active))
                                 if (!startupEmitted) {
@@ -266,7 +274,9 @@ class ProxyService : Service() {
                         }
 
                         // Quota error handling
-                        if (isQuotaError(l) && sessionKillScheduled.compareAndSet(false, true)) {
+                        if (cfg.kernelVariant != KernelVariant.TURNABLE && isQuotaError(l) &&
+                            sessionKillScheduled.compareAndSet(false, true))
+                        {
                             AppLogsState.addLog(getString(R.string.log_quota_error))
                             launch {
                                 delay(2000)
@@ -301,6 +311,7 @@ class ProxyService : Service() {
     }
 
     private suspend fun buildCommandArgs(cfg: ClientConfig): List<String> {
+        val vkTurnProxyKernel = "${applicationInfo.nativeLibraryDir}/libvkturn.so"
         val customBin = File(filesDir, "custom_vkturn")
         val useCustom = customBin.exists()
         val executable = if (useCustom) {
@@ -308,19 +319,25 @@ class ProxyService : Service() {
             customBin.absolutePath
         } else {
             AppLogsState.addLog(getString(R.string.log_standard_kernel))
-            "${applicationInfo.nativeLibraryDir}/libvkturn.so"
+            if (cfg.dcMode) {
+                vkTurnProxyKernel
+            } else {
+                when (cfg.kernelVariant) {
+                    KernelVariant.VK_TURN_PROXY -> vkTurnProxyKernel
+                    KernelVariant.TURNABLE -> "${applicationInfo.nativeLibraryDir}/libturnable.so"
+                }
+            }
         }
 
         val cmdArgs = mutableListOf<String>()
+        cmdArgs.add(executable)
 
         if (cfg.isRawMode) {
             val parts = cfg.rawCommand.trim().split("\\s+".toRegex())
-            cmdArgs.add(executable)
             if (parts.isNotEmpty()) cmdArgs.addAll(parts)
         } else {
-            cmdArgs.add(executable)
-            cmdArgs.add("-listen"); cmdArgs.add(cfg.localPort.ifBlank { ClientConfig.DEFAULT_LOCAL_PORT })
             if(cfg.dcMode) {
+                cmdArgs.add("-listen"); cmdArgs.add(cfg.localPort.ifBlank { ClientConfig.DEFAULT_LOCAL_PORT })
                 if (cfg.dcType == DCType.SALUTE_JAZZ) {
                     if (!checkJazzAvailability()) {
                         AppLogsState.addLog(getString(R.string.log_jazz_unavailable))
@@ -336,14 +353,33 @@ class ProxyService : Service() {
                 if (cfg.vlessMode) cmdArgs.add("-vless")
                 cmdArgs.add("-dc")
             } else {
-                cmdArgs.add("-peer"); cmdArgs.add(cfg.serverAddress)
-                cmdArgs.add("-vk-link"); cmdArgs.add(cfg.vkLink)
-                if (cfg.threads > 0) { cmdArgs.add("-n"); cmdArgs.add(cfg.threads.toString()) }
-                if (cfg.vlessMode) cmdArgs.add("-vless")
-                else if (cfg.useUdp) cmdArgs.add("-udp")
-                if (cfg.forceTurnPort443) { cmdArgs.add("-port"); cmdArgs.add("443") }
-                if (cfg.manualCaptcha) cmdArgs.add("--manual-captcha")
-                if (cfg.noDtls && useCustom) cmdArgs.add("-no-dtls")
+                when (cfg.kernelVariant) {
+                    KernelVariant.VK_TURN_PROXY -> {
+                        cmdArgs.add("-listen"); cmdArgs.add(cfg.localPort.ifBlank { ClientConfig.DEFAULT_LOCAL_PORT })
+                        cmdArgs.add("-peer"); cmdArgs.add(cfg.serverAddress)
+                        cmdArgs.add("-vk-link"); cmdArgs.add(cfg.vkLink)
+                        if (cfg.threads > 0) {
+                            cmdArgs.add("-n"); cmdArgs.add(cfg.threads.toString())
+                        }
+                        if (cfg.vlessMode) cmdArgs.add("-vless")
+                        else if (cfg.useUdp) cmdArgs.add("-udp")
+                        if (cfg.forceTurnPort443) {
+                            cmdArgs.add("-port"); cmdArgs.add("443")
+                        }
+                        if (cfg.manualCaptcha) cmdArgs.add("--manual-captcha")
+                        if (cfg.noDtls && useCustom) cmdArgs.add("-no-dtls")
+                    }
+
+                    KernelVariant.TURNABLE -> {
+                        cmdArgs.addAll(
+                            listOf(
+                                "client",
+                                "-l", cfg.localPort.ifBlank { ClientConfig.DEFAULT_LOCAL_PORT },
+                                cfg.turnableUrl
+                            )
+                        )
+                    }
+                }
             }
         }
 
@@ -398,7 +434,7 @@ class ProxyService : Service() {
                     // Ждем первого появления isWorking в рамках текущего запуска сессии
                     ProxyServiceState.isWorking.first { it }
                     
-                    // После того как прокси заработал хотя бы раз, следим за конфигом Xray
+                    // После того как прокси заработал хотя бы раз, следим за состоянием xrayEnabled
                     prefs.xrayConfigFlow.collect { cfg ->
                         withContext(Dispatchers.Main) {
                             val currentState = XrayServiceState.state.value

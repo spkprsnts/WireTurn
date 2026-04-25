@@ -12,7 +12,8 @@
     <string name="proxy_press_to_start">Нажмите для запуска</string>
     <string name="proxy_stop">Остановить</string>
     <string name="current_client_settings">Текущие настройки клиента</string>
-    <string name="call_link">Ссылка</string>
+    <string name="call_link">Ссылка на звонок</string>
+    <string name="turnable_url">Turnable-ссылка</string>
     <string name="server">Сервер</string>
     <string name="threads">Потоки</string>
     <string name="tcp">TCP</string>
@@ -108,28 +109,36 @@
     <string name="raw_mode">Raw Mode</string>
     <string name="raw_mode_desc">Ввод аргументов вручную</string>
     <string name="raw_label">Raw</string>
+    <string name="raw_placeholder">-listen 127.0.0.1:900 -peer 292.313.32.45:56000 …</string>
     <string name="server_address_label">Адрес vk-turn-proxy сервера</string>
-    <string name="server_address_placeholder">1.2.3.4:56000</string>
+    <string name="server_address_placeholder">292.313.32.45:56000</string>
     <string name="server_address_support">IP и порт vk-turn-proxy на вашем VPS</string>
     <string name="vk_link_label">Ссылка VK-звонок</string>
     <string name="vk_link_placeholder">https://vk.com/call/…</string>
     <string name="vk_link_support">VK: Звонки → Создать встречу → Скопировать ссылку (не нажимайте «Завершить»)</string>
+    <string name="turnable_url_label">Turnable-ссылка</string>
+    <string name="turnable_url_placeholder">turnable://user:pass@vk.com…</string>
+    <string name="turnable_url_support">Создаётся и формируется на сервере</string>
     <string name="wbstream_uuid_label">ID комнаты WB Stream</string>
     <string name="wbstream_uuid_placeholder">UUID</string>
     <string name="wbstream_uuid_support">Создаётся на сервере</string>
     <string name="history_label">История</string>
     <string name="history_empty">История пуста</string>
-    <string name="tunnel">Туннель</string>
-    <string name="turn_protocol">TURN</string>
-    <string name="dc_protocol">DC</string>
+    <string name="tunnel_label">Туннель</string>
+    <string name="kernel_label">Ядро</string>
+    <string name="kernel_vk_turn_proxy">vk-turn-proxy</string>
+    <string name="kernel_turnable">Turnable</string>
+    <string name="turn_tunnel">TURN</string>
+    <string name="dc_tunnel">DC</string>
     <string name="local_listen_address">Локальный адрес прослушивания</string>
     <string name="local_listen_placeholder">127.0.0.1:9000</string>
-    <string name="local_listen_support">Адрес, на котором клиент принимает трафик от WireGuard</string>
+    <string name="local_listen_support">Адрес, на котором клиент принимает трафик от WireGuard/VLESS</string>
     <string name="parameters_title">Параметры</string>
     <string name="threads_format">Потоки: %1$d</string>
     <string name="threads_recommendation">Рекомендуется 4–8</string>
     <string name="vless_mode">VLESS-режим</string>
-    <string name="vless_mode_desc">Проброс VLESS через TURN-туннель\n(требует -vless на сервере)</string>
+    <string name="vless_mode_desc">Проброс VLESS через туннель</string>
+    <string name="vless_mode_support">\n(требует -vless на сервере)</string>
     <string name="transport_protocol">Транспорт</string>
     <string name="transport_protocol_desc">UDP снижает задержки, TCP — стабильнее</string>
     <string name="no_dtls">Без DTLS-шифрования</string>
@@ -140,7 +149,7 @@
     <string name="force_turn_port_443_desc">Использовать порт 443 вместо стандартного.\nПомогает в сетях, где порт 19302 заблокирован</string>
     <string name="jazz_label">SaluteJazz</string>
     <string name="wb_stream_label">WB Stream</string>
-    <string name="dc_type_label">Тип DC</string>
+    <string name="dc_type_label">Сервис DC</string>
     <string name="jazz_desc">Использовать SaluteJazz</string>
     <string name="jazz_creds_label">Код:пароль комнаты SaluteJazz</string>
     <string name="jazz_creds_placeholder">room:password</string>
@@ -241,6 +250,8 @@
     <string name="captcha_channel_name">Уведомления о капче</string>
     <string name="captcha_channel_description">Уведомления о необходимости прохождения капчи</string>
     <string name="xray_short">Xray</string>
+    <string name="xray_protocol_label">Протокол</string>
+    <string name="xray_settings_title">Настройки Xray</string>
     <string name="wg_short">WG</string>
     <string name="vpn_short">VPN</string>
     <string name="captcha_notification_title">Требуется капча</string>
@@ -254,6 +265,12 @@
     <string name="dc">DC</string>
     <string name="redacted_value">••••••</string>
     <string name="not_set">не задано</string>
+    <string name="dash">—</string>
+    <string name="check_mark">✔</string>
+    <string name="ping_unknown">\?</string>
+    <string name="version_format">v%1$s</string>
+    <string name="clipboard_label_socks5">Xray SOCKS5</string>
+    <string name="clipboard_label_http">Xray HTTP</string>
 
     <string name="vless_link_label">VLESS-ссылка</string>
     <string name="vless_link_placeholder">vless://…</string>
@@ -263,5 +280,20 @@
     <string name="use_local_listen_address">Использовать адрес прослушивания</string>
     <string name="use_local_listen_desc">Вместо указанного сервера VLESS\nбудет использоваться локальный</string>
 
+    <string name="warn_proxy_vless_mismatch">Внимание! Прокси-туннель запущен для VLESS!</string>
+    <string name="warn_proxy_wg_mismatch">Внимание! Прокси-туннель запущен для WireGuard!</string>
+
     <string name="qr_import">QR-код</string>
+    <string name="xray_local_addresses">Локальные адреса</string>
+    <string name="xray_socks_desc">Адрес для SOCKS5 прокси</string>
+    <string name="xray_http_desc">Адрес для HTTP прокси (опционально)</string>
+    <string name="xray_protocol_desc">Выберите протокол для Xray-core</string>
+    <string name="vless_settings">Настройки VLESS</string>
+    <string name="protocol_wireguard">WireGuard</string>
+    <string name="connection_method_desc">Способ проброса трафика</string>
+    <string name="client_variants_desc">Варианты клиента</string>
+    <string name="connection_details">Детали подключения</string>
+    <string name="dc_type_desc">Тип DataChannel</string>
+    <string name="math_minus">−</string>
+    <string name="math_plus">+</string>
 </resources>

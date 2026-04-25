@@ -18,6 +18,14 @@ enum class DCType {
     SALUTE_JAZZ, WB_STREAM
 }
 
+enum class KernelVariant {
+    VK_TURN_PROXY, TURNABLE
+}
+
+enum class XrayConfiguration {
+    WIREGUARD, VLESS
+}
+
 data class ClientConfig(
     val serverAddress: String = "",
     val vkLink: String = "",
@@ -33,7 +41,9 @@ data class ClientConfig(
     val dcMode: Boolean = false,
     val forceTurnPort443: Boolean = false,
     val dcType: DCType = DCType.SALUTE_JAZZ,
-    val jazzCreds: String = ""
+    val jazzCreds: String = "",
+    val turnableUrl: String = "",
+    val kernelVariant: KernelVariant = KernelVariant.VK_TURN_PROXY
 ) {
     fun getValidationErrorResId(): Int? {
         if (isRawMode) {
@@ -51,7 +61,14 @@ data class ClientConfig(
                 }
             }
         } else {
-            if (serverAddress.isBlank() || vkLink.isBlank()) com.wireturn.app.R.string.error_settings_empty else null
+            when (kernelVariant) {
+                KernelVariant.VK_TURN_PROXY -> {
+                    if (serverAddress.isBlank() || vkLink.isBlank()) com.wireturn.app.R.string.error_settings_empty else null
+                }
+                KernelVariant.TURNABLE -> {
+                    if (turnableUrl.isBlank()) com.wireturn.app.R.string.error_settings_empty else null
+                }
+            }
         }
     }
 
@@ -89,7 +106,8 @@ data class XrayConfig(
     val xrayEnabled: Boolean = false,
     val xrayVpnMode: Boolean = false,
     val socksBindAddress: String = DEFAULT_SOCKS_BIND_ADDRESS,
-    val httpBindAddress: String = ""
+    val httpBindAddress: String = "",
+    val xrayConfiguration: XrayConfiguration = XrayConfiguration.WIREGUARD
 ) {
     fun fillDefaults(): XrayConfig {
         val isValid = socksBindAddress.isNotBlank() && com.wireturn.app.ui.ValidatorUtils.isValidHostPort(socksBindAddress)
@@ -217,12 +235,16 @@ class AppPreferences(context: Context) {
         val WIRE_KEEPALIVE = stringPreferencesKey("wire_keepalive")
         val SOCKS_BIND = stringPreferencesKey("socks_bind")
         val HTTP_BIND = stringPreferencesKey("http_bind")
+        val XRAY_CONFIGURATION = stringPreferencesKey("xray_configuration")
         val VK_LINK_HISTORY = stringPreferencesKey("vk_link_history")
         val WBSTREAM_UUID_HISTORY = stringPreferencesKey("wbstream_uuid_history")
         val SERVER_ADDR_HISTORY = stringPreferencesKey("server_addr_history")
         val JAZZ_CREDS_HISTORY = stringPreferencesKey("jazz_creds_history")
         val CLIENT_DC_TYPE = stringPreferencesKey("client_dc_type")
         val CLIENT_JAZZ_CREDS = stringPreferencesKey("client_jazz_creds")
+        val CLIENT_TURNABLE_URL = stringPreferencesKey("client_turnable_url")
+        val CLIENT_KERNEL_VARIANT = stringPreferencesKey("client_kernel_variant")
+        val TURNABLE_URL_HISTORY = stringPreferencesKey("turnable_url_history")
         val BATTERY_NOTIFICATION_DISMISSED = booleanPreferencesKey("battery_notification_dismissed")
     }
 
@@ -244,7 +266,9 @@ class AppPreferences(context: Context) {
                 dcMode = prefs[CLIENT_DC_MODE] ?: false,
                 forceTurnPort443 = prefs[CLIENT_FORCE_PORT_443] ?: false,
                 dcType = DCType.valueOf(prefs[CLIENT_DC_TYPE] ?: DCType.SALUTE_JAZZ.name),
-                jazzCreds = prefs[CLIENT_JAZZ_CREDS] ?: ""
+                jazzCreds = prefs[CLIENT_JAZZ_CREDS] ?: "",
+                turnableUrl = prefs[CLIENT_TURNABLE_URL] ?: "",
+                kernelVariant = KernelVariant.valueOf(prefs[CLIENT_KERNEL_VARIANT] ?: KernelVariant.VK_TURN_PROXY.name)
             ).fillDefaults()
         }
 
@@ -268,7 +292,8 @@ class AppPreferences(context: Context) {
                 xrayEnabled = prefs[XRAY_ENABLED] ?: false,
                 xrayVpnMode = prefs[XRAY_VPN_MODE] ?: false,
                 socksBindAddress = prefs[SOCKS_BIND] ?: XrayConfig.DEFAULT_SOCKS_BIND_ADDRESS,
-                httpBindAddress = prefs[HTTP_BIND] ?: ""
+                httpBindAddress = prefs[HTTP_BIND] ?: "",
+                xrayConfiguration = XrayConfiguration.valueOf(prefs[XRAY_CONFIGURATION] ?: XrayConfiguration.WIREGUARD.name)
             )
         }
 
@@ -331,6 +356,14 @@ class AppPreferences(context: Context) {
             else historyString.split("|").filter { it.isNotBlank() }
         }
 
+    val turnableUrlHistoryFlow: Flow<List<String>> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { prefs ->
+            val historyString = prefs[TURNABLE_URL_HISTORY] ?: ""
+            if (historyString.isBlank()) emptyList()
+            else historyString.split("|").filter { it.isNotBlank() }
+        }
+
     val vlessLinkHistoryFlow: Flow<List<String>> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { prefs ->
@@ -375,6 +408,15 @@ class AppPreferences(context: Context) {
         }
     }
 
+    suspend fun addTurnableUrlToHistory(url: String) {
+        if (url.isBlank()) return
+        context.dataStore.edit { prefs ->
+            val currentHistory = prefs[TURNABLE_URL_HISTORY]?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
+            val newHistory = (listOf(url) + currentHistory.filter { it != url }).take(3)
+            prefs[TURNABLE_URL_HISTORY] = newHistory.joinToString("|")
+        }
+    }
+
     suspend fun addVlessLinkToHistory(link: String) {
         if (link.isBlank()) return
         context.dataStore.edit { prefs ->
@@ -416,6 +458,14 @@ class AppPreferences(context: Context) {
         }
     }
 
+    suspend fun removeTurnableUrlFromHistory(url: String) {
+        context.dataStore.edit { prefs ->
+            val currentHistory = prefs[TURNABLE_URL_HISTORY]?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
+            val newHistory = currentHistory.filter { it != url }
+            prefs[TURNABLE_URL_HISTORY] = newHistory.joinToString("|")
+        }
+    }
+
     suspend fun removeVlessLinkFromHistory(link: String) {
         context.dataStore.edit { prefs ->
             val currentHistory = prefs[VLESS_LINK_HISTORY]?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
@@ -441,6 +491,8 @@ class AppPreferences(context: Context) {
             prefs[CLIENT_FORCE_PORT_443] = config.forceTurnPort443
             prefs[CLIENT_DC_TYPE] = config.dcType.name
             prefs[CLIENT_JAZZ_CREDS] = config.jazzCreds
+            prefs[CLIENT_TURNABLE_URL] = config.turnableUrl
+            prefs[CLIENT_KERNEL_VARIANT] = config.kernelVariant.name
         }
     }
 
@@ -465,6 +517,7 @@ class AppPreferences(context: Context) {
             prefs[XRAY_VPN_MODE] = config.xrayVpnMode
             prefs[SOCKS_BIND] = config.socksBindAddress
             prefs[HTTP_BIND] = config.httpBindAddress
+            prefs[XRAY_CONFIGURATION] = config.xrayConfiguration.name
         }
     }
 

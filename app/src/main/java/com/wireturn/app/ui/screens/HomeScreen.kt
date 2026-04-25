@@ -53,6 +53,8 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -63,6 +65,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import com.wireturn.app.data.ThemeMode
 import com.wireturn.app.data.DCType
+import com.wireturn.app.data.KernelVariant
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
@@ -75,7 +78,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.offset
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -114,9 +116,9 @@ import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.ProxyState
 import com.wireturn.app.viewmodel.UpdateState
 import androidx.core.net.toUri
+import com.wireturn.app.ProxyServiceState
 import com.wireturn.app.VpnServiceState
 import com.wireturn.app.XrayServiceState
-import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.theme.extendedColorScheme
 import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.viewmodel.XrayState
@@ -137,6 +139,20 @@ fun HomeScreen(
     val batteryNotificationDismissed by viewModel.batteryNotificationDismissed.collectAsStateWithLifecycle()
     val customKernelExists by viewModel.customKernelExists.collectAsStateWithLifecycle()
     val vlessConfig by viewModel.vlessConfig.collectAsStateWithLifecycle()
+    val runningConfig by ProxyServiceState.runningConfig.collectAsStateWithLifecycle()
+    val runningWgConfig by XrayServiceState.runningWgConfig.collectAsStateWithLifecycle()
+    val runningVlessConfig by XrayServiceState.runningVlessConfig.collectAsStateWithLifecycle()
+    val runningXrayConfig by XrayServiceState.runningXrayConfig.collectAsStateWithLifecycle()
+
+    val proxyPing by viewModel.proxyPing.collectAsStateWithLifecycle()
+    val proxyTransfer by viewModel.proxyTransfer.collectAsStateWithLifecycle()
+    val wgConfig by viewModel.wgConfig.collectAsStateWithLifecycle()
+
+    val activeConfig = runningConfig ?: clientConfig
+    val activeWgConfig = runningWgConfig ?: wgConfig
+    val activeVlessConfig = runningVlessConfig ?: vlessConfig
+
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     val batteryOptLauncher = rememberLauncherForActivityResult(
@@ -177,7 +193,6 @@ fun HomeScreen(
 
     val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
     val showBottomSheet = rememberSaveable { mutableStateOf(false) }
-    val showProxyEditDialog = rememberSaveable { mutableStateOf(false) }
     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val vpnLauncher = rememberLauncherForActivityResult(
@@ -185,6 +200,32 @@ fun HomeScreen(
     ) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
             viewModel.updateXrayConfig(viewModel.xrayConfig.value.copy(xrayVpnMode = true))
+        }
+    }
+
+    val warnVlessMismatch = stringResource(R.string.warn_proxy_vless_mismatch)
+    val warnWgMismatch = stringResource(R.string.warn_proxy_wg_mismatch)
+
+    var hasShownMismatchForCurrentRun by remember { mutableStateOf(xrayState == XrayState.Running) }
+    LaunchedEffect(xrayState) {
+        if (xrayState != XrayState.Running) {
+            hasShownMismatchForCurrentRun = false
+        }
+    }
+
+    LaunchedEffect(xrayState, runningConfig, runningVlessConfig, runningWgConfig) {
+        if (xrayState != XrayState.Running || hasShownMismatchForCurrentRun) return@LaunchedEffect
+        val config = runningConfig ?: return@LaunchedEffect
+        if (config.kernelVariant != KernelVariant.VK_TURN_PROXY || config.isRawMode) return@LaunchedEffect
+
+        val xrayIsVlessRunning = runningVlessConfig != null
+        val xrayShouldBeVless = config.vlessMode
+        if (xrayIsVlessRunning != xrayShouldBeVless) {
+            hasShownMismatchForCurrentRun = true
+            snackbarHostState.showSnackbar(
+                message = if (xrayShouldBeVless) warnVlessMismatch else warnWgMismatch,
+                duration = androidx.compose.material3.SnackbarDuration.Long
+            )
         }
     }
 
@@ -202,7 +243,7 @@ fun HomeScreen(
                 }
             )
         },
-        snackbarHost = { },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { padding ->
         Column(
@@ -381,12 +422,6 @@ fun HomeScreen(
                 textAlign = TextAlign.Center
             )
 
-            val proxyPing by viewModel.proxyPing.collectAsStateWithLifecycle()
-            val proxyTransfer by viewModel.proxyTransfer.collectAsStateWithLifecycle()
-            val wgConfig by viewModel.wgConfig.collectAsStateWithLifecycle()
-            val runningWgConfig by XrayServiceState.runningWgConfig.collectAsStateWithLifecycle()
-            val runningXrayConfig by XrayServiceState.runningXrayConfig.collectAsStateWithLifecycle()
-
             Spacer(Modifier.height(10.dp))
             
             AnimatedVisibility(
@@ -460,7 +495,7 @@ fun HomeScreen(
 
                                         null -> {
                                             Text(
-                                                text = "?",
+                                                text = stringResource(R.string.ping_unknown),
                                                 style = MaterialTheme.typography.labelLarge,
                                                 color = MaterialTheme.colorScheme.error
                                             )
@@ -552,8 +587,15 @@ fun HomeScreen(
 
 
 
-                        val isSettingsValid = if (clientConfig.vlessMode) vlessConfig.isValid() else wgConfig.isValid()
+                        val isSettingsValid = if (xrayConfig.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS) activeVlessConfig.isValid() else activeWgConfig.isValid()
                         val configValid = isSettingsValid || xrayState != XrayState.Idle
+
+                        val xrayProtocol = when {
+                            xrayState != XrayState.Idle -> {
+                                if (runningVlessConfig != null) stringResource(R.string.vless) else stringResource(R.string.wg_short)
+                            }
+                            else -> if (xrayConfig.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS) stringResource(R.string.vless) else stringResource(R.string.wg_short)
+                        }
 
                         LaunchedEffect(configValid, xrayConfig.xrayEnabled) {
                             if(!configValid && xrayConfig.xrayEnabled) {
@@ -566,7 +608,7 @@ fun HomeScreen(
                             verticalArrangement = Arrangement.Center
                         ) {
                             Text(
-                                text = stringResource(R.string.xray_title) + " " + (if (clientConfig.vlessMode) "VLESS" else "WG"),
+                                text = stringResource(R.string.xray_title) + " " + xrayProtocol,
                                 style = MaterialTheme.typography.titleMedium
                             )
                             AnimatedVisibility(
@@ -604,9 +646,9 @@ fun HomeScreen(
                     }
 
                     HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                     )
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -661,7 +703,6 @@ fun HomeScreen(
                         })
                     }
                     HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                     )
 
@@ -670,19 +711,8 @@ fun HomeScreen(
                             val clipboard = LocalClipboard.current
                             val scope = rememberCoroutineScope()
 
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 24.dp, vertical = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.xray_proxy_addresses),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                            val socks5Label = stringResource(R.string.clipboard_label_socks5)
+                            val httpLabel = stringResource(R.string.clipboard_label_http)
 
                             ProxyAddressRow(
                                 label = stringResource(R.string.xray_socks5),
@@ -691,18 +721,13 @@ fun HomeScreen(
                                 onCopy = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                     scope.launch {
-                                        clipboard.setClipEntry(ClipData.newPlainText("xray socks5", it).toClipEntry())
+                                        clipboard.setClipEntry(ClipData.newPlainText(socks5Label, it).toClipEntry())
                                     }
-                                },
-                                onEdit = {
-                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                    showProxyEditDialog.value = true
                                 }
                             )
 
                             if (xrayConfig.httpBindAddress.isNotBlank() || (runningXrayConfig != null && xrayConfig.httpBindAddress != runningXrayConfig?.httpBindAddress)) {
                                 HorizontalDivider(
-                                    modifier = Modifier.padding(horizontal = 24.dp),
                                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                                 )
 
@@ -715,25 +740,20 @@ fun HomeScreen(
                                         scope.launch {
                                             clipboard.setClipEntry(
                                                 ClipData.newPlainText(
-                                                    "xray http",
+                                                    httpLabel,
                                                     it
                                                 ).toClipEntry()
                                             )
                                         }
-                                    },
-                                    onEdit = {
-                                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                        showProxyEditDialog.value = true
                                     }
                                 )
                             }
                         }
                     }
-
                 }
             }
 
-            if (clientConfig.isValid) {
+            if (activeConfig.isValid) {
                 Spacer(Modifier.height(21.dp))
 
                 Card(
@@ -742,10 +762,10 @@ fun HomeScreen(
                         .padding(horizontal = 24.dp),
                     elevation = CardDefaults.cardElevation(2.dp)
                 ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
                         Text(stringResource(R.string.current_client_settings), style = MaterialTheme.typography.titleSmall)
                         Spacer(Modifier.height(12.dp))
-                        if (clientConfig.isRawMode) {
+                        if (activeConfig.isRawMode) {
                             Text(
                                 stringResource(R.string.raw_mode),
                                 style = MaterialTheme.typography.bodySmall,
@@ -755,7 +775,7 @@ fun HomeScreen(
                             Spacer(Modifier.height(4.dp))
 
                             // Разбираем rawCommand с группировкой параметров и значений
-                            val parts = clientConfig.rawCommand.split("\\s+".toRegex())
+                            val parts = activeConfig.rawCommand.split("\\s+".toRegex())
                                 .filter { it.isNotBlank() }
                             val args = mutableListOf<String>()
                             var i = 0
@@ -785,15 +805,23 @@ fun HomeScreen(
                                 }
                             }
                         } else {
-                            if (clientConfig.dcMode) {
-                                if (clientConfig.dcType == DCType.SALUTE_JAZZ) {
+                            if (activeConfig.dcMode) {
+                                ConfigRow(
+                                    stringResource(R.string.tunnel_label),
+                                    stringResource(R.string.dc_tunnel)
+                                )
+                                ConfigRow(
+                                    stringResource(R.string.dc_type_label),
+                                    stringResource(if (activeConfig.dcType == DCType.SALUTE_JAZZ) R.string.jazz_label else R.string.wb_stream_label)
+                                )
+                                if (activeConfig.dcType == DCType.SALUTE_JAZZ) {
                                     ConfigRow(
                                         stringResource(R.string.jazz_room),
-                                        clientConfig.jazzCreds.redact(privacyMode)
+                                        activeConfig.jazzCreds.redact(privacyMode)
                                     )
                                 } else {
-                                    val wbstreamUuid = clientConfig.wbstreamUuid.redact(privacyMode)
-                                    if (clientConfig.wbstreamUuid.isNotBlank()) {
+                                    val wbstreamUuid = activeConfig.wbstreamUuid.redact(privacyMode)
+                                    if (activeConfig.wbstreamUuid.isNotBlank()) {
                                         ConfigRow(
                                             stringResource(R.string.wbstream_uuid_label),
                                             if (wbstreamUuid.length > 30) {
@@ -804,7 +832,7 @@ fun HomeScreen(
                                         )
                                     }
                                 }
-                                if (clientConfig.vlessMode) {
+                                if (activeConfig.vlessMode) {
                                     ConfigRow(
                                         stringResource(R.string.transport_protocol),
                                         stringResource(R.string.vless)
@@ -812,31 +840,65 @@ fun HomeScreen(
                                 }
                             } else {
                                 ConfigRow(
-                                    stringResource(R.string.server),
-                                    clientConfig.serverAddress.redact(privacyMode)
+                                    stringResource(R.string.tunnel_label),
+                                    stringResource(R.string.turn_tunnel)
                                 )
-                                val vkLink = clientConfig.vkLink.redact(privacyMode)
-                                if (clientConfig.vkLink.isNotBlank()) {
-                                    ConfigRow(
-                                        stringResource(R.string.call_link),
-                                        if (vkLink.length > 30) {
-                                            vkLink.take(21) + "..." + vkLink.takeLast(6)
-                                        } else {
-                                            vkLink.ifBlank { stringResource(R.string.not_set) }
+                                when (activeConfig.kernelVariant) {
+                                    KernelVariant.VK_TURN_PROXY -> {
+                                        ConfigRow(
+                                            stringResource(R.string.server),
+                                            activeConfig.serverAddress.redact(privacyMode)
+                                        )
+                                        val vkLink = activeConfig.vkLink.redact(privacyMode)
+                                        if (activeConfig.vkLink.isNotBlank()) {
+                                            ConfigRow(
+                                                stringResource(R.string.vk_link_label),
+                                                if (vkLink.length > 30) {
+                                                    vkLink.take(21) + "..." + vkLink.takeLast(6)
+                                                } else {
+                                                    vkLink.ifBlank { stringResource(R.string.not_set) }
+                                                }
+                                            )
                                         }
-                                    )
+                                        ConfigRow(
+                                            stringResource(R.string.threads),
+                                            "${activeConfig.threads}"
+                                        )
+                                        ConfigRow(
+                                            stringResource(R.string.transport_protocol),
+                                            stringResource(if (activeConfig.vlessMode) R.string.vless else {
+                                                if (activeConfig.useUdp) R.string.udp else R.string.tcp
+                                            })
+                                        )
+                                        if (activeConfig.noDtls && activeConfig.useUdp) {
+                                            ConfigRow(stringResource(R.string.no_dtls), stringResource(R.string.check_mark))
+                                        }
+                                        if (activeConfig.manualCaptcha) {
+                                            ConfigRow(stringResource(R.string.manual_captcha), stringResource(R.string.check_mark))
+                                        }
+                                        if (activeConfig.forceTurnPort443) {
+                                            ConfigRow(stringResource(R.string.force_turn_port_443), stringResource(R.string.check_mark))
+                                        }
+                                    }
+
+                                    KernelVariant.TURNABLE -> {
+                                        val turnableUrl = activeConfig.turnableUrl.redact(privacyMode)
+                                        if (activeConfig.turnableUrl.isNotBlank()) {
+                                            ConfigRow(
+                                                stringResource(R.string.turnable_url_label),
+                                                if (turnableUrl.length > 30) {
+                                                    turnableUrl.take(21) + "..." + turnableUrl.takeLast(6)
+                                                } else {
+                                                    turnableUrl.ifBlank { stringResource(R.string.not_set) }
+                                                }
+                                            )
+                                        }
+                                    }
                                 }
-                                ConfigRow(stringResource(R.string.threads), "${clientConfig.threads}")
-                                ConfigRow(
-                                    stringResource(R.string.transport_protocol),
-                                    if (clientConfig.vlessMode) stringResource(R.string.vless)
-                                    else if (clientConfig.useUdp) stringResource(R.string.udp)
-                                    else stringResource(R.string.tcp)
-                                )
                             }
                             ConfigRow(
                                 stringResource(R.string.local_port),
-                                clientConfig.localPort.redact(privacyMode)
+                                activeConfig.localPort.redact(privacyMode)
                             )
                         }
                     }
@@ -880,80 +942,7 @@ fun HomeScreen(
     }
 
     UpdateDialogs(viewModel)
-
-    if (showProxyEditDialog.value) {
-        ProxyEditDialog(
-            currentConfig = xrayConfig,
-            onDismiss = { showProxyEditDialog.value = false },
-            onConfirm = { newConfig ->
-                viewModel.updateXrayConfig(newConfig)
-                showProxyEditDialog.value = false
-            }
-        )
-    }
 }
-
-@Composable
-private fun ProxyEditDialog(
-    currentConfig: com.wireturn.app.data.XrayConfig,
-    onDismiss: () -> Unit,
-    onConfirm: (com.wireturn.app.data.XrayConfig) -> Unit
-) {
-    var socks by remember { mutableStateOf(currentConfig.socksBindAddress) }
-    var http by remember { mutableStateOf(currentConfig.httpBindAddress) }
-
-    val isSocksValid = remember(socks) {
-        socks.isNotBlank() && ValidatorUtils.isValidHostPort(socks)
-    }
-    val isHttpValid = remember(http) {
-        http.isEmpty() || ValidatorUtils.isValidHostPort(http)
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.xray_proxy_addresses)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                OutlinedTextField(
-                    value = socks,
-                    onValueChange = { socks = it },
-                    label = { Text(stringResource(R.string.xray_socks5)) },
-                    isError = !isSocksValid || (socks.isNotEmpty() && socks == http),
-                    placeholder = { Text(stringResource(R.string.xray_socks5_placeholder)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-
-                OutlinedTextField(
-                    value = http,
-                    onValueChange = { http = it },
-                    label = { Text(stringResource(R.string.xray_http)) },
-                    isError = !isHttpValid || (http.isNotEmpty() && socks == http),
-                    placeholder = { Text(stringResource(R.string.xray_http_placeholder)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    onConfirm(currentConfig.copy(socksBindAddress = socks, httpBindAddress = http))
-                },
-                enabled = isSocksValid && isHttpValid && socks != http
-            ) {
-                Text(stringResource(R.string.btn_save))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        }
-    )
-}
-
-// Диалоги обновления
 
 @Composable
 private fun UpdateDialogs(viewModel: MainViewModel) {
@@ -1141,9 +1130,10 @@ private fun InfoBottomSheet(
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
     val showResetDialog = rememberSaveable { mutableStateOf(false) }
 
+    val dash = stringResource(R.string.dash)
     val appVersion = remember {
-        try { context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "—" }
-        catch (_: Exception) { "—" }
+        try { context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: dash }
+        catch (_: Exception) { dash }
     }
 
     val listColors = ListItemDefaults.colors(containerColor = containerColor)
@@ -1296,7 +1286,7 @@ private fun InfoBottomSheet(
         // Версия
         item {
             Text(
-                text = "v$appVersion",
+                text = stringResource(R.string.version_format, appVersion),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 16.dp),
@@ -1598,8 +1588,7 @@ private fun ProxyAddressRow(
     label: String,
     address: String,
     isModified: Boolean,
-    onCopy: (String) -> Unit,
-    onEdit: () -> Unit
+    onCopy: (String) -> Unit
 ) {
     var isCopied by remember { mutableStateOf(false) }
     LaunchedEffect(isCopied) {
@@ -1611,7 +1600,6 @@ private fun ProxyAddressRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onEdit() }
             .padding(vertical = 12.dp, horizontal = 26.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -1626,7 +1614,7 @@ private fun ProxyAddressRow(
                 InlineConfigIndicator(isModified)
             }
             Text(
-                address.ifBlank { "—" },
+                address.ifBlank { stringResource(R.string.dash) },
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = if (address.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
@@ -1649,14 +1637,7 @@ private fun ProxyAddressRow(
                         tint = if (isCopied) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
                 }
-                Spacer(Modifier.width(12.dp))
             }
-            Icon(
-                painter = painterResource(R.drawable.edit_24px),
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-            )
         }
     }
 }
