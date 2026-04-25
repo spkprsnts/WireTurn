@@ -45,6 +45,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
+import com.wireturn.app.data.ThemeMode
+import com.wireturn.app.ui.theme.LocalThemeMode
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -61,6 +63,8 @@ fun CaptchaWebViewDialog(
     val isContentVisible = remember { mutableStateOf(false) }
     var webViewHeight by remember { mutableIntStateOf(0) }
     val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val themeMode = LocalThemeMode.current
+    val forceGrayscale = themeMode == ThemeMode.DARK
 
     val contentAlpha by animateFloatAsState(
         targetValue = if (isContentVisible.value) 1f else 0f,
@@ -198,6 +202,7 @@ fun CaptchaWebViewDialog(
                                                     }
                                                     .vkc__ModalCardBase-module__container {
                                                         padding: 0 !important;
+                                                        ${if (forceGrayscale) "filter: grayscale(100%) !important;" else ""}
                                                     }
                                                     .vkc__NotRobotCaptcha-module__appRoot > div,
                                                     .vkc__ModalCard-module__hostMobile {

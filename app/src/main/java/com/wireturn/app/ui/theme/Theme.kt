@@ -11,6 +11,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -93,6 +94,8 @@ private val darkScheme = darkColorScheme(
 )
 
 
+val LocalThemeMode = compositionLocalOf { ThemeMode.DARK }
+
 @Composable
 fun WireturnTheme(
     themeMode: ThemeMode = ThemeMode.DARK,
@@ -125,6 +128,7 @@ fun WireturnTheme(
     }
 
     CompositionLocalProvider(
+        LocalThemeMode provides themeMode,
         LocalExtendedColorScheme provides extendedColorSchemeFor(darkTheme)
     ) {
         MaterialTheme(
