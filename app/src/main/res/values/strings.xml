@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- HomeScreen -->
+    <!-- Главный экран (Home) -->
     <string name="nav_home">Главная</string>
     <string name="turn_proxy_title">WireTurn</string>
     <string name="info_desc">Информация</string>
@@ -30,10 +30,12 @@
     <string name="repo_links">Ссылки на репозитории</string>
     <string name="repo_links_desc">Исходный код компонентов</string>
 
+    <!-- Разрешения (Permissions) -->
     <string name="permissions_title">Разрешения</string>
     <string name="permissions_desc">Управление доступом для стабильной работы</string>
     <string name="permission_notifications">Уведомления</string>
     <string name="permission_battery">Батарея</string>
+    <!-- Названия компонентов и ядер -->
     <string name="android_client">Android-клиент</string>
     <string name="android_client_original">Android-клиент (оригинал)</string>
     <string name="proxy_core_current">Прокси-ядро (используемое)</string>
@@ -43,6 +45,7 @@
     <string name="xray_core_name">vless-client</string>
     <string name="xray_core_original">Xray-core</string>
     <string name="tun2socks">tun2socks</string>
+    <!-- Кнопки и общие действия -->
     <string name="btn_open">Открыть</string>
     <string name="btn_close">Закрыть</string>
     <string name="btn_save">Сохранить</string>
@@ -51,11 +54,12 @@
     <string name="reset_all_settings_title">Сбросить все настройки?</string>
     <string name="reset_all_settings_desc">Все профили, история и настройки будут полностью удалены. Приложение перезапустится.</string>
     <string name="cancel">Отмена</string>
+    <!-- Режим VPN (VpnService) -->
     <string name="vpn_mode">Режим VPN</string>
     <string name="vpn_start">Включить VPN</string>
     <string name="vpn_stop">Выключить VPN</string>
 
-    <!-- WgConfigScreen -->
+    <!-- Настройка WireGuard -->
     <string name="wg_import_config">Импорт WireGuard</string>
     <string name="wg_import_file">Из файла</string>
     <string name="wg_import_qr">Импорт WireGuard</string>
@@ -81,7 +85,7 @@
     <string name="wg_persistent_keepalive_placeholder">25</string>
     <string name="wg_mtu_recommendation">Рекомендуемое значение — 1280</string>
 
-    <!-- Xray Settings -->
+    <!-- Настройка Xray (SOCKS/HTTP) -->
     <string name="xray_title">Xray</string>
     <string name="xray_http">HTTP</string>
     <string name="xray_http_placeholder">127.0.0.1:8080</string>
@@ -89,7 +93,7 @@
     <string name="xray_socks5_placeholder">127.0.0.1:2080</string>
 
 
-    <!-- ClientSetupScreen -->
+    <!-- Настройка клиента (Backend/Proxy) -->
     <string name="client_title">Клиент</string>
     <string name="connection_title">Подключение</string>
     <string name="raw_mode">Raw Mode</string>
@@ -147,19 +151,19 @@
     <string name="btn_load">Загрузить</string>
     <string name="finish_setup">Завершить настройку</string>
 
-    <!-- LogsScreen -->
+    <!-- Экран логов (Logs) -->
     <string name="logs_title">Логи</string>
     <string name="copy">Копировать</string>
     <string name="clear">Очистить</string>
     <string name="no_logs">Нет логов</string>
     <string name="new_logs">Новые логи</string>
 
-    <!-- OnboardingScreen -->
+    <!-- Экран приветствия (Onboarding) -->
     <string name="onboarding_title">TURN-proxy</string>
     <string name="onboarding_subtitle">Проксируйте WireGuard‑трафик\nчерез TURN‑серверы VK Calls</string>
     <string name="start">Начать</string>
 
-    <!-- Update -->
+    <!-- Обновление приложения (OTA) -->
     <string name="update_title">Обновление</string>
     <string name="update_check">Проверить</string>
     <string name="update_tap_to_check">Нажмите для проверки</string>
@@ -176,6 +180,7 @@
     <string name="update_no_update">Установлена последняя версия</string>
     <string name="update_error">Ошибка: %1$s</string>
 
+    <!-- Оформление и Приватность -->
     <string name="dynamic_theme_title">Системные цвета</string>
     <string name="dynamic_theme_desc">Использовать Material You</string>
     <string name="theme_title">Тема оформления</string>
@@ -185,10 +190,11 @@
     <string name="privacy_mode_title">Приватный режим</string>
     <string name="privacy_mode_desc">Скрывает IP и порты</string>
 
+    <!-- Проверка задержки (Ping) -->
     <string name="ping_error">Ошибка</string>
     <string name="ping_ms">%1$d мс</string>
 
-    <!-- Errors and Logs -->
+    <!-- Ошибки и системные сообщения -->
     <string name="error_proxy_crashed">Прокси упал %1$d раз — проверьте настройки</string>
     <string name="error_settings_empty">Не заполнены настройки клиента</string>
     <string name="error_raw_empty">Не задана raw-команда</string>
@@ -230,6 +236,7 @@
     <string name="error_connecting">Ошибка подключения</string>
     <string name="error_kernel_or_settings">Проблема с ядром или настройками</string>
 
+    <!-- Уведомления (Notifications) -->
     <string name="notification_title">WireTurn</string>
     <string name="notification_channel_description">Уведомление о состоянии и для управления</string>
     <string name="captcha_channel_name">Уведомления о капче</string>
@@ -246,6 +253,7 @@
     <string name="notification_network_change">Смена сети, переподключение…</string>
     <string name="error_with_details">%1$s: %2$s</string>
     <string name="vless">VLESS</string>
+    <!-- Элементы интерфейса и форматирование -->
     <string name="redacted_value">••••••</string>
     <string name="not_set">не задано</string>
     <string name="dash">—</string>
@@ -255,6 +263,7 @@
     <string name="clipboard_label_socks5">Xray SOCKS5</string>
     <string name="clipboard_label_http">Xray HTTP</string>
 
+    <!-- Настройка VLESS -->
     <string name="vless_link_label">VLESS-ссылка</string>
     <string name="vless_link_placeholder">vless://…</string>
     <string name="vless_link_config_desc">Конфигурация VLESS</string>
@@ -263,9 +272,11 @@
     <string name="use_local_listen_address">Использовать адрес прослушивания</string>
     <string name="use_local_listen_desc">Вместо указанного сервера VLESS\nбудет использоваться локальный</string>
 
+    <!-- Предупреждения (Warnings) -->
     <string name="warn_proxy_vless_mismatch">Внимание! Прокси-туннель запущен для VLESS!</string>
     <string name="warn_proxy_wg_mismatch">Внимание! Прокси-туннель запущен для WireGuard!</string>
 
+    <!-- Импорт через QR и расширенные параметры -->
     <string name="qr_import">QR-код</string>
     <string name="qr_scan_desc">Наведите камеру на QR-код конфигурации (WireGuard или VLESS) для импорта</string>
     <string name="xray_local_addresses">Локальные адреса</string>
@@ -286,7 +297,7 @@
     <string name="url_base">Базовый URL</string>
     <string name="add_parameter">Добавить параметр</string>
 
-    <!-- Profiles -->
+    <!-- Управление профилями -->
     <string name="profiles_title">Профили</string>
     <string name="btn_change_profile">Сменить</string>
     <string name="profile_create">Создать профиль</string>
