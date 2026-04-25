@@ -144,6 +144,7 @@ fun HomeScreen(
     val xrayState by XrayServiceState.state.collectAsStateWithLifecycle()
     val vpnServiceState by VpnServiceState.state.collectAsStateWithLifecycle()
     val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
+    val xraySettings by viewModel.xraySettings.collectAsStateWithLifecycle()
     val xrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
     val batteryNotificationDismissed by viewModel.batteryNotificationDismissed.collectAsStateWithLifecycle()
     val customKernelExists by viewModel.customKernelExists.collectAsStateWithLifecycle()
@@ -249,7 +250,7 @@ fun HomeScreen(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
-            viewModel.updateXrayConfig(viewModel.xrayConfig.value.copy(xrayVpnMode = true))
+            viewModel.updateXraySettings(viewModel.xraySettings.value.copy(xrayVpnMode = true))
         }
     }
 
@@ -437,7 +438,7 @@ fun HomeScreen(
                     when (proxyState) {
                         is ProxyState.Idle, is ProxyState.Error -> {
                             HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                            if (xrayConfig.xrayVpnMode) {
+                            if (xraySettings.xrayVpnMode) {
                                 val intent = VpnService.prepare(context)
                                 if (intent != null) {
                                     vpnLauncher.launch(intent)
@@ -717,9 +718,9 @@ fun HomeScreen(
                             else -> if (xrayConfig.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS) stringResource(R.string.vless) else stringResource(R.string.wg_short)
                         }
 
-                        LaunchedEffect(configValid, xrayConfig.xrayEnabled) {
-                            if(!configValid && xrayConfig.xrayEnabled) {
-                                viewModel.updateXrayConfig(viewModel.xrayConfig.value.copy(xrayEnabled = false))
+                        LaunchedEffect(configValid, xraySettings.xrayEnabled) {
+                            if(!configValid && xraySettings.xrayEnabled) {
+                                viewModel.updateXraySettings(viewModel.xraySettings.value.copy(xrayEnabled = false))
                             }
                         }
 
@@ -753,13 +754,13 @@ fun HomeScreen(
                         }
 
                         Switch(
-                            checked = xrayConfig.xrayEnabled,
+                            checked = xraySettings.xrayEnabled,
                             onCheckedChange = { enabled ->
                                 HapticUtil.perform(
                                     context,
                                     if (enabled) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
                                 )
-                                viewModel.updateXrayConfig(viewModel.xrayConfig.value.copy(xrayEnabled = enabled))
+                                viewModel.updateXraySettings(viewModel.xraySettings.value.copy(xrayEnabled = enabled))
                             },
                             enabled = configValid
                         )
@@ -802,10 +803,10 @@ fun HomeScreen(
                                         stringResource(R.string.vpn_mode),
                                         style = MaterialTheme.typography.titleMedium
                                     )
-                                    InlineConfigIndicator(runningWgConfig != null && xrayConfig.xrayVpnMode != (vpnServiceState == VpnState.Running))
+                                    InlineConfigIndicator(runningWgConfig != null && xraySettings.xrayVpnMode != (vpnServiceState == VpnState.Running))
                                 }
                             }
-                        Switch(checked = xrayConfig.xrayVpnMode, onCheckedChange = { enabled ->
+                        Switch(checked = xraySettings.xrayVpnMode, onCheckedChange = { enabled ->
                             HapticUtil.perform(
                                 context,
                                 if (enabled) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
@@ -815,10 +816,10 @@ fun HomeScreen(
                                 if (intent != null) {
                                     vpnLauncher.launch(intent)
                                 } else {
-                                    viewModel.updateXrayConfig(viewModel.xrayConfig.value.copy(xrayVpnMode = true))
+                                    viewModel.updateXraySettings(viewModel.xraySettings.value.copy(xrayVpnMode = true))
                                 }
                             } else {
-                                viewModel.updateXrayConfig(viewModel.xrayConfig.value.copy(xrayVpnMode = false))
+                                viewModel.updateXraySettings(viewModel.xraySettings.value.copy(xrayVpnMode = false))
                             }
                         })
                     }

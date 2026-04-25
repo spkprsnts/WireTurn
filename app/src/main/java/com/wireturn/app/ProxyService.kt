@@ -454,10 +454,10 @@ class ProxyService : Service() {
                     ProxyServiceState.isWorking.first { it }
                     
                     // После того как прокси заработал хотя бы раз, следим за состоянием xrayEnabled
-                    prefs.xrayConfigFlow.collect { cfg ->
+                    prefs.xraySettingsFlow.collect { settings ->
                         withContext(Dispatchers.Main) {
                             val currentState = XrayServiceState.state.value
-                            if (cfg.xrayEnabled) {
+                            if (settings.xrayEnabled) {
                                 if (currentState == XrayState.Idle) {
                                     startForegroundService(Intent(this@ProxyService, XrayService::class.java))
                                 }

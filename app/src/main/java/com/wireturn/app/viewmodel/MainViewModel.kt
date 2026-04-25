@@ -19,6 +19,7 @@ import com.wireturn.app.data.ThemeMode
 import com.wireturn.app.data.VlessConfig
 import com.wireturn.app.data.WgConfig
 import com.wireturn.app.data.XrayConfig
+import com.wireturn.app.data.XraySettings
 import com.wireturn.app.domain.AppUpdater
 import com.wireturn.app.domain.LocalProxyManager
 import com.wireturn.app.domain.ProfileManager
@@ -72,6 +73,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _wgConfig = MutableStateFlow(WgConfig())
     val wgConfig: StateFlow<WgConfig> = _wgConfig.asStateFlow()
 
+    private val _xraySettings = MutableStateFlow(XraySettings())
+    val xraySettings: StateFlow<XraySettings> = _xraySettings.asStateFlow()
+
     private val _xrayConfig = MutableStateFlow(XrayConfig())
     val xrayConfig: StateFlow<XrayConfig> = _xrayConfig.asStateFlow()
 
@@ -122,6 +126,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val batteryDismissed = prefs.batteryNotificationDismissedFlow.first()
 
             val wgConfig = prefs.wgConfigFlow.first()
+            val xraySettings = prefs.xraySettingsFlow.first()
             val xrayConfig = prefs.xrayConfigFlow.first()
             val vlessConfig = prefs.vlessConfigFlow.first()
 
@@ -131,6 +136,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _clientConfig.value = config
             _batteryNotificationDismissed.value = batteryDismissed
             _wgConfig.value = wgConfig
+            _xraySettings.value = xraySettings
             _xrayConfig.value = xrayConfig
             _vlessConfig.value = vlessConfig
 
@@ -140,6 +146,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     id = "default",
                     name = "Default",
                     clientConfig = config,
+                    xraySettings = xraySettings,
                     xrayConfig = xrayConfig,
                     wgConfig = wgConfig,
                     vlessConfig = vlessConfig
@@ -161,6 +168,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.clientConfigFlow.collect { _clientConfig.value = it } }
             launch { prefs.batteryNotificationDismissedFlow.collect { _batteryNotificationDismissed.value = it } }
             launch { prefs.wgConfigFlow.collect { _wgConfig.value = it } }
+            launch { prefs.xraySettingsFlow.collect { _xraySettings.value = it } }
             launch { prefs.xrayConfigFlow.collect { _xrayConfig.value = it } }
             launch { prefs.vlessConfigFlow.collect { _vlessConfig.value = it } }
         }
@@ -333,7 +341,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             // XraySupervisor в ProxyService сам его перезапустит, 
             // так как он следит за xrayEnabled и ProxyServiceState.isRunning
             // Но мы можем явно дернуть старт, если хотим быстрее
-            if (ProxyServiceState.isRunning.value && xrayConfig.value.xrayEnabled) {
+            if (ProxyServiceState.isRunning.value && xraySettings.value.xrayEnabled) {
                 getApplication<Application>().startForegroundService(Intent(getApplication(), XrayService::class.java))
             }
         }
@@ -423,6 +431,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updateXraySettings(settings: XraySettings) {
+        _xraySettings.value = settings
+        viewModelScope.launch {
+            prefs.saveXraySettings(settings)
+            updateCurrentProfileInList()
+        }
+    }
+
     fun updateXrayConfig(config: XrayConfig) {
         _xrayConfig.value = config
         viewModelScope.launch {
@@ -453,6 +469,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun updateCurrentProfileInList() {
         profileManager.updateCurrentProfile(
             _clientConfig.value,
+            _xraySettings.value,
             _xrayConfig.value,
             _wgConfig.value,
             _vlessConfig.value
@@ -460,8 +477,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun selectProfile(id: String) {
-        profileManager.selectProfile(id) { client, xray, wg, vless ->
+        profileManager.selectProfile(id) { client, settings, xray, wg, vless ->
             _clientConfig.value = client
+            _xraySettings.value = settings
             _xrayConfig.value = xray
             _wgConfig.value = wg
             _vlessConfig.value = vless

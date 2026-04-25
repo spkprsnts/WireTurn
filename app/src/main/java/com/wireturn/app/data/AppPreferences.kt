@@ -102,9 +102,12 @@ data class VlessConfig(
     fun isValid(): Boolean = vlessLink.isNotBlank() && com.wireturn.app.ui.ValidatorUtils.isValidVlessLink(vlessLink)
 }
 
-data class XrayConfig(
+data class XraySettings(
     val xrayEnabled: Boolean = false,
-    val xrayVpnMode: Boolean = false,
+    val xrayVpnMode: Boolean = false
+)
+
+data class XrayConfig(
     val socksBindAddress: String = DEFAULT_SOCKS_BIND_ADDRESS,
     val httpBindAddress: String = "",
     val xrayConfiguration: XrayConfiguration = XrayConfiguration.WIREGUARD
@@ -204,6 +207,7 @@ data class Profile(
     val id: String,
     val name: String,
     val clientConfig: ClientConfig = ClientConfig(),
+    val xraySettings: XraySettings = XraySettings(),
     val xrayConfig: XrayConfig = XrayConfig(),
     val wgConfig: WgConfig = WgConfig(),
     val vlessConfig: VlessConfig = VlessConfig()
@@ -323,12 +327,19 @@ class AppPreferences(context: Context) {
             )
         }
 
+    val xraySettingsFlow: Flow<XraySettings> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { prefs ->
+            XraySettings(
+                xrayEnabled = prefs[XRAY_ENABLED] ?: false,
+                xrayVpnMode = prefs[XRAY_VPN_MODE] ?: false
+            )
+        }
+
     val xrayConfigFlow: Flow<XrayConfig> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { prefs ->
             XrayConfig(
-                xrayEnabled = prefs[XRAY_ENABLED] ?: false,
-                xrayVpnMode = prefs[XRAY_VPN_MODE] ?: false,
                 socksBindAddress = prefs[SOCKS_BIND] ?: XrayConfig.DEFAULT_SOCKS_BIND_ADDRESS,
                 httpBindAddress = prefs[HTTP_BIND] ?: "",
                 xrayConfiguration = XrayConfiguration.valueOf(prefs[XRAY_CONFIGURATION] ?: XrayConfiguration.WIREGUARD.name)
@@ -549,10 +560,15 @@ class AppPreferences(context: Context) {
         }
     }
 
+    suspend fun saveXraySettings(settings: XraySettings) {
+        context.dataStore.edit { prefs ->
+            prefs[XRAY_ENABLED] = settings.xrayEnabled
+            prefs[XRAY_VPN_MODE] = settings.xrayVpnMode
+        }
+    }
+
     suspend fun saveXrayConfig(config: XrayConfig) {
         context.dataStore.edit { prefs ->
-            prefs[XRAY_ENABLED] = config.xrayEnabled
-            prefs[XRAY_VPN_MODE] = config.xrayVpnMode
             prefs[SOCKS_BIND] = config.socksBindAddress
             prefs[HTTP_BIND] = config.httpBindAddress
             prefs[XRAY_CONFIGURATION] = config.xrayConfiguration.name

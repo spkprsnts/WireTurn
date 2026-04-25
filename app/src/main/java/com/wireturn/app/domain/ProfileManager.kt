@@ -18,15 +18,16 @@ class ProfileManager(
     val currentProfileId: StateFlow<String> = prefs.currentProfileIdFlow
         .stateIn(scope, SharingStarted.Eagerly, "default")
 
-    fun selectProfile(id: String, onConfigLoaded: (ClientConfig, XrayConfig, WgConfig, VlessConfig) -> Unit) {
+    fun selectProfile(id: String, onConfigLoaded: (ClientConfig, XraySettings, XrayConfig, WgConfig, VlessConfig) -> Unit) {
         val profile = profiles.value.find { it.id == id } ?: return
         scope.launch {
             prefs.setCurrentProfileId(id)
             prefs.saveClientConfig(profile.clientConfig)
+            prefs.saveXraySettings(profile.xraySettings)
             prefs.saveXrayConfig(profile.xrayConfig)
             prefs.saveWgConfig(profile.wgConfig)
             prefs.saveVlessConfig(profile.vlessConfig)
-            onConfigLoaded(profile.clientConfig, profile.xrayConfig, profile.wgConfig, profile.vlessConfig)
+            onConfigLoaded(profile.clientConfig, profile.xraySettings, profile.xrayConfig, profile.wgConfig, profile.vlessConfig)
         }
     }
 
@@ -73,6 +74,7 @@ class ProfileManager(
 
     fun updateCurrentProfile(
         clientConfig: ClientConfig,
+        xraySettings: XraySettings,
         xrayConfig: XrayConfig,
         wgConfig: WgConfig,
         vlessConfig: VlessConfig
@@ -82,6 +84,7 @@ class ProfileManager(
             if (it.id == currentId) {
                 it.copy(
                     clientConfig = clientConfig,
+                    xraySettings = xraySettings,
                     xrayConfig = xrayConfig,
                     wgConfig = wgConfig,
                     vlessConfig = vlessConfig

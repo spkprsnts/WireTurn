@@ -24,9 +24,9 @@ class Tun2SocksVpnService : VpnService() {
     fun disableVpnMode() {
         serviceScope.launch {
             val prefs = AppPreferences(applicationContext)
-            val config = prefs.xrayConfigFlow.first()
-            if (config.xrayVpnMode) {
-                prefs.saveXrayConfig(config.copy(xrayVpnMode = false))
+            val settings = prefs.xraySettingsFlow.first()
+            if (settings.xrayVpnMode) {
+                prefs.saveXraySettings(settings.copy(xrayVpnMode = false))
             }
         }
     }

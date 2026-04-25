@@ -36,12 +36,12 @@ class XrayService : Service() {
             val prefs = AppPreferences(applicationContext)
             combine(
                 XrayServiceState.state,
-                prefs.xrayConfigFlow,
+                prefs.xraySettingsFlow,
                 XrayServiceState.runningXrayConfig
-            ) { state, xrayCfg, runningXray ->
+            ) { state, xraySettings, runningXray ->
                 DataBundle(
                     isRunning = state == XrayState.Running,
-                    vpnEnabled = xrayCfg.xrayVpnMode,
+                    vpnEnabled = xraySettings.xrayVpnMode,
                     runningXray = runningXray
                 )
             }.collect { bundle ->

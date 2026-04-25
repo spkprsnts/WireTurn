@@ -22,8 +22,8 @@ class ProxyReceiver : BroadcastReceiver() {
             "com.wireturn.app.START_VPN" -> {
                 val prefs = AppPreferences(context)
                 runBlocking {
-                    val config = prefs.xrayConfigFlow.first()
-                    prefs.saveXrayConfig(config.copy(xrayVpnMode = true))
+                    val settings = prefs.xraySettingsFlow.first()
+                    prefs.saveXraySettings(settings.copy(xrayVpnMode = true))
                 }
             }
         }
