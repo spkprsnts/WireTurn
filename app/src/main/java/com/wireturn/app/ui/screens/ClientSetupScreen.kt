@@ -398,14 +398,16 @@ fun ClientSetupScreen(
                                                             singleLine = true,
                                                             readOnly = privacyMode,
                                                             supportingText = { Text(stringResource(R.string.jazz_creds_support)) },
-                                                            trailingIcon = {
-                                                                FieldTrailingIcons(
-                                                                    history = jazzCredsHistory,
-                                                                    onSelect = { jazzCreds = it },
-                                                                    onRemove = { viewModel.removeJazzCredsFromHistory(it) },
-                                                                    privacyMode = privacyMode
-                                                                )
-                                                            }
+                                                            trailingIcon = if (jazzCredsHistory.isNotEmpty()) {
+                                                                {
+                                                                    FieldTrailingIcons(
+                                                                        history = jazzCredsHistory,
+                                                                        onSelect = { jazzCreds = it },
+                                                                        onRemove = { viewModel.removeJazzCredsFromHistory(it) },
+                                                                        privacyMode = privacyMode
+                                                                    )
+                                                                }
+                                                            } else null
                                                         )
                                                     }
                                                     DCType.WB_STREAM -> {
@@ -423,14 +425,16 @@ fun ClientSetupScreen(
                                                             singleLine = true,
                                                             readOnly = privacyMode,
                                                             supportingText = { Text(stringResource(R.string.wbstream_uuid_support)) },
-                                                            trailingIcon = {
-                                                                FieldTrailingIcons(
-                                                                    history = wbstreamUuidHistory,
-                                                                    onSelect = { wbstreamUuid = it },
-                                                                    onRemove = { viewModel.removeWbstreamUuidFromHistory(it) },
-                                                                    privacyMode = privacyMode
-                                                                )
-                                                            }
+                                                            trailingIcon = if (wbstreamUuidHistory.isNotEmpty()) {
+                                                                {
+                                                                    FieldTrailingIcons(
+                                                                        history = wbstreamUuidHistory,
+                                                                        onSelect = { wbstreamUuid = it },
+                                                                        onRemove = { viewModel.removeWbstreamUuidFromHistory(it) },
+                                                                        privacyMode = privacyMode
+                                                                    )
+                                                                }
+                                                            } else null
                                                         )
                                                     }
                                                 }
@@ -463,14 +467,16 @@ fun ClientSetupScreen(
                                                         singleLine = true,
                                                         readOnly = privacyMode,
                                                         supportingText = { Text(stringResource(R.string.server_address_support)) },
-                                                        trailingIcon = {
-                                                            FieldTrailingIcons(
-                                                                history = serverAddressHistory,
-                                                                onSelect = { serverAddress = it },
-                                                                onRemove = { viewModel.removeServerAddressFromHistory(it) },
-                                                                privacyMode = privacyMode
-                                                            )
-                                                        }
+                                                        trailingIcon = if (serverAddressHistory.isNotEmpty()) {
+                                                            {
+                                                                FieldTrailingIcons(
+                                                                    history = serverAddressHistory,
+                                                                    onSelect = { serverAddress = it },
+                                                                    onRemove = { viewModel.removeServerAddressFromHistory(it) },
+                                                                    privacyMode = privacyMode
+                                                                )
+                                                            }
+                                                        } else null
                                                     )
                                                     Spacer(Modifier.height(16.dp))
                                                     OutlinedTextField(
@@ -487,14 +493,16 @@ fun ClientSetupScreen(
                                                         singleLine = true,
                                                         readOnly = privacyMode,
                                                         supportingText = { Text(stringResource(R.string.vk_link_support)) },
-                                                        trailingIcon = {
-                                                            FieldTrailingIcons(
-                                                                history = vkLinkHistory,
-                                                                onSelect = { vkLink = it },
-                                                                onRemove = { viewModel.removeVkLinkFromHistory(it) },
-                                                                privacyMode = privacyMode
-                                                            )
-                                                        }
+                                                        trailingIcon = if (vkLinkHistory.isNotEmpty()) {
+                                                            {
+                                                                FieldTrailingIcons(
+                                                                    history = vkLinkHistory,
+                                                                    onSelect = { vkLink = it },
+                                                                    onRemove = { viewModel.removeVkLinkFromHistory(it) },
+                                                                    privacyMode = privacyMode
+                                                                )
+                                                            }
+                                                        } else null
                                                     )
                                                 } else {
                                                     OutlinedTextField(
@@ -511,45 +519,47 @@ fun ClientSetupScreen(
                                                         maxLines = 5,
                                                         readOnly = privacyMode,
                                                         supportingText = { Text(stringResource(R.string.turnable_url_support)) },
-                                                        trailingIcon = {
-                                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                                if (!privacyMode && turnableUrl.isNotBlank()) {
-                                                                    Box(
-                                                                        modifier = Modifier.size(40.dp),
-                                                                        contentAlignment = Alignment.Center
-                                                                    ) {
-                                                                        if (isUrlParsing) {
-                                                                            CircularWavyProgressIndicator(
-                                                                                modifier = Modifier.size(20.dp)
-                                                                            )
-                                                                        } else {
-                                                                            IconButton(onClick = {
-                                                                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                                                                scope.launch {
-                                                                                    isUrlParsing = true
-                                                                                    delay(400)
-                                                                                    showUrlEditor = true
-                                                                                    isUrlParsing = false
-                                                                                }
-                                                                            }) {
-                                                                                Icon(
-                                                                                    painter = painterResource(R.drawable.edit_24px),
-                                                                                    contentDescription = null,
+                                                        trailingIcon = if ((!privacyMode && turnableUrl.isNotBlank()) || turnableUrlHistory.isNotEmpty()) {
+                                                            {
+                                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                                    if (!privacyMode && turnableUrl.isNotBlank()) {
+                                                                        Box(
+                                                                            modifier = Modifier.size(40.dp),
+                                                                            contentAlignment = Alignment.Center
+                                                                        ) {
+                                                                            if (isUrlParsing) {
+                                                                                CircularWavyProgressIndicator(
                                                                                     modifier = Modifier.size(20.dp)
                                                                                 )
+                                                                            } else {
+                                                                                IconButton(onClick = {
+                                                                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                                                                    scope.launch {
+                                                                                        isUrlParsing = true
+                                                                                        delay(400)
+                                                                                        showUrlEditor = true
+                                                                                        isUrlParsing = false
+                                                                                    }
+                                                                                }) {
+                                                                                    Icon(
+                                                                                        painter = painterResource(R.drawable.edit_24px),
+                                                                                        contentDescription = null,
+                                                                                        modifier = Modifier.size(20.dp)
+                                                                                    )
+                                                                                }
                                                                             }
                                                                         }
                                                                     }
+                                                                    FieldTrailingIcons(
+                                                                        history = turnableUrlHistory,
+                                                                        onSelect = { turnableUrl = it },
+                                                                        onRemove = { viewModel.removeTurnableUrlFromHistory(it) },
+                                                                        privacyMode = privacyMode,
+                                                                        iconSize = 20.dp
+                                                                    )
                                                                 }
-                                                                FieldTrailingIcons(
-                                                                    history = turnableUrlHistory,
-                                                                    onSelect = { turnableUrl = it },
-                                                                    onRemove = { viewModel.removeTurnableUrlFromHistory(it) },
-                                                                    privacyMode = privacyMode,
-                                                                    iconSize = 20.dp
-                                                                )
                                                             }
-                                                        }
+                                                        } else null
                                                     )
                                                 }
                                             }

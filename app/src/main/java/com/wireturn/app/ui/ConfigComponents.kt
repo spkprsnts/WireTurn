@@ -138,8 +138,8 @@ fun FieldTrailingIcons(
     privacyMode: Boolean,
     iconSize: Dp = 24.dp
 ) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        if (history.isNotEmpty()) {
+    if (history.isNotEmpty()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             HistoryIconButton(
                 history = history,
                 onSelect = onSelect,
