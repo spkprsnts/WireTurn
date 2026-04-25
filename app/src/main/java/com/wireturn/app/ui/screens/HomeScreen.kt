@@ -561,10 +561,10 @@ fun HomeScreen(
                     Spacer(Modifier.height(5.dp))
                     Row (
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         val transfer = proxyTransfer
-                        Row (
+                        Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
@@ -574,13 +574,21 @@ fun HomeScreen(
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                                 modifier = Modifier.size(14.dp)
                             )
-                            Text(
-                                text = formatBytes(transfer?.rx ?: 0L),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Column(horizontalAlignment = Alignment.Start) {
+                                Text(
+                                    text = formatBytes(transfer?.rx ?: 0L),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = formatSpeed(transfer?.rxSpeed ?: 0L),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
+                            }
                         }
-                        Row (
+
+                        Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
@@ -590,11 +598,18 @@ fun HomeScreen(
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                                 modifier = Modifier.size(14.dp)
                             )
-                            Text(
-                                text = formatBytes(transfer?.tx ?: 0L),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Column(horizontalAlignment = Alignment.Start) {
+                                Text(
+                                    text = formatBytes(transfer?.tx ?: 0L),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = formatSpeed(transfer?.txSpeed ?: 0L),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
+                            }
                         }
                     }
                 }
@@ -1622,6 +1637,10 @@ private fun formatBytes(bytes: Long): String {
     val exp = (ln(bytes.toDouble()) / ln(1024.0)).toInt()
     val pre = "KMGTPE"[exp - 1]
     return String.format(java.util.Locale.US, "%.1f %siB", bytes / 1024.0.pow(exp.toDouble()), pre)
+}
+
+private fun formatSpeed(bytesPerSecond: Long): String {
+    return formatBytes(bytesPerSecond) + "/s"
 }
 
 

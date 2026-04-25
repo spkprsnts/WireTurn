@@ -93,7 +93,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         object Error : PingResult()
     }
 
-    data class TransferResult(val rx: Long, val tx: Long)
+    data class TransferResult(
+        val rx: Long,
+        val tx: Long,
+        val rxSpeed: Long = 0,
+        val txSpeed: Long = 0
+    )
+
+    private var lastRx = 0L
+    private var lastTx = 0L
+    private var lastMetricsTime = 0L
 
     init {
         viewModelScope.launch {
@@ -167,7 +176,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         updateMetrics(port)
                     }
                 }
-                delay(3000)
+                delay(1000)
             }
         }
     }
@@ -176,6 +185,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         metricsJob?.cancel()
         metricsJob = null
         _proxyTransfer.value = null
+        lastRx = 0L
+        lastTx = 0L
+        lastMetricsTime = 0L
     }
 
     private suspend fun updateMetrics(port: Int) {
@@ -200,7 +212,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         tx += trimmed.split("=").lastOrNull()?.toLongOrNull() ?: 0L
                     }
                 }
-                _proxyTransfer.value = TransferResult(rx, tx)
+
+                val now = System.currentTimeMillis()
+                var rxSpeed = 0L
+                var txSpeed = 0L
+
+                if (lastMetricsTime > 0 && now > lastMetricsTime) {
+                    val dt = (now - lastMetricsTime) / 1000.0
+                    if (dt > 0) {
+                        rxSpeed = ((rx - lastRx).coerceAtLeast(0) / dt).toLong()
+                        txSpeed = ((tx - lastTx).coerceAtLeast(0) / dt).toLong()
+                    }
+                }
+
+                lastRx = rx
+                lastTx = tx
+                lastMetricsTime = now
+
+                _proxyTransfer.value = TransferResult(rx, tx, rxSpeed, txSpeed)
             } catch (_: Exception) {
                 // pass
             }
