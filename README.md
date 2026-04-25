@@ -67,7 +67,7 @@ nohup ./server-linux-amd64 -vless -listen 0.0.0.0:56000 -connect 127.0.0.1:<по
 - **Репозиторий:** [spkprsnts/vk-turn-proxy (branch: dc)](https://github.com/spkprsnts/vk-turn-proxy/tree/dc)
 
 **Turnable:**
-Используйте ядро и инструкции из репозитория.
+Используйте сервер и инструкции из репозитория.
 - **Репозиторий:** [TheAirBlow/Turnable](https://github.com/TheAirBlow/Turnable/blob/main/README_RU.md)
 
 ### 2. Настройка клиента
