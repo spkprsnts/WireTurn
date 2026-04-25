@@ -262,6 +262,10 @@
     <string name="version_format">v%1$s</string>
     <string name="clipboard_label_socks5">Xray SOCKS5</string>
     <string name="clipboard_label_http">Xray HTTP</string>
+    <string name="restart_required">Настройки изменены</string>
+    <string name="restart_reason_client">Изменён конфиг клиента</string>
+    <string name="restart_reason_xray">Изменены настройки Xray</string>
+    <string name="btn_restart">Перезапустить</string>
 
     <!-- Настройка VLESS -->
     <string name="vless_link_label">VLESS-ссылка</string>

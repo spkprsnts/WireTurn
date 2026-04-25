@@ -33,6 +33,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.flow.first
 import java.net.InetSocketAddress
 import java.net.Proxy
 import kotlin.system.measureTimeMillis
@@ -307,6 +309,34 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             prefs.addServerAddressToHistory(cfg.serverAddress)
             proxyManager.startProxy(cfg)
+        }
+    }
+
+    fun restartProxy() {
+        viewModelScope.launch {
+            proxyManager.stopProxy()
+            // Ждем реальной остановки сервиса через его состояние
+            withTimeoutOrNull(5000) {
+                ProxyServiceState.isRunning.first { !it }
+            }
+            delay(500) // Дополнительная пауза для стабильности
+            startProxy()
+        }
+    }
+
+    fun restartXray() {
+        viewModelScope.launch {
+            getApplication<Application>().stopService(Intent(getApplication(), XrayService::class.java))
+            withTimeoutOrNull(5000) {
+                XrayServiceState.state.first { it == XrayState.Idle }
+            }
+            delay(300)
+            // XraySupervisor в ProxyService сам его перезапустит, 
+            // так как он следит за xrayEnabled и ProxyServiceState.isRunning
+            // Но мы можем явно дернуть старт, если хотим быстрее
+            if (ProxyServiceState.isRunning.value && xrayConfig.value.xrayEnabled) {
+                getApplication<Application>().startForegroundService(Intent(getApplication(), XrayService::class.java))
+            }
         }
     }
 

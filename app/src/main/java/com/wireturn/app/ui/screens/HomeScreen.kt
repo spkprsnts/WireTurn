@@ -173,6 +173,22 @@ fun HomeScreen(
     val activeWgConfig = runningWgConfig ?: wgConfig
     val activeVlessConfig = runningVlessConfig ?: vlessConfig
 
+    val configChanged = remember(clientConfig, runningConfig, wgConfig, runningWgConfig, vlessConfig, runningVlessConfig, xrayConfig, runningXrayConfig) {
+        (runningConfig != null && clientConfig != runningConfig) ||
+                (runningWgConfig != null && wgConfig != runningWgConfig) ||
+                (runningVlessConfig != null && vlessConfig != runningVlessConfig) ||
+                (runningXrayConfig != null && xrayConfig != runningXrayConfig)
+    }
+
+    val mainConfigChanged = remember(clientConfig, runningConfig) {
+        runningConfig != null && clientConfig != runningConfig
+    }
+    val xrayConfigChanged = remember(wgConfig, runningWgConfig, vlessConfig, runningVlessConfig, xrayConfig, runningXrayConfig) {
+        (runningWgConfig != null && wgConfig != runningWgConfig) ||
+                (runningVlessConfig != null && vlessConfig != runningVlessConfig) ||
+                (runningXrayConfig != null && xrayConfig != runningXrayConfig)
+    }
+
     val snackbarHostState = remember { SnackbarHostState() }
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -860,6 +876,62 @@ fun HomeScreen(
             // 6. Current Connection Details
             if (activeConfig.isValid) {
                 Spacer(Modifier.height(16.dp))
+
+                AnimatedVisibility(
+                    visible = (proxyState is ProxyState.Working || proxyState is ProxyState.Running || proxyState is ProxyState.Starting || proxyState is ProxyState.CaptchaRequired) && configChanged,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
+                ) {
+                    Surface(
+                        onClick = {
+                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                            if (mainConfigChanged) {
+                                viewModel.restartProxy()
+                            } else if (xrayConfigChanged) {
+                                viewModel.restartXray()
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                            .padding(bottom = 12.dp),
+                        shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        tonalElevation = 2.dp
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.refresh_24px),
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.restart_required),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (mainConfigChanged) stringResource(R.string.restart_reason_client) else stringResource(R.string.restart_reason_xray),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                )
+                            }
+                            Text(
+                                text = stringResource(R.string.btn_restart),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
 
                 Card(
                     modifier = Modifier
