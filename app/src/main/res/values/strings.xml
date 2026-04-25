@@ -170,6 +170,7 @@
     <string name="copy">Копировать</string>
     <string name="clear">Очистить</string>
     <string name="no_logs">Нет логов</string>
+    <string name="new_logs">Новые логи</string>
 
     <!-- OnboardingScreen -->
     <string name="onboarding_title">TURN-proxy</string>

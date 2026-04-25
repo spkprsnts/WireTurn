@@ -3,6 +3,11 @@
 package com.wireturn.app.ui.screens
 
 import android.content.ClipData
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -19,6 +24,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -27,7 +35,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -57,8 +67,39 @@ fun LogsScreen(viewModel: MainViewModel) {
     val logs by viewModel.logs.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
 
+    var lastLogsSize by remember { mutableIntStateOf(logs.size) }
+    var showScrollButton by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        if (logs.isNotEmpty()) {
+            listState.scrollToItem(logs.lastIndex)
+        }
+    }
+
+    val isAtBottom by remember {
+        derivedStateOf {
+            val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
+            lastVisibleItem == null || lastVisibleItem.index >= listState.layoutInfo.totalItemsCount - 2
+        }
+    }
+
     LaunchedEffect(logs.size) {
-        if (logs.isNotEmpty()) listState.animateScrollToItem(logs.lastIndex)
+        if (logs.size > lastLogsSize) {
+            val wasAtBottom = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.let {
+                it.index >= lastLogsSize - 2
+            } ?: true
+
+            if (wasAtBottom) {
+                listState.animateScrollToItem(logs.lastIndex)
+            } else {
+                showScrollButton = true
+            }
+        }
+        lastLogsSize = logs.size
+    }
+
+    LaunchedEffect(isAtBottom) {
+        if (isAtBottom) showScrollButton = false
     }
 
     Scaffold(
@@ -124,17 +165,56 @@ fun LogsScreen(viewModel: MainViewModel) {
                 )
             }
         } else {
-            LazyColumn(
-                state = listState,
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .fillMaxWidth()
-                    .wrapContentWidth(Alignment.CenterHorizontally)
-                    .widthIn(max = 840.dp)
                     .padding(padding)
             ) {
-                itemsIndexed(logs, key = { index, _ -> index }) { _, line ->
-                    LogLine(line = line)
+                SelectionContainer {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .fillMaxWidth()
+                            .wrapContentWidth(Alignment.CenterHorizontally)
+                            .widthIn(max = 840.dp)
+                    ) {
+                        itemsIndexed(logs, key = { index, _ -> index }) { _, line ->
+                            LogLine(line = line)
+                        }
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = showScrollButton,
+                    enter = fadeIn() + scaleIn(),
+                    exit = fadeOut() + scaleOut(),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 16.dp)
+                ) {
+                    ElevatedButton(
+                        onClick = {
+                            scope.launch {
+                                if (logs.isNotEmpty()) {
+                                    listState.animateScrollToItem(logs.lastIndex)
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.elevatedButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        ),
+                        elevation = ButtonDefaults.elevatedButtonElevation(defaultElevation = 4.dp)
+                    ) {
+                        Icon(
+                            painterResource(R.drawable.arrow_downward_24px),
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.new_logs))
+                    }
                 }
             }
         }
