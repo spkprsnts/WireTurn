@@ -126,6 +126,7 @@ fun XrayConfigScreen(
 
     val showQrScanner = remember { mutableStateOf(false) }
     val showVlessQrScanner = remember { mutableStateOf(false) }
+    val showUniversalQrScanner = remember { mutableStateOf(false) }
 
     // Sync local state with saved config when it changes externally
     LaunchedEffect(savedWgConfig) {
@@ -222,6 +223,16 @@ fun XrayConfigScreen(
                     val canCopy = when (xrayConfiguration) {
                         XrayConfiguration.WIREGUARD -> savedWgConfig.isValid()
                         XrayConfiguration.VLESS -> vlessSaved.isValid()
+                    }
+
+                    IconButton(
+                        onClick = { showUniversalQrScanner.value = true }
+                    ) {
+                        Icon(
+                            painterResource(R.drawable.qr_code_24px),
+                            stringResource(R.string.qr_import),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
 
                     IconButton(
@@ -435,6 +446,28 @@ fun XrayConfigScreen(
             onDismiss = { showVlessQrScanner.value = false },
             onResult = { result ->
                 if (ValidatorUtils.isValidVlessLink(result)) {
+                    vlessLink = result
+                    scope.launch { snackbarHostState.showSnackbar(importSuccessMessage) }
+                } else {
+                    scope.launch { snackbarHostState.showSnackbar(importErrorMessage) }
+                }
+            }
+        )
+    }
+
+    if (showUniversalQrScanner.value) {
+        QrScannerDialog(
+            title = stringResource(R.string.qr_import),
+            message = stringResource(R.string.qr_scan_desc),
+            onDismiss = { showUniversalQrScanner.value = false },
+            onResult = { result ->
+                val wgParsed = WgConfig.parse(result)
+                if (wgParsed.isValid()) {
+                    xrayConfiguration = XrayConfiguration.WIREGUARD
+                    viewModel.updateWgConfigText(result)
+                    scope.launch { snackbarHostState.showSnackbar(importSuccessMessage) }
+                } else if (ValidatorUtils.isValidVlessLink(result)) {
+                    xrayConfiguration = XrayConfiguration.VLESS
                     vlessLink = result
                     scope.launch { snackbarHostState.showSnackbar(importSuccessMessage) }
                 } else {
