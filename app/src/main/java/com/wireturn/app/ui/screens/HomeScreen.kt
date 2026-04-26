@@ -130,6 +130,7 @@ import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
 import com.wireturn.app.ui.InlineConfigIndicator
 import com.wireturn.app.ui.redact
 import com.wireturn.app.ui.HapticUtil
@@ -181,15 +182,24 @@ fun HomeScreen(
 
     val proxyPing by viewModel.proxyPing.collectAsStateWithLifecycle()
     var lastSuccessPing by remember { mutableStateOf<MainViewModel.PingResult.Success?>(null) }
+    var isControlPingScheduled by rememberSaveable { mutableStateOf(false) }
     
     // --- Effects & Lifecycle ---
     LaunchedEffect(proxyPing) {
         if (proxyPing is MainViewModel.PingResult.Success) {
             lastSuccessPing = proxyPing as MainViewModel.PingResult.Success
         }
+
+        if (!isControlPingScheduled && (proxyPing is MainViewModel.PingResult.Success || proxyPing is MainViewModel.PingResult.Error)) {
+            isControlPingScheduled = true
+            delay(1000)
+            viewModel.checkProxyPing()
+        }
     }
+
     LaunchedEffect(runningXrayConfig) {
         lastSuccessPing = null
+        isControlPingScheduled = false
     }
 
     val proxyTransfer by viewModel.proxyTransfer.collectAsStateWithLifecycle()
