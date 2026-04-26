@@ -137,6 +137,7 @@ fun ProfilesDialog(
     }
 
     val showCreateDialog = remember { mutableStateOf(false) }
+    var addMenuExpanded by remember { mutableStateOf(false) }
     val showRenameDialog = remember { mutableStateOf<Profile?>(null) }
     val showDeleteConfirm = remember { mutableStateOf<Profile?>(null) }
     val showCloneDialog = remember { mutableStateOf<Profile?>(null) }
@@ -170,23 +171,49 @@ fun ProfilesDialog(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(stringResource(R.string.profiles_title))
-                Row {
+                Box {
                     IconButton(onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                        showCreateDialog.value = true
+                        addMenuExpanded = true
                     }) {
                         Icon(
                             painterResource(R.drawable.add_24px),
                             contentDescription = stringResource(R.string.profile_create)
                         )
                     }
-                    IconButton(onClick = {
-                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                        onImport()
-                    }) {
-                        Icon(
-                            painterResource(R.drawable.file_open_24px),
-                            contentDescription = stringResource(R.string.profile_import)
+                    DropdownMenu(
+                        expanded = addMenuExpanded,
+                        onDismissRequest = { addMenuExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.profile_create)) },
+                            leadingIcon = {
+                                Icon(
+                                    painterResource(R.drawable.add_24px),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            onClick = {
+                                addMenuExpanded = false
+                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                showCreateDialog.value = true
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.profile_import)) },
+                            leadingIcon = {
+                                Icon(
+                                    painterResource(R.drawable.file_open_24px),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            onClick = {
+                                addMenuExpanded = false
+                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                onImport()
+                            }
                         )
                     }
                 }

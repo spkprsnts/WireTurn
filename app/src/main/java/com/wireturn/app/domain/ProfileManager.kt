@@ -111,12 +111,36 @@ class ProfileManager(
         return com.google.gson.Gson().toJson(profile)
     }
 
-    fun importProfile(json: String) {
+    fun importProfiles(data: List<Pair<String?, String>>) {
         try {
-            val profile = com.google.gson.Gson().fromJson(json, Profile::class.java)
-            val newProfile = profile.copy(id = UUID.randomUUID().toString())
-            val newList = profiles.value + newProfile
+            val gson = com.google.gson.Gson()
+            val newProfiles = data.mapNotNull { (fileName, json) ->
+                try {
+                    val p = gson.fromJson(json, Profile::class.java) ?: return@mapNotNull null
+                    
+                    val nameFromFile = fileName?.let { name ->
+                        name.removeSuffix(".json").removePrefix("wt_")
+                    }
+
+                    Profile(
+                        id = UUID.randomUUID().toString(),
+                        name = (p.name as String?).takeIf { !it.isNullOrBlank() } ?: nameFromFile ?: "Imported",
+                        clientConfig = (p.clientConfig as ClientConfig?) ?: ClientConfig(),
+                        xraySettings = (p.xraySettings as XraySettings?) ?: XraySettings(),
+                        xrayConfig = (p.xrayConfig as XrayConfig?) ?: XrayConfig(),
+                        wgConfig = (p.wgConfig as WgConfig?) ?: WgConfig(),
+                        vlessConfig = (p.vlessConfig as VlessConfig?) ?: VlessConfig()
+                    )
+                } catch (_: Exception) {
+                    null
+                }
+            }
+            if (newProfiles.isEmpty()) return
+            
+            val newList = profiles.value + newProfiles
             scope.launch { prefs.saveProfiles(newList) }
         } catch (_: Exception) {}
     }
+
+    fun importProfile(json: String, fileName: String? = null) = importProfiles(listOf(fileName to json))
 }

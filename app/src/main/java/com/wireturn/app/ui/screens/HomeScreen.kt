@@ -222,13 +222,27 @@ fun HomeScreen(
     ) { _ -> }
 
     val profileImportLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        uri?.let {
-            context.contentResolver.openInputStream(it)?.use { stream ->
-                val json = stream.bufferedReader().readText()
-                viewModel.importProfile(json)
+        ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris ->
+        if (uris.isEmpty()) return@rememberLauncherForActivityResult
+        
+        val data = uris.mapNotNull { uri ->
+            try {
+                val fileName = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                    val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    if (index != -1 && cursor.moveToFirst()) cursor.getString(index) else null
+                } ?: uri.lastPathSegment
+
+                val json = context.contentResolver.openInputStream(uri)?.use { stream ->
+                    stream.bufferedReader().readText()
+                }
+                if (json != null) fileName to json else null
+            } catch (_: Exception) {
+                null
             }
+        }
+        if (data.isNotEmpty()) {
+            viewModel.importProfiles(data)
         }
     }
 
