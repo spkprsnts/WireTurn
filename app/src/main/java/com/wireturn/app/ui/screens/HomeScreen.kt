@@ -167,6 +167,18 @@ fun HomeScreen(
     val runningVlessConfig by XrayServiceState.runningVlessConfig.collectAsStateWithLifecycle()
     val runningXrayConfig by XrayServiceState.runningXrayConfig.collectAsStateWithLifecycle()
 
+    val currentProfileId by viewModel.currentProfileId.collectAsStateWithLifecycle()
+    val profiles by viewModel.profiles.collectAsStateWithLifecycle()
+    val runningProfileName by ProxyServiceState.runningProfileName.collectAsStateWithLifecycle()
+
+    val currentProfileName = remember(currentProfileId, profiles) {
+        profiles.find { it.id == currentProfileId }?.name ?: ""
+    }
+
+    val profileChanged = remember(runningProfileName, currentProfileName) {
+        runningProfileName != null && currentProfileName != runningProfileName
+    }
+
     val proxyPing by viewModel.proxyPing.collectAsStateWithLifecycle()
     var lastSuccessPing by remember { mutableStateOf<MainViewModel.PingResult.Success?>(null) }
     
@@ -187,15 +199,16 @@ fun HomeScreen(
     val activeWgConfig = runningWgConfig ?: wgConfig
     val activeVlessConfig = runningVlessConfig ?: vlessConfig
 
-    val configChanged = remember(clientConfig, runningConfig, wgConfig, runningWgConfig, vlessConfig, runningVlessConfig, xrayConfig, runningXrayConfig) {
-        (runningConfig != null && clientConfig != runningConfig) ||
+    val configChanged = remember(clientConfig, runningConfig, wgConfig, runningWgConfig, vlessConfig, runningVlessConfig, xrayConfig, runningXrayConfig, profileChanged) {
+        profileChanged ||
+                (runningConfig != null && clientConfig != runningConfig) ||
                 (runningWgConfig != null && wgConfig != runningWgConfig) ||
                 (runningVlessConfig != null && vlessConfig != runningVlessConfig) ||
                 (runningXrayConfig != null && xrayConfig != runningXrayConfig)
     }
 
-    val mainConfigChanged = remember(clientConfig, runningConfig) {
-        runningConfig != null && clientConfig != runningConfig
+    val mainConfigChanged = remember(clientConfig, runningConfig, profileChanged) {
+        profileChanged || (runningConfig != null && clientConfig != runningConfig)
     }
     val xrayConfigChanged = remember(wgConfig, runningWgConfig, vlessConfig, runningVlessConfig, xrayConfig, runningXrayConfig) {
         (runningWgConfig != null && wgConfig != runningWgConfig) ||
@@ -987,13 +1000,17 @@ fun HomeScreen(
                                 )
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = stringResource(R.string.restart_required),
+                                        text = stringResource(if (profileChanged) R.string.restart_required_profile else R.string.restart_required),
                                         style = MaterialTheme.typography.labelLarge,
                                         color = MaterialTheme.colorScheme.onSecondaryContainer,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = if (mainConfigChanged) stringResource(R.string.restart_reason_client) else stringResource(R.string.restart_reason_xray),
+                                        text = when {
+                                            profileChanged -> stringResource(R.string.restart_reason_profile)
+                                            mainConfigChanged -> stringResource(R.string.restart_reason_client)
+                                            else -> stringResource(R.string.restart_reason_xray)
+                                        },
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
                                     )
@@ -1007,20 +1024,22 @@ fun HomeScreen(
                                 horizontalArrangement = Arrangement.End,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = stringResource(R.string.reset),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier
-                                        .clip(MaterialTheme.shapes.small)
-                                        .clickable {
-                                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                            viewModel.revertToRunningConfigs()
-                                        }
-                                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                                )
-                                Spacer(Modifier.width(8.dp))
+                                if (!profileChanged) {
+                                    Text(
+                                        text = stringResource(R.string.reset),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier
+                                            .clip(MaterialTheme.shapes.small)
+                                            .clickable {
+                                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                                viewModel.revertToRunningConfigs()
+                                            }
+                                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                }
                                 Text(
                                     text = stringResource(R.string.btn_restart),
                                     style = MaterialTheme.typography.labelLarge,
