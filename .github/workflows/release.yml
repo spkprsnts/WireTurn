@@ -66,9 +66,7 @@ jobs:
         run: |
           mkdir -p final_apks
           
-          IFS=' ' read -r -a files <<< "${{ steps.sign_app.outputs.signedReleaseFiles }}"
-          
-          for file in "${files[@]}"; do
+          find app/build/outputs/apk/release -name "*-signed.apk" | while read -r file; do
             if [ -f "$file" ]; then
               filename=$(basename "$file" | sed 's/-signed//')
               cp "$file" "final_apks/$filename"
@@ -77,7 +75,7 @@ jobs:
           done
           
           if [ -z "$(ls -A final_apks)" ]; then
-            echo "ERROR: No signed APKs were created!"
+            echo "ERROR: No signed APKs were found!"
             exit 1
           fi
 
