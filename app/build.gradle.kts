@@ -1,3 +1,7 @@
+import java.util.Date
+import java.util.Locale
+import java.text.SimpleDateFormat
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -11,8 +15,11 @@ android {
         applicationId = "com.wireturn.app"
         minSdk = project.property("project.minSdk").toString().toInt()
         targetSdk = project.property("project.targetSdk").toString().toInt()
-        versionCode = 45
-        versionName = "4.6"
+        
+        val date = Date()
+        val formattedDate = SimpleDateFormat("yyMMddHH", Locale.US).format(date)
+        versionCode = formattedDate.toInt()
+        versionName = project.property("project.versionName").toString()
     }
 
     splits {
