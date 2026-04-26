@@ -118,9 +118,7 @@ class ProfileManager(
                 try {
                     val p = gson.fromJson(json, Profile::class.java) ?: return@mapNotNull null
                     
-                    val nameFromFile = fileName?.let { name ->
-                        name.removeSuffix(".json").removePrefix("wt_")
-                    }
+                    val nameFromFile = fileName?.removeSuffix(".json")?.removePrefix("wt_")
 
                     Profile(
                         id = UUID.randomUUID().toString(),
@@ -141,6 +139,4 @@ class ProfileManager(
             scope.launch { prefs.saveProfiles(newList) }
         } catch (_: Exception) {}
     }
-
-    fun importProfile(json: String, fileName: String? = null) = importProfiles(listOf(fileName to json))
 }

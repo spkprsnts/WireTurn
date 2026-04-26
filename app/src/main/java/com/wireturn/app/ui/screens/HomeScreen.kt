@@ -1300,7 +1300,7 @@ private fun AppExceptionsDialog(
     var newlyAddedPackages by remember { mutableStateOf(emptySet<String>()) }
     LaunchedEffect(newlyAddedPackages) {
         if (newlyAddedPackages.isNotEmpty()) {
-            kotlinx.coroutines.delay(1500)
+            delay(1500)
             newlyAddedPackages = emptySet()
         }
     }
@@ -2180,7 +2180,7 @@ private fun ProxyAddressRow(
     var isCopied by remember { mutableStateOf(false) }
     LaunchedEffect(isCopied) {
         if (isCopied) {
-            kotlinx.coroutines.delay(1500)
+            delay(1500)
             isCopied = false
         }
     }

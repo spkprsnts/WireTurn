@@ -530,7 +530,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun reorderProfiles(newList: List<Profile>) = profileManager.reorderProfiles(newList)
     fun getProfileJson(id: String): String? = profileManager.getProfileJson(id)
     fun importProfiles(data: List<Pair<String?, String>>) = profileManager.importProfiles(data)
-    fun importProfile(json: String, fileName: String? = null) = profileManager.importProfile(json, fileName)
 
     private fun isValidHostPort(address: String): Boolean {
         return com.wireturn.app.ui.ValidatorUtils.isValidHostPort(address)
