@@ -56,8 +56,7 @@ object NotificationHelper {
 
         if (proxyRunning) {
             val pStatus = proxyStatusText ?: (if (proxyWorking) context.getString(R.string.proxy_active) else context.getString(R.string.proxy_starting))
-            val statusWithProfile = if (runningProfileName != null) "[$runningProfileName] $pStatus" else pStatus
-            statusParts.add(statusWithProfile)
+            statusParts.add(pStatus)
         }
         
         if (xrayState != XrayState.Idle && xrayState is XrayState.Running) {
@@ -75,6 +74,7 @@ object NotificationHelper {
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle(context.getString(R.string.notification_title))
             .setContentText(contentText)
+            .setSubText(runningProfileName)
             .setSmallIcon(android.R.drawable.ic_menu_preferences)
             .setOngoing(true)
             .setContentIntent(openAppIntent)

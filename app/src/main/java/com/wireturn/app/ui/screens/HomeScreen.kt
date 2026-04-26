@@ -1209,7 +1209,6 @@ private fun AppExceptionsDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val xraySettings by viewModel.xraySettings.collectAsStateWithLifecycle()
     val excludedApps by viewModel.excludedApps.collectAsStateWithLifecycle()
     
     // Используем mutableStateOf для хранения списка, чтобы иметь возможность его обновить (пересортировать)
