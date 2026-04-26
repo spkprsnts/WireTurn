@@ -257,7 +257,9 @@ fun HomeScreen(
     // --- Business Logic Logic (Mismatches & Alerts) ---
     val warnVlessMismatch = stringResource(R.string.warn_proxy_vless_mismatch)
     val warnWgMismatch = stringResource(R.string.warn_proxy_wg_mismatch)
+    val warnVpnRequiresXray = stringResource(R.string.warn_vpn_requires_xray)
 
+    val scope = rememberCoroutineScope()
     var hasShownMismatchForCurrentRun by remember { mutableStateOf(xrayState == XrayState.Running) }
     LaunchedEffect(xrayState) {
         if (xrayState != XrayState.Running) {
@@ -815,6 +817,14 @@ fun HomeScreen(
                                 if (enabled) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
                             )
                             if (enabled) {
+                                if (!xraySettings.xrayEnabled) {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            message = warnVpnRequiresXray,
+                                            duration = androidx.compose.material3.SnackbarDuration.Short
+                                        )
+                                    }
+                                }
                                 val intent = VpnService.prepare(context)
                                 if (intent != null) {
                                     vpnLauncher.launch(intent)
@@ -833,7 +843,6 @@ fun HomeScreen(
                     Column {
                         Column {
                             val clipboard = LocalClipboard.current
-                            val scope = rememberCoroutineScope()
 
                             val socks5Label = stringResource(R.string.clipboard_label_socks5)
                             val httpLabel = stringResource(R.string.clipboard_label_http)
