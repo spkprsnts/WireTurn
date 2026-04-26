@@ -52,3 +52,16 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Unstable Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/unstable'
+        with:
+          tag_name: unstable-latest
+          name: "Unstable Build (Development)"
+          body: "Latest build from unstable branch. Commit: ${{ github.sha }}"
+          files: app/build/outputs/apk/release/*.apk
+          prerelease: true
+          make_latest: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

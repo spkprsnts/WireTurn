@@ -80,12 +80,17 @@ androidComponents {
             commandLine("git", "rev-parse", "--short", "HEAD")
         }.standardOutput.asText.get().trim()
 
+        val isUnstable = branch == "unstable" || System.getenv("GITHUB_REF_NAME") == "unstable"
+        val baseVersion = android.defaultConfig.versionName ?: "0.0"
+        val vName = if (isUnstable) "$baseVersion-unstable" else baseVersion
+        
         variant.outputs.forEach { output ->
             val abi = output.filters.find { it.filterType == com.android.build.api.variant.FilterConfiguration.FilterType.ABI }?.identifier ?: "universal"
-            val isUnstable = branch == "unstable" || System.getenv("GITHUB_REF_NAME") == "unstable"
-            val suffix = if (isUnstable) "-unstable-$gitHash" else ""
+            val fileSuffix = if (isUnstable) "-$gitHash" else ""
             
-            output.outputFileName.set("WireTurn_v${android.defaultConfig.versionName}${suffix}_${abi}.apk")
+            // Устанавливаем версию и имя файла
+            output.versionName.set(vName)
+            output.outputFileName.set("WireTurn_v${vName}${fileSuffix}_${abi}.apk")
         }
     }
 }

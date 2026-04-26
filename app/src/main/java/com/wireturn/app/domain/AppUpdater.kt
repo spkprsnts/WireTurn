@@ -222,8 +222,12 @@ class AppUpdater(private val context: Context) {
             "https://api.github.com/repos/spkprsnts/WireTurn/releases/latest"
 
         fun isNewer(remote: String, current: String): Boolean {
-            val r = remote.split(".").map { it.toIntOrNull() ?: 0 }
-            val c = current.split(".").map { it.toIntOrNull() ?: 0 }
+            fun String.toVersionList() = this.split(".")
+                .map { it.filter { char -> char.isDigit() }.toIntOrNull() ?: 0 }
+
+            val r = remote.toVersionList()
+            val c = current.toVersionList()
+
             for (i in 0 until maxOf(r.size, c.size)) {
                 val rv = r.getOrElse(i) { 0 }
                 val cv = c.getOrElse(i) { 0 }
