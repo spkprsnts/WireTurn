@@ -311,6 +311,7 @@
     <string name="profile_export">Экспортировать</string>
     <string name="profile_import">Импортировать</string>
     <string name="profile_name_label">Название профиля</string>
+    <string name="profile_default_name">Основной профиль</string>
     <string name="profile_delete_confirm">Удалить профиль %1$s?</string>
     <string name="profile_delete_desc">Все настройки этого профиля будут удалены.</string>
 </resources>

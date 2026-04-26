@@ -92,11 +92,9 @@ fun ProfilesDialog(
     // Local state for reordering
     val profiles = remember { mutableStateListOf<Profile>() }
     
-    // Sync local list with source of truth only when IDs change or on initial load
+    // Sync local list with source of truth only when contents change
     LaunchedEffect(profilesSource) {
-        val sourceIds = profilesSource.map { it.id }
-        val localIds = profiles.map { it.id }
-        if (sourceIds != localIds) {
+        if (profilesSource != profiles) {
             profiles.clear()
             profiles.addAll(profilesSource)
         }

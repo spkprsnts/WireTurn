@@ -7,6 +7,7 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.wireturn.app.AppLogsState
+import com.wireturn.app.R
 import com.wireturn.app.ProxyService
 import com.wireturn.app.XrayService
 import com.wireturn.app.ProxyServiceState
@@ -144,7 +145,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (currentProfiles.isEmpty()) {
                 val defaultProfile = Profile(
                     id = "default",
-                    name = "Default",
+                    name = getApplication<Application>().getString(R.string.profile_default_name),
                     clientConfig = config,
                     xraySettings = xraySettings,
                     xrayConfig = xrayConfig,
