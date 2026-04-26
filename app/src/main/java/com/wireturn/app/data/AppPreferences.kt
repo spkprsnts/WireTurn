@@ -13,6 +13,8 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -297,6 +299,10 @@ class AppPreferences(context: Context) {
     val currentProfileIdFlow: Flow<String> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { it[CURRENT_PROFILE_ID] ?: "default" }
+
+    val currentProfileNameFlow: Flow<String?> = combine(profilesFlow, currentProfileIdFlow) { profiles, id ->
+        profiles.find { it.id == id }?.name
+    }
 
     suspend fun saveProfiles(profiles: List<Profile>) {
         context.dataStore.edit { prefs ->

@@ -121,6 +121,7 @@ class ProxyService : Service() {
         
         while (isActive && !userStopped.get()) {
             var cfg = prefs.clientConfigFlow.first()
+            val profileName = prefs.currentProfileNameFlow.first()
             
             // Cleanup jazz creds if needed
             if (cfg.jazzCreds.contains("@salutejazz.ru", ignoreCase = true)) {
@@ -129,6 +130,7 @@ class ProxyService : Service() {
             }
             
             ProxyServiceState.setRunningConfig(cfg)
+            ProxyServiceState.setRunningProfileName(profileName)
             
             val startTime = System.currentTimeMillis()
             val startupSuccessful = runBinary(cfg)

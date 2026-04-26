@@ -311,6 +311,7 @@
     <!-- Управление профилями -->
     <string name="profiles_title">Профили</string>
     <string name="btn_change_profile">Сменить</string>
+    <string name="notification_btn_change_profile">Сменить профиль</string>
     <string name="profile_create">Создать профиль</string>
     <string name="profile_clone">Клонировать</string>
     <string name="profile_rename">Переименовать</string>

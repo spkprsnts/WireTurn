@@ -50,12 +50,14 @@ object NotificationHelper {
         val proxyRunning = ProxyServiceState.isRunning.value
         val proxyWorking = ProxyServiceState.isWorking.value
         val proxyStatusText = ProxyServiceState.statusText.value
+        val runningProfileName = ProxyServiceState.runningProfileName.value
         val xrayState = XrayServiceState.state.value
         val vpnState = VpnServiceState.state.value
 
         if (proxyRunning) {
             val pStatus = proxyStatusText ?: (if (proxyWorking) context.getString(R.string.proxy_active) else context.getString(R.string.proxy_starting))
-            statusParts.add(pStatus)
+            val statusWithProfile = if (runningProfileName != null) "[$runningProfileName] $pStatus" else pStatus
+            statusParts.add(statusWithProfile)
         }
         
         if (xrayState != XrayState.Idle && xrayState is XrayState.Running) {
@@ -92,6 +94,21 @@ object NotificationHelper {
                 android.R.drawable.ic_menu_close_clear_cancel,
                 context.getString(R.string.proxy_stop),
                 stopProxyPendingIntent
+            )
+            
+            val changeProfileIntent = Intent(context, ProfileDialogActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            val changeProfilePendingIntent = PendingIntent.getActivity(
+                context, 
+                103, 
+                changeProfileIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            builder.addAction(
+                android.R.drawable.ic_menu_manage,
+                context.getString(R.string.notification_btn_change_profile),
+                changeProfilePendingIntent
             )
         }
 

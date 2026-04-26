@@ -86,6 +86,13 @@
             android:launchMode="singleInstance"
             android:taskAffinity="" />
 
+        <activity
+            android:name=".ProfileDialogActivity"
+            android:theme="@style/Theme.AppCompat.Dialog"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:taskAffinity="" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -102,6 +109,7 @@
             <intent-filter>
                 <action android:name="com.wireturn.app.START_PROXY" />
                 <action android:name="com.wireturn.app.STOP_PROXY" />
+                <action android:name="com.wireturn.app.CHANGE_PROFILE" />
             </intent-filter>
         </receiver>
 

@@ -36,6 +36,9 @@ object ProxyServiceState {
     private val _runningConfig = MutableStateFlow<com.wireturn.app.data.ClientConfig?>(null)
     val runningConfig: StateFlow<com.wireturn.app.data.ClientConfig?> = _runningConfig.asStateFlow()
 
+    private val _runningProfileName = MutableStateFlow<String?>(null)
+    val runningProfileName: StateFlow<String?> = _runningProfileName.asStateFlow()
+
     private val _statusText = MutableStateFlow<String?>(null)
     val statusText: StateFlow<String?> = _statusText.asStateFlow()
 
@@ -43,6 +46,7 @@ object ProxyServiceState {
         _isRunning.value = value
         if (!value) {
             _runningConfig.value = null
+            _runningProfileName.value = null
             _statusText.value = null
             _isWorking.value = false
             _captchaSession.value = null
@@ -56,6 +60,10 @@ object ProxyServiceState {
 
     fun setRunningConfig(config: com.wireturn.app.data.ClientConfig?) {
         _runningConfig.value = config
+    }
+
+    fun setRunningProfileName(name: String?) {
+        _runningProfileName.value = name
     }
 
     fun setStartupResult(result: StartupResult?) {
