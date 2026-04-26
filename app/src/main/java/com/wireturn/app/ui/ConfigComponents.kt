@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -171,7 +170,7 @@ fun HistoryIconButton(
             modifier = Modifier.size(if (iconSize < 24.dp) 40.dp else 48.dp)
         ) {
             Icon(
-                painter = painterResource(R.drawable.database_outlined_24px),
+                painter = painterResource(R.drawable.history_24px),
                 contentDescription = stringResource(R.string.history_label),
                 modifier = Modifier.size(iconSize)
             )
