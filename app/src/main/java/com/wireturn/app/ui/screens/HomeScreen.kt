@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -48,6 +49,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -58,6 +60,7 @@ import androidx.compose.material3.ListItemColors
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -75,6 +78,7 @@ import com.wireturn.app.data.KernelVariant
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.PowerManager
@@ -84,7 +88,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Switch
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -103,6 +109,7 @@ import androidx.compose.ui.draw.shadow
 import android.content.ClipData
 import android.net.VpnService
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -116,6 +123,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.drawable.toBitmap
+import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.launch
 import com.wireturn.app.ui.InlineConfigIndicator
 import com.wireturn.app.ui.redact
@@ -244,6 +255,7 @@ fun HomeScreen(
 
     val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
     val showBottomSheet = rememberSaveable { mutableStateOf(false) }
+    val showAppsDialog = rememberSaveable { mutableStateOf(false) }
     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val vpnLauncher = rememberLauncherForActivityResult(
@@ -380,7 +392,7 @@ fun HomeScreen(
                                             containerColor = MaterialTheme.colorScheme.onErrorContainer,
                                             contentColor = MaterialTheme.colorScheme.errorContainer
                                         ),
-                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp),
+                                        contentPadding = PaddingValues(horizontal = 12.dp),
                                         modifier = Modifier.height(32.dp)
                                     ) {
                                         Icon(painterResource(R.drawable.info_24px), null, Modifier.size(16.dp))
@@ -405,7 +417,7 @@ fun HomeScreen(
                                             containerColor = MaterialTheme.colorScheme.onErrorContainer,
                                             contentColor = MaterialTheme.colorScheme.errorContainer
                                         ),
-                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp),
+                                        contentPadding = PaddingValues(horizontal = 12.dp),
                                         modifier = Modifier.height(32.dp)
                                     ) {
                                         Icon(painterResource(R.drawable.power_24px), null, Modifier.size(16.dp))
@@ -811,6 +823,18 @@ fun HomeScreen(
                                     InlineConfigIndicator(runningWgConfig != null && xraySettings.xrayVpnMode != (vpnServiceState == VpnState.Running))
                                 }
                             }
+
+                        IconButton(onClick = {
+                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                            showAppsDialog.value = true
+                        }) {
+                            Icon(
+                                painter = painterResource(R.drawable.apps_24px),
+                                contentDescription = stringResource(R.string.vpn_apps_exceptions),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
                         Switch(checked = xraySettings.xrayVpnMode, onCheckedChange = { enabled ->
                             HapticUtil.perform(
                                 context,
@@ -1133,10 +1157,266 @@ fun HomeScreen(
         }
     }
 
+    if (showAppsDialog.value) {
+        AppExceptionsDialog(
+            viewModel = viewModel,
+            onDismiss = { showAppsDialog.value = false }
+        )
+    }
+
     UpdateDialogs(viewModel)
 }
 
 // --- Dialogs & Sheets ---
+
+@Composable
+private fun AppExceptionsDialog(
+    viewModel: MainViewModel,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val xraySettings by viewModel.xraySettings.collectAsStateWithLifecycle()
+    
+    // Используем mutableStateOf для хранения списка, чтобы иметь возможность его обновить (пересортировать)
+    var initialExcludedApps by remember { mutableStateOf(xraySettings.excludedApps) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+
+    val appList = remember(initialExcludedApps) {
+        val pm = context.packageManager
+        val apps = pm.getInstalledApplications(0)
+
+        apps.map { app ->
+            AppInfo(
+                packageName = app.packageName,
+                name = pm.getApplicationLabel(app).toString(),
+                isSystem = (app.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+            )
+        }.filter { it.name.isNotBlank() && it.packageName != context.packageName }
+            .sortedWith(
+                compareByDescending<AppInfo> { initialExcludedApps.contains(it.packageName) }
+                    .thenBy { it.name.lowercase() }
+            )
+    }
+
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val clipboard = LocalClipboard.current
+    val listState = rememberLazyListState()
+    
+    var newlyAddedPackages by remember { mutableStateOf(emptySet<String>()) }
+    LaunchedEffect(newlyAddedPackages) {
+        if (newlyAddedPackages.isNotEmpty()) {
+            kotlinx.coroutines.delay(1500)
+            newlyAddedPackages = emptySet()
+        }
+    }
+
+    val handleDismiss = {
+        onDismiss()
+    }
+
+    val filteredApps = remember(searchQuery, appList) {
+        if (searchQuery.isBlank()) appList
+        else appList.filter {
+            it.name.contains(searchQuery, ignoreCase = true) ||
+                    it.packageName.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = handleDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        modifier = Modifier
+            .widthIn(max = 600.dp)
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp),
+        title = {
+            Text(stringResource(R.string.vpn_apps_exceptions))
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text(stringResource(R.string.search_apps)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = CircleShape,
+                    leadingIcon = {
+                        Icon(
+                            painter = painterResource(R.drawable.search_24px),
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(
+                                    painter = painterResource(R.drawable.close_24px),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                )
+
+                Box(modifier = Modifier.height(400.dp)) {
+                    if (filteredApps.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(stringResource(R.string.no_apps_found), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    } else {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            contentPadding = PaddingValues(vertical = 4.dp)
+                        ) {
+                            items(filteredApps, key = { it.packageName }) { app ->
+                                val isExcluded = xraySettings.excludedApps.contains(app.packageName)
+                                val isNewlyAdded = newlyAddedPackages.contains(app.packageName)
+                                val itemShape = MaterialTheme.shapes.medium
+
+                                val backgroundColor by animateColorAsState(
+                                    targetValue = when {
+                                        isNewlyAdded -> MaterialTheme.colorScheme.primaryContainer
+                                        isExcluded -> MaterialTheme.colorScheme.surfaceContainerHigh
+                                        else -> Color.Transparent
+                                    },
+                                    label = "item_bg_color"
+                                )
+                                
+                                Surface(
+                                    onClick = {
+                                        HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
+                                        viewModel.toggleAppExclusion(app.packageName)
+                                    },
+                                    shape = itemShape,
+                                    color = backgroundColor,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .animateItem()
+                                ) {
+                                    ListItem(
+                                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                                        headlineContent = { 
+                                            Text(
+                                                app.name, 
+                                                maxLines = 1, 
+                                                overflow = TextOverflow.Ellipsis,
+                                                fontWeight = if (isExcluded || isNewlyAdded) FontWeight.SemiBold else FontWeight.Normal
+                                            ) 
+                                        },
+                                        supportingContent = { 
+                                            Text(
+                                                app.packageName, 
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                            ) 
+                                        },
+                                        leadingContent = {
+                                            val icon = remember(app.packageName) {
+                                                try {
+                                                    context.packageManager.getApplicationIcon(app.packageName)
+                                                        .toBitmap().asImageBitmap()
+                                                } catch (_: Exception) { null }
+                                            }
+                                            if (icon != null) {
+                                                Image(
+                                                    bitmap = icon,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(32.dp)
+                                                )
+                                            } else {
+                                                Icon(
+                                                    painterResource(R.drawable.mobile_24px),
+                                                    null,
+                                                    modifier = Modifier.size(32.dp),
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                                )
+                                            }
+                                        },
+                                        trailingContent = {
+                                            Checkbox(
+                                                checked = isExcluded,
+                                                onCheckedChange = null // Обработка в Surface.onClick
+                                            )
+                                        },
+                                        modifier = Modifier.padding(horizontal = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    SnackbarHost(
+                        hostState = snackbarHostState,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 8.dp)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val importSuccessMsg = stringResource(R.string.apps_imported_count)
+                val importFailMsg = stringResource(R.string.no_apps_imported)
+
+                TextButton(onClick = {
+                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                    scope.launch {
+                        val clipData = clipboard.getClipEntry()?.clipData
+                        if (clipData != null && clipData.itemCount > 0) {
+                            val text = clipData.getItemAt(0).text?.toString() ?: ""
+                            val packagesToImport = text.split(Regex("[\\s,;|]+"))
+                                .map { it.trim() }
+                                .filter { it.isNotBlank() }
+                            
+                            if (packagesToImport.isNotEmpty()) {
+                                val allPackages = appList.map { it.packageName }.toSet()
+                                val validPackages = packagesToImport.filter { allPackages.contains(it) }.toSet()
+                                
+                                if (validPackages.isNotEmpty()) {
+                                    val currentExcluded = xraySettings.excludedApps
+                                    val newExcluded = currentExcluded + validPackages
+                                    if (newExcluded != currentExcluded) {
+                                        viewModel.updateXraySettings(xraySettings.copy(excludedApps = newExcluded))
+                                        newlyAddedPackages = validPackages
+                                        initialExcludedApps = newExcluded // Trigger re-sort
+                                        listState.animateScrollToItem(0)
+                                    }
+                                    snackbarHostState.showSnackbar(importSuccessMsg.format(validPackages.size))
+                                } else {
+                                    snackbarHostState.showSnackbar(importFailMsg)
+                                }
+                            }
+                        }
+                    }
+                }) {
+                    Text(stringResource(R.string.import_from_clipboard))
+                }
+                
+                TextButton(onClick = handleDismiss) {
+                    Text(stringResource(R.string.btn_close))
+                }
+            }
+        }
+    )
+}
+
+data class AppInfo(
+    val packageName: String,
+    val name: String,
+    val isSystem: Boolean
+)
 
 @Composable
 private fun UpdateDialogs(viewModel: MainViewModel) {

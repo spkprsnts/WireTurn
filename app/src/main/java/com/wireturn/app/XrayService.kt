@@ -34,28 +34,53 @@ class XrayService : Service() {
     private fun startXraySupervisor() {
         serviceScope.launch {
             val prefs = AppPreferences(applicationContext)
+            var lastExcludedApps: Set<String>? = null
+
             combine(
                 XrayServiceState.state,
                 prefs.xraySettingsFlow,
-                XrayServiceState.runningXrayConfig
-            ) { state, xraySettings, runningXray ->
+                XrayServiceState.runningXrayConfig,
+                VpnServiceState.state
+            ) { state, xraySettings, runningXray, vpnState ->
                 DataBundle(
                     isRunning = state == XrayState.Running,
                     vpnEnabled = xraySettings.xrayVpnMode,
-                    runningXray = runningXray
+                    excludedApps = xraySettings.excludedApps,
+                    runningXray = runningXray,
+                    vpnState = vpnState
                 )
             }.collect { bundle ->
                 withContext(Dispatchers.Main) {
+                    val excludedChanged = lastExcludedApps != null && lastExcludedApps != bundle.excludedApps
+                    lastExcludedApps = bundle.excludedApps
+
                     if (bundle.isRunning && bundle.vpnEnabled) {
                         val runningXray = bundle.runningXray
-                        if (runningXray != null && VpnServiceState.state.value == VpnState.Idle) {
-                            val vpnIntent = Intent(this@XrayService, Tun2SocksVpnService::class.java).apply {
-                                putExtra(Tun2SocksVpnService.EXTRA_SOCKS5_ADDR, runningXray.connectableAddress)
+                        val vpnRunning = bundle.vpnState != VpnState.Idle
+
+                        if (runningXray != null) {
+                            if (!vpnRunning || (excludedChanged && bundle.vpnState == VpnState.Running)) {
+                                if (vpnRunning) {
+                                    AppLogsState.addLog("[VPN] Restarting due to settings change")
+                                    val stopIntent = Intent(this@XrayService, Tun2SocksVpnService::class.java).apply {
+                                        action = Tun2SocksVpnService.ACTION_STOP
+                                    }
+                                    startService(stopIntent)
+                                    // Give it a small moment to stop before the next emission or within this block
+                                    delay(300)
+                                }
+                                
+                                // Start VPN if it's Idle (either just stopped or was never running)
+                                if (VpnServiceState.state.value == VpnState.Idle) {
+                                    val vpnIntent = Intent(this@XrayService, Tun2SocksVpnService::class.java).apply {
+                                        putExtra(Tun2SocksVpnService.EXTRA_SOCKS5_ADDR, runningXray.connectableAddress)
+                                    }
+                                    startService(vpnIntent)
+                                }
                             }
-                            startService(vpnIntent)
                         }
                     } else {
-                        if (VpnServiceState.state.value != VpnState.Idle) {
+                        if (bundle.vpnState != VpnState.Idle) {
                             val stopIntent = Intent(this@XrayService, Tun2SocksVpnService::class.java).apply {
                                 action = Tun2SocksVpnService.ACTION_STOP
                             }
@@ -70,7 +95,9 @@ class XrayService : Service() {
     private data class DataBundle(
         val isRunning: Boolean,
         val vpnEnabled: Boolean,
-        val runningXray: XrayConfig?
+        val excludedApps: Set<String>,
+        val runningXray: XrayConfig?,
+        val vpnState: VpnState
     )
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

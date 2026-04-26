@@ -82,6 +82,9 @@ class Tun2SocksVpnService : VpnService() {
     private suspend fun startVpn(socks5Addr: String) {
         try {
             AppLogsState.addLog("[tun2socks] Establishing tunnel")
+            val prefs = AppPreferences(applicationContext)
+            val settings = prefs.xraySettingsFlow.first()
+            
             val builder = this.Builder()
                 .setSession("wireturn VPN")
                 .addAddress("10.0.0.1", 32)
@@ -89,6 +92,14 @@ class Tun2SocksVpnService : VpnService() {
                 .addDnsServer("1.1.1.1")
                 .addDnsServer("8.8.8.8")
                 .addDisallowedApplication(packageName)
+
+            settings.excludedApps.forEach { pkg ->
+                try {
+                    builder.addDisallowedApplication(pkg)
+                } catch (e: Exception) {
+                    AppLogsState.addLog("[VPN] Could not exclude $pkg: ${e.message}")
+                }
+            }
 
             tunInterface = builder.establish()
             if (tunInterface == null) {

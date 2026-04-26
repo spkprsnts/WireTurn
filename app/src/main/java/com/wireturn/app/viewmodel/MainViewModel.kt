@@ -440,6 +440,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun toggleAppExclusion(packageName: String) {
+        val currentSettings = _xraySettings.value
+        val newExcludedApps = if (currentSettings.excludedApps.contains(packageName)) {
+            currentSettings.excludedApps - packageName
+        } else {
+            currentSettings.excludedApps + packageName
+        }
+        updateXraySettings(currentSettings.copy(excludedApps = newExcludedApps))
+    }
+
     fun updateXrayConfig(config: XrayConfig) {
         _xrayConfig.value = config
         viewModelScope.launch {

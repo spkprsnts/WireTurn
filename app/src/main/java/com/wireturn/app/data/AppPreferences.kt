@@ -104,7 +104,8 @@ data class VlessConfig(
 
 data class XraySettings(
     val xrayEnabled: Boolean = false,
-    val xrayVpnMode: Boolean = false
+    val xrayVpnMode: Boolean = false,
+    val excludedApps: Set<String> = emptySet()
 )
 
 data class XrayConfig(
@@ -242,6 +243,7 @@ class AppPreferences(context: Context) {
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val XRAY_ENABLED = booleanPreferencesKey("proxy_enabled")
         val XRAY_VPN_MODE = booleanPreferencesKey("proxy_vpn_mode")
+        val XRAY_EXCLUDED_APPS = stringSetPreferencesKey("proxy_excluded_apps")
         val WIRE_PRIV_KEY = stringPreferencesKey("wire_priv_key")
         val WIRE_ADDRESS = stringPreferencesKey("wire_address")
         val WIRE_MTU = stringPreferencesKey("wire_mtu")
@@ -332,7 +334,8 @@ class AppPreferences(context: Context) {
         .map { prefs ->
             XraySettings(
                 xrayEnabled = prefs[XRAY_ENABLED] ?: false,
-                xrayVpnMode = prefs[XRAY_VPN_MODE] ?: false
+                xrayVpnMode = prefs[XRAY_VPN_MODE] ?: false,
+                excludedApps = prefs[XRAY_EXCLUDED_APPS] ?: emptySet()
             )
         }
 
@@ -564,6 +567,7 @@ class AppPreferences(context: Context) {
         context.dataStore.edit { prefs ->
             prefs[XRAY_ENABLED] = settings.xrayEnabled
             prefs[XRAY_VPN_MODE] = settings.xrayVpnMode
+            prefs[XRAY_EXCLUDED_APPS] = settings.excludedApps
         }
     }
 

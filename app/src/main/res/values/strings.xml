@@ -56,6 +56,12 @@
     <string name="cancel">Отмена</string>
     <!-- Режим VPN (VpnService) -->
     <string name="vpn_mode">Режим VPN</string>
+    <string name="vpn_apps_exceptions">Исключения приложений</string>
+    <string name="search_apps">Поиск приложений</string>
+    <string name="no_apps_found">Приложения не найдены</string>
+    <string name="import_from_clipboard">Вставить из буфера</string>
+    <string name="apps_imported_count">Добавлено приложений: %1$d</string>
+    <string name="no_apps_imported">Не найдены пакеты для исключения</string>
     <string name="vpn_start">Включить VPN</string>
     <string name="vpn_stop">Выключить VPN</string>
 
