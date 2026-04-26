@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -34,23 +35,23 @@ enum class XrayConfiguration {
 }
 
 data class ClientConfig(
-    val serverAddress: String = "",
-    val vkLink: String = "",
-    val wbstreamUuid: String = "",
-    val threads: Int = 4,
-    val useUdp: Boolean = false,
-    val noDtls: Boolean = false,
-    val manualCaptcha: Boolean = false,
-    val localPort: String = DEFAULT_LOCAL_PORT,
-    val isRawMode: Boolean = false,
-    val rawCommand: String = "",
-    val vlessMode: Boolean = false,
-    val dcMode: Boolean = false,
-    val forceTurnPort443: Boolean = false,
-    val dcType: DCType = DCType.SALUTE_JAZZ,
-    val jazzCreds: String = "",
-    val turnableUrl: String = "",
-    val kernelVariant: KernelVariant = KernelVariant.VK_TURN_PROXY
+    @SerializedName("serverAddress") val serverAddress: String = "",
+    @SerializedName("vkLink") val vkLink: String = "",
+    @SerializedName("wbstreamUuid") val wbstreamUuid: String = "",
+    @SerializedName("threads") val threads: Int = 4,
+    @SerializedName("useUdp") val useUdp: Boolean = false,
+    @SerializedName("noDtls") val noDtls: Boolean = false,
+    @SerializedName("manualCaptcha") val manualCaptcha: Boolean = false,
+    @SerializedName("localPort") val localPort: String = DEFAULT_LOCAL_PORT,
+    @SerializedName("isRawMode") val isRawMode: Boolean = false,
+    @SerializedName("rawCommand") val rawCommand: String = "",
+    @SerializedName("vlessMode") val vlessMode: Boolean = false,
+    @SerializedName("dcMode") val dcMode: Boolean = false,
+    @SerializedName("forceTurnPort443") val forceTurnPort443: Boolean = false,
+    @SerializedName("dcType") val dcType: DCType = DCType.SALUTE_JAZZ,
+    @SerializedName("jazzCreds") val jazzCreds: String = "",
+    @SerializedName("turnableUrl") val turnableUrl: String = "",
+    @SerializedName("kernelVariant") val kernelVariant: KernelVariant = KernelVariant.VK_TURN_PROXY
 ) {
     fun getValidationErrorResId(): Int? {
         if (isRawMode) {
@@ -103,21 +104,21 @@ data class ClientConfig(
 }
 
 data class VlessConfig(
-    val vlessLink: String = "",
-    val vlessUseLocalAddress: Boolean = true
+    @SerializedName("vlessLink") val vlessLink: String = "",
+    @SerializedName("vlessUseLocalAddress") val vlessUseLocalAddress: Boolean = true
 ) {
     fun isValid(): Boolean = vlessLink.isNotBlank() && com.wireturn.app.ui.ValidatorUtils.isValidVlessLink(vlessLink)
 }
 
 data class XraySettings(
-    val xrayEnabled: Boolean = false,
-    val xrayVpnMode: Boolean = false
+    @SerializedName("xrayEnabled") val xrayEnabled: Boolean = false,
+    @SerializedName("xrayVpnMode") val xrayVpnMode: Boolean = false
 )
 
 data class XrayConfig(
-    val socksBindAddress: String = DEFAULT_SOCKS_BIND_ADDRESS,
-    val httpBindAddress: String = "",
-    val xrayConfiguration: XrayConfiguration = XrayConfiguration.WIREGUARD
+    @SerializedName("socksBindAddress") val socksBindAddress: String = DEFAULT_SOCKS_BIND_ADDRESS,
+    @SerializedName("httpBindAddress") val httpBindAddress: String = "",
+    @SerializedName("xrayConfiguration") val xrayConfiguration: XrayConfiguration = XrayConfiguration.WIREGUARD
 ) {
     fun fillDefaults(): XrayConfig {
         val isValid = socksBindAddress.isNotBlank() && com.wireturn.app.ui.ValidatorUtils.isValidHostPort(socksBindAddress)
@@ -137,12 +138,12 @@ data class XrayConfig(
 }
 
 data class WgConfig(
-    val privateKey: String = "",
-    val address: String = "",
-    val mtu: String = "",
-    val publicKey: String = "",
-    val endpoint: String = "",
-    val persistentKeepalive: String = ""
+    @SerializedName("privateKey") val privateKey: String = "",
+    @SerializedName("address") val address: String = "",
+    @SerializedName("mtu") val mtu: String = "",
+    @SerializedName("publicKey") val publicKey: String = "",
+    @SerializedName("endpoint") val endpoint: String = "",
+    @SerializedName("persistentKeepalive") val persistentKeepalive: String = ""
 ) {
     fun isValid(): Boolean {
         return privateKey.isNotBlank() && address.isNotBlank() && publicKey.isNotBlank()
@@ -211,13 +212,13 @@ enum class ThemeMode {
 }
 
 data class Profile(
-    val id: String,
-    val name: String,
-    val clientConfig: ClientConfig = ClientConfig(),
-    val xraySettings: XraySettings = XraySettings(),
-    val xrayConfig: XrayConfig = XrayConfig(),
-    val wgConfig: WgConfig = WgConfig(),
-    val vlessConfig: VlessConfig = VlessConfig()
+    @SerializedName("id") val id: String,
+    @SerializedName("name") val name: String,
+    @SerializedName("clientConfig") val clientConfig: ClientConfig = ClientConfig(),
+    @SerializedName("xraySettings") val xraySettings: XraySettings = XraySettings(),
+    @SerializedName("xrayConfig") val xrayConfig: XrayConfig = XrayConfig(),
+    @SerializedName("wgConfig") val wgConfig: WgConfig = WgConfig(),
+    @SerializedName("vlessConfig") val vlessConfig: VlessConfig = VlessConfig()
 )
 
 // P2-3 / P3-6: всегда используем applicationContext, чтобы lazy-init encryptedPrefs
