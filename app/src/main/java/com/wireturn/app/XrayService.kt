@@ -45,13 +45,14 @@ class XrayService : Service() {
             combine(
                 XrayServiceState.state,
                 prefs.xraySettingsFlow,
+                prefs.excludedAppsFlow,
                 XrayServiceState.runningXrayConfig,
                 VpnServiceState.state
-            ) { state, xraySettings, runningXray, vpnState ->
+            ) { state, xraySettings, excludedApps, runningXray, vpnState ->
                 DataBundle(
                     isRunning = state == XrayState.Running,
                     vpnEnabled = xraySettings.xrayVpnMode,
-                    excludedApps = xraySettings.excludedApps,
+                    excludedApps = excludedApps,
                     runningXray = runningXray,
                     vpnState = vpnState
                 )

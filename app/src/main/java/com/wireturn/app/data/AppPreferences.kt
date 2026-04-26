@@ -110,8 +110,7 @@ data class VlessConfig(
 
 data class XraySettings(
     val xrayEnabled: Boolean = false,
-    val xrayVpnMode: Boolean = false,
-    val excludedApps: Set<String> = emptySet()
+    val xrayVpnMode: Boolean = false
 )
 
 data class XrayConfig(
@@ -278,7 +277,20 @@ class AppPreferences(context: Context) {
             if (json.isBlank()) emptyList()
             else try {
                 val type = object : com.google.gson.reflect.TypeToken<List<Profile>>() {}.type
-                gson.fromJson<List<Profile>>(json, type)
+                val rawList = gson.fromJson<List<Profile>>(json, type) ?: emptyList()
+                rawList.map { p ->
+                    // GSON can bypass Kotlin's null-safety if fields are missing in JSON.
+                    // We sanitize the object here to ensure all fields are non-null.
+                    Profile(
+                        id = (p.id as String?) ?: java.util.UUID.randomUUID().toString(),
+                        name = (p.name as String?) ?: "Unnamed",
+                        clientConfig = (p.clientConfig as ClientConfig?) ?: ClientConfig(),
+                        xraySettings = (p.xraySettings as XraySettings?) ?: XraySettings(),
+                        xrayConfig = (p.xrayConfig as XrayConfig?) ?: XrayConfig(),
+                        wgConfig = (p.wgConfig as WgConfig?) ?: WgConfig(),
+                        vlessConfig = (p.vlessConfig as VlessConfig?) ?: VlessConfig()
+                    )
+                }
             } catch (_: Exception) { emptyList() }
         }
 
@@ -340,10 +352,13 @@ class AppPreferences(context: Context) {
         .map { prefs ->
             XraySettings(
                 xrayEnabled = prefs[XRAY_ENABLED] ?: false,
-                xrayVpnMode = prefs[XRAY_VPN_MODE] ?: false,
-                excludedApps = prefs[XRAY_EXCLUDED_APPS] ?: emptySet()
+                xrayVpnMode = prefs[XRAY_VPN_MODE] ?: false
             )
         }
+
+    val excludedAppsFlow: Flow<Set<String>> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { prefs -> prefs[XRAY_EXCLUDED_APPS] ?: emptySet() }
 
     val xrayConfigFlow: Flow<XrayConfig> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
@@ -533,24 +548,25 @@ class AppPreferences(context: Context) {
     }
 
     suspend fun saveClientConfig(config: ClientConfig) {
+        val c = (config as ClientConfig?) ?: ClientConfig()
         context.dataStore.edit { prefs ->
-            prefs[CLIENT_SERVER_ADDR] = config.serverAddress
-            prefs[CLIENT_VK_LINK] = config.vkLink
-            prefs[CLIENT_WBSTREAM_UUID] = config.wbstreamUuid
-            prefs[CLIENT_THREADS] = config.threads
-            prefs[CLIENT_UDP] = config.useUdp
-            prefs[CLIENT_NO_DTLS] = config.noDtls
-            prefs[CLIENT_MANUAL_CAPTCHA] = config.manualCaptcha
-            prefs[CLIENT_LOCAL_PORT] = config.localPort
-            prefs[CLIENT_IS_RAW] = config.isRawMode
-            prefs[CLIENT_RAW_CMD] = config.rawCommand
-            prefs[CLIENT_VLESS] = config.vlessMode
-            prefs[CLIENT_DC_MODE] = config.dcMode
-            prefs[CLIENT_FORCE_PORT_443] = config.forceTurnPort443
-            prefs[CLIENT_DC_TYPE] = config.dcType.name
-            prefs[CLIENT_JAZZ_CREDS] = config.jazzCreds
-            prefs[CLIENT_TURNABLE_URL] = config.turnableUrl
-            prefs[CLIENT_KERNEL_VARIANT] = config.kernelVariant.name
+            prefs[CLIENT_SERVER_ADDR] = (c.serverAddress as String?) ?: ""
+            prefs[CLIENT_VK_LINK] = (c.vkLink as String?) ?: ""
+            prefs[CLIENT_WBSTREAM_UUID] = (c.wbstreamUuid as String?) ?: ""
+            prefs[CLIENT_THREADS] = (c.threads as Int?) ?: 4
+            prefs[CLIENT_UDP] = (c.useUdp as Boolean?) ?: false
+            prefs[CLIENT_NO_DTLS] = (c.noDtls as Boolean?) ?: false
+            prefs[CLIENT_MANUAL_CAPTCHA] = (c.manualCaptcha as Boolean?) ?: false
+            prefs[CLIENT_LOCAL_PORT] = (c.localPort as String?) ?: ClientConfig.DEFAULT_LOCAL_PORT
+            prefs[CLIENT_IS_RAW] = (c.isRawMode as Boolean?) ?: false
+            prefs[CLIENT_RAW_CMD] = (c.rawCommand as String?) ?: ""
+            prefs[CLIENT_VLESS] = (c.vlessMode as Boolean?) ?: false
+            prefs[CLIENT_DC_MODE] = (c.dcMode as Boolean?) ?: false
+            prefs[CLIENT_FORCE_PORT_443] = (c.forceTurnPort443 as Boolean?) ?: false
+            prefs[CLIENT_DC_TYPE] = ((c.dcType as DCType?) ?: DCType.SALUTE_JAZZ).name
+            prefs[CLIENT_JAZZ_CREDS] = (c.jazzCreds as String?) ?: ""
+            prefs[CLIENT_TURNABLE_URL] = (c.turnableUrl as String?) ?: ""
+            prefs[CLIENT_KERNEL_VARIANT] = ((c.kernelVariant as KernelVariant?) ?: KernelVariant.VK_TURN_PROXY).name
         }
     }
 
@@ -559,36 +575,45 @@ class AppPreferences(context: Context) {
     }
 
     suspend fun saveWgConfig(config: WgConfig) {
+        val c = (config as WgConfig?) ?: WgConfig()
         context.dataStore.edit { prefs ->
-            prefs[WIRE_PRIV_KEY] = config.privateKey
-            prefs[WIRE_ADDRESS] = config.address
-            prefs[WIRE_MTU] = config.mtu
-            prefs[WIRE_PUB_KEY] = config.publicKey
-            prefs[WIRE_ENDPOINT] = config.endpoint
-            prefs[WIRE_KEEPALIVE] = config.persistentKeepalive
+            prefs[WIRE_PRIV_KEY] = (c.privateKey as String?) ?: ""
+            prefs[WIRE_ADDRESS] = (c.address as String?) ?: ""
+            prefs[WIRE_MTU] = (c.mtu as String?) ?: ""
+            prefs[WIRE_PUB_KEY] = (c.publicKey as String?) ?: ""
+            prefs[WIRE_ENDPOINT] = (c.endpoint as String?) ?: ""
+            prefs[WIRE_KEEPALIVE] = (c.persistentKeepalive as String?) ?: ""
         }
     }
 
     suspend fun saveXraySettings(settings: XraySettings) {
+        val s = (settings as XraySettings?) ?: XraySettings()
         context.dataStore.edit { prefs ->
-            prefs[XRAY_ENABLED] = settings.xrayEnabled
-            prefs[XRAY_VPN_MODE] = settings.xrayVpnMode
-            prefs[XRAY_EXCLUDED_APPS] = settings.excludedApps
+            prefs[XRAY_ENABLED] = (s.xrayEnabled as Boolean?) ?: false
+            prefs[XRAY_VPN_MODE] = (s.xrayVpnMode as Boolean?) ?: false
+        }
+    }
+
+    suspend fun saveExcludedApps(excludedApps: Set<String>) {
+        context.dataStore.edit { prefs ->
+            prefs[XRAY_EXCLUDED_APPS] = excludedApps
         }
     }
 
     suspend fun saveXrayConfig(config: XrayConfig) {
+        val c = (config as XrayConfig?) ?: XrayConfig()
         context.dataStore.edit { prefs ->
-            prefs[SOCKS_BIND] = config.socksBindAddress
-            prefs[HTTP_BIND] = config.httpBindAddress
-            prefs[XRAY_CONFIGURATION] = config.xrayConfiguration.name
+            prefs[SOCKS_BIND] = (c.socksBindAddress as String?) ?: XrayConfig.DEFAULT_SOCKS_BIND_ADDRESS
+            prefs[HTTP_BIND] = (c.httpBindAddress as String?) ?: ""
+            prefs[XRAY_CONFIGURATION] = ((c.xrayConfiguration as XrayConfiguration?) ?: XrayConfiguration.WIREGUARD).name
         }
     }
 
     suspend fun saveVlessConfig(config: VlessConfig) {
+        val c = (config as VlessConfig?) ?: VlessConfig()
         context.dataStore.edit { prefs ->
-            prefs[CLIENT_VLESS_LINK] = config.vlessLink
-            prefs[CLIENT_VLESS_USE_LOCAL_ADDRESS] = config.vlessUseLocalAddress
+            prefs[CLIENT_VLESS_LINK] = (c.vlessLink as String?) ?: ""
+            prefs[CLIENT_VLESS_USE_LOCAL_ADDRESS] = (c.vlessUseLocalAddress as Boolean?) ?: true
         }
     }
 

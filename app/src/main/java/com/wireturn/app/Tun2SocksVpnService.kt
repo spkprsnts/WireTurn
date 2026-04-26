@@ -88,7 +88,7 @@ class Tun2SocksVpnService : VpnService() {
         try {
             AppLogsState.addLog("[tun2socks] Establishing tunnel")
             val prefs = AppPreferences(applicationContext)
-            val settings = prefs.xraySettingsFlow.first()
+            val excludedApps = prefs.excludedAppsFlow.first()
             
             val builder = this.Builder()
                 .setSession("wireturn VPN")
@@ -98,7 +98,7 @@ class Tun2SocksVpnService : VpnService() {
                 .addDnsServer("8.8.8.8")
                 .addDisallowedApplication(packageName)
 
-            settings.excludedApps.forEach { pkg ->
+            excludedApps.forEach { pkg ->
                 try {
                     builder.addDisallowedApplication(pkg)
                 } catch (e: Exception) {

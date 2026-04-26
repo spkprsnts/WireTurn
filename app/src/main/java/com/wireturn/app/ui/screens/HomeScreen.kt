@@ -1210,9 +1210,10 @@ private fun AppExceptionsDialog(
 ) {
     val context = LocalContext.current
     val xraySettings by viewModel.xraySettings.collectAsStateWithLifecycle()
+    val excludedApps by viewModel.excludedApps.collectAsStateWithLifecycle()
     
     // Используем mutableStateOf для хранения списка, чтобы иметь возможность его обновить (пересортировать)
-    var initialExcludedApps by remember { mutableStateOf(xraySettings.excludedApps) }
+    var initialExcludedApps by remember { mutableStateOf(excludedApps) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
 
     val sortedAppList = remember(initialExcludedApps, appList) {
@@ -1302,7 +1303,7 @@ private fun AppExceptionsDialog(
                             contentPadding = PaddingValues(vertical = 4.dp)
                         ) {
                             items(filteredApps, key = { it.packageName }) { app ->
-                                val isExcluded = xraySettings.excludedApps.contains(app.packageName)
+                                val isExcluded = excludedApps.contains(app.packageName)
                                 val isNewlyAdded = newlyAddedPackages.contains(app.packageName)
                                 val itemShape = MaterialTheme.shapes.medium
 
@@ -1409,10 +1410,10 @@ private fun AppExceptionsDialog(
                                 val validPackages = packagesToImport.filter { allPackages.contains(it) }.toSet()
                                 
                                 if (validPackages.isNotEmpty()) {
-                                    val currentExcluded = xraySettings.excludedApps
+                                    val currentExcluded = excludedApps
                                     val newExcluded = currentExcluded + validPackages
                                     if (newExcluded != currentExcluded) {
-                                        viewModel.updateXraySettings(xraySettings.copy(excludedApps = newExcluded))
+                                        viewModel.saveExcludedApps(newExcluded)
                                         newlyAddedPackages = validPackages
                                         initialExcludedApps = newExcluded // Trigger re-sort
                                         listState.animateScrollToItem(0)

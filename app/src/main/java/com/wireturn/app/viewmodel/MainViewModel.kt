@@ -77,6 +77,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _xraySettings = MutableStateFlow(XraySettings())
     val xraySettings: StateFlow<XraySettings> = _xraySettings.asStateFlow()
 
+    private val _excludedApps = MutableStateFlow<Set<String>>(emptySet())
+    val excludedApps: StateFlow<Set<String>> = _excludedApps.asStateFlow()
+
     private val _xrayConfig = MutableStateFlow(XrayConfig())
     val xrayConfig: StateFlow<XrayConfig> = _xrayConfig.asStateFlow()
 
@@ -130,6 +133,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val xraySettings = prefs.xraySettingsFlow.first()
             val xrayConfig = prefs.xrayConfigFlow.first()
             val vlessConfig = prefs.vlessConfigFlow.first()
+            val excludedApps = prefs.excludedAppsFlow.first()
 
             _onboardingDone.value = done
             _themeMode.value = theme
@@ -140,6 +144,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _xraySettings.value = xraySettings
             _xrayConfig.value = xrayConfig
             _vlessConfig.value = vlessConfig
+            _excludedApps.value = excludedApps
 
             val currentProfiles = prefs.profilesFlow.first()
             if (currentProfiles.isEmpty()) {
@@ -172,6 +177,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.xraySettingsFlow.collect { _xraySettings.value = it } }
             launch { prefs.xrayConfigFlow.collect { _xrayConfig.value = it } }
             launch { prefs.vlessConfigFlow.collect { _vlessConfig.value = it } }
+            launch { prefs.excludedAppsFlow.collect { _excludedApps.value = it } }
         }
 
         viewModelScope.launch { proxyManager.observeProxyLifecycle() }
@@ -441,13 +447,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleAppExclusion(packageName: String) {
-        val currentSettings = _xraySettings.value
-        val newExcludedApps = if (currentSettings.excludedApps.contains(packageName)) {
-            currentSettings.excludedApps - packageName
+        val currentExcluded = _excludedApps.value
+        val newExcludedApps = if (currentExcluded.contains(packageName)) {
+            currentExcluded - packageName
         } else {
-            currentSettings.excludedApps + packageName
+            currentExcluded + packageName
         }
-        updateXraySettings(currentSettings.copy(excludedApps = newExcludedApps))
+        viewModelScope.launch {
+            prefs.saveExcludedApps(newExcludedApps)
+        }
+    }
+
+    fun saveExcludedApps(excludedApps: Set<String>) {
+        _excludedApps.value = excludedApps
+        viewModelScope.launch {
+            prefs.saveExcludedApps(excludedApps)
+        }
     }
 
     fun updateXrayConfig(config: XrayConfig) {
