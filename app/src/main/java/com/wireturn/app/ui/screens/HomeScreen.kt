@@ -128,6 +128,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.wireturn.app.ui.InlineConfigIndicator
 import com.wireturn.app.ui.redact
 import com.wireturn.app.ui.HapticUtil
@@ -256,6 +258,8 @@ fun HomeScreen(
     val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
     val showBottomSheet = rememberSaveable { mutableStateOf(false) }
     val showAppsDialog = rememberSaveable { mutableStateOf(false) }
+    var isAppsLoading by remember { mutableStateOf(false) }
+    var loadedAppList by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val vpnLauncher = rememberLauncherForActivityResult(
@@ -825,14 +829,42 @@ fun HomeScreen(
                             }
 
                         IconButton(onClick = {
+                            if (isAppsLoading) return@IconButton
                             HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                            showAppsDialog.value = true
+                            if (loadedAppList.isNotEmpty()) {
+                                showAppsDialog.value = true
+                            } else {
+                                isAppsLoading = true
+                                scope.launch(Dispatchers.IO) {
+                                    val pm = context.packageManager
+                                    val apps = pm.getInstalledApplications(0)
+                                    val result = apps.map { app ->
+                                        AppInfo(
+                                            packageName = app.packageName,
+                                            name = pm.getApplicationLabel(app).toString(),
+                                            isSystem = (app.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+                                        )
+                                    }.filter { it.name.isNotBlank() && it.packageName != context.packageName }
+
+                                    withContext(Dispatchers.Main) {
+                                        loadedAppList = result
+                                        isAppsLoading = false
+                                        showAppsDialog.value = true
+                                    }
+                                }
+                            }
                         }) {
-                            Icon(
-                                painter = painterResource(R.drawable.apps_24px),
-                                contentDescription = stringResource(R.string.vpn_apps_exceptions),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            if (isAppsLoading) {
+                                CircularWavyProgressIndicator(
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            } else {
+                                Icon(
+                                    painter = painterResource(R.drawable.apps_24px),
+                                    contentDescription = stringResource(R.string.vpn_apps_exceptions),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
 
                         Switch(checked = xraySettings.xrayVpnMode, onCheckedChange = { enabled ->
@@ -1160,6 +1192,7 @@ fun HomeScreen(
     if (showAppsDialog.value) {
         AppExceptionsDialog(
             viewModel = viewModel,
+            appList = loadedAppList,
             onDismiss = { showAppsDialog.value = false }
         )
     }
@@ -1172,6 +1205,7 @@ fun HomeScreen(
 @Composable
 private fun AppExceptionsDialog(
     viewModel: MainViewModel,
+    appList: List<AppInfo>,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -1181,18 +1215,8 @@ private fun AppExceptionsDialog(
     var initialExcludedApps by remember { mutableStateOf(xraySettings.excludedApps) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
 
-    val appList = remember(initialExcludedApps) {
-        val pm = context.packageManager
-        val apps = pm.getInstalledApplications(0)
-
-        apps.map { app ->
-            AppInfo(
-                packageName = app.packageName,
-                name = pm.getApplicationLabel(app).toString(),
-                isSystem = (app.flags and ApplicationInfo.FLAG_SYSTEM) != 0
-            )
-        }.filter { it.name.isNotBlank() && it.packageName != context.packageName }
-            .sortedWith(
+    val sortedAppList = remember(initialExcludedApps, appList) {
+        appList.sortedWith(
                 compareByDescending<AppInfo> { initialExcludedApps.contains(it.packageName) }
                     .thenBy { it.name.lowercase() }
             )
@@ -1215,9 +1239,9 @@ private fun AppExceptionsDialog(
         onDismiss()
     }
 
-    val filteredApps = remember(searchQuery, appList) {
-        if (searchQuery.isBlank()) appList
-        else appList.filter {
+    val filteredApps = remember(searchQuery, sortedAppList) {
+        if (searchQuery.isBlank()) sortedAppList
+        else sortedAppList.filter {
             it.name.contains(searchQuery, ignoreCase = true) ||
                     it.packageName.contains(searchQuery, ignoreCase = true)
         }
@@ -1381,7 +1405,7 @@ private fun AppExceptionsDialog(
                                 .filter { it.isNotBlank() }
                             
                             if (packagesToImport.isNotEmpty()) {
-                                val allPackages = appList.map { it.packageName }.toSet()
+                                val allPackages = sortedAppList.map { it.packageName }.toSet()
                                 val validPackages = packagesToImport.filter { allPackages.contains(it) }.toSet()
                                 
                                 if (validPackages.isNotEmpty()) {
