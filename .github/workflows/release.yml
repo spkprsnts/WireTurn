@@ -37,20 +37,31 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew assembleRelease
         env:
-          # In GitHub Actions, the NDK is pre-installed at this path
           NDK_PATH: ${{ env.ANDROID_HOME }}/ndk-bundle
+
+      - name: Sign APK
+        uses: r0adkll/sign-android-release@v1
+        id: sign_app
+        with:
+          releaseDirectory: app/build/outputs/apk/release
+          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+          alias: ${{ secrets.ALIAS }}
+          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+        env:
+          BUILD_TOOLS_VERSION: "36.0.0"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: wireturn-release-apk
-          path: app/build/outputs/apk/release/*.apk
+          path: ${{ steps.sign_app.outputs.signedReleaseFile }}
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: app/build/outputs/apk/release/*.apk
+          files: ${{ steps.sign_app.outputs.signedReleaseFile }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -62,7 +73,7 @@ jobs:
           tag_name: unstable-latest
           name: "Unstable Build (Development)"
           body: "Latest build from unstable branch. Commit: ${{ github.sha }}"
-          files: app/build/outputs/apk/release/*.apk
+          files: ${{ steps.sign_app.outputs.signedReleaseFile }}
           prerelease: true
           make_latest: false
         env:
