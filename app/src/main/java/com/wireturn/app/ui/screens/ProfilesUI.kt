@@ -44,6 +44,9 @@ fun ProfilesBlock(
             modifier = Modifier
                 .padding(horizontal = 24.dp)
                 .fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            ),
             onClick = onShowDialog
         ) {
             Row(

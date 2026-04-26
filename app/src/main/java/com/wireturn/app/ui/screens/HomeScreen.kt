@@ -675,7 +675,10 @@ fun HomeScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
+                    .padding(horizontal = 24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                )
             ) {
                 Column {
                     Row(
@@ -938,7 +941,9 @@ fun HomeScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp),
-                    elevation = CardDefaults.cardElevation(2.dp)
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    )
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(stringResource(R.string.current_client_settings), style = MaterialTheme.typography.titleSmall)
@@ -1237,10 +1242,9 @@ private fun ProxyToggleButton(state: ProxyState, onClick: () -> Unit) {
     )
     val scale by animateFloatAsState(
         targetValue = when (state) {
-            is ProxyState.Starting -> 0.94f
-            is ProxyState.Running, is ProxyState.CaptchaRequired -> 0.96f
-            is ProxyState.Idle, is ProxyState.CaptchaRequired -> 0.98f
-            else -> 1f
+            is ProxyState.Idle, is ProxyState.Error -> 1f
+            is ProxyState.Starting, is ProxyState.Running, is ProxyState.CaptchaRequired -> 0.92f
+            else -> 0.96f
         },
         animationSpec = spring(
             dampingRatio = 0.3f, // Значения меньше 0.5 дают очень сильный резонанс
@@ -1251,7 +1255,11 @@ private fun ProxyToggleButton(state: ProxyState, onClick: () -> Unit) {
 
     // Вычисляем размер тени отдельно для анимации (опционально)
     val elevation by animateDpAsState(
-        targetValue = if (state is ProxyState.Working) 16.dp else 6.dp,
+        targetValue = when (state) {
+            is ProxyState.Idle, is ProxyState.Error -> 16.dp
+            is ProxyState.Starting, is ProxyState.Running, is ProxyState.CaptchaRequired -> 2.dp
+            else -> 6.dp
+        },
         label = "elevation"
     )
 
@@ -1260,17 +1268,17 @@ private fun ProxyToggleButton(state: ProxyState, onClick: () -> Unit) {
         modifier = Modifier
             .size(148.dp)
             .scale(scale)
-            // Использование .shadow перед .clip дает более выраженный эффект
             .shadow(
                 elevation = elevation,
                 shape = CircleShape,
-                ambientColor = Color.Black.copy(alpha = 0.8f), // Тень вокруг
-                spotColor = Color.Black // Направленная тень
+                ambientColor = Color.Black.copy(alpha = 0.8f),
+                spotColor = Color.Black.copy(alpha = 0.2f)
             )
             .clip(CircleShape),
         shape = CircleShape,
         color = containerColor,
-        shadowElevation = 0.dp // if (state is ProxyState.Working) 12.dp else 4.dp
+        shadowElevation = 0.dp,
+        tonalElevation = elevation
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
