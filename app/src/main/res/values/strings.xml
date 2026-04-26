@@ -121,6 +121,8 @@
     <string name="history_label">История</string>
     <string name="tunnel_label">Туннель</string>
     <string name="kernel_label">Ядро</string>
+    <string name="kernel_config_label">Формат параметров</string>
+    <string name="kernel_config_desc">Выберите структуру аргументов для кастомного ядра</string>
     <string name="kernel_vk_turn_proxy">vk-turn-proxy</string>
     <string name="kernel_turnable">Turnable</string>
     <string name="turn_tunnel">TURN</string>
@@ -148,7 +150,7 @@
     <string name="jazz_creds_placeholder">room:password</string>
     <string name="jazz_creds_support">Создаётся на сервере</string>
     <string name="jazz_room">Комната SaluteJazz</string>
-    <string name="core_title">Ядро</string>
+    <string name="core_title">Загрузка ядра</string>
     <string name="custom_core">Кастомное ядро</string>
     <string name="builtin_core">Встроенное ядро</string>
     <string name="loaded_from_memory">Загружено из памяти устройства</string>

@@ -279,8 +279,8 @@ fun ClientSetupScreen(
                         Column {
                             Spacer(Modifier.height(16.dp))
                             LabeledSegmentedButton(
-                                label = stringResource(R.string.kernel_label),
-                                subLabel = stringResource(R.string.client_variants_desc),
+                                label = if (customKernelExists) stringResource(R.string.kernel_config_label) else stringResource(R.string.kernel_label),
+                                subLabel = if (customKernelExists) stringResource(R.string.kernel_config_desc) else stringResource(R.string.client_variants_desc),
                                 isModified = runningConfig != null && kernelVariant != runningConfig?.kernelVariant
                             ) {
                                 SegmentedButton(
@@ -781,46 +781,55 @@ fun ClientSetupScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (customKernelExists) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                     )
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.weight(1f)) {
-                            Icon(
-                                painter = painterResource(if (customKernelExists) R.drawable.check_circle_24px else R.drawable.memory_24px),
-                                contentDescription = null,
-                                tint = if (customKernelExists) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                Text(if (customKernelExists) stringResource(R.string.custom_core) else stringResource(R.string.builtin_core), style = MaterialTheme.typography.bodyMedium)
-                                Text(
-                                    text = if (customKernelExists) {
-                                        customKernelLastModified?.let {
-                                            SimpleDateFormat("dd.MM.yyyy HH:mm", LocalLocale.current.platformLocale).format(Date(it))
-                                        }?.let { stringResource(R.string.kernel_date_format, it) } ?: stringResource(R.string.loaded_from_memory)
-                                    } else stringResource(R.string.from_apk),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                    AnimatedContent(
+                        targetState = customKernelExists,
+                        label = "kernel_status_transition",
+                        transitionSpec = {
+                            (fadeIn(animationSpec = visibilityAnimationSpec)).togetherWith(fadeOut(animationSpec = visibilityAnimationSpec))
+                                .using(SizeTransform(clip = false))
                         }
-                        if (customKernelExists) {
-                            IconButton(onClick = {
-                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                viewModel.clearCustomKernel()
-                            }) {
-                                Icon(painter = painterResource(R.drawable.delete_24px), contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                    ) { isCustom ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.weight(1f)) {
+                                Icon(
+                                    painter = painterResource(if (isCustom) R.drawable.check_circle_24px else R.drawable.memory_24px),
+                                    contentDescription = null,
+                                    tint = if (isCustom) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(if (isCustom) stringResource(R.string.custom_core) else stringResource(R.string.builtin_core), style = MaterialTheme.typography.bodyMedium)
+                                    Text(
+                                        text = if (isCustom) {
+                                            customKernelLastModified?.let {
+                                                SimpleDateFormat("dd.MM.yyyy HH:mm", LocalLocale.current.platformLocale).format(Date(it))
+                                            }?.let { stringResource(R.string.kernel_date_format, it) } ?: stringResource(R.string.loaded_from_memory)
+                                        } else stringResource(R.string.from_apk),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
-                        } else {
-                            FilledTonalButton(onClick = {
-                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                viewModel.clearKernelError()
-                                kernelPickerLauncher.launch(arrayOf("*/*"))
-                            }) { Text(stringResource(R.string.btn_load)) }
+                            if (isCustom) {
+                                IconButton(onClick = {
+                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                    viewModel.clearCustomKernel()
+                                }) {
+                                    Icon(painter = painterResource(R.drawable.delete_24px), contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                                }
+                            } else {
+                                FilledTonalButton(onClick = {
+                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                    viewModel.clearKernelError()
+                                    kernelPickerLauncher.launch(arrayOf("*/*"))
+                                }) { Text(stringResource(R.string.btn_load)) }
+                            }
                         }
                     }
                 }
