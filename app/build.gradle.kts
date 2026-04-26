@@ -26,7 +26,13 @@ android {
 
     packaging {
         resources.excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
-        jniLibs.useLegacyPackaging = true
+        jniLibs {
+            useLegacyPackaging = true
+            keepDebugSymbols += "**/libtun2socks.so"
+            keepDebugSymbols += "**/libturnable.so"
+            keepDebugSymbols += "**/libvkturn.so"
+            keepDebugSymbols += "**/libxray.so"
+        }
     }
 
     buildFeatures {
@@ -49,19 +55,31 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
     compileSdkMinor = 1
 }
 
+@Suppress("UnstableApiUsage")
+androidComponents {
+    onVariants { variant ->
+        variant.outputs.forEach { output ->
+            val abi = output.filters.find { it.filterType == com.android.build.api.variant.FilterConfiguration.FilterType.ABI }?.identifier ?: "universal"
+            output.outputFileName.set("WireTurn_v${android.defaultConfig.versionName}_${abi}.apk")
+        }
+    }
+}
+
 kotlin {
     compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
     }
 }
 
 dependencies {
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.gson)
@@ -81,4 +99,44 @@ dependencies {
     implementation(libs.guava)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
+}
+
+tasks.register<Exec>("buildGoBinaries") {
+    group = "build"
+    description = "Compiles Go binaries for Android"
+    workingDir = rootDir
+
+    // Enable incremental builds: only run if Go files or build script changed
+    inputs.dir(file("${rootDir}/external")).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(file("${rootDir}/build.sh")).withPathSensitivity(PathSensitivity.RELATIVE)
+    outputs.dir(file("${projectDir}/src/main/jniLibs"))
+
+    // Pass NDK path from AGP to script (AGP 8.x / 9.x compatible)
+    val androidComponents = project.extensions.findByType<com.android.build.api.variant.ApplicationAndroidComponentsExtension>()
+    val ndkDir = try {
+        androidComponents?.sdkComponents?.ndkDirectory?.orNull?.asFile?.absolutePath
+    } catch (_: Exception) {
+        null
+    }
+
+    if (org.gradle.internal.os.OperatingSystem.current().isWindows) {
+        if (ndkDir != null) {
+            // Use WSLENV with /p flag to auto-convert Windows path to WSL path
+            environment("NDK_PATH", ndkDir)
+            val currentWslEnv = System.getenv("WSLENV") ?: ""
+            if (!currentWslEnv.contains("NDK_PATH/p")) {
+                environment("WSLENV", if (currentWslEnv.isEmpty()) "NDK_PATH/p" else "$currentWslEnv:NDK_PATH/p")
+            }
+        }
+        // Use login shell to load PATH and wslpath for reliable mapping
+        commandLine("wsl", "bash", "-l", "-c", "cd \$(wslpath '${rootDir.absolutePath}') && ./build.sh")
+    } else {
+        if (ndkDir != null) environment("NDK_PATH", ndkDir)
+        commandLine("bash", "-c", "chmod +x build.sh && ./build.sh")
+    }
+}
+
+// Заставляем Android собирать бинарники перед компиляцией Java/Kotlin кода
+tasks.named("preBuild") {
+    dependsOn("buildGoBinaries")
 }

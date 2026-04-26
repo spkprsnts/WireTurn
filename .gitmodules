@@ -1,0 +1,13 @@
+[submodule "external/tun2socks"]
+	path = external/tun2socks
+	url = https://github.com/xjasonlyu/tun2socks.git
+[submodule "external/vk-turn-proxy"]
+	path = external/vk-turn-proxy
+	url = https://github.com/spkprsnts/vk-turn-proxy.git
+	branch = dc
+[submodule "external/vless-client"]
+	path = external/vless-client
+	url = https://github.com/spkprsnts/vless-client.git
+[submodule "external/turnable"]
+	path = external/turnable
+	url = https://github.com/TheAirBlow/Turnable.git

@@ -16,6 +16,7 @@ barcodeScanning = "17.3.0"
 camera = "1.6.0"
 guava = "33.6.0-android"
 gson = "2.14.0"
+desugar_jdk_libs = "2.1.5"
 
 
 [libraries]
@@ -41,6 +42,7 @@ androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycl
 androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camera" }
 guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
+desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugar_jdk_libs" }
 
 
 [plugins]
