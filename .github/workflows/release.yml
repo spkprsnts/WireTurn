@@ -51,17 +51,25 @@ jobs:
         env:
           BUILD_TOOLS_VERSION: "36.0.0"
 
-      - name: Upload APK
+      - name: Clean up and Rename APKs
+        run: |
+          mkdir -p final_apks
+          for file in ${{ steps.sign_app.outputs.signedReleaseFiles }}; do
+            filename=$(basename "$file" | sed 's/-signed//')
+            cp "$file" "final_apks/$filename"
+          done
+
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: wireturn-release-apk
-          path: ${{ steps.sign_app.outputs.signedReleaseFile }}
+          path: final_apks/*.apk
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: ${{ steps.sign_app.outputs.signedReleaseFile }}
+          files: final_apks/*.apk
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -73,7 +81,7 @@ jobs:
           tag_name: unstable-latest
           name: "Unstable Build (Development)"
           body: "Latest build from unstable branch. Commit: ${{ github.sha }}"
-          files: ${{ steps.sign_app.outputs.signedReleaseFile }}
+          files: final_apks/*.apk
           prerelease: true
           make_latest: false
         env:
