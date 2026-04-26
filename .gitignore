@@ -1,18 +1,28 @@
-*.iml
-.gradle
+# Gradle & Android
+.gradle/
+/build/
+**/build/
 /local.properties
-/.idea/
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
+.externalNativeBuild/
+.cxx/
+/captures/
 
-# Android Studio / IntelliJ
+# IDE - IntelliJ / Android Studio
 .idea/
+*.iml
 *.iws
 *.ipr
 
+# Secrets & Signing
+*.jks
+*.keystore
+*.p12
+google-services.json
+
+# OS specific
+.DS_Store
+Thumbs.db
+*.swp
+
 # Build outputs
-**/build/
 **/release/
