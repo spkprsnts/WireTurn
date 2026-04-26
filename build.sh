@@ -40,21 +40,31 @@ build_go_project() {
     local dir=$1; local out_name=$2; local sub_pkg=$3
     echo "Checking $out_name..."
     cd "$ROOT_DIR/$dir"
+
+    local pids=()
     for abi in arm64-v8a armeabi-v7a x86_64; do
-        IFS=';' read -r goarch target <<< "${ARCH_MAP[$abi]}"
-        OUT="$JNI_LIBS_DIR/$abi/$out_name"
+        (
+            IFS=';' read -r goarch target <<< "${ARCH_MAP[$abi]}"
+            OUT="$JNI_LIBS_DIR/$abi/$out_name"
 
-        # Add GOARM for ARMv7
-        if [ "$goarch" == "arm" ]; then export GOARM=7; else unset GOARM; fi
+            # Add GOARM for ARMv7
+            if [ "$goarch" == "arm" ]; then export GOARM=7; else unset GOARM; fi
 
-        if needs_rebuild "." "$OUT"; then
-            echo "  → Building $abi..."
-            mkdir -p "$(dirname "$OUT")"
-            CGO_ENABLED=1 GOOS=android GOARCH=$goarch CC="$TOOLCHAIN/${target}30-clang" \
-            CGO_CFLAGS="-target ${target}30 -fPIC" \
-            CGO_LDFLAGS="-target ${target}30 -Wl,--no-undefined -Wl,-z,max-page-size=16384" \
-            go build -trimpath -ldflags="-s -w -checklinkname=0" -o "$OUT" "$sub_pkg"
-        fi
+            if needs_rebuild "." "$OUT"; then
+                echo "  → Building $abi..."
+                mkdir -p "$(dirname "$OUT")"
+                CGO_ENABLED=1 GOOS=android GOARCH=$goarch CC="$TOOLCHAIN/${target}30-clang" \
+                CGO_CFLAGS="-target ${target}30 -fPIC" \
+                CGO_LDFLAGS="-target ${target}30 -Wl,--no-undefined -Wl,-z,max-page-size=16384" \
+                go build -trimpath -ldflags="-s -w -checklinkname=0" -o "$OUT" "$sub_pkg"
+            fi
+        ) &
+        pids+=($!)
+    done
+
+    # Wait for all ABIs of this project to finish
+    for pid in "${pids[@]}"; do
+        wait "$pid" || exit 1
     done
 }
 
