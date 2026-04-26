@@ -65,9 +65,20 @@ android {
 @Suppress("UnstableApiUsage")
 androidComponents {
     onVariants { variant ->
+        val branch = providers.exec {
+            commandLine("git", "rev-parse", "--abbrev-ref", "HEAD")
+        }.standardOutput.asText.get().trim()
+        
+        val gitHash = providers.exec {
+            commandLine("git", "rev-parse", "--short", "HEAD")
+        }.standardOutput.asText.get().trim()
+
         variant.outputs.forEach { output ->
             val abi = output.filters.find { it.filterType == com.android.build.api.variant.FilterConfiguration.FilterType.ABI }?.identifier ?: "universal"
-            output.outputFileName.set("WireTurn_v${android.defaultConfig.versionName}_${abi}.apk")
+            val isUnstable = branch == "unstable" || System.getenv("GITHUB_REF_NAME") == "unstable"
+            val suffix = if (isUnstable) "-unstable-$gitHash" else ""
+            
+            output.outputFileName.set("WireTurn_v${android.defaultConfig.versionName}${suffix}_${abi}.apk")
         }
     }
 }
