@@ -154,6 +154,15 @@ class XrayService : Service() {
 
             val wgConfig = rawWgConfig.fillDefaults()
             val xrayConfig = rawXrayConfig.fillDefaults()
+
+            // Save filled defaults back to preferences if they changed,
+            // so UI doesn't see a difference between "raw" and "running" configs.
+            if (!isXrayVless && wgConfig != rawWgConfig) {
+                prefs.saveWgConfig(wgConfig)
+            }
+            if (xrayConfig != rawXrayConfig) {
+                prefs.saveXrayConfig(xrayConfig)
+            }
             
             // Фиксируем только тот конфиг, который реально запускаем
             XrayServiceState.setRunningConfigs(
