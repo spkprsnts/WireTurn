@@ -358,6 +358,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         proxyManager.stopProxy()
     }
 
+    fun revertToRunningConfigs() {
+        ProxyServiceState.runningConfig.value?.let { saveClientConfig(it) }
+        XrayServiceState.runningWgConfig.value?.let { updateWgConfig(it) }
+        XrayServiceState.runningVlessConfig.value?.let { updateVlessConfig(it) }
+        XrayServiceState.runningXrayConfig.value?.let { updateXrayConfig(it) }
+    }
+
     fun dismissCaptcha() { proxyManager.dismissCaptcha() }
     fun clearLogs() { AppLogsState.clearLogs() }
     fun saveClientConfig(config: ClientConfig) {

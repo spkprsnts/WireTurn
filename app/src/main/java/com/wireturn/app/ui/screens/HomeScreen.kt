@@ -952,14 +952,6 @@ fun HomeScreen(
                     exit = fadeOut() + shrinkVertically()
                 ) {
                     Surface(
-                        onClick = {
-                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                            if (mainConfigChanged) {
-                                viewModel.restartProxy()
-                            } else if (xrayConfigChanged) {
-                                viewModel.restartXray()
-                            }
-                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 24.dp)
@@ -968,36 +960,71 @@ fun HomeScreen(
                         color = MaterialTheme.colorScheme.secondaryContainer,
                         tonalElevation = 2.dp
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.refresh_24px),
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = stringResource(R.string.restart_required),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    fontWeight = FontWeight.Bold
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.refresh_24px),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.restart_required),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = if (mainConfigChanged) stringResource(R.string.restart_reason_client) else stringResource(R.string.restart_reason_xray),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                    )
+                                }
+                            }
+
+                            Spacer(Modifier.height(12.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Text(
-                                    text = if (mainConfigChanged) stringResource(R.string.restart_reason_client) else stringResource(R.string.restart_reason_xray),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                    text = stringResource(R.string.reset),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier
+                                        .clip(MaterialTheme.shapes.small)
+                                        .clickable {
+                                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                            viewModel.revertToRunningConfigs()
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = stringResource(R.string.btn_restart),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier
+                                        .clip(MaterialTheme.shapes.small)
+                                        .clickable {
+                                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                            if (mainConfigChanged) {
+                                                viewModel.restartProxy()
+                                            } else if (xrayConfigChanged) {
+                                                viewModel.restartXray()
+                                            }
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)
                                 )
                             }
-                            Text(
-                                text = stringResource(R.string.btn_restart),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Bold
-                            )
                         }
                     }
                 }
