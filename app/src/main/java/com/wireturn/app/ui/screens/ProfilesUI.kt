@@ -70,7 +70,7 @@ fun ProfilesBlock(
 ) {
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
     val currentId by viewModel.currentProfileId.collectAsStateWithLifecycle()
-    val currentProfile = profiles.find { it.id == currentId } ?: profiles.find { it.id == "default" }
+    val currentProfile = profiles.find { it.id == currentId } ?: profiles.firstOrNull()
 
     if (currentProfile != null) {
         Card(
@@ -379,7 +379,7 @@ fun ProfilesDialog(
                                                     }
                                                 }
                                             )
-                                            if (profile.id != "default") {
+                                            if (profiles.size > 1) {
                                                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                                                 DropdownMenuItem(
                                                     text = { Text(stringResource(R.string.profile_delete)) },

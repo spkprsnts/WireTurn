@@ -59,12 +59,13 @@ class ProfileManager(
         scope.launch { prefs.saveProfiles(newList) }
     }
 
-    fun deleteProfile(id: String, onDefaultSelected: () -> Unit) {
-        if (id == "default") return
-        val newList = profiles.value.filter { it.id != id }
+    fun deleteProfile(id: String, onFallback: (String) -> Unit) {
+        val currentList = profiles.value
+        if (currentList.size <= 1) return
+        val newList = currentList.filter { it.id != id }
         scope.launch {
             if (currentProfileId.value == id) {
-                onDefaultSelected()
+                onFallback(newList.first().id)
             }
             prefs.saveProfiles(newList)
         }

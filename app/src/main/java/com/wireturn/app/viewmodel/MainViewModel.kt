@@ -518,7 +518,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     fun cloneProfile(id: String, newName: String) = profileManager.cloneProfile(id, newName)
-    fun deleteProfile(id: String) = profileManager.deleteProfile(id) { selectProfile("default") }
+    fun deleteProfile(id: String) = profileManager.deleteProfile(id) { nextId -> selectProfile(nextId) }
     fun renameProfile(id: String, newName: String) = profileManager.renameProfile(id, newName)
     fun reorderProfiles(newList: List<Profile>) = profileManager.reorderProfiles(newList)
     fun getProfileJson(id: String): String? = profileManager.getProfileJson(id)
