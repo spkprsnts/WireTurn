@@ -136,40 +136,54 @@ fun XrayConfigScreen(
         persistentKeepalive = savedWgConfig.persistentKeepalive
     }
 
+    LaunchedEffect(xrayConfig) {
+        xrayConfiguration = xrayConfig.xrayConfiguration
+        socksBindAddress = xrayConfig.socksBindAddress
+        httpBindAddress = xrayConfig.httpBindAddress
+    }
+
+    LaunchedEffect(vlessSaved) {
+        vlessLink = vlessSaved.vlessLink
+        vlessUseLocalAddress = vlessSaved.vlessUseLocalAddress
+    }
+
     // Auto-save debounced
     LaunchedEffect(xrayConfiguration, socksBindAddress, httpBindAddress) {
         delay(200)
-        viewModel.updateXrayConfig(
-            xrayConfig.copy(
-                xrayConfiguration = xrayConfiguration,
-                socksBindAddress = socksBindAddress,
-                httpBindAddress = httpBindAddress
-            )
+        val next = xrayConfig.copy(
+            xrayConfiguration = xrayConfiguration,
+            socksBindAddress = socksBindAddress,
+            httpBindAddress = httpBindAddress
         )
+        if (next != xrayConfig) {
+            viewModel.updateXrayConfig(next)
+        }
     }
 
     LaunchedEffect(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive) {
         delay(200)
-        viewModel.updateWgConfig(
-            WgConfig(
-                privateKey = privateKey,
-                address = address,
-                mtu = mtu,
-                publicKey = publicKey,
-                endpoint = endpoint,
-                persistentKeepalive = persistentKeepalive
-            )
+        val next = WgConfig(
+            privateKey = privateKey,
+            address = address,
+            mtu = mtu,
+            publicKey = publicKey,
+            endpoint = endpoint,
+            persistentKeepalive = persistentKeepalive
         )
+        if (next != savedWgConfig) {
+            viewModel.updateWgConfig(next)
+        }
     }
 
     LaunchedEffect(vlessLink, vlessUseLocalAddress) {
         delay(200)
-        viewModel.updateVlessConfig(
-            com.wireturn.app.data.VlessConfig(
-                vlessLink = vlessLink,
-                vlessUseLocalAddress = vlessUseLocalAddress
-            )
+        val next = com.wireturn.app.data.VlessConfig(
+            vlessLink = vlessLink,
+            vlessUseLocalAddress = vlessUseLocalAddress
         )
+        if (next != vlessSaved) {
+            viewModel.updateVlessConfig(next)
+        }
     }
 
     val filePickerLauncher = rememberLauncherForActivityResult(

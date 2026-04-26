@@ -502,8 +502,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    fun selectProfile(id: String) {
-        profileManager.selectProfile(id) { client, settings, xray, wg, vless ->
+    fun selectProfile(id: String, profile: Profile? = null) {
+        profileManager.selectProfile(id, profile) { client, settings, xray, wg, vless ->
             _clientConfig.value = client
             _xraySettings.value = settings
             _xrayConfig.value = xray
@@ -512,7 +512,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun createProfile(name: String) = profileManager.createProfile(name)
+    fun createProfile(name: String) {
+        profileManager.createProfile(name) { id, profile ->
+            selectProfile(id, profile)
+        }
+    }
     fun cloneProfile(id: String, newName: String) = profileManager.cloneProfile(id, newName)
     fun deleteProfile(id: String) = profileManager.deleteProfile(id) { selectProfile("default") }
     fun renameProfile(id: String, newName: String) = profileManager.renameProfile(id, newName)

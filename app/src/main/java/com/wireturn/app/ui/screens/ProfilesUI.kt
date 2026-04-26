@@ -224,7 +224,7 @@ fun ProfilesDialog(
                             onClick = {
                                 if (draggedIndex == null) {
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                    viewModel.selectProfile(profile.id)
+                                    viewModel.selectProfile(profile.id, profile)
                                 }
                             },
                             shape = itemShape,

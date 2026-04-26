@@ -144,6 +144,27 @@ fun ClientSetupScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
+    // Sync local state with saved config when it changes externally (e.g. profile switch)
+    LaunchedEffect(saved) {
+        isRawMode = saved.isRawMode
+        rawCommand = saved.rawCommand
+        serverAddress = saved.serverAddress
+        turnableUrl = saved.turnableUrl
+        vkLink = saved.vkLink
+        wbstreamUuid = saved.wbstreamUuid
+        threads = saved.threads.toFloat()
+        useUdp = saved.useUdp
+        noDtls = saved.noDtls
+        manualCaptcha = saved.manualCaptcha
+        localPort = saved.localPort
+        vlessMode = saved.vlessMode
+        dcMode = saved.dcMode
+        forcePort443 = saved.forceTurnPort443
+        dcType = saved.dcType
+        jazzCreds = saved.jazzCreds
+        kernelVariant = saved.kernelVariant
+    }
+
     val isServerAddressValid = remember(serverAddress) { ValidatorUtils.isValidHostPort(serverAddress) }
     val isLocalPortValid = remember(localPort) { ValidatorUtils.isValidHostPort(localPort) }
     val isTurnableUrlValid = remember(turnableUrl) { ValidatorUtils.isValidTurnableUrl(turnableUrl) }
@@ -152,27 +173,29 @@ fun ClientSetupScreen(
         manualCaptcha, localPort, vlessMode, dcMode, forcePort443, dcType, jazzCreds, kernelVariant
     ) {
         delay(200)
-        viewModel.saveClientConfig(
-            viewModel.clientConfig.value.copy(
-                isRawMode        = isRawMode,
-                rawCommand       = rawCommand,
-                serverAddress    = serverAddress.trim(),
-                turnableUrl      = turnableUrl.trim(),
-                vkLink           = vkLink.trim(),
-                wbstreamUuid     = wbstreamUuid.trim(),
-                threads          = threads.roundToInt(),
-                useUdp           = useUdp,
-                noDtls           = noDtls,
-                manualCaptcha    = manualCaptcha,
-                localPort        = localPort.trim(),
-                vlessMode        = vlessMode,
-                dcMode           = dcMode,
-                forceTurnPort443 = forcePort443,
-                dcType           = dcType,
-                jazzCreds        = jazzCreds.trim(),
-                kernelVariant    = kernelVariant
-            )
+        val current = viewModel.clientConfig.value
+        val next = current.copy(
+            isRawMode        = isRawMode,
+            rawCommand       = rawCommand,
+            serverAddress    = serverAddress.trim(),
+            turnableUrl      = turnableUrl.trim(),
+            vkLink           = vkLink.trim(),
+            wbstreamUuid     = wbstreamUuid.trim(),
+            threads          = threads.roundToInt(),
+            useUdp           = useUdp,
+            noDtls           = noDtls,
+            manualCaptcha    = manualCaptcha,
+            localPort        = localPort.trim(),
+            vlessMode        = vlessMode,
+            dcMode           = dcMode,
+            forceTurnPort443 = forcePort443,
+            dcType           = dcType,
+            jazzCreds        = jazzCreds.trim(),
+            kernelVariant    = kernelVariant
         )
+        if (next != current) {
+            viewModel.saveClientConfig(next)
+        }
     }
 
     val contentAnimationSpec = tween<androidx.compose.ui.unit.IntSize>(300, easing = FastOutSlowInEasing)

@@ -24,26 +24,29 @@ class ProfileManager(
     val currentProfileId: StateFlow<String> = prefs.currentProfileIdFlow
         .stateIn(scope, SharingStarted.Eagerly, "default")
 
-    fun selectProfile(id: String, onConfigLoaded: (ClientConfig, XraySettings, XrayConfig, WgConfig, VlessConfig) -> Unit) {
-        val profile = profiles.value.find { it.id == id } ?: return
+    fun selectProfile(id: String, profile: Profile? = null, onConfigLoaded: (ClientConfig, XraySettings, XrayConfig, WgConfig, VlessConfig) -> Unit) {
+        val targetProfile = profile ?: profiles.value.find { it.id == id } ?: return
         scope.launch {
             prefs.setCurrentProfileId(id)
-            prefs.saveClientConfig(profile.clientConfig)
-            prefs.saveXraySettings(profile.xraySettings)
-            prefs.saveXrayConfig(profile.xrayConfig)
-            prefs.saveWgConfig(profile.wgConfig)
-            prefs.saveVlessConfig(profile.vlessConfig)
-            onConfigLoaded(profile.clientConfig, profile.xraySettings, profile.xrayConfig, profile.wgConfig, profile.vlessConfig)
+            prefs.saveClientConfig(targetProfile.clientConfig)
+            prefs.saveXraySettings(targetProfile.xraySettings)
+            prefs.saveXrayConfig(targetProfile.xrayConfig)
+            prefs.saveWgConfig(targetProfile.wgConfig)
+            prefs.saveVlessConfig(targetProfile.vlessConfig)
+            onConfigLoaded(targetProfile.clientConfig, targetProfile.xraySettings, targetProfile.xrayConfig, targetProfile.wgConfig, targetProfile.vlessConfig)
         }
     }
 
-    fun createProfile(name: String) {
+    fun createProfile(name: String, onSelected: (String, Profile) -> Unit) {
         val newProfile = Profile(
             id = UUID.randomUUID().toString(),
             name = name
         )
         val newList = profiles.value + newProfile
-        scope.launch { prefs.saveProfiles(newList) }
+        scope.launch {
+            prefs.saveProfiles(newList)
+            onSelected(newProfile.id, newProfile)
+        }
     }
 
     fun cloneProfile(id: String, newName: String) {
