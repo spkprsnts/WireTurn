@@ -14,8 +14,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.dropWhile
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.cancel
@@ -80,13 +84,15 @@ class LocalProxyManager(private val context: Context) {
         ProxyServiceState.isRunning.collect { running ->
             if (running) {
                 // Если сервис запущен, но мы еще в Idle, переходим в Starting.
-                // Переход в Running (Подключение) теперь управляется через StartupResult.Success в обычном режиме.
                 if (_proxyState.value is ProxyState.Idle) {
                     _proxyState.value = ProxyState.Starting
                 }
-            } else if (_proxyState.value is ProxyState.Running || _proxyState.value is ProxyState.Working || _proxyState.value is ProxyState.CaptchaRequired) {
-                ProxyService.stop(context)
-                _proxyState.value = ProxyState.Idle
+            } else {
+                // Если сервис НЕ запущен, переводим UI в Idle из любых активных состояний
+                val current = _proxyState.value
+                if (current !is ProxyState.Idle && current !is ProxyState.Error) {
+                    _proxyState.value = ProxyState.Idle
+                }
             }
         }
     }
@@ -147,7 +153,10 @@ class LocalProxyManager(private val context: Context) {
         ProxyService.start(context, cfg)
 
         val result = withTimeoutOrNull(20_000L) {
-            ProxyServiceState.startupResult.filterNotNull().first()
+            merge(
+                ProxyServiceState.startupResult.filterNotNull(),
+                ProxyServiceState.isRunning.dropWhile { !it }.filter { !it }.map { null }
+            ).first()
         }
 
         if (_proxyState.value is ProxyState.Error) return
