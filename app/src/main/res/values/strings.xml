@@ -3,6 +3,7 @@
 
     <!-- Главный экран (Home) -->
     <string name="nav_home">Главная</string>
+    <string name="app_settings_title">Настройки</string>
     <string name="turn_proxy_title">WireTurn</string>
     <string name="info_desc">Информация</string>
     <string name="proxy_active">Прокси активен</string>

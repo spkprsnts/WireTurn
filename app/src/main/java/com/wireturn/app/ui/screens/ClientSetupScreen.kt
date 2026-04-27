@@ -9,7 +9,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -198,7 +197,6 @@ fun ClientSetupScreen(
         }
     }
 
-    val contentAnimationSpec = tween<androidx.compose.ui.unit.IntSize>(300, easing = FastOutSlowInEasing)
     val visibilityAnimationSpec = tween<Float>(300, easing = FastOutSlowInEasing)
     val expandCollapseSpec = tween<androidx.compose.ui.unit.IntSize>(300, easing = FastOutSlowInEasing)
 
@@ -217,7 +215,6 @@ fun ClientSetupScreen(
                 .consumeWindowInsets(padding)
                 .imePadding()
                 .padding(horizontal = 16.dp)
-                .animateContentSize(animationSpec = contentAnimationSpec)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.Top
         ) {
@@ -365,8 +362,12 @@ fun ClientSetupScreen(
                                 targetState = dcMode,
                                 label = "tunnel_mode_fields",
                                 transitionSpec = {
-                                    (fadeIn(animationSpec = visibilityAnimationSpec)).togetherWith(fadeOut(animationSpec = visibilityAnimationSpec))
-                                        .using(SizeTransform(clip = false))
+                                    val direction = if (targetState) 1 else -1
+                                    (slideInHorizontally(animationSpec = tween(300)) { it * direction } + fadeIn(
+                                        animationSpec = tween(300)
+                                    )).togetherWith(slideOutHorizontally(animationSpec = tween(300)) { -it * direction } + fadeOut(
+                                        animationSpec = tween(300)
+                                    ))
                                 }
                             ) { targetDcMode ->
                                 Column {
@@ -398,9 +399,11 @@ fun ClientSetupScreen(
                                             label = "dc_fields",
                                             transitionSpec = {
                                                 val direction = if (targetState.ordinal > initialState.ordinal) 1 else -1
-                                                (slideInHorizontally(animationSpec = tween(200)) { width -> direction * width } + fadeIn(animationSpec = visibilityAnimationSpec))
-                                                    .togetherWith(slideOutHorizontally(animationSpec = tween(200)) { width -> -direction * width } + fadeOut(animationSpec = visibilityAnimationSpec))
-                                                    .using(SizeTransform(clip = false))
+                                                (slideInHorizontally(animationSpec = tween(300)) { it * direction } + fadeIn(
+                                                    animationSpec = tween(300)
+                                                )).togetherWith(slideOutHorizontally(animationSpec = tween(300)) { -it * direction } + fadeOut(
+                                                    animationSpec = tween(300)
+                                                ))
                                             }
                                         ) { targetDcType ->
                                             Column {
@@ -469,9 +472,11 @@ fun ClientSetupScreen(
                                             label = "kernel_fields",
                                             transitionSpec = {
                                                 val direction = if (targetState.ordinal > initialState.ordinal) 1 else -1
-                                                (slideInHorizontally(animationSpec = tween(200)) { width -> direction * width } + fadeIn(animationSpec = visibilityAnimationSpec))
-                                                    .togetherWith(slideOutHorizontally(animationSpec = tween(200)) { width -> -direction * width } + fadeOut(animationSpec = visibilityAnimationSpec))
-                                                    .using(SizeTransform(clip = false))
+                                                (slideInHorizontally(animationSpec = tween(300)) { it * direction } + fadeIn(
+                                                    animationSpec = tween(300)
+                                                )).togetherWith(slideOutHorizontally(animationSpec = tween(300)) { -it * direction } + fadeOut(
+                                                    animationSpec = tween(300)
+                                                ))
                                             }
                                         ) { targetKernel ->
                                             Column {

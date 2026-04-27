@@ -29,7 +29,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -54,9 +53,7 @@ import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemColors
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -64,15 +61,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
-import com.wireturn.app.data.ThemeMode
 import com.wireturn.app.data.DCType
 import com.wireturn.app.data.KernelVariant
 import android.Manifest
@@ -136,7 +129,6 @@ import com.wireturn.app.ui.redact
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.ProxyState
-import com.wireturn.app.viewmodel.UpdateState
 import androidx.core.net.toUri
 import com.wireturn.app.ProxyServiceState
 import com.wireturn.app.VpnServiceState
@@ -1229,33 +1221,17 @@ fun HomeScreen(
 
     if (showBottomSheet.value) {
         val sheetColor = MaterialTheme.colorScheme.surfaceContainerLow
-        val showRepoLinks = rememberSaveable { mutableStateOf(false) }
 
         ModalBottomSheet(
             onDismissRequest = { 
                 showBottomSheet.value = false
-                showRepoLinks.value = false
             },
             sheetState = bottomSheetState,
             containerColor = sheetColor
         ) {
-            when {
-                showRepoLinks.value -> {
-                    RepoLinksContent(
-                        containerColor = sheetColor,
-                        onBack = { showRepoLinks.value = false }
-                    )
-                }
-                else -> {
-                    InfoBottomSheet(
-                        viewModel = viewModel,
-                        containerColor = sheetColor,
-                        privacyMode = privacyMode,
-                        onPrivacyModeChange = { viewModel.setPrivacyMode(it) },
-                        onOpenRepoLinks = { showRepoLinks.value = true }
-                    )
-                }
-            }
+            RepoLinksContent(
+                containerColor = sheetColor
+            )
         }
     }
 
@@ -1266,8 +1242,6 @@ fun HomeScreen(
             onDismiss = { showAppsDialog.value = false }
         )
     }
-
-    UpdateDialogs(viewModel)
 }
 
 // --- Dialogs & Sheets ---
@@ -1512,92 +1486,6 @@ data class AppInfo(
     val isSystem: Boolean
 )
 
-@Composable
-private fun UpdateDialogs(viewModel: MainViewModel) {
-    val context = LocalContext.current
-    val updateState by viewModel.updateState.collectAsStateWithLifecycle()
-
-    when (val state = updateState) {
-        is UpdateState.Available -> {
-            AlertDialog(
-                onDismissRequest = { viewModel.resetUpdateState() },
-                title = { Text(stringResource(R.string.update_available_title)) },
-                text = {
-                    Column {
-                        Text(stringResource(R.string.update_available, state.version))
-                        if (state.changelog.isNotEmpty()) {
-                            Spacer(Modifier.height(8.dp))
-                            Column(
-                                modifier = Modifier
-                                    .heightIn(max = 200.dp)
-                                    .verticalScroll(rememberScrollState())
-                            ) {
-                                Text(
-                                    state.changelog,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                        viewModel.downloadUpdate()
-                    }) { Text(stringResource(R.string.update_download)) }
-                },
-                dismissButton = {
-                    TextButton(onClick = { viewModel.resetUpdateState() }) {
-                        Text(stringResource(R.string.cancel))
-                    }
-                }
-            )
-        }
-
-        is UpdateState.Downloading -> {
-            AlertDialog(
-                onDismissRequest = {},
-                title = { Text(stringResource(R.string.update_downloading_title)) },
-                text = {
-                    Column {
-                        Text(stringResource(R.string.update_downloading, state.progress))
-                        Spacer(Modifier.height(12.dp))
-                        LinearWavyProgressIndicator(
-                            progress = { state.progress / 100f },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                },
-                confirmButton = {}
-            )
-        }
-
-        is UpdateState.ReadyToInstall -> {
-            AlertDialog(
-                onDismissRequest = { viewModel.resetUpdateState() },
-                title = { Text(stringResource(R.string.update_ready_title)) },
-                text = { Text(stringResource(R.string.update_ready_desc)) },
-                confirmButton = {
-                    TextButton(onClick = {
-                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                        viewModel.installUpdate()
-                    }) { Text(stringResource(R.string.update_install)) }
-                },
-                dismissButton = {
-                    TextButton(onClick = { viewModel.resetUpdateState() }) {
-                        Text(stringResource(R.string.cancel))
-                    }
-                }
-            )
-        }
-
-        else -> {}
-    }
-}
-
-// --- UI Components ---
-
 // Кнопка прокси
 @Composable
 private fun ProxyToggleButton(state: ProxyState, onClick: () -> Unit) {
@@ -1690,224 +1578,8 @@ private fun ProxyToggleButton(state: ProxyState, onClick: () -> Unit) {
 // Bottom sheet
 
 @Composable
-private fun InfoBottomSheet(
-    viewModel: MainViewModel,
-    containerColor: Color,
-    privacyMode: Boolean,
-    onPrivacyModeChange: (Boolean) -> Unit,
-    onOpenRepoLinks: () -> Unit
-) {
-    val context = LocalContext.current
-    val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
-    val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
-    val updateState by viewModel.updateState.collectAsStateWithLifecycle()
-    val showResetDialog = rememberSaveable { mutableStateOf(false) }
-
-    val dash = stringResource(R.string.dash)
-    val appVersion = remember {
-        try {
-            val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            val versionName = packageInfo.versionName ?: dash
-            val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                packageInfo.longVersionCode
-            } else {
-                @Suppress("DEPRECATION")
-                packageInfo.versionCode.toLong()
-            }
-            "$versionName ($versionCode)"
-        } catch (_: Exception) {
-            dash
-        }
-    }
-
-    val listColors = ListItemDefaults.colors(containerColor = containerColor)
-
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-    ) {
-        // Ссылки на репозитории
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.repo_links)) },
-                supportingContent = { Text(stringResource(R.string.repo_links_desc)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.open_in_new_24px),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                },
-                colors = listColors,
-                modifier = Modifier.clickable {
-                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                    onOpenRepoLinks()
-                }
-            )
-        }
-
-        item { HorizontalDivider() }
-
-        // Настройки интерфейса
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.theme_title)) },
-                supportingContent = {
-                    SingleChoiceSegmentedButtonRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp)
-                    ) {
-                        ThemeMode.entries.forEachIndexed { index, mode ->
-                            SegmentedButton(
-                                selected = themeMode == mode,
-                                onClick = {
-                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                    viewModel.setThemeMode(mode)
-                                },
-                                shape = SegmentedButtonDefaults.itemShape(
-                                    index = index,
-                                    count = ThemeMode.entries.size
-                                ),
-                                label = {
-                                    Text(
-                                        when (mode) {
-                                            ThemeMode.LIGHT -> stringResource(R.string.theme_light)
-                                            ThemeMode.DARK -> stringResource(R.string.theme_dark)
-                                            ThemeMode.SYSTEM -> stringResource(R.string.theme_system)
-                                        }
-                                    )
-                                }
-                            )
-                        }
-                    }
-                },
-                colors = listColors
-            )
-        }
-
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.dynamic_theme_title)) },
-                supportingContent = { Text(stringResource(R.string.dynamic_theme_desc)) },
-                colors = listColors,
-                trailingContent = {
-                    Switch(
-                        checked = dynamicTheme,
-                        onCheckedChange = { viewModel.setDynamicTheme(it) }
-                    )
-                }
-            )
-        }
-
-        item { HorizontalDivider() }
-
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.privacy_mode_title)) },
-                supportingContent = { Text(stringResource(R.string.privacy_mode_desc)) },
-                colors = listColors,
-                trailingContent = {
-                    Switch(
-                        checked = privacyMode,
-                        onCheckedChange = onPrivacyModeChange
-                    )
-                }
-            )
-        }
-
-        item { HorizontalDivider() }
-
-        // Обновление
-        item {
-            UpdateListItem(
-                state = updateState,
-                colors = listColors,
-                onCheck = {
-                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                    viewModel.checkForUpdate()
-                },
-                onDownload = {
-                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                    viewModel.downloadUpdate()
-                },
-                onInstall = {
-                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                    viewModel.installUpdate()
-                }
-            )
-        }
-
-        item { HorizontalDivider() }
-
-        // Сброс
-        item {
-            ListItem(
-                headlineContent = {
-                    Text(
-                        stringResource(R.string.reset_settings),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                },
-                colors = listColors,
-                trailingContent = {
-                    Icon(
-                        painterResource(R.drawable.delete_24px),
-                        contentDescription = stringResource(R.string.reset),
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                },
-                modifier = Modifier.clickable {
-                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                    showResetDialog.value = true
-                }
-            )
-        }
-
-        // Версия
-        item {
-            Text(
-                text = stringResource(R.string.version_format, appVersion),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp),
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-
-    if (showResetDialog.value) {
-        AlertDialog(
-            onDismissRequest = { showResetDialog.value = false },
-            title = { Text(stringResource(R.string.reset_all_settings_title)) },
-            text = { Text(stringResource(R.string.reset_all_settings_desc)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showResetDialog.value = false
-                        viewModel.resetAllSettings(context)
-                    },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    )
-                ) { Text(stringResource(R.string.reset)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showResetDialog.value = false }) { Text(stringResource(R.string.cancel)) }
-            }
-        )
-    }
-}
-
-@Composable
 private fun RepoLinksContent(
-    containerColor: Color,
-    onBack: () -> Unit
+    containerColor: Color
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
@@ -1920,19 +1592,12 @@ private fun RepoLinksContent(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
+                .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    painter = painterResource(R.drawable.arrow_back_24px),
-                    contentDescription = stringResource(R.string.cancel)
-                )
-            }
             Text(
                 text = stringResource(R.string.repo_links),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(start = 8.dp)
+                style = MaterialTheme.typography.titleLarge
             )
         }
 
@@ -2041,66 +1706,6 @@ private fun RepoLinksContent(
     }
 }
 
-// Пункт обновления в bottom sheet
-
-@Composable
-private fun UpdateListItem(
-    state: UpdateState,
-    colors: ListItemColors,
-    onCheck: () -> Unit,
-    onDownload: () -> Unit,
-    onInstall: () -> Unit
-) {
-    val supportingText = when (state) {
-        is UpdateState.Idle -> stringResource(R.string.update_tap_to_check)
-        is UpdateState.Checking -> stringResource(R.string.update_checking)
-        is UpdateState.Available -> stringResource(R.string.update_available, state.version)
-        is UpdateState.Downloading -> stringResource(R.string.update_downloading, state.progress)
-        is UpdateState.ReadyToInstall -> stringResource(R.string.update_ready_desc_short)
-        is UpdateState.NoUpdate -> stringResource(R.string.update_no_update)
-        is UpdateState.Error -> stringResource(R.string.update_error, state.message)
-    }
-
-    ListItem(
-        headlineContent = {
-            Text(stringResource(R.string.update_title), style = MaterialTheme.typography.titleSmall)
-        },
-        supportingContent = {
-            Column {
-                Text(
-                    supportingText,
-                    color = if (state is UpdateState.Error) MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                if (state is UpdateState.Downloading) {
-                    LinearWavyProgressIndicator(
-                        progress = { state.progress / 100f },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp)
-                    )
-                }
-            }
-        },
-        trailingContent = {
-            when (state) {
-                is UpdateState.Available -> TextButton(onClick = onDownload) {
-                    Text(stringResource(R.string.update_download))
-                }
-                is UpdateState.ReadyToInstall -> TextButton(onClick = onInstall) {
-                    Text(stringResource(R.string.update_install))
-                }
-                is UpdateState.Idle, is UpdateState.NoUpdate, is UpdateState.Error ->
-                    TextButton(onClick = onCheck) {
-                        Text(stringResource(R.string.update_check))
-                    }
-                else -> {}
-            }
-        },
-        colors = colors
-    )
-}
-
 // Общие компоненты
 
 @Composable
@@ -2114,12 +1719,11 @@ private fun RepoLinkItem(
 ) {
     Surface(
         color = containerColor,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable {
-                onHaptic()
-                onOpen(url)
-            }
+        onClick = {
+            onHaptic()
+            onOpen(url)
+        },
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier

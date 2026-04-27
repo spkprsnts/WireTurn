@@ -6,9 +6,12 @@ import android.content.ClipData
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -216,8 +219,6 @@ fun XrayConfigScreen(
     val isSocksValid = remember(socksBindAddress) { ValidatorUtils.isValidHostPort(socksBindAddress) }
     val isHttpValid = remember(httpBindAddress) { httpBindAddress.isEmpty() || ValidatorUtils.isValidHostPort(httpBindAddress) }
 
-    val contentAnimationSpec = tween<androidx.compose.ui.unit.IntSize>(300, easing = FastOutSlowInEasing)
-
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -286,7 +287,6 @@ fun XrayConfigScreen(
                 .consumeWindowInsets(padding)
                 .imePadding()
                 .padding(horizontal = 16.dp)
-                .animateContentSize(animationSpec = contentAnimationSpec)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -358,7 +358,18 @@ fun XrayConfigScreen(
             }
 
             // 2. Настройки протокола
-            AnimatedContent(targetState = xrayConfiguration, label = "protocol_settings") { targetConfig ->
+            AnimatedContent(
+                targetState = xrayConfiguration,
+                label = "protocol_settings",
+                transitionSpec = {
+                    val direction = if (targetState.ordinal > initialState.ordinal) 1 else -1
+                    (slideInHorizontally(animationSpec = tween(300)) { it * direction } + fadeIn(
+                        animationSpec = tween(300)
+                    )).togetherWith(slideOutHorizontally(animationSpec = tween(300)) { -it * direction } + fadeOut(
+                        animationSpec = tween(300)
+                    ))
+                }
+            ) { targetConfig ->
                 when (targetConfig) {
                     XrayConfiguration.WIREGUARD -> {
                         WireGuardSettings(
