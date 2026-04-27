@@ -762,13 +762,14 @@ fun HomeScreen(
                         val configValid = isSettingsValid || xrayState != XrayState.Idle
 
                         val xrayProtocol = when {
-                            xrayState != XrayState.Idle -> {
+                            xrayState == XrayState.Running -> {
                                 if (runningVlessConfig != null) stringResource(R.string.vless) else stringResource(R.string.wg_short)
                             }
                             else -> if (xrayConfig.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS) stringResource(R.string.vless) else stringResource(R.string.wg_short)
                         }
 
-                        LaunchedEffect(configValid, xraySettings.xrayEnabled) {
+                        LaunchedEffect(configValid, xraySettings.xrayEnabled, currentProfileId) {
+                            delay(500)
                             if(!configValid && xraySettings.xrayEnabled) {
                                 viewModel.updateXraySettings(viewModel.xraySettings.value.copy(xrayEnabled = false))
                             }

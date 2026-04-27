@@ -29,10 +29,10 @@ class ProfileManager(
         scope.launch {
             prefs.setCurrentProfileId(id)
             prefs.saveClientConfig(targetProfile.clientConfig)
-            prefs.saveXraySettings(targetProfile.xraySettings)
-            prefs.saveXrayConfig(targetProfile.xrayConfig)
             prefs.saveWgConfig(targetProfile.wgConfig)
             prefs.saveVlessConfig(targetProfile.vlessConfig)
+            prefs.saveXraySettings(targetProfile.xraySettings)
+            prefs.saveXrayConfig(targetProfile.xrayConfig)
             onConfigLoaded(targetProfile.clientConfig, targetProfile.xraySettings, targetProfile.xrayConfig, targetProfile.wgConfig, targetProfile.vlessConfig)
         }
     }

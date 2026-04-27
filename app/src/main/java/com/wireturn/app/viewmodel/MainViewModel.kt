@@ -435,7 +435,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun checkForUpdate() { viewModelScope.launch { appUpdater.checkForUpdate(silent = false) } }
     fun downloadUpdate() { viewModelScope.launch { appUpdater.downloadUpdate() } }
     fun installUpdate() { appUpdater.installUpdate() }
-    fun resetUpdateState() { appUpdater.resetState() }
 
     fun updateWgConfig(config: WgConfig) {
         _wgConfig.value = config
@@ -512,10 +511,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun selectProfile(id: String, profile: Profile? = null) {
         profileManager.selectProfile(id, profile) { client, settings, xray, wg, vless ->
             _clientConfig.value = client
-            _xraySettings.value = settings
-            _xrayConfig.value = xray
             _wgConfig.value = wg
             _vlessConfig.value = vless
+            _xraySettings.value = settings
+            _xrayConfig.value = xray
         }
     }
 
