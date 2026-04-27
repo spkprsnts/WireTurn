@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -177,7 +178,8 @@ fun LogsScreen(viewModel: MainViewModel) {
                             .fillMaxSize()
                             .fillMaxWidth()
                             .wrapContentWidth(Alignment.CenterHorizontally)
-                            .widthIn(max = 840.dp)
+                            .widthIn(max = 840.dp),
+                        contentPadding = PaddingValues(bottom = 80.dp)
                     ) {
                         itemsIndexed(logs, key = { index, _ -> index }) { _, line ->
                             LogLine(line = line)
@@ -191,7 +193,7 @@ fun LogsScreen(viewModel: MainViewModel) {
                     exit = fadeOut() + scaleOut(),
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 16.dp)
+                        .padding(bottom = 80.dp)
                 ) {
                     ElevatedButton(
                         onClick = {

@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -95,42 +94,21 @@ fun AppNavigation(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        bottomBar = {
-            AnimatedVisibility(
-                visible = showBottomBar,
-                enter = fadeIn(animationSpec = tween(150)),
-                exit = fadeOut(animationSpec = tween(150))
-            ) {
-                AppNavigationBar(
-                    currentRoute = currentRoute,
-                    onNavigate = { route ->
-                        navController.navigate(route) {
-                            popUpTo(Routes.HOME) { saveState = true; inclusive = false }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
-                )
-            }
-        },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { innerPadding ->
         Box(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
         ) {
             val navBarsPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-            val bottomPadding = if (showBottomBar) {
-                innerPadding.calculateBottomPadding()
-            } else if (!isKeyboardVisible) {
-                navBarsPadding
-            } else {
-                0.dp
-            }
+            val bottomPadding = if (!isKeyboardVisible) navBarsPadding else 0.dp
 
             NavHost(
                 navController = navController,
                 startDestination = finalStartDestination,
                 modifier = Modifier
+                    .fillMaxSize()
                     .statusBarsPadding()
                     .padding(bottom = bottomPadding),
                 // M3 Transition Style
@@ -219,6 +197,25 @@ fun AppNavigation(
                     LogsScreen(viewModel = viewModel)
                 }
             }
+
+            // Навигационная панель как оверлей
+            AnimatedVisibility(
+                visible = showBottomBar,
+                enter = fadeIn(animationSpec = tween(150)),
+                exit = fadeOut(animationSpec = tween(150)),
+                modifier = Modifier.align(Alignment.BottomCenter)
+            ) {
+                AppNavigationBar(
+                    currentRoute = currentRoute,
+                    onNavigate = { route ->
+                        navController.navigate(route) {
+                            popUpTo(Routes.HOME) { saveState = true; inclusive = false }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                )
+            }
         }
     }
 
@@ -275,19 +272,19 @@ private fun AppNavigationBar(
 ) {
     val context = LocalContext.current
     Surface(
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 0.dp
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        modifier = Modifier.fillMaxWidth()
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .windowInsetsPadding(NavigationBarDefaults.windowInsets),
+                .windowInsetsPadding(WindowInsets.navigationBars),
             contentAlignment = Alignment.Center
         ) {
             NavigationBar(
                 modifier = Modifier
                     .height(64.dp)
-                    .widthIn(max = 600.dp), // Ограничитель ширины для больших экранов
+                    .widthIn(max = 600.dp),
                 containerColor = Color.Transparent,
                 tonalElevation = 0.dp
             ) {
@@ -301,6 +298,13 @@ private fun AppNavigationBar(
                                 style = MaterialTheme.typography.labelSmall
                             )
                         },
+                        colors = androidx.compose.material3.NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
                         alwaysShowLabel = true,
                         onClick = {
                             if (!selected) {

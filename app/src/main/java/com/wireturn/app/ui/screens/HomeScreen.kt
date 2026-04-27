@@ -359,7 +359,8 @@ fun HomeScreen(
                 .fillMaxWidth()
                 .wrapContentWidth(Alignment.CenterHorizontally)
                 .widthIn(max = 600.dp)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 80.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -1220,7 +1221,6 @@ fun HomeScreen(
                 }
             }
 
-            Spacer(Modifier.height(20.dp))
         }
     }
 

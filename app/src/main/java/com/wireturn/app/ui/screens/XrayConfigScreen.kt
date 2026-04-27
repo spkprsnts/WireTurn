@@ -287,7 +287,8 @@ fun XrayConfigScreen(
                 .consumeWindowInsets(padding)
                 .imePadding()
                 .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 80.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Spacer(Modifier.height(8.dp))
@@ -443,7 +444,6 @@ fun XrayConfigScreen(
                     Text(stringResource(R.string.finish_setup), style = MaterialTheme.typography.labelLarge)
                 }
             }
-            Spacer(Modifier.height(28.dp))
         }
     }
 
