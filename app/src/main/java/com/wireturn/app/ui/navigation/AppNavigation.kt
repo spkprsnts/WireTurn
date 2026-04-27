@@ -1,11 +1,8 @@
 package com.wireturn.app.ui.navigation
 
-import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
@@ -86,7 +83,6 @@ fun AppNavigation(
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
-    val routesList = remember { listOf(Routes.HOME, Routes.CLIENT_SETUP, Routes.XRAY_CONFIG, Routes.APP_SETTINGS, Routes.LOGS) }
 
     // Определяем, видна ли клавиатура
     val isKeyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
@@ -111,42 +107,15 @@ fun AppNavigation(
                     .fillMaxSize()
                     .statusBarsPadding()
                     .padding(bottom = bottomPadding),
-                // M3 Transition Style
-                enterTransition = {
-                    val targetIndex = routesList.indexOf(targetState.destination.route)
-                    val initialIndex = routesList.indexOf(initialState.destination.route)
-                    if (targetIndex > initialIndex || (initialIndex == -1 && targetIndex != -1)) {
-                        slideLeft()
-                    } else {
-                        slideRight()
-                    }
-                },
-                exitTransition = {
-                    val targetIndex = routesList.indexOf(targetState.destination.route)
-                    val initialIndex = routesList.indexOf(initialState.destination.route)
-                    if (targetIndex > initialIndex) {
-                        popSlideLeft()
-                    } else {
-                        popSlideRight()
-                    }
-                },
-                popEnterTransition = {
-                    slideRight()
-                },
-                popExitTransition = {
-                    popSlideRight()
-                }
+                enterTransition = { fadeIn(animationSpec = tween(100)) },
+                exitTransition = { fadeOut(animationSpec = tween(100)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(100)) },
+                popExitTransition = { fadeOut(animationSpec = tween(100)) }
             ) {
 
                 // Онбординг-мастер (без нижнего меню)
 
-                composable(
-                    route = Routes.ONBOARDING,
-                    enterTransition = { fadeIn(animationSpec = tween(700)) + scaleIn(initialScale = 1.1f, animationSpec = tween(700)) },
-                    exitTransition = {
-                        fadeOut(animationSpec = tween(400)) + scaleOut(targetScale = 0.9f, animationSpec = tween(400))
-                    }
-                ) {
+                composable(route = Routes.ONBOARDING) {
                     OnboardingScreen(
                         onSkip = {
                             viewModel.setOnboardingDone()
@@ -165,18 +134,7 @@ fun AppNavigation(
                     )
                 }
 
-                composable(
-                    route = Routes.CLIENT_SETUP,
-                    enterTransition = {
-                        if (initialState.destination.route == Routes.ONBOARDING) {
-                            fadeIn(animationSpec = tween(700))
-                        } else {
-                            val targetIndex = routesList.indexOf(targetState.destination.route)
-                            val initialIndex = routesList.indexOf(initialState.destination.route)
-                            if (targetIndex > initialIndex || initialIndex == -1) slideLeft() else slideRight()
-                        }
-                    }
-                ) {
+                composable(route = Routes.CLIENT_SETUP) {
                     ClientSetupScreen(
                         viewModel = viewModel,
                         showFinishButton = false
@@ -237,18 +195,6 @@ fun AppNavigation(
         }
     }
 }
-
-private fun AnimatedContentTransitionScope<*>.slideLeft() =
-    slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(300)) + fadeIn(tween(300))
-
-private fun AnimatedContentTransitionScope<*>.slideRight() =
-    slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(300)) + fadeIn(tween(300))
-
-private fun AnimatedContentTransitionScope<*>.popSlideLeft() =
-    slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(300)) + fadeOut(tween(300))
-
-private fun AnimatedContentTransitionScope<*>.popSlideRight() =
-    slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(300)) + fadeOut(tween(300))
 
 private data class NavItem(
     val route: String,
