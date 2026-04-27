@@ -101,6 +101,7 @@ fun ClientSetupScreen(
     onFinish: (() -> Unit)? = null
 ) {
     val saved by viewModel.clientConfig.collectAsStateWithLifecycle()
+    val currentProfileId by viewModel.currentProfileId.collectAsStateWithLifecycle()
     val customKernelExists by viewModel.customKernelExists.collectAsStateWithLifecycle()
     val customKernelLastModified by viewModel.customKernelLastModified.collectAsStateWithLifecycle()
     val kernelError by viewModel.kernelError.collectAsStateWithLifecycle()
@@ -119,23 +120,23 @@ fun ClientSetupScreen(
         ActivityResultContracts.OpenDocument()
     ) { uri -> uri?.let { viewModel.setCustomKernel(it) } }
 
-    var isRawMode by rememberSaveable(saved.isRawMode) { mutableStateOf(saved.isRawMode) }
-    var rawCommand by rememberSaveable(saved.rawCommand) { mutableStateOf(saved.rawCommand) }
-    var serverAddress by rememberSaveable(saved.serverAddress) { mutableStateOf(saved.serverAddress) }
-    var turnableUrl  by rememberSaveable(saved.turnableUrl)    { mutableStateOf(saved.turnableUrl) }
-    var vkLink       by rememberSaveable(saved.vkLink)         { mutableStateOf(saved.vkLink) }
-    var wbstreamUuid by rememberSaveable(saved.wbstreamUuid)   { mutableStateOf(saved.wbstreamUuid) }
-    var threads      by rememberSaveable(saved.threads)        { mutableFloatStateOf(saved.threads.toFloat()) }
-    var useUdp       by rememberSaveable(saved.useUdp)         { mutableStateOf(saved.useUdp) }
-    var noDtls       by rememberSaveable(saved.noDtls)         { mutableStateOf(saved.noDtls) }
-    var manualCaptcha by rememberSaveable(saved.manualCaptcha) { mutableStateOf(saved.manualCaptcha) }
-    var localPort    by rememberSaveable(saved.localPort)      { mutableStateOf(saved.localPort) }
-    var vlessMode    by rememberSaveable(saved.vlessMode)      { mutableStateOf(saved.vlessMode) }
-    var dcMode       by rememberSaveable(saved.dcMode)         { mutableStateOf(saved.dcMode) }
-    var forcePort443 by rememberSaveable(saved.forceTurnPort443) { mutableStateOf(saved.forceTurnPort443) }
-    var dcType       by rememberSaveable(saved.dcType)         { mutableStateOf(saved.dcType) }
-    var jazzCreds    by rememberSaveable(saved.jazzCreds)      { mutableStateOf(saved.jazzCreds) }
-    var kernelVariant by rememberSaveable(saved.kernelVariant) { mutableStateOf(saved.kernelVariant) }
+    var isRawMode by rememberSaveable(currentProfileId, saved.isRawMode) { mutableStateOf(saved.isRawMode) }
+    var rawCommand by rememberSaveable(currentProfileId, saved.rawCommand) { mutableStateOf(saved.rawCommand) }
+    var serverAddress by rememberSaveable(currentProfileId, saved.serverAddress) { mutableStateOf(saved.serverAddress) }
+    var turnableUrl  by rememberSaveable(currentProfileId, saved.turnableUrl)    { mutableStateOf(saved.turnableUrl) }
+    var vkLink       by rememberSaveable(currentProfileId, saved.vkLink)         { mutableStateOf(saved.vkLink) }
+    var wbstreamUuid by rememberSaveable(currentProfileId, saved.wbstreamUuid)   { mutableStateOf(saved.wbstreamUuid) }
+    var threads      by rememberSaveable(currentProfileId, saved.threads)        { mutableFloatStateOf(saved.threads.toFloat()) }
+    var useUdp       by rememberSaveable(currentProfileId, saved.useUdp)         { mutableStateOf(saved.useUdp) }
+    var noDtls       by rememberSaveable(currentProfileId, saved.noDtls)         { mutableStateOf(saved.noDtls) }
+    var manualCaptcha by rememberSaveable(currentProfileId, saved.manualCaptcha) { mutableStateOf(saved.manualCaptcha) }
+    var localPort    by rememberSaveable(currentProfileId, saved.localPort)      { mutableStateOf(saved.localPort) }
+    var vlessMode    by rememberSaveable(currentProfileId, saved.vlessMode)      { mutableStateOf(saved.vlessMode) }
+    var dcMode       by rememberSaveable(currentProfileId, saved.dcMode)         { mutableStateOf(saved.dcMode) }
+    var forcePort443 by rememberSaveable(currentProfileId, saved.forceTurnPort443) { mutableStateOf(saved.forceTurnPort443) }
+    var dcType       by rememberSaveable(currentProfileId, saved.dcType)         { mutableStateOf(saved.dcType) }
+    var jazzCreds    by rememberSaveable(currentProfileId, saved.jazzCreds)      { mutableStateOf(saved.jazzCreds) }
+    var kernelVariant by rememberSaveable(currentProfileId, saved.kernelVariant) { mutableStateOf(saved.kernelVariant) }
     var lastSliderInt by rememberSaveable { mutableIntStateOf(saved.threads) }
     var showUrlEditor by remember { mutableStateOf(false) }
     var isUrlParsing by remember { mutableStateOf(false) }

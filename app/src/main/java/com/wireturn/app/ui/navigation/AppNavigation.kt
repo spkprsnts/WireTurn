@@ -77,6 +77,7 @@ fun AppNavigation(
     if (!isInitialized) return
 
     val proxyState by viewModel.proxyState.collectAsStateWithLifecycle()
+    val currentProfileId by viewModel.currentProfileId.collectAsStateWithLifecycle()
     val finalStartDestination = remember {
         startDestination ?: if (viewModel.onboardingDone.value) Routes.HOME else Routes.ONBOARDING
     }
@@ -128,17 +129,21 @@ fun AppNavigation(
                 }
 
                 composable(Routes.XRAY_CONFIG) {
-                    XrayConfigScreen(
-                        viewModel = viewModel,
-                        showFinishButton = false
-                    )
+                    key(currentProfileId) {
+                        XrayConfigScreen(
+                            viewModel = viewModel,
+                            showFinishButton = false
+                        )
+                    }
                 }
 
                 composable(route = Routes.CLIENT_SETUP) {
-                    ClientSetupScreen(
-                        viewModel = viewModel,
-                        showFinishButton = false
-                    )
+                    key(currentProfileId) {
+                        ClientSetupScreen(
+                            viewModel = viewModel,
+                            showFinishButton = false
+                        )
+                    }
                 }
 
                 composable(Routes.HOME) {

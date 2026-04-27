@@ -99,6 +99,7 @@ fun XrayConfigScreen(
     val errorWithDetailsFormat = stringResource(R.string.error_with_details)
 
     val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
+    val currentProfileId by viewModel.currentProfileId.collectAsStateWithLifecycle()
     val savedWgConfig by viewModel.wgConfig.collectAsStateWithLifecycle()
     val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
     val xrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
@@ -109,21 +110,21 @@ fun XrayConfigScreen(
     val runningVlessConfig by com.wireturn.app.XrayServiceState.runningVlessConfig.collectAsStateWithLifecycle()
     val runningXrayConfig by com.wireturn.app.XrayServiceState.runningXrayConfig.collectAsStateWithLifecycle()
 
-    var xrayConfiguration by rememberSaveable(xrayConfig.xrayConfiguration) { mutableStateOf(xrayConfig.xrayConfiguration) }
-    var socksBindAddress by rememberSaveable(xrayConfig.socksBindAddress) { mutableStateOf(xrayConfig.socksBindAddress) }
-    var httpBindAddress by rememberSaveable(xrayConfig.httpBindAddress) { mutableStateOf(xrayConfig.httpBindAddress) }
+    var xrayConfiguration by rememberSaveable(currentProfileId, xrayConfig.xrayConfiguration) { mutableStateOf(xrayConfig.xrayConfiguration) }
+    var socksBindAddress by rememberSaveable(currentProfileId, xrayConfig.socksBindAddress) { mutableStateOf(xrayConfig.socksBindAddress) }
+    var httpBindAddress by rememberSaveable(currentProfileId, xrayConfig.httpBindAddress) { mutableStateOf(xrayConfig.httpBindAddress) }
 
     // WireGuard states
-    var privateKey by rememberSaveable(savedWgConfig.privateKey) { mutableStateOf(savedWgConfig.privateKey) }
-    var address by rememberSaveable(savedWgConfig.address) { mutableStateOf(savedWgConfig.address) }
-    var mtu by rememberSaveable(savedWgConfig.mtu) { mutableStateOf(savedWgConfig.mtu) }
-    var publicKey by rememberSaveable(savedWgConfig.publicKey) { mutableStateOf(savedWgConfig.publicKey) }
-    var endpoint by rememberSaveable(savedWgConfig.endpoint) { mutableStateOf(savedWgConfig.endpoint) }
-    var persistentKeepalive by rememberSaveable(savedWgConfig.persistentKeepalive) { mutableStateOf(savedWgConfig.persistentKeepalive) }
+    var privateKey by rememberSaveable(currentProfileId, savedWgConfig.privateKey) { mutableStateOf(savedWgConfig.privateKey) }
+    var address by rememberSaveable(currentProfileId, savedWgConfig.address) { mutableStateOf(savedWgConfig.address) }
+    var mtu by rememberSaveable(currentProfileId, savedWgConfig.mtu) { mutableStateOf(savedWgConfig.mtu) }
+    var publicKey by rememberSaveable(currentProfileId, savedWgConfig.publicKey) { mutableStateOf(savedWgConfig.publicKey) }
+    var endpoint by rememberSaveable(currentProfileId, savedWgConfig.endpoint) { mutableStateOf(savedWgConfig.endpoint) }
+    var persistentKeepalive by rememberSaveable(currentProfileId, savedWgConfig.persistentKeepalive) { mutableStateOf(savedWgConfig.persistentKeepalive) }
 
     // VLESS states
-    var vlessLink by rememberSaveable(vlessSaved.vlessLink) { mutableStateOf(vlessSaved.vlessLink) }
-    var vlessUseLocalAddress by rememberSaveable(vlessSaved.vlessUseLocalAddress) { mutableStateOf(vlessSaved.vlessUseLocalAddress) }
+    var vlessLink by rememberSaveable(currentProfileId, vlessSaved.vlessLink) { mutableStateOf(vlessSaved.vlessLink) }
+    var vlessUseLocalAddress by rememberSaveable(currentProfileId, vlessSaved.vlessUseLocalAddress) { mutableStateOf(vlessSaved.vlessUseLocalAddress) }
 
     val showQrScanner = remember { mutableStateOf(false) }
     val showVlessQrScanner = remember { mutableStateOf(false) }
