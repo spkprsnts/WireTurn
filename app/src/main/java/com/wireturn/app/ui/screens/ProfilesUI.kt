@@ -285,9 +285,9 @@ fun ProfilesDialog(
         } else {
             // Если элемент на мгновение выпал из видимых, но мы точно знаем куда скроллить
             // (например, dragOffset экстремально большой), продолжаем скролл
-            if (dragOffset < -100f && lazyListState.canScrollBackward) autoScrollSpeed = -15f
-            else if (dragOffset > 100f && lazyListState.canScrollForward) autoScrollSpeed = 15f
-            else autoScrollSpeed = 0f
+            autoScrollSpeed = if (dragOffset < -100f && lazyListState.canScrollBackward) -15f
+            else if (dragOffset > 100f && lazyListState.canScrollForward) 15f
+            else 0f
         }
     }
 
