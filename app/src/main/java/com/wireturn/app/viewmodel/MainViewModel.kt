@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ProcessLifecycleOwner
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import com.wireturn.app.AppLogsState
 import com.wireturn.app.R
@@ -45,7 +47,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val prefs = AppPreferences(application)
     private val proxyManager = LocalProxyManager(application)
     private val appUpdater = AppUpdater(application)
-    private val profileManager = ProfileManager(prefs, viewModelScope)
+    private val profileManager = ProfileManager(prefs, ProcessLifecycleOwner.get().lifecycleScope)
 
     val proxyState: StateFlow<ProxyState> = proxyManager.proxyState
     val logs: StateFlow<List<String>> = AppLogsState.logs
@@ -310,7 +312,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setPrivacyMode(enabled: Boolean) { _privacyMode.value = enabled }
 
     fun startProxy() {
-        viewModelScope.launch {
+        ProcessLifecycleOwner.get().lifecycleScope.launch {
             val cfg = clientConfig.value
             if (cfg.dcMode) {
                 when (cfg.dcType) {
@@ -327,7 +329,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun restartProxy() {
-        viewModelScope.launch {
+        ProcessLifecycleOwner.get().lifecycleScope.launch {
             proxyManager.stopProxy()
             // Ждем реальной остановки сервиса через его состояние
             withTimeoutOrNull(5000) {
@@ -339,7 +341,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun restartXray() {
-        viewModelScope.launch {
+        ProcessLifecycleOwner.get().lifecycleScope.launch {
             getApplication<Application>().stopService(Intent(getApplication(), XrayService::class.java))
             withTimeoutOrNull(5000) {
                 XrayServiceState.state.first { it == XrayState.Idle }
@@ -515,6 +517,45 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _vlessConfig.value = vless
             _xraySettings.value = settings
             _xrayConfig.value = xray
+        }
+    }
+
+    fun selectProfileAndRestart(id: String, onCompletion: (() -> Unit)? = null) {
+        val profileName = profiles.value.find { it.id == id }?.name
+        profileManager.selectProfile(id) { client, settings, xray, wg, vless ->
+            _clientConfig.value = client
+            _wgConfig.value = wg
+            _vlessConfig.value = vless
+            _xraySettings.value = settings
+            _xrayConfig.value = xray
+
+            ProcessLifecycleOwner.get().lifecycleScope.launch {
+                // Wait for prefs to be saved
+                delay(200)
+
+                val runningProfileName = ProxyServiceState.runningProfileName.value
+                val profileChanged = runningProfileName != null && profileName != runningProfileName
+
+                val runningConfig = ProxyServiceState.runningConfig.value
+                val mainConfigChanged = profileChanged || (runningConfig != null && client != runningConfig)
+
+                if (mainConfigChanged) {
+                    restartProxy()
+                } else if (ProxyServiceState.isRunning.value) {
+                    ProxyServiceState.setRunningProfileName(profileName)
+                }
+
+                val runningWg = XrayServiceState.runningWgConfig.value
+                val runningVless = XrayServiceState.runningVlessConfig.value
+                val runningXray = XrayServiceState.runningXrayConfig.value
+
+                if ((runningWg != null && wg != runningWg) ||
+                    (runningVless != null && vless != runningVless) ||
+                    (runningXray != null && xray != runningXray)) {
+                    restartXray()
+                }
+            }
+            onCompletion?.invoke()
         }
     }
 

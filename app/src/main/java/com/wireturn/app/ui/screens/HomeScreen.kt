@@ -118,6 +118,10 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.core.graphics.drawable.toBitmap
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.launch
@@ -1228,7 +1232,26 @@ fun HomeScreen(
                 showBottomSheet.value = false
             },
             sheetState = bottomSheetState,
-            containerColor = sheetColor
+            containerColor = sheetColor,
+            dragHandle = {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                ) {
+                    androidx.compose.material3.BottomSheetDefaults.DragHandle()
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 24.dp, end = 24.dp, bottom = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(R.string.repo_links),
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                    }
+                }
+            }
         ) {
             RepoLinksContent(
                 containerColor = sheetColor
@@ -1585,24 +1608,39 @@ private fun RepoLinksContent(
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
 
+    val smartDismissNestedScroll = remember {
+        object : NestedScrollConnection {
+            private var hasScrolledDownInGesture = false
+
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                if (source == NestedScrollSource.UserInput) {
+                    if (consumed.y > 0) {
+                        hasScrolledDownInGesture = true
+                    }
+                    if (available.y > 0 && hasScrolledDownInGesture) {
+                        return available
+                    }
+                }
+                return Offset.Zero
+            }
+
+            override suspend fun onPostFling(consumed: androidx.compose.ui.unit.Velocity, available: androidx.compose.ui.unit.Velocity): androidx.compose.ui.unit.Velocity {
+                hasScrolledDownInGesture = false
+                return super.onPostFling(consumed, available)
+            }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.repo_links),
-                style = MaterialTheme.typography.titleLarge
-            )
-        }
-
-        LazyColumn {
+        LazyColumn(modifier = Modifier.nestedScroll(smartDismissNestedScroll)) {
             item {
                 RepoLinkItem(
                     title = stringResource(R.string.android_client),

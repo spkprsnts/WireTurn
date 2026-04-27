@@ -7,6 +7,15 @@
 
     <style name="Theme.wireturn" parent="Base.Theme.wireturn" />
 
+    <style name="Theme.wireturn.Transparent" parent="Theme.wireturn">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:backgroundDimEnabled">true</item>
+    </style>
+
     <!-- Splash screen theme (Core Splash Screen API) -->
     <style name="Theme.wireturn.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/splash_background</item>

@@ -1,140 +1,64 @@
 package com.wireturn.app
 
-import android.content.Intent
 import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.*
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.wireturn.app.data.AppPreferences
-import com.wireturn.app.data.Profile
-import com.wireturn.app.domain.ProfileManager
+import com.wireturn.app.ui.screens.ProfilesDialog
 import com.wireturn.app.ui.theme.WireturnTheme
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.first
+import com.wireturn.app.viewmodel.MainViewModel
 
-class ProfileDialogActivity : AppCompatActivity() {
-    private lateinit var prefs: AppPreferences
-    private lateinit var profileManager: ProfileManager
-    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+class ProfileDialogActivity : ComponentActivity() {
+    private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        prefs = AppPreferences(this)
-        profileManager = ProfileManager(prefs, scope)
+        
+        // Make activity window transparent
+        window.setBackgroundDrawableResource(android.R.color.transparent)
 
         setContent {
-            WireturnTheme {
-                val profiles by profileManager.profiles.collectAsStateWithLifecycle()
-                val currentId by profileManager.currentProfileId.collectAsStateWithLifecycle()
+            val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+            val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
+            val context = LocalContext.current
 
-                AlertDialog(
-                    onDismissRequest = { finish() },
-                    title = { Text(stringResource(R.string.profiles_title)) },
-                    text = {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            items(profiles) { profile ->
-                                ProfileItem(
-                                    profile = profile,
-                                    isSelected = profile.id == currentId,
-                                    onClick = {
-                                        selectAndCheckRestart(profile.id)
-                                    }
-                                )
+            WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
+                val profileImportLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.OpenMultipleDocuments()
+                ) { uris ->
+                    if (uris.isEmpty()) return@rememberLauncherForActivityResult
+                    
+                    val data = uris.mapNotNull { uri ->
+                        try {
+                            val fileName = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                                val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                                if (index != -1 && cursor.moveToFirst()) cursor.getString(index) else null
+                            } ?: uri.lastPathSegment
+
+                            val json = context.contentResolver.openInputStream(uri)?.use { stream ->
+                                stream.bufferedReader().readText()
                             }
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(onClick = { finish() }) {
-                            Text(stringResource(android.R.string.cancel))
+                            if (json != null) fileName to json else null
+                        } catch (_: Exception) {
+                            null
                         }
                     }
-                )
-            }
-        }
-    }
-
-    @Composable
-    private fun ProfileItem(profile: Profile, isSelected: Boolean, onClick: () -> Unit) {
-        Surface(
-            onClick = onClick,
-            shape = MaterialTheme.shapes.medium,
-            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = profile.name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-
-    private fun selectAndCheckRestart(id: String) {
-        val profileName = profileManager.profiles.value.find { it.id == id }?.name
-        profileManager.selectProfile(id) { _, _, _, _, _ ->
-            scope.launch {
-                // Wait for prefs to be saved
-                delay(200)
-                checkAndRestartIfNeeded()
-                // Update name in case proxy wasn't restarted
-                if (ProxyServiceState.isRunning.value) {
-                    ProxyServiceState.setRunningProfileName(profileName)
+                    if (data.isNotEmpty()) {
+                        viewModel.importProfiles(data)
+                    }
                 }
-                finish()
+
+                ProfilesDialog(
+                    viewModel = viewModel,
+                    onImport = { profileImportLauncher.launch(arrayOf("application/json")) },
+                    onDismiss = { finish() }
+                )
             }
         }
-    }
-
-    private suspend fun checkAndRestartIfNeeded() {
-        val runningConfig = ProxyServiceState.runningConfig.value
-        val clientConfig = prefs.clientConfigFlow.first()
-        
-        if (runningConfig != null && clientConfig != runningConfig) {
-            ProxyService.stop(this)
-            delay(500)
-            ProxyService.start(this, clientConfig)
-        }
-
-        val runningWg = XrayServiceState.runningWgConfig.value
-        val currentWg = prefs.wgConfigFlow.first()
-        val runningVless = XrayServiceState.runningVlessConfig.value
-        val currentVless = prefs.vlessConfigFlow.first()
-        val runningXray = XrayServiceState.runningXrayConfig.value
-        val currentXray = prefs.xrayConfigFlow.first()
-
-        val xraySettings = prefs.xraySettingsFlow.first()
-
-        if ((runningWg != null && currentWg != runningWg) ||
-            (runningVless != null && currentVless != runningVless) ||
-            (runningXray != null && currentXray != runningXray)) {
-            
-            stopService(Intent(this, XrayService::class.java))
-            delay(500)
-            if (xraySettings.xrayEnabled) {
-                startForegroundService(Intent(this, XrayService::class.java))
-            }
-        }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        scope.cancel()
     }
 }
