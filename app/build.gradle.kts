@@ -152,7 +152,9 @@ tasks.register<Exec>("buildGoBinaries") {
             }
         }
         // Use login shell to load PATH and wslpath for reliable mapping
-        commandLine("wsl", "bash", "-l", "-c", "cd \$(wslpath '${rootDir.absolutePath}') && ./build.sh")
+        commandLine("wsl", "bash", "-l", "-c",
+            $$"cd $(wslpath '$${rootDir.absolutePath}') && ./build.sh"
+        )
     } else {
         if (ndkDir != null) environment("NDK_PATH", ndkDir)
         commandLine("bash", "-c", "chmod +x build.sh && ./build.sh")
