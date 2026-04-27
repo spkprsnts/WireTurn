@@ -1705,8 +1705,19 @@ private fun InfoBottomSheet(
 
     val dash = stringResource(R.string.dash)
     val appVersion = remember {
-        try { context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: dash }
-        catch (_: Exception) { dash }
+        try {
+            val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+            val versionName = packageInfo.versionName ?: dash
+            val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                packageInfo.longVersionCode
+            } else {
+                @Suppress("DEPRECATION")
+                packageInfo.versionCode.toLong()
+            }
+            "$versionName ($versionCode)"
+        } catch (_: Exception) {
+            dash
+        }
     }
 
     val listColors = ListItemDefaults.colors(containerColor = containerColor)
