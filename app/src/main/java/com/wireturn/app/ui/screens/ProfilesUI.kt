@@ -10,6 +10,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,7 +49,6 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,7 +73,6 @@ import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.util.Collections
 
 @Composable
 fun ProfilesBlock(
@@ -175,6 +174,7 @@ fun ProfilesDialog(
     val profilesSource by viewModel.profiles.collectAsStateWithLifecycle()
     val currentId by viewModel.currentProfileId.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val density = androidx.compose.ui.platform.LocalDensity.current
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -182,13 +182,11 @@ fun ProfilesDialog(
     // Local state for reordering
     val profiles = remember { mutableStateListOf<Profile>() }
     
-    // Sync local list with source of truth only when contents change
-    LaunchedEffect(profilesSource) {
-        if (profilesSource != profiles) {
-            profiles.clear()
-            profiles.addAll(profilesSource)
-        }
-    }
+    val lazyListState = rememberLazyListState()
+    var draggedItemId by remember { mutableStateOf<String?>(null) }
+    var dragOffset by remember { mutableFloatStateOf(0f) }
+    var autoScrollSpeed by remember { mutableFloatStateOf(0f) }
+    var optimisticSelectedId by remember { mutableStateOf<String?>(null) }
 
     val showCreateDialog = remember { mutableStateOf(false) }
     var addMenuExpanded by remember { mutableStateOf(false) }
@@ -212,36 +210,118 @@ fun ProfilesDialog(
         }
     }
 
-    val lazyListState = rememberLazyListState()
-    var draggedIndex by remember { mutableStateOf<Int?>(null) }
-    var dragOffset by remember { mutableFloatStateOf(0f) }
-    var optimisticSelectedId by remember { mutableStateOf<String?>(null) }
+    // Sync local list with source of truth only when NOT dragging
+    LaunchedEffect(profilesSource) {
+        if (draggedItemId == null && (profiles.size != profilesSource.size || profiles.toList() != profilesSource)) {
+            androidx.compose.runtime.snapshots.Snapshot.withMutableSnapshot {
+                profiles.clear()
+                profiles.addAll(profilesSource)
+            }
+        }
+    }
+
+    fun checkAndPerformReorder() {
+        val currentId = draggedItemId ?: return
+        val currentDraggedIdx = profiles.indexOfFirst { it.id == currentId }.takeIf { it != -1 } ?: return
+        
+        val layoutInfo = lazyListState.layoutInfo
+        val visibleItems = layoutInfo.visibleItemsInfo
+        val draggedItemInfo = visibleItems.find { it.key == currentId } ?: return
+        
+        val draggedVisualCenter = draggedItemInfo.offset + dragOffset + draggedItemInfo.size / 2
+
+        val targetItem = if (dragOffset > 0) {
+            visibleItems.find { it.index > currentDraggedIdx && (it.offset + it.size / 2) < draggedVisualCenter }
+        } else if (dragOffset < 0) {
+            visibleItems.findLast { it.index < currentDraggedIdx && (it.offset + it.size / 2) > draggedVisualCenter }
+        } else null
+
+        if (targetItem != null) {
+            val targetIndex = targetItem.index
+            val delta = (draggedItemInfo.offset - targetItem.offset).toFloat()
+
+            // Захватываем параметры скролла
+            val firstVisibleIndex = lazyListState.firstVisibleItemIndex
+            val firstVisibleOffset = lazyListState.firstVisibleItemScrollOffset
+
+            androidx.compose.runtime.snapshots.Snapshot.withMutableSnapshot {
+                val item = profiles.removeAt(currentDraggedIdx)
+                profiles.add(targetIndex, item)
+                dragOffset += delta
+            }
+
+            // Компенсируем прыжок скролла
+            if (currentDraggedIdx == firstVisibleIndex || targetIndex == firstVisibleIndex) {
+                scope.launch {
+                    lazyListState.scrollToItem(firstVisibleIndex, firstVisibleOffset)
+                }
+            }
+            HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
+        }
+    }
+
+    fun updateAutoScrollSpeed() {
+        val currentId = draggedItemId ?: return
+        val layoutInfo = lazyListState.layoutInfo
+        val visibleItems = layoutInfo.visibleItemsInfo
+        val draggedItem = visibleItems.find { it.key == currentId }
+
+        val viewportHeight = layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset
+        val threshold = with(density) { 40.dp.toPx() } // Увеличили порог для стабильности
+
+        if (draggedItem != null) {
+            val visualTop = draggedItem.offset + dragOffset
+            val visualBottom = visualTop + draggedItem.size
+
+            autoScrollSpeed = when {
+                visualTop < threshold && lazyListState.canScrollBackward -> {
+                    ((visualTop - threshold) / 10f).coerceIn(-20f, 0f)
+                }
+                visualBottom > viewportHeight - threshold && lazyListState.canScrollForward -> {
+                    ((visualBottom - (viewportHeight - threshold)) / 10f).coerceIn(0f, 20f)
+                }
+                else -> 0f
+            }
+        } else {
+            // Если элемент на мгновение выпал из видимых, но мы точно знаем куда скроллить
+            // (например, dragOffset экстремально большой), продолжаем скролл
+            if (dragOffset < -100f && lazyListState.canScrollBackward) autoScrollSpeed = -15f
+            else if (dragOffset > 100f && lazyListState.canScrollForward) autoScrollSpeed = 15f
+            else autoScrollSpeed = 0f
+        }
+    }
+
+    LaunchedEffect(draggedItemId) {
+        if (draggedItemId != null) {
+            while (true) {
+                if (autoScrollSpeed != 0f) {
+                    val scrolled = lazyListState.scrollBy(autoScrollSpeed)
+                    if (scrolled != 0f) {
+                        dragOffset += scrolled
+                        checkAndPerformReorder()
+                    }
+                }
+                updateAutoScrollSpeed()
+                delay(8) // Немного быстрее цикл
+            }
+        }
+    }
 
     val noDismissNestedScroll = remember {
         object : NestedScrollConnection {
-            private var hasScrolledDownInGesture = false
-
-            override fun onPostScroll(
-                consumed: Offset,
-                available: Offset,
-                source: NestedScrollSource
-            ): Offset {
-                if (source == NestedScrollSource.UserInput) {
-                    if (consumed.y > 0) {
-                        hasScrolledDownInGesture = true
-                    }
-                    // Если мы в этом же жесте уже что-то проскроллили (шли к верху),
-                    // то поглощаем излишек, чтобы шторка не дергалась.
-                    if (available.y > 0 && hasScrolledDownInGesture) {
-                        return available
-                    }
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                // Если мы перетаскиваем профиль, ПОЛНОСТЬЮ блокируем скролл шторки (родителя)
+                if (draggedItemId != null && source == NestedScrollSource.UserInput) {
+                    return available
                 }
                 return Offset.Zero
             }
 
-            override suspend fun onPostFling(consumed: androidx.compose.ui.unit.Velocity, available: androidx.compose.ui.unit.Velocity): androidx.compose.ui.unit.Velocity {
-                hasScrolledDownInGesture = false
-                return super.onPostFling(consumed, available)
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (draggedItemId != null && source == NestedScrollSource.UserInput) {
+                    return available
+                }
+                return Offset.Zero
             }
         }
     }
@@ -333,13 +413,12 @@ fun ProfilesDialog(
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
                 itemsIndexed(profiles, key = { _, it -> it.id }) { index, profile ->
+                    val isDragged = draggedItemId == profile.id
                     val isSelected = profile.id == (optimisticSelectedId ?: currentId)
                     var menuExpanded by remember { mutableStateOf(false) }
-                    val isDragged = draggedIndex == index
-                    
-                    val currentItemIndex by rememberUpdatedState(index)
                     
                     val itemShape = when {
+                        isDragged -> RoundedCornerShape(12.dp)
                         profiles.size == 1 -> MaterialTheme.shapes.medium
                         index == 0 -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
                         index == profiles.size - 1 -> RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
@@ -361,12 +440,12 @@ fun ProfilesDialog(
                         shape = itemShape,
                         isDragged = isDragged,
                         onClick = {
-                            if (draggedIndex == null) {
+                            if (draggedItemId == null) {
                                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                 optimisticSelectedId = profile.id
                                 viewModel.selectProfileAndRestart(profile.id)
                                 scope.launch {
-                                    delay(300) // Даем пользователю увидеть выбор
+                                    delay(300)
                                     sheetState.hide()
                                     onDismiss()
                                 }
@@ -375,14 +454,38 @@ fun ProfilesDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .animateItem(
-                                fadeInSpec = spring(stiffness = Spring.StiffnessMedium),
-                                fadeOutSpec = spring(stiffness = Spring.StiffnessMedium),
                                 placementSpec = if (isDragged) null else spring(
                                     dampingRatio = Spring.DampingRatioNoBouncy,
                                     stiffness = Spring.StiffnessMedium
                                 )
                             )
                             .zIndex(if (isDragged) 10f else 0f)
+                            .pointerInput(Unit) {
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = {
+                                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                        draggedItemId = profile.id
+                                        dragOffset = 0f
+                                    },
+                                    onDrag = { change, dragAmount ->
+                                        change.consume()
+                                        dragOffset += dragAmount.y
+                                        updateAutoScrollSpeed()
+                                        checkAndPerformReorder()
+                                    },
+                                    onDragEnd = {
+                                        draggedItemId = null
+                                        dragOffset = 0f
+                                        autoScrollSpeed = 0f
+                                        viewModel.reorderProfiles(profiles.toList())
+                                    },
+                                    onDragCancel = {
+                                        draggedItemId = null
+                                        dragOffset = 0f
+                                        autoScrollSpeed = 0f
+                                    }
+                                )
+                            }
                             .graphicsLayer {
                                 translationY = if (isDragged) dragOffset else offsetAnim
                                 scaleX = if (isDragged) 1.02f else 1f
@@ -390,53 +493,6 @@ fun ProfilesDialog(
                                 shadowElevation = if (isDragged) 8.dp.toPx() else 0f
                                 shape = itemShape
                                 clip = isDragged
-                            }
-                            .pointerInput(Unit) {
-                                detectDragGesturesAfterLongPress(
-                                    onDragStart = {
-                                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                        draggedIndex = currentItemIndex
-                                        dragOffset = 0f
-                                    },
-                                    onDrag = { change, dragAmount ->
-                                        change.consume()
-                                        dragOffset += dragAmount.y
-                                        
-                                        val currentDraggedIdx = draggedIndex ?: return@detectDragGesturesAfterLongPress
-                                        
-                                        val layoutInfo = lazyListState.layoutInfo
-                                        val draggedItem = layoutInfo.visibleItemsInfo.find { it.index == currentDraggedIdx } ?: return@detectDragGesturesAfterLongPress
-                                        
-                                        // Ищем цель на основе центра перетаскиваемого элемента
-                                        val draggedCenter = draggedItem.offset + draggedItem.size / 2 + dragOffset
-                                        
-                                        val targetItem = layoutInfo.visibleItemsInfo.find { item ->
-                                            item.index != currentDraggedIdx &&
-                                            draggedCenter.toInt() in item.offset..(item.offset + item.size + 2) // +2 for spacing
-                                        }
-                                        
-                                        if (targetItem != null) {
-                                            val targetIndex = targetItem.index
-                                            Collections.swap(profiles, currentDraggedIdx, targetIndex)
-                                            // Корректируем смещение на разницу позиций, чтобы избежать прыжка
-                                            dragOffset += (draggedItem.offset - targetItem.offset)
-                                            draggedIndex = targetIndex
-                                            HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
-                                        }
-                                    },
-                                    onDragEnd = {
-                                        val finalIndex = draggedIndex
-                                        draggedIndex = null
-                                        dragOffset = 0f
-                                        if (finalIndex != null) {
-                                            viewModel.reorderProfiles(profiles.toList())
-                                        }
-                                    },
-                                    onDragCancel = {
-                                        draggedIndex = null
-                                        dragOffset = 0f
-                                    }
-                                )
                             },
                         trailingContent = {
                             Box {
