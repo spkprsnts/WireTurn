@@ -1,6 +1,6 @@
 @file:OptIn(
-    ExperimentalMaterial3Api::class,
-    ExperimentalMaterial3ExpressiveApi::class
+    androidx.compose.material3.ExperimentalMaterial3Api::class,
+    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class
 )
 
 package com.wireturn.app.ui.screens
@@ -33,9 +33,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularWavyProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
@@ -50,6 +52,9 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -64,12 +69,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -117,11 +125,16 @@ fun AppExceptionsScreen(
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     val excludedApps by viewModel.excludedApps.collectAsStateWithLifecycle()
+    val globalVpn by viewModel.globalVpnSettings.collectAsStateWithLifecycle()
     
     var isAppsLoading by remember { mutableStateOf(true) }
+    var isRefreshing by remember { mutableStateOf(false) }
     var appList by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var isSearching by remember { mutableStateOf(false) }
+    
+    // Снимок состояния для стабильной сортировки (чтобы список не прыгал при ручном переключении)
+    var sortSnapshot by remember { mutableStateOf(emptySet<String>()) }
     
     // Дебаунс поискового запроса
     var appliedSearchQuery by rememberSaveable { mutableStateOf("") }
@@ -140,17 +153,21 @@ fun AppExceptionsScreen(
     var expanded by rememberSaveable { mutableStateOf(false) }
     // Задержка для предотвращения перекрытия TopAppBar анимации SearchBar
     var showTopBarOnTop by remember { mutableStateOf(!expanded) }
+    var showMenu by remember { mutableStateOf(false) }
+
     LaunchedEffect(expanded) {
         if (expanded) {
             showTopBarOnTop = false
         } else {
             delay(400)
             showTopBarOnTop = true
+            // Синхронизируем снимок при закрытии поиска, чтобы новые выбранные приложения закрепились в основном списке
+            sortSnapshot = excludedApps
         }
     }
     
     // Загрузка списка приложений
-    LaunchedEffect(Unit) {
+    val loadApps = suspend {
         withContext(Dispatchers.IO) {
             val pm = context.packageManager
             val apps = pm.getInstalledApplications(0)
@@ -164,16 +181,30 @@ fun AppExceptionsScreen(
             
             withContext(Dispatchers.Main) {
                 appList = result
+                // Сначала фиксируем порядок, потом выключаем лоадер
+                sortSnapshot = excludedApps
                 isAppsLoading = false
+                isRefreshing = false
             }
         }
     }
 
+    LaunchedEffect(Unit) {
+        // Даем анимации перехода завершиться
+        // delay(500)
+        loadApps()
+    }
+
     // Сортировка: исключенные приложения всегда сверху, далее по алфавиту
-    // excludedApps намеренно исключен из ключей для предотвращения "прыжков" списка при кликах
-    val sortedAppList = remember(appliedSearchQuery, appList) {
-        appList.sortedWith(
-            compareByDescending<AppInfo> { excludedApps.contains(it.packageName) }
+    // excludedApps добавлен в ключи, чтобы системные приложения корректно появлялись/исчезали при переключении
+    val sortedAppList = remember(appList, globalVpn.hideSystemApps, sortSnapshot, excludedApps) {
+        val filtered = if (globalVpn.hideSystemApps) {
+            appList.filter { !it.isSystem || excludedApps.contains(it.packageName) }
+        } else {
+            appList
+        }
+        filtered.sortedWith(
+            compareByDescending<AppInfo> { sortSnapshot.contains(it.packageName) }
                 .thenBy { it.name.lowercase() }
         )
     }
@@ -187,21 +218,32 @@ fun AppExceptionsScreen(
     }
 
     // Список для режима поиска: исключенные (если пусто) или результаты поиска
-    val searchDisplayList = remember(appliedSearchQuery, expanded, appList) {
-        if (appliedSearchQuery.isBlank()) {
-            appList.filter { excludedApps.contains(it.packageName) }
-                .sortedBy { it.name.lowercase() }
+    val searchDisplayList = remember(appliedSearchQuery, expanded, appList, globalVpn.hideSystemApps, sortSnapshot, excludedApps) {
+        val filtered = if (globalVpn.hideSystemApps) {
+            appList.filter { !it.isSystem || excludedApps.contains(it.packageName) }
         } else {
-            appList.filter {
+            appList
+        }
+        
+        val baseList = if (appliedSearchQuery.isBlank()) {
+            filtered.filter { excludedApps.contains(it.packageName) }
+        } else {
+            filtered.filter {
                 it.name.contains(appliedSearchQuery, ignoreCase = true) ||
                         it.packageName.contains(appliedSearchQuery, ignoreCase = true)
-            }.sortedBy { it.name.lowercase() }
+            }
         }
+
+        baseList.sortedWith(
+            compareByDescending<AppInfo> { sortSnapshot.contains(it.packageName) }
+                .thenBy { it.name.lowercase() }
+        )
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val clipboard = LocalClipboard.current
     val listState = rememberLazyListState()
+    val pullToRefreshState = rememberPullToRefreshState()
 
     // Временная подсветка импортированных приложений
     var newlyAddedPackages by remember { mutableStateOf(emptySet<String>()) }
@@ -215,6 +257,7 @@ fun AppExceptionsScreen(
     val noAppsMsg = stringResource(R.string.no_apps_imported)
     val noAppsFoundMsg = stringResource(R.string.no_apps_found)
     val appsImportedFormat = stringResource(R.string.apps_imported_count)
+    val copyListMsg = stringResource(R.string.copy_list)
 
     val onImportFromClipboard = {
         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -229,22 +272,41 @@ fun AppExceptionsScreen(
                 if (packagesToImport.isNotEmpty()) {
                     val allPackages = appList.map { it.packageName }.toSet()
                     val validPackages = packagesToImport.filter { allPackages.contains(it) }.toSet()
+                    
+                    val currentExcluded = excludedApps
+                    val newlyAdded = validPackages.filter { !currentExcluded.contains(it) }.toSet()
 
-                    if (validPackages.isNotEmpty()) {
-                        val currentExcluded = excludedApps
-                        val newExcluded = currentExcluded + validPackages
-                        if (newExcluded != currentExcluded) {
-                            viewModel.saveExcludedApps(newExcluded)
-                            newlyAddedPackages = validPackages
-                            listState.animateScrollToItem(0)
-                        }
+                    if (newlyAdded.isNotEmpty()) {
+                        isAppsLoading = true
+                        val newExcluded = currentExcluded + newlyAdded
+                        viewModel.saveExcludedApps(newExcluded)
+                        newlyAddedPackages = newlyAdded
+                        sortSnapshot = newExcluded
+                        delay(800)
+                        listState.animateScrollToItem(0)
+                        isAppsLoading = false
                         snackbarHostState.showSnackbar(
-                            appsImportedFormat.format(validPackages.size)
+                            appsImportedFormat.format(newlyAdded.size)
                         )
                     } else {
                         snackbarHostState.showSnackbar(noAppsMsg)
                     }
                 }
+            }
+        }
+    }
+
+    val onExportToClipboard = {
+        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+        val text = excludedApps.joinToString("\n")
+        scope.launch {
+            try {
+                // Пытаемся использовать ClipEntry если он доступен в текущей версии Compose
+                val clipData = android.content.ClipData.newPlainText("WireTurn Apps", text)
+                clipboard.setClipEntry(ClipEntry(clipData))
+                snackbarHostState.showSnackbar(copyListMsg)
+            } catch (_: Exception) {
+                // pass
             }
         }
     }
@@ -280,7 +342,7 @@ fun AppExceptionsScreen(
         object : NestedScrollConnection {
             @Suppress("MethodAlwaysReturnsConstant", "SameReturnValue")
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (expanded || !isScrollable) return Offset.Zero
+                if (expanded || !isScrollable || pullToRefreshState.distanceFraction > 0f) return Offset.Zero
 
                 if (source == NestedScrollSource.UserInput) {
                     isDragging = true
@@ -299,8 +361,8 @@ fun AppExceptionsScreen(
             override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
                 if (!isScrollable) return Offset.Zero
                 scrollBehavior.state.contentOffset += consumed.y
-                
-                if (!expanded && !isDragging && !isSnapAnimating) {
+
+                if (!expanded && !isDragging && !isSnapAnimating && pullToRefreshState.distanceFraction == 0f) {
                     updateHeaderOffset(consumed.y)
                 }
 
@@ -320,7 +382,7 @@ fun AppExceptionsScreen(
 
     // Автоматическая доводка (Snap) заголовка
     LaunchedEffect(isDragging) {
-        if (isDragging || expanded) return@LaunchedEffect
+        if (isDragging || expanded || pullToRefreshState.distanceFraction > 0f) return@LaunchedEffect
         snapshotFlow { listState.isScrollInProgress }.first { !it }
 
         val isAtTopPos = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
@@ -403,40 +465,53 @@ fun AppExceptionsScreen(
             snackbarHost = { SnackbarHost(snackbarHostState) },
             contentWindowInsets = WindowInsets(0, 0, 0, 0)
         ) { innerPadding ->
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    top = statusBarHeight + AppExceptionsDefaults.AppBarCollapsedHeight,
-                    bottom = 16.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + innerPadding.calculateBottomPadding()
-                )
+            PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = {
+                    isRefreshing = true
+                    scope.launch { loadApps() }
+                },
+                state = pullToRefreshState,
+                indicator = { },
+                modifier = Modifier.fillMaxSize()
             ) {
-                item(key = "header_spacer") {
-                    Spacer(Modifier.height(totalHeaderAreaHeight))
-                }
-
-                if (isAppsLoading) {
-                    item {
-                        Box(modifier = Modifier.fillMaxWidth().padding(top = 64.dp), contentAlignment = Alignment.TopCenter) {
-                            CircularWavyProgressIndicator()
-                        }
-                    }
-                } else if (mainDisplayList.isEmpty()) {
-                    item {
-                        Box(modifier = Modifier.fillMaxWidth().padding(top = 64.dp), contentAlignment = Alignment.TopCenter) {
-                            Text(noAppsFoundMsg, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                } else {
-                    appListItems(
-                        apps = mainDisplayList,
-                        excludedApps = excludedApps,
-                        newlyAddedPackages = newlyAddedPackages,
-                        onToggleExclusion = { pkg ->
-                            HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
-                            viewModel.toggleAppExclusion(pkg)
-                        }
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { alpha = if (globalVpn.filteringEnabled) 1f else 0.5f },
+                    contentPadding = PaddingValues(
+                        top = statusBarHeight + AppExceptionsDefaults.AppBarCollapsedHeight,
+                        bottom = 16.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + innerPadding.calculateBottomPadding()
                     )
+                ) {
+                    item(key = "header_spacer") {
+                        Spacer(Modifier.height(totalHeaderAreaHeight))
+                    }
+
+                    if (isAppsLoading) {
+                        item {
+                            Box(modifier = Modifier.fillMaxWidth().padding(top = 64.dp), contentAlignment = Alignment.TopCenter) {
+                                CircularWavyProgressIndicator()
+                            }
+                        }
+                    } else if (mainDisplayList.isEmpty()) {
+                        item {
+                            Box(modifier = Modifier.fillMaxWidth().padding(top = 64.dp), contentAlignment = Alignment.TopCenter) {
+                                Text(noAppsFoundMsg, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    } else {
+                        appListItems(
+                            apps = mainDisplayList,
+                            excludedApps = excludedApps,
+                            newlyAddedPackages = newlyAddedPackages,
+                            onToggleExclusion = { pkg ->
+                                HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
+                                viewModel.toggleAppExclusion(pkg)
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -491,7 +566,7 @@ fun AppExceptionsScreen(
             onExpandedChange = { expanded = it },
             windowInsets = WindowInsets(0, 0, 0, 0)
         ) {
-            if (isSearching) {
+            if (isAppsLoading || isSearching) {
                 Box(
                     modifier = Modifier.fillMaxWidth().padding(top = 64.dp),
                     contentAlignment = Alignment.TopCenter
@@ -528,18 +603,130 @@ fun AppExceptionsScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .zIndex(if (showTopBarOnTop) 3f else 1f)
+                .padding(top = statusBarHeight + AppExceptionsDefaults.AppBarMaxHeight)
+                .zIndex(3f)
+                .graphicsLayer { },
+            contentAlignment = Alignment.TopCenter
+        ) {
+            PullToRefreshDefaults.Indicator(
+                state = pullToRefreshState,
+                isRefreshing = isRefreshing
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .zIndex(if (showTopBarOnTop) 4f else 1f)
         ) {
             LargeTopAppBar(
-                title = { Text(stringResource(R.string.vpn_apps_exceptions)) },
+                title = {
+                    Text(
+                        if (globalVpn.bypassMode) stringResource(R.string.vpn_apps_exceptions)
+                        else stringResource(R.string.vpn_apps_inclusions)
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(painterResource(R.drawable.arrow_back_24px), contentDescription = null)
                     }
                 },
                 actions = {
-                    IconButton(onClick = { onImportFromClipboard() }) {
-                        Icon(painterResource(R.drawable.content_paste_24px), contentDescription = null)
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(painterResource(R.drawable.more_vert_24px), contentDescription = null)
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.filtering_enabled)) },
+                                trailingIcon = {
+                                    Switch(
+                                        checked = globalVpn.filteringEnabled,
+                                        onCheckedChange = null,
+                                        modifier = Modifier.scale(0.8f)
+                                    )
+                                },
+                                onClick = {
+                                    viewModel.updateGlobalVpnSettings(globalVpn.copy(filteringEnabled = !globalVpn.filteringEnabled))
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { 
+                                    Column {
+                                        Text(stringResource(R.string.bypass_mode))
+                                        Text(
+                                            text = if (globalVpn.bypassMode) "Выбранные идут напрямую" 
+                                                   else "Только выбранные через VPN",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                },
+                                trailingIcon = {
+                                    Switch(
+                                        checked = globalVpn.bypassMode,
+                                        onCheckedChange = null,
+                                        modifier = Modifier.scale(0.8f)
+                                    )
+                                },
+                                onClick = {
+                                    viewModel.updateGlobalVpnSettings(globalVpn.copy(bypassMode = !globalVpn.bypassMode))
+                                }
+                            )
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.clear_list)) },
+                                leadingIcon = {
+                                    Icon(painterResource(R.drawable.delete_24px), contentDescription = null)
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    isAppsLoading = true
+                                    scope.launch {
+                                        viewModel.saveExcludedApps(emptySet())
+                                        sortSnapshot = emptySet()
+                                        delay(500)
+                                        isAppsLoading = false
+                                    }
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.copy_list)) },
+                                leadingIcon = {
+                                    Icon(painterResource(R.drawable.content_copy_24px), contentDescription = null)
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    onExportToClipboard()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.import_from_clipboard)) },
+                                leadingIcon = {
+                                    Icon(painterResource(R.drawable.content_paste_24px), contentDescription = null)
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    onImportFromClipboard()
+                                }
+                            )
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.hide_system_apps)) },
+                                trailingIcon = {
+                                    Checkbox(
+                                        checked = globalVpn.hideSystemApps,
+                                        onCheckedChange = null
+                                    )
+                                },
+                                onClick = {
+                                    viewModel.updateGlobalVpnSettings(globalVpn.copy(hideSystemApps = !globalVpn.hideSystemApps))
+                                }
+                            )
+                        }
                     }
                 },
                 scrollBehavior = if (isScrollable) scrollBehavior else null,
@@ -565,11 +752,7 @@ private fun LazyListScope.appListItems(
         val isNewlyAdded = newlyAddedPackages.contains(app.packageName)
 
         val backgroundColor by animateColorAsState(
-            targetValue = when {
-                isNewlyAdded -> MaterialTheme.colorScheme.primaryContainer
-                isExcluded -> MaterialTheme.colorScheme.surfaceContainerHigh
-                else -> Color.Transparent
-            },
+            targetValue = if (isNewlyAdded) MaterialTheme.colorScheme.surfaceContainerHigh else Color.Transparent,
             label = "item_bg_color"
         )
 
@@ -594,15 +777,22 @@ private fun LazyListScope.appListItems(
                 )
             },
             leadingContent = {
-                val icon = remember(app.packageName) {
-                    try {
-                        context.packageManager.getApplicationIcon(app.packageName)
-                            .toBitmap().asImageBitmap()
-                    } catch (_: Exception) { null }
+                var iconBitmap by remember(app.packageName) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+                LaunchedEffect(app.packageName) {
+                    withContext(Dispatchers.IO) {
+                        try {
+                            val drawable = context.packageManager.getApplicationIcon(app.packageName)
+                            val bitmap = drawable.toBitmap().asImageBitmap()
+                            withContext(Dispatchers.Main) {
+                                iconBitmap = bitmap
+                            }
+                        } catch (_: Exception) { }
+                    }
                 }
-                if (icon != null) {
+
+                if (iconBitmap != null) {
                     Image(
-                        bitmap = icon,
+                        bitmap = iconBitmap!!,
                         contentDescription = null,
                         modifier = Modifier.size(AppExceptionsDefaults.IconSize)
                     )

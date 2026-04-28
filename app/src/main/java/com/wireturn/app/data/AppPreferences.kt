@@ -115,6 +115,12 @@ data class XraySettings(
     @SerializedName("xrayVpnMode") val xrayVpnMode: Boolean = false
 )
 
+data class GlobalVpnSettings(
+    @SerializedName("hideSystemApps") val hideSystemApps: Boolean = true,
+    @SerializedName("bypassMode") val bypassMode: Boolean = true,
+    @SerializedName("filteringEnabled") val filteringEnabled: Boolean = true
+)
+
 data class XrayConfig(
     @SerializedName("socksBindAddress") val socksBindAddress: String = DEFAULT_SOCKS_BIND_ADDRESS,
     @SerializedName("httpBindAddress") val httpBindAddress: String = "",
@@ -250,6 +256,9 @@ class AppPreferences(context: Context) {
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val XRAY_ENABLED = booleanPreferencesKey("proxy_enabled")
         val XRAY_VPN_MODE = booleanPreferencesKey("proxy_vpn_mode")
+        val VPN_HIDE_SYSTEM_APPS = booleanPreferencesKey("vpn_hide_system_apps")
+        val VPN_BYPASS_MODE = booleanPreferencesKey("vpn_bypass_mode")
+        val VPN_FILTERING_ENABLED = booleanPreferencesKey("vpn_filtering_enabled")
         val XRAY_EXCLUDED_APPS = stringSetPreferencesKey("proxy_excluded_apps")
         val WIRE_PRIV_KEY = stringPreferencesKey("wire_priv_key")
         val WIRE_ADDRESS = stringPreferencesKey("wire_address")
@@ -270,6 +279,7 @@ class AppPreferences(context: Context) {
         val CLIENT_KERNEL_VARIANT = stringPreferencesKey("client_kernel_variant")
         val TURNABLE_URL_HISTORY = stringPreferencesKey("turnable_url_history")
         val BATTERY_NOTIFICATION_DISMISSED = booleanPreferencesKey("battery_notification_dismissed")
+        val APPS_EXCLUSION_HINT_SHOWN = booleanPreferencesKey("apps_exclusion_hint_shown")
     }
 
     val profilesFlow: Flow<List<Profile>> = context.dataStore.data
@@ -362,6 +372,16 @@ class AppPreferences(context: Context) {
             )
         }
 
+    val globalVpnSettingsFlow: Flow<GlobalVpnSettings> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { prefs ->
+            GlobalVpnSettings(
+                hideSystemApps = prefs[VPN_HIDE_SYSTEM_APPS] ?: true,
+                bypassMode = prefs[VPN_BYPASS_MODE] ?: true,
+                filteringEnabled = prefs[VPN_FILTERING_ENABLED] ?: true
+            )
+        }
+
     val excludedAppsFlow: Flow<Set<String>> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { prefs -> prefs[XRAY_EXCLUDED_APPS] ?: emptySet() }
@@ -402,6 +422,10 @@ class AppPreferences(context: Context) {
     val batteryNotificationDismissedFlow: Flow<Boolean> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { prefs -> prefs[BATTERY_NOTIFICATION_DISMISSED] ?: false }
+
+    val appsExclusionHintShownFlow: Flow<Boolean> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { prefs -> prefs[APPS_EXCLUSION_HINT_SHOWN] ?: false }
 
     val vkLinkHistoryFlow: Flow<List<String>> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
@@ -580,6 +604,10 @@ class AppPreferences(context: Context) {
         context.dataStore.edit { prefs -> prefs[BATTERY_NOTIFICATION_DISMISSED] = dismissed }
     }
 
+    suspend fun setAppsExclusionHintShown(shown: Boolean) {
+        context.dataStore.edit { prefs -> prefs[APPS_EXCLUSION_HINT_SHOWN] = shown }
+    }
+
     suspend fun saveWgConfig(config: WgConfig) {
         val c = (config as WgConfig?) ?: WgConfig()
         context.dataStore.edit { prefs ->
@@ -597,6 +625,15 @@ class AppPreferences(context: Context) {
         context.dataStore.edit { prefs ->
             prefs[XRAY_ENABLED] = (s.xrayEnabled as Boolean?) ?: false
             prefs[XRAY_VPN_MODE] = (s.xrayVpnMode as Boolean?) ?: false
+        }
+    }
+
+    suspend fun saveGlobalVpnSettings(settings: GlobalVpnSettings) {
+        val s = (settings as GlobalVpnSettings?) ?: GlobalVpnSettings()
+        context.dataStore.edit { prefs ->
+            prefs[VPN_HIDE_SYSTEM_APPS] = (s.hideSystemApps as Boolean?) ?: true
+            prefs[VPN_BYPASS_MODE] = (s.bypassMode as Boolean?) ?: true
+            prefs[VPN_FILTERING_ENABLED] = (s.filteringEnabled as Boolean?) ?: true
         }
     }
 

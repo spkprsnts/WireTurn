@@ -116,6 +116,7 @@ import kotlinx.coroutines.delay
 import com.wireturn.app.ui.InlineConfigIndicator
 import com.wireturn.app.ui.redact
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.AppExclusionTooltip
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.ProxyState
 import androidx.core.net.toUri
@@ -142,8 +143,10 @@ fun HomeScreen(
     val vpnServiceState by VpnServiceState.state.collectAsStateWithLifecycle()
     val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
     val xraySettings by viewModel.xraySettings.collectAsStateWithLifecycle()
+    val globalVpnSettings by viewModel.globalVpnSettings.collectAsStateWithLifecycle()
     val xrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
     val batteryNotificationDismissed by viewModel.batteryNotificationDismissed.collectAsStateWithLifecycle()
+    val appsExclusionHintShown by viewModel.appsExclusionHintShown.collectAsStateWithLifecycle()
     val customKernelExists by viewModel.customKernelExists.collectAsStateWithLifecycle()
     val vlessConfig by viewModel.vlessConfig.collectAsStateWithLifecycle()
     val runningConfig by ProxyServiceState.runningConfig.collectAsStateWithLifecycle()
@@ -848,15 +851,25 @@ fun HomeScreen(
                                 }
                             }
 
-                        IconButton(onClick = {
-                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                            onNavigateToExclusions()
-                        }) {
-                            Icon(
-                                painter = painterResource(R.drawable.apps_24px),
-                                contentDescription = stringResource(R.string.vpn_apps_exceptions),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        AppExclusionTooltip(
+                            hintShown = appsExclusionHintShown,
+                            onHintShown = { viewModel.setAppsExclusionHintShown(true) }
+                        ) {
+                            IconButton(onClick = {
+                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                if (!appsExclusionHintShown) {
+                                    viewModel.setAppsExclusionHintShown(true)
+                                }
+                                onNavigateToExclusions()
+                            }) {
+                                Icon(
+                                    painter = painterResource(R.drawable.apps_24px),
+                                    contentDescription = stringResource(R.string.vpn_apps_exceptions),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                        alpha = if (globalVpnSettings.filteringEnabled) 1f else 0.38f
+                                    )
+                                )
+                            }
                         }
 
                         Switch(checked = xraySettings.xrayVpnMode, onCheckedChange = { enabled ->

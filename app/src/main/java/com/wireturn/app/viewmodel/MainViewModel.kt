@@ -17,6 +17,7 @@ import com.wireturn.app.XrayServiceState
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.DCType
+import com.wireturn.app.data.GlobalVpnSettings
 import com.wireturn.app.data.Profile
 import com.wireturn.app.data.ThemeMode
 import com.wireturn.app.data.VlessConfig
@@ -73,11 +74,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _batteryNotificationDismissed = MutableStateFlow(false)
     val batteryNotificationDismissed: StateFlow<Boolean> = _batteryNotificationDismissed.asStateFlow()
 
+    private val _appsExclusionHintShown = MutableStateFlow(false)
+    val appsExclusionHintShown: StateFlow<Boolean> = _appsExclusionHintShown.asStateFlow()
+
     private val _wgConfig = MutableStateFlow(WgConfig())
     val wgConfig: StateFlow<WgConfig> = _wgConfig.asStateFlow()
 
     private val _xraySettings = MutableStateFlow(XraySettings())
     val xraySettings: StateFlow<XraySettings> = _xraySettings.asStateFlow()
+
+    private val _globalVpnSettings = MutableStateFlow<GlobalVpnSettings>(GlobalVpnSettings())
+    val globalVpnSettings: StateFlow<GlobalVpnSettings> = _globalVpnSettings.asStateFlow()
 
     private val _excludedApps = MutableStateFlow<Set<String>>(emptySet())
     val excludedApps: StateFlow<Set<String>> = _excludedApps.asStateFlow()
@@ -130,9 +137,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val dynamic = prefs.dynamicThemeFlow.first()
             val config = prefs.clientConfigFlow.first()
             val batteryDismissed = prefs.batteryNotificationDismissedFlow.first()
+            val appsExclusionHintShown = prefs.appsExclusionHintShownFlow.first()
 
             val wgConfig = prefs.wgConfigFlow.first()
             val xraySettings = prefs.xraySettingsFlow.first()
+            val globalVpnSettings = prefs.globalVpnSettingsFlow.first()
             val xrayConfig = prefs.xrayConfigFlow.first()
             val vlessConfig = prefs.vlessConfigFlow.first()
             val excludedApps = prefs.excludedAppsFlow.first()
@@ -142,8 +151,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _dynamicTheme.value = dynamic
             _clientConfig.value = config
             _batteryNotificationDismissed.value = batteryDismissed
+            _appsExclusionHintShown.value = appsExclusionHintShown
             _wgConfig.value = wgConfig
             _xraySettings.value = xraySettings
+            _globalVpnSettings.value = globalVpnSettings
             _xrayConfig.value = xrayConfig
             _vlessConfig.value = vlessConfig
             _excludedApps.value = excludedApps
@@ -175,10 +186,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.dynamicThemeFlow.collect { _dynamicTheme.value = it } }
             launch { prefs.clientConfigFlow.collect { _clientConfig.value = it } }
             launch { prefs.batteryNotificationDismissedFlow.collect { _batteryNotificationDismissed.value = it } }
+            launch { prefs.appsExclusionHintShownFlow.collect { _appsExclusionHintShown.value = it } }
             launch { prefs.wgConfigFlow.collect { _wgConfig.value = it } }
             launch { prefs.xraySettingsFlow.collect { _xraySettings.value = it } }
             launch { prefs.xrayConfigFlow.collect { _xrayConfig.value = it } }
             launch { prefs.vlessConfigFlow.collect { _vlessConfig.value = it } }
+            launch { prefs.globalVpnSettingsFlow.collect { _globalVpnSettings.value = it } }
             launch { prefs.excludedAppsFlow.collect { _excludedApps.value = it } }
         }
 
@@ -384,6 +397,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun removeVlessLinkFromHistory(link: String) { viewModelScope.launch { prefs.removeVlessLinkFromHistory(link) } }
     fun setOnboardingDone() { viewModelScope.launch { prefs.setOnboardingDone(true) } }
     fun setBatteryNotificationDismissed(dismissed: Boolean) { viewModelScope.launch { prefs.setBatteryNotificationDismissed(dismissed) } }
+    fun setAppsExclusionHintShown(shown: Boolean) { viewModelScope.launch { prefs.setAppsExclusionHintShown(shown) } }
 
     fun checkProxyPing() {
         val socksAddr = XrayServiceState.runningXrayConfig.value?.connectableAddress ?: return
@@ -451,6 +465,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             prefs.saveXraySettings(settings)
             updateCurrentProfileInList()
+        }
+    }
+
+    fun updateGlobalVpnSettings(settings: GlobalVpnSettings) {
+        _globalVpnSettings.value = settings
+        viewModelScope.launch {
+            prefs.saveGlobalVpnSettings(settings)
         }
     }
 

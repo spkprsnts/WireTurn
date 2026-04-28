@@ -7,6 +7,8 @@ import com.wireturn.app.viewmodel.XrayState
 import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.XrayConfig
+import com.wireturn.app.data.XraySettings
+import com.wireturn.app.data.GlobalVpnSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -41,17 +43,37 @@ class XrayService : Service() {
         serviceScope.launch {
             val prefs = AppPreferences(applicationContext)
             var lastExcludedApps: Set<String>? = null
+            var lastBypassMode: Boolean? = null
+            var lastFilteringEnabled: Boolean? = null
 
             combine(
-                XrayServiceState.state,
-                prefs.xraySettingsFlow,
-                prefs.excludedAppsFlow,
-                XrayServiceState.runningXrayConfig,
-                VpnServiceState.state
-            ) { state, xraySettings, excludedApps, runningXray, vpnState ->
+                listOf(
+                    XrayServiceState.state,
+                    prefs.xraySettingsFlow,
+                    prefs.globalVpnSettingsFlow,
+                    prefs.excludedAppsFlow,
+                    XrayServiceState.runningXrayConfig,
+                    VpnServiceState.state
+                )
+            ) { args ->
+                @Suppress("UNCHECKED_CAST")
+                val state = args[0] as XrayState
+                @Suppress("UNCHECKED_CAST")
+                val xraySettings = args[1] as XraySettings
+                @Suppress("UNCHECKED_CAST")
+                val globalVpn = args[2] as GlobalVpnSettings
+                @Suppress("UNCHECKED_CAST")
+                val excludedApps = args[3] as Set<String>
+                @Suppress("UNCHECKED_CAST")
+                val runningXray = args[4] as XrayConfig?
+                @Suppress("UNCHECKED_CAST")
+                val vpnState = args[5] as VpnState
+
                 DataBundle(
                     isRunning = state == XrayState.Running,
                     vpnEnabled = xraySettings.xrayVpnMode,
+                    bypassMode = globalVpn.bypassMode,
+                    filteringEnabled = globalVpn.filteringEnabled,
                     excludedApps = excludedApps,
                     runningXray = runningXray,
                     vpnState = vpnState
@@ -59,14 +81,19 @@ class XrayService : Service() {
             }.collect { bundle ->
                 withContext(Dispatchers.Main) {
                     val excludedChanged = lastExcludedApps != null && lastExcludedApps != bundle.excludedApps
+                    val bypassModeChanged = lastBypassMode != null && lastBypassMode != bundle.bypassMode
+                    val filteringChanged = lastFilteringEnabled != null && lastFilteringEnabled != bundle.filteringEnabled
+                    
                     lastExcludedApps = bundle.excludedApps
+                    lastBypassMode = bundle.bypassMode
+                    lastFilteringEnabled = bundle.filteringEnabled
 
                     if (bundle.isRunning && bundle.vpnEnabled) {
                         val runningXray = bundle.runningXray
                         val vpnRunning = bundle.vpnState != VpnState.Idle
 
                         if (runningXray != null) {
-                            if (!vpnRunning || (excludedChanged && bundle.vpnState == VpnState.Running)) {
+                            if (!vpnRunning || ((excludedChanged || bypassModeChanged || filteringChanged) && bundle.vpnState == VpnState.Running)) {
                                 if (vpnRunning) {
                                     AppLogsState.addLog("[VPN] Restarting due to settings change")
                                     val stopIntent = Intent(this@XrayService, Tun2SocksVpnService::class.java).apply {
@@ -102,6 +129,8 @@ class XrayService : Service() {
     private data class DataBundle(
         val isRunning: Boolean,
         val vpnEnabled: Boolean,
+        val bypassMode: Boolean,
+        val filteringEnabled: Boolean,
         val excludedApps: Set<String>,
         val runningXray: XrayConfig?,
         val vpnState: VpnState

@@ -88,21 +88,44 @@ class Tun2SocksVpnService : VpnService() {
         try {
             AppLogsState.addLog("[tun2socks] Establishing tunnel")
             val prefs = AppPreferences(applicationContext)
+            val globalVpn = prefs.globalVpnSettingsFlow.first()
             val excludedApps = prefs.excludedAppsFlow.first()
             
             val builder = this.Builder()
                 .setSession("wireturn VPN")
                 .addAddress("10.0.0.1", 32)
-                .addRoute("0.0.0.0", 0)
                 .addDnsServer("1.1.1.1")
                 .addDnsServer("8.8.8.8")
-                .addDisallowedApplication(packageName)
 
-            excludedApps.forEach { pkg ->
-                try {
-                    builder.addDisallowedApplication(pkg)
-                } catch (e: Exception) {
-                    AppLogsState.addLog("[VPN] Could not exclude $pkg: ${e.message}")
+            if (!globalVpn.filteringEnabled) {
+                // Если фильтрация выключена, всё идет через VPN (по умолчанию)
+                builder.addRoute("0.0.0.0", 0)
+                builder.addDisallowedApplication(packageName)
+                AppLogsState.addLog("[VPN] App filtering disabled: all traffic through VPN")
+            } else if (globalVpn.bypassMode) {
+                // Режим исключений (Exclude mode): все через VPN, кроме выбранных
+                builder.addRoute("0.0.0.0", 0)
+                builder.addDisallowedApplication(packageName)
+                excludedApps.forEach { pkg ->
+                    try {
+                        builder.addDisallowedApplication(pkg)
+                    } catch (e: Exception) {
+                        AppLogsState.addLog("[VPN] Could not exclude $pkg: ${e.message}")
+                    }
+                }
+            } else {
+                // Режим включения (Include mode): только выбранные через VPN
+                if (excludedApps.isNotEmpty()) {
+                    builder.addRoute("0.0.0.0", 0)
+                    excludedApps.forEach { pkg ->
+                        try {
+                            builder.addAllowedApplication(pkg)
+                        } catch (e: Exception) {
+                            AppLogsState.addLog("[VPN] Could not include $pkg: ${e.message}")
+                        }
+                    }
+                } else {
+                    AppLogsState.addLog("[VPN] Include mode with empty list: no apps will use VPN")
                 }
             }
 
