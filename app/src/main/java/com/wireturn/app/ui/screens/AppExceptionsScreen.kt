@@ -92,9 +92,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * Константы для оформления экрана исключений.
- */
 private object AppExceptionsDefaults {
     val AppBarMaxHeight = 152.dp
     val AppBarCollapsedHeight = 64.dp
@@ -116,7 +113,6 @@ fun AppExceptionsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Получаем контекст один раз для использования в колбэках и LaunchedEffect
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
@@ -125,8 +121,35 @@ fun AppExceptionsScreen(
     var isAppsLoading by remember { mutableStateOf(true) }
     var appList by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
+    var isSearching by remember { mutableStateOf(false) }
     
-    // Загрузка списка установленных приложений в фоновом потоке
+    // Дебаунс поискового запроса
+    var appliedSearchQuery by rememberSaveable { mutableStateOf("") }
+    LaunchedEffect(searchQuery) {
+        if (searchQuery.isBlank()) {
+            appliedSearchQuery = ""
+            isSearching = false
+        } else if (searchQuery != appliedSearchQuery) {
+            isSearching = true
+            delay(700)
+            appliedSearchQuery = searchQuery
+            isSearching = false
+        }
+    }
+
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    // Задержка для предотвращения перекрытия TopAppBar анимации SearchBar
+    var showTopBarOnTop by remember { mutableStateOf(!expanded) }
+    LaunchedEffect(expanded) {
+        if (expanded) {
+            showTopBarOnTop = false
+        } else {
+            delay(400)
+            showTopBarOnTop = true
+        }
+    }
+    
+    // Загрузка списка приложений
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
             val pm = context.packageManager
@@ -146,20 +169,33 @@ fun AppExceptionsScreen(
         }
     }
 
-    // Сортировка: сначала исключенные (активные), затем по алфавиту
-    val sortedAppList = remember(excludedApps, appList) {
+    // Сортировка: исключенные приложения всегда сверху, далее по алфавиту
+    // excludedApps намеренно исключен из ключей для предотвращения "прыжков" списка при кликах
+    val sortedAppList = remember(appliedSearchQuery, appList) {
         appList.sortedWith(
             compareByDescending<AppInfo> { excludedApps.contains(it.packageName) }
                 .thenBy { it.name.lowercase() }
         )
     }
 
-    // Фильтрация по поисковому запросу
-    val filteredApps = remember(searchQuery, sortedAppList) {
-        if (searchQuery.isBlank()) sortedAppList
+    val mainDisplayList = remember(appliedSearchQuery, sortedAppList) {
+        if (appliedSearchQuery.isBlank()) sortedAppList
         else sortedAppList.filter {
-            it.name.contains(searchQuery, ignoreCase = true) ||
-                    it.packageName.contains(searchQuery, ignoreCase = true)
+            it.name.contains(appliedSearchQuery, ignoreCase = true) ||
+                    it.packageName.contains(appliedSearchQuery, ignoreCase = true)
+        }
+    }
+
+    // Список для режима поиска: исключенные (если пусто) или результаты поиска
+    val searchDisplayList = remember(appliedSearchQuery, expanded, appList) {
+        if (appliedSearchQuery.isBlank()) {
+            appList.filter { excludedApps.contains(it.packageName) }
+                .sortedBy { it.name.lowercase() }
+        } else {
+            appList.filter {
+                it.name.contains(appliedSearchQuery, ignoreCase = true) ||
+                        it.packageName.contains(appliedSearchQuery, ignoreCase = true)
+            }.sortedBy { it.name.lowercase() }
         }
     }
 
@@ -167,7 +203,7 @@ fun AppExceptionsScreen(
     val clipboard = LocalClipboard.current
     val listState = rememberLazyListState()
 
-    // Подсветка недавно добавленных пакетов
+    // Временная подсветка импортированных приложений
     var newlyAddedPackages by remember { mutableStateOf(emptySet<String>()) }
     LaunchedEffect(newlyAddedPackages) {
         if (newlyAddedPackages.isNotEmpty()) {
@@ -176,12 +212,10 @@ fun AppExceptionsScreen(
         }
     }
 
-    // Подготовка строк (устраняет предупреждение линтера о LocalContext.current)
     val noAppsMsg = stringResource(R.string.no_apps_imported)
     val noAppsFoundMsg = stringResource(R.string.no_apps_found)
     val appsImportedFormat = stringResource(R.string.apps_imported_count)
 
-    // Импорт списка пакетов из буфера обмена
     val onImportFromClipboard = {
         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
         scope.launch {
@@ -204,7 +238,6 @@ fun AppExceptionsScreen(
                             newlyAddedPackages = validPackages
                             listState.animateScrollToItem(0)
                         }
-                        // Используем заранее полученную строку форматирования
                         snackbarHostState.showSnackbar(
                             appsImportedFormat.format(validPackages.size)
                         )
@@ -216,10 +249,8 @@ fun AppExceptionsScreen(
         }
     }
 
-    var expanded by rememberSaveable { mutableStateOf(false) }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
-    // Геометрия заголовка
     val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val appBarExpandableHeight = AppExceptionsDefaults.AppBarMaxHeight - AppExceptionsDefaults.AppBarCollapsedHeight
     val totalHeaderAreaHeight = appBarExpandableHeight + AppExceptionsDefaults.SearchBarHeight + (AppExceptionsDefaults.SearchBarGap * 2)
@@ -227,28 +258,36 @@ fun AppExceptionsScreen(
     val topBarCollapseLimitPx = with(density) { appBarExpandableHeight.toPx() }
     val totalHideLimitPx = with(density) { totalHeaderAreaHeight.toPx() }
 
-    // Состояние смещения для реализации "Enter Always" поведения
     var enterAlwaysOffsetPx by remember { mutableFloatStateOf(0f) }
     var isDragging by remember { mutableStateOf(false) }
     var lastScrollDirection by remember { mutableFloatStateOf(0f) }
     var isSnapAnimating by remember { mutableStateOf(false) }
 
+    val isScrollable by remember {
+        derivedStateOf {
+            listState.canScrollForward || listState.canScrollBackward
+        }
+    }
+
+    val isAtTop by remember { derivedStateOf { listState.firstVisibleItemIndex == 0 } }
+
+    val updateHeaderOffset = { delta: Float ->
+        val maxOffset = if (delta < 0f || isAtTop) 0f else -topBarCollapseLimitPx
+        enterAlwaysOffsetPx = (enterAlwaysOffsetPx + delta).coerceIn(-totalHideLimitPx, maxOffset)
+    }
+
     val customNestedScrollConnection = remember {
         object : NestedScrollConnection {
+            @Suppress("MethodAlwaysReturnsConstant", "SameReturnValue")
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (expanded) return Offset.Zero
+                if (expanded || !isScrollable) return Offset.Zero
 
                 if (source == NestedScrollSource.UserInput) {
                     isDragging = true
-                    val delta = available.y
-                    if (delta != 0f) lastScrollDirection = delta
-                    
-                    val maxOffset = if (delta < 0f || listState.firstVisibleItemIndex == 0) 0f else -topBarCollapseLimitPx
-                    enterAlwaysOffsetPx = (enterAlwaysOffsetPx + delta).coerceIn(-totalHideLimitPx, maxOffset)
+                    if (available.y != 0f) lastScrollDirection = available.y
+                    updateHeaderOffset(available.y)
                 }
-                
-                // Возвращаем Zero для параллельного скролла, обходя варн линтера
-                return if (available.x > Float.MAX_VALUE) available else Offset.Zero
+                return Offset.Zero
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
@@ -256,16 +295,16 @@ fun AppExceptionsScreen(
                 return Velocity.Zero
             }
 
+            @Suppress("MethodAlwaysReturnsConstant", "SameReturnValue")
             override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (!isScrollable) return Offset.Zero
                 scrollBehavior.state.contentOffset += consumed.y
                 
                 if (!expanded && !isDragging && !isSnapAnimating) {
-                    val delta = consumed.y
-                    val maxOffset = if (delta < 0f || listState.firstVisibleItemIndex == 0) 0f else -topBarCollapseLimitPx
-                    enterAlwaysOffsetPx = (enterAlwaysOffsetPx + delta).coerceIn(-totalHideLimitPx, maxOffset)
+                    updateHeaderOffset(consumed.y)
                 }
 
-                if (!expanded && available.y > 0f && listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0) {
+                if (!expanded && available.y > 0f && isAtTop && listState.firstVisibleItemScrollOffset == 0) {
                     enterAlwaysOffsetPx = 0f
                 }
                 return Offset.Zero
@@ -273,16 +312,22 @@ fun AppExceptionsScreen(
         }
     }
 
-    // Доводка (Snap) положения заголовка после скролла
+    LaunchedEffect(isScrollable, expanded) {
+        if (!isScrollable && !expanded) {
+            enterAlwaysOffsetPx = 0f
+        }
+    }
+
+    // Автоматическая доводка (Snap) заголовка
     LaunchedEffect(isDragging) {
         if (isDragging || expanded) return@LaunchedEffect
         snapshotFlow { listState.isScrollInProgress }.first { !it }
 
-        val isAtTop = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+        val isAtTopPos = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
         val snapForwardThreshold = topBarCollapseLimitPx * 0.3f
         val target = when {
             enterAlwaysOffsetPx > -snapForwardThreshold -> 0f
-            enterAlwaysOffsetPx > -topBarCollapseLimitPx -> if (isAtTop && lastScrollDirection >= 0f) 0f else -topBarCollapseLimitPx
+            enterAlwaysOffsetPx > -topBarCollapseLimitPx -> if (isAtTopPos && lastScrollDirection >= 0f) 0f else -topBarCollapseLimitPx
             else -> {
                 val distToVisible = abs(enterAlwaysOffsetPx - (-topBarCollapseLimitPx))
                 val distToHidden = abs(enterAlwaysOffsetPx - (-totalHideLimitPx))
@@ -323,8 +368,6 @@ fun AppExceptionsScreen(
         label = "animated_offset"
     )
 
-    // Эффективное смещение для заголовка: не даем ему раскрываться в середине списка
-    val isAtTop by remember { derivedStateOf { listState.firstVisibleItemIndex == 0 } }
     val headerHeightOffsetPx = if (isAtTop) {
         animatedOffsetPx
     } else {
@@ -343,7 +386,6 @@ fun AppExceptionsScreen(
         label = "expansion_fraction"
     )
 
-    // Позиционирование SearchBar
     val searchBarOffsetPx = if (isAtTop) animatedOffsetPx
                             else animatedOffsetPx.coerceAtMost(-topBarCollapseLimitPx)
     
@@ -375,19 +417,19 @@ fun AppExceptionsScreen(
 
                 if (isAppsLoading) {
                     item {
-                        Box(modifier = Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) {
+                        Box(modifier = Modifier.fillMaxWidth().padding(top = 64.dp), contentAlignment = Alignment.TopCenter) {
                             CircularWavyProgressIndicator()
                         }
                     }
-                } else if (filteredApps.isEmpty()) {
+                } else if (mainDisplayList.isEmpty()) {
                     item {
-                        Box(modifier = Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) {
+                        Box(modifier = Modifier.fillMaxWidth().padding(top = 64.dp), contentAlignment = Alignment.TopCenter) {
                             Text(noAppsFoundMsg, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 } else {
                     appListItems(
-                        apps = filteredApps,
+                        apps = mainDisplayList,
                         excludedApps = excludedApps,
                         newlyAddedPackages = newlyAddedPackages,
                         onToggleExclusion = { pkg ->
@@ -399,7 +441,6 @@ fun AppExceptionsScreen(
             }
         }
 
-        // Поле поиска (SearchBar)
         SearchBar(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -412,7 +453,11 @@ fun AppExceptionsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         query = searchQuery,
                         onQueryChange = { searchQuery = it },
-                        onSearch = { expanded = false },
+                        onSearch = { 
+                            appliedSearchQuery = searchQuery
+                            isSearching = false
+                            expanded = false 
+                        },
                         expanded = expanded,
                         onExpandedChange = { expanded = it },
                         placeholder = { Text(stringResource(R.string.search_apps)) },
@@ -446,29 +491,44 @@ fun AppExceptionsScreen(
             onExpandedChange = { expanded = it },
             windowInsets = WindowInsets(0, 0, 0, 0)
         ) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    bottom = 16.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-                )
-            ) {
-                appListItems(
-                    apps = filteredApps,
-                    excludedApps = excludedApps,
-                    newlyAddedPackages = newlyAddedPackages,
-                    onToggleExclusion = { pkg ->
-                        HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
-                        viewModel.toggleAppExclusion(pkg)
-                    }
-                )
+            if (isSearching) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(top = 64.dp),
+                    contentAlignment = Alignment.TopCenter
+                ) {
+                    CircularWavyProgressIndicator()
+                }
+            } else if (searchDisplayList.isEmpty() && searchQuery.isNotBlank()) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(top = 64.dp),
+                    contentAlignment = Alignment.TopCenter
+                ) {
+                    Text(noAppsFoundMsg, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        bottom = 16.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                    )
+                ) {
+                    appListItems(
+                        apps = searchDisplayList,
+                        excludedApps = excludedApps,
+                        newlyAddedPackages = newlyAddedPackages,
+                        onToggleExclusion = { pkg ->
+                            HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
+                            viewModel.toggleAppExclusion(pkg)
+                        }
+                    )
+                }
             }
         }
 
-        // Верхняя панель (TopAppBar)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .zIndex(if (expanded) 1f else 3f)
+                .zIndex(if (showTopBarOnTop) 3f else 1f)
         ) {
             LargeTopAppBar(
                 title = { Text(stringResource(R.string.vpn_apps_exceptions)) },
@@ -482,7 +542,7 @@ fun AppExceptionsScreen(
                         Icon(painterResource(R.drawable.content_paste_24px), contentDescription = null)
                     }
                 },
-                scrollBehavior = scrollBehavior,
+                scrollBehavior = if (isScrollable) scrollBehavior else null,
                 windowInsets = TopAppBarDefaults.windowInsets,
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
