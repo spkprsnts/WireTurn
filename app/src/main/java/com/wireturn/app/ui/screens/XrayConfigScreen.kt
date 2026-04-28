@@ -693,7 +693,10 @@ private fun VlessSettings(
                 supportingText = { Text(stringResource(R.string.vless_link_config_desc)) },
                 trailingIcon = {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        IconButton(onClick = onImportQr) {
+                        IconButton(
+                            onClick = onImportQr,
+                            modifier = Modifier.size(40.dp)
+                        ) {
                             Icon(painter = painterResource(R.drawable.qr_code_24px), contentDescription = null, modifier = Modifier.size(20.dp))
                         }
                         FieldTrailingIcons(

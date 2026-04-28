@@ -547,20 +547,24 @@ fun ClientSetupScreen(
                                                         maxLines = 5,
                                                         readOnly = privacyMode,
                                                         supportingText = { Text(stringResource(R.string.turnable_url_support)) },
-                                                        trailingIcon = if ((!privacyMode && turnableUrl.isNotBlank()) || turnableUrlHistory.isNotEmpty()) {
-                                                            {
-                                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                                    if (!privacyMode && turnableUrl.isNotBlank()) {
-                                                                        Box(
-                                                                            modifier = Modifier.size(40.dp),
-                                                                            contentAlignment = Alignment.Center
-                                                                        ) {
-                                                                            if (isUrlParsing) {
-                                                                                CircularWavyProgressIndicator(
-                                                                                    modifier = Modifier.size(20.dp)
-                                                                                )
-                                                                            } else {
-                                                                                IconButton(onClick = {
+                                                        trailingIcon = {
+                                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                                AnimatedVisibility(
+                                                                    visible = !privacyMode && turnableUrl.isNotBlank(),
+                                                                    enter = fadeIn() + expandVertically(),
+                                                                    exit = fadeOut() + shrinkVertically()
+                                                                ) {
+                                                                    Box(
+                                                                        modifier = Modifier.size(40.dp),
+                                                                        contentAlignment = Alignment.Center
+                                                                    ) {
+                                                                        if (isUrlParsing) {
+                                                                            CircularWavyProgressIndicator(
+                                                                                modifier = Modifier.size(20.dp)
+                                                                            )
+                                                                        } else {
+                                                                            IconButton(
+                                                                                onClick = {
                                                                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                                                                     scope.launch {
                                                                                         isUrlParsing = true
@@ -568,26 +572,27 @@ fun ClientSetupScreen(
                                                                                         showUrlEditor = true
                                                                                         isUrlParsing = false
                                                                                     }
-                                                                                }) {
-                                                                                    Icon(
-                                                                                        painter = painterResource(R.drawable.edit_24px),
-                                                                                        contentDescription = null,
-                                                                                        modifier = Modifier.size(20.dp)
-                                                                                    )
-                                                                                }
+                                                                                },
+                                                                                modifier = Modifier.size(40.dp)
+                                                                            ) {
+                                                                                Icon(
+                                                                                    painter = painterResource(R.drawable.edit_24px),
+                                                                                    contentDescription = null,
+                                                                                    modifier = Modifier.size(20.dp)
+                                                                                )
                                                                             }
                                                                         }
                                                                     }
-                                                                    FieldTrailingIcons(
-                                                                        history = turnableUrlHistory,
-                                                                        onSelect = { turnableUrl = it },
-                                                                        onRemove = { viewModel.removeTurnableUrlFromHistory(it) },
-                                                                        privacyMode = privacyMode,
-                                                                        iconSize = 20.dp
-                                                                    )
                                                                 }
+                                                                FieldTrailingIcons(
+                                                                    history = turnableUrlHistory,
+                                                                    onSelect = { turnableUrl = it },
+                                                                    onRemove = { viewModel.removeTurnableUrlFromHistory(it) },
+                                                                    privacyMode = privacyMode,
+                                                                    iconSize = 20.dp
+                                                                )
                                                             }
-                                                        } else null
+                                                        }
                                                     )
                                                 }
                                             }
