@@ -36,6 +36,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -78,9 +79,19 @@ class ProxyService : Service() {
             handleStopAction()
             return START_NOT_STICKY
         }
-        
+
         // Если уже запущено и основной цикл работает — ничего не делаем.
         if (ProxyServiceState.isRunning.value && proxyJob?.isActive == true) return START_STICKY
+
+        // Проверяем валидность конфига перед началом работы.
+        // Это защищает от фантомных запусков (например, после сброса настроек)
+        val prefs = AppPreferences(applicationContext)
+        val cfg = runBlocking { prefs.clientConfigFlow.first() }
+        if (!cfg.isValid) {
+            ProxyServiceState.setRunning(false)
+            stopSelf()
+            return START_NOT_STICKY
+        }
 
         initStartup()
         

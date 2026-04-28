@@ -225,7 +225,15 @@ data class Profile(
     @SerializedName("xrayConfig") val xrayConfig: XrayConfig = XrayConfig(),
     @SerializedName("wgConfig") val wgConfig: WgConfig = WgConfig(),
     @SerializedName("vlessConfig") val vlessConfig: VlessConfig = VlessConfig()
-)
+) {
+    fun isEmpty(): Boolean {
+        return clientConfig == ClientConfig() &&
+                wgConfig == WgConfig() &&
+                vlessConfig == VlessConfig() &&
+                xraySettings == XraySettings() &&
+                xrayConfig == XrayConfig()
+    }
+}
 
 // P2-3 / P3-6: всегда используем applicationContext, чтобы lazy-init encryptedPrefs
 class AppPreferences(context: Context) {

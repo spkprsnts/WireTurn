@@ -610,8 +610,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun reorderProfiles(newList: List<Profile>) = profileManager.reorderProfiles(newList)
     fun getProfileJson(id: String): String? = profileManager.getProfileJson(id)
     fun exportAllProfilesToZip(): ByteArray = profileManager.exportAllProfilesToZip()
-    fun importProfilesFromZip(inputStream: java.io.InputStream) = profileManager.importProfilesFromZip(inputStream)
-    fun importProfiles(data: List<Pair<String?, String>>) = profileManager.importProfiles(data)
+    fun importProfilesFromZip(inputStream: java.io.InputStream) = profileManager.importProfilesFromZip(inputStream) { id ->
+        selectProfileAndRestart(id)
+    }
+    fun importProfiles(data: List<Pair<String?, String>>) = profileManager.importProfiles(data) { id ->
+        selectProfileAndRestart(id)
+    }
 
     private fun isValidHostPort(address: String): Boolean {
         return com.wireturn.app.ui.ValidatorUtils.isValidHostPort(address)
@@ -619,10 +623,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun resetAllSettings(context: Context) {
         viewModelScope.launch {
-            if (ProxyServiceState.isRunning.value) {
-                context.stopService(Intent(context, ProxyService::class.java))
-                context.stopService(Intent(context, XrayService::class.java))
-            }
+            context.stopService(Intent(context, ProxyService::class.java))
+            context.stopService(Intent(context, XrayService::class.java))
+            ProxyServiceState.setRunning(false)
+            XrayServiceState.updateStatus(XrayState.Idle)
             prefs.resetAll()
             proxyManager.clearState()
             AppLogsState.clearLogs()

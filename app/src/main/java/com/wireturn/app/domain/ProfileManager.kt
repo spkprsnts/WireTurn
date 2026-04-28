@@ -130,7 +130,7 @@ class ProfileManager(
         return bos.toByteArray()
     }
 
-    fun importProfilesFromZip(inputStream: java.io.InputStream) {
+    fun importProfilesFromZip(inputStream: java.io.InputStream, onAutoSelect: ((String) -> Unit)? = null) {
         try {
             val extractedData = mutableListOf<Pair<String?, String>>()
             ZipInputStream(inputStream).use { zis ->
@@ -144,12 +144,12 @@ class ProfileManager(
                 }
             }
             if (extractedData.isNotEmpty()) {
-                importProfiles(extractedData)
+                importProfiles(extractedData, onAutoSelect)
             }
         } catch (_: Exception) {}
     }
 
-    fun importProfiles(data: List<Pair<String?, String>>) {
+    fun importProfiles(data: List<Pair<String?, String>>, onAutoSelect: ((String) -> Unit)? = null) {
         try {
             val gson = com.google.gson.Gson()
             val newProfiles = data.mapNotNull { (fileName, json) ->
@@ -173,8 +173,17 @@ class ProfileManager(
             }
             if (newProfiles.isEmpty()) return
             
-            val newList = profiles.value + newProfiles
-            scope.launch { prefs.saveProfiles(newList) }
+            val currentProfiles = profiles.value
+            val shouldReplace = currentProfiles.size == 1 && currentProfiles[0].isEmpty()
+            
+            val newList = if (shouldReplace) newProfiles else currentProfiles + newProfiles
+            
+            scope.launch {
+                prefs.saveProfiles(newList)
+                if (shouldReplace) {
+                    onAutoSelect?.invoke(newProfiles.first().id)
+                }
+            }
         } catch (_: Exception) {}
     }
 }
