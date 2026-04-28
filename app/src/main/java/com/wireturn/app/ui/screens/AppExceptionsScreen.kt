@@ -327,7 +327,25 @@ fun AppExceptionsScreen(
 
     val isScrollable by remember {
         derivedStateOf {
-            listState.canScrollForward || listState.canScrollBackward
+            val layoutInfo = listState.layoutInfo
+            val viewportHeight = layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset
+            if (viewportHeight <= 0) return@derivedStateOf false
+
+            val visibleItems = layoutInfo.visibleItemsInfo
+            if (visibleItems.isEmpty()) return@derivedStateOf false
+
+            // Если не все элементы в списке видны, значит контента достаточно для скролла и схлопывания шапки
+            if (visibleItems.size < layoutInfo.totalItemsCount) return@derivedStateOf true
+
+            // Если видны все элементы, вычисляем общую высоту контента (включая спейсеры)
+            val firstItem = visibleItems.first()
+            val lastItem = visibleItems.last()
+            val contentHeight = lastItem.offset + lastItem.size - firstItem.offset
+
+            // Разрешаем анимации шапки только если "лишнего" контента больше определенного порога (например, 64dp).
+            // Это предотвращает "ломание" топбара и серчбара, когда скролл составляет всего несколько пикселей.
+            val thresholdPx = with(density) { 64.dp.toPx() }
+            contentHeight > viewportHeight + thresholdPx
         }
     }
 
