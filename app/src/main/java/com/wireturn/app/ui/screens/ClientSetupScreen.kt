@@ -2,8 +2,6 @@
 
 package com.wireturn.app.ui.screens
 
-import android.annotation.SuppressLint
-import androidx.core.net.toUri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -35,7 +33,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -54,7 +51,6 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -73,7 +69,6 @@ import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.data.DCType
@@ -85,6 +80,7 @@ import com.wireturn.app.ui.InlineConfigIndicator
 import com.wireturn.app.ui.LabeledSegmentedButton
 import com.wireturn.app.ui.SectionHeader
 import com.wireturn.app.ui.SwitchRow
+import com.wireturn.app.ui.TurnableUrlEditorDialog
 import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.redact
 import com.wireturn.app.viewmodel.MainViewModel
@@ -888,130 +884,4 @@ fun ClientSetupScreen(
             }
         }
     }
-}
-
-@SuppressLint("AuthLeak")
-@Composable
-private fun TurnableUrlEditorDialog(
-    url: String,
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
-) {
-    val initialData = remember(url) {
-        try {
-            val uri = url.toUri()
-            val userInfo = uri.encodedUserInfo?.let { "$it@" } ?: ""
-            val scheme = uri.scheme ?: "turnable"
-            val host = uri.host ?: ""
-            val path = uri.path ?: ""
-            val baseUrl = "$scheme://$userInfo$host$path"
-            val params = uri.queryParameterNames.map { it to (uri.getQueryParameter(it) ?: "") }
-            baseUrl to params
-        } catch (_: Exception) {
-            url to emptyList()
-        }
-    }
-
-    var baseUrl by remember { mutableStateOf(initialData.first) }
-    var params by remember { mutableStateOf(initialData.second) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-        modifier = Modifier
-            .widthIn(max = 840.dp)
-            .fillMaxWidth(0.95f)
-            .padding(vertical = 24.dp),
-        title = { Text(stringResource(R.string.edit_url_params)) },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedTextField(
-                    value = baseUrl,
-                    onValueChange = { baseUrl = it },
-                    label = { Text(stringResource(R.string.url_base)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    supportingText = { Text("scheme://user:pass@host/path") }
-                )
-
-                HorizontalDivider(thickness = 0.5.dp)
-                Text(stringResource(R.string.edit_url_params), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-
-                params.forEachIndexed { index, pair ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = pair.first,
-                            onValueChange = { newKey ->
-                                params = params.toMutableList().apply { this[index] = newKey to pair.second }
-                            },
-                            label = { Text(stringResource(R.string.url_param_key)) },
-                            modifier = Modifier.weight(0.8f),
-                            singleLine = true
-                        )
-                        OutlinedTextField(
-                            value = pair.second,
-                            onValueChange = { newValue ->
-                                params = params.toMutableList().apply { this[index] = pair.first to newValue }
-                            },
-                            label = { Text(stringResource(R.string.url_param_value)) },
-                            modifier = Modifier.weight(2f),
-                            singleLine = true,
-                            trailingIcon = {
-                                IconButton(
-                                    onClick = {
-                                        params = params.toMutableList().apply { removeAt(index) }
-                                    }
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.delete_24px),
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                        )
-                    }
-                }
-
-                FilledTonalButton(
-                    onClick = { params = params + ("" to "") },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(stringResource(R.string.add_parameter))
-                }
-            }
-        },
-        confirmButton = {
-            Button(onClick = {
-                try {
-                    val builder = baseUrl.toUri().buildUpon()
-                    builder.clearQuery()
-                    params.forEach { (key, value) ->
-                        if (key.isNotBlank()) {
-                            builder.appendQueryParameter(key, value)
-                        }
-                    }
-                    onConfirm(builder.build().toString())
-                } catch (_: Exception) {
-                    onConfirm(baseUrl)
-                }
-            }) {
-                Text(stringResource(R.string.btn_save))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        }
-    )
 }
