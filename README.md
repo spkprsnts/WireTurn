@@ -41,7 +41,7 @@ Android-клиент для [vk-turn-proxy](https://github.com/spkprsnts/vk-turn
 ## Требования
 
 - Android 8.0+ (API 26)
-- Архитектуры: `arm64-v8a`, `armeabi-v7a`, `x86_64`
+- Архитектуры: `arm64-v8a`, `x86_64`
 - VPS с установленным WireGuard или VLESS-сервером
 
 ## Быстрый старт
