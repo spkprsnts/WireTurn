@@ -94,6 +94,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Clean Old Unstable Assets
+        if: github.ref == 'refs/heads/unstable'
+        run: |
+          gh release view unstable-latest --json assets -q '.assets[].name' | while read -r asset; do
+            gh release delete-asset unstable-latest "$asset" -y
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Update Unstable Release
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/unstable'

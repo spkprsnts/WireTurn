@@ -82,15 +82,18 @@ androidComponents {
 
         val isUnstable = branch == "unstable" || System.getenv("GITHUB_REF_NAME") == "unstable"
         val baseVersion = android.defaultConfig.versionName ?: "0.0"
-        val vName = if (isUnstable) "$baseVersion-unstable" else baseVersion
+        val vName = if (isUnstable) "$baseVersion-unstable-$gitHash" else baseVersion
         
         variant.outputs.forEach { output ->
             val abi = output.filters.find { it.filterType == com.android.build.api.variant.FilterConfiguration.FilterType.ABI }?.identifier ?: "universal"
-            val fileSuffix = if (isUnstable) "-$gitHash" else ""
+            // Для unstable убираем суффикс из имени файла, чтобы GitHub перезаписывал ассеты
+            val fileSuffix = "" 
             
-            // Устанавливаем версию и имя файла
+            // Устанавливаем версию (с хешем для отображения в приложении)
             output.versionName.set(vName)
-            output.outputFileName.set("WireTurn_v${vName}${fileSuffix}_${abi}.apk")
+            // Имя файла (без хеша для стабильной ссылки в релизах)
+            val fileNameBase = if (isUnstable) "$baseVersion-unstable" else vName
+            output.outputFileName.set("WireTurn_v${fileNameBase}${fileSuffix}_${abi}.apk")
         }
     }
 }

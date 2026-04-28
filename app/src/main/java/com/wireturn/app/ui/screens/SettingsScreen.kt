@@ -5,7 +5,6 @@
 
 package com.wireturn.app.ui.screens
 
-import android.os.Build
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
@@ -92,14 +91,7 @@ fun SettingsScreen(
     val appVersion = remember {
         try {
             val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            val versionName = packageInfo.versionName ?: dash
-            val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                packageInfo.longVersionCode
-            } else {
-                @Suppress("DEPRECATION")
-                packageInfo.versionCode.toLong()
-            }
-            "$versionName ($versionCode)"
+            packageInfo.versionName ?: dash
         } catch (_: Exception) {
             dash
         }
