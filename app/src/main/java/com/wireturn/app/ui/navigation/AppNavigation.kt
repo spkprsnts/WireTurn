@@ -3,19 +3,25 @@ package com.wireturn.app.ui.navigation
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -101,7 +107,13 @@ fun AppNavigation(
                 .padding(innerPadding)
         ) {
             val navBarsPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-            val bottomPadding = if (!isKeyboardVisible) navBarsPadding else 0.dp
+            
+            // Анимируем отступ контента, чтобы он не прыгал при появлении клавиатуры
+            val bottomPadding by animateDpAsState(
+                targetValue = if (!isKeyboardVisible) navBarsPadding else 0.dp,
+                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                label = "navBarPadding"
+            )
 
             NavHost(
                 navController = navController,
@@ -180,11 +192,17 @@ fun AppNavigation(
                 }
             }
 
-            // Навигационная панель как оверлей
+            // Навигационная панель как оверлей с анимацией по гайдлайнам M3
             AnimatedVisibility(
                 visible = showBottomBar,
-                enter = fadeIn(animationSpec = tween(150)),
-                exit = fadeOut(animationSpec = tween(150)),
+                enter = slideInVertically(
+                    initialOffsetY = { it }, 
+                    animationSpec = tween(durationMillis = 300, easing = LinearOutSlowInEasing)
+                ) + fadeIn(animationSpec = tween(durationMillis = 300)),
+                exit = slideOutVertically(
+                    targetOffsetY = { it },
+                    animationSpec = tween(durationMillis = 250, easing = FastOutLinearInEasing)
+                ) + fadeOut(animationSpec = tween(durationMillis = 250)),
                 modifier = Modifier.align(Alignment.BottomCenter)
             ) {
                 AppNavigationBar(
@@ -256,7 +274,8 @@ private fun AppNavigationBar(
                     .height(64.dp)
                     .widthIn(max = 600.dp),
                 containerColor = Color.Transparent,
-                tonalElevation = 0.dp
+                tonalElevation = 0.dp,
+                windowInsets = WindowInsets(0, 0, 0, 0)
             ) {
                 navItems.forEach { item ->
                     val selected = currentRoute == item.route
@@ -269,9 +288,9 @@ private fun AppNavigationBar(
                             )
                         },
                         colors = androidx.compose.material3.NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
                             unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                         ),
@@ -296,4 +315,3 @@ private fun AppNavigationBar(
         }
     }
 }
-
