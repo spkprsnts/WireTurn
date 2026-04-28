@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -318,6 +319,7 @@ class AppPreferences(context: Context) {
     val currentProfileIdFlow: Flow<String> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { it[CURRENT_PROFILE_ID] ?: "default" }
+        .distinctUntilChanged()
 
     val currentProfileNameFlow: Flow<String?> = combine(profilesFlow, currentProfileIdFlow) { profiles, id ->
         profiles.find { it.id == id }?.name
@@ -358,6 +360,7 @@ class AppPreferences(context: Context) {
                 kernelVariant = KernelVariant.valueOf(prefs[CLIENT_KERNEL_VARIANT] ?: KernelVariant.VK_TURN_PROXY.name)
             ).fillDefaults()
         }
+        .distinctUntilChanged()
 
     val wgConfigFlow: Flow<WgConfig> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
@@ -371,6 +374,7 @@ class AppPreferences(context: Context) {
                 persistentKeepalive = prefs[WIRE_KEEPALIVE] ?: ""
             )
         }
+        .distinctUntilChanged()
 
     val xraySettingsFlow: Flow<XraySettings> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
@@ -380,6 +384,7 @@ class AppPreferences(context: Context) {
                 xrayVpnMode = prefs[XRAY_VPN_MODE] ?: false
             )
         }
+        .distinctUntilChanged()
 
     val globalVpnSettingsFlow: Flow<GlobalVpnSettings> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
@@ -390,10 +395,12 @@ class AppPreferences(context: Context) {
                 filteringEnabled = prefs[VPN_FILTERING_ENABLED] ?: true
             )
         }
+        .distinctUntilChanged()
 
     val excludedAppsFlow: Flow<Set<String>> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { prefs -> prefs[XRAY_EXCLUDED_APPS] ?: emptySet() }
+        .distinctUntilChanged()
 
     val xrayConfigFlow: Flow<XrayConfig> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
@@ -404,6 +411,7 @@ class AppPreferences(context: Context) {
                 xrayConfiguration = XrayConfiguration.valueOf(prefs[XRAY_CONFIGURATION] ?: XrayConfiguration.WIREGUARD.name)
             )
         }
+        .distinctUntilChanged()
 
     val vlessConfigFlow: Flow<VlessConfig> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
@@ -413,32 +421,39 @@ class AppPreferences(context: Context) {
                 vlessUseLocalAddress = prefs[CLIENT_VLESS_USE_LOCAL_ADDRESS] ?: true
             )
         }
+        .distinctUntilChanged()
 
     val onboardingDoneFlow: Flow<Boolean> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { prefs -> prefs[ONBOARDING_DONE] ?: false }
+        .distinctUntilChanged()
 
     val dynamicThemeFlow: Flow<Boolean> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { prefs -> prefs[DYNAMIC_THEME] ?: true }
+        .distinctUntilChanged()
 
     val themeModeFlow: Flow<ThemeMode> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { prefs ->
             ThemeMode.valueOf(prefs[THEME_MODE] ?: ThemeMode.DARK.name)
         }
+        .distinctUntilChanged()
 
     val batteryNotificationDismissedFlow: Flow<Boolean> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { prefs -> prefs[BATTERY_NOTIFICATION_DISMISSED] ?: false }
+        .distinctUntilChanged()
 
     val appsExclusionHintShownFlow: Flow<Boolean> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { prefs -> prefs[APPS_EXCLUSION_HINT_SHOWN] ?: false }
+        .distinctUntilChanged()
 
     val allowUnstableUpdatesFlow: Flow<Boolean> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { prefs -> prefs[ALLOW_UNSTABLE_UPDATES] ?: false }
+        .distinctUntilChanged()
 
     val vkLinkHistoryFlow: Flow<List<String>> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
