@@ -62,8 +62,9 @@ class AppUpdater(private val context: Context) {
 
             val remoteTag = release.getString("tag_name")
             val remoteVersion = remoteTag.removePrefix("v")
+            val remoteBody = release.optString("body", "")
 
-            if (isNewer(remoteVersion, getCurrentVersion())) {
+            if (isNewer(remoteVersion, getCurrentVersion(), remoteBody)) {
                 latestApkUrl = findApkUrl(release)
                 if (latestApkUrl != null) {
                     val changelog = release.optString("body", "").trim()
@@ -231,8 +232,18 @@ class AppUpdater(private val context: Context) {
         private const val RELEASES_URL =
             "https://api.github.com/repos/spkprsnts/WireTurn/releases/latest"
 
-        fun isNewer(remote: String, current: String): Boolean {
-            if (remote == "unstable-latest") return true
+        fun isNewer(remote: String, current: String, remoteBody: String = ""): Boolean {
+            if (remote == "unstable-latest") {
+                // Если мы сами на unstable, проверяем хеш коммита в описании релиза
+                if (current.contains("unstable", ignoreCase = true)) {
+                    val currentHash = current.split("-").lastOrNull()
+                    if (currentHash != null && currentHash.length >= 7 && remoteBody.contains(currentHash)) {
+                        return false
+                    }
+                }
+                // В остальных случаях (мы на stable или хеш другой) считаем, что unstable-latest — это обнова
+                return true
+            }
 
             val remoteIsUnstable = remote.contains("unstable", ignoreCase = true)
             val currentIsUnstable = current.contains("unstable", ignoreCase = true)
