@@ -621,10 +621,18 @@ fun AppExceptionsScreen(
         ) {
             LargeTopAppBar(
                 title = {
-                    Text(
-                        if (globalVpn.bypassMode) stringResource(R.string.vpn_apps_exceptions)
-                        else stringResource(R.string.vpn_apps_inclusions)
-                    )
+                    Column {
+                        Text(
+                            if (globalVpn.bypassMode) stringResource(R.string.vpn_apps_exceptions)
+                            else stringResource(R.string.vpn_apps_inclusions)
+                        )
+                        Text(
+                            text = stringResource(R.string.vpn_apps_hint),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Normal
+                        )
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
