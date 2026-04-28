@@ -90,7 +90,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _xraySettings = MutableStateFlow(XraySettings())
     val xraySettings: StateFlow<XraySettings> = _xraySettings.asStateFlow()
 
-    private val _globalVpnSettings = MutableStateFlow<GlobalVpnSettings>(GlobalVpnSettings())
+    private val _globalVpnSettings = MutableStateFlow(GlobalVpnSettings())
     val globalVpnSettings: StateFlow<GlobalVpnSettings> = _globalVpnSettings.asStateFlow()
 
     private val _excludedApps = MutableStateFlow<Set<String>>(emptySet())
@@ -288,7 +288,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 var rxSpeed = 0L
                 var txSpeed = 0L
 
-                if (lastMetricsTime > 0 && now > lastMetricsTime) {
+                if (lastMetricsTime in 1..<now) {
                     val dt = (now - lastMetricsTime) / 1000.0
                     if (dt > 0) {
                         rxSpeed = ((rx - lastRx).coerceAtLeast(0) / dt).toLong()
