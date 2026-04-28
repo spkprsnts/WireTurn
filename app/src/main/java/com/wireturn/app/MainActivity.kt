@@ -2,6 +2,7 @@ package com.wireturn.app
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.animation.AnticipateInterpolator
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -37,6 +38,29 @@ class MainActivity : ComponentActivity() {
 
         // Удерживаем системный splash пока ViewModel не инициализируется
         splashScreen.setKeepOnScreenCondition { !viewModel.isInitialized.value }
+
+        // Анимация выхода в стиле Material 3
+        splashScreen.setOnExitAnimationListener { splashScreenView ->
+            val iconView = splashScreenView.iconView
+
+            // Анимация иконки: уменьшение и исчезновение
+            iconView.animate()
+                .scaleX(0.5f)
+                .scaleY(0.5f)
+                .alpha(0f)
+                .setDuration(300L)
+                .setInterpolator(AnticipateInterpolator())
+                .start()
+
+            // Анимация фона: плавное исчезновение
+            splashScreenView.view.animate()
+                .alpha(0f)
+                .setDuration(300L)
+                .withEndAction {
+                    splashScreenView.remove()
+                }
+                .start()
+        }
 
         ProcessLifecycleOwner.get().lifecycle.addObserver(object :
             DefaultLifecycleObserver {
