@@ -68,11 +68,77 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
+import com.wireturn.app.data.DCType
+import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.Profile
+import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+@Composable
+fun ProfileSummary(
+    profile: Profile,
+    color: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+) {
+    val clientConfig = profile.clientConfig
+    if (clientConfig.getValidationErrorResId() != null) return
+
+    val parts = mutableListOf<String>()
+
+    // Core mode
+    if (clientConfig.dcMode) {
+        parts.add(stringResource(R.string.dc_tunnel))
+        parts.add(
+            when (clientConfig.dcType) {
+                DCType.SALUTE_JAZZ -> stringResource(R.string.jazz_label)
+                DCType.WB_STREAM -> stringResource(R.string.wb_stream_label)
+            }
+        )
+    } else {
+        parts.add(stringResource(R.string.turn_tunnel))
+        parts.add(
+            when (clientConfig.kernelVariant) {
+                KernelVariant.VK_TURN_PROXY -> stringResource(R.string.kernel_vk_turn_proxy)
+                KernelVariant.TURNABLE -> stringResource(R.string.kernel_turnable)
+            }
+        )
+    }
+
+    if (clientConfig.isRawMode) {
+        parts.add(stringResource(R.string.raw_label))
+    }
+
+    if (profile.xraySettings.xrayEnabled) {
+        val config = profile.xrayConfig
+        val isValid = when (config.xrayConfiguration) {
+            XrayConfiguration.VLESS -> profile.vlessConfig.isValid()
+            XrayConfiguration.WIREGUARD -> profile.wgConfig.isValid()
+        }
+
+        if (isValid) {
+            parts.add(
+                when (config.xrayConfiguration) {
+                    XrayConfiguration.VLESS -> stringResource(R.string.vless)
+                    XrayConfiguration.WIREGUARD -> stringResource(R.string.wg_short)
+                }
+            )
+            if (profile.xraySettings.xrayVpnMode) {
+                parts.add(stringResource(R.string.vpn_short))
+            }
+        }
+    }
+
+    if (parts.isNotEmpty()) {
+        Text(
+            text = parts.joinToString(" • "),
+            style = MaterialTheme.typography.labelSmall,
+            color = color,
+            maxLines = 1
+        )
+    }
+}
 
 @Composable
 fun ProfilesBlock(
@@ -114,6 +180,7 @@ fun ProfilesBlock(
                             text = currentProfile.name,
                             style = MaterialTheme.typography.titleMedium
                         )
+                        ProfileSummary(currentProfile)
                     }
                 }
                 Text(
@@ -153,13 +220,19 @@ fun ProfileListItem(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             leadingContent?.invoke()
-            Text(
-                text = profile.name,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f)
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = profile.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                    color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                ProfileSummary(
+                    profile = profile,
+                    color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
             trailingContent?.invoke()
         }
     }
@@ -478,6 +551,18 @@ fun ProfilesDialog(
                                     onDismiss()
                                 }
                             }
+                        },
+                        leadingContent = {
+                            Icon(
+                                painter = painterResource(
+                                    if (isSelected) R.drawable.mobile_24px
+                                    else R.drawable.mobile_outlined_24px
+                                ),
+                                contentDescription = null,
+                                tint = if (isSelected) MaterialTheme.colorScheme.primary
+                                       else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.size(24.dp)
+                            )
                         },
                         modifier = Modifier
                             .fillMaxWidth()
