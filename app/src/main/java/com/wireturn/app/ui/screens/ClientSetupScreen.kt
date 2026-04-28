@@ -97,6 +97,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ClientSetupScreen(
     viewModel: MainViewModel,
+    modifier: Modifier = Modifier,
     showFinishButton: Boolean = false,
     onFinish: (() -> Unit)? = null
 ) {
@@ -202,6 +203,7 @@ fun ClientSetupScreen(
     val expandCollapseSpec = tween<androidx.compose.ui.unit.IntSize>(300, easing = FastOutSlowInEasing)
 
     Scaffold(
+        modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = { TopAppBar(title = { Text(stringResource(R.string.client_title)) }) },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)

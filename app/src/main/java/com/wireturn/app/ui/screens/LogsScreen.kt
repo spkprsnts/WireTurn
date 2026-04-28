@@ -61,7 +61,10 @@ import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
 
 @Composable
-fun LogsScreen(viewModel: MainViewModel) {
+fun LogsScreen(
+    viewModel: MainViewModel,
+    modifier: Modifier = Modifier
+) {
     val context = LocalContext.current
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
@@ -104,6 +107,7 @@ fun LogsScreen(viewModel: MainViewModel) {
     }
 
     Scaffold(
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.logs_title)) },

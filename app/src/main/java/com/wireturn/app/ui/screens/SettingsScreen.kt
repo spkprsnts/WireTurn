@@ -77,7 +77,8 @@ import com.wireturn.app.viewmodel.UpdateState
 
 @Composable
 fun SettingsScreen(
-    viewModel: MainViewModel
+    viewModel: MainViewModel,
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
@@ -104,6 +105,7 @@ fun SettingsScreen(
     }
 
     Scaffold(
+        modifier = modifier,
         topBar = { TopAppBar(title = { Text(stringResource(R.string.app_settings_title)) }) },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { padding ->

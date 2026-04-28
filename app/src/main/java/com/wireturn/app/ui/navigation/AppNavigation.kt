@@ -43,6 +43,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.screens.AppExceptionsScreen
 import com.wireturn.app.ui.screens.CaptchaWebViewDialog
 import com.wireturn.app.ui.screens.ClientSetupScreen
 import com.wireturn.app.ui.screens.HomeScreen
@@ -60,6 +61,7 @@ object Routes {
     const val HOME = "home"
     const val APP_SETTINGS = "app_settings"
     const val LOGS = "logs"
+    const val APP_EXCLUSIONS = "app_exclusions"
 }
 
 // Нижнее меню видно только в основном потоке, не во время онбординга
@@ -106,7 +108,6 @@ fun AppNavigation(
                 startDestination = finalStartDestination,
                 modifier = Modifier
                     .fillMaxSize()
-                    .statusBarsPadding()
                     .padding(bottom = bottomPadding),
                 enterTransition = { fadeIn(animationSpec = tween(100)) },
                 exitTransition = { fadeOut(animationSpec = tween(100)) },
@@ -118,6 +119,7 @@ fun AppNavigation(
 
                 composable(route = Routes.ONBOARDING) {
                     OnboardingScreen(
+                        modifier = Modifier.statusBarsPadding(),
                         onSkip = {
                             viewModel.setOnboardingDone()
                             navController.navigate(Routes.CLIENT_SETUP) {
@@ -131,6 +133,7 @@ fun AppNavigation(
                 composable(Routes.XRAY_CONFIG) {
                     key(currentProfileId) {
                         XrayConfigScreen(
+                            modifier = Modifier.statusBarsPadding(),
                             viewModel = viewModel,
                             showFinishButton = false
                         )
@@ -140,6 +143,7 @@ fun AppNavigation(
                 composable(route = Routes.CLIENT_SETUP) {
                     key(currentProfileId) {
                         ClientSetupScreen(
+                            modifier = Modifier.statusBarsPadding(),
                             viewModel = viewModel,
                             showFinishButton = false
                         )
@@ -148,16 +152,31 @@ fun AppNavigation(
 
                 composable(Routes.HOME) {
                     HomeScreen(
-                        viewModel = viewModel
+                        modifier = Modifier.statusBarsPadding(),
+                        viewModel = viewModel,
+                        onNavigateToExclusions = { navController.navigate(Routes.APP_EXCLUSIONS) }
                     )
                 }
 
                 composable(Routes.APP_SETTINGS) {
-                    SettingsScreen(viewModel = viewModel)
+                    SettingsScreen(
+                        modifier = Modifier.statusBarsPadding(),
+                        viewModel = viewModel
+                    )
                 }
 
                 composable(Routes.LOGS) {
-                    LogsScreen(viewModel = viewModel)
+                    LogsScreen(
+                        modifier = Modifier.statusBarsPadding(),
+                        viewModel = viewModel
+                    )
+                }
+
+                composable(Routes.APP_EXCLUSIONS) {
+                    AppExceptionsScreen(
+                        viewModel = viewModel,
+                        onBack = { navController.popBackStack() }
+                    )
                 }
             }
 

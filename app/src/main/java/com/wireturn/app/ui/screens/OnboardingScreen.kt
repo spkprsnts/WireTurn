@@ -48,7 +48,8 @@ import com.wireturn.app.ui.HapticUtil
 
 @Composable
 fun OnboardingScreen(
-    onSkip: () -> Unit
+    onSkip: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
 
@@ -85,7 +86,7 @@ fun OnboardingScreen(
     )
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(

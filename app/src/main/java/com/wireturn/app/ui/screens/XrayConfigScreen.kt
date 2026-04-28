@@ -86,6 +86,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun XrayConfigScreen(
     viewModel: MainViewModel,
+    modifier: Modifier = Modifier,
     showFinishButton: Boolean = false,
     onFinish: (() -> Unit)? = null
 ) {
@@ -221,6 +222,7 @@ fun XrayConfigScreen(
     val isHttpValid = remember(httpBindAddress) { httpBindAddress.isEmpty() || ValidatorUtils.isValidHostPort(httpBindAddress) }
 
     Scaffold(
+        modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
