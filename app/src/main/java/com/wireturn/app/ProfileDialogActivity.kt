@@ -12,6 +12,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.ui.screens.ProfilesDialog
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class ProfileDialogActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
@@ -26,6 +28,7 @@ class ProfileDialogActivity : ComponentActivity() {
             val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
             val context = LocalContext.current
+            val scope = rememberCoroutineScope()
 
             WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
                 val profileImportLauncher = rememberLauncherForActivityResult(
@@ -33,29 +36,36 @@ class ProfileDialogActivity : ComponentActivity() {
                 ) { uris ->
                     if (uris.isEmpty()) return@rememberLauncherForActivityResult
                     
-                    val data = uris.mapNotNull { uri ->
-                        try {
-                            val fileName = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                                val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-                                if (index != -1 && cursor.moveToFirst()) cursor.getString(index) else null
-                            } ?: uri.lastPathSegment
+                    scope.launch(Dispatchers.IO) {
+                        val jsonFiles = mutableListOf<Pair<String?, String>>()
+                        uris.forEach { uri ->
+                            try {
+                                val fileName = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                                    val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                                    if (index != -1 && cursor.moveToFirst()) cursor.getString(index) else null
+                                } ?: uri.lastPathSegment
 
-                            val json = context.contentResolver.openInputStream(uri)?.use { stream ->
-                                stream.bufferedReader().readText()
-                            }
-                            if (json != null) fileName to json else null
-                        } catch (_: Exception) {
-                            null
+                                if (fileName?.endsWith(".zip", ignoreCase = true) == true) {
+                                    context.contentResolver.openInputStream(uri)?.use { stream ->
+                                        viewModel.importProfilesFromZip(stream)
+                                    }
+                                } else {
+                                    val json = context.contentResolver.openInputStream(uri)?.use { stream ->
+                                        stream.bufferedReader().readText()
+                                    }
+                                    if (json != null) jsonFiles.add(fileName to json)
+                                }
+                            } catch (_: Exception) {}
                         }
-                    }
-                    if (data.isNotEmpty()) {
-                        viewModel.importProfiles(data)
+                        if (jsonFiles.isNotEmpty()) {
+                            viewModel.importProfiles(jsonFiles)
+                        }
                     }
                 }
 
                 ProfilesDialog(
                     viewModel = viewModel,
-                    onImport = { profileImportLauncher.launch(arrayOf("application/json")) },
+                    onImport = { profileImportLauncher.launch(arrayOf("application/json", "application/zip")) },
                     onDismiss = { finish() }
                 )
             }

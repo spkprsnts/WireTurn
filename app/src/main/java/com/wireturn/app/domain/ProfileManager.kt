@@ -12,7 +12,11 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.io.ByteArrayOutputStream
 import java.util.UUID
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
 
 class ProfileManager(
     private val prefs: AppPreferences,
@@ -109,6 +113,40 @@ class ProfileManager(
     fun getProfileJson(id: String): String? {
         val profile = profiles.value.find { it.id == id } ?: return null
         return com.google.gson.Gson().toJson(profile)
+    }
+
+    fun exportAllProfilesToZip(): ByteArray {
+        val bos = ByteArrayOutputStream()
+        ZipOutputStream(bos).use { zos ->
+            profiles.value.forEach { profile ->
+                val json = com.google.gson.Gson().toJson(profile)
+                val safeName = profile.name.replace(Regex("[\\\\/:*?\"<>| ]"), "_")
+                val entry = ZipEntry("wt_$safeName.json")
+                zos.putNextEntry(entry)
+                zos.write(json.toByteArray())
+                zos.closeEntry()
+            }
+        }
+        return bos.toByteArray()
+    }
+
+    fun importProfilesFromZip(inputStream: java.io.InputStream) {
+        try {
+            val extractedData = mutableListOf<Pair<String?, String>>()
+            ZipInputStream(inputStream).use { zis ->
+                var entry: ZipEntry? = zis.nextEntry
+                while (entry != null) {
+                    if (!entry.isDirectory && entry.name.endsWith(".json")) {
+                        val content = zis.readBytes().toString(Charsets.UTF_8)
+                        extractedData.add(entry.name to content)
+                    }
+                    entry = zis.nextEntry
+                }
+            }
+            if (extractedData.isNotEmpty()) {
+                importProfiles(extractedData)
+            }
+        } catch (_: Exception) {}
     }
 
     fun importProfiles(data: List<Pair<String?, String>>) {

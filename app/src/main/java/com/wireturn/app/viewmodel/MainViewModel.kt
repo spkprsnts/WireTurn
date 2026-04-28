@@ -609,6 +609,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun renameProfile(id: String, newName: String) = profileManager.renameProfile(id, newName)
     fun reorderProfiles(newList: List<Profile>) = profileManager.reorderProfiles(newList)
     fun getProfileJson(id: String): String? = profileManager.getProfileJson(id)
+    fun exportAllProfilesToZip(): ByteArray = profileManager.exportAllProfilesToZip()
+    fun importProfilesFromZip(inputStream: java.io.InputStream) = profileManager.importProfilesFromZip(inputStream)
     fun importProfiles(data: List<Pair<String?, String>>) = profileManager.importProfiles(data)
 
     private fun isValidHostPort(address: String): Boolean {

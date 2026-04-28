@@ -111,6 +111,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import com.wireturn.app.ui.InlineConfigIndicator
@@ -139,6 +140,7 @@ fun HomeScreen(
 ) {
     // --- State & Data ---
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val proxyState by viewModel.proxyState.collectAsStateWithLifecycle()
     val xrayState by XrayServiceState.state.collectAsStateWithLifecycle()
     val vpnServiceState by VpnServiceState.state.collectAsStateWithLifecycle()
@@ -237,23 +239,30 @@ fun HomeScreen(
     ) { uris ->
         if (uris.isEmpty()) return@rememberLauncherForActivityResult
         
-        val data = uris.mapNotNull { uri ->
-            try {
-                val fileName = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                    val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-                    if (index != -1 && cursor.moveToFirst()) cursor.getString(index) else null
-                } ?: uri.lastPathSegment
+        scope.launch(Dispatchers.IO) {
+            val jsonFiles = mutableListOf<Pair<String?, String>>()
+            uris.forEach { uri ->
+                try {
+                    val fileName = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                        val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                        if (index != -1 && cursor.moveToFirst()) cursor.getString(index) else null
+                    } ?: uri.lastPathSegment
 
-                val json = context.contentResolver.openInputStream(uri)?.use { stream ->
-                    stream.bufferedReader().readText()
-                }
-                if (json != null) fileName to json else null
-            } catch (_: Exception) {
-                null
+                    if (fileName?.endsWith(".zip", ignoreCase = true) == true) {
+                        context.contentResolver.openInputStream(uri)?.use { stream ->
+                            viewModel.importProfilesFromZip(stream)
+                        }
+                    } else {
+                        val json = context.contentResolver.openInputStream(uri)?.use { stream ->
+                            stream.bufferedReader().readText()
+                        }
+                        if (json != null) jsonFiles.add(fileName to json)
+                    }
+                } catch (_: Exception) {}
             }
-        }
-        if (data.isNotEmpty()) {
-            viewModel.importProfiles(data)
+            if (jsonFiles.isNotEmpty()) {
+                viewModel.importProfiles(jsonFiles)
+            }
         }
     }
 
@@ -297,7 +306,6 @@ fun HomeScreen(
     val warnWgMismatch = stringResource(R.string.warn_proxy_wg_mismatch)
     val warnVpnRequiresXray = stringResource(R.string.warn_vpn_requires_xray)
 
-    val scope = rememberCoroutineScope()
     var hasShownMismatchForCurrentRun by remember { mutableStateOf(xrayState == XrayState.Running) }
     LaunchedEffect(xrayState) {
         if (xrayState != XrayState.Running) {
@@ -720,7 +728,7 @@ fun HomeScreen(
             if (showProfilesDialog.value) {
                 ProfilesDialog(
                     viewModel = viewModel,
-                    onImport = { profileImportLauncher.launch(arrayOf("application/json")) },
+                    onImport = { profileImportLauncher.launch(arrayOf("application/json", "application/zip")) },
                     onDismiss = { showProfilesDialog.value = false }
                 )
             }

@@ -331,6 +331,7 @@
     <string name="profile_rename">Переименовать</string>
     <string name="profile_delete">Удалить</string>
     <string name="profile_export">Экспортировать</string>
+    <string name="profile_export_all">Экспортировать всё (zip)</string>
     <string name="profile_import">Импортировать</string>
     <string name="profile_name_label">Название профиля</string>
     <string name="profile_default_name">Основной профиль</string>

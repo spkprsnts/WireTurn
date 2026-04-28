@@ -210,6 +210,22 @@ fun ProfilesDialog(
         }
     }
 
+    var zipToExport by remember { mutableStateOf<ByteArray?>(null) }
+    val zipExportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/zip")
+    ) { uri ->
+        uri?.let { destination ->
+            zipToExport?.let { bytes ->
+                try {
+                    context.contentResolver.openOutputStream(destination)?.use {
+                        it.write(bytes)
+                    }
+                } catch (_: Exception) { }
+                zipToExport = null
+            }
+        }
+    }
+
     // Sync local list with source of truth only when NOT dragging
     LaunchedEffect(profilesSource) {
         if (draggedItemId == null && (profiles.size != profilesSource.size || profiles.toList() != profilesSource)) {
@@ -346,50 +362,62 @@ fun ProfilesDialog(
                         text = stringResource(R.string.profiles_title),
                         style = MaterialTheme.typography.titleLarge
                     )
-                    Box {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = {
                             HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                            addMenuExpanded = true
+                            zipToExport = viewModel.exportAllProfilesToZip()
+                            zipExportLauncher.launch("wt_profiles_backup.zip")
                         }) {
                             Icon(
-                                painterResource(R.drawable.add_24px),
-                                contentDescription = stringResource(R.string.profile_create)
+                                painterResource(R.drawable.ios_share_24px),
+                                contentDescription = stringResource(R.string.profile_export_all)
                             )
                         }
-                        DropdownMenu(
-                            expanded = addMenuExpanded,
-                            onDismissRequest = { addMenuExpanded = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.profile_create)) },
-                                leadingIcon = {
-                                    Icon(
-                                        painterResource(R.drawable.add_24px),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                },
-                                onClick = {
-                                    addMenuExpanded = false
-                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                    showCreateDialog.value = true
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.profile_import)) },
-                                leadingIcon = {
-                                    Icon(
-                                        painterResource(R.drawable.file_open_24px),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                },
-                                onClick = {
-                                    addMenuExpanded = false
-                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                    onImport()
-                                }
-                            )
+                        Box {
+                            IconButton(onClick = {
+                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                addMenuExpanded = true
+                            }) {
+                                Icon(
+                                    painterResource(R.drawable.add_24px),
+                                    contentDescription = stringResource(R.string.profile_create)
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = addMenuExpanded,
+                                onDismissRequest = { addMenuExpanded = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.profile_create)) },
+                                    leadingIcon = {
+                                        Icon(
+                                            painterResource(R.drawable.add_24px),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    },
+                                    onClick = {
+                                        addMenuExpanded = false
+                                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                        showCreateDialog.value = true
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.profile_import)) },
+                                    leadingIcon = {
+                                        Icon(
+                                            painterResource(R.drawable.file_open_24px),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    },
+                                    onClick = {
+                                        addMenuExpanded = false
+                                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                        onImport()
+                                    }
+                                )
+                            }
                         }
                     }
                 }
