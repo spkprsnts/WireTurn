@@ -39,10 +39,14 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.FlowPreview
 import java.net.InetSocketAddress
 import java.net.Proxy
 import kotlin.system.measureTimeMillis
 
+@OptIn(FlowPreview::class)
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val prefs = AppPreferences(application)
@@ -76,6 +80,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _appsExclusionHintShown = MutableStateFlow(false)
     val appsExclusionHintShown: StateFlow<Boolean> = _appsExclusionHintShown.asStateFlow()
+
+    private val _allowUnstableUpdates = MutableStateFlow(false)
+    val allowUnstableUpdates: StateFlow<Boolean> = _allowUnstableUpdates.asStateFlow()
 
     private val _wgConfig = MutableStateFlow(WgConfig())
     val wgConfig: StateFlow<WgConfig> = _wgConfig.asStateFlow()
@@ -138,6 +145,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val config = prefs.clientConfigFlow.first()
             val batteryDismissed = prefs.batteryNotificationDismissedFlow.first()
             val appsExclusionHintShown = prefs.appsExclusionHintShownFlow.first()
+            val allowUnstableUpdates = prefs.allowUnstableUpdatesFlow.first()
 
             val wgConfig = prefs.wgConfigFlow.first()
             val xraySettings = prefs.xraySettingsFlow.first()
@@ -152,6 +160,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _clientConfig.value = config
             _batteryNotificationDismissed.value = batteryDismissed
             _appsExclusionHintShown.value = appsExclusionHintShown
+            _allowUnstableUpdates.value = allowUnstableUpdates
             _wgConfig.value = wgConfig
             _xraySettings.value = xraySettings
             _globalVpnSettings.value = globalVpnSettings
@@ -178,7 +187,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             viewModelScope.launch {
                 delay(2000)
-                appUpdater.checkForUpdate(silent = true)
+                appUpdater.checkForUpdate(silent = true, allowUnstable = _allowUnstableUpdates.value)
             }
 
             launch { prefs.onboardingDoneFlow.collect { _onboardingDone.value = it } }
@@ -187,6 +196,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.clientConfigFlow.collect { _clientConfig.value = it } }
             launch { prefs.batteryNotificationDismissedFlow.collect { _batteryNotificationDismissed.value = it } }
             launch { prefs.appsExclusionHintShownFlow.collect { _appsExclusionHintShown.value = it } }
+            launch { prefs.allowUnstableUpdatesFlow.collect { _allowUnstableUpdates.value = it } }
+            launch {
+                prefs.allowUnstableUpdatesFlow
+                    .drop(1)
+                    .debounce(1000)
+                    .collect { allow ->
+                        appUpdater.checkForUpdate(silent = true, allowUnstable = allow)
+                    }
+            }
             launch { prefs.wgConfigFlow.collect { _wgConfig.value = it } }
             launch { prefs.xraySettingsFlow.collect { _xraySettings.value = it } }
             launch { prefs.xrayConfigFlow.collect { _xrayConfig.value = it } }
@@ -398,6 +416,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setOnboardingDone() { viewModelScope.launch { prefs.setOnboardingDone(true) } }
     fun setBatteryNotificationDismissed(dismissed: Boolean) { viewModelScope.launch { prefs.setBatteryNotificationDismissed(dismissed) } }
     fun setAppsExclusionHintShown(shown: Boolean) { viewModelScope.launch { prefs.setAppsExclusionHintShown(shown) } }
+    fun setAllowUnstableUpdates(allow: Boolean) { viewModelScope.launch { prefs.setAllowUnstableUpdates(allow) } }
 
     fun checkProxyPing() {
         val socksAddr = XrayServiceState.runningXrayConfig.value?.connectableAddress ?: return
@@ -448,7 +467,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setCustomKernel(uri: Uri) { viewModelScope.launch { _kernelError.value = proxyManager.setCustomKernel(uri) } }
     fun clearCustomKernel() { proxyManager.clearCustomKernel() }
     fun clearKernelError() { _kernelError.value = null }
-    fun checkForUpdate() { viewModelScope.launch { appUpdater.checkForUpdate(silent = false) } }
+    fun checkForUpdate() { viewModelScope.launch { appUpdater.checkForUpdate(silent = false, allowUnstable = _allowUnstableUpdates.value) } }
     fun downloadUpdate() { viewModelScope.launch { appUpdater.downloadUpdate() } }
     fun installUpdate() { appUpdater.installUpdate() }
 

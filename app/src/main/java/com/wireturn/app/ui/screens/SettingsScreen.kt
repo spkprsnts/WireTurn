@@ -58,6 +58,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
@@ -78,14 +80,25 @@ import com.wireturn.app.viewmodel.UpdateState
 @Composable
 fun SettingsScreen(
     viewModel: MainViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    scrollToUpdate: Boolean = false
 ) {
     val context = LocalContext.current
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
     val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
+    val allowUnstableUpdates by viewModel.allowUnstableUpdates.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
     val showResetDialog = rememberSaveable { mutableStateOf(false) }
+
+    val scrollState = rememberScrollState()
+    var updateBlockOffset by remember { mutableStateOf(0f) }
+
+    LaunchedEffect(scrollToUpdate, updateBlockOffset) {
+        if (scrollToUpdate && updateBlockOffset > 0f) {
+            scrollState.animateScrollTo(updateBlockOffset.toInt())
+        }
+    }
 
     val dash = stringResource(R.string.dash)
     val appVersion = remember {
@@ -112,7 +125,7 @@ fun SettingsScreen(
                 .consumeWindowInsets(padding)
                 .imePadding()
                 .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 .padding(bottom = 80.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -180,21 +193,45 @@ fun SettingsScreen(
             }
 
             // 3. Обновление
-            UpdateBlock(
-                state = updateState,
-                onCheck = {
-                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                    viewModel.checkForUpdate()
-                },
-                onDownload = {
-                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                    viewModel.downloadUpdate()
-                },
-                onInstall = {
-                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                    viewModel.installUpdate()
+            OutlinedCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onGloballyPositioned { coordinates ->
+                        updateBlockOffset = coordinates.positionInParent().y
+                    }
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    SectionHeader(stringResource(R.string.update_title))
+                    Spacer(Modifier.height(16.dp))
+
+                    UpdateBlock(
+                        state = updateState,
+                        onCheck = {
+                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                            viewModel.checkForUpdate()
+                        },
+                        onDownload = {
+                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                            viewModel.downloadUpdate()
+                        },
+                        onInstall = {
+                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                            viewModel.installUpdate()
+                        }
+                    )
+
+                    Spacer(Modifier.height(16.dp))
+                    HorizontalDivider(thickness = 0.5.dp)
+                    Spacer(Modifier.height(16.dp))
+
+                    SwitchRow(
+                        label = stringResource(R.string.unstable_updates_title),
+                        description = stringResource(R.string.unstable_updates_desc),
+                        checked = allowUnstableUpdates,
+                        onCheckedChange = { viewModel.setAllowUnstableUpdates(it) }
+                    )
                 }
-            )
+            }
 
             // 4. Сброс настроек
             Surface(

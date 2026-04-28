@@ -48,6 +48,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import androidx.navigation.NavType
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.screens.AppExceptionsScreen
 import com.wireturn.app.ui.screens.CaptchaWebViewDialog
@@ -65,7 +67,8 @@ object Routes {
     const val XRAY_CONFIG = "xray_config"
     const val CLIENT_SETUP = "client_setup"
     const val HOME = "home"
-    const val APP_SETTINGS = "app_settings"
+    const val APP_SETTINGS = "app_settings?scrollToUpdate={scrollToUpdate}"
+    fun appSettings(scrollToUpdate: Boolean = false) = "app_settings?scrollToUpdate=$scrollToUpdate"
     const val LOGS = "logs"
     const val APP_EXCLUSIONS = "app_exclusions"
 }
@@ -95,7 +98,11 @@ fun AppNavigation(
 
     // Определяем, видна ли клавиатура
     val isKeyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
-    val showBottomBar = currentRoute in BOTTOM_NAV_ROUTES && !isKeyboardVisible
+    
+    // Проверяем, относится ли текущий маршрут к тем, где нужно показывать BottomBar
+    // Используем startsWith, так как в маршрутах могут быть параметры (например, в настройках)
+    val showBottomBar = !isKeyboardVisible && currentRoute != null && 
+        BOTTOM_NAV_ROUTES.any { currentRoute.startsWith(it.split("?")[0]) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -166,14 +173,29 @@ fun AppNavigation(
                     HomeScreen(
                         modifier = Modifier.statusBarsPadding(),
                         viewModel = viewModel,
-                        onNavigateToExclusions = { navController.navigate(Routes.APP_EXCLUSIONS) }
+                        onNavigateToExclusions = { navController.navigate(Routes.APP_EXCLUSIONS) },
+                        onNavigateToSettings = { 
+                            navController.navigate(Routes.appSettings(scrollToUpdate = true)) {
+                                popUpTo(Routes.HOME) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
                     )
                 }
 
-                composable(Routes.APP_SETTINGS) {
+                composable(
+                    route = Routes.APP_SETTINGS,
+                    arguments = listOf(navArgument("scrollToUpdate") {
+                        type = NavType.BoolType
+                        defaultValue = false
+                    })
+                ) { backStackEntry ->
+                    val scrollToUpdate = backStackEntry.arguments?.getBoolean("scrollToUpdate") ?: false
                     SettingsScreen(
                         modifier = Modifier.statusBarsPadding(),
-                        viewModel = viewModel
+                        viewModel = viewModel,
+                        scrollToUpdate = scrollToUpdate
                     )
                 }
 
@@ -249,7 +271,7 @@ private val navItems = listOf(
     NavItem(Routes.HOME, R.string.nav_home, R.drawable.home_24px, R.drawable.home_outlined_24px),
     NavItem(Routes.CLIENT_SETUP, R.string.client_title, R.drawable.mobile_24px, R.drawable.mobile_outlined_24px),
     NavItem(Routes.XRAY_CONFIG, R.string.xray_short, R.drawable.ic_xray_24px, R.drawable.ic_xray_24px),
-    NavItem(Routes.APP_SETTINGS, R.string.app_settings_title, R.drawable.baseline_app_settings_alt_24px, R.drawable.outline_app_settings_alt_24px),
+    NavItem(Routes.appSettings(), R.string.app_settings_title, R.drawable.baseline_app_settings_alt_24px, R.drawable.outline_app_settings_alt_24px),
     NavItem(Routes.LOGS, R.string.logs_title, R.drawable.terminal_24px, R.drawable.terminal_24px)
 )
 
@@ -278,7 +300,11 @@ private fun AppNavigationBar(
                 windowInsets = WindowInsets(0, 0, 0, 0)
             ) {
                 navItems.forEach { item ->
-                    val selected = currentRoute == item.route
+                    // Сравниваем только базовую часть маршрута без параметров
+                    val itemBaseRoute = item.route.split("?")[0]
+                    val currentBaseRoute = currentRoute?.split("?")[0]
+                    val selected = currentBaseRoute == itemBaseRoute
+
                     NavigationBarItem(
                         selected = selected,
                         label = {

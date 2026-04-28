@@ -205,6 +205,8 @@
     <string name="theme_system">Системная</string>
     <string name="privacy_mode_title">Приватный режим</string>
     <string name="privacy_mode_desc">Скрывает IP и порты</string>
+    <string name="unstable_updates_title">Бета-версии</string>
+    <string name="unstable_updates_desc">Проверять нестабильные обновления</string>
 
     <!-- Проверка задержки (Ping) -->
     <string name="ping_error">Ошибка</string>

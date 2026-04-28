@@ -134,6 +134,7 @@ import kotlin.math.pow
 fun HomeScreen(
     viewModel: MainViewModel,
     onNavigateToExclusions: () -> Unit,
+    onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     // --- State & Data ---
@@ -153,6 +154,7 @@ fun HomeScreen(
     val runningWgConfig by XrayServiceState.runningWgConfig.collectAsStateWithLifecycle()
     val runningVlessConfig by XrayServiceState.runningVlessConfig.collectAsStateWithLifecycle()
     val runningXrayConfig by XrayServiceState.runningXrayConfig.collectAsStateWithLifecycle()
+    val updateState by viewModel.updateState.collectAsStateWithLifecycle()
 
     val currentProfileId by viewModel.currentProfileId.collectAsStateWithLifecycle()
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
@@ -362,7 +364,21 @@ fun HomeScreen(
                 }
             }
 
-            // 1. Permission & Optimization Banner
+            // 1. Update Banner
+            UpdateBanner(
+                state = updateState,
+                onDownload = { viewModel.downloadUpdate() },
+                onInstall = { viewModel.installUpdate() },
+                onDetails = onNavigateToSettings
+            )
+            
+            if (updateState is com.wireturn.app.viewmodel.UpdateState.Available || 
+                updateState is com.wireturn.app.viewmodel.UpdateState.Downloading || 
+                updateState is com.wireturn.app.viewmodel.UpdateState.ReadyToInstall) {
+                Spacer(Modifier.height(8.dp))
+            }
+
+            // 2. Permission & Optimization Banner
             AnimatedVisibility(
                 visible = (!isIgnoringBatteryOptimizations || !hasNotificationPermission) && !batteryNotificationDismissed,
                 enter = fadeIn() + expandVertically(),
@@ -1226,6 +1242,109 @@ fun HomeScreen(
             RepoLinksContent(
                 containerColor = sheetColor
             )
+        }
+    }
+}
+
+@Composable
+private fun UpdateBanner(
+    state: com.wireturn.app.viewmodel.UpdateState,
+    onDownload: () -> Unit,
+    onInstall: () -> Unit,
+    onDetails: () -> Unit
+) {
+    val context = LocalContext.current
+    val isVisible = state is com.wireturn.app.viewmodel.UpdateState.Available || state is com.wireturn.app.viewmodel.UpdateState.ReadyToInstall || state is com.wireturn.app.viewmodel.UpdateState.Downloading
+
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = fadeIn() + expandVertically(),
+        exit = fadeOut() + shrinkVertically()
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer
+            ),
+            shape = MaterialTheme.shapes.medium,
+            onClick = onDetails
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.refresh_24px),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = when (state) {
+                            is com.wireturn.app.viewmodel.UpdateState.Available -> stringResource(R.string.update_available, state.version)
+                            is com.wireturn.app.viewmodel.UpdateState.Downloading -> stringResource(R.string.update_downloading, state.progress)
+                            is com.wireturn.app.viewmodel.UpdateState.ReadyToInstall -> stringResource(R.string.update_ready_desc_short)
+                            else -> ""
+                        },
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    // Кнопки действий
+                    when (state) {
+                        is com.wireturn.app.viewmodel.UpdateState.Available -> {
+                            TextButton(
+                                onClick = {
+                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                    onDownload()
+                                },
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text(stringResource(R.string.update_download), style = MaterialTheme.typography.labelLarge)
+                            }
+                        }
+                        is com.wireturn.app.viewmodel.UpdateState.ReadyToInstall -> {
+                            TextButton(
+                                onClick = {
+                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                    onInstall()
+                                },
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text(stringResource(R.string.update_install), style = MaterialTheme.typography.labelLarge)
+                            }
+                        }
+                        else -> {}
+                    }
+
+                    Spacer(Modifier.width(4.dp))
+                    Icon(
+                        painter = painterResource(R.drawable.open_in_new_24px),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.5f),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
+                if (state is com.wireturn.app.viewmodel.UpdateState.Downloading) {
+                    androidx.compose.material3.LinearWavyProgressIndicator(
+                        progress = { state.progress / 100f },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp, bottom = 4.dp),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
         }
     }
 }

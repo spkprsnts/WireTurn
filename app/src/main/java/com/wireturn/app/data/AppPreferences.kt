@@ -280,6 +280,7 @@ class AppPreferences(context: Context) {
         val TURNABLE_URL_HISTORY = stringPreferencesKey("turnable_url_history")
         val BATTERY_NOTIFICATION_DISMISSED = booleanPreferencesKey("battery_notification_dismissed")
         val APPS_EXCLUSION_HINT_SHOWN = booleanPreferencesKey("apps_exclusion_hint_shown")
+        val ALLOW_UNSTABLE_UPDATES = booleanPreferencesKey("allow_unstable_updates")
     }
 
     val profilesFlow: Flow<List<Profile>> = context.dataStore.data
@@ -426,6 +427,10 @@ class AppPreferences(context: Context) {
     val appsExclusionHintShownFlow: Flow<Boolean> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { prefs -> prefs[APPS_EXCLUSION_HINT_SHOWN] ?: false }
+
+    val allowUnstableUpdatesFlow: Flow<Boolean> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { prefs -> prefs[ALLOW_UNSTABLE_UPDATES] ?: false }
 
     val vkLinkHistoryFlow: Flow<List<String>> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
@@ -606,6 +611,10 @@ class AppPreferences(context: Context) {
 
     suspend fun setAppsExclusionHintShown(shown: Boolean) {
         context.dataStore.edit { prefs -> prefs[APPS_EXCLUSION_HINT_SHOWN] = shown }
+    }
+
+    suspend fun setAllowUnstableUpdates(allow: Boolean) {
+        context.dataStore.edit { prefs -> prefs[ALLOW_UNSTABLE_UPDATES] = allow }
     }
 
     suspend fun saveWgConfig(config: WgConfig) {

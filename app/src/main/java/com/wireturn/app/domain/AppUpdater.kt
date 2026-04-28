@@ -37,16 +37,20 @@ class AppUpdater(private val context: Context) {
      * @param silent true — при ошибке сети остаёмся в [UpdateState.Idle] (автопроверка при запуске).
      *               false — показываем [UpdateState.Error] (ручная проверка из UI).
      */
-    suspend fun checkForUpdate(silent: Boolean = false) {
+    suspend fun checkForUpdate(silent: Boolean = false, allowUnstable: Boolean = false) {
         _state.value = UpdateState.Checking
         try {
-            var release = withContext(Dispatchers.IO) { fetchLatestRelease() }
+            var release = withContext(Dispatchers.IO) { 
+                if (allowUnstable) fetchReleaseByTag("unstable-latest") else fetchLatestRelease() 
+            }
             
             if (release == null) {
                 // Try again with xray if conditions are met
                 val proxy = getXrayIfRunning()
                 if (proxy != null) {
-                    release = withContext(Dispatchers.IO) { fetchLatestRelease(proxy) }
+                    release = withContext(Dispatchers.IO) { 
+                        if (allowUnstable) fetchReleaseByTag("unstable-latest", proxy) else fetchLatestRelease(proxy) 
+                    }
                 }
             }
 
@@ -56,7 +60,8 @@ class AppUpdater(private val context: Context) {
                 return
             }
 
-            val remoteVersion = release.getString("tag_name").removePrefix("v")
+            val remoteTag = release.getString("tag_name")
+            val remoteVersion = remoteTag.removePrefix("v")
 
             if (isNewer(remoteVersion, getCurrentVersion())) {
                 latestApkUrl = findApkUrl(release)
@@ -139,17 +144,22 @@ class AppUpdater(private val context: Context) {
         context.startActivity(intent)
     }
 
-    fun resetState() {
-        _state.value = UpdateState.Idle
-    }
-
     // Private
 
     private fun fetchLatestRelease(proxy: java.net.Proxy? = null): JSONObject? {
+        return fetchJson(RELEASES_URL, proxy)
+    }
+
+    private fun fetchReleaseByTag(tag: String, proxy: java.net.Proxy? = null): JSONObject? {
+        val url = "https://api.github.com/repos/spkprsnts/WireTurn/releases/tags/$tag"
+        return fetchJson(url, proxy)
+    }
+
+    private fun fetchJson(url: String, proxy: java.net.Proxy? = null): JSONObject? {
         val connection = if (proxy != null) {
-            URL(RELEASES_URL).openConnection(proxy)
+            URL(url).openConnection(proxy)
         } else {
-            URL(RELEASES_URL).openConnection()
+            URL(url).openConnection()
         } as HttpURLConnection
         connection.setRequestProperty("Accept", "application/vnd.github+json")
         connection.setRequestProperty("User-Agent", "wireturn-App")
@@ -222,17 +232,42 @@ class AppUpdater(private val context: Context) {
             "https://api.github.com/repos/spkprsnts/WireTurn/releases/latest"
 
         fun isNewer(remote: String, current: String): Boolean {
-            fun String.toVersionList() = this.split(".")
-                .map { it.filter { char -> char.isDigit() }.toIntOrNull() ?: 0 }
+            if (remote == "unstable-latest") return true
+
+            val remoteIsUnstable = remote.contains("unstable", ignoreCase = true)
+            val currentIsUnstable = current.contains("unstable", ignoreCase = true)
+
+            // Если обе версии нестабильные, сравниваем хеши (если они есть)
+            if (remoteIsUnstable && currentIsUnstable) {
+                val rHash = remote.split("-").lastOrNull()
+                val cHash = current.split("-").lastOrNull()
+                if (rHash != null && cHash != null && rHash == cHash && rHash.length >= 7) return false
+                // Если хеши разные, идем дальше сравнивать основные номера версий
+            }
+
+            // Вспомогательная функция для получения списка чисел из версии (напр. "1.0.2-unstable" -> [1, 0, 2])
+            fun String.toVersionList(): List<Int> {
+                val basePart = this.split("-").first()
+                return basePart.split(".")
+                    .map { it.filter { char -> char.isDigit() }.toIntOrNull() ?: 0 }
+            }
 
             val r = remote.toVersionList()
             val c = current.toVersionList()
 
+            // Сравниваем основные числа версии
             for (i in 0 until maxOf(r.size, c.size)) {
                 val rv = r.getOrElse(i) { 0 }
                 val cv = c.getOrElse(i) { 0 }
                 if (rv != cv) return rv > cv
             }
+            
+            // Если номера версий идентичны (напр. 1.0 и 1.0-unstable)
+            // Стабильная версия всегда считается новее нестабильной
+            if (!remoteIsUnstable && currentIsUnstable) return true
+            
+            // Если на GitHub пришла версия с суффиксом unstable, а у нас стабильная того же номера - это не обнова
+            // Во всех остальных случаях (версии равны) - false
             return false
         }
     }
