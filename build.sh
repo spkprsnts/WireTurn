@@ -36,6 +36,43 @@ needs_rebuild() {
     return 1
 }
 
+# Compile SIGSYS→ENOSYS shim for ARM.
+# Android ARM seccomp blocks clone3 (syscall 435), sending SIGSYS instead of ENOSYS.
+# This constructor intercepts SIGSYS and returns -ENOSYS so the Go runtime falls back
+# to the old clone syscall, fixing crash with exit code 159.
+compile_arm_sigsys_fix() {
+    local src="/tmp/_go_arm_sigsys_fix.c"
+    local obj="/tmp/_go_arm_sigsys_fix.o"
+    local arc="/tmp/_go_arm_sigsys_fix.a"
+    cat > "$src" << 'EOF'
+#ifdef __arm__
+#include <signal.h>
+#include <string.h>
+#include <sys/ucontext.h>
+static struct sigaction _prev;
+static void _handler(int s, siginfo_t *i, void *c) {
+    if (i->si_code == 1 /* SYS_SECCOMP */) {
+        ((ucontext_t *)c)->uc_mcontext.arm_r0 = (unsigned long)(-38); /* -ENOSYS */
+        return;
+    }
+    if (_prev.sa_flags & SA_SIGINFO) _prev.sa_sigaction(s, i, c);
+}
+__attribute__((constructor(101))) static void _install(void) {
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_sigaction = _handler;
+    sa.sa_flags = SA_SIGINFO;
+    sigaction(SIGSYS, &sa, &_prev);
+}
+#endif
+EOF
+    "$TOOLCHAIN/armv7a-linux-androideabi30-clang" \
+        -target armv7a-linux-androideabi30 -fPIC -c "$src" -o "$obj" 2>/dev/null && \
+    ar rcs "$arc" "$obj" && echo "$arc"
+}
+ARM_SIGSYS_FIX=$(compile_arm_sigsys_fix)
+[ -z "$ARM_SIGSYS_FIX" ] && echo "WARNING: Failed to compile ARM SIGSYS fix (clone3 patch skipped)"
+
 build_go_project() {
     local dir=$1; local out_name=$2; local sub_pkg=$3
     echo "Checking $out_name..."
@@ -47,15 +84,22 @@ build_go_project() {
             IFS=';' read -r goarch target <<< "${ARCH_MAP[$abi]}"
             OUT="$JNI_LIBS_DIR/$abi/$out_name"
 
-            # Add GOARM for ARMv7
-            if [ "$goarch" == "arm" ]; then export GOARM=7; else unset GOARM; fi
+            # Add GOARM for ARMv7 + SIGSYS fix for clone3 (exit code 159 on ARM)
+            if [ "$goarch" == "arm" ]; then
+                export GOARM=7
+                ARM_EXTRA=""
+                [ -n "$ARM_SIGSYS_FIX" ] && ARM_EXTRA="-Wl,--whole-archive $ARM_SIGSYS_FIX -Wl,--no-whole-archive"
+            else
+                unset GOARM
+                ARM_EXTRA=""
+            fi
 
             if needs_rebuild "." "$OUT"; then
                 echo "  → Building $abi..."
                 mkdir -p "$(dirname "$OUT")"
                 CGO_ENABLED=1 GOOS=android GOARCH=$goarch CC="$TOOLCHAIN/${target}30-clang" \
                 CGO_CFLAGS="-target ${target}30 -fPIC" \
-                CGO_LDFLAGS="-target ${target}30 -Wl,--no-undefined -Wl,-z,max-page-size=16384" \
+                CGO_LDFLAGS="-target ${target}30 -Wl,--no-undefined -Wl,-z,max-page-size=16384 $ARM_EXTRA" \
                 go build -trimpath -ldflags="-s -w -checklinkname=0" -o "$OUT" "$sub_pkg"
             fi
         ) &
