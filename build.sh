@@ -70,7 +70,7 @@ build_go_project() {
 [ ! -f "external/tun2socks/go.mod" ] && git submodule update --init --recursive
 
 # Run builds
-build_go_project "external/tun2socks"    "libtun2socks.so" "."
+build_go_project "external/tun2socks"     "libtun2socks.so" "."
 build_go_project "external/vk-turn-proxy" "libvkturn.so"    "./client"
 build_go_project "external/vless-client"  "libxray.so"     "."
 build_go_project "external/turnable"      "libturnable.so" "./cmd"
