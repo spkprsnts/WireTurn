@@ -297,6 +297,8 @@
     <string name="use_local_listen_desc">Вместо указанного сервера VLESS\nбудет использоваться локальный</string>
 
     <!-- Предупреждения (Warnings) -->
+    <string name="warn_unsupported_arch_title">Архитектура не поддерживается</string>
+    <string name="warn_unsupported_arch_desc">Ваше устройство использует архитектуру (%1$s), которая не поддерживается встроенными бинарными файлами. Приложение может работать некорректно или не запускаться.\n\nПоддерживаемые архитектуры: arm64-v8a, x86_64.</string>
     <string name="warn_proxy_vless_mismatch">Внимание! Прокси-туннель запущен для VLESS!</string>
     <string name="warn_proxy_wg_mismatch">Внимание! Прокси-туннель запущен для WireGuard!</string>
     <string name="warn_vpn_requires_xray">Режим VPN требует включенного Xray!</string>

@@ -5,6 +5,7 @@
 
 package com.wireturn.app.ui.screens
 
+import android.os.Build
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
@@ -100,6 +101,21 @@ fun SettingsScreen(
         }
     }
 
+    val supportsDynamicColor = remember { Build.VERSION.SDK_INT >= Build.VERSION_CODES.S }
+    val supportsSystemTheme = remember { Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q }
+
+    LaunchedEffect(supportsDynamicColor) {
+        if (!supportsDynamicColor && dynamicTheme) {
+            viewModel.setDynamicTheme(false)
+        }
+    }
+
+    LaunchedEffect(supportsSystemTheme) {
+        if (!supportsSystemTheme && themeMode == ThemeMode.SYSTEM) {
+            viewModel.setThemeMode(ThemeMode.DARK)
+        }
+    }
+
     val dash = stringResource(R.string.dash)
     val appVersion = remember {
         try {
@@ -137,10 +153,14 @@ fun SettingsScreen(
                     SectionHeader(stringResource(R.string.theme_title))
                     Spacer(Modifier.height(16.dp))
 
+                    val themeModes = remember(supportsSystemTheme) {
+                        if (supportsSystemTheme) ThemeMode.entries else ThemeMode.entries.filter { it != ThemeMode.SYSTEM }
+                    }
+
                     SingleChoiceSegmentedButtonRow(
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        ThemeMode.entries.forEachIndexed { index, mode ->
+                        themeModes.forEachIndexed { index, mode ->
                             SegmentedButton(
                                 selected = themeMode == mode,
                                 onClick = {
@@ -149,7 +169,7 @@ fun SettingsScreen(
                                 },
                                 shape = SegmentedButtonDefaults.itemShape(
                                     index = index,
-                                    count = ThemeMode.entries.size
+                                    count = themeModes.size
                                 ),
                                 label = {
                                     Text(
@@ -164,16 +184,18 @@ fun SettingsScreen(
                         }
                     }
 
-                    Spacer(Modifier.height(16.dp))
-                    HorizontalDivider(thickness = 0.5.dp)
-                    Spacer(Modifier.height(16.dp))
+                    if (supportsDynamicColor) {
+                        Spacer(Modifier.height(16.dp))
+                        HorizontalDivider(thickness = 0.5.dp)
+                        Spacer(Modifier.height(16.dp))
 
-                    SwitchRow(
-                        label = stringResource(R.string.dynamic_theme_title),
-                        description = stringResource(R.string.dynamic_theme_desc),
-                        checked = dynamicTheme,
-                        onCheckedChange = { viewModel.setDynamicTheme(it) }
-                    )
+                        SwitchRow(
+                            label = stringResource(R.string.dynamic_theme_title),
+                            description = stringResource(R.string.dynamic_theme_desc),
+                            checked = dynamicTheme,
+                            onCheckedChange = { viewModel.setDynamicTheme(it) }
+                        )
+                    }
                 }
             }
 

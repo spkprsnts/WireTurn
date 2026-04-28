@@ -166,13 +166,30 @@ fun HomeScreen(
         profiles.find { it.id == currentProfileId }?.name ?: ""
     }
 
+    val isArchitectureSupported = viewModel.isArchitectureSupported
+    val deviceArchitecture = viewModel.deviceArchitecture
+    val showArchWarning = rememberSaveable { mutableStateOf(!isArchitectureSupported) }
+
+    if (showArchWarning.value) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showArchWarning.value = false },
+            title = { Text(stringResource(R.string.warn_unsupported_arch_title)) },
+            text = { Text(stringResource(R.string.warn_unsupported_arch_desc, deviceArchitecture)) },
+            confirmButton = {
+                TextButton(onClick = { showArchWarning.value = false }) {
+                    Text(stringResource(R.string.btn_close))
+                }
+            }
+        )
+    }
+
     val profileChanged = remember(runningProfileName, currentProfileName) {
-        runningProfileName != null && currentProfileName != runningProfileName
+        runningProfileName != null && (currentProfileName != runningProfileName)
     }
 
     val proxyPing by viewModel.proxyPing.collectAsStateWithLifecycle()
     var lastSuccessPing by remember { mutableStateOf<MainViewModel.PingResult.Success?>(null) }
-    var isControlPingScheduled by rememberSaveable { mutableStateOf(false) }
+    var isControlPingScheduled by rememberSaveable { mutableStateOf(value = false) }
     
     // --- Effects & Lifecycle ---
     LaunchedEffect(proxyPing) {

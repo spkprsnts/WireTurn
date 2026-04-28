@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.lifecycleScope
@@ -104,6 +105,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val profiles: StateFlow<List<Profile>> = profileManager.profiles
     val currentProfileId: StateFlow<String> = profileManager.currentProfileId
+
+    // Architecture support
+    val isArchitectureSupported: Boolean = Build.SUPPORTED_ABIS.any { it == "arm64-v8a" || it == "x86_64" }
+    val deviceArchitecture: String = Build.SUPPORTED_ABIS.firstOrNull() ?: "unknown"
 
     // Custom kernel
     private val _kernelError = MutableStateFlow<String?>(null)
