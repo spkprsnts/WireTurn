@@ -1,5 +1,6 @@
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 import java.text.SimpleDateFormat
 
 plugins {
@@ -17,7 +18,9 @@ android {
         targetSdk = project.property("project.targetSdk").toString().toInt()
         
         val date = Date()
-        val formattedDate = SimpleDateFormat("yyMMddHH", Locale.US).format(date)
+        val sdf = SimpleDateFormat("yyMMddHH", Locale.US)
+        sdf.timeZone = TimeZone.getTimeZone("UTC")
+        val formattedDate = sdf.format(date)
         versionCode = formattedDate.toInt()
         versionName = project.property("project.versionName").toString()
     }
