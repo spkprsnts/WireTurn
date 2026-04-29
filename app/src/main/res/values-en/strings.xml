@@ -1,0 +1,325 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Home screen -->
+    <string name="nav_home">Home</string>
+    <string name="turn_proxy_title">WireTurn</string>
+    <string name="info_desc">Information</string>
+    <string name="proxy_active">Proxy active</string>
+    <string name="proxy_running">Core active</string>
+    <string name="proxy_starting">Starting...</string>
+    <string name="proxy_connecting">Connecting...</string>
+    <string name="proxy_press_to_start">Tap to start</string>
+    <string name="proxy_stop">Stop</string>
+    <string name="current_client_settings">Current client settings</string>
+    <string name="server">Server</string>
+    <string name="threads">Threads</string>
+    <string name="tcp">TCP</string>
+    <string name="udp">UDP</string>
+    <string name="local_port">Local port</string>
+    <string name="proxy_active_stop">Proxy active - tap to stop</string>
+    <string name="proxy_error_restart">Error - tap to restart</string>
+    <string name="proxy_captcha_required">Captcha verification required</string>
+    <string name="captcha_title">VK verification</string>
+    <string name="captcha_desc">Complete the verification to continue</string>
+    <string name="start_proxy">Start proxy</string>
+    <string name="xray_starting_state">Xray is starting</string>
+    <string name="xray_running_state">Xray is running</string>
+    <string name="xray_config_invalid">Invalid config</string>
+    <string name="error_format_short">Error: %1$s</string>
+    <string name="repo_links">Repository links</string>
+    <string name="repo_links_desc">Component source code</string>
+
+    <!-- Permissions -->
+    <string name="permissions_title">Permissions</string>
+    <string name="permissions_desc">Manage permissions for stable operation</string>
+    <string name="permission_notifications">Notifications</string>
+    <string name="permission_battery">Battery</string>
+    <!-- Component and core names -->
+    <string name="android_client">Android client</string>
+    <string name="android_client_original">Android client (original)</string>
+    <string name="proxy_core_current">Proxy core (current)</string>
+    <string name="proxy_core">Proxy core (base)</string>
+    <string name="proxy_core_use">Proxy core (legacy)</string>
+    <string name="turnable_core">Proxy core (Turnable)</string>
+    <string name="xray_core_name">vless-client</string>
+    <string name="xray_core_original">Xray-core</string>
+    <string name="tun2socks">tun2socks</string>
+    <!-- Buttons and common actions -->
+    <string name="btn_open">Open</string>
+    <string name="btn_close">Close</string>
+    <string name="btn_save">Save</string>
+    <string name="reset_settings">Reset settings</string>
+    <string name="reset">Reset</string>
+    <string name="reset_all_settings_title">Reset all settings?</string>
+    <string name="reset_all_settings_desc">All profiles, history, and settings will be permanently deleted. The app will restart.</string>
+    <string name="cancel">Cancel</string>
+    <!-- VPN mode (VpnService) -->
+    <string name="vpn_mode">VPN mode</string>
+    <string name="vpn_apps_exceptions">App exceptions</string>
+    <string name="search_apps">Search apps</string>
+    <string name="no_apps_found">No apps found</string>
+    <string name="import_from_clipboard">Paste from clipboard</string>
+    <string name="apps_imported_count">Apps added: %1$d</string>
+    <string name="no_apps_imported">No packages found to exclude</string>
+    <string name="vpn_start">Turn on VPN</string>
+    <string name="vpn_stop">Turn off VPN</string>
+
+    <!-- WireGuard settings -->
+    <string name="wg_import_config">Import WireGuard</string>
+    <string name="wg_import_file">From file</string>
+    <string name="wg_import_qr">Import WireGuard</string>
+    <string name="wg_import_clipboard">From clipboard</string>
+    <string name="wg_qr_scan_desc">Point the camera at a WireGuard configuration QR code to import it</string>
+    <string name="wg_import_success">Configuration imported</string>
+    <string name="wg_import_error">Import error</string>
+    <string name="wg_interface">Interface</string>
+    <string name="wg_private_key">Private Key</string>
+    <string name="wg_private_key_placeholder">WG_PRIVATE_KEY</string>
+    <string name="wg_address">Address</string>
+    <string name="wg_address_placeholder">10.0.0.1/32</string>
+    <string name="wg_mtu">MTU</string>
+    <string name="wg_mtu_placeholder">1280</string>
+    <string name="wg_peer">Peer</string>
+    <string name="wg_public_key">Public Key</string>
+    <string name="wg_public_key_placeholder">WG_PUBLIC_KEY</string>
+    <string name="wg_endpoint">Endpoint (host:port)</string>
+    <string name="wg_endpoint_placeholder">127.0.0.1:9000</string>
+    <string name="wg_endpoint_mismatch">Does not match the local listen address!</string>
+    <string name="wg_endpoint_fix">Change?</string>
+    <string name="wg_persistent_keepalive">Persistent Keepalive</string>
+    <string name="wg_persistent_keepalive_placeholder">25</string>
+    <string name="wg_mtu_recommendation">Recommended value: 1280</string>
+
+    <!-- Xray settings (SOCKS/HTTP) -->
+    <string name="xray_title">Xray</string>
+    <string name="xray_http">HTTP</string>
+    <string name="xray_http_placeholder">127.0.0.1:8080</string>
+    <string name="xray_socks5">SOCKS5</string>
+    <string name="xray_socks5_placeholder">127.0.0.1:2080</string>
+
+
+    <!-- Client settings (Backend/Proxy) -->
+    <string name="client_title">Client</string>
+    <string name="connection_title">Connection</string>
+    <string name="raw_mode">Raw Mode</string>
+    <string name="raw_mode_desc">Enter arguments manually</string>
+    <string name="raw_label">Raw</string>
+    <string name="raw_placeholder">-listen 127.0.0.1:900 -peer 292.313.32.45:56000 …</string>
+    <string name="server_address_label">vk-turn-proxy server address</string>
+    <string name="server_address_placeholder">292.313.32.45:56000</string>
+    <string name="server_address_support">IP and port of vk-turn-proxy on your VPS</string>
+    <string name="vk_link_label">VK call link</string>
+    <string name="vk_link_placeholder">https://vk.com/call/…</string>
+    <string name="vk_link_support">VK: Calls &gt; Create meeting &gt; Copy link (do not tap End)</string>
+    <string name="turnable_url_label">Turnable link</string>
+    <string name="turnable_url_placeholder">turnable://user:pass@vk.com…</string>
+    <string name="turnable_url_support">Created and generated on the server</string>
+    <string name="wbstream_uuid_label">WB Stream room ID</string>
+    <string name="wbstream_uuid_placeholder">UUID</string>
+    <string name="wbstream_uuid_support">Created on the server</string>
+    <string name="history_label">History</string>
+    <string name="tunnel_label">Tunnel</string>
+    <string name="kernel_label">Core</string>
+    <string name="kernel_vk_turn_proxy">vk-turn-proxy</string>
+    <string name="kernel_turnable">Turnable</string>
+    <string name="turn_tunnel">TURN</string>
+    <string name="dc_tunnel">DC</string>
+    <string name="local_listen_address">Local listen address</string>
+    <string name="local_listen_placeholder">127.0.0.1:9000</string>
+    <string name="local_listen_support">Address where the client accepts traffic from WireGuard/VLESS</string>
+    <string name="parameters_title">Parameters</string>
+    <string name="threads_format">Threads: %1$d</string>
+    <string name="threads_recommendation">Recommended: 4-8</string>
+    <string name="vless_mode">VLESS mode</string>
+    <string name="vless_mode_desc">Forward VLESS through the tunnel</string>
+    <string name="transport_protocol">Transport</string>
+    <string name="transport_protocol_desc">UDP reduces latency; TCP is more stable</string>
+    <string name="no_dtls">No DTLS encryption</string>
+    <string name="no_dtls_desc">May speed up the connection, but increases blocking risk</string>
+    <string name="manual_captcha">Manual captcha entry</string>
+    <string name="manual_captcha_desc">Solve captcha manually instead of using automatic recognition</string>
+    <string name="force_turn_port_443">TURN port 443</string>
+    <string name="force_turn_port_443_desc">Use port 443 instead of the default.\nHelps on networks where port 19302 is blocked</string>
+    <string name="jazz_label">SaluteJazz</string>
+    <string name="wb_stream_label">WB Stream</string>
+    <string name="dc_type_label">DC service</string>
+    <string name="jazz_creds_label">SaluteJazz room code:password</string>
+    <string name="jazz_creds_placeholder">room:password</string>
+    <string name="jazz_creds_support">Created on the server</string>
+    <string name="jazz_room">SaluteJazz room</string>
+    <string name="core_title">Core</string>
+    <string name="custom_core">Custom core</string>
+    <string name="builtin_core">Built-in core</string>
+    <string name="loaded_from_memory">Loaded from device storage</string>
+    <string name="kernel_date_format">Modified: %1$s</string>
+    <string name="from_apk">From APK</string>
+    <string name="btn_load">Load</string>
+    <string name="finish_setup">Finish setup</string>
+
+    <!-- Logs screen -->
+    <string name="logs_title">Logs</string>
+    <string name="copy">Copy</string>
+    <string name="clear">Clear</string>
+    <string name="no_logs">No logs</string>
+    <string name="new_logs">New logs</string>
+
+    <!-- Onboarding screen -->
+    <string name="onboarding_title">TURN-proxy</string>
+    <string name="onboarding_subtitle">Proxy WireGuard traffic\nthrough VK Calls TURN servers</string>
+    <string name="start">Start</string>
+
+    <!-- App update (OTA) -->
+    <string name="update_title">Update</string>
+    <string name="update_check">Check</string>
+    <string name="update_tap_to_check">Tap to check</string>
+    <string name="update_checking">Checking...</string>
+    <string name="update_available_title">Update available</string>
+    <string name="update_available">Version %1$s available</string>
+    <string name="update_download">Download</string>
+    <string name="update_downloading_title">Downloading update</string>
+    <string name="update_downloading">Downloading: %1$d%%</string>
+    <string name="update_ready_title">Update downloaded</string>
+    <string name="update_ready_desc">APK is ready to install. Install now?</string>
+    <string name="update_ready_desc_short">Ready to install</string>
+    <string name="update_install">Install</string>
+    <string name="update_no_update">Latest version is installed</string>
+    <string name="update_error">Error: %1$s</string>
+
+    <!-- Appearance and privacy -->
+    <string name="dynamic_theme_title">System colors</string>
+    <string name="dynamic_theme_desc">Use Material You</string>
+    <string name="theme_title">Theme</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_system">System</string>
+    <string name="privacy_mode_title">Privacy mode</string>
+    <string name="privacy_mode_desc">Hides IP addresses and ports</string>
+
+    <!-- Latency check (Ping) -->
+    <string name="ping_error">Error</string>
+    <string name="ping_ms">%1$d ms</string>
+
+    <!-- Errors and system messages -->
+    <string name="error_proxy_crashed">Proxy crashed %1$d times - check the settings</string>
+    <string name="error_settings_empty">Client settings are incomplete</string>
+    <string name="error_raw_empty">Raw command is not set</string>
+    <string name="error_proxy_not_started">Proxy did not start</string>
+    <string name="error_file_open">Could not open file</string>
+    <string name="error_not_elf">The file is not an ELF binary. Make sure you are loading the correct core</string>
+    <string name="error_file_empty">File is empty</string>
+    <string name="error_file_too_large">File is too large (maximum %1$d MB)</string>
+    <string name="log_custom_kernel_installed">Custom core installed: %1$d KB</string>
+    <string name="log_proxy_invalid_config">[Xray] Invalid or missing config, startup canceled</string>
+    <string name="error_kernel_install_failed">Core installation failed: %1$s</string>
+    <string name="log_custom_kernel_deleted">Custom core deleted, using built-in core</string>
+    <string name="error_update_url_not_found">Update URL not found</string>
+    <string name="error_update_file_not_found">Update file not found</string>
+    <string name="error_no_connection">No connection to the server</string>
+    <string name="error_apk_not_found">APK not found in the release</string>
+    <string name="error_download_failed">Download failed: %1$s</string>
+    <string name="log_standard_kernel">Using the standard core from the APK</string>
+    <string name="log_custom_kernel">Using a custom core from phone storage</string>
+    <string name="log_command">Command: %1$s</string>
+    <string name="log_quota_error">&gt;&gt;&gt; QUOTA ERROR - resetting session in 2s</string>
+    <string name="log_proxy_start">=== STARTING PROXY ===</string>
+    <string name="log_process_stopped">=== PROCESS STOPPED (Code: %1$d) ===</string>
+    <string name="log_startup_failed_no_watchdog">=== Startup error, watchdog not activated ===</string>
+    <string name="log_quick_exit">=== Quick exit (%1$d ms) - check the VK link and settings ===</string>
+    <string name="log_watchdog_limit">=== WATCHDOG: retry limit exceeded (%1$d), stopping ===</string>
+    <string name="log_watchdog_restart">=== WATCHDOG: restarting in %1$d ms (attempt %2$d/%3$d) ===</string>
+    <string name="log_network_change">=== NETWORK CHANGE - RESTARTING ===</string>
+    <string name="log_stop_ui">=== STOPPED FROM UI ===</string>
+    <string name="log_jazz_unavailable">&gt;&gt;&gt; bk.salutejazz.ru UNAVAILABLE - CHANGE IP (RESTART NETWORK)</string>
+    <string name="error_jazz_unavailable">SaluteJazz API is unavailable</string>
+    <string name="error_invalid_turnable_url">Invalid Turnable link</string>
+    <string name="error_turnable_failed">Turnable error: %1$s</string>
+
+    <string name="error_release_info_failed">Could not get release information</string>
+    <string name="error_process_no_output">Process exited with no output (code: %1$d)</string>
+    <string name="error_kernel_permission_denied">CRITICAL ERROR: Core startup denied - your device blocks executing files from internal storage (SELinux/noexec). Use the built-in core.</string>
+    <string name="error_critical_format">CRITICAL ERROR: %1$s</string>
+    <string name="error_connecting">Connection error</string>
+    <string name="error_kernel_or_settings">Problem with the core or settings</string>
+
+    <!-- Notifications -->
+    <string name="notification_title">WireTurn</string>
+    <string name="notification_channel_description">Status and control notification</string>
+    <string name="captcha_channel_name">Captcha notifications</string>
+    <string name="captcha_channel_description">Notifications when captcha verification is required</string>
+    <string name="xray_short">Xray</string>
+    <string name="xray_protocol_label">Protocol</string>
+    <string name="wg_short">WG</string>
+    <string name="vpn_short">VPN</string>
+    <string name="captcha_notification_title">Captcha required</string>
+    <string name="captcha_notification_text">Tap to complete verification</string>
+    <string name="tile_active">Running</string>
+    <string name="tile_captcha">Captcha!</string>
+    <string name="notification_reconnecting">Reconnecting (%1$d/%2$d)...</string>
+    <string name="notification_network_change">Network changed, reconnecting...</string>
+    <string name="error_with_details">%1$s: %2$s</string>
+    <string name="vless">VLESS</string>
+    <!-- Interface elements and formatting -->
+    <string name="redacted_value">••••••</string>
+    <string name="not_set">not set</string>
+    <string name="dash">—</string>
+    <string name="check_mark">✔</string>
+    <string name="ping_unknown">\?</string>
+    <string name="version_format">v%1$s</string>
+    <string name="clipboard_label_socks5">Xray SOCKS5</string>
+    <string name="clipboard_label_http">Xray HTTP</string>
+    <string name="restart_required">Settings changed</string>
+    <string name="restart_reason_client">Client config changed</string>
+    <string name="restart_reason_xray">Xray settings changed</string>
+    <string name="btn_restart">Restart</string>
+
+    <!-- VLESS settings -->
+    <string name="vless_link_label">VLESS link</string>
+    <string name="vless_link_placeholder">vless://…</string>
+    <string name="vless_link_config_desc">VLESS configuration</string>
+    <string name="vless_import_qr">Import VLESS</string>
+    <string name="vless_qr_scan_desc">Point the camera at a VLESS configuration QR code to import it</string>
+    <string name="use_local_listen_address">Use listen address</string>
+    <string name="use_local_listen_desc">Use the local address instead of the specified VLESS server</string>
+
+    <!-- Warnings -->
+    <string name="warn_proxy_vless_mismatch">Warning: proxy tunnel is running for VLESS!</string>
+    <string name="warn_proxy_wg_mismatch">Warning: proxy tunnel is running for WireGuard!</string>
+    <string name="warn_vpn_requires_xray">VPN mode requires Xray to be enabled!</string>
+
+    <!-- QR import and advanced parameters -->
+    <string name="qr_import">QR code</string>
+    <string name="qr_scan_desc">Point the camera at a configuration QR code (WireGuard or VLESS) to import it</string>
+    <string name="xray_local_addresses">Local addresses</string>
+    <string name="xray_socks_desc">Address for SOCKS5 proxy</string>
+    <string name="xray_http_desc">Address for HTTP proxy (optional)</string>
+    <string name="xray_protocol_desc">Select protocol for Xray-core</string>
+    <string name="vless_settings">VLESS settings</string>
+    <string name="protocol_wireguard">WireGuard</string>
+    <string name="connection_method_desc">Traffic forwarding method</string>
+    <string name="client_variants_desc">Client variants</string>
+    <string name="connection_details">Connection details</string>
+    <string name="dc_type_desc">DataChannel type</string>
+    <string name="math_minus">−</string>
+    <string name="math_plus">+</string>
+    <string name="edit_url_params">Link parameters</string>
+    <string name="url_param_key">Key</string>
+    <string name="url_param_value">Value</string>
+    <string name="url_base">Base URL</string>
+    <string name="add_parameter">Add parameter</string>
+
+    <!-- Profile management -->
+    <string name="profiles_title">Profiles</string>
+    <string name="btn_change_profile">Change</string>
+    <string name="notification_btn_change_profile">Change profile</string>
+    <string name="profile_create">Create profile</string>
+    <string name="profile_clone">Clone</string>
+    <string name="profile_rename">Rename</string>
+    <string name="profile_delete">Delete</string>
+    <string name="profile_export">Export</string>
+    <string name="profile_import">Import</string>
+    <string name="profile_name_label">Profile name</string>
+    <string name="profile_default_name">Main profile</string>
+    <string name="profile_delete_confirm">Delete profile %1$s?</string>
+    <string name="profile_delete_desc">All settings for this profile will be deleted.</string>
+</resources>
