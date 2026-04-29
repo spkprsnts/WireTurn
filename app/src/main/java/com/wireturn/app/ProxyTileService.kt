@@ -112,7 +112,7 @@ class ProxyTileService : TileService() {
             tile.subtitle = when {
                 isCaptcha -> getString(R.string.tile_captcha)
                 isRunning && isWorking -> getString(R.string.tile_active)
-                isRunning -> getString(R.string.proxy_starting)
+                isRunning -> getString(R.string.starting)
                 else -> ""
             }
         }

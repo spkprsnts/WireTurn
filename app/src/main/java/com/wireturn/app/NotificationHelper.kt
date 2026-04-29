@@ -55,7 +55,7 @@ object NotificationHelper {
         val vpnState = VpnServiceState.state.value
 
         if (proxyRunning) {
-            val pStatus = proxyStatusText ?: (if (proxyWorking) context.getString(R.string.proxy_active) else context.getString(R.string.proxy_starting))
+            val pStatus = proxyStatusText ?: (if (proxyWorking) context.getString(R.string.proxy_active) else context.getString(R.string.starting))
             statusParts.add(pStatus)
         }
         

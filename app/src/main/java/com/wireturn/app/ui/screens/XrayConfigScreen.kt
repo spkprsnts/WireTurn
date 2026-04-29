@@ -36,8 +36,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -55,28 +53,27 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.data.WgConfig
 import com.wireturn.app.data.XrayConfiguration
-import com.wireturn.app.ui.ConfigLabelRow
 import com.wireturn.app.ui.FieldTrailingIcons
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.LabeledSegmentedButton
-import com.wireturn.app.ui.SectionHeader
+import com.wireturn.app.ui.SettingsGroup
+import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.ui.SwitchRow
+import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.redact
 import com.wireturn.app.viewmodel.MainViewModel
@@ -110,6 +107,10 @@ fun XrayConfigScreen(
     val runningWgConfig by com.wireturn.app.XrayServiceState.runningWgConfig.collectAsStateWithLifecycle()
     val runningVlessConfig by com.wireturn.app.XrayServiceState.runningVlessConfig.collectAsStateWithLifecycle()
     val runningXrayConfig by com.wireturn.app.XrayServiceState.runningXrayConfig.collectAsStateWithLifecycle()
+
+    val isDark = com.wireturn.app.ui.theme.LocalIsDark.current
+    val screenBackgroundColor = if (isDark) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerLow
+    val blockContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
 
     var xrayConfiguration by rememberSaveable(currentProfileId, xrayConfig.xrayConfiguration) { mutableStateOf(xrayConfig.xrayConfiguration) }
     var socksBindAddress by rememberSaveable(currentProfileId, xrayConfig.socksBindAddress) { mutableStateOf(xrayConfig.socksBindAddress) }
@@ -278,7 +279,8 @@ fun XrayConfigScreen(
                 }
             )
         },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        containerColor = screenBackgroundColor
     ) { padding ->
         Column(
             modifier = Modifier
@@ -292,54 +294,47 @@ fun XrayConfigScreen(
                 .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 80.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             Spacer(Modifier.height(8.dp))
 
-            // 3. Общие настройки Xray (Bind addresses)
-            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    SectionHeader(stringResource(R.string.xray_local_addresses))
-                    
-                    OutlinedTextField(
+            // 1. Локальные адреса
+            SettingsGroup(title = stringResource(R.string.xray_local_addresses)) {
+                SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
+                    TextFieldRow(
+                        label = stringResource(R.string.xray_socks5),
                         value = socksBindAddress,
                         onValueChange = { socksBindAddress = it },
-                        label = { 
-                            ConfigLabelRow(runningXrayConfig != null && socksBindAddress != runningXrayConfig?.socksBindAddress) {
-                                Text(stringResource(R.string.xray_socks5)) 
-                            }
-                        },
-                        placeholder = { Text(stringResource(R.string.xray_socks5_placeholder)) },
+                        placeholder = stringResource(R.string.xray_socks5_placeholder),
                         isError = !isSocksValid || (socksBindAddress.isNotEmpty() && socksBindAddress == httpBindAddress),
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        supportingText = { Text(stringResource(R.string.xray_socks_desc)) }
+                        supportingText = stringResource(R.string.xray_socks_desc),
+                        isModified = runningXrayConfig != null && socksBindAddress != runningXrayConfig?.socksBindAddress
                     )
+                }
 
-                    OutlinedTextField(
+                SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+                    TextFieldRow(
+                        label = stringResource(R.string.xray_http),
                         value = httpBindAddress,
                         onValueChange = { httpBindAddress = it },
-                        label = { 
-                            ConfigLabelRow(runningXrayConfig != null && httpBindAddress != runningXrayConfig?.httpBindAddress) {
-                                Text(stringResource(R.string.xray_http))
-                            }
-                        },
-                        placeholder = { Text(stringResource(R.string.xray_http_placeholder)) },
+                        placeholder = stringResource(R.string.xray_http_placeholder),
                         isError = !isHttpValid || (httpBindAddress.isNotEmpty() && socksBindAddress == httpBindAddress),
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        supportingText = { Text(stringResource(R.string.xray_http_desc)) }
+                        supportingText = stringResource(R.string.xray_http_desc),
+                        isModified = runningXrayConfig != null && httpBindAddress != runningXrayConfig?.httpBindAddress
                     )
                 }
             }
 
-            // 1. Выбор протокола
-            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    SectionHeader(stringResource(R.string.transport_protocol))
+            // 2. Выбор протокола
+            SettingsGroup(title = stringResource(R.string.xray_protocol_label)) {
+                SettingsGroupItem(
+                    isTop = true,
+                    isBottom = true,
+                    containerColor = blockContainerColor
+                ) {
                     LabeledSegmentedButton(
                         label = stringResource(R.string.xray_protocol_label),
-                        subLabel = stringResource(R.string.xray_protocol_desc),
+                        supportingText = stringResource(R.string.xray_protocol_desc),
                         isModified = runningXrayConfig != null && (runningWgConfig != null && xrayConfiguration != XrayConfiguration.WIREGUARD || runningVlessConfig != null && xrayConfiguration != XrayConfiguration.VLESS)
                     ) {
                         XrayConfiguration.entries.forEachIndexed { index, config ->
@@ -361,74 +356,63 @@ fun XrayConfigScreen(
                 }
             }
 
-            // 2. Настройки протокола
-            AnimatedContent(
-                targetState = xrayConfiguration,
-                label = "protocol_settings",
-                transitionSpec = {
-                    val direction = if (targetState.ordinal > initialState.ordinal) 1 else -1
-                    (slideInHorizontally(animationSpec = tween(300)) { it * direction } + fadeIn(
-                        animationSpec = tween(300)
-                    )).togetherWith(slideOutHorizontally(animationSpec = tween(300)) { -it * direction } + fadeOut(
-                        animationSpec = tween(300)
-                    ))
-                }
-            ) { targetConfig ->
-                when (targetConfig) {
-                    XrayConfiguration.WIREGUARD -> {
-                        WireGuardSettings(
-                            privateKey = privateKey,
-                            onPrivateKeyChange = { if (!privacyMode) privateKey = it },
-                            address = address,
-                            onAddressChange = { if (!privacyMode) address = it },
-                            mtu = mtu,
-                            onMtuChange = { mtu = it },
-                            publicKey = publicKey,
-                            onPublicKeyChange = { if (!privacyMode) publicKey = it },
-                            endpoint = endpoint,
-                            onEndpointChange = { if (!privacyMode) endpoint = it },
-                            persistentKeepalive = persistentKeepalive,
-                            onPersistentKeepaliveChange = { persistentKeepalive = it },
-                            isEndpointValid = isEndpointValid,
-                            isTargetEndpoint = isTargetEndpoint,
-                            onFixEndpoint = { endpoint = clientConfig.connectableAddress },
-                            runningWgConfig = runningWgConfig,
-                            privacyMode = privacyMode,
-                            onImportFile = { filePickerLauncher.launch("*/*") },
-                            onImportQr = { showQrScanner.value = true },
-                            onImportClipboard = {
-                                scope.launch {
-                                    val clipEntry = clipboard.getClipEntry()
-                                    if (clipEntry != null) {
-                                        val text = clipEntry.clipData.getItemAt(0).text?.toString() ?: ""
-                                        val parsed = WgConfig.parse(text)
-                                        if (parsed.isValid()) {
-                                            viewModel.updateWgConfigText(text)
-                                            snackbarHostState.showSnackbar(importSuccessMessage)
-                                        } else {
-                                            snackbarHostState.showSnackbar(importErrorMessage)
-                                        }
+            // 3. Настройки протокола
+            when (xrayConfiguration) {
+                XrayConfiguration.WIREGUARD -> {
+                    WireGuardSettings(
+                        privateKey = privateKey,
+                        onPrivateKeyChange = { if (!privacyMode) privateKey = it },
+                        address = address,
+                        onAddressChange = { if (!privacyMode) address = it },
+                        mtu = mtu,
+                        onMtuChange = { mtu = it },
+                        publicKey = publicKey,
+                        onPublicKeyChange = { if (!privacyMode) publicKey = it },
+                        endpoint = endpoint,
+                        onEndpointChange = { if (!privacyMode) endpoint = it },
+                        persistentKeepalive = persistentKeepalive,
+                        onPersistentKeepaliveChange = { persistentKeepalive = it },
+                        isEndpointValid = isEndpointValid,
+                        isTargetEndpoint = isTargetEndpoint,
+                        onFixEndpoint = { endpoint = clientConfig.connectableAddress },
+                        runningWgConfig = runningWgConfig,
+                        privacyMode = privacyMode,
+                        onImportFile = { filePickerLauncher.launch("*/*") },
+                        onImportQr = { showQrScanner.value = true },
+                        onImportClipboard = {
+                            scope.launch {
+                                val clipEntry = clipboard.getClipEntry()
+                                if (clipEntry != null) {
+                                    val text = clipEntry.clipData.getItemAt(0).text?.toString() ?: ""
+                                    val parsed = WgConfig.parse(text)
+                                    if (parsed.isValid()) {
+                                        viewModel.updateWgConfigText(text)
+                                        snackbarHostState.showSnackbar(importSuccessMessage)
+                                    } else {
+                                        snackbarHostState.showSnackbar(importErrorMessage)
                                     }
                                 }
                             }
-                        )
-                    }
-                    XrayConfiguration.VLESS -> {
-                        VlessSettings(
-                            vlessLink = vlessLink,
-                            onVlessLinkChange = { if (!privacyMode) vlessLink = it },
-                            vlessUseLocalAddress = vlessUseLocalAddress,
-                            onVlessUseLocalAddressChange = {
-                                HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
-                                vlessUseLocalAddress = it
-                            },
-                            vlessLinkHistory = vlessLinkHistory,
-                            onRemoveHistory = { viewModel.removeVlessLinkFromHistory(it) },
-                            runningVlessConfig = runningVlessConfig,
-                            privacyMode = privacyMode,
-                            onImportQr = { showVlessQrScanner.value = true }
-                        )
-                    }
+                        },
+                        blockContainerColor = blockContainerColor
+                    )
+                }
+                XrayConfiguration.VLESS -> {
+                    VlessSettings(
+                        vlessLink = vlessLink,
+                        onVlessLinkChange = { if (!privacyMode) vlessLink = it },
+                        vlessUseLocalAddress = vlessUseLocalAddress,
+                        onVlessUseLocalAddressChange = {
+                            HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                            vlessUseLocalAddress = it
+                        },
+                        vlessLinkHistory = vlessLinkHistory,
+                        onRemoveHistory = { viewModel.removeVlessLinkFromHistory(it) },
+                        runningVlessConfig = runningVlessConfig,
+                        privacyMode = privacyMode,
+                        onImportQr = { showVlessQrScanner.value = true },
+                        blockContainerColor = blockContainerColor
+                    )
                 }
             }
 
@@ -527,12 +511,12 @@ private fun WireGuardSettings(
     privacyMode: Boolean,
     onImportFile: () -> Unit,
     onImportQr: () -> Unit,
-    onImportClipboard: () -> Unit
+    onImportClipboard: () -> Unit,
+    blockContainerColor: Color
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                SectionHeader(stringResource(R.string.wg_import_config))
+    Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+        SettingsGroup(title = stringResource(R.string.wg_import_config)) {
+            SettingsGroupItem(isTop = true, isBottom = true, containerColor = blockContainerColor) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ImportButton(onClick = onImportFile, icon = R.drawable.file_open_24px, label = stringResource(R.string.wg_import_file), modifier = Modifier.weight(1f))
                     ImportButton(onClick = onImportQr, icon = R.drawable.qr_code_24px, label = stringResource(R.string.qr_import), modifier = Modifier.weight(1f))
@@ -541,105 +525,83 @@ private fun WireGuardSettings(
             }
         }
 
-        OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                SectionHeader(stringResource(R.string.wg_interface))
-                
-                OutlinedTextField(
+        SettingsGroup(title = stringResource(R.string.wg_interface)) {
+            SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
+                TextFieldRow(
+                    label = stringResource(R.string.wg_private_key),
                     value = privateKey.redact(privacyMode),
                     onValueChange = onPrivateKeyChange,
-                    label = { 
-                        ConfigLabelRow(runningWgConfig != null && privateKey != runningWgConfig.privateKey) {
-                            Text(stringResource(R.string.wg_private_key))
-                        }
-                    },
-                    placeholder = { Text(stringResource(R.string.wg_private_key_placeholder)) },
+                    placeholder = stringResource(R.string.wg_private_key_placeholder),
                     isError = privateKey.isBlank(),
-                    modifier = Modifier.fillMaxWidth(),
-                    readOnly = privacyMode
+                    readOnly = privacyMode,
+                    isModified = runningWgConfig != null && privateKey != runningWgConfig.privateKey
                 )
+            }
 
-                OutlinedTextField(
+            SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                TextFieldRow(
+                    label = stringResource(R.string.wg_address),
                     value = address.redact(privacyMode),
                     onValueChange = onAddressChange,
-                    label = { 
-                        ConfigLabelRow(runningWgConfig != null && address != runningWgConfig.address) {
-                            Text(stringResource(R.string.wg_address))
-                        }
-                    },
-                    placeholder = { Text(stringResource(R.string.wg_address_placeholder)) },
+                    placeholder = stringResource(R.string.wg_address_placeholder),
                     isError = address.isBlank(),
-                    modifier = Modifier.fillMaxWidth(),
-                    readOnly = privacyMode
+                    readOnly = privacyMode,
+                    isModified = runningWgConfig != null && address != runningWgConfig.address
                 )
+            }
 
-                OutlinedTextField(
+            SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+                TextFieldRow(
+                    label = stringResource(R.string.wg_mtu),
                     value = mtu,
                     onValueChange = onMtuChange,
-                    label = { 
-                        ConfigLabelRow(runningWgConfig != null && mtu != runningWgConfig.mtu) {
-                            Text(stringResource(R.string.wg_mtu))
-                        }
-                    },
-                    placeholder = { Text(stringResource(R.string.wg_mtu_placeholder)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    supportingText = if (mtu != "1280") { { Text(stringResource(R.string.wg_mtu_recommendation)) } } else null
+                    placeholder = stringResource(R.string.wg_mtu_placeholder),
+                    isModified = runningWgConfig != null && mtu != runningWgConfig.mtu,
+                    supportingText = if (mtu != "1280") stringResource(R.string.wg_mtu_recommendation) else null
                 )
             }
         }
 
-        OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                SectionHeader(stringResource(R.string.wg_peer))
-
-                OutlinedTextField(
+        SettingsGroup(title = stringResource(R.string.wg_peer)) {
+            SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
+                TextFieldRow(
+                    label = stringResource(R.string.wg_public_key),
                     value = publicKey.redact(privacyMode),
                     onValueChange = onPublicKeyChange,
-                    label = { 
-                        ConfigLabelRow(runningWgConfig != null && publicKey != runningWgConfig.publicKey) {
-                            Text(stringResource(R.string.wg_public_key))
-                        }
-                    },
-                    placeholder = { Text(stringResource(R.string.wg_public_key_placeholder)) },
+                    placeholder = stringResource(R.string.wg_public_key_placeholder),
                     isError = publicKey.isBlank(),
-                    modifier = Modifier.fillMaxWidth(),
-                    readOnly = privacyMode
-                )
-
-                OutlinedTextField(
-                    value = endpoint.redact(privacyMode),
-                    onValueChange = onEndpointChange,
-                    label = { 
-                        ConfigLabelRow(runningWgConfig != null && endpoint != runningWgConfig.endpoint) {
-                            Text(stringResource(R.string.wg_endpoint))
-                        }
-                    },
-                    placeholder = { Text(stringResource(R.string.wg_endpoint_placeholder)) },
-                    isError = !isTargetEndpoint || !isEndpointValid,
-                    modifier = Modifier.fillMaxWidth(),
                     readOnly = privacyMode,
-                    supportingText = if (!isTargetEndpoint) {
-                        {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                Text(text = stringResource(R.string.wg_endpoint_mismatch), color = MaterialTheme.colorScheme.error)
-                                Text(text = stringResource(R.string.wg_endpoint_fix), color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { onFixEndpoint() })
-                            }
-                        }
-                    } else null
+                    isModified = runningWgConfig != null && publicKey != runningWgConfig.publicKey
                 )
+            }
 
-                OutlinedTextField(
+            SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                Column {
+                    TextFieldRow(
+                        label = stringResource(R.string.wg_endpoint),
+                        value = endpoint.redact(privacyMode),
+                        onValueChange = onEndpointChange,
+                        placeholder = stringResource(R.string.wg_endpoint_placeholder),
+                        isError = !isTargetEndpoint || !isEndpointValid,
+                        readOnly = privacyMode,
+                        isModified = runningWgConfig != null && endpoint != runningWgConfig.endpoint
+                    )
+                    if (!isTargetEndpoint) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = stringResource(R.string.wg_endpoint_mismatch), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                            Text(text = stringResource(R.string.wg_endpoint_fix), color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { onFixEndpoint() }, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
+
+            SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+                TextFieldRow(
+                    label = stringResource(R.string.wg_persistent_keepalive),
                     value = persistentKeepalive,
                     onValueChange = onPersistentKeepaliveChange,
-                    label = { 
-                        ConfigLabelRow(runningWgConfig != null && persistentKeepalive != runningWgConfig.persistentKeepalive) {
-                            Text(stringResource(R.string.wg_persistent_keepalive))
-                        }
-                    },
-                    placeholder = { Text(stringResource(R.string.wg_persistent_keepalive_placeholder)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    placeholder = stringResource(R.string.wg_persistent_keepalive_placeholder),
+                    isModified = runningWgConfig != null && persistentKeepalive != runningWgConfig.persistentKeepalive
                 )
             }
         }
@@ -656,41 +618,29 @@ private fun VlessSettings(
     onRemoveHistory: (String) -> Unit,
     runningVlessConfig: com.wireturn.app.data.VlessConfig?,
     privacyMode: Boolean,
-    onImportQr: () -> Unit
+    onImportQr: () -> Unit,
+    blockContainerColor: Color
 ) {
     val vlessName = remember(vlessLink) {
         val fragment = vlessLink.substringAfterLast('#', "")
         if (fragment.isNotEmpty()) " #${android.net.Uri.decode(fragment)}" else ""
     }
 
-    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            SectionHeader(stringResource(R.string.vless_settings))
-            
-            OutlinedTextField(
+    SettingsGroup(title = stringResource(R.string.vless_settings)) {
+        SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
+            TextFieldRow(
+                label = stringResource(R.string.vless_link_label) + vlessName,
                 value = vlessLink.redact(privacyMode),
                 onValueChange = onVlessLinkChange,
-                label = { 
-                    ConfigLabelRow(runningVlessConfig != null && vlessLink.trim() != runningVlessConfig.vlessLink) {
-                        Text(
-                            text = buildAnnotatedString {
-                                append(stringResource(R.string.vless_link_label))
-                                if (vlessName.isNotEmpty()) {
-                                    withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
-                                        append(vlessName)
-                                    }
-                                }
-                            }
-                        )
-                    }
-                },
-                placeholder = { Text(stringResource(R.string.vless_link_placeholder)) },
+                placeholder = stringResource(R.string.vless_link_placeholder),
                 isError = !ValidatorUtils.isValidVlessLink(vlessLink) || vlessLink.isBlank(),
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 4,
                 maxLines = 4,
+                singleLine = false,
                 readOnly = privacyMode,
-                supportingText = { Text(stringResource(R.string.vless_link_config_desc)) },
+                supportingText = stringResource(R.string.vless_link_config_desc),
+                isModified = runningVlessConfig != null && vlessLink.trim() != runningVlessConfig.vlessLink,
                 trailingIcon = {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         IconButton(
@@ -709,10 +659,19 @@ private fun VlessSettings(
                     }
                 }
             )
+        }
 
+        SettingsGroupItem(
+            isTop = false,
+            isBottom = true,
+            containerColor = blockContainerColor,
+            onClick = {
+                onVlessUseLocalAddressChange(!vlessUseLocalAddress)
+            }
+        ) {
             SwitchRow(
                 label = stringResource(R.string.use_local_listen_address),
-                description = stringResource(R.string.use_local_listen_desc),
+                supportingText = stringResource(R.string.use_local_listen_desc),
                 checked = vlessUseLocalAddress,
                 onCheckedChange = onVlessUseLocalAddressChange,
                 isModified = runningVlessConfig != null && vlessUseLocalAddress != runningVlessConfig.vlessUseLocalAddress

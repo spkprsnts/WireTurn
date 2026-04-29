@@ -95,6 +95,7 @@ private val darkScheme = darkColorScheme(
 
 
 val LocalThemeMode = compositionLocalOf { ThemeMode.DARK }
+val LocalIsDark = compositionLocalOf { true }
 
 @Composable
 fun WireturnTheme(
@@ -141,6 +142,7 @@ fun WireturnTheme(
 
     CompositionLocalProvider(
         LocalThemeMode provides themeMode,
+        LocalIsDark provides darkTheme,
         LocalExtendedColorScheme provides extendedColorSchemeFor(darkTheme)
     ) {
         MaterialTheme(

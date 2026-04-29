@@ -53,7 +53,7 @@ import androidx.navigation.NavType
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.screens.AppExceptionsScreen
 import com.wireturn.app.ui.screens.CaptchaWebViewDialog
-import com.wireturn.app.ui.screens.ClientSetupScreen
+import com.wireturn.app.ui.screens.ClientConfigScreen
 import com.wireturn.app.ui.screens.HomeScreen
 import com.wireturn.app.ui.screens.LogsScreen
 import com.wireturn.app.ui.screens.OnboardingScreen
@@ -65,7 +65,7 @@ import com.wireturn.app.viewmodel.MainViewModel
 object Routes {
     const val ONBOARDING = "onboarding"
     const val XRAY_CONFIG = "xray_config"
-    const val CLIENT_SETUP = "client_setup"
+    const val CLIENT_CONFIG = "client_config"
     const val HOME = "home"
     const val APP_SETTINGS = "app_settings?scrollToUpdate={scrollToUpdate}"
     fun appSettings(scrollToUpdate: Boolean = false) = "app_settings?scrollToUpdate=$scrollToUpdate"
@@ -74,7 +74,7 @@ object Routes {
 }
 
 // Нижнее меню видно только в основном потоке, не во время онбординга
-private val BOTTOM_NAV_ROUTES = setOf(Routes.HOME, Routes.LOGS, Routes.CLIENT_SETUP, Routes.XRAY_CONFIG, Routes.APP_SETTINGS)
+private val BOTTOM_NAV_ROUTES = setOf(Routes.HOME, Routes.LOGS, Routes.CLIENT_CONFIG, Routes.XRAY_CONFIG, Routes.APP_SETTINGS)
 
 @Composable
 fun AppNavigation(
@@ -141,7 +141,7 @@ fun AppNavigation(
                         modifier = Modifier.statusBarsPadding(),
                         onSkip = {
                             viewModel.setOnboardingDone()
-                            navController.navigate(Routes.CLIENT_SETUP) {
+                            navController.navigate(Routes.CLIENT_CONFIG) {
                                 popUpTo(Routes.ONBOARDING) { inclusive = true }
                                 launchSingleTop = true
                             }
@@ -159,9 +159,9 @@ fun AppNavigation(
                     }
                 }
 
-                composable(route = Routes.CLIENT_SETUP) {
+                composable(route = Routes.CLIENT_CONFIG) {
                     key(currentProfileId) {
-                        ClientSetupScreen(
+                        ClientConfigScreen(
                             modifier = Modifier.statusBarsPadding(),
                             viewModel = viewModel,
                             showFinishButton = false
@@ -269,7 +269,7 @@ private data class NavItem(
 
 private val navItems = listOf(
     NavItem(Routes.HOME, R.string.nav_home, R.drawable.home_24px, R.drawable.home_outlined_24px),
-    NavItem(Routes.CLIENT_SETUP, R.string.client_title, R.drawable.mobile_24px, R.drawable.mobile_outlined_24px),
+    NavItem(Routes.CLIENT_CONFIG, R.string.client_title, R.drawable.mobile_24px, R.drawable.mobile_outlined_24px),
     NavItem(Routes.XRAY_CONFIG, R.string.xray_short, R.drawable.ic_xray_24px, R.drawable.ic_xray_24px),
     NavItem(Routes.appSettings(), R.string.app_settings_title, R.drawable.baseline_app_settings_alt_24px, R.drawable.outline_app_settings_alt_24px),
     NavItem(Routes.LOGS, R.string.logs_title, R.drawable.terminal_24px, R.drawable.terminal_24px)

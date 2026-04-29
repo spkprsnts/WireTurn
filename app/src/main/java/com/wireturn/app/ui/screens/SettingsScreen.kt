@@ -33,13 +33,14 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularWavyProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -74,6 +75,8 @@ import com.wireturn.app.data.ThemeMode
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.MarkdownUtils
 import com.wireturn.app.ui.SectionHeader
+import com.wireturn.app.ui.SettingsGroup
+import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.UpdateState
@@ -126,10 +129,15 @@ fun SettingsScreen(
         }
     }
 
+    val isDark = com.wireturn.app.ui.theme.LocalIsDark.current
+    val screenBackgroundColor = if (isDark) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerLow
+    val blockContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
+
     Scaffold(
         modifier = modifier,
         topBar = { TopAppBar(title = { Text(stringResource(R.string.app_settings_title)) }) },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        containerColor = screenBackgroundColor
     ) { padding ->
         Column(
             modifier = Modifier
@@ -143,20 +151,18 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp)
                 .verticalScroll(scrollState)
                 .padding(bottom = 80.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             Spacer(Modifier.height(8.dp))
 
             // 1. Оформление
-            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    SectionHeader(stringResource(R.string.theme_title))
-                    Spacer(Modifier.height(16.dp))
+            val themeModes = remember(supportsSystemTheme) {
+                if (supportsSystemTheme) ThemeMode.entries else ThemeMode.entries.filter { it != ThemeMode.SYSTEM }
+            }
+            val group1Count = if (supportsDynamicColor) 2 else 1
 
-                    val themeModes = remember(supportsSystemTheme) {
-                        if (supportsSystemTheme) ThemeMode.entries else ThemeMode.entries.filter { it != ThemeMode.SYSTEM }
-                    }
-
+            SettingsGroup(title = stringResource(R.string.theme_title)) {
+                SettingsGroupItem(isTop = true, isBottom = !supportsDynamicColor, containerColor = blockContainerColor) {
                     SingleChoiceSegmentedButtonRow(
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -183,15 +189,21 @@ fun SettingsScreen(
                             )
                         }
                     }
+                }
 
-                    if (supportsDynamicColor) {
-                        Spacer(Modifier.height(16.dp))
-                        HorizontalDivider(thickness = 0.5.dp)
-                        Spacer(Modifier.height(16.dp))
-
+                if (supportsDynamicColor) {
+                    SettingsGroupItem(
+                        isTop = false, 
+                        isBottom = true, 
+                        containerColor = blockContainerColor,
+                        onClick = {
+                            HapticUtil.perform(context, if (dynamicTheme) HapticUtil.Pattern.TOGGLE_OFF else HapticUtil.Pattern.TOGGLE_ON)
+                            viewModel.setDynamicTheme(!dynamicTheme)
+                        }
+                    ) {
                         SwitchRow(
                             label = stringResource(R.string.dynamic_theme_title),
-                            description = stringResource(R.string.dynamic_theme_desc),
+                            supportingText = stringResource(R.string.dynamic_theme_desc),
                             checked = dynamicTheme,
                             onCheckedChange = { viewModel.setDynamicTheme(it) }
                         )
@@ -200,14 +212,19 @@ fun SettingsScreen(
             }
 
             // 2. Приватность
-            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    SectionHeader(stringResource(R.string.privacy_mode_title))
-                    Spacer(Modifier.height(16.dp))
-
+            SettingsGroup(title = stringResource(R.string.privacy_mode_title)) {
+                SettingsGroupItem(
+                    isTop = true, 
+                    isBottom = true, 
+                    containerColor = blockContainerColor,
+                    onClick = {
+                        HapticUtil.perform(context, if (privacyMode) HapticUtil.Pattern.TOGGLE_OFF else HapticUtil.Pattern.TOGGLE_ON)
+                        viewModel.setPrivacyMode(!privacyMode)
+                    }
+                ) {
                     SwitchRow(
                         label = stringResource(R.string.privacy_mode_title),
-                        description = stringResource(R.string.privacy_mode_desc),
+                        supportingText = stringResource(R.string.privacy_mode_desc),
                         checked = privacyMode,
                         onCheckedChange = { viewModel.setPrivacyMode(it) }
                     )
@@ -215,40 +232,47 @@ fun SettingsScreen(
             }
 
             // 3. Обновление
-            OutlinedCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .onGloballyPositioned { coordinates ->
+            val isImportantState = updateState is UpdateState.Available || updateState is UpdateState.Downloading || updateState is UpdateState.ReadyToInstall
+            val updateContainerColor = if (isImportantState) {
+                if (isDark) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surfaceContainerHigh
+            } else blockContainerColor
+
+            SettingsGroup(title = stringResource(R.string.update_title)) {
+                SettingsGroupItem(
+                    isTop = true,
+                    isBottom = false,
+                    containerColor = updateContainerColor,
+                    onClick = {
+                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                        when (updateState) {
+                            is UpdateState.Available -> viewModel.downloadUpdate()
+                            is UpdateState.ReadyToInstall -> viewModel.installUpdate()
+                            else -> viewModel.checkForUpdate()
+                        }
+                    },
+                    enabled = updateState !is UpdateState.Checking && updateState !is UpdateState.Downloading,
+                    modifier = Modifier.onGloballyPositioned { coordinates ->
                         updateBlockOffset = coordinates.positionInParent().y
                     }
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    SectionHeader(stringResource(R.string.update_title))
-                    Spacer(Modifier.height(16.dp))
-
+                ) {
                     UpdateBlock(
-                        state = updateState,
-                        onCheck = {
-                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                            viewModel.checkForUpdate()
-                        },
-                        onDownload = {
-                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                            viewModel.downloadUpdate()
-                        },
-                        onInstall = {
-                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                            viewModel.installUpdate()
-                        }
+                        state = updateState
                     )
+                }
 
-                    Spacer(Modifier.height(16.dp))
-                    HorizontalDivider(thickness = 0.5.dp)
-                    Spacer(Modifier.height(16.dp))
-
+                SettingsGroupItem(
+                    isTop = false, 
+                    isBottom = true, 
+                    containerColor = blockContainerColor,
+                    onClick = {
+                        val next = !allowUnstableUpdates
+                        HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                        viewModel.setAllowUnstableUpdates(next)
+                    }
+                ) {
                     SwitchRow(
                         label = stringResource(R.string.unstable_updates_title),
-                        description = stringResource(R.string.unstable_updates_desc),
+                        supportingText = stringResource(R.string.unstable_updates_desc),
                         checked = allowUnstableUpdates,
                         onCheckedChange = { viewModel.setAllowUnstableUpdates(it) }
                     )
@@ -323,12 +347,8 @@ fun SettingsScreen(
 
 @Composable
 private fun UpdateBlock(
-    state: UpdateState,
-    onCheck: () -> Unit,
-    onDownload: () -> Unit,
-    onInstall: () -> Unit
+    state: UpdateState
 ) {
-    val context = LocalContext.current
     val titleText = stringResource(R.string.update_title)
     val supportingText = when (state) {
         is UpdateState.Idle -> stringResource(R.string.update_tap_to_check)
@@ -350,163 +370,143 @@ private fun UpdateBlock(
         }
     }
 
-    val canInteract = state !is UpdateState.Checking && state !is UpdateState.Downloading
-    val isImportantState = state is UpdateState.Available || state is UpdateState.Downloading || state is UpdateState.ReadyToInstall
-    val containerColor = if (isImportantState) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow
-    val contentColor = if (isImportantState) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
+    val contentColor = MaterialTheme.colorScheme.onSurface
 
-    Surface(
-        onClick = {
-            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-            when (state) {
-                is UpdateState.Available -> onDownload()
-                is UpdateState.ReadyToInstall -> onInstall()
-                else -> onCheck()
-            }
-        },
-        enabled = canInteract,
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        color = containerColor,
-        tonalElevation = if (isImportantState) 2.dp else 0.dp
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
+    Column {
+        Row(
+            modifier = Modifier.heightIn(min = 40.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(
-                modifier = Modifier.heightIn(min = 40.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Box(modifier = Modifier.size(24.dp), contentAlignment = Alignment.Center) {
-                    AnimatedContent(
-                        targetState = state,
-                        label = "update_indicator",
-                        transitionSpec = {
-                            fadeIn(tween(200)) togetherWith fadeOut(tween(200))
-                        },
-                        contentKey = { it::class }
-                    ) { targetState ->
-                        val targetIsImportant = targetState is UpdateState.Available || targetState is UpdateState.Downloading || targetState is UpdateState.ReadyToInstall
-                        val targetContentColor = if (targetIsImportant) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
-
-                        when (targetState) {
-                            is UpdateState.Checking, is UpdateState.Downloading -> {
-                                CircularWavyProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    color = targetContentColor
-                                )
-                            }
-                            else -> {
-                                Icon(
-                                    painter = painterResource(
-                                        if (targetState is UpdateState.Error) R.drawable.error_24px
-                                        else R.drawable.refresh_24px
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(24.dp),
-                                    tint = if (targetState is UpdateState.Error) MaterialTheme.colorScheme.error
-                                    else targetContentColor
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = titleText,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = contentColor,
-                        fontWeight = FontWeight.Bold
-                    )
-                    AnimatedContent(
-                        targetState = state,
-                        label = "update_supporting_text",
-                        transitionSpec = {
-                            fadeIn(tween(200)) togetherWith fadeOut(tween(200)) using SizeTransform(clip = false)
-                        },
-                        contentKey = { if (it is UpdateState.Downloading) "downloading" else it }
-                    ) { targetState ->
-                        val targetIsImportant = targetState is UpdateState.Available || targetState is UpdateState.Downloading || targetState is UpdateState.ReadyToInstall
-                        val targetContentColor = if (targetIsImportant) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
-
-                        val targetSupportingText = when (targetState) {
-                            is UpdateState.Idle -> stringResource(R.string.update_tap_to_check)
-                            is UpdateState.Checking -> stringResource(R.string.update_checking)
-                            is UpdateState.Available -> stringResource(R.string.update_available, targetState.version)
-                            is UpdateState.Downloading -> supportingText // Use outer supportingText for real-time progress
-                            is UpdateState.ReadyToInstall -> stringResource(R.string.update_ready_desc_short)
-                            is UpdateState.NoUpdate -> stringResource(R.string.update_no_update)
-                            is UpdateState.Error -> stringResource(R.string.update_error, targetState.message)
-                        }
-
-                        Text(
-                            text = targetSupportingText,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = (if (targetState is UpdateState.Error) MaterialTheme.colorScheme.error
-                                    else targetContentColor).copy(alpha = 0.7f)
-                        )
-                    }
-                }
-
+            Box(modifier = Modifier.size(24.dp), contentAlignment = Alignment.Center) {
                 AnimatedContent(
-                    targetState = when(state) {
-                        is UpdateState.Available -> "download"
-                        is UpdateState.ReadyToInstall -> "install"
-                        else -> "none"
-                    },
-                    label = "update_actions",
+                    targetState = state,
+                    label = "update_indicator",
                     transitionSpec = {
-                        fadeIn(animationSpec = tween(200)) togetherWith fadeOut(animationSpec = tween(200))
-                    }
-                ) { targetKey ->
-                    val actionText = when (targetKey) {
-                        "download" -> stringResource(R.string.update_download)
-                        "install" -> stringResource(R.string.update_install)
-                        else -> null
-                    }
-                    if (actionText != null) {
-                        Text(
-                            text = actionText,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 8.dp)
-                        )
+                        fadeIn(tween(200)) togetherWith fadeOut(tween(200))
+                    },
+                    contentKey = { it::class }
+                ) { targetState ->
+                    val targetContentColor = MaterialTheme.colorScheme.onSurface
+
+                    when (targetState) {
+                        is UpdateState.Checking, is UpdateState.Downloading -> {
+                            CircularWavyProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = targetContentColor
+                            )
+                        }
+                        else -> {
+                            Icon(
+                                painter = painterResource(
+                                    when (targetState) {
+                                        is UpdateState.Error -> R.drawable.error_24px
+                                        is UpdateState.Available, is UpdateState.ReadyToInstall -> R.drawable.info_24px
+                                        else -> R.drawable.refresh_24px
+                                    }
+                                ),
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                                tint = if (targetState is UpdateState.Error) MaterialTheme.colorScheme.error
+                                else targetContentColor
+                            )
+                        }
                     }
                 }
             }
 
-            // Линейный прогресс-бар при скачивании
-            AnimatedVisibility(
-                visible = state is UpdateState.Downloading,
-                enter = expandVertically(animationSpec = tween(300)) + fadeIn(tween(300)),
-                exit = shrinkVertically(animationSpec = tween(300)) + fadeOut(tween(300))
-            ) {
-                androidx.compose.material3.LinearWavyProgressIndicator(
-                    progress = { (state as? UpdateState.Downloading)?.progress?.div(100f) ?: 0f },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp),
-                    color = MaterialTheme.colorScheme.primary
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = titleText,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = contentColor,
+                    fontWeight = FontWeight.Medium
                 )
+                AnimatedContent(
+                    targetState = state,
+                    label = "update_supporting_text",
+                    transitionSpec = {
+                        fadeIn(tween(200)) togetherWith fadeOut(tween(200)) using SizeTransform(clip = false)
+                    },
+                    contentKey = { if (it is UpdateState.Downloading) "downloading" else it }
+                ) { targetState ->
+                    val targetContentColor = MaterialTheme.colorScheme.onSurface
+
+                    val targetSupportingText = when (targetState) {
+                        is UpdateState.Idle -> stringResource(R.string.update_tap_to_check)
+                        is UpdateState.Checking -> stringResource(R.string.update_checking)
+                        is UpdateState.Available -> stringResource(R.string.update_available, targetState.version)
+                        is UpdateState.Downloading -> supportingText // Use outer supportingText for real-time progress
+                        is UpdateState.ReadyToInstall -> stringResource(R.string.update_ready_desc_short)
+                        is UpdateState.NoUpdate -> stringResource(R.string.update_no_update)
+                        is UpdateState.Error -> stringResource(R.string.update_error, targetState.message)
+                    }
+
+                    Text(
+                        text = targetSupportingText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = (if (targetState is UpdateState.Error) MaterialTheme.colorScheme.error
+                                else targetContentColor).copy(alpha = 0.7f)
+                    )
+                }
             }
 
-            if (currentChangelog.isNotBlank()) {
-                Text(
-                    text = MarkdownUtils.parseMarkdown(
-                        text = currentChangelog,
-                        linkStyle = SpanStyle(
-                            color = MaterialTheme.colorScheme.primary,
-                            textDecoration = TextDecoration.Underline
-                        )
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = contentColor.copy(alpha = 0.7f),
-                    modifier = Modifier.padding(top = 12.dp)
-                )
+            AnimatedContent(
+                targetState = when(state) {
+                    is UpdateState.Available -> "download"
+                    is UpdateState.ReadyToInstall -> "install"
+                    else -> "none"
+                },
+                label = "update_actions",
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(200)) togetherWith fadeOut(animationSpec = tween(200))
+                }
+            ) { targetKey ->
+                val actionText = when (targetKey) {
+                    "download" -> stringResource(R.string.update_download)
+                    "install" -> stringResource(R.string.update_install)
+                    else -> null
+                }
+                if (actionText != null) {
+                    Text(
+                        text = actionText,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+                }
             }
+        }
+
+        // Линейный прогресс-бар при скачивании
+        AnimatedVisibility(
+            visible = state is UpdateState.Downloading,
+            enter = expandVertically(animationSpec = tween(300)) + fadeIn(tween(300)),
+            exit = shrinkVertically(animationSpec = tween(300)) + fadeOut(tween(300))
+        ) {
+            androidx.compose.material3.LinearWavyProgressIndicator(
+                progress = { (state as? UpdateState.Downloading)?.progress?.div(100f) ?: 0f },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp),
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        if (currentChangelog.isNotBlank()) {
+            Text(
+                text = MarkdownUtils.parseMarkdown(
+                    text = currentChangelog,
+                    linkStyle = SpanStyle(
+                        color = MaterialTheme.colorScheme.primary,
+                        textDecoration = TextDecoration.Underline
+                    )
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = contentColor.copy(alpha = 0.7f),
+                modifier = Modifier.padding(top = 12.dp)
+            )
         }
     }
 }

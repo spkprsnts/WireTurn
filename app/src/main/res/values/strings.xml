@@ -10,7 +10,6 @@
     <string name="info_desc">Информация</string>
     <string name="proxy_active">Прокси активен</string>
     <string name="proxy_running">Ядро активно</string>
-    <string name="proxy_starting">Запускается…</string>
     <string name="proxy_connecting">Подключение…</string>
     <string name="proxy_press_to_start">Нажмите для запуска</string>
     <string name="proxy_stop">Остановить</string>
@@ -26,12 +25,14 @@
     <string name="captcha_title">Проверка VK</string>
     <string name="captcha_desc">Пройдите проверку для продолжения</string>
     <string name="start_proxy">Запустить прокси</string>
-    <string name="xray_starting_state">Xray запускается</string>
-    <string name="xray_running_state">Xray запущен</string>
     <string name="xray_config_invalid">Некорректный конфиг</string>
     <string name="error_format_short">Ошибка: %1$s</string>
     <string name="repo_links">Ссылки на репозитории</string>
     <string name="repo_links_desc">Исходный код компонентов</string>
+
+    <string name="starting">Запускается…</string>
+    <string name="running">Запущен</string>
+    <string name="idle">Остановлен</string>
 
     <!-- Разрешения (Permissions) -->
     <string name="permissions_title">Разрешения</string>
@@ -118,9 +119,11 @@
     <string name="raw_placeholder">-listen 127.0.0.1:900 -peer 292.313.32.45:56000 …</string>
     <string name="server_address_label">Адрес vk-turn-proxy сервера</string>
     <string name="server_address_placeholder">292.313.32.45:56000</string>
-    <string name="server_address_support">IP и порт vk-turn-proxy на вашем VPS</string>
+    <string name="server_address_support">IP и порт вашего сервера (параметр -listen)</string>
+    <string name="server_help_text">Укажите публичный IP-адрес и порт вашего VPS, на котором запущен vk‑turn‑proxy.</string>
+    <string name="server_help_secondary">Обратите внимание: если на сервере использован параметр -listen 0.0.0.0:56000, в приложении нужно указать именно внешний IP-адрес вашего сервера (например, 292.313.32.45:56000), а не нули.</string>
     <string name="vk_link_label">Ссылка VK-звонок</string>
-    <string name="vk_link_placeholder">https://vk.com/call/…</string>
+    <string name="vk_link_placeholder">https://vk.com/call/join/…</string>
     <string name="vk_link_support">VK: Звонки → Создать встречу → Скопировать ссылку (не нажимайте «Завершить»)</string>
     <string name="turnable_url_label">Turnable-ссылка</string>
     <string name="turnable_url_placeholder">turnable://user:pass@vk.com…</string>
@@ -152,7 +155,8 @@
     <string name="manual_captcha">Ручной ввод капчи</string>
     <string name="manual_captcha_desc">Решать капчу вручную вместо автоматического распознавания</string>
     <string name="force_turn_port_443">TURN-порт 443</string>
-    <string name="force_turn_port_443_desc">Использовать порт 443 вместо стандартного.\nПомогает в сетях, где порт 19302 заблокирован</string>
+    <string name="force_turn_port_443_desc">Использовать порт 443 вместо стандартного.</string>
+    <string name="force_turn_port_443_secondary">Помогает в сетях, где порт 19302 заблокирован</string>
     <string name="jazz_label">SaluteJazz</string>
     <string name="wb_stream_label">WB Stream</string>
     <string name="dc_type_label">Сервис DC</string>
@@ -168,6 +172,11 @@
     <string name="from_apk">Из APK</string>
     <string name="btn_load">Загрузить</string>
     <string name="finish_setup">Завершить настройку</string>
+    <string name="vk_help_text">Для работы прокси необходима ссылка на звонок ВКонтакте.</string>
+    <string name="vk_help_secondary">Её можно найти в Google по запросу \"https://vk.com/call/join/\" или создать самостоятельно в веб-версии VK Звонков (vk.com/calls), используя режим ПК в браузере.</string>
+    <string name="vk_help_search_btn">Искать в Google</string>
+    <string name="local_port_help_text">Это сетевой адрес и порт, на которых приложение запустит локальный прокси-сервер.</string>
+    <string name="local_port_help_secondary">К этому адресу должен подключаться либо встроенный в приложение Xray, либо ваши сторонние VPN-клиенты (WireGuard, v2raytun и др.), чтобы трафик шел через созданный туннель.</string>
 
     <!-- Экран логов (Logs) -->
     <string name="logs_title">Логи</string>

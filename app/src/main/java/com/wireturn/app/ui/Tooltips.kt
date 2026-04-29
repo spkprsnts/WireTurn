@@ -12,6 +12,7 @@ import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.wireturn.app.R
 import kotlinx.coroutines.delay
@@ -21,6 +22,7 @@ import kotlinx.coroutines.launch
 fun AppExclusionTooltip(
     hintShown: Boolean,
     onHintShown: () -> Unit,
+    modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
     val tooltipState = rememberTooltipState(isPersistent = true)
@@ -50,6 +52,7 @@ fun AppExclusionTooltip(
             }
         },
         state = tooltipState,
+        modifier = modifier,
         content = content
     )
 }

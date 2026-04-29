@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
@@ -80,7 +81,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ProfileSummary(
     profile: Profile,
-    color: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+    color: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurfaceVariant
 ) {
     val clientConfig = profile.clientConfig
     if (clientConfig.getValidationErrorResId() != null) return
@@ -143,52 +144,45 @@ fun ProfileSummary(
 @Composable
 fun ProfilesBlock(
     viewModel: MainViewModel,
-    onShowDialog: () -> Unit
+    modifier: Modifier = Modifier
 ) {
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
     val currentId by viewModel.currentProfileId.collectAsStateWithLifecycle()
     val currentProfile = profiles.find { it.id == currentId } ?: profiles.firstOrNull()
 
     if (currentProfile != null) {
-        Card(
-            modifier = Modifier
-                .padding(horizontal = 24.dp)
+        Row(
+            modifier = modifier
                 .fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-            ),
-            onClick = onShowDialog
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(
-                modifier = Modifier.padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.weight(1f)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.mobile_24px),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 6.dp)
-                    )
-                    Column {
-                        Text(
-                            text = currentProfile.name,
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        ProfileSummary(currentProfile)
-                    }
-                }
-                Text(
-                    text = stringResource(R.string.btn_change_profile),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary
+                Icon(
+                    painter = painterResource(R.drawable.mobile_24px),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .size(24.dp)
                 )
+                Column {
+                    Text(
+                        text = currentProfile.name,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    ProfileSummary(currentProfile)
+                }
             }
+            Text(
+                text = stringResource(R.string.btn_change_profile),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
@@ -229,7 +223,7 @@ fun ProfileListItem(
                 )
                 ProfileSummary(
                     profile = profile,
-                    color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                    color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer
                             else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
             }
