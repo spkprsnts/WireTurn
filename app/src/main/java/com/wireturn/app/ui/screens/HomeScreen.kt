@@ -5,6 +5,7 @@
 
 package com.wireturn.app.ui.screens
 
+import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.expandVertically
@@ -49,7 +50,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularWavyProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -64,8 +64,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import com.wireturn.app.data.DCType
 import com.wireturn.app.data.KernelVariant
-import android.Manifest
-import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -328,6 +326,13 @@ fun HomeScreen(
     val warnWgMismatch = stringResource(R.string.warn_proxy_wg_mismatch)
     val warnVpnRequiresXray = stringResource(R.string.warn_vpn_requires_xray)
 
+    val showVpnWarning = {
+        scope.launch {
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(warnVpnRequiresXray)
+        }
+    }
+
     var hasShownMismatchForCurrentRun by remember { mutableStateOf(xrayState == XrayState.Running) }
     LaunchedEffect(xrayState) {
         if (xrayState != XrayState.Running) {
@@ -373,7 +378,13 @@ fun HomeScreen(
                 }
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = {
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .padding(bottom = 64.dp)
+            )
+        },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = screenBackgroundColor
     ) { padding ->
@@ -392,7 +403,7 @@ fun HomeScreen(
             Spacer(Modifier.height(24.dp))
 
             val hasNotificationPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+                ContextCompat.checkSelfPermission(context, "android.permission.POST_NOTIFICATIONS") == PackageManager.PERMISSION_GRANTED
             } else true
 
             LaunchedEffect(hasNotificationPermission, isIgnoringBatteryOptimizations) {
@@ -454,9 +465,7 @@ fun HomeScreen(
                                         Button(
                                             onClick = {
                                                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                                    notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                                                }
+                                                notificationLauncher.launch("android.permission.POST_NOTIFICATIONS")
                                             },
                                             colors = ButtonDefaults.buttonColors(
                                                 containerColor = MaterialTheme.colorScheme.onErrorContainer,
@@ -788,6 +797,11 @@ fun HomeScreen(
                     onClick = {
                         val next = !xraySettings.xrayEnabled
                         HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                        
+                        if (!next && xraySettings.xrayVpnMode) {
+                            showVpnWarning()
+                        }
+                        
                         viewModel.updateXraySettings(xraySettings.copy(xrayEnabled = next))
                     }
                 ) {
@@ -870,6 +884,11 @@ fun HomeScreen(
                                     context,
                                     if (enabled) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
                                 )
+                                
+                                if (!enabled && xraySettings.xrayVpnMode) {
+                                    showVpnWarning()
+                                }
+
                                 viewModel.updateXraySettings(
                                     viewModel.xraySettings.value.copy(
                                         xrayEnabled = enabled
@@ -888,6 +907,11 @@ fun HomeScreen(
                     onClick = {
                         val next = !xraySettings.xrayVpnMode
                         HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                        
+                        if (next && !xraySettings.xrayEnabled) {
+                            showVpnWarning()
+                        }
+
                         if (next) {
                             val intent = VpnService.prepare(context)
                             if (intent != null) {
@@ -968,6 +992,11 @@ fun HomeScreen(
                             HapticUtil.perform(
                                 context,
                                 if (enabled) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+
+                            if (enabled && !xraySettings.xrayEnabled) {
+                                showVpnWarning()
+                            }
+
                             if (enabled) {
                                 val intent = VpnService.prepare(context)
                                 if (intent != null) {

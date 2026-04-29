@@ -1,6 +1,7 @@
 package com.wireturn.app.ui.screens
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -46,6 +47,7 @@ import androidx.core.net.toUri
 import com.wireturn.app.R
 import com.wireturn.app.ui.HapticUtil
 
+@SuppressLint("BatteryLife")
 @Composable
 fun OnboardingScreen(
     onSkip: () -> Unit,
@@ -154,13 +156,11 @@ fun OnboardingScreen(
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         
                         val pm = context.getSystemService(PowerManager::class.java)
-                        val hasNotificationPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-                        } else true
-                        
                         val isIgnoringBattery = pm?.isIgnoringBatteryOptimizations(context.packageName) == true
 
-                        if (!hasNotificationPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                        ) {
                             notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                         } else if (!isIgnoringBattery) {
                             batteryOptLauncher.launch(

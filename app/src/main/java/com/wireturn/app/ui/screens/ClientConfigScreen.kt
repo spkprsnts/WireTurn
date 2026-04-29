@@ -124,12 +124,12 @@ fun ClientConfigScreen(
     var jazzCreds    by rememberSaveable(currentProfileId, saved.jazzCreds)      { mutableStateOf(saved.jazzCreds) }
     var kernelVariant by rememberSaveable(currentProfileId, saved.kernelVariant) { mutableStateOf(saved.kernelVariant) }
     var lastSliderInt by rememberSaveable { mutableIntStateOf(saved.threads) }
-    var showUrlEditor by remember { mutableStateOf(false) }
     var isUrlParsing by remember { mutableStateOf(false) }
     
     val showVkHelp = remember { mutableStateOf(false) }
     val showPortHelp = remember { mutableStateOf(false) }
     val showServerHelp = remember { mutableStateOf(false) }
+    val showUrlEditor = remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -194,7 +194,13 @@ fun ClientConfigScreen(
 
     Scaffold(
         modifier = modifier,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = {
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .padding(bottom = 64.dp)
+            )
+        },
         topBar = { TopAppBar(title = { Text(stringResource(R.string.client_title)) }) },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = screenBackgroundColor
@@ -489,7 +495,7 @@ fun ClientConfigScreen(
                                                                     scope.launch {
                                                                         isUrlParsing = true
                                                                         delay(400)
-                                                                        showUrlEditor = true
+                                                                        showUrlEditor.value = true
                                                                         isUrlParsing = false
                                                                     }
                                                                 },
@@ -807,13 +813,13 @@ fun ClientConfigScreen(
         }
     }
 
-    if (showUrlEditor) {
+    if (showUrlEditor.value) {
         TurnableUrlEditorDialog(
             url = turnableUrl,
-            onDismiss = { showUrlEditor = false },
+            onDismiss = { showUrlEditor.value = false },
             onConfirm = {
                 turnableUrl = it
-                showUrlEditor = false
+                showUrlEditor.value = false
             }
         )
     }

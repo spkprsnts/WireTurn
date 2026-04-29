@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
@@ -56,7 +55,6 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRowScope
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
@@ -105,17 +103,6 @@ fun InlineConfigIndicator(isModified: Boolean, modifier: Modifier = Modifier) {
     }
 }
 
-/**
- * A helper to create a label row with an optional modification indicator.
- */
-@Composable
-fun ConfigLabelRow(isModified: Boolean, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
-        content()
-        InlineConfigIndicator(isModified)
-    }
-}
-
 @Composable
 fun String.redact(enabled: Boolean): String {
     return if (enabled) stringResource(R.string.redacted_value) else this
@@ -138,8 +125,8 @@ fun SectionHeader(title: String, modifier: Modifier = Modifier) {
 @Composable
 fun SupportingText(
     text: String?,
-    secondaryText: String? = null,
     modifier: Modifier = Modifier,
+    secondaryText: String? = null,
     style: TextStyle = MaterialTheme.typography.bodyMedium,
     color: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     verticalSpacing: Dp = 2.dp
@@ -277,11 +264,11 @@ fun LabeledSegmentedButton(
 @Composable
 fun SwitchRow(
     label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     supportingText: String? = null,
     secondaryText: String? = null,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
     isModified: Boolean = false,
     enabled: Boolean = true
 ) {

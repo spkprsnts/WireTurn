@@ -33,11 +33,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -52,6 +49,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -74,7 +72,6 @@ import com.wireturn.app.R
 import com.wireturn.app.data.ThemeMode
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.MarkdownUtils
-import com.wireturn.app.ui.SectionHeader
 import com.wireturn.app.ui.SettingsGroup
 import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.ui.SwitchRow
@@ -96,7 +93,7 @@ fun SettingsScreen(
     val showResetDialog = rememberSaveable { mutableStateOf(false) }
 
     val scrollState = rememberScrollState()
-    var updateBlockOffset by remember { mutableStateOf(0f) }
+    var updateBlockOffset by remember { mutableFloatStateOf(0f) }
 
     LaunchedEffect(scrollToUpdate, updateBlockOffset) {
         if (scrollToUpdate && updateBlockOffset > 0f) {
@@ -159,7 +156,6 @@ fun SettingsScreen(
             val themeModes = remember(supportsSystemTheme) {
                 if (supportsSystemTheme) ThemeMode.entries else ThemeMode.entries.filter { it != ThemeMode.SYSTEM }
             }
-            val group1Count = if (supportsDynamicColor) 2 else 1
 
             SettingsGroup(title = stringResource(R.string.theme_title)) {
                 SettingsGroupItem(isTop = true, isBottom = !supportsDynamicColor, containerColor = blockContainerColor) {
