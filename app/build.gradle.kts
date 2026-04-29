@@ -50,6 +50,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            manifestPlaceholders["appName"] = "WireTurn Debug"
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -57,6 +62,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            manifestPlaceholders["appName"] = "WireTurn"
         }
     }
 

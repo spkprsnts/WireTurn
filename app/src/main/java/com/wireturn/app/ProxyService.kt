@@ -621,7 +621,7 @@ class ProxyService : Service() {
     }
 
     companion object {
-        const val ACTION_STOP = "com.wireturn.app.ACTION_STOP"
+        const val ACTION_STOP = "ACTION_STOP"
         const val MAX_RESTARTS = 8
         private val CAPTCHA_URL_REGEX = Pattern.compile("""Open this URL in your browser:\s*(https?://\S+)""")
 

@@ -10,16 +10,17 @@ import kotlinx.coroutines.runBlocking
 class ProxyReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
+        val pkg = context.packageName
         when (intent.action) {
-            "com.wireturn.app.START_PROXY" -> {
+            "$pkg.START_PROXY" -> {
                 val prefs = AppPreferences(context)
                 val cfg = runBlocking { prefs.clientConfigFlow.first() }
                 ProxyService.start(context, cfg)
             }
-            "com.wireturn.app.STOP_PROXY" -> {
+            "$pkg.STOP_PROXY" -> {
                 ProxyService.stop(context)
             }
-            "com.wireturn.app.START_VPN" -> {
+            "$pkg.START_VPN" -> {
                 val prefs = AppPreferences(context)
                 runBlocking {
                     val settings = prefs.xraySettingsFlow.first()

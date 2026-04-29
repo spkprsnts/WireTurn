@@ -92,9 +92,9 @@ class ProxyTileService : TileService() {
         }
 
         val action = if (currentlyRunning) {
-            "com.wireturn.app.STOP_PROXY"
+            "${packageName}.STOP_PROXY"
         } else {
-            "com.wireturn.app.START_PROXY"
+            "${packageName}.START_PROXY"
         }
         
         val intent = Intent(this, ProxyReceiver::class.java).apply {

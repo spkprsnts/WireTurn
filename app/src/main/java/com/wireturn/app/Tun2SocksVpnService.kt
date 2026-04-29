@@ -233,8 +233,8 @@ class Tun2SocksVpnService : VpnService() {
     }
 
     companion object {
-        const val ACTION_STOP = "com.wireturn.app.vpn.STOP"
-        const val ACTION_STOP_BY_USER = "com.wireturn.app.vpn.STOP_BY_USER"
+        const val ACTION_STOP = "STOP"
+        const val ACTION_STOP_BY_USER = "STOP_BY_USER"
         const val EXTRA_SOCKS5_ADDR = "socks5_addr"
     }
 }
