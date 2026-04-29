@@ -63,14 +63,19 @@ class Tun2SocksVpnService : VpnService() {
         }
         isStopping.set(false)
 
-        val notification = NotificationHelper.buildNotification(this)
-        if (Build.VERSION.SDK_INT >= 34) {
-            startForeground(NotificationHelper.NOTIFICATION_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
-        } else if (Build.VERSION.SDK_INT >= 29) {
-            @Suppress("DEPRECATION")
-            startForeground(NotificationHelper.NOTIFICATION_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_NONE)
-        } else {
-            startForeground(NotificationHelper.NOTIFICATION_ID, notification)
+        try {
+            val notification = NotificationHelper.buildNotification(this)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(
+                    NotificationHelper.NOTIFICATION_ID,
+                    notification,
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                )
+            } else {
+                startForeground(NotificationHelper.NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            AppLogsState.addLog("[VPN] Failed to start foreground: ${e.message}")
         }
 
         val defaultSocks = DEFAULT_SOCKS_BIND_ADDRESS

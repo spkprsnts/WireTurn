@@ -112,7 +112,21 @@ class ProxyService : Service() {
         userStopped.set(false)
         restartCount = 0
 
-        startForeground(NotificationHelper.NOTIFICATION_ID, NotificationHelper.buildNotification(this))
+        try {
+            val notification = NotificationHelper.buildNotification(this)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(
+                    NotificationHelper.NOTIFICATION_ID,
+                    notification,
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                )
+            } else {
+                startForeground(NotificationHelper.NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            AppLogsState.addLog("[Proxy] Failed to start foreground: ${e.message}")
+        }
+
         NotificationHelper.updateNotification(this)
         ProxyTileService.requestUpdate(this)
 

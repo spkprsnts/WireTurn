@@ -249,10 +249,19 @@ fun HomeScreen(
     var isIgnoringBatteryOptimizations by remember {
         mutableStateOf(pm.isIgnoringBatteryOptimizations(context.packageName))
     }
+    var hasNotificationPermission by remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                ContextCompat.checkSelfPermission(context, "android.permission.POST_NOTIFICATIONS") == PackageManager.PERMISSION_GRANTED
+            } else true
+        )
+    }
 
     val notificationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { _ -> }
+    ) { isGranted ->
+        hasNotificationPermission = isGranted
+    }
 
     val profileImportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments()
@@ -292,6 +301,9 @@ fun HomeScreen(
                 Lifecycle.Event.ON_RESUME -> {
                     viewModel.setHomeScreenActive(true)
                     isIgnoringBatteryOptimizations = pm.isIgnoringBatteryOptimizations(context.packageName)
+                    hasNotificationPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        ContextCompat.checkSelfPermission(context, "android.permission.POST_NOTIFICATIONS") == PackageManager.PERMISSION_GRANTED
+                    } else true
                     if (XrayServiceState.state.value == XrayState.Running) {
                         viewModel.checkProxyPing()
                     }
@@ -402,10 +414,6 @@ fun HomeScreen(
         ) {
             Spacer(Modifier.height(24.dp))
 
-            val hasNotificationPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                ContextCompat.checkSelfPermission(context, "android.permission.POST_NOTIFICATIONS") == PackageManager.PERMISSION_GRANTED
-            } else true
-
             LaunchedEffect(hasNotificationPermission, isIgnoringBatteryOptimizations) {
                 if (hasNotificationPermission && isIgnoringBatteryOptimizations) {
                     viewModel.setBatteryNotificationDismissed(false)
@@ -427,101 +435,99 @@ fun HomeScreen(
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
-                Column {
-                    SettingsGroupItem(
-                        isTop = true,
-                        isBottom = true,
-                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f)
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    painter = painterResource(R.drawable.error_24px),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onErrorContainer,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    text = stringResource(R.string.permissions_title),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onErrorContainer,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = stringResource(R.string.permissions_desc),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
+                SettingsGroupItem(
+                    isTop = true,
+                    isBottom = true,
+                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(bottom = 24.dp)
+                ) {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                painter = painterResource(R.drawable.error_24px),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.size(20.dp)
                             )
-                            Spacer(Modifier.height(12.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(modifier = Modifier.weight(1f)) {
-                                    if (!hasNotificationPermission) {
-                                        Button(
-                                            onClick = {
-                                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                                notificationLauncher.launch("android.permission.POST_NOTIFICATIONS")
-                                            },
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = MaterialTheme.colorScheme.onErrorContainer,
-                                                contentColor = MaterialTheme.colorScheme.errorContainer
-                                            ),
-                                            contentPadding = PaddingValues(horizontal = 12.dp),
-                                            modifier = Modifier.height(32.dp)
-                                        ) {
-                                            Icon(painterResource(R.drawable.info_24px), null, Modifier.size(16.dp))
-                                            Spacer(Modifier.width(6.dp))
-                                            Text(stringResource(R.string.permission_notifications), style = MaterialTheme.typography.labelMedium)
-                                        }
-                                    }
-                                    if (!hasNotificationPermission && !isIgnoringBatteryOptimizations) {
-                                        Spacer(Modifier.width(8.dp))
-                                    }
-                                    if (!isIgnoringBatteryOptimizations) {
-                                        Button(
-                                            onClick = {
-                                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                                batteryOptLauncher.launch(
-                                                    Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                                                        data = "package:${context.packageName}".toUri()
-                                                    }
-                                                )
-                                            },
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = MaterialTheme.colorScheme.onErrorContainer,
-                                                contentColor = MaterialTheme.colorScheme.errorContainer
-                                            ),
-                                            contentPadding = PaddingValues(horizontal = 12.dp),
-                                            modifier = Modifier.height(32.dp)
-                                        ) {
-                                            Icon(painterResource(R.drawable.power_24px), null, Modifier.size(16.dp))
-                                            Spacer(Modifier.width(6.dp))
-                                            Text(stringResource(R.string.permission_battery), style = MaterialTheme.typography.labelMedium)
-                                        }
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.permissions_title),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = stringResource(R.string.permissions_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(modifier = Modifier.weight(1f)) {
+                                if (!hasNotificationPermission) {
+                                    Button(
+                                        onClick = {
+                                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                            notificationLauncher.launch("android.permission.POST_NOTIFICATIONS")
+                                        },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.onErrorContainer,
+                                            contentColor = MaterialTheme.colorScheme.errorContainer
+                                        ),
+                                        contentPadding = PaddingValues(horizontal = 12.dp),
+                                        modifier = Modifier.height(32.dp)
+                                    ) {
+                                        Icon(painterResource(R.drawable.info_24px), null, Modifier.size(16.dp))
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(stringResource(R.string.permission_notifications), style = MaterialTheme.typography.labelMedium)
                                     }
                                 }
+                                if (!hasNotificationPermission && !isIgnoringBatteryOptimizations) {
+                                    Spacer(Modifier.width(8.dp))
+                                }
+                                if (!isIgnoringBatteryOptimizations) {
+                                    Button(
+                                        onClick = {
+                                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                            batteryOptLauncher.launch(
+                                                Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                                    data = "package:${context.packageName}".toUri()
+                                                }
+                                            )
+                                        },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.onErrorContainer,
+                                            contentColor = MaterialTheme.colorScheme.errorContainer
+                                        ),
+                                        contentPadding = PaddingValues(horizontal = 12.dp),
+                                        modifier = Modifier.height(32.dp)
+                                    ) {
+                                        Icon(painterResource(R.drawable.power_24px), null, Modifier.size(16.dp))
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(stringResource(R.string.permission_battery), style = MaterialTheme.typography.labelMedium)
+                                    }
+                                }
+                            }
 
-                                TextButton(
-                                    onClick = {
-                                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                        viewModel.setBatteryNotificationDismissed(true)
-                                    }
-                                ) {
-                                    Text(
-                                        stringResource(R.string.btn_close),
-                                        color = MaterialTheme.colorScheme.onErrorContainer,
-                                        style = MaterialTheme.typography.labelMedium
-                                    )
+                            TextButton(
+                                onClick = {
+                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                    viewModel.setBatteryNotificationDismissed(true)
                                 }
+                            ) {
+                                Text(
+                                    stringResource(R.string.btn_close),
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    style = MaterialTheme.typography.labelMedium
+                                )
                             }
                         }
                     }
-                    Spacer(Modifier.height(24.dp))
                 }
             }
 

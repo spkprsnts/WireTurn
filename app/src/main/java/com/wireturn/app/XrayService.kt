@@ -2,6 +2,7 @@ package com.wireturn.app
 
 import android.app.Service
 import android.content.Intent
+import android.os.Build
 import android.os.IBinder
 import com.wireturn.app.viewmodel.XrayState
 import com.wireturn.app.viewmodel.VpnState
@@ -140,9 +141,21 @@ class XrayService : Service() {
         userStopped.set(false)
         restartCount = 0
         XrayServiceState.updateStatus(XrayState.Starting)
-        NotificationHelper.updateNotification(this)
 
-        startForeground(NotificationHelper.NOTIFICATION_ID, NotificationHelper.buildNotification(this))
+        try {
+            val notification = NotificationHelper.buildNotification(this)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(
+                    NotificationHelper.NOTIFICATION_ID,
+                    notification,
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                )
+            } else {
+                startForeground(NotificationHelper.NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            AppLogsState.addLog("[Xray] Failed to start foreground: ${e.message}")
+        }
 
         serviceScope.launch {
             startXray()
