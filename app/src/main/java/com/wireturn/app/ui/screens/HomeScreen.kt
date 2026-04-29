@@ -162,12 +162,6 @@ fun HomeScreen(
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
 
     val currentProfileId by viewModel.currentProfileId.collectAsStateWithLifecycle()
-    val profiles by viewModel.profiles.collectAsStateWithLifecycle()
-    val runningProfileName by ProxyServiceState.runningProfileName.collectAsStateWithLifecycle()
-
-    val currentProfileName = remember(currentProfileId, profiles) {
-        profiles.find { it.id == currentProfileId }?.name ?: ""
-    }
 
     val isArchitectureSupported = viewModel.isArchitectureSupported
     val deviceArchitecture = viewModel.deviceArchitecture
@@ -184,10 +178,6 @@ fun HomeScreen(
                 }
             }
         )
-    }
-
-    val profileChanged = remember(runningProfileName, currentProfileName) {
-        runningProfileName != null && (currentProfileName != runningProfileName)
     }
 
     val proxyPing by viewModel.proxyPing.collectAsStateWithLifecycle()
@@ -219,16 +209,15 @@ fun HomeScreen(
     val activeWgConfig = runningWgConfig ?: wgConfig
     val activeVlessConfig = runningVlessConfig ?: vlessConfig
 
-    val configChanged = remember(clientConfig, runningConfig, wgConfig, runningWgConfig, vlessConfig, runningVlessConfig, xrayConfig, runningXrayConfig, profileChanged) {
-        profileChanged ||
-                (runningConfig != null && clientConfig != runningConfig) ||
+    val configChanged = remember(clientConfig, runningConfig, wgConfig, runningWgConfig, vlessConfig, runningVlessConfig, xrayConfig, runningXrayConfig) {
+        (runningConfig != null && clientConfig != runningConfig) ||
                 (runningWgConfig != null && wgConfig != runningWgConfig) ||
                 (runningVlessConfig != null && vlessConfig != runningVlessConfig) ||
                 (runningXrayConfig != null && xrayConfig != runningXrayConfig)
     }
 
-    val mainConfigChanged = remember(clientConfig, runningConfig, profileChanged) {
-        profileChanged || (runningConfig != null && clientConfig != runningConfig)
+    val mainConfigChanged = remember(clientConfig, runningConfig) {
+        (runningConfig != null && clientConfig != runningConfig)
     }
     val xrayConfigChanged = remember(wgConfig, runningWgConfig, vlessConfig, runningVlessConfig, xrayConfig, runningXrayConfig) {
         (runningWgConfig != null && wgConfig != runningWgConfig) ||
@@ -246,16 +235,8 @@ fun HomeScreen(
     ) { /* пользователь закрыл диалог батареи — результат нас не интересует */ }
 
     val pm = remember { context.getSystemService(PowerManager::class.java) }
-    var isIgnoringBatteryOptimizations by remember {
-        mutableStateOf(pm.isIgnoringBatteryOptimizations(context.packageName))
-    }
-    var hasNotificationPermission by remember {
-        mutableStateOf(
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                ContextCompat.checkSelfPermission(context, "android.permission.POST_NOTIFICATIONS") == PackageManager.PERMISSION_GRANTED
-            } else true
-        )
-    }
+    var isIgnoringBatteryOptimizations = false
+    var hasNotificationPermission = false
 
     val notificationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -582,7 +563,7 @@ fun HomeScreen(
                 )
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(22.dp))
             
             // 4. Ping & Transfer Stats
             AnimatedVisibility(
@@ -764,7 +745,7 @@ fun HomeScreen(
                             }
                         }
                     }
-                    Spacer(Modifier.height(20.dp))
+                    Spacer(Modifier.height(16.dp))
                 }
             }
 
@@ -774,7 +755,7 @@ fun HomeScreen(
             val showProfilesDialog = rememberSaveable { mutableStateOf(false) }
             SettingsGroupItem(
                 isTop = true,
-                isBottom = true,
+                isBottom = !configChanged || !(proxyState is ProxyState.Working || proxyState is ProxyState.Running || proxyState is ProxyState.Starting || proxyState is ProxyState.CaptchaRequired),
                 containerColor = blockContainerColor,
                 onClick = {
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -783,6 +764,91 @@ fun HomeScreen(
             ) {
                 ProfilesBlock(viewModel)
             }
+
+            AnimatedVisibility(
+                visible = (proxyState is ProxyState.Working || proxyState is ProxyState.Running || proxyState is ProxyState.Starting || proxyState is ProxyState.CaptchaRequired) && configChanged,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Column {
+                    Spacer(Modifier.height(2.dp))
+                    SettingsGroupItem(
+                        isTop = false,
+                        isBottom = true,
+                        containerColor = blockContainerColor
+                    ) {
+                        Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.info_24px),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.restart_required),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = when {
+                                            mainConfigChanged -> stringResource(R.string.restart_reason_client)
+                                            else -> stringResource(R.string.restart_reason_xray)
+                                        },
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                        )
+                                    }
+                                }
+
+                                Spacer(Modifier.height(12.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.reset),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier
+                                            .clip(MaterialTheme.shapes.small)
+                                            .clickable {
+                                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                                viewModel.revertToRunningConfigs()
+                                            }
+                                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        text = stringResource(R.string.btn_restart),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier
+                                            .clip(MaterialTheme.shapes.small)
+                                            .clickable {
+                                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                                if (mainConfigChanged) {
+                                                    viewModel.restartProxy()
+                                                } else if (xrayConfigChanged) {
+                                                    viewModel.restartXray()
+                                                }
+                                            }
+                                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
 
             Spacer(Modifier.height(24.dp))
 
@@ -1092,94 +1158,6 @@ fun HomeScreen(
 
             // 6. Current Connection Details
             if (activeConfig.isValid) {
-                AnimatedVisibility(
-                    visible = (proxyState is ProxyState.Working || proxyState is ProxyState.Running || proxyState is ProxyState.Starting || proxyState is ProxyState.CaptchaRequired) && configChanged,
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically()
-                ) {
-                    Column {
-                        SettingsGroupItem(
-                            isTop = true,
-                            isBottom = true,
-                            containerColor = MaterialTheme.colorScheme.surfaceContainer
-                        ) {
-                            Column {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.refresh_24px),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(20.dp),
-                                        tint = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = stringResource(if (profileChanged) R.string.restart_required_profile else R.string.restart_required),
-                                            style = MaterialTheme.typography.labelLarge,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Text(
-                                            text = when {
-                                                profileChanged -> stringResource(R.string.restart_reason_profile)
-                                                mainConfigChanged -> stringResource(R.string.restart_reason_client)
-                                                else -> stringResource(R.string.restart_reason_xray)
-                                            },
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                                        )
-                                    }
-                                }
-
-                                Spacer(Modifier.height(12.dp))
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.End,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    if (!profileChanged) {
-                                        Text(
-                                            text = stringResource(R.string.reset),
-                                            style = MaterialTheme.typography.labelLarge,
-                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                            fontWeight = FontWeight.Bold,
-                                            modifier = Modifier
-                                                .clip(MaterialTheme.shapes.small)
-                                                .clickable {
-                                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                                    viewModel.revertToRunningConfigs()
-                                                }
-                                                .padding(horizontal = 12.dp, vertical = 8.dp)
-                                        )
-                                        Spacer(Modifier.width(8.dp))
-                                    }
-                                    Text(
-                                        text = stringResource(R.string.btn_restart),
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier
-                                            .clip(MaterialTheme.shapes.small)
-                                            .clickable {
-                                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                                if (mainConfigChanged) {
-                                                    viewModel.restartProxy()
-                                                } else if (xrayConfigChanged) {
-                                                    viewModel.restartXray()
-                                                }
-                                            }
-                                            .padding(horizontal = 12.dp, vertical = 8.dp)
-                                    )
-                                }
-                            }
-                        }
-                        Spacer(Modifier.height(24.dp))
-                    }
-                }
-
                 SettingsGroup(title = stringResource(R.string.current_client_settings)) {
                     SettingsGroupItem(
                         isTop = true,
