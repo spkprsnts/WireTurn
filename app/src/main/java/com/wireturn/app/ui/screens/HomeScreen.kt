@@ -235,8 +235,16 @@ fun HomeScreen(
     ) { /* пользователь закрыл диалог батареи — результат нас не интересует */ }
 
     val pm = remember { context.getSystemService(PowerManager::class.java) }
-    var isIgnoringBatteryOptimizations = false
-    var hasNotificationPermission = false
+    var isIgnoringBatteryOptimizations by remember {
+        mutableStateOf(pm.isIgnoringBatteryOptimizations(context.packageName))
+    }
+    var hasNotificationPermission by remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                ContextCompat.checkSelfPermission(context, "android.permission.POST_NOTIFICATIONS") == PackageManager.PERMISSION_GRANTED
+            } else true
+        )
+    }
 
     val notificationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
