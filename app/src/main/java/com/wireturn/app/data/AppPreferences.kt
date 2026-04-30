@@ -119,7 +119,8 @@ data class XraySettings(
 data class GlobalVpnSettings(
     @SerializedName("hideSystemApps") val hideSystemApps: Boolean = true,
     @SerializedName("bypassMode") val bypassMode: Boolean = true,
-    @SerializedName("filteringEnabled") val filteringEnabled: Boolean = true
+    @SerializedName("filteringEnabled") val filteringEnabled: Boolean = true,
+    @SerializedName("groupAppsByLetter") val groupAppsByLetter: Boolean = true
 )
 
 data class XrayConfig(

@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="app_name">WireTurn</string>
-
     <!-- Главный экран (Home) -->
     <string name="nav_home">Главная</string>
     <string name="app_settings_title">Настройки</string>
@@ -68,8 +66,10 @@
     <string name="hide_system_apps">Скрывать системные</string>
     <string name="bypass_mode">Весь трафик через VPN</string>
     <string name="filtering_enabled">Фильтрация приложений</string>
+    <string name="group_apps_by_letter">Группировать по буквам</string>
     <string name="clear_list">Очистить список</string>
     <string name="copy_list">Копировать список</string>
+    <string name="list_copied">Список скопирован</string>
     <string name="import_from_clipboard">Вставить из буфера</string>
     <string name="apps_imported_count">Добавлено приложений: %1$d</string>
     <string name="no_apps_imported">Не найдены пакеты для исключения</string>

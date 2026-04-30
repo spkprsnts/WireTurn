@@ -1,37 +1,35 @@
 @file:OptIn(
     androidx.compose.material3.ExperimentalMaterial3Api::class,
-    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class
+    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class,
+    androidx.compose.foundation.ExperimentalFoundationApi::class
 )
 
 package com.wireturn.app.ui.screens
 
 import android.content.pm.ApplicationInfo
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularWavyProgressIndicator
@@ -41,8 +39,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
@@ -52,31 +48,27 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
-import kotlin.math.abs
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
@@ -85,27 +77,23 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.zIndex
 import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.SectionHeader
+import com.wireturn.app.ui.SettingsGroupItem
+import com.wireturn.app.ui.theme.LocalIsDark
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private object AppExceptionsDefaults {
-    val AppBarMaxHeight = 152.dp
-    val AppBarCollapsedHeight = 64.dp
-    val SearchBarHeight = 72.dp
-    val SearchBarGap = 8.dp
-    val HorizontalPadding = 16.dp
     val IconSize = 40.dp
 }
 
@@ -123,20 +111,16 @@ fun AppExceptionsScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val density = LocalDensity.current
     val excludedApps by viewModel.excludedApps.collectAsStateWithLifecycle()
     val globalVpn by viewModel.globalVpnSettings.collectAsStateWithLifecycle()
     
     var isAppsLoading by remember { mutableStateOf(true) }
-    var isRefreshing by remember { mutableStateOf(false) }
     var appList by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var isSearching by remember { mutableStateOf(false) }
     
-    // Снимок состояния для стабильной сортировки (чтобы список не прыгал при ручном переключении)
     var sortSnapshot by remember { mutableStateOf(emptySet<String>()) }
     
-    // Дебаунс поискового запроса
     var appliedSearchQuery by rememberSaveable { mutableStateOf("") }
     LaunchedEffect(searchQuery) {
         if (searchQuery.isBlank()) {
@@ -151,23 +135,48 @@ fun AppExceptionsScreen(
     }
 
     var expanded by rememberSaveable { mutableStateOf(false) }
-    // Задержка для предотвращения перекрытия TopAppBar анимации SearchBar
-    var showTopBarOnTop by remember { mutableStateOf(!expanded) }
     var showMenu by remember { mutableStateOf(false) }
+
+    var isSearchBarVisible by rememberSaveable { mutableStateOf(true) }
+    var searchBarZIndex by remember { mutableFloatStateOf(1f) }
 
     LaunchedEffect(expanded) {
         if (expanded) {
-            showTopBarOnTop = false
+            searchBarZIndex = 5f
+            isSearchBarVisible = true
         } else {
-            delay(400)
-            showTopBarOnTop = true
-            // Синхронизируем снимок при закрытии поиска, чтобы новые выбранные приложения закрепились в основном списке
-            sortSnapshot = excludedApps
+            delay(300)
+            searchBarZIndex = 2f
         }
     }
+
     
-    // Загрузка списка приложений
+    var sortedAppList by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
+
+    val updateSortedList = {
+        val filtered = if (globalVpn.hideSystemApps) {
+            appList.filter { !it.isSystem || excludedApps.contains(it.packageName) }
+        } else {
+            appList
+        }
+        sortedAppList = filtered.sortedWith(
+            if (globalVpn.groupAppsByLetter) {
+                compareBy<AppInfo> { it.name.firstOrNull()?.uppercaseChar() ?: '#' }
+                    .thenByDescending { sortSnapshot.contains(it.packageName) }
+                    .thenBy { it.name.lowercase() }
+            } else {
+                compareByDescending<AppInfo> { sortSnapshot.contains(it.packageName) }
+                    .thenBy { it.name.lowercase() }
+            }
+        )
+    }
+
+    LaunchedEffect(appList, sortSnapshot, globalVpn.hideSystemApps, excludedApps, globalVpn.groupAppsByLetter) {
+        updateSortedList()
+    }
+
     val loadApps = suspend {
+        isAppsLoading = true
         withContext(Dispatchers.IO) {
             val pm = context.packageManager
             val apps = pm.getInstalledApplications(0)
@@ -179,45 +188,36 @@ fun AppExceptionsScreen(
                 )
             }.filter { it.name.isNotBlank() && it.packageName != context.packageName }
             
+            val initialSnapshot = excludedApps
+            val filtered = if (globalVpn.hideSystemApps) {
+                result.filter { !it.isSystem || initialSnapshot.contains(it.packageName) }
+            } else {
+                result
+            }
+            val sorted = filtered.sortedWith(
+                if (globalVpn.groupAppsByLetter) {
+                    compareBy<AppInfo> { it.name.firstOrNull()?.uppercaseChar() ?: '#' }
+                        .thenByDescending { initialSnapshot.contains(it.packageName) }
+                        .thenBy { it.name.lowercase() }
+                } else {
+                    compareByDescending<AppInfo> { initialSnapshot.contains(it.packageName) }
+                        .thenBy { it.name.lowercase() }
+                }
+            )
+
             withContext(Dispatchers.Main) {
                 appList = result
-                // Сначала фиксируем порядок, потом выключаем лоадер
-                sortSnapshot = excludedApps
+                sortSnapshot = initialSnapshot
+                sortedAppList = sorted
                 isAppsLoading = false
-                isRefreshing = false
             }
         }
     }
 
     LaunchedEffect(Unit) {
-        // Даем анимации перехода завершиться
-        // delay(500)
         loadApps()
     }
 
-    // Сортировка: исключенные приложения всегда сверху, далее по алфавиту
-    // excludedApps добавлен в ключи, чтобы системные приложения корректно появлялись/исчезали при переключении
-    val sortedAppList = remember(appList, globalVpn.hideSystemApps, sortSnapshot, excludedApps) {
-        val filtered = if (globalVpn.hideSystemApps) {
-            appList.filter { !it.isSystem || excludedApps.contains(it.packageName) }
-        } else {
-            appList
-        }
-        filtered.sortedWith(
-            compareByDescending<AppInfo> { sortSnapshot.contains(it.packageName) }
-                .thenBy { it.name.lowercase() }
-        )
-    }
-
-    val mainDisplayList = remember(appliedSearchQuery, sortedAppList) {
-        if (appliedSearchQuery.isBlank()) sortedAppList
-        else sortedAppList.filter {
-            it.name.contains(appliedSearchQuery, ignoreCase = true) ||
-                    it.packageName.contains(appliedSearchQuery, ignoreCase = true)
-        }
-    }
-
-    // Список для режима поиска: исключенные (если пусто) или результаты поиска
     val searchDisplayList = remember(appliedSearchQuery, expanded, appList, globalVpn.hideSystemApps, sortSnapshot, excludedApps) {
         val filtered = if (globalVpn.hideSystemApps) {
             appList.filter { !it.isSystem || excludedApps.contains(it.packageName) }
@@ -235,17 +235,21 @@ fun AppExceptionsScreen(
         }
 
         baseList.sortedWith(
-            compareByDescending<AppInfo> { sortSnapshot.contains(it.packageName) }
-                .thenBy { it.name.lowercase() }
+            if (globalVpn.groupAppsByLetter) {
+                compareBy<AppInfo> { it.name.firstOrNull()?.uppercaseChar() ?: '#' }
+                    .thenByDescending { sortSnapshot.contains(it.packageName) }
+                    .thenBy { it.name.lowercase() }
+            } else {
+                compareByDescending<AppInfo> { sortSnapshot.contains(it.packageName) }
+                    .thenBy { it.name.lowercase() }
+            }
         )
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val clipboard = LocalClipboard.current
     val listState = rememberLazyListState()
-    val pullToRefreshState = rememberPullToRefreshState()
 
-    // Временная подсветка импортированных приложений
     var newlyAddedPackages by remember { mutableStateOf(emptySet<String>()) }
     LaunchedEffect(newlyAddedPackages) {
         if (newlyAddedPackages.isNotEmpty()) {
@@ -257,7 +261,7 @@ fun AppExceptionsScreen(
     val noAppsMsg = stringResource(R.string.no_apps_imported)
     val noAppsFoundMsg = stringResource(R.string.no_apps_found)
     val appsImportedFormat = stringResource(R.string.apps_imported_count)
-    val copyListMsg = stringResource(R.string.copy_list)
+    val listCopiedMsg = stringResource(R.string.list_copied)
 
     val onImportFromClipboard = {
         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -282,7 +286,10 @@ fun AppExceptionsScreen(
                         viewModel.saveExcludedApps(newExcluded)
                         newlyAddedPackages = newlyAdded
                         sortSnapshot = newExcluded
-                        delay(800)
+                        
+                        // Принудительно обновляем отсортированный список перед выключением индикатора
+                        updateSortedList()
+                        
                         listState.animateScrollToItem(0)
                         isAppsLoading = false
                         snackbarHostState.showSnackbar(
@@ -301,229 +308,131 @@ fun AppExceptionsScreen(
         val text = excludedApps.joinToString("\n")
         scope.launch {
             try {
-                // Пытаемся использовать ClipEntry если он доступен в текущей версии Compose
                 val clipData = android.content.ClipData.newPlainText("WireTurn Apps", text)
                 clipboard.setClipEntry(ClipEntry(clipData))
-                snackbarHostState.showSnackbar(copyListMsg)
-            } catch (_: Exception) {
-                // pass
-            }
+                snackbarHostState.showSnackbar(listCopiedMsg)
+            } catch (_: Exception) { }
         }
     }
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
-    val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val appBarExpandableHeight = AppExceptionsDefaults.AppBarMaxHeight - AppExceptionsDefaults.AppBarCollapsedHeight
-    val totalHeaderAreaHeight = appBarExpandableHeight + AppExceptionsDefaults.SearchBarHeight + (AppExceptionsDefaults.SearchBarGap * 2)
-
-    val topBarCollapseLimitPx = with(density) { appBarExpandableHeight.toPx() }
-    val totalHideLimitPx = with(density) { totalHeaderAreaHeight.toPx() }
-
-    var enterAlwaysOffsetPx by remember { mutableFloatStateOf(0f) }
-    var isDragging by remember { mutableStateOf(false) }
-    var lastScrollDirection by remember { mutableFloatStateOf(0f) }
-    var isSnapAnimating by remember { mutableStateOf(false) }
-
-    val isScrollable by remember {
-        derivedStateOf {
-            val layoutInfo = listState.layoutInfo
-            val viewportHeight = layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset
-            if (viewportHeight <= 0) return@derivedStateOf false
-
-            val visibleItems = layoutInfo.visibleItemsInfo
-            if (visibleItems.isEmpty()) return@derivedStateOf false
-
-            // Если не все элементы в списке видны, значит контента достаточно для скролла и схлопывания шапки
-            if (visibleItems.size < layoutInfo.totalItemsCount) return@derivedStateOf true
-
-            // Если видны все элементы, вычисляем общую высоту контента (включая спейсеры)
-            val firstItem = visibleItems.first()
-            val lastItem = visibleItems.last()
-            val contentHeight = lastItem.offset + lastItem.size - firstItem.offset
-
-            // Разрешаем анимации шапки только если "лишнего" контента больше определенного порога (например, 64dp).
-            // Это предотвращает "ломание" топбара и серчбара, когда скролл составляет всего несколько пикселей.
-            val thresholdPx = with(density) { 64.dp.toPx() }
-            contentHeight > viewportHeight + thresholdPx
-        }
-    }
-
-    val isAtTop by remember { derivedStateOf { listState.firstVisibleItemIndex == 0 } }
-
-    val updateHeaderOffset = { delta: Float ->
-        val maxOffset = if (delta < 0f || isAtTop) 0f else -topBarCollapseLimitPx
-        enterAlwaysOffsetPx = (enterAlwaysOffsetPx + delta).coerceIn(-totalHideLimitPx, maxOffset)
-    }
-
-    val customNestedScrollConnection = remember {
+    val searchScrollConnection = remember {
         object : NestedScrollConnection {
-            @Suppress("MethodAlwaysReturnsConstant", "SameReturnValue")
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (expanded || !isScrollable || pullToRefreshState.distanceFraction > 0f) return Offset.Zero
-
-                if (source == NestedScrollSource.UserInput) {
-                    isDragging = true
-                    if (available.y != 0f) lastScrollDirection = available.y
-                    updateHeaderOffset(available.y)
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                if (expanded) return super.onPostScroll(consumed, available, source)
+                val delta = consumed.y + available.y
+                if (delta < -6f && scrollBehavior.state.collapsedFraction > 0.9f) {
+                    isSearchBarVisible = false
+                } else if (delta > 12f) {
+                    isSearchBarVisible = true
                 }
-                return Offset.Zero
-            }
-
-            override suspend fun onPreFling(available: Velocity): Velocity {
-                isDragging = false
-                return Velocity.Zero
-            }
-
-            @Suppress("MethodAlwaysReturnsConstant", "SameReturnValue")
-            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                if (!isScrollable) return Offset.Zero
-                scrollBehavior.state.contentOffset += consumed.y
-
-                if (!expanded && !isDragging && !isSnapAnimating && pullToRefreshState.distanceFraction == 0f) {
-                    updateHeaderOffset(consumed.y)
-                }
-
-                if (!expanded && available.y > 0f && isAtTop && listState.firstVisibleItemScrollOffset == 0) {
-                    enterAlwaysOffsetPx = 0f
-                }
-                return Offset.Zero
+                return super.onPostScroll(consumed, available, source)
             }
         }
     }
 
-    LaunchedEffect(isScrollable, expanded) {
-        if (!isScrollable && !expanded) {
-            enterAlwaysOffsetPx = 0f
+    LaunchedEffect(scrollBehavior.state.collapsedFraction) {
+        if (scrollBehavior.state.collapsedFraction <= 0.9f) {
+            isSearchBarVisible = true
         }
     }
 
-    // Автоматическая доводка (Snap) заголовка
-    LaunchedEffect(isDragging) {
-        if (isDragging || expanded || pullToRefreshState.distanceFraction > 0f) return@LaunchedEffect
-        snapshotFlow { listState.isScrollInProgress }.first { !it }
-
-        val isAtTopPos = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
-        val snapForwardThreshold = topBarCollapseLimitPx * 0.3f
-        val target = when {
-            enterAlwaysOffsetPx > -snapForwardThreshold -> 0f
-            enterAlwaysOffsetPx > -topBarCollapseLimitPx -> if (isAtTopPos && lastScrollDirection >= 0f) 0f else -topBarCollapseLimitPx
-            else -> {
-                val distToVisible = abs(enterAlwaysOffsetPx - (-topBarCollapseLimitPx))
-                val distToHidden = abs(enterAlwaysOffsetPx - (-totalHideLimitPx))
-                if (distToVisible <= distToHidden) -topBarCollapseLimitPx else -totalHideLimitPx
-            }
-        }
-
-        if (abs(enterAlwaysOffsetPx - target) < 0.5f) return@LaunchedEffect
-
-        isSnapAnimating = true
-        try {
-            val anim = Animatable(enterAlwaysOffsetPx)
-            var prevValue = enterAlwaysOffsetPx
-
-            val animJob = launch {
-                anim.animateTo(target, spring(stiffness = Spring.StiffnessMedium))
-            }
-            val collectJob = launch {
-                snapshotFlow { anim.value }.collect { newValue ->
-                    val delta = newValue - prevValue
-                    prevValue = newValue
-                    enterAlwaysOffsetPx = newValue
-                    if (abs(delta) > 0.01f) {
-                        listState.scroll { scrollBy(-delta) }
-                    }
-                }
-            }
-            animJob.join()
-            collectJob.cancel()
-        } finally {
-            isSnapAnimating = false
-        }
-    }
-
-    val animatedOffsetPx by animateFloatAsState(
-        targetValue = enterAlwaysOffsetPx,
-        animationSpec = if (isDragging || listState.isScrollInProgress || isSnapAnimating) snap() else spring(stiffness = Spring.StiffnessMedium),
-        label = "animated_offset"
-    )
-
-    val headerHeightOffsetPx = if (isAtTop) {
-        animatedOffsetPx
-    } else {
-        animatedOffsetPx.coerceAtMost(-topBarCollapseLimitPx)
-    }
-
-    LaunchedEffect(headerHeightOffsetPx) {
-        if (!expanded) {
-            scrollBehavior.state.heightOffset = headerHeightOffsetPx.coerceIn(-topBarCollapseLimitPx, 0f)
-        }
-    }
-
-    val expansionFraction by animateFloatAsState(
+    // Анимируем коэффициент прогресса (0 = закрыто, 1 = открыто)
+    val searchProgress by animateFloatAsState(
         targetValue = if (expanded) 1f else 0f,
-        animationSpec = spring(stiffness = Spring.StiffnessMedium),
-        label = "expansion_fraction"
+        animationSpec = tween(
+            durationMillis = 300,
+            easing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
+        ),
+        label = "search_expansion_progress"
     )
 
-    val searchBarOffsetPx = if (isAtTop) animatedOffsetPx
-                            else animatedOffsetPx.coerceAtMost(-topBarCollapseLimitPx)
-    
-    val searchBarY = (statusBarHeight + AppExceptionsDefaults.AppBarCollapsedHeight + 
-                     with(density) { searchBarOffsetPx.toDp() } + 
-                     appBarExpandableHeight + AppExceptionsDefaults.SearchBarGap) * (1f - expansionFraction)
-    
-    val horizontalPadding = AppExceptionsDefaults.HorizontalPadding * (1f - expansionFraction)
+    val searchBarHideOffset by animateDpAsState(
+        targetValue = if (isSearchBarVisible) 0.dp else (-SearchBarDefaults.InputFieldHeight - 16.dp),
+        label = "search_bar_hide_offset"
+    )
 
-    Box(modifier = modifier.fillMaxSize()) {
+    var appBarHeightPx by remember { mutableFloatStateOf(0f) }
+    val density = LocalDensity.current
+
+    // Превращаем пиксели в DP для использования в модификаторах
+    val appBarHeightDp = with(density) { appBarHeightPx.toDp() }
+    val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        val isDark = LocalIsDark.current
+        val blockContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
+        val screenBackgroundColor = if (isDark) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerLow
+
         Scaffold(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxSize()
-                .nestedScroll(customNestedScrollConnection),
+                .nestedScroll(searchScrollConnection)
+                .nestedScroll(scrollBehavior.nestedScrollConnection),
             snackbarHost = { SnackbarHost(snackbarHostState) },
-            contentWindowInsets = WindowInsets(0, 0, 0, 0)
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            containerColor = screenBackgroundColor
         ) { innerPadding ->
-            PullToRefreshBox(
-                isRefreshing = isRefreshing,
-                onRefresh = {
-                    isRefreshing = true
-                    scope.launch { loadApps() }
-                },
-                state = pullToRefreshState,
-                indicator = { },
-                modifier = Modifier.fillMaxSize()
-            ) {
+            val finalTopPadding by remember(appBarHeightPx, searchProgress, searchBarHideOffset) {
+                derivedStateOf { lerp(appBarHeightDp, 0.dp, searchProgress) + searchBarHideOffset }
+            }
+            val finalHorizontalPadding by remember(searchProgress) {
+                derivedStateOf { lerp(16.dp, 0.dp, searchProgress) }
+            }
+
+            Box(Modifier.fillMaxSize()) {
                 LazyColumn(
                     state = listState,
                     modifier = Modifier
                         .fillMaxSize()
-                        .graphicsLayer { alpha = if (globalVpn.filteringEnabled) 1f else 0.5f },
+                        .zIndex(1f)
+                        .padding(top = innerPadding.calculateTopPadding() + appBarHeightDp)
+                        .graphicsLayer {
+                            alpha = if (globalVpn.filteringEnabled) 1f else 0.5f
+                        },
                     contentPadding = PaddingValues(
-                        top = statusBarHeight + AppExceptionsDefaults.AppBarCollapsedHeight,
-                        bottom = 16.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + innerPadding.calculateBottomPadding()
+                        bottom = 16.dp + WindowInsets.navigationBars.asPaddingValues()
+                            .calculateBottomPadding(),
+                        top = (if (globalVpn.groupAppsByLetter) 10.dp else 20.dp) + SearchBarDefaults.InputFieldHeight
                     )
                 ) {
-                    item(key = "header_spacer") {
-                        Spacer(Modifier.height(totalHeaderAreaHeight))
-                    }
-
                     if (isAppsLoading) {
                         item {
-                            Box(modifier = Modifier.fillMaxWidth().padding(top = 64.dp), contentAlignment = Alignment.TopCenter) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 64.dp),
+                                contentAlignment = Alignment.TopCenter
+                            ) {
                                 CircularWavyProgressIndicator()
                             }
                         }
-                    } else if (mainDisplayList.isEmpty()) {
+                    } else if (sortedAppList.isEmpty()) {
                         item {
-                            Box(modifier = Modifier.fillMaxWidth().padding(top = 64.dp), contentAlignment = Alignment.TopCenter) {
-                                Text(noAppsFoundMsg, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 64.dp),
+                                contentAlignment = Alignment.TopCenter
+                            ) {
+                                Text(
+                                    noAppsFoundMsg,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                     } else {
                         appListItems(
-                            apps = mainDisplayList,
+                            apps = sortedAppList,
                             excludedApps = excludedApps,
                             newlyAddedPackages = newlyAddedPackages,
+                            blockContainerColor = blockContainerColor,
+                            showHeaders = globalVpn.groupAppsByLetter,
                             onToggleExclusion = { pkg ->
                                 HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
                                 viewModel.toggleAppExclusion(pkg)
@@ -531,237 +440,284 @@ fun AppExceptionsScreen(
                         )
                     }
                 }
-            }
-        }
 
-        SearchBar(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .zIndex(2f)
-                .offset { IntOffset(0, searchBarY.roundToPx()) }
-                .padding(horizontal = horizontalPadding),
-            inputField = {
-                Column(modifier = Modifier.fillMaxWidth().then(if (expanded) Modifier.statusBarsPadding() else Modifier)) {
-                    SearchBarDefaults.InputField(
-                        modifier = Modifier.fillMaxWidth(),
-                        query = searchQuery,
-                        onQueryChange = { searchQuery = it },
-                        onSearch = { 
-                            appliedSearchQuery = searchQuery
-                            isSearching = false
-                            expanded = false 
-                        },
-                        expanded = expanded,
-                        onExpandedChange = { expanded = it },
-                        placeholder = { Text(stringResource(R.string.search_apps)) },
-                        leadingIcon = {
-                            if (expanded) {
-                                IconButton(onClick = { expanded = false }) {
-                                    Icon(painterResource(R.drawable.arrow_back_24px), contentDescription = null)
-                                }
-                            } else {
-                                Icon(painterResource(R.drawable.search_24px), contentDescription = null)
-                            }
-                        },
-                        trailingIcon = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (searchQuery.isNotEmpty()) {
-                                    IconButton(onClick = { searchQuery = "" }) {
-                                        Icon(painterResource(R.drawable.close_24px), contentDescription = null)
-                                    }
-                                }
+                SearchBar(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .zIndex(searchBarZIndex)
+                        .padding(top = finalTopPadding)
+                        .padding(horizontal = finalHorizontalPadding),
+                    inputField = {
+                        SearchBarDefaults.InputField(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = statusBarPadding * searchProgress),
+                            query = searchQuery,
+                            onQueryChange = { searchQuery = it },
+                            onSearch = {
+                                isSearching = false
+                                expanded = false
+                            },
+                            expanded = expanded,
+                            onExpandedChange = { expanded = it },
+                            placeholder = { Text(stringResource(R.string.search_apps)) },
+                            leadingIcon = {
                                 if (expanded) {
-                                    IconButton(onClick = { onImportFromClipboard() }) {
-                                        Icon(painterResource(R.drawable.content_paste_24px), contentDescription = null)
-                                    }
-                                }
-                            }
-                        },
-                    )
-                }
-            },
-            expanded = expanded,
-            onExpandedChange = { expanded = it },
-            windowInsets = WindowInsets(0, 0, 0, 0)
-        ) {
-            if (isAppsLoading || isSearching) {
-                Box(
-                    modifier = Modifier.fillMaxWidth().padding(top = 64.dp),
-                    contentAlignment = Alignment.TopCenter
-                ) {
-                    CircularWavyProgressIndicator()
-                }
-            } else if (searchDisplayList.isEmpty() && searchQuery.isNotBlank()) {
-                Box(
-                    modifier = Modifier.fillMaxWidth().padding(top = 64.dp),
-                    contentAlignment = Alignment.TopCenter
-                ) {
-                    Text(noAppsFoundMsg, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        bottom = 16.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-                    )
-                ) {
-                    appListItems(
-                        apps = searchDisplayList,
-                        excludedApps = excludedApps,
-                        newlyAddedPackages = newlyAddedPackages,
-                        onToggleExclusion = { pkg ->
-                            HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
-                            viewModel.toggleAppExclusion(pkg)
-                        }
-                    )
-                }
-            }
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = statusBarHeight + AppExceptionsDefaults.AppBarMaxHeight)
-                .zIndex(3f)
-                .graphicsLayer { },
-            contentAlignment = Alignment.TopCenter
-        ) {
-            PullToRefreshDefaults.Indicator(
-                state = pullToRefreshState,
-                isRefreshing = isRefreshing
-            )
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .zIndex(if (showTopBarOnTop) 4f else 1f)
-        ) {
-            LargeTopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            if (globalVpn.bypassMode) stringResource(R.string.vpn_apps_exceptions)
-                            else stringResource(R.string.vpn_apps_inclusions)
-                        )
-                        Text(
-                            text = stringResource(R.string.vpn_apps_hint),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.Normal
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(painterResource(R.drawable.arrow_back_24px), contentDescription = null)
-                    }
-                },
-                actions = {
-                    Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(painterResource(R.drawable.more_vert_24px), contentDescription = null)
-                        }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.filtering_enabled)) },
-                                trailingIcon = {
-                                    Switch(
-                                        checked = globalVpn.filteringEnabled,
-                                        onCheckedChange = null,
-                                        modifier = Modifier.scale(0.8f)
-                                    )
-                                },
-                                onClick = {
-                                    viewModel.updateGlobalVpnSettings(globalVpn.copy(filteringEnabled = !globalVpn.filteringEnabled))
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { 
-                                    Column {
-                                        Text(stringResource(R.string.bypass_mode))
-                                        Text(
-                                            text = if (globalVpn.bypassMode) "Выбранные идут напрямую" 
-                                                   else "Только выбранные через VPN",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    IconButton(onClick = { expanded = false }) {
+                                        Icon(
+                                            painterResource(R.drawable.arrow_back_24px),
+                                            contentDescription = null
                                         )
                                     }
-                                },
-                                trailingIcon = {
-                                    Switch(
-                                        checked = globalVpn.bypassMode,
-                                        onCheckedChange = null,
-                                        modifier = Modifier.scale(0.8f)
+                                } else {
+                                    Icon(
+                                        painterResource(R.drawable.search_24px),
+                                        contentDescription = null
                                     )
-                                },
-                                onClick = {
-                                    viewModel.updateGlobalVpnSettings(globalVpn.copy(bypassMode = !globalVpn.bypassMode))
                                 }
-                            )
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.clear_list)) },
-                                leadingIcon = {
-                                    Icon(painterResource(R.drawable.delete_24px), contentDescription = null)
-                                },
-                                onClick = {
-                                    showMenu = false
-                                    isAppsLoading = true
-                                    scope.launch {
-                                        viewModel.saveExcludedApps(emptySet())
-                                        sortSnapshot = emptySet()
-                                        delay(500)
-                                        isAppsLoading = false
+                            },
+                            trailingIcon = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (searchQuery.isNotEmpty()) {
+                                        IconButton(onClick = { searchQuery = "" }) {
+                                            Icon(
+                                                painterResource(R.drawable.close_24px),
+                                                contentDescription = null
+                                            )
+                                        }
+                                    }
+                                    if (expanded) {
+                                        IconButton(onClick = { onImportFromClipboard() }) {
+                                            Icon(
+                                                painterResource(R.drawable.content_paste_24px),
+                                                contentDescription = null
+                                            )
+                                        }
                                     }
                                 }
+                            },
+                        )
+                    },
+                    expanded = expanded,
+                    onExpandedChange = { expanded = it },
+                    windowInsets = WindowInsets(0, 0, 0, 0)
+                ) {
+                    if (isAppsLoading || isSearching) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 64.dp),
+                            contentAlignment = Alignment.TopCenter
+                        ) {
+                            CircularWavyProgressIndicator()
+                        }
+                    } else if (searchDisplayList.isEmpty() && searchQuery.isNotBlank()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 64.dp),
+                            contentAlignment = Alignment.TopCenter
+                        ) {
+                            Text(
+                                noAppsFoundMsg,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.copy_list)) },
-                                leadingIcon = {
-                                    Icon(painterResource(R.drawable.content_copy_24px), contentDescription = null)
-                                },
-                                onClick = {
-                                    showMenu = false
-                                    onExportToClipboard()
-                                }
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .imePadding(),
+                            contentPadding = PaddingValues(
+                                top = 16.dp,
+                                bottom = 16.dp + WindowInsets.navigationBars.asPaddingValues()
+                                    .calculateBottomPadding()
                             )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.import_from_clipboard)) },
-                                leadingIcon = {
-                                    Icon(painterResource(R.drawable.content_paste_24px), contentDescription = null)
-                                },
-                                onClick = {
-                                    showMenu = false
-                                    onImportFromClipboard()
-                                }
-                            )
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.hide_system_apps)) },
-                                trailingIcon = {
-                                    Checkbox(
-                                        checked = globalVpn.hideSystemApps,
-                                        onCheckedChange = null
-                                    )
-                                },
-                                onClick = {
-                                    viewModel.updateGlobalVpnSettings(globalVpn.copy(hideSystemApps = !globalVpn.hideSystemApps))
+                        ) {
+                            appListItems(
+                                apps = searchDisplayList,
+                                excludedApps = excludedApps,
+                                newlyAddedPackages = newlyAddedPackages,
+                                blockContainerColor = blockContainerColor,
+                                showHeaders = false,
+                                onToggleExclusion = { pkg ->
+                                    HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
+                                    viewModel.toggleAppExclusion(pkg)
                                 }
                             )
                         }
                     }
-                },
-                scrollBehavior = if (isScrollable) scrollBehavior else null,
-                windowInsets = TopAppBarDefaults.windowInsets,
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surface
+                }
+
+                LargeTopAppBar(
+                    title = {
+                        Column {
+                            Text(
+                                if (globalVpn.bypassMode) stringResource(R.string.vpn_apps_exceptions)
+                                else stringResource(R.string.vpn_apps_inclusions)
+                            )
+                            Text(
+                                text = stringResource(R.string.vpn_apps_hint),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.Normal
+                            )
+                        }
+                    },
+                    modifier = Modifier
+                        .zIndex(3f)
+                        .onGloballyPositioned { coordinates ->
+                            // Получаем высоту в пикселях
+                            appBarHeightPx = coordinates.size.height.toFloat()
+                        },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                painterResource(R.drawable.arrow_back_24px),
+                                contentDescription = null
+                            )
+                        }
+                    },
+                    actions = {
+                        Box {
+                            IconButton(onClick = { showMenu = true }) {
+                                Icon(
+                                    painterResource(R.drawable.more_vert_24px),
+                                    contentDescription = null
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showMenu,
+                                onDismissRequest = { showMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.filtering_enabled)) },
+                                    trailingIcon = {
+                                        Switch(
+                                            checked = globalVpn.filteringEnabled,
+                                            onCheckedChange = null,
+                                            modifier = Modifier.scale(0.8f)
+                                        )
+                                    },
+                                    onClick = {
+                                        viewModel.updateGlobalVpnSettings(
+                                            globalVpn.copy(
+                                                filteringEnabled = !globalVpn.filteringEnabled
+                                            )
+                                        )
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = {
+                                        Column {
+                                            Text(stringResource(R.string.bypass_mode))
+                                            Text(
+                                                text = if (globalVpn.bypassMode) "Выбранные идут напрямую"
+                                                else "Только выбранные через VPN",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    },
+                                    trailingIcon = {
+                                        Switch(
+                                            checked = globalVpn.bypassMode,
+                                            onCheckedChange = null,
+                                            modifier = Modifier.scale(0.8f)
+                                        )
+                                    },
+                                    onClick = {
+                                        viewModel.updateGlobalVpnSettings(
+                                            globalVpn.copy(
+                                                bypassMode = !globalVpn.bypassMode
+                                            )
+                                        )
+                                    }
+                                )
+                                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.clear_list)) },
+                                    leadingIcon = {
+                                        Icon(
+                                            painterResource(R.drawable.delete_24px),
+                                            contentDescription = null
+                                        )
+                                    },
+                                    onClick = {
+                                        showMenu = false
+                                        viewModel.saveExcludedApps(emptySet())
+                                        sortSnapshot = emptySet()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.copy_list)) },
+                                    leadingIcon = {
+                                        Icon(
+                                            painterResource(R.drawable.content_copy_24px),
+                                            contentDescription = null
+                                        )
+                                    },
+                                    onClick = {
+                                        showMenu = false
+                                        onExportToClipboard()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.import_from_clipboard)) },
+                                    leadingIcon = {
+                                        Icon(
+                                            painterResource(R.drawable.content_paste_24px),
+                                            contentDescription = null
+                                        )
+                                    },
+                                    onClick = {
+                                        showMenu = false
+                                        onImportFromClipboard()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.group_apps_by_letter)) },
+                                    trailingIcon = {
+                                        Checkbox(
+                                            checked = globalVpn.groupAppsByLetter,
+                                            onCheckedChange = null
+                                        )
+                                    },
+                                    onClick = {
+                                        viewModel.updateGlobalVpnSettings(
+                                            globalVpn.copy(
+                                                groupAppsByLetter = !globalVpn.groupAppsByLetter
+                                            )
+                                        )
+                                    }
+                                )
+                                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.hide_system_apps)) },
+                                    trailingIcon = {
+                                        Checkbox(
+                                            checked = globalVpn.hideSystemApps,
+                                            onCheckedChange = null
+                                        )
+                                    },
+                                    onClick = {
+                                        viewModel.updateGlobalVpnSettings(
+                                            globalVpn.copy(
+                                                hideSystemApps = !globalVpn.hideSystemApps
+                                            )
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                    },
+                    scrollBehavior = scrollBehavior,
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        scrolledContainerColor = MaterialTheme.colorScheme.surface
+                    )
                 )
-            )
+            }
         }
     }
 }
@@ -770,73 +726,127 @@ private fun LazyListScope.appListItems(
     apps: List<AppInfo>,
     excludedApps: Set<String>,
     newlyAddedPackages: Set<String>,
+    blockContainerColor: Color,
+    showHeaders: Boolean = true,
     onToggleExclusion: (String) -> Unit
 ) {
-    items(apps, key = { it.packageName }) { app ->
-        val context = LocalContext.current
-        val isExcluded = excludedApps.contains(app.packageName)
-        val isNewlyAdded = newlyAddedPackages.contains(app.packageName)
+    if (showHeaders) {
+        val grouped = apps.groupBy { it.name.firstOrNull()?.uppercaseChar() ?: '#' }
 
-        val backgroundColor by animateColorAsState(
-            targetValue = if (isNewlyAdded) MaterialTheme.colorScheme.surfaceContainerHigh else Color.Transparent,
-            label = "item_bg_color"
-        )
+        grouped.forEach { (letter, groupApps) ->
+            item(key = "header_$letter") {
+                SectionHeader(
+                    title = letter.toString(),
+                    modifier = Modifier.padding(start = 24.dp, top = 16.dp, bottom = 8.dp)
+                )
+            }
+            itemsIndexed(groupApps, key = { _, app -> app.packageName }) { index, app ->
+                AppListItem(
+                    app = app,
+                    index = index,
+                    groupSize = groupApps.size,
+                    excludedApps = excludedApps,
+                    newlyAddedPackages = newlyAddedPackages,
+                    blockContainerColor = blockContainerColor,
+                    onToggleExclusion = onToggleExclusion
+                )
+            }
+        }
+    } else {
+        itemsIndexed(apps, key = { _, app -> app.packageName }) { index, app ->
+            AppListItem(
+                app = app,
+                index = index,
+                groupSize = apps.size,
+                excludedApps = excludedApps,
+                newlyAddedPackages = newlyAddedPackages,
+                blockContainerColor = blockContainerColor,
+                onToggleExclusion = onToggleExclusion
+            )
+        }
+    }
+}
 
-        ListItem(
-            modifier = Modifier
-                .fillMaxWidth()
-                .animateItem(),
-            colors = ListItemDefaults.colors(containerColor = backgroundColor),
-            headlineContent = {
+@Composable
+private fun AppListItem(
+    app: AppInfo,
+    index: Int,
+    groupSize: Int,
+    excludedApps: Set<String>,
+    newlyAddedPackages: Set<String>,
+    blockContainerColor: Color,
+    onToggleExclusion: (String) -> Unit
+) {
+    val context = LocalContext.current
+    val isExcluded = excludedApps.contains(app.packageName)
+    val isNewlyAdded = newlyAddedPackages.contains(app.packageName)
+
+    val backgroundColor by animateColorAsState(
+        targetValue = if (isNewlyAdded) MaterialTheme.colorScheme.surfaceContainerHigh else blockContainerColor,
+        label = "item_bg_color"
+    )
+
+    SettingsGroupItem(
+        isTop = index == 0,
+        isBottom = index == groupSize - 1,
+        containerColor = backgroundColor,
+        onClick = { onToggleExclusion(app.packageName) },
+        modifier = Modifier
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 2.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            var iconBitmap by remember(app.packageName) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+            LaunchedEffect(app.packageName) {
+                withContext(Dispatchers.IO) {
+                    try {
+                        val drawable = context.packageManager.getApplicationIcon(app.packageName)
+                        val bitmap = drawable.toBitmap().asImageBitmap()
+                        withContext(Dispatchers.Main) {
+                            iconBitmap = bitmap
+                        }
+                    } catch (_: Exception) { }
+                }
+            }
+
+            if (iconBitmap != null) {
+                Image(
+                    bitmap = iconBitmap!!,
+                    contentDescription = null,
+                    modifier = Modifier.size(AppExceptionsDefaults.IconSize)
+                )
+            } else {
+                Icon(
+                    painterResource(R.drawable.mobile_24px),
+                    null,
+                    modifier = Modifier.size(AppExceptionsDefaults.IconSize),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     app.name,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    fontWeight = if (isExcluded || isNewlyAdded) FontWeight.SemiBold else FontWeight.Normal
+                    fontWeight = if (isExcluded || isNewlyAdded) FontWeight.SemiBold else FontWeight.Normal,
+                    style = MaterialTheme.typography.bodyLarge
                 )
-            },
-            supportingContent = {
                 Text(
                     app.packageName,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
-            },
-            leadingContent = {
-                var iconBitmap by remember(app.packageName) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
-                LaunchedEffect(app.packageName) {
-                    withContext(Dispatchers.IO) {
-                        try {
-                            val drawable = context.packageManager.getApplicationIcon(app.packageName)
-                            val bitmap = drawable.toBitmap().asImageBitmap()
-                            withContext(Dispatchers.Main) {
-                                iconBitmap = bitmap
-                            }
-                        } catch (_: Exception) { }
-                    }
-                }
-
-                if (iconBitmap != null) {
-                    Image(
-                        bitmap = iconBitmap!!,
-                        contentDescription = null,
-                        modifier = Modifier.size(AppExceptionsDefaults.IconSize)
-                    )
-                } else {
-                    Icon(
-                        painterResource(R.drawable.mobile_24px),
-                        null,
-                        modifier = Modifier.size(AppExceptionsDefaults.IconSize),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                    )
-                }
-            },
-            trailingContent = {
-                Switch(
-                    checked = isExcluded,
-                    onCheckedChange = { onToggleExclusion(app.packageName) }
-                )
             }
-        )
+
+            Switch(
+                checked = isExcluded,
+                onCheckedChange = { onToggleExclusion(app.packageName) }
+            )
+        }
     }
 }
