@@ -23,6 +23,8 @@ android {
         val formattedDate = sdf.format(date)
         versionCode = formattedDate.toInt()
         versionName = project.property("project.versionName").toString()
+
+        resValue("string", "app_name", project.property("project.appName").toString())
     }
 
     splits {
@@ -53,7 +55,7 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
-            manifestPlaceholders["appName"] = "WireTurn Debug"
+            manifestPlaceholders["appName"] = "${project.property("project.appName")} Debug"
         }
         release {
             isMinifyEnabled = true
@@ -62,7 +64,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            manifestPlaceholders["appName"] = "WireTurn"
+            manifestPlaceholders["appName"] = project.property("project.appName").toString()
         }
     }
 

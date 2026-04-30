@@ -26,7 +26,6 @@
     <string name="xray_config_invalid">Некорректный конфиг</string>
     <string name="error_format_short">Ошибка: %1$s</string>
     <string name="repo_links">Ссылки на репозитории</string>
-    <string name="repo_links_desc">Исходный код компонентов</string>
 
     <string name="starting">Запускается…</string>
     <string name="running">Запущен</string>
@@ -124,7 +123,6 @@
     <string name="server_help_secondary">Обратите внимание: если на сервере использован параметр -listen 0.0.0.0:56000, в приложении нужно указать именно внешний IP-адрес вашего сервера (например, 292.313.32.45:56000), а не нули.</string>
     <string name="vk_link_label">Ссылка VK-звонок</string>
     <string name="vk_link_placeholder">https://vk.com/call/join/…</string>
-    <string name="vk_link_support">VK: Звонки → Создать встречу → Скопировать ссылку (не нажимайте «Завершить»)</string>
     <string name="turnable_url_label">Turnable-ссылка</string>
     <string name="turnable_url_placeholder">turnable://user:pass@vk.com…</string>
     <string name="turnable_url_support">Создаётся и формируется на сервере</string>
@@ -142,7 +140,6 @@
     <string name="dc_tunnel">DC</string>
     <string name="local_listen_address">Локальный адрес прослушивания</string>
     <string name="local_listen_placeholder">127.0.0.1:9000</string>
-    <string name="local_listen_support">Адрес, на котором клиент принимает трафик от WireGuard/VLESS</string>
     <string name="parameters_title">Параметры</string>
     <string name="threads_format">Потоки: %1$d</string>
     <string name="threads_recommendation">Рекомендуется 4–8</string>
@@ -192,16 +189,11 @@
 
     <!-- Обновление приложения (OTA) -->
     <string name="update_title">Обновление</string>
-    <string name="update_check">Проверить</string>
     <string name="update_tap_to_check">Нажмите для проверки</string>
     <string name="update_checking">Проверка…</string>
-    <string name="update_available_title">Доступно обновление</string>
     <string name="update_available">Доступна версия %1$s</string>
     <string name="update_download">Скачать</string>
-    <string name="update_downloading_title">Загрузка обновления</string>
     <string name="update_downloading">Загрузка: %1$d%%</string>
-    <string name="update_ready_title">Обновление загружено</string>
-    <string name="update_ready_desc">APK готов к установке. Установить сейчас?</string>
     <string name="update_ready_desc_short">Готово к установке</string>
     <string name="update_install">Установить</string>
     <string name="update_no_update">Установлена последняя версия</string>
@@ -292,8 +284,6 @@
     <string name="clipboard_label_socks5">Xray SOCKS5</string>
     <string name="clipboard_label_http">Xray HTTP</string>
     <string name="restart_required">Настройки изменены</string>
-    <string name="restart_required_profile">Профиль изменён</string>
-    <string name="restart_reason_profile">Выбран другой профиль</string>
     <string name="restart_reason_client">Изменён конфиг клиента</string>
     <string name="restart_reason_xray">Изменены настройки Xray</string>
     <string name="btn_restart">Перезапустить</string>
