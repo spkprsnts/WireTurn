@@ -583,9 +583,12 @@ private fun WireGuardSettings(
                         isModified = runningWgConfig != null && endpoint != runningWgConfig.endpoint
                     )
                     if (!isTargetEndpoint) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = stringResource(R.string.wg_endpoint_mismatch), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                            Text(text = stringResource(R.string.wg_endpoint_fix), color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { onFixEndpoint() }, style = MaterialTheme.typography.bodySmall)
+                        Column {
+                            Spacer(Modifier.height(8.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Text(text = stringResource(R.string.wg_endpoint_mismatch), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                                Text(text = stringResource(R.string.wg_endpoint_fix), color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { onFixEndpoint() }, style = MaterialTheme.typography.bodySmall)
+                            }
                         }
                     }
                 }
