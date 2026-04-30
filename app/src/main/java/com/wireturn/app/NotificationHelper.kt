@@ -68,7 +68,7 @@ object NotificationHelper {
         val contentText = if (statusParts.isEmpty()) {
             context.getString(R.string.proxy_press_to_start)
         } else {
-            statusParts.joinToString(" | ")
+            statusParts.joinToString(" • ")
         }
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
