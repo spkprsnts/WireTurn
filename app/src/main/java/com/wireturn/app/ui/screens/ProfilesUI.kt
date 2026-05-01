@@ -155,7 +155,7 @@ fun ProfilesBlock(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Icon(
                     painter = painterResource(R.drawable.mobile_24px),

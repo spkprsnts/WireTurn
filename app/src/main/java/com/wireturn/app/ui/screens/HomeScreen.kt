@@ -444,7 +444,7 @@ fun HomeScreen(
                                 tint = MaterialTheme.colorScheme.onErrorContainer,
                                 modifier = Modifier.size(20.dp)
                             )
-                            Spacer(Modifier.width(8.dp))
+                            Spacer(Modifier.width(12.dp))
                             Text(
                                 text = stringResource(R.string.permissions_title),
                                 style = MaterialTheme.typography.labelLarge,
@@ -797,7 +797,7 @@ fun HomeScreen(
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 Icon(
-                                    painter = painterResource(R.drawable.info_24px),
+                                    painter = painterResource(R.drawable.refresh_24px),
                                     contentDescription = null,
                                     modifier = Modifier.size(20.dp),
                                     tint = MaterialTheme.colorScheme.onSurface
@@ -935,7 +935,7 @@ fun HomeScreen(
 
                 SettingsGroupItem(
                     isTop = false,
-                    isBottom = false,
+                    isBottom = true,
                     containerColor = blockContainerColor,
                     onClick = {
                         val next = !xraySettings.xrayVpnMode
@@ -1003,7 +1003,14 @@ fun HomeScreen(
                         }
                     )
                 }
+            }
 
+            Spacer(Modifier.height(12.dp))
+
+            Column(
+                modifier = Modifier.graphicsLayer { alpha = if (xraySettings.xrayEnabled) 1f else 0.38f },
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
                 val clipboard = LocalClipboard.current
                 val socks5Label = stringResource(R.string.clipboard_label_socks5)
                 val httpLabel = stringResource(R.string.clipboard_label_http)
@@ -1017,9 +1024,10 @@ fun HomeScreen(
                 }
 
                 SettingsGroupItem(
-                    isTop = false,
+                    isTop = true,
                     isBottom = xrayConfig.httpBindAddress.isBlank() && !(runningXrayConfig != null && xrayConfig.httpBindAddress != runningXrayConfig?.httpBindAddress),
                     containerColor = blockContainerColor,
+                    enabled = xraySettings.xrayEnabled,
                     onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         scope.launch {
@@ -1032,7 +1040,15 @@ fun HomeScreen(
                         label = stringResource(R.string.xray_socks5),
                         address = xrayConfig.socksBindAddress,
                         isModified = runningXrayConfig != null && xrayConfig.socksBindAddress != runningXrayConfig?.socksBindAddress,
-                        isCopied = socksCopied
+                        isCopied = socksCopied,
+                        leadingIcon = {
+                            Icon(
+                                painter = painterResource(R.drawable.lan_24px),
+                                contentDescription = null,
+                                tint = if (xraySettings.xrayEnabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     )
                 }
 
@@ -1049,6 +1065,7 @@ fun HomeScreen(
                         isTop = false,
                         isBottom = true,
                         containerColor = blockContainerColor,
+                        enabled = xraySettings.xrayEnabled,
                         onClick = {
                             HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                             scope.launch {
@@ -1061,7 +1078,15 @@ fun HomeScreen(
                             label = stringResource(R.string.xray_http),
                             address = xrayConfig.httpBindAddress,
                             isModified = runningXrayConfig != null && xrayConfig.httpBindAddress != runningXrayConfig?.httpBindAddress,
-                            isCopied = httpCopied
+                            isCopied = httpCopied,
+                            leadingIcon = {
+                                Icon(
+                                    painter = painterResource(R.drawable.lan_24px),
+                                    contentDescription = null,
+                                    tint = if (xraySettings.xrayEnabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         )
                     }
                 }
@@ -1682,14 +1707,21 @@ private fun ProxyAddressRow(
     label: String,
     address: String,
     isModified: Boolean,
-    isCopied: Boolean
+    isCopied: Boolean,
+    leadingIcon: @Composable (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
     ) {
+        if (leadingIcon != null) {
+            Box(modifier = Modifier.size(24.dp)) {
+                leadingIcon()
+            }
+            Spacer(Modifier.width(16.dp))
+        }
+
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 address.ifBlank { stringResource(R.string.dash) },
@@ -1711,7 +1743,7 @@ private fun ProxyAddressRow(
         Icon(
             painter = painterResource(if (isCopied) R.drawable.check_circle_24px else R.drawable.content_copy_24px),
             contentDescription = null,
-            modifier = Modifier.size(18.dp),
+            modifier = Modifier.size(20.dp),
             tint = if (isCopied) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
         )
     }
