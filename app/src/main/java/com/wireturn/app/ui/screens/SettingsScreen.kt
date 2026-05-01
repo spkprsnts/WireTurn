@@ -54,6 +54,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -95,10 +96,18 @@ fun SettingsScreen(
 
     val scrollState = rememberScrollState()
     var updateBlockOffset by remember { mutableFloatStateOf(0f) }
+    var hasScrolled by rememberSaveable(scrollToUpdate) { mutableStateOf(false) }
 
-    LaunchedEffect(scrollToUpdate, updateBlockOffset) {
-        if (scrollToUpdate && updateBlockOffset > 0f) {
+    LaunchedEffect(scrollToUpdate) {
+        if (scrollToUpdate && !hasScrolled) {
+            // Ждем пока координаты блока станут доступны
+            while (updateBlockOffset <= 0f) {
+                delay(16)
+            }
+            // Небольшая задержка, чтобы анимация была плавной и после отрисовки
+            delay(100)
             scrollState.animateScrollTo(updateBlockOffset.toInt())
+            hasScrolled = true
         }
     }
 
