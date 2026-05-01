@@ -168,7 +168,9 @@ class ProxyService : Service() {
             if (!startupSuccessful || (currentResult !is StartupResult.Success && duration < 2500)) {
                 AppLogsState.addLog(getString(R.string.log_quick_exit, duration))
                 AppLogsState.addLog(getString(R.string.log_startup_failed_no_watchdog))
-                ProxyServiceState.setStartupResult(StartupResult.Failed(getString(R.string.error_kernel_or_settings)))
+                if (ProxyServiceState.startupResult.value !is StartupResult.Failed) {
+                    ProxyServiceState.setStartupResult(StartupResult.Failed(getString(R.string.error_kernel_or_settings)))
+                }
                 ProxyServiceState.setRunning(false)
                 withContext(Dispatchers.Main) { stopSelf() }
                 break
@@ -200,7 +202,11 @@ class ProxyService : Service() {
 
     private suspend fun runBinary(cfg: ClientConfig): Boolean = coroutineScope {
         val cmdArgs = buildCommandArgs(cfg)
-        
+
+        if (ProxyServiceState.startupResult.value is StartupResult.Failed) {
+            return@coroutineScope false
+        }
+
         var startupEmitted = false
         var startupFailed = false
         var captchaActive = false
@@ -276,7 +282,9 @@ class ProxyService : Service() {
                                 if (cfg.dcType == DCType.SALUTE_JAZZ) {
                                     if (!checkJazzAvailability()) {
                                         AppLogsState.addLog(getString(R.string.log_jazz_unavailable))
-                                        break // Trigger restart
+                                        ProxyServiceState.setStartupResult(StartupResult.Failed(getString(R.string.error_jazz_unavailable)))
+                                        startupFailed = true
+                                        break
                                     }
                                 }
                             }

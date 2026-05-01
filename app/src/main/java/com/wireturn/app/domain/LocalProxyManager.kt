@@ -152,11 +152,20 @@ class LocalProxyManager(private val context: Context) {
 
         ProxyService.start(context, cfg)
 
-        val result = withTimeoutOrNull(20_000L) {
+        var result = withTimeoutOrNull(20_000L) {
             merge(
                 ProxyServiceState.startupResult.filterNotNull(),
                 ProxyServiceState.isRunning.dropWhile { !it }.filter { !it }.map { null }
             ).first()
+        }
+
+        // Если получили null (сервис остановился или таймаут), 
+        // проверяем не успел ли сервис выставить ошибку напоследок
+        if (result == null) {
+            val lastResult = ProxyServiceState.startupResult.value
+            if (lastResult is StartupResult.Failed) {
+                result = lastResult
+            }
         }
 
         if (_proxyState.value is ProxyState.Error) return
