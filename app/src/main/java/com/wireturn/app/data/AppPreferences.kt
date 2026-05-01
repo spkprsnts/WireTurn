@@ -294,6 +294,7 @@ class AppPreferences(context: Context) {
         val RESTART_ON_NETWORK_CHANGE = booleanPreferencesKey("restart_on_network_change")
         val CAPTCHA_STYLE_MOD = booleanPreferencesKey("captcha_style_mod")
         val CAPTCHA_FORCE_TINT = booleanPreferencesKey("captcha_force_tint")
+        val APP_LANGUAGE = stringPreferencesKey("app_language")
     }
 
     val profilesFlow: Flow<List<Profile>> = context.dataStore.data
@@ -472,6 +473,11 @@ class AppPreferences(context: Context) {
     val captchaForceTintFlow: Flow<Boolean> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { prefs -> prefs[CAPTCHA_FORCE_TINT] ?: true }
+        .distinctUntilChanged()
+
+    val appLanguageFlow: Flow<String> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { it[APP_LANGUAGE] ?: "system" }
         .distinctUntilChanged()
 
     val vkLinkHistoryFlow: Flow<List<String>> = context.dataStore.data
@@ -669,6 +675,10 @@ class AppPreferences(context: Context) {
 
     suspend fun setCaptchaForceTint(enabled: Boolean) {
         context.dataStore.edit { prefs -> prefs[CAPTCHA_FORCE_TINT] = enabled }
+    }
+
+    suspend fun setAppLanguage(lang: String) {
+        context.dataStore.edit { prefs -> prefs[APP_LANGUAGE] = lang }
     }
 
     suspend fun saveWgConfig(config: WgConfig) {

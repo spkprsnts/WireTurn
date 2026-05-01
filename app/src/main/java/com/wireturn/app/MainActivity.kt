@@ -3,7 +3,7 @@ package com.wireturn.app
 import android.content.Intent
 import android.os.Bundle
 import android.view.animation.AnticipateInterpolator
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -25,7 +25,7 @@ import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.AppLifecycleState
 import com.wireturn.app.viewmodel.MainViewModel
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
 
     private val viewModel: MainViewModel by viewModels()
 

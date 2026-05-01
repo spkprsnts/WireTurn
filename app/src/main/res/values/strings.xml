@@ -205,6 +205,10 @@
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
     <string name="theme_system">System</string>
+    <string name="lang_title">Language</string>
+    <string name="lang_system">System</string>
+    <string name="lang_en">English</string>
+    <string name="lang_ru">Russian</string>
     <string name="privacy_mode_title">Privacy mode</string>
     <string name="privacy_mode_desc">Hides IP and ports</string>
     <string name="unstable_updates_title">Beta versions</string>

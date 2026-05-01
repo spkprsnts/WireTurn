@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.lifecycleScope
@@ -91,6 +93,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _captchaForceTint = MutableStateFlow(true)
     val captchaForceTint: StateFlow<Boolean> = _captchaForceTint.asStateFlow()
+
+    private val _appLanguage = MutableStateFlow("system")
+    val appLanguage: StateFlow<String> = _appLanguage.asStateFlow()
 
     private val _wgConfig = MutableStateFlow(WgConfig())
     val wgConfig: StateFlow<WgConfig> = _wgConfig.asStateFlow()
@@ -179,6 +184,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val restartOnNetworkChange = prefs.restartOnNetworkChangeFlow.first()
             val captchaStyleMod = prefs.captchaStyleModFlow.first()
             val captchaForceTint = prefs.captchaForceTintFlow.first()
+            val appLanguage = prefs.appLanguageFlow.first()
 
             val wgConfig = prefs.wgConfigFlow.first()
             val xraySettings = prefs.xraySettingsFlow.first()
@@ -204,6 +210,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _restartOnNetworkChange.value = restartOnNetworkChange
             _captchaStyleMod.value = captchaStyleMod
             _captchaForceTint.value = captchaForceTint
+            _appLanguage.value = appLanguage
+            applyLanguage(appLanguage)
             _wgConfig.value = wgConfig
             _xraySettings.value = xraySettings
             _globalVpnSettings.value = globalVpnSettings
@@ -250,6 +258,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.restartOnNetworkChangeFlow.collect { _restartOnNetworkChange.value = it } }
             launch { prefs.captchaStyleModFlow.collect { _captchaStyleMod.value = it } }
             launch { prefs.captchaForceTintFlow.collect { _captchaForceTint.value = it } }
+            launch { prefs.appLanguageFlow.collect { _appLanguage.value = it } }
             launch {
                 prefs.allowUnstableUpdatesFlow
                     .drop(1)
@@ -463,6 +472,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setCaptchaStyleMod(enabled: Boolean) { viewModelScope.launch { prefs.setCaptchaStyleMod(enabled) } }
     fun setCaptchaForceTint(enabled: Boolean) { viewModelScope.launch { prefs.setCaptchaForceTint(enabled) } }
+
+    fun setAppLanguage(lang: String) {
+        _appLanguage.value = lang
+        viewModelScope.launch {
+            prefs.setAppLanguage(lang)
+            applyLanguage(lang)
+        }
+    }
+
+    private fun applyLanguage(lang: String) {
+        val appLocale: LocaleListCompat = if (lang == "system") {
+            LocaleListCompat.getEmptyLocaleList()
+        } else {
+            LocaleListCompat.forLanguageTags(lang)
+        }
+        AppCompatDelegate.setApplicationLocales(appLocale)
+    }
 
     fun checkProxyPing() {
         val socksAddr = XrayServiceState.runningXrayConfig.value?.connectableAddress ?: return
