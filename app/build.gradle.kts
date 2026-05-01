@@ -23,8 +23,6 @@ android {
         val formattedDate = sdf.format(date)
         versionCode = formattedDate.toInt()
         versionName = project.property("project.versionName").toString()
-
-        resValue("string", "app_name", project.property("project.appName").toString())
     }
 
     splits {

@@ -153,7 +153,6 @@
     <string name="manual_captcha_desc">Решать капчу вручную вместо автоматического распознавания</string>
     <string name="force_turn_port_443">TURN-порт 443</string>
     <string name="force_turn_port_443_desc">Использовать порт 443 вместо стандартного.</string>
-    <string name="force_turn_port_443_secondary">Помогает в сетях, где порт 19302 заблокирован</string>
     <string name="jazz_label">SaluteJazz</string>
     <string name="wb_stream_label">WB Stream</string>
     <string name="dc_type_label">Сервис DC</string>
@@ -336,7 +335,6 @@
 
     <!-- Управление профилями -->
     <string name="profiles_title">Профили</string>
-    <string name="btn_change_profile">Сменить</string>
     <string name="notification_btn_change_profile">Сменить профиль</string>
     <string name="profile_create">Создать профиль</string>
     <string name="profile_clone">Клонировать</string>
