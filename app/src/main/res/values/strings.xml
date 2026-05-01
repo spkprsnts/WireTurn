@@ -209,6 +209,8 @@
     <string name="privacy_mode_desc">Скрывает IP и порты</string>
     <string name="unstable_updates_title">Бета-версии</string>
     <string name="unstable_updates_desc">Проверять нестабильные обновления</string>
+    <string name="restart_on_network_change_title">Перезапуск при смене сети</string>
+    <string name="restart_on_network_change_desc">Автоматически перезапускать прокси при переключении между Wi-Fi и мобильной сетью</string>
 
     <!-- Настройка Капчи -->
     <string name="captcha_settings_title">Оформление капчи</string>

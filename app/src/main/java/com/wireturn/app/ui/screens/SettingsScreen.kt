@@ -228,6 +228,28 @@ fun SettingsScreen(
                 }
             }
 
+            // 2.1 Сеть
+            val restartOnNetworkChange by viewModel.restartOnNetworkChange.collectAsStateWithLifecycle()
+
+            SettingsGroup(title = stringResource(R.string.connection_title)) {
+                SettingsGroupItem(
+                    isTop = true,
+                    isBottom = true,
+                    containerColor = blockContainerColor,
+                    onClick = {
+                        HapticUtil.perform(context, if (restartOnNetworkChange) HapticUtil.Pattern.TOGGLE_OFF else HapticUtil.Pattern.TOGGLE_ON)
+                        viewModel.setRestartOnNetworkChange(!restartOnNetworkChange)
+                    }
+                ) {
+                    SwitchRow(
+                        label = stringResource(R.string.restart_on_network_change_title),
+                        supportingText = stringResource(R.string.restart_on_network_change_desc),
+                        checked = restartOnNetworkChange,
+                        onCheckedChange = { viewModel.setRestartOnNetworkChange(it) }
+                    )
+                }
+            }
+
             // 2.1 Капча
             val captchaStyleMod by viewModel.captchaStyleMod.collectAsStateWithLifecycle()
             val captchaForceTint by viewModel.captchaForceTint.collectAsStateWithLifecycle()

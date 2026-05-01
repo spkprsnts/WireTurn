@@ -555,6 +555,9 @@ class ProxyService : Service() {
                 
                 networkDebounceJob?.cancel()
                 networkDebounceJob = serviceScope.launch {
+                    val prefs = AppPreferences(applicationContext)
+                    if (!prefs.restartOnNetworkChangeFlow.first()) return@launch
+
                     delay(2000)
                     if (!userStopped.get() && process.get() != null) {
                         AppLogsState.addLog(getString(R.string.log_network_change))
