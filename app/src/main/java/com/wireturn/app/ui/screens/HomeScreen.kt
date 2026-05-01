@@ -875,11 +875,20 @@ fun HomeScreen(
             }
 
             // 5. Xray & VPN Settings Card
+            val isSettingsValid = if (xrayConfig.xrayConfiguration == XrayConfiguration.VLESS) activeVlessConfig.isValid() else activeWgConfig.isValid()
+            val configValid = isSettingsValid || xrayState != XrayState.Idle
+
+            val xrayProtocol = when {
+                xrayState == XrayState.Running -> if (runningVlessConfig != null) stringResource(R.string.vless) else stringResource(R.string.wg_short)
+                else -> if (xrayConfig.xrayConfiguration == XrayConfiguration.VLESS) stringResource(R.string.vless) else stringResource(R.string.wg_short)
+            }
+
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 SettingsGroupItem(
                     isTop = true,
                     isBottom = false,
                     containerColor = blockContainerColor,
+                    enabled = configValid,
                     onClick = {
                         val next = !xraySettings.xrayEnabled
                         HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
@@ -891,14 +900,6 @@ fun HomeScreen(
                         viewModel.updateXraySettings(xraySettings.copy(xrayEnabled = next))
                     }
                 ) {
-                    val isSettingsValid = if (xrayConfig.xrayConfiguration == XrayConfiguration.VLESS) activeVlessConfig.isValid() else activeWgConfig.isValid()
-                    val configValid = isSettingsValid || xrayState != XrayState.Idle
-
-                    val xrayProtocol = when {
-                        xrayState == XrayState.Running -> if (runningVlessConfig != null) stringResource(R.string.vless) else stringResource(R.string.wg_short)
-                        else -> if (xrayConfig.xrayConfiguration == XrayConfiguration.VLESS) stringResource(R.string.vless) else stringResource(R.string.wg_short)
-                    }
-
                     LaunchedEffect(configValid, xraySettings.xrayEnabled, currentProfileId) {
                         delay(500)
                         if (!configValid && xraySettings.xrayEnabled) {
