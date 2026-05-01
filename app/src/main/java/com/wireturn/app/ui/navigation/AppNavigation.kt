@@ -252,6 +252,7 @@ fun AppNavigation(
     if (showCaptcha.value && captchaState != null) {
         key(captchaState.sessionId) {
             CaptchaWebViewDialog(
+                viewModel = viewModel,
                 captchaUrl = captchaState.url,
                 onDismiss = { viewModel.dismissCaptcha() },
                 onSuccess = { showCaptcha.value = false }

@@ -70,6 +70,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -98,6 +99,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
+ * Local provider for interaction source to coordinate ripples between parent blocks and children.
+ */
+val LocalSettingsInteractionSource = compositionLocalOf<MutableInteractionSource?> { null }
+
+/**
  * Inline indicator for rows, usually placed after a text label.
  */
 @Composable
@@ -108,7 +114,7 @@ fun ConfigSwitch(
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource? = null
 ) {
-    val internalInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+    val internalInteractionSource = interactionSource ?: LocalSettingsInteractionSource.current ?: remember { MutableInteractionSource() }
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
         Switch(
             checked = checked,
@@ -238,27 +244,31 @@ fun SettingsGroupItem(
         bottomEnd = bottomRadius
     )
 
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(min = 72.dp),
-        shape = shape,
-        onClick = onClick ?: {},
-        enabled = onClick != null && enabled,
-        interactionSource = interactionSource,
-        colors = CardDefaults.cardColors(
-            containerColor = containerColor,
-            disabledContainerColor = containerColor
-        )
-    ) {
-        Box(
-            modifier = Modifier
+    val internalInteractionSource = interactionSource ?: LocalSettingsInteractionSource.current ?: remember { MutableInteractionSource() }
+
+    CompositionLocalProvider(LocalSettingsInteractionSource provides internalInteractionSource) {
+        Card(
+            modifier = modifier
                 .fillMaxWidth()
-                .heightIn(min = 72.dp)
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            contentAlignment = Alignment.CenterStart
+                .heightIn(min = 72.dp),
+            shape = shape,
+            onClick = onClick ?: {},
+            enabled = onClick != null && enabled,
+            interactionSource = internalInteractionSource,
+            colors = CardDefaults.cardColors(
+                containerColor = containerColor,
+                disabledContainerColor = containerColor
+            )
         ) {
-            content()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 72.dp)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                content()
+            }
         }
     }
 }
@@ -269,25 +279,31 @@ fun CompactSettingsItem(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     enabled: Boolean = true,
+    interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit
 ) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(24.dp),
-        onClick = onClick ?: {},
-        enabled = onClick != null && enabled,
-        colors = CardDefaults.cardColors(
-            containerColor = containerColor,
-            disabledContainerColor = containerColor
-        )
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxHeight()
-                .padding(horizontal = 14.dp, vertical = 8.dp),
-            contentAlignment = Alignment.Center
+    val internalInteractionSource = interactionSource ?: LocalSettingsInteractionSource.current ?: remember { MutableInteractionSource() }
+
+    CompositionLocalProvider(LocalSettingsInteractionSource provides internalInteractionSource) {
+        Card(
+            modifier = modifier,
+            shape = RoundedCornerShape(24.dp),
+            onClick = onClick ?: {},
+            enabled = onClick != null && enabled,
+            interactionSource = internalInteractionSource,
+            colors = CardDefaults.cardColors(
+                containerColor = containerColor,
+                disabledContainerColor = containerColor
+            )
         ) {
-            content()
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                content()
+            }
         }
     }
 }
@@ -302,19 +318,17 @@ fun LabeledSegmentedButton(
     content: @Composable SingleChoiceSegmentedButtonRowScope.() -> Unit
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                InlineConfigIndicator(isModified)
-            }
-            SupportingText(text = supportingText, secondaryText = secondaryText)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            InlineConfigIndicator(isModified)
         }
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth(), content = content)
+        SupportingText(text = supportingText, secondaryText = secondaryText)
     }
 }
 
@@ -333,9 +347,15 @@ fun SwitchRow(
     interactionSource: MutableInteractionSource? = null,
     clickable: Boolean = true
 ) {
-    val internalInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+    val parentInteractionSource = LocalSettingsInteractionSource.current
+    val internalInteractionSource = interactionSource ?: parentInteractionSource ?: remember { MutableInteractionSource() }
     
-    val rowModifier = if (clickable) {
+    // Auto-disable internal clickable if we are inside a SettingsGroupItem that handles the interaction source,
+    // unless clickable is explicitly set to true and we want nested clicks (rare).
+    // If the user passed interactionSource explicitly, they likely want to coordinate.
+    val actualClickable = if (parentInteractionSource != null && interactionSource == null) false else clickable
+
+    val rowModifier = if (actualClickable) {
         modifier
             .fillMaxWidth()
             .clickable(
@@ -368,6 +388,7 @@ fun SwitchRow(
                     )
                     InlineConfigIndicator(isModified)
                 }
+                Spacer(Modifier.height(2.dp))
                 SupportingText(text = supportingText, secondaryText = secondaryText)
             }
 
@@ -405,39 +426,36 @@ fun TextFieldRow(
     onHelpClick: (() -> Unit)? = null
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f, fill = false)) {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f, fill = false)) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                InlineConfigIndicator(isModified)
+            }
+
+            if (onHelpClick != null) {
+                IconButton(
+                    onClick = onHelpClick,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.info_24px),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
                     )
-                    InlineConfigIndicator(isModified)
-                }
-                
-                if (onHelpClick != null) {
-                    IconButton(
-                        onClick = onHelpClick,
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.info_24px),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
                 }
             }
-            SupportingText(text = supportingText, secondaryText = secondaryText)
         }
         TextField(
             value = value,
@@ -460,6 +478,8 @@ fun TextFieldRow(
                 focusedIndicatorColor = MaterialTheme.colorScheme.primary
             )
         )
+        Spacer(Modifier.height(2.dp))
+        SupportingText(text = supportingText, secondaryText = secondaryText)
     }
 }
 

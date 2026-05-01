@@ -85,6 +85,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _allowUnstableUpdates = MutableStateFlow(false)
     val allowUnstableUpdates: StateFlow<Boolean> = _allowUnstableUpdates.asStateFlow()
 
+    private val _captchaStyleMod = MutableStateFlow(true)
+    val captchaStyleMod: StateFlow<Boolean> = _captchaStyleMod.asStateFlow()
+
+    private val _captchaForceTint = MutableStateFlow(true)
+    val captchaForceTint: StateFlow<Boolean> = _captchaForceTint.asStateFlow()
+
     private val _wgConfig = MutableStateFlow(WgConfig())
     val wgConfig: StateFlow<WgConfig> = _wgConfig.asStateFlow()
 
@@ -151,6 +157,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val batteryDismissed = prefs.batteryNotificationDismissedFlow.first()
             val appsExclusionHintShown = prefs.appsExclusionHintShownFlow.first()
             val allowUnstableUpdates = prefs.allowUnstableUpdatesFlow.first()
+            val captchaStyleMod = prefs.captchaStyleModFlow.first()
+            val captchaForceTint = prefs.captchaForceTintFlow.first()
 
             val wgConfig = prefs.wgConfigFlow.first()
             val xraySettings = prefs.xraySettingsFlow.first()
@@ -166,6 +174,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _batteryNotificationDismissed.value = batteryDismissed
             _appsExclusionHintShown.value = appsExclusionHintShown
             _allowUnstableUpdates.value = allowUnstableUpdates
+            _captchaStyleMod.value = captchaStyleMod
+            _captchaForceTint.value = captchaForceTint
             _wgConfig.value = wgConfig
             _xraySettings.value = xraySettings
             _globalVpnSettings.value = globalVpnSettings
@@ -202,6 +212,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.batteryNotificationDismissedFlow.collect { _batteryNotificationDismissed.value = it } }
             launch { prefs.appsExclusionHintShownFlow.collect { _appsExclusionHintShown.value = it } }
             launch { prefs.allowUnstableUpdatesFlow.collect { _allowUnstableUpdates.value = it } }
+            launch { prefs.captchaStyleModFlow.collect { _captchaStyleMod.value = it } }
+            launch { prefs.captchaForceTintFlow.collect { _captchaForceTint.value = it } }
             launch {
                 prefs.allowUnstableUpdatesFlow
                     .drop(1)
@@ -422,6 +434,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setBatteryNotificationDismissed(dismissed: Boolean) { viewModelScope.launch { prefs.setBatteryNotificationDismissed(dismissed) } }
     fun setAppsExclusionHintShown(shown: Boolean) { viewModelScope.launch { prefs.setAppsExclusionHintShown(shown) } }
     fun setAllowUnstableUpdates(allow: Boolean) { viewModelScope.launch { prefs.setAllowUnstableUpdates(allow) } }
+
+    fun setCaptchaStyleMod(enabled: Boolean) { viewModelScope.launch { prefs.setCaptchaStyleMod(enabled) } }
+    fun setCaptchaForceTint(enabled: Boolean) { viewModelScope.launch { prefs.setCaptchaForceTint(enabled) } }
 
     fun checkProxyPing() {
         val socksAddr = XrayServiceState.runningXrayConfig.value?.connectableAddress ?: return

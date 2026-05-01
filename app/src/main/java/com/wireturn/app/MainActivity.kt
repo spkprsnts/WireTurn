@@ -95,6 +95,7 @@ class MainActivity : ComponentActivity() {
 
                     if (captchaUrl != null) {
                         CaptchaWebViewDialog(
+                            viewModel = viewModel,
                             captchaUrl = captchaUrl,
                             onDismiss = {
                                 intent?.removeExtra("CAPTCHA_URL")

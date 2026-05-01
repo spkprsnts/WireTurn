@@ -42,10 +42,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
-import com.wireturn.app.data.ThemeMode
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.ui.theme.LocalThemeMode
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
@@ -55,6 +56,7 @@ import com.wireturn.app.R
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun CaptchaWebViewDialog(
+    viewModel: com.wireturn.app.viewmodel.MainViewModel,
     captchaUrl: String,
     onDismiss: () -> Unit,
     onSuccess: (() -> Unit)? = null
@@ -62,9 +64,54 @@ fun CaptchaWebViewDialog(
     var isLoading by remember { mutableStateOf(true) }
     val isContentVisible = remember { mutableStateOf(false) }
     var webViewHeight by remember { mutableIntStateOf(0) }
+    
     val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val themeMode = LocalThemeMode.current
-    val forceGrayscale = themeMode == ThemeMode.DARK
+    val primaryColor = MaterialTheme.colorScheme.primary
+    
+    val captchaStyleMod by viewModel.captchaStyleMod.collectAsStateWithLifecycle()
+    val captchaForceTint by viewModel.captchaForceTint.collectAsStateWithLifecycle()
+
+    val tintFilter = remember(primaryColor, isDarkTheme) {
+        val hsv = FloatArray(3)
+        android.graphics.Color.colorToHSV(primaryColor.toArgb(), hsv)
+        val hueRotation = (hsv[0] - 38f).let { if (it < 0) it + 360 else it }
+        "grayscale(100%) sepia(100%) hue-rotate(${hueRotation.toInt()}deg) saturate(${hsv[1] * 2.5f}) brightness(${if (isDarkTheme) 0.8f else 1.0f})"
+    }
+
+    val captchaCss = remember(captchaStyleMod, captchaForceTint, tintFilter) {
+        if (captchaStyleMod) {
+            """
+                html, body, .vkc__ModalOverlay-module__host, .vkc__ModalCardBase-module__container { 
+                    background: transparent !important; 
+                    background-color: transparent !important; 
+                    box-shadow: none !important; 
+                }
+                .vkc__ModalCardBase-module__container {
+                    padding: 0 !important;
+                    ${if (captchaForceTint) "filter: $tintFilter !important;" else ""}
+                }
+                .vkc__NotRobotCaptcha-module__appRoot > div,
+                .vkc__ModalCard-module__hostMobile {
+                    animation: none !important;
+                    transition: none !important;
+                    transform: none !important;
+                }
+                .vkc__ModalCardBase-module__dismiss, 
+                .vkc__CheckboxPopupCaptcha-module__captchaId, 
+                .vkc__CheckboxPopupCaptcha-module__termsLink { 
+                    display: none !important; 
+                }
+                .vkc__CheckboxPopupCaptcha-module__checkboxBlock { 
+                    padding: 0 !important;
+                }
+                .vkc__Checkbox-module__Checkbox { 
+                    transform: scale(1.2) !important;
+                }
+            """.trimIndent()
+        } else {
+            "html, body { background: transparent !important; }"
+        }
+    }
 
     val contentAlpha by animateFloatAsState(
         targetValue = if (isContentVisible.value) 1f else 0f,
@@ -160,25 +207,26 @@ fun CaptchaWebViewDialog(
 
                                     override fun onPageFinished(view: WebView?, url: String?) {
                                         super.onPageFinished(view, url)
-                                        // Не выключаем isLoading сразу, ждем применения стилей
                                         
                                         view?.evaluateJavascript(
                                             """
                                             (function() {
-                                                var isDark = $isDarkTheme;
+                                                const isDark = $isDarkTheme;
+                                                const styleModEnabled = $captchaStyleMod;
                                                 
-                                                var applyTheme = function() {
-                                                    var appRoot = document.querySelector('.vkc__AppRoot-module__host');
+                                                const applyTheme = function() {
+                                                    if (!styleModEnabled) return;
+                                                    const appRoot = document.querySelector('.vkc__AppRoot-module__host');
                                                     if (!appRoot) return;
 
-                                                    var target = isDark ? 'vkui--vkAccessibilityIOS--dark' : 'vkui--vkAccessibilityIOS--light';
-                                                    var others = isDark ? 
+                                                    const target = isDark ? 'vkui--vkAccessibilityIOS--dark' : 'vkui--vkAccessibilityIOS--light';
+                                                    const others = isDark ? 
                                                         ['vkui--vkAccessibility--dark', 'vkui--vkAccessibilityIOS--light', 'vkui--vkAccessibility--light'] : 
                                                         ['vkui--vkAccessibility--dark', 'vkui--vkAccessibilityIOS--dark', 'vkui--vkAccessibility--light'];
                                                     
-                                                    var needsUpdate = !appRoot.classList.contains(target);
+                                                    let needsUpdate = !appRoot.classList.contains(target);
                                                     if (!needsUpdate) {
-                                                        for (var i = 0; i < others.length; i++) {
+                                                        for (let i = 0; i < others.length; i++) {
                                                             if (appRoot.classList.contains(others[i])) {
                                                                 needsUpdate = true;
                                                                 break;
@@ -193,56 +241,28 @@ fun CaptchaWebViewDialog(
                                                     }
                                                 };
 
-                                                var style = document.createElement('style');
-                                                style.innerHTML = `
-                                                    html, body, .vkc__ModalOverlay-module__host, .vkc__ModalCardBase-module__container { 
-                                                        background: transparent !important; 
-                                                        background-color: transparent !important; 
-                                                        box-shadow: none !important; 
-                                                    }
-                                                    .vkc__ModalCardBase-module__container {
-                                                        padding: 0 !important;
-                                                        ${if (forceGrayscale) "filter: grayscale(100%) !important;" else ""}
-                                                    }
-                                                    .vkc__NotRobotCaptcha-module__appRoot > div,
-                                                    .vkc__ModalCard-module__hostMobile {
-                                                        animation: none !important;
-                                                        transition: none !important;
-                                                        transform: none !important;
-                                                    }
-                                                    .vkc__ModalCardBase-module__dismiss, 
-                                                    .vkc__CheckboxPopupCaptcha-module__captchaId, 
-                                                    .vkc__CheckboxPopupCaptcha-module__termsLink { 
-                                                        display: none !important; 
-                                                    }
-                                                    .vkc__CheckboxPopupCaptcha-module__checkboxBlock { 
-                                                        padding: 0 !important;
-                                                    }
-                                                    .vkc__Checkbox-module__Checkbox { 
-                                                        transform: scale(1.2) !important;
-                                                    }
-                                                `;
+                                                const style = document.createElement('style');
+                                                style.innerHTML = `$captchaCss`;
                                                 document.head.appendChild(style);
                                                 
-                                                applyTheme();
+                                                if (styleModEnabled) applyTheme();
 
-                                                var checkCaptcha = function() {
-                                                    applyTheme();
+                                                const checkCaptcha = function() {
+                                                    if (styleModEnabled) applyTheme();
                                                     if (document.body.innerText.includes('Done! You can close the page.')) {
                                                         AndroidBridge.onCaptchaSuccess();
                                                         return true;
                                                     }
                                                     
-                                                    var dialog = document.querySelector('[role="dialog"]') || 
+                                                    const dialog = document.querySelector('[role="dialog"]') || 
                                                                  document.querySelector('.vkc__ModalCardBase-module__container') || 
                                                                  document.querySelector('.vkc__Captcha-module__container') || 
                                                                  document.querySelector('body > div');
                                                     
                                                     if (dialog) {
-                                                        var height = dialog.offsetHeight || dialog.getBoundingClientRect().height;
+                                                        const height = dialog.offsetHeight || dialog.getBoundingClientRect().height;
                                                         if (height > 0) {
                                                             AndroidBridge.updateSize(Math.ceil(height));
-                                                            // Сообщаем, что контент готов к показу
                                                             AndroidBridge.showContent();
                                                         }
                                                     }
@@ -250,7 +270,7 @@ fun CaptchaWebViewDialog(
                                                 };
                                         
                                                 if (!checkCaptcha()) {
-                                                    var observer = new MutationObserver(function(mutations) {
+                                                    const observer = new MutationObserver(function(mutations) {
                                                         checkCaptcha();
                                                     });
                                                     observer.observe(document.body, { 

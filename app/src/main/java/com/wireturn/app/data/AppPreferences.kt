@@ -291,6 +291,8 @@ class AppPreferences(context: Context) {
         val BATTERY_NOTIFICATION_DISMISSED = booleanPreferencesKey("battery_notification_dismissed")
         val APPS_EXCLUSION_HINT_SHOWN = booleanPreferencesKey("apps_exclusion_hint_shown")
         val ALLOW_UNSTABLE_UPDATES = booleanPreferencesKey("allow_unstable_updates")
+        val CAPTCHA_STYLE_MOD = booleanPreferencesKey("captcha_style_mod")
+        val CAPTCHA_FORCE_TINT = booleanPreferencesKey("captcha_force_tint")
     }
 
     val profilesFlow: Flow<List<Profile>> = context.dataStore.data
@@ -454,6 +456,16 @@ class AppPreferences(context: Context) {
     val allowUnstableUpdatesFlow: Flow<Boolean> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { prefs -> prefs[ALLOW_UNSTABLE_UPDATES] ?: false }
+        .distinctUntilChanged()
+
+    val captchaStyleModFlow: Flow<Boolean> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { prefs -> prefs[CAPTCHA_STYLE_MOD] ?: true }
+        .distinctUntilChanged()
+
+    val captchaForceTintFlow: Flow<Boolean> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { prefs -> prefs[CAPTCHA_FORCE_TINT] ?: true }
         .distinctUntilChanged()
 
     val vkLinkHistoryFlow: Flow<List<String>> = context.dataStore.data
@@ -639,6 +651,14 @@ class AppPreferences(context: Context) {
 
     suspend fun setAllowUnstableUpdates(allow: Boolean) {
         context.dataStore.edit { prefs -> prefs[ALLOW_UNSTABLE_UPDATES] = allow }
+    }
+
+    suspend fun setCaptchaStyleMod(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[CAPTCHA_STYLE_MOD] = enabled }
+    }
+
+    suspend fun setCaptchaForceTint(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[CAPTCHA_FORCE_TINT] = enabled }
     }
 
     suspend fun saveWgConfig(config: WgConfig) {

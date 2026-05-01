@@ -13,7 +13,6 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -804,13 +803,10 @@ private fun AppListItem(
         label = "item_bg_color"
     )
 
-    val interactionSource = remember { MutableInteractionSource() }
-
     SettingsGroupItem(
         isTop = index == 0,
         isBottom = index == groupSize - 1,
         containerColor = backgroundColor,
-        interactionSource = interactionSource,
         onClick = { onToggleExclusion(app.packageName) },
         modifier = Modifier
             .padding(horizontal = 16.dp)
@@ -849,9 +845,7 @@ private fun AppListItem(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     )
                 }
-            },
-            interactionSource = interactionSource,
-            clickable = false
+            }
         )
     }
 }

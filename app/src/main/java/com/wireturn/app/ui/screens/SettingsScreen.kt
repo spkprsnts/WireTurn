@@ -71,6 +71,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.data.ThemeMode
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.LabeledSegmentedButton
 import com.wireturn.app.ui.MarkdownUtils
 import com.wireturn.app.ui.SettingsGroup
 import com.wireturn.app.ui.SettingsGroupItem
@@ -224,6 +225,61 @@ fun SettingsScreen(
                         checked = privacyMode,
                         onCheckedChange = { viewModel.setPrivacyMode(it) }
                     )
+                }
+            }
+
+            // 2.1 Капча
+            val captchaStyleMod by viewModel.captchaStyleMod.collectAsStateWithLifecycle()
+            val captchaForceTint by viewModel.captchaForceTint.collectAsStateWithLifecycle()
+
+            SettingsGroup(title = stringResource(R.string.captcha_settings_title)) {
+                SettingsGroupItem(
+                    isTop = true,
+                    isBottom = !captchaStyleMod,
+                    containerColor = blockContainerColor,
+                    onClick = {
+                        HapticUtil.perform(context, if (captchaStyleMod) HapticUtil.Pattern.TOGGLE_OFF else HapticUtil.Pattern.TOGGLE_ON)
+                        viewModel.setCaptchaStyleMod(!captchaStyleMod)
+                    }
+                ) {
+                    SwitchRow(
+                        label = stringResource(R.string.captcha_style_mod_title),
+                        supportingText = stringResource(R.string.captcha_style_mod_desc),
+                        checked = captchaStyleMod,
+                        onCheckedChange = { viewModel.setCaptchaStyleMod(it) }
+                    )
+                }
+
+                if (captchaStyleMod) {
+                    SettingsGroupItem(
+                        isTop = false,
+                        isBottom = true,
+                        containerColor = blockContainerColor
+                    ) {
+                        LabeledSegmentedButton(
+                            label = stringResource(R.string.captcha_force_tint_title),
+                            supportingText = stringResource(R.string.captcha_force_tint_desc)
+                        ) {
+                            SegmentedButton(
+                                selected = !captchaForceTint,
+                                onClick = {
+                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                    viewModel.setCaptchaForceTint(false)
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                                label = { Text(stringResource(R.string.captcha_color_original)) }
+                            )
+                            SegmentedButton(
+                                selected = captchaForceTint,
+                                onClick = {
+                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                    viewModel.setCaptchaForceTint(true)
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                                label = { Text(stringResource(R.string.captcha_color_primary)) }
+                            )
+                        }
+                    }
                 }
             }
 

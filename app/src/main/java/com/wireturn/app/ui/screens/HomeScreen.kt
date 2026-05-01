@@ -870,15 +870,11 @@ fun HomeScreen(
             }
 
             // 5. Xray & VPN Settings Card
-            val xrayInteractionSource = remember { MutableInteractionSource() }
-            val vpnInteractionSource = remember { MutableInteractionSource() }
-
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 SettingsGroupItem(
                     isTop = true,
                     isBottom = false,
                     containerColor = blockContainerColor,
-                    interactionSource = xrayInteractionSource,
                     onClick = {
                         val next = !xraySettings.xrayEnabled
                         HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
@@ -927,9 +923,7 @@ fun HomeScreen(
                                 XrayState.Starting -> CircularWavyProgressIndicator(modifier = Modifier.size(24.dp))
                             }
                         },
-                        enabled = configValid,
-                        interactionSource = xrayInteractionSource,
-                        clickable = false
+                        enabled = configValid
                     )
                 }
 
@@ -937,7 +931,6 @@ fun HomeScreen(
                     isTop = false,
                     isBottom = false,
                     containerColor = blockContainerColor,
-                    interactionSource = vpnInteractionSource,
                     onClick = {
                         val next = !xraySettings.xrayVpnMode
                         HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
@@ -1001,9 +994,7 @@ fun HomeScreen(
                                     )
                                 }
                             }
-                        },
-                        interactionSource = vpnInteractionSource,
-                        clickable = false
+                        }
                     )
                 }
 

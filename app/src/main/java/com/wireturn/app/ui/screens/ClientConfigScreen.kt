@@ -714,7 +714,6 @@ fun ClientConfigScreen(
                                 SwitchRow(
                                     label = stringResource(R.string.force_turn_port_443),
                                     supportingText = stringResource(R.string.force_turn_port_443_desc),
-                                    secondaryText = stringResource(R.string.force_turn_port_443_secondary),
                                     checked = forcePort443,
                                     onCheckedChange = {
                                         HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
