@@ -522,7 +522,7 @@ private fun UpdateBlock(
                                     when (targetState) {
                                         is UpdateState.Error -> R.drawable.error_24px
                                         is UpdateState.Available, is UpdateState.ReadyToInstall -> R.drawable.info_24px
-                                        else -> R.drawable.refresh_24px
+                                        else -> R.drawable.sync_24px
                                     }
                                 ),
                                 contentDescription = null,
