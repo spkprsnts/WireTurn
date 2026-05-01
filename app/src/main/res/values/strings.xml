@@ -182,8 +182,8 @@
     <string name="new_logs">Новые логи</string>
 
     <!-- Экран приветствия (Onboarding) -->
-    <string name="onboarding_title">TURN-proxy</string>
-    <string name="onboarding_subtitle">Проксируйте WireGuard‑трафик\nчерез TURN‑серверы VK Calls</string>
+    <string name="onboarding_title">WireTurn</string>
+    <string name="onboarding_subtitle">Туннелирование Xray-трафика через TURN и DC для надежного обхода сетевых ограничений</string>
     <string name="start">Начать</string>
 
     <!-- Обновление приложения (OTA) -->
