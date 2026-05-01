@@ -292,6 +292,7 @@ fun CaptchaWebViewDialog(
 
                                 addJavascriptInterface(object {
                                     @JavascriptInterface
+                                    @Suppress("unused")
                                     fun onCaptchaSuccess() {
                                         post {
                                             onSuccess?.invoke()
@@ -299,6 +300,7 @@ fun CaptchaWebViewDialog(
                                     }
 
                                     @JavascriptInterface
+                                    @Suppress("unused")
                                     fun updateSize(height: Int) {
                                         post {
                                             webViewHeight = height
@@ -306,6 +308,7 @@ fun CaptchaWebViewDialog(
                                     }
 
                                     @JavascriptInterface
+                                    @Suppress("unused")
                                     fun showContent() {
                                         post {
                                             isLoading = false
@@ -314,6 +317,7 @@ fun CaptchaWebViewDialog(
                                     }
 
                                     @JavascriptInterface
+                                    @Suppress("unused")
                                     fun logDebug(message: String) {
                                         android.util.Log.d("CaptchaWebView", message)
                                     }

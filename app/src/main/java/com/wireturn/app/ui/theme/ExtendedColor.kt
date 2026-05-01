@@ -66,6 +66,7 @@ internal fun extendedColorSchemeFor(darkTheme: Boolean): ExtendedColorScheme =
 
 internal val LocalExtendedColorScheme = staticCompositionLocalOf { extendedLight }
 
+@Suppress("UnusedReceiverParameter")
 val MaterialTheme.extendedColorScheme: ExtendedColorScheme
     @Composable
     @ReadOnlyComposable

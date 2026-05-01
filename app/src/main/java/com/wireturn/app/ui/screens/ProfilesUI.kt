@@ -391,6 +391,7 @@ fun ProfilesDialog(
                 return Offset.Zero
             }
 
+            @Suppress("UNUSED_PARAMETER")
             override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
                 if (draggedItemId != null && source == NestedScrollSource.UserInput) {
                     return available
