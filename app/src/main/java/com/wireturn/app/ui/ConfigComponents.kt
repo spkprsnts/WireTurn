@@ -2,20 +2,25 @@ package com.wireturn.app.ui
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -23,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -47,12 +53,14 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SingleChoiceSegmentedButtonRowScope
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -60,6 +68,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -91,6 +100,44 @@ import kotlinx.coroutines.launch
 /**
  * Inline indicator for rows, usually placed after a text label.
  */
+@Composable
+fun ConfigSwitch(
+    checked: Boolean,
+    onCheckedChange: ((Boolean) -> Unit)?,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    interactionSource: MutableInteractionSource? = null
+) {
+    val internalInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            enabled = enabled,
+            modifier = modifier,
+            interactionSource = internalInteractionSource,
+            thumbContent = {
+                Crossfade(targetState = checked, animationSpec = tween(200), label = "switch_icon") { isChecked ->
+                    if (isChecked) {
+                        Icon(
+                            painter = painterResource(R.drawable.check_24px),
+                            contentDescription = null,
+                            modifier = Modifier.size(SwitchDefaults.IconSize),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    } else {
+                        Icon(
+                            painter = painterResource(R.drawable.close_24px),
+                            contentDescription = null,
+                            modifier = Modifier.size(SwitchDefaults.IconSize),
+                        )
+                    }
+                }
+            }
+        )
+    }
+}
+
 @Composable
 fun InlineConfigIndicator(isModified: Boolean, modifier: Modifier = Modifier) {
     if (isModified) {
@@ -175,6 +222,7 @@ fun SettingsGroupItem(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     enabled: Boolean = true,
+    interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit
 ) {
     val cornerSize = 16.dp
@@ -191,16 +239,25 @@ fun SettingsGroupItem(
     )
 
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 72.dp),
         shape = shape,
         onClick = onClick ?: {},
         enabled = onClick != null && enabled,
+        interactionSource = interactionSource,
         colors = CardDefaults.cardColors(
             containerColor = containerColor,
             disabledContainerColor = containerColor
         )
     ) {
-        Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 72.dp)
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
             content()
         }
     }
@@ -270,30 +327,60 @@ fun SwitchRow(
     supportingText: String? = null,
     secondaryText: String? = null,
     isModified: Boolean = false,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    leadingIcon: @Composable (() -> Unit)? = null,
+    trailingContent: @Composable (RowScope.() -> Unit)? = null,
+    interactionSource: MutableInteractionSource? = null,
+    clickable: Boolean = true
 ) {
+    val internalInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+    
+    val rowModifier = if (clickable) {
+        modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = internalInteractionSource,
+                indication = null,
+                enabled = enabled,
+                onClick = { onCheckedChange(!checked) }
+            )
+    } else {
+        modifier.fillMaxWidth()
+    }
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-        modifier = modifier.fillMaxWidth()
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = rowModifier
     ) {
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                InlineConfigIndicator(isModified)
+        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
+            if (leadingIcon != null) {
+                leadingIcon()
             }
-            SupportingText(text = supportingText, secondaryText = secondaryText)
+
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    InlineConfigIndicator(isModified)
+                }
+                SupportingText(text = supportingText, secondaryText = secondaryText)
+            }
+
+            if (trailingContent != null) {
+                trailingContent()
+            }
         }
-        Switch(
+
+        ConfigSwitch(
             checked = checked,
-            onCheckedChange = onCheckedChange,
+            onCheckedChange = null,
             enabled = enabled,
-            modifier = Modifier.padding(start = 16.dp)
+            interactionSource = internalInteractionSource
         )
     }
 }

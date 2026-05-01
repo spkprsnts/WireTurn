@@ -74,7 +74,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.offset
-import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -94,6 +93,7 @@ import android.content.ClipData
 import android.net.VpnService
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -115,6 +115,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import com.wireturn.app.ui.InlineConfigIndicator
+import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.redact
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.AppExclusionTooltip
@@ -869,11 +870,15 @@ fun HomeScreen(
             }
 
             // 5. Xray & VPN Settings Card
+            val xrayInteractionSource = remember { MutableInteractionSource() }
+            val vpnInteractionSource = remember { MutableInteractionSource() }
+
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 SettingsGroupItem(
                     isTop = true,
                     isBottom = false,
                     containerColor = blockContainerColor,
+                    interactionSource = xrayInteractionSource,
                     onClick = {
                         val next = !xraySettings.xrayEnabled
                         HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
@@ -885,105 +890,54 @@ fun HomeScreen(
                         viewModel.updateXraySettings(xraySettings.copy(xrayEnabled = next))
                     }
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    )
-                    {
-                        when (xrayState) {
-                            XrayState.Idle, XrayState.Running -> Icon(
-                                painter = painterResource(
-                                    R.drawable.ic_xray_24px
-                                ),
-                                contentDescription = null,
-                                tint = if (xrayState == XrayState.Idle) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
+                    val isSettingsValid = if (xrayConfig.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS) activeVlessConfig.isValid() else activeWgConfig.isValid()
+                    val configValid = isSettingsValid || xrayState != XrayState.Idle
 
-                            XrayState.Starting -> CircularWavyProgressIndicator(modifier = Modifier.size(24.dp))
-                        }
-
-
-                        val isSettingsValid =
-                            if (xrayConfig.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS) activeVlessConfig.isValid() else activeWgConfig.isValid()
-                        val configValid = isSettingsValid || xrayState != XrayState.Idle
-
-                        val xrayProtocol = when {
-                            xrayState == XrayState.Running -> {
-                                if (runningVlessConfig != null) stringResource(R.string.vless) else stringResource(
-                                    R.string.wg_short
-                                )
-                            }
-
-                            else -> if (xrayConfig.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS) stringResource(
-                                R.string.vless
-                            ) else stringResource(R.string.wg_short)
-                        }
-
-                        LaunchedEffect(configValid, xraySettings.xrayEnabled, currentProfileId) {
-                            delay(500)
-                            if (!configValid && xraySettings.xrayEnabled) {
-                                viewModel.updateXraySettings(
-                                    viewModel.xraySettings.value.copy(
-                                        xrayEnabled = false
-                                    )
-                                )
-                            }
-                        }
-
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                text = stringResource(R.string.xray_title) + " " + xrayProtocol,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Spacer(Modifier.height(2.dp))
-                            Text(
-                                text = if (!configValid) {
-                                    stringResource(R.string.xray_config_invalid)
-                                } else {
-                                    when (xrayState) {
-                                        XrayState.Starting -> stringResource(R.string.starting)
-                                        XrayState.Running -> stringResource(R.string.running)
-                                        else -> stringResource(R.string.idle)
-                                    }
-                                },
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        Switch(
-                            checked = xraySettings.xrayEnabled,
-                            onCheckedChange = { enabled ->
-                                HapticUtil.perform(
-                                    context,
-                                    if (enabled) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
-                                )
-                                
-                                if (!enabled && xraySettings.xrayVpnMode) {
-                                    showVpnWarning()
-                                }
-
-                                viewModel.updateXraySettings(
-                                    viewModel.xraySettings.value.copy(
-                                        xrayEnabled = enabled
-                                    )
-                                )
-                            },
-                            enabled = configValid
-                        )
+                    val xrayProtocol = when {
+                        xrayState == XrayState.Running -> if (runningVlessConfig != null) stringResource(R.string.vless) else stringResource(R.string.wg_short)
+                        else -> if (xrayConfig.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS) stringResource(R.string.vless) else stringResource(R.string.wg_short)
                     }
+
+                    LaunchedEffect(configValid, xraySettings.xrayEnabled, currentProfileId) {
+                        delay(500)
+                        if (!configValid && xraySettings.xrayEnabled) {
+                            viewModel.updateXraySettings(viewModel.xraySettings.value.copy(xrayEnabled = false))
+                        }
+                    }
+
+                    SwitchRow(
+                        label = stringResource(R.string.xray_title) + " " + xrayProtocol,
+                        checked = xraySettings.xrayEnabled,
+                        onCheckedChange = {}, // Обрабатывается родителем (SettingsGroupItem)
+                        supportingText = if (!configValid) stringResource(R.string.xray_config_invalid) else {
+                            when (xrayState) {
+                                XrayState.Starting -> stringResource(R.string.starting)
+                                XrayState.Running -> stringResource(R.string.running)
+                                else -> stringResource(R.string.idle)
+                            }
+                        },
+                        leadingIcon = {
+                            when (xrayState) {
+                                XrayState.Idle, XrayState.Running -> Icon(
+                                    painter = painterResource(R.drawable.ic_xray_24px),
+                                    contentDescription = null,
+                                    tint = if (xrayState == XrayState.Idle) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                XrayState.Starting -> CircularWavyProgressIndicator(modifier = Modifier.size(24.dp))
+                            }
+                        },
+                        enabled = configValid,
+                        interactionSource = xrayInteractionSource,
+                        clickable = false
+                    )
                 }
 
                 SettingsGroupItem(
                     isTop = false,
                     isBottom = false,
                     containerColor = blockContainerColor,
+                    interactionSource = vpnInteractionSource,
                     onClick = {
                         val next = !xraySettings.xrayVpnMode
                         HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
@@ -1004,99 +958,53 @@ fun HomeScreen(
                         }
                     }
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        when (vpnServiceState) {
-                            VpnState.Idle, VpnState.Running, is VpnState.Error -> Icon(
-                                painter = painterResource(R.drawable.vpn_key_24px),
-                                contentDescription = null,
-                                tint = if (vpnServiceState == VpnState.Running) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            VpnState.Starting -> CircularWavyProgressIndicator(modifier = Modifier.size(24.dp))
-                        }
-
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    SwitchRow(
+                        label = stringResource(R.string.vpn_mode),
+                        checked = xraySettings.xrayVpnMode,
+                        onCheckedChange = {}, // Обрабатывается родителем
+                        isModified = runningWgConfig != null && xraySettings.xrayVpnMode != (vpnServiceState == VpnState.Running),
+                        supportingText = when (vpnServiceState) {
+                            VpnState.Starting -> stringResource(R.string.starting)
+                            VpnState.Running -> stringResource(R.string.running)
+                            is VpnState.Error -> (vpnServiceState as VpnState.Error).message
+                            else -> stringResource(R.string.idle)
+                        },
+                        leadingIcon = {
+                            when (vpnServiceState) {
+                                VpnState.Idle, VpnState.Running, is VpnState.Error -> Icon(
+                                    painter = painterResource(R.drawable.vpn_key_24px),
+                                    contentDescription = null,
+                                    tint = if (vpnServiceState == VpnState.Running) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                VpnState.Starting -> CircularWavyProgressIndicator(modifier = Modifier.size(24.dp))
+                            }
+                        },
+                        trailingContent = {
+                            AppExclusionTooltip(
+                                hintShown = appsExclusionHintShown,
+                                onHintShown = { viewModel.setAppsExclusionHintShown(true) }
                             ) {
-                                Text(
-                                    stringResource(R.string.vpn_mode),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                InlineConfigIndicator(runningWgConfig != null && xraySettings.xrayVpnMode != (vpnServiceState == VpnState.Running))
-                            }
-                            Spacer(Modifier.height(2.dp))
-                            Text(
-                                text = when (vpnServiceState) {
-                                    VpnState.Starting -> stringResource(R.string.starting)
-                                    VpnState.Running -> stringResource(R.string.running)
-                                    is VpnState.Error -> (vpnServiceState as VpnState.Error).message
-                                    else -> stringResource(R.string.idle)
-                                },
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        AppExclusionTooltip(
-                            hintShown = appsExclusionHintShown,
-                            onHintShown = { viewModel.setAppsExclusionHintShown(true) }
-                        ) {
-                            IconButton(onClick = {
-                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                if (!appsExclusionHintShown) {
-                                    viewModel.setAppsExclusionHintShown(true)
-                                }
-                                onNavigateToExclusions()
-                            }) {
-                                Icon(
-                                    painter = painterResource(R.drawable.apps_24px),
-                                    contentDescription = stringResource(R.string.vpn_apps_exceptions),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                                        alpha = if (globalVpnSettings.filteringEnabled) 1f else 0.38f
-                                    )
-                                )
-                            }
-                        }
-
-                        Switch(checked = xraySettings.xrayVpnMode, onCheckedChange = { enabled ->
-                            HapticUtil.perform(
-                                context,
-                                if (enabled) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
-
-                            if (enabled && !xraySettings.xrayEnabled) {
-                                showVpnWarning()
-                            }
-
-                            if (enabled) {
-                                val intent = VpnService.prepare(context)
-                                if (intent != null) {
-                                    vpnLauncher.launch(intent)
-                                } else {
-                                    viewModel.updateXraySettings(
-                                        viewModel.xraySettings.value.copy(
-                                            xrayVpnMode = true
+                                IconButton(onClick = {
+                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                    if (!appsExclusionHintShown) {
+                                        viewModel.setAppsExclusionHintShown(true)
+                                    }
+                                    onNavigateToExclusions()
+                                }) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.apps_24px),
+                                        contentDescription = stringResource(R.string.vpn_apps_exceptions),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                            alpha = if (globalVpnSettings.filteringEnabled) 1f else 0.38f
                                         )
                                     )
                                 }
-                            } else {
-                                viewModel.updateXraySettings(
-                                    viewModel.xraySettings.value.copy(
-                                        xrayVpnMode = false
-                                    )
-                                )
                             }
-                        })
-                    }
+                        },
+                        interactionSource = vpnInteractionSource,
+                        clickable = false
+                    )
                 }
 
                 val clipboard = LocalClipboard.current
@@ -1167,148 +1075,146 @@ fun HomeScreen(
             // 6. Current Connection Details
             if (activeConfig.isValid) {
                 SettingsGroup(title = stringResource(R.string.current_client_settings)) {
-                    SettingsGroupItem(
-                        isTop = true,
-                        isBottom = true,
-                        containerColor = blockContainerColor
+                    Column (
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp)
                     ) {
-                        Column {
-                            if (activeConfig.isRawMode) {
-                                Text(
-                                    stringResource(R.string.raw_mode),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Spacer(Modifier.height(4.dp))
+                        if (activeConfig.isRawMode) {
+                            Text(
+                                stringResource(R.string.raw_mode),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(Modifier.height(4.dp))
 
-                                // Разбираем rawCommand с группировкой параметров и значений
-                                val parts = activeConfig.rawCommand.split("\\s+".toRegex())
-                                    .filter { it.isNotBlank() }
-                                val args = mutableListOf<String>()
-                                var i = 0
-                                while (i < parts.size) {
-                                    val part = parts[i]
-                                    if (part.startsWith("-") && i + 1 < parts.size && !parts[i + 1].startsWith(
-                                            "-"
+                            // Разбираем rawCommand с группировкой параметров и значений
+                            val parts = activeConfig.rawCommand.split("\\s+".toRegex())
+                                .filter { it.isNotBlank() }
+                            val args = mutableListOf<String>()
+                            var i = 0
+                            while (i < parts.size) {
+                                val part = parts[i]
+                                if (part.startsWith("-") && i + 1 < parts.size && !parts[i + 1].startsWith(
+                                        "-"
+                                    )
+                                ) {
+                                    // Параметр со значением: объединяем в одну строку
+                                    args.add("$part ${parts[i + 1]}")
+                                    i += 2
+                                } else {
+                                    // Флаг без значения или одиночный элемент
+                                    args.add(part)
+                                    i += 1
+                                }
+                            }
+                            Column {
+                                args.forEach { arg ->
+                                    Text(
+                                        arg,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(Modifier.height(4.dp))  // Небольшой отступ между аргументами
+                                }
+                            }
+                        } else {
+                            if (activeConfig.dcMode) {
+                                ConfigRow(
+                                    stringResource(R.string.tunnel_label),
+                                    stringResource(R.string.dc_tunnel)
+                                )
+                                ConfigRow(
+                                    stringResource(R.string.dc_type_label),
+                                    stringResource(if (activeConfig.dcType == DCType.SALUTE_JAZZ) R.string.jazz_label else R.string.wb_stream_label)
+                                )
+                                if (activeConfig.dcType == DCType.SALUTE_JAZZ) {
+                                    ConfigRow(
+                                        stringResource(R.string.jazz_room),
+                                        activeConfig.jazzCreds.redact(privacyMode)
+                                    )
+                                } else {
+                                    val wbstreamUuid = activeConfig.wbstreamUuid.redact(privacyMode)
+                                    if (activeConfig.wbstreamUuid.isNotBlank()) {
+                                        ConfigRow(
+                                            stringResource(R.string.wbstream_uuid_label),
+                                            if (wbstreamUuid.length > 30) {
+                                                wbstreamUuid.take(8) + "..." + wbstreamUuid.takeLast(6)
+                                            } else {
+                                                wbstreamUuid.ifBlank { stringResource(R.string.not_set) }
+                                            }
                                         )
-                                    ) {
-                                        // Параметр со значением: объединяем в одну строку
-                                        args.add("$part ${parts[i + 1]}")
-                                        i += 2
-                                    } else {
-                                        // Флаг без значения или одиночный элемент
-                                        args.add(part)
-                                        i += 1
                                     }
                                 }
-                                Column {
-                                    args.forEach { arg ->
-                                        Text(
-                                            arg,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Spacer(Modifier.height(4.dp))  // Небольшой отступ между аргументами
-                                    }
+                                if (activeConfig.vlessMode) {
+                                    ConfigRow(
+                                        stringResource(R.string.transport_protocol),
+                                        stringResource(R.string.vless)
+                                    )
                                 }
                             } else {
-                                if (activeConfig.dcMode) {
-                                    ConfigRow(
-                                        stringResource(R.string.tunnel_label),
-                                        stringResource(R.string.dc_tunnel)
-                                    )
-                                    ConfigRow(
-                                        stringResource(R.string.dc_type_label),
-                                        stringResource(if (activeConfig.dcType == DCType.SALUTE_JAZZ) R.string.jazz_label else R.string.wb_stream_label)
-                                    )
-                                    if (activeConfig.dcType == DCType.SALUTE_JAZZ) {
+                                ConfigRow(
+                                    stringResource(R.string.tunnel_label),
+                                    stringResource(R.string.turn_tunnel)
+                                )
+                                when (activeConfig.kernelVariant) {
+                                    KernelVariant.VK_TURN_PROXY -> {
                                         ConfigRow(
-                                            stringResource(R.string.jazz_room),
-                                            activeConfig.jazzCreds.redact(privacyMode)
+                                            stringResource(R.string.server),
+                                            activeConfig.serverAddress.redact(privacyMode)
                                         )
-                                    } else {
-                                        val wbstreamUuid = activeConfig.wbstreamUuid.redact(privacyMode)
-                                        if (activeConfig.wbstreamUuid.isNotBlank()) {
+                                        val vkLink = activeConfig.vkLink.redact(privacyMode)
+                                        if (activeConfig.vkLink.isNotBlank()) {
                                             ConfigRow(
-                                                stringResource(R.string.wbstream_uuid_label),
-                                                if (wbstreamUuid.length > 30) {
-                                                    wbstreamUuid.take(8) + "..." + wbstreamUuid.takeLast(6)
+                                                stringResource(R.string.vk_link_label),
+                                                if (vkLink.length > 30) {
+                                                    vkLink.take(21) + "..." + vkLink.takeLast(6)
                                                 } else {
-                                                    wbstreamUuid.ifBlank { stringResource(R.string.not_set) }
+                                                    vkLink.ifBlank { stringResource(R.string.not_set) }
+                                                }
+                                            )
+                                        }
+                                        ConfigRow(
+                                            stringResource(R.string.threads),
+                                            "${activeConfig.threads}"
+                                        )
+                                        ConfigRow(
+                                            stringResource(R.string.transport_protocol),
+                                            stringResource(if (activeConfig.vlessMode) R.string.vless else {
+                                                if (activeConfig.useUdp) R.string.udp else R.string.tcp
+                                            })
+                                        )
+                                        if (activeConfig.noDtls && activeConfig.useUdp) {
+                                            ConfigRow(stringResource(R.string.no_dtls), stringResource(R.string.check_mark))
+                                        }
+                                        if (activeConfig.manualCaptcha) {
+                                            ConfigRow(stringResource(R.string.manual_captcha), stringResource(R.string.check_mark))
+                                        }
+                                        if (activeConfig.forceTurnPort443) {
+                                            ConfigRow(stringResource(R.string.force_turn_port_443), stringResource(R.string.check_mark))
+                                        }
+                                    }
+
+                                    KernelVariant.TURNABLE -> {
+                                        val turnableUrl = activeConfig.turnableUrl.redact(privacyMode)
+                                        if (activeConfig.turnableUrl.isNotBlank()) {
+                                            ConfigRow(
+                                                stringResource(R.string.turnable_url_label),
+                                                if (turnableUrl.length > 30) {
+                                                    turnableUrl.take(21) + "..." + turnableUrl.takeLast(6)
+                                                } else {
+                                                    turnableUrl.ifBlank { stringResource(R.string.not_set) }
                                                 }
                                             )
                                         }
                                     }
-                                    if (activeConfig.vlessMode) {
-                                        ConfigRow(
-                                            stringResource(R.string.transport_protocol),
-                                            stringResource(R.string.vless)
-                                        )
-                                    }
-                                } else {
-                                    ConfigRow(
-                                        stringResource(R.string.tunnel_label),
-                                        stringResource(R.string.turn_tunnel)
-                                    )
-                                    when (activeConfig.kernelVariant) {
-                                        KernelVariant.VK_TURN_PROXY -> {
-                                            ConfigRow(
-                                                stringResource(R.string.server),
-                                                activeConfig.serverAddress.redact(privacyMode)
-                                            )
-                                            val vkLink = activeConfig.vkLink.redact(privacyMode)
-                                            if (activeConfig.vkLink.isNotBlank()) {
-                                                ConfigRow(
-                                                    stringResource(R.string.vk_link_label),
-                                                    if (vkLink.length > 30) {
-                                                        vkLink.take(21) + "..." + vkLink.takeLast(6)
-                                                    } else {
-                                                        vkLink.ifBlank { stringResource(R.string.not_set) }
-                                                    }
-                                                )
-                                            }
-                                            ConfigRow(
-                                                stringResource(R.string.threads),
-                                                "${activeConfig.threads}"
-                                            )
-                                            ConfigRow(
-                                                stringResource(R.string.transport_protocol),
-                                                stringResource(if (activeConfig.vlessMode) R.string.vless else {
-                                                    if (activeConfig.useUdp) R.string.udp else R.string.tcp
-                                                })
-                                            )
-                                            if (activeConfig.noDtls && activeConfig.useUdp) {
-                                                ConfigRow(stringResource(R.string.no_dtls), stringResource(R.string.check_mark))
-                                            }
-                                            if (activeConfig.manualCaptcha) {
-                                                ConfigRow(stringResource(R.string.manual_captcha), stringResource(R.string.check_mark))
-                                            }
-                                            if (activeConfig.forceTurnPort443) {
-                                                ConfigRow(stringResource(R.string.force_turn_port_443), stringResource(R.string.check_mark))
-                                            }
-                                        }
-
-                                        KernelVariant.TURNABLE -> {
-                                            val turnableUrl = activeConfig.turnableUrl.redact(privacyMode)
-                                            if (activeConfig.turnableUrl.isNotBlank()) {
-                                                ConfigRow(
-                                                    stringResource(R.string.turnable_url_label),
-                                                    if (turnableUrl.length > 30) {
-                                                        turnableUrl.take(21) + "..." + turnableUrl.takeLast(6)
-                                                    } else {
-                                                        turnableUrl.ifBlank { stringResource(R.string.not_set) }
-                                                    }
-                                                )
-                                            }
-                                        }
-                                    }
                                 }
-                                ConfigRow(
-                                    stringResource(R.string.local_port),
-                                    activeConfig.localPort.redact(privacyMode)
-                                )
                             }
+                            ConfigRow(
+                                stringResource(R.string.local_port),
+                                activeConfig.localPort.redact(privacyMode)
+                            )
                         }
                     }
                 }
@@ -1788,6 +1694,14 @@ private fun ProxyAddressRow(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Column(modifier = Modifier.weight(1f)) {
+            Text(
+                address.ifBlank { stringResource(R.string.dash) },
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = if (address.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                else MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(Modifier.height(2.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     label,
@@ -1796,14 +1710,6 @@ private fun ProxyAddressRow(
                 )
                 InlineConfigIndicator(isModified)
             }
-            Spacer(Modifier.height(2.dp))
-            Text(
-                address.ifBlank { stringResource(R.string.dash) },
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = if (address.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                else MaterialTheme.colorScheme.onSurface
-            )
         }
         Icon(
             painter = painterResource(if (isCopied) R.drawable.check_circle_24px else R.drawable.content_copy_24px),

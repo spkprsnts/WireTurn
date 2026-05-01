@@ -13,13 +13,14 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -27,6 +28,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -76,7 +78,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.zIndex
@@ -86,6 +87,7 @@ import com.wireturn.app.R
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.SectionHeader
 import com.wireturn.app.ui.SettingsGroupItem
+import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.theme.LocalIsDark
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.Dispatchers
@@ -326,7 +328,7 @@ fun AppExceptionsScreen(
             ): Offset {
                 if (expanded) return super.onPostScroll(consumed, available, source)
                 val delta = consumed.y + available.y
-                if (delta < -6f && scrollBehavior.state.collapsedFraction > 0.9f) {
+                if (delta < -24f && scrollBehavior.state.collapsedFraction == 1f) {
                     isSearchBarVisible = false
                 } else if (delta > 12f) {
                     isSearchBarVisible = true
@@ -337,7 +339,7 @@ fun AppExceptionsScreen(
     }
 
     LaunchedEffect(scrollBehavior.state.collapsedFraction) {
-        if (scrollBehavior.state.collapsedFraction <= 0.9f) {
+        if (scrollBehavior.state.collapsedFraction < 1f) {
             isSearchBarVisible = true
         }
     }
@@ -379,17 +381,21 @@ fun AppExceptionsScreen(
             containerColor = screenBackgroundColor
         ) { innerPadding ->
             val finalTopPadding by remember(appBarHeightPx, searchProgress, searchBarHideOffset) {
-                derivedStateOf { lerp(appBarHeightDp, 0.dp, searchProgress) + searchBarHideOffset }
+                derivedStateOf { (lerp(appBarHeightDp, 0.dp, searchProgress) + searchBarHideOffset).coerceAtLeast(0.dp) }
             }
-            val finalHorizontalPadding by remember(searchProgress) {
-                derivedStateOf { lerp(16.dp, 0.dp, searchProgress) }
+            val finalHorizontalPadding by remember(searchProgress, scrollBehavior.state.collapsedFraction) {
+                derivedStateOf {
+                    val basePadding = lerp(16.dp, 24.dp, scrollBehavior.state.collapsedFraction)
+                    lerp(basePadding, 0.dp, searchProgress)
+                }
             }
 
-            Box(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                 LazyColumn(
                     state = listState,
                     modifier = Modifier
-                        .fillMaxSize()
+                        .fillMaxHeight()
+                        .widthIn(max = 840.dp)
                         .zIndex(1f)
                         .padding(top = innerPadding.calculateTopPadding() + appBarHeightDp)
                         .graphicsLayer {
@@ -443,90 +449,74 @@ fun AppExceptionsScreen(
 
                 SearchBar(
                     modifier = Modifier
+                        .widthIn(max = lerp(840.dp, 2400.dp, searchProgress))
                         .fillMaxWidth()
                         .zIndex(searchBarZIndex)
                         .padding(top = finalTopPadding)
                         .padding(horizontal = finalHorizontalPadding),
                     inputField = {
-                        SearchBarDefaults.InputField(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = statusBarPadding * searchProgress),
-                            query = searchQuery,
-                            onQueryChange = { searchQuery = it },
-                            onSearch = {
-                                isSearching = false
-                                expanded = false
-                            },
-                            expanded = expanded,
-                            onExpandedChange = { expanded = it },
-                            placeholder = { Text(stringResource(R.string.search_apps)) },
-                            leadingIcon = {
-                                if (expanded) {
-                                    IconButton(onClick = { expanded = false }) {
+                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+                            SearchBarDefaults.InputField(
+                                modifier = Modifier
+                                    .widthIn(max = 840.dp)
+                                    .fillMaxWidth()
+                                    .padding(top = statusBarPadding * searchProgress),
+                                query = searchQuery,
+                                onQueryChange = { searchQuery = it },
+                                onSearch = {
+                                    isSearching = false
+                                    expanded = false
+                                },
+                                expanded = expanded,
+                                onExpandedChange = { expanded = it },
+                                placeholder = { Text(stringResource(R.string.search_apps)) },
+                                leadingIcon = {
+                                    if (expanded) {
+                                        IconButton(onClick = { expanded = false }) {
+                                            Icon(
+                                                painterResource(R.drawable.arrow_back_24px),
+                                                contentDescription = null
+                                            )
+                                        }
+                                    } else {
                                         Icon(
-                                            painterResource(R.drawable.arrow_back_24px),
+                                            painterResource(R.drawable.search_24px),
                                             contentDescription = null
                                         )
                                     }
-                                } else {
-                                    Icon(
-                                        painterResource(R.drawable.search_24px),
-                                        contentDescription = null
-                                    )
-                                }
-                            },
-                            trailingIcon = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    if (searchQuery.isNotEmpty()) {
-                                        IconButton(onClick = { searchQuery = "" }) {
-                                            Icon(
-                                                painterResource(R.drawable.close_24px),
-                                                contentDescription = null
-                                            )
+                                },
+                                trailingIcon = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        if (searchQuery.isNotEmpty()) {
+                                            IconButton(onClick = { searchQuery = "" }) {
+                                                Icon(
+                                                    painterResource(R.drawable.close_24px),
+                                                    contentDescription = null
+                                                )
+                                            }
+                                        }
+                                        if (expanded) {
+                                            IconButton(onClick = { onImportFromClipboard() }) {
+                                                Icon(
+                                                    painterResource(R.drawable.content_paste_24px),
+                                                    contentDescription = null
+                                                )
+                                            }
                                         }
                                     }
-                                    if (expanded) {
-                                        IconButton(onClick = { onImportFromClipboard() }) {
-                                            Icon(
-                                                painterResource(R.drawable.content_paste_24px),
-                                                contentDescription = null
-                                            )
-                                        }
-                                    }
-                                }
-                            },
-                        )
+                                },
+                            )
+                        }
                     },
                     expanded = expanded,
                     onExpandedChange = { expanded = it },
                     windowInsets = WindowInsets(0, 0, 0, 0)
                 ) {
-                    if (isAppsLoading || isSearching) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 64.dp),
-                            contentAlignment = Alignment.TopCenter
-                        ) {
-                            CircularWavyProgressIndicator()
-                        }
-                    } else if (searchDisplayList.isEmpty() && searchQuery.isNotBlank()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 64.dp),
-                            contentAlignment = Alignment.TopCenter
-                        ) {
-                            Text(
-                                noAppsFoundMsg,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    } else {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                         LazyColumn(
                             modifier = Modifier
-                                .fillMaxSize()
+                                .fillMaxHeight()
+                                .widthIn(max = 840.dp)
                                 .imePadding(),
                             contentPadding = PaddingValues(
                                 top = 16.dp,
@@ -534,17 +524,44 @@ fun AppExceptionsScreen(
                                     .calculateBottomPadding()
                             )
                         ) {
-                            appListItems(
-                                apps = searchDisplayList,
-                                excludedApps = excludedApps,
-                                newlyAddedPackages = newlyAddedPackages,
-                                blockContainerColor = blockContainerColor,
-                                showHeaders = false,
-                                onToggleExclusion = { pkg ->
-                                    HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
-                                    viewModel.toggleAppExclusion(pkg)
+                            if (isAppsLoading || isSearching) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 64.dp),
+                                        contentAlignment = Alignment.TopCenter
+                                    ) {
+                                        CircularWavyProgressIndicator()
+                                    }
                                 }
-                            )
+                            } else if (searchDisplayList.isEmpty() && searchQuery.isNotBlank()) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 64.dp),
+                                        contentAlignment = Alignment.TopCenter
+                                    ) {
+                                        Text(
+                                            noAppsFoundMsg,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            } else {
+                                appListItems(
+                                    apps = searchDisplayList,
+                                    excludedApps = excludedApps,
+                                    newlyAddedPackages = newlyAddedPackages,
+                                    blockContainerColor = blockContainerColor,
+                                    showHeaders = false,
+                                    onToggleExclusion = { pkg ->
+                                        HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
+                                        viewModel.toggleAppExclusion(pkg)
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -565,6 +582,7 @@ fun AppExceptionsScreen(
                         }
                     },
                     modifier = Modifier
+                        .fillMaxWidth()
                         .zIndex(3f)
                         .onGloballyPositioned { coordinates ->
                             // Получаем высоту в пикселях
@@ -786,67 +804,54 @@ private fun AppListItem(
         label = "item_bg_color"
     )
 
+    val interactionSource = remember { MutableInteractionSource() }
+
     SettingsGroupItem(
         isTop = index == 0,
         isBottom = index == groupSize - 1,
         containerColor = backgroundColor,
+        interactionSource = interactionSource,
         onClick = { onToggleExclusion(app.packageName) },
         modifier = Modifier
             .padding(horizontal = 16.dp)
             .padding(bottom = 2.dp)
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            var iconBitmap by remember(app.packageName) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
-            LaunchedEffect(app.packageName) {
-                withContext(Dispatchers.IO) {
-                    try {
-                        val drawable = context.packageManager.getApplicationIcon(app.packageName)
-                        val bitmap = drawable.toBitmap().asImageBitmap()
-                        withContext(Dispatchers.Main) {
-                            iconBitmap = bitmap
-                        }
-                    } catch (_: Exception) { }
-                }
+        var iconBitmap by remember(app.packageName) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+        LaunchedEffect(app.packageName) {
+            withContext(Dispatchers.IO) {
+                try {
+                    val drawable = context.packageManager.getApplicationIcon(app.packageName)
+                    val bitmap = drawable.toBitmap().asImageBitmap()
+                    withContext(Dispatchers.Main) {
+                        iconBitmap = bitmap
+                    }
+                } catch (_: Exception) { }
             }
-
-            if (iconBitmap != null) {
-                Image(
-                    bitmap = iconBitmap!!,
-                    contentDescription = null,
-                    modifier = Modifier.size(AppExceptionsDefaults.IconSize)
-                )
-            } else {
-                Icon(
-                    painterResource(R.drawable.mobile_24px),
-                    null,
-                    modifier = Modifier.size(AppExceptionsDefaults.IconSize),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                )
-            }
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    app.name,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    fontWeight = if (isExcluded || isNewlyAdded) FontWeight.SemiBold else FontWeight.Normal,
-                    style = MaterialTheme.typography.bodyLarge
-                )
-                Text(
-                    app.packageName,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                )
-            }
-
-            Switch(
-                checked = isExcluded,
-                onCheckedChange = { onToggleExclusion(app.packageName) }
-            )
         }
+
+        SwitchRow(
+            label = app.name,
+            checked = isExcluded,
+            onCheckedChange = { }, // Обрабатывается родителем (SettingsGroupItem)
+            secondaryText = app.packageName,
+            leadingIcon = {
+                if (iconBitmap != null) {
+                    Image(
+                        bitmap = iconBitmap!!,
+                        contentDescription = null,
+                        modifier = Modifier.size(AppExceptionsDefaults.IconSize)
+                    )
+                } else {
+                    Icon(
+                        painterResource(R.drawable.mobile_24px),
+                        null,
+                        modifier = Modifier.size(AppExceptionsDefaults.IconSize),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
+                }
+            },
+            interactionSource = interactionSource,
+            clickable = false
+        )
     }
 }
