@@ -1,352 +1,352 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- Главный экран (Home) -->
-    <string name="nav_home">Главная</string>
-    <string name="app_settings_title">Настройки</string>
-    <string name="turn_proxy_title">WireTurn</string>
-    <string name="info_desc">Информация</string>
-    <string name="proxy_active">Прокси активен</string>
-    <string name="proxy_running">Ядро активно</string>
-    <string name="proxy_connecting">Подключение…</string>
-    <string name="proxy_press_to_start">Нажмите для запуска</string>
-    <string name="proxy_stop">Остановить</string>
-    <string name="current_client_settings">Текущие настройки клиента</string>
-    <string name="server">Сервер</string>
-    <string name="threads">Потоки</string>
-    <string name="tcp">TCP</string>
-    <string name="udp">UDP</string>
-    <string name="local_port">Локальный порт</string>
-    <string name="proxy_active_stop">Прокси активен — нажмите для остановки</string>
-    <string name="proxy_error_restart">Ошибка — нажмите для повторного запуска</string>
-    <string name="proxy_captcha_required">Требуется прохождение капчи</string>
-    <string name="captcha_title">Проверка VK</string>
-    <string name="captcha_desc">Пройдите проверку для продолжения</string>
-    <string name="start_proxy">Запустить прокси</string>
-    <string name="xray_config_invalid">Некорректный конфиг</string>
-    <string name="error_format_short">Ошибка: %1$s</string>
-    <string name="repo_links">Ссылки на репозитории</string>
+    <!-- Main Screen (Home) -->
+    <string name="nav_home">Home</string>
+    <string name="app_settings_title">Settings</string>
+    <string name="turn_proxy_title" translatable="false">WireTurn</string>
+    <string name="info_desc">Info</string>
+    <string name="proxy_active">Proxy active</string>
+    <string name="proxy_running">Core active</string>
+    <string name="proxy_connecting">Connecting…</string>
+    <string name="proxy_press_to_start">Tap to start</string>
+    <string name="proxy_stop">Stop</string>
+    <string name="current_client_settings">Current client settings</string>
+    <string name="server">Server</string>
+    <string name="threads">Threads</string>
+    <string name="tcp" translatable="false">TCP</string>
+    <string name="udp" translatable="false">UDP</string>
+    <string name="local_port">Local port</string>
+    <string name="proxy_active_stop">Proxy active — tap to stop</string>
+    <string name="proxy_error_restart">Error — tap to restart</string>
+    <string name="proxy_captcha_required">Captcha required</string>
+    <string name="captcha_title">VK Check</string>
+    <string name="captcha_desc">Complete the check to continue</string>
+    <string name="start_proxy">Start proxy</string>
+    <string name="xray_config_invalid">Invalid config</string>
+    <string name="error_format_short">Error: %1$s</string>
+    <string name="repo_links">Repository links</string>
 
-    <string name="starting">Запускается…</string>
-    <string name="running">Запущен</string>
-    <string name="idle">Остановлен</string>
+    <string name="starting">Starting…</string>
+    <string name="running">Running</string>
+    <string name="idle">Stopped</string>
 
-    <!-- Разрешения (Permissions) -->
-    <string name="permissions_title">Разрешения</string>
-    <string name="permissions_desc">Управление доступом для стабильной работы</string>
-    <string name="permission_notifications">Уведомления</string>
-    <string name="permission_battery">Батарея</string>
-    <!-- Названия компонентов и ядер -->
-    <string name="android_client">Android-клиент</string>
-    <string name="android_client_original">Android-клиент (оригинал)</string>
-    <string name="proxy_core_current">Прокси-ядро (используемое)</string>
-    <string name="proxy_core">Прокси-ядро (базовое)</string>
-    <string name="proxy_core_use">Прокси-ядро (старое)</string>
-    <string name="turnable_core">Прокси-ядро (Turnable)</string>
-    <string name="xray_core_name">vless-client</string>
-    <string name="xray_core_original">Xray-core</string>
-    <string name="tun2socks">tun2socks</string>
-    <!-- Кнопки и общие действия -->
-    <string name="btn_open">Открыть</string>
-    <string name="btn_close">Закрыть</string>
-    <string name="btn_save">Сохранить</string>
-    <string name="reset_settings">Сбросить настройки</string>
-    <string name="reset">Сбросить</string>
-    <string name="reset_all_settings_title">Сбросить все настройки?</string>
-    <string name="reset_all_settings_desc">Все профили, история и настройки будут полностью удалены. Приложение перезапустится.</string>
-    <string name="cancel">Отмена</string>
-    <!-- Режим VPN (VpnService) -->
-    <string name="vpn_mode">Режим VPN</string>
-    <string name="vpn_apps_exceptions">Приложения без VPN</string>
-    <string name="vpn_apps_hint">Маршрутизация приложений</string>
-    <string name="vpn_apps_inclusions">Приложения через VPN</string>
-    <string name="search_apps">Поиск приложений</string>
-    <string name="no_apps_found">Приложения не найдены</string>
-    <string name="hide_system_apps">Скрывать системные</string>
-    <string name="bypass_mode">Весь трафик через VPN</string>
-    <string name="filtering_enabled">Фильтрация приложений</string>
-    <string name="group_apps_by_letter">Группировать по буквам</string>
-    <string name="clear_list">Очистить список</string>
-    <string name="copy_list">Копировать список</string>
-    <string name="list_copied">Список скопирован</string>
-    <string name="import_from_clipboard">Вставить из буфера</string>
-    <string name="apps_imported_count">Добавлено приложений: %1$d</string>
-    <string name="no_apps_imported">Не найдены пакеты для исключения</string>
-    <string name="vpn_start">Включить VPN</string>
-    <string name="vpn_stop">Выключить VPN</string>
+    <!-- Permissions -->
+    <string name="permissions_title">Permissions</string>
+    <string name="permissions_desc">Access management for stable operation</string>
+    <string name="permission_notifications">Notifications</string>
+    <string name="permission_battery">Battery</string>
+    <!-- Component and Core Names -->
+    <string name="android_client">Android client</string>
+    <string name="android_client_original">Android client (original)</string>
+    <string name="proxy_core_current">Proxy core (current)</string>
+    <string name="proxy_core">Proxy core (base)</string>
+    <string name="proxy_core_use">Proxy core (legacy)</string>
+    <string name="turnable_core">Proxy core (Turnable)</string>
+    <string name="xray_core_name" translatable="false">vless-client</string>
+    <string name="xray_core_original" translatable="false">Xray-core</string>
+    <string name="tun2socks" translatable="false">tun2socks</string>
+    <!-- Buttons and Common Actions -->
+    <string name="btn_open">Open</string>
+    <string name="btn_close">Close</string>
+    <string name="btn_save">Save</string>
+    <string name="reset_settings">Reset settings</string>
+    <string name="reset">Reset</string>
+    <string name="reset_all_settings_title">Reset all settings?</string>
+    <string name="reset_all_settings_desc">All profiles, history, and settings will be completely deleted. The app will restart.</string>
+    <string name="cancel">Cancel</string>
+    <!-- VPN Mode (VpnService) -->
+    <string name="vpn_mode">VPN Mode</string>
+    <string name="vpn_apps_exceptions">Apps excluding VPN</string>
+    <string name="vpn_apps_hint">App routing</string>
+    <string name="vpn_apps_inclusions">Apps via VPN</string>
+    <string name="search_apps">Search apps</string>
+    <string name="no_apps_found">No apps found</string>
+    <string name="hide_system_apps">Hide system apps</string>
+    <string name="bypass_mode">All traffic via VPN</string>
+    <string name="filtering_enabled">App filtering</string>
+    <string name="group_apps_by_letter">Group by letter</string>
+    <string name="clear_list">Clear list</string>
+    <string name="copy_list">Copy list</string>
+    <string name="list_copied">List copied</string>
+    <string name="import_from_clipboard">Import from clipboard</string>
+    <string name="apps_imported_count">Added apps: %1$d</string>
+    <string name="no_apps_imported">No packages found to exclude</string>
+    <string name="vpn_start">Start VPN</string>
+    <string name="vpn_stop">Stop VPN</string>
 
-    <!-- Настройка WireGuard -->
-    <string name="wg_import_config">Импорт WireGuard</string>
-    <string name="wg_import_file">Из файла</string>
-    <string name="wg_import_qr">Импорт WireGuard</string>
-    <string name="wg_import_clipboard">Из буфера</string>
-    <string name="wg_qr_scan_desc">Наведите камеру на QR-код конфигурации WireGuard для импорта</string>
-    <string name="wg_import_success">Конфигурация импортирована</string>
-    <string name="wg_import_error">Ошибка импорта</string>
-    <string name="wg_interface">Interface</string>
-    <string name="wg_private_key">Private Key</string>
-    <string name="wg_private_key_placeholder">WG_PRIVATE_KEY</string>
-    <string name="wg_address">Address</string>
-    <string name="wg_address_placeholder">10.0.0.1/32</string>
-    <string name="wg_mtu">MTU</string>
-    <string name="wg_mtu_placeholder">1280</string>
-    <string name="wg_peer">Peer</string>
-    <string name="wg_public_key">Public Key</string>
-    <string name="wg_public_key_placeholder">WG_PUBLIC_KEY</string>
-    <string name="wg_endpoint">Endpoint (host:port)</string>
-    <string name="wg_endpoint_placeholder">127.0.0.1:9000</string>
-    <string name="wg_endpoint_mismatch">Не равен локальному адресу\nпрослушивания!</string>
-    <string name="wg_endpoint_fix">Изменить?</string>
-    <string name="wg_persistent_keepalive">Persistent Keepalive</string>
-    <string name="wg_persistent_keepalive_placeholder">25</string>
-    <string name="wg_mtu_recommendation">Рекомендуемое значение — 1280</string>
+    <!-- WireGuard Setup -->
+    <string name="wg_import_config">WireGuard Import</string>
+    <string name="wg_import_file">From file</string>
+    <string name="wg_import_qr">Import WireGuard</string>
+    <string name="wg_import_clipboard">From clipboard</string>
+    <string name="wg_qr_scan_desc">Point the camera at the WireGuard configuration QR code to import</string>
+    <string name="wg_import_success">Configuration imported</string>
+    <string name="wg_import_error">Import error</string>
+    <string name="wg_interface" translatable="false">Interface</string>
+    <string name="wg_private_key" translatable="false">Private Key</string>
+    <string name="wg_private_key_placeholder" translatable="false">WG_PRIVATE_KEY</string>
+    <string name="wg_address" translatable="false">Address</string>
+    <string name="wg_address_placeholder" translatable="false">10.0.0.1/32</string>
+    <string name="wg_mtu" translatable="false">MTU</string>
+    <string name="wg_mtu_placeholder" translatable="false">1280</string>
+    <string name="wg_peer" translatable="false">Peer</string>
+    <string name="wg_public_key" translatable="false">Public Key</string>
+    <string name="wg_public_key_placeholder" translatable="false">WG_PUBLIC_KEY</string>
+    <string name="wg_endpoint" translatable="false">Endpoint (host:port)</string>
+    <string name="wg_endpoint_placeholder" translatable="false">127.0.0.1:9000</string>
+    <string name="wg_endpoint_mismatch">Not equal to local\nlisten address!</string>
+    <string name="wg_endpoint_fix">Change?</string>
+    <string name="wg_persistent_keepalive" translatable="false">Persistent Keepalive</string>
+    <string name="wg_persistent_keepalive_placeholder" translatable="false">25</string>
+    <string name="wg_mtu_recommendation">Recommended value is 1280</string>
 
-    <!-- Настройка Xray (SOCKS/HTTP) -->
-    <string name="xray_title">Xray</string>
-    <string name="xray_http">HTTP</string>
-    <string name="xray_http_placeholder">127.0.0.1:8080</string>
-    <string name="xray_socks5">SOCKS5</string>
-    <string name="xray_socks5_placeholder">127.0.0.1:2080</string>
+    <!-- Xray Setup (SOCKS/HTTP) -->
+    <string name="xray_title" translatable="false">Xray</string>
+    <string name="xray_http" translatable="false">HTTP</string>
+    <string name="xray_http_placeholder" translatable="false">127.0.0.1:8080</string>
+    <string name="xray_socks5" translatable="false">SOCKS5</string>
+    <string name="xray_socks5_placeholder" translatable="false">127.0.0.1:2080</string>
 
 
-    <!-- Настройка клиента (Backend/Proxy) -->
-    <string name="client_title">Клиент</string>
-    <string name="connection_title">Подключение</string>
-    <string name="raw_mode">Raw Mode</string>
-    <string name="raw_mode_desc">Ввод аргументов вручную</string>
-    <string name="raw_label">Raw</string>
-    <string name="raw_placeholder">-listen 127.0.0.1:900 -peer 292.313.32.45:56000 …</string>
-    <string name="server_address_label">Адрес vk-turn-proxy сервера</string>
+    <!-- Client Setup (Backend/Proxy) -->
+    <string name="client_title">Client</string>
+    <string name="connection_title">Connection</string>
+    <string name="raw_mode" translatable="false">Raw Mode</string>
+    <string name="raw_mode_desc">Manual argument input</string>
+    <string name="raw_label" translatable="false">Raw</string>
+    <string name="raw_placeholder" translatable="false">-listen 127.0.0.1:900 -peer 292.313.32.45:56000 …</string>
+    <string name="server_address_label">vk-turn-proxy server address</string>
     <string name="server_address_placeholder">292.313.32.45:56000</string>
-    <string name="server_address_support">IP и порт вашего сервера (параметр -listen)</string>
-    <string name="server_help_text">Укажите публичный IP-адрес и порт вашего VPS, на котором запущен vk‑turn‑proxy.</string>
-    <string name="server_help_secondary">Обратите внимание: если на сервере использован параметр -listen 0.0.0.0:56000, в приложении нужно указать именно внешний IP-адрес вашего сервера (например, 292.313.32.45:56000), а не нули.</string>
-    <string name="vk_link_label">Ссылка VK-звонок</string>
+    <string name="server_address_support">Your server\'s IP and port (-listen parameter)</string>
+    <string name="server_help_text">Specify the public IP address and port of your VPS running vk-turn-proxy.</string>
+    <string name="server_help_secondary">Note: if the -listen 0.0.0.0:56000 parameter is used on the server, you must specify the external IP address of your server in the app (e.g., 292.313.32.45:56000), not zeros.</string>
+    <string name="vk_link_label">VK Call link</string>
     <string name="vk_link_placeholder">https://vk.com/call/join/…</string>
-    <string name="turnable_url_label">Turnable-ссылка</string>
+    <string name="turnable_url_label">Turnable link</string>
     <string name="turnable_url_placeholder">turnable://user:pass@vk.com…</string>
-    <string name="turnable_url_support">Создаётся и формируется на сервере</string>
-    <string name="wbstream_uuid_label">ID комнаты WB Stream</string>
+    <string name="turnable_url_support">Created and formed on the server</string>
+    <string name="wbstream_uuid_label">WB Stream Room ID</string>
     <string name="wbstream_uuid_placeholder">UUID</string>
-    <string name="wbstream_uuid_support">Создаётся на сервере</string>
-    <string name="history_label">История</string>
-    <string name="tunnel_label">Туннель</string>
-    <string name="kernel_label">Ядро</string>
-    <string name="kernel_config_label">Формат параметров</string>
-    <string name="kernel_config_desc">Выберите структуру аргументов для кастомного ядра</string>
-    <string name="kernel_vk_turn_proxy">vk-turn-proxy</string>
-    <string name="kernel_turnable">Turnable</string>
-    <string name="turn_tunnel">TURN</string>
-    <string name="dc_tunnel">DC</string>
-    <string name="local_listen_address">Локальный адрес прослушивания</string>
+    <string name="wbstream_uuid_support">Created on the server</string>
+    <string name="history_label">History</string>
+    <string name="tunnel_label">Tunnel</string>
+    <string name="kernel_label">Core</string>
+    <string name="kernel_config_label">Parameter format</string>
+    <string name="kernel_config_desc">Select argument structure for custom core</string>
+    <string name="kernel_vk_turn_proxy" translatable="false">vk-turn-proxy</string>
+    <string name="kernel_turnable" translatable="false">Turnable</string>
+    <string name="turn_tunnel" translatable="false">TURN</string>
+    <string name="dc_tunnel" translatable="false">DC</string>
+    <string name="local_listen_address">Local listen address</string>
     <string name="local_listen_placeholder">127.0.0.1:9000</string>
-    <string name="parameters_title">Параметры</string>
-    <string name="threads_format">Потоки: %1$d</string>
-    <string name="threads_recommendation">Рекомендуется 4–8</string>
-    <string name="vless_mode">VLESS-режим</string>
-    <string name="vless_mode_desc">Проброс VLESS через туннель</string>
-    <string name="transport_protocol">Транспорт</string>
-    <string name="transport_protocol_desc">UDP снижает задержки, TCP — стабильнее</string>
-    <string name="no_dtls">Без DTLS-шифрования</string>
-    <string name="no_dtls_desc">Может ускорить соединение, повышает риск блокировки</string>
-    <string name="manual_captcha">Ручной ввод капчи</string>
-    <string name="manual_captcha_desc">Решать капчу вручную вместо автоматического распознавания</string>
-    <string name="force_turn_port_443">TURN-порт 443</string>
-    <string name="force_turn_port_443_desc">Использовать порт 443 вместо стандартного.</string>
-    <string name="jazz_label">SaluteJazz</string>
-    <string name="wb_stream_label">WB Stream</string>
-    <string name="dc_type_label">Сервис DC</string>
-    <string name="jazz_creds_label">Код:пароль комнаты SaluteJazz</string>
+    <string name="parameters_title">Parameters</string>
+    <string name="threads_format">Threads: %1$d</string>
+    <string name="threads_recommendation">Recommended 4–8</string>
+    <string name="vless_mode">VLESS mode</string>
+    <string name="vless_mode_desc">VLESS tunneling</string>
+    <string name="transport_protocol">Transport</string>
+    <string name="transport_protocol_desc">UDP reduces latency, TCP is more stable</string>
+    <string name="no_dtls">Without DTLS encryption</string>
+    <string name="no_dtls_desc">May speed up connection, increases blocking risk</string>
+    <string name="manual_captcha">Manual captcha entry</string>
+    <string name="manual_captcha_desc">Solve captcha manually instead of automatic recognition</string>
+    <string name="force_turn_port_443">TURN port 443</string>
+    <string name="force_turn_port_443_desc">Use port 443 instead of the default.</string>
+    <string name="jazz_label" translatable="false">SaluteJazz</string>
+    <string name="wb_stream_label" translatable="false">WB Stream</string>
+    <string name="dc_type_label">DC Service</string>
+    <string name="jazz_creds_label">SaluteJazz room code:password</string>
     <string name="jazz_creds_placeholder">room:password</string>
-    <string name="jazz_creds_support">Создаётся на сервере</string>
-    <string name="jazz_room">Комната SaluteJazz</string>
-    <string name="core_title">Загрузка ядра</string>
-    <string name="custom_core">Кастомное ядро</string>
-    <string name="builtin_core">Встроенное ядро</string>
-    <string name="loaded_from_memory">Загружено из памяти устройства</string>
-    <string name="kernel_date_format">Изменён: %1$s</string>
-    <string name="from_apk">Из APK</string>
-    <string name="btn_load">Загрузить</string>
-    <string name="finish_setup">Завершить настройку</string>
-    <string name="vk_help_text">Для работы прокси необходима ссылка на звонок ВКонтакте.</string>
-    <string name="vk_help_secondary">Её можно найти в Google по запросу \"https://vk.com/call/join/\" или создать самостоятельно в веб-версии VK Звонков (vk.com/calls), используя режим ПК в браузере.</string>
-    <string name="vk_help_search_btn">Искать в Google</string>
-    <string name="local_port_help_text">Это сетевой адрес и порт, на которых приложение запустит локальный прокси-сервер.</string>
-    <string name="local_port_help_secondary">К этому адресу должен подключаться либо встроенный в приложение Xray, либо ваши сторонние VPN-клиенты (WireGuard, v2raytun и др.), чтобы трафик шел через созданный туннель.</string>
+    <string name="jazz_creds_support">Created on the server</string>
+    <string name="jazz_room">SaluteJazz room</string>
+    <string name="core_title">Core download</string>
+    <string name="custom_core">Custom core</string>
+    <string name="builtin_core">Built-in core</string>
+    <string name="loaded_from_memory">Loaded from device memory</string>
+    <string name="kernel_date_format">Modified: %1$s</string>
+    <string name="from_apk">From APK</string>
+    <string name="btn_load">Load</string>
+    <string name="finish_setup">Finish setup</string>
+    <string name="vk_help_text">A VK Call link is required for the proxy to work.</string>
+    <string name="vk_help_secondary">It can be found on Google by searching for \"https://vk.com/call/join/\" or created manually in the web version of VK Calls (vk.com/calls) using desktop mode in your browser.</string>
+    <string name="vk_help_search_btn">Search Google</string>
+    <string name="local_port_help_text">This is the network address and port where the app will start the local proxy server.</string>
+    <string name="local_port_help_secondary">Either the built-in Xray or your third-party VPN clients (WireGuard, v2raytun, etc.) must connect to this address for traffic to go through the created tunnel.</string>
 
-    <!-- Экран логов (Logs) -->
-    <string name="logs_title">Логи</string>
-    <string name="copy">Копировать</string>
-    <string name="clear">Очистить</string>
-    <string name="no_logs">Нет логов</string>
-    <string name="new_logs">Новые логи</string>
+    <!-- Logs Screen (Logs) -->
+    <string name="logs_title">Logs</string>
+    <string name="copy">Copy</string>
+    <string name="clear">Clear</string>
+    <string name="no_logs">No logs</string>
+    <string name="new_logs">New logs</string>
 
-    <!-- Экран приветствия (Onboarding) -->
-    <string name="onboarding_title">WireTurn</string>
-    <string name="onboarding_subtitle">Туннелирование Xray-трафика через TURN и DC для надежного обхода сетевых ограничений</string>
-    <string name="start">Начать</string>
+    <!-- Onboarding Screen (Onboarding) -->
+    <string name="onboarding_title" translatable="false">WireTurn</string>
+    <string name="onboarding_subtitle">Tunneling Xray traffic through TURN and DC for reliable bypass of network restrictions</string>
+    <string name="start">Start</string>
 
-    <!-- Обновление приложения (OTA) -->
-    <string name="update_title">Обновление</string>
-    <string name="update_tap_to_check">Нажмите для проверки</string>
-    <string name="update_checking">Проверка…</string>
-    <string name="update_available">Доступна версия %1$s</string>
-    <string name="update_download">Скачать</string>
-    <string name="update_downloading">Загрузка: %1$d%%</string>
-    <string name="update_ready_desc_short">Готово к установке</string>
-    <string name="update_install">Установить</string>
-    <string name="update_no_update">Установлена последняя версия</string>
-    <string name="update_error">Ошибка: %1$s</string>
+    <!-- OTA Update -->
+    <string name="update_title">Update</string>
+    <string name="update_tap_to_check">Tap to check</string>
+    <string name="update_checking">Checking…</string>
+    <string name="update_available">Version %1$s available</string>
+    <string name="update_download">Download</string>
+    <string name="update_downloading">Downloading: %1$d%%</string>
+    <string name="update_ready_desc_short">Ready to install</string>
+    <string name="update_install">Install</string>
+    <string name="update_no_update">Latest version installed</string>
+    <string name="update_error">Error: %1$s</string>
 
-    <!-- Оформление и Приватность -->
-    <string name="dynamic_theme_title">Системные цвета</string>
-    <string name="dynamic_theme_desc">Использовать Material You</string>
-    <string name="theme_title">Тема оформления</string>
-    <string name="theme_light">Светлая</string>
-    <string name="theme_dark">Тёмная</string>
-    <string name="theme_system">Системная</string>
-    <string name="privacy_mode_title">Приватный режим</string>
-    <string name="privacy_mode_desc">Скрывает IP и порты</string>
-    <string name="unstable_updates_title">Бета-версии</string>
-    <string name="unstable_updates_desc">Проверять нестабильные обновления</string>
-    <string name="restart_on_network_change_title">Перезапуск при смене сети</string>
-    <string name="restart_on_network_change_desc">Автоматически перезапускать прокси при переключении между Wi-Fi и мобильной сетью</string>
+    <!-- UI and Privacy -->
+    <string name="dynamic_theme_title">System colors</string>
+    <string name="dynamic_theme_desc">Use Material You</string>
+    <string name="theme_title">Theme</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_system">System</string>
+    <string name="privacy_mode_title">Privacy mode</string>
+    <string name="privacy_mode_desc">Hides IP and ports</string>
+    <string name="unstable_updates_title">Beta versions</string>
+    <string name="unstable_updates_desc">Check for unstable updates</string>
+    <string name="restart_on_network_change_title">Restart on network change</string>
+    <string name="restart_on_network_change_desc">Automatically restart proxy when switching between Wi-Fi and mobile network</string>
 
-    <!-- Настройка Капчи -->
-    <string name="captcha_settings_title">Оформление капчи</string>
-    <string name="captcha_style_mod_title">Стилизация WebView</string>
-    <string name="captcha_style_mod_desc">Скрывает лишние элементы VK и адаптирует интерфейс под тему приложения</string>
-    <string name="captcha_force_tint_title">Цветовая схема</string>
-    <string name="captcha_force_tint_desc">Выберите способ окрашивания элементов капчи</string>
-    <string name="captcha_color_original">Оригинал</string>
-    <string name="captcha_color_primary">Акцентный</string>
+    <!-- Captcha Setup -->
+    <string name="captcha_settings_title">Captcha appearance</string>
+    <string name="captcha_style_mod_title">WebView styling</string>
+    <string name="captcha_style_mod_desc">Hides unnecessary VK elements and adapts the UI to the app theme</string>
+    <string name="captcha_force_tint_title">Color scheme</string>
+    <string name="captcha_force_tint_desc">Choose how to tint captcha elements</string>
+    <string name="captcha_color_original">Original</string>
+    <string name="captcha_color_primary">Primary</string>
 
-    <!-- Проверка задержки (Ping) -->
-    <string name="ping_error">Ошибка</string>
-    <string name="ping_ms">%1$d мс</string>
+    <!-- Ping check -->
+    <string name="ping_error">Error</string>
+    <string name="ping_ms">%1$d ms</string>
 
-    <!-- Ошибки и системные сообщения -->
-    <string name="error_proxy_crashed">Прокси упал %1$d раз — проверьте настройки</string>
-    <string name="error_settings_empty">Не заполнены настройки клиента</string>
-    <string name="error_raw_empty">Не задана raw-команда</string>
-    <string name="error_proxy_not_started">Прокси не запустился</string>
-    <string name="error_file_open">Не удалось открыть файл</string>
-    <string name="error_not_elf">Файл не является ELF-бинарником. Убедитесь, что загружаете правильное ядро</string>
-    <string name="error_file_empty">Файл пустой</string>
-    <string name="error_file_too_large">Файл слишком большой (максимум %1$d МБ)</string>
-    <string name="log_custom_kernel_installed">Кастомное ядро установлено: %1$d КБ</string>
-    <string name="log_proxy_invalid_config">[Xray] Некорректный или отсутствующий конфиг, запуск отменен</string>
-    <string name="error_kernel_install_failed">Ошибка установки ядра: %1$s</string>
-    <string name="log_custom_kernel_deleted">Кастомное ядро удалено, используется встроенное</string>
-    <string name="error_update_url_not_found">URL обновления не найден</string>
-    <string name="error_update_file_not_found">Файл обновления не найден</string>
-    <string name="error_no_connection">Нет соединения с сервером</string>
-    <string name="error_apk_not_found">APK не найден в релизе</string>
-    <string name="error_download_failed">Ошибка загрузки: %1$s</string>
-    <string name="log_standard_kernel">Используется стандартное ядро из APK</string>
-    <string name="log_custom_kernel">Используется кастомное ядро из памяти телефона</string>
-    <string name="log_command">Команда: %1$s</string>
-    <string name="log_quota_error">>>> QUOTA ERROR — сброс сессии через 2с</string>
-    <string name="log_proxy_start">=== ЗАПУСК ПРОКСИ ===</string>
-    <string name="log_process_stopped">=== ПРОЦЕСС ОСТАНОВЛЕН (Код: %1$d) ===</string>
-    <string name="log_startup_failed_no_watchdog">=== Ошибка при запуске, watchdog не активирован ===</string>
-    <string name="log_quick_exit">=== Быстрый выход (%1$dмс) — проверьте VK-ссылку и настройки ===</string>
-    <string name="log_watchdog_limit">=== WATCHDOG: превышен лимит попыток (%1$d), остановка ===</string>
-    <string name="log_watchdog_restart">=== WATCHDOG: перезапуск через %1$dмс (попытка %2$d/%3$d) ===</string>
-    <string name="log_network_change">=== СМЕНА СЕТИ — ПЕРЕЗАПУСК ===</string>
-    <string name="log_stop_ui">=== ОСТАНОВКА ИЗ ИНТЕРФЕЙСА ===</string>
-    <string name="log_jazz_unavailable">>>> bk.salutejazz.ru НЕДОСТУПЕН — СМЕНИТЕ IP (ПЕРЕЗАГРУЗИТЕ СЕТЬ)</string>
-    <string name="error_jazz_unavailable">API SaluteJazz недоступен</string>
-    <string name="error_invalid_turnable_url">Неверная ссылка Turnable</string>
-    <string name="error_turnable_failed">Ошибка Turnable: %1$s</string>
+    <!-- Errors and system messages -->
+    <string name="error_proxy_crashed">Proxy crashed %1$d times — check settings</string>
+    <string name="error_settings_empty">Client settings not filled</string>
+    <string name="error_raw_empty">Raw command not specified</string>
+    <string name="error_proxy_not_started">Proxy failed to start</string>
+    <string name="error_file_open">Could not open file</string>
+    <string name="error_not_elf">File is not an ELF binary. Make sure you are loading the correct core.</string>
+    <string name="error_file_empty">File is empty</string>
+    <string name="error_file_too_large">File too large (max %1$d MB)</string>
+    <string name="log_custom_kernel_installed">Custom core installed: %1$d KB</string>
+    <string name="log_proxy_invalid_config">[Xray] Invalid or missing config, startup canceled</string>
+    <string name="error_kernel_install_failed">Core installation error: %1$s</string>
+    <string name="log_custom_kernel_deleted">Custom core deleted, using built-in</string>
+    <string name="error_update_url_not_found">Update URL not found</string>
+    <string name="error_update_file_not_found">Update file not found</string>
+    <string name="error_no_connection">No server connection</string>
+    <string name="error_apk_not_found">APK not found in release</string>
+    <string name="error_download_failed">Download error: %1$s</string>
+    <string name="log_standard_kernel">Using standard core from APK</string>
+    <string name="log_custom_kernel">Using custom core from phone memory</string>
+    <string name="log_command">Command: %1$s</string>
+    <string name="log_quota_error">>>> QUOTA ERROR — resetting session in 2s</string>
+    <string name="log_proxy_start">=== PROXY STARTING ===</string>
+    <string name="log_process_stopped">=== PROCESS STOPPED (Code: %1$d) ===</string>
+    <string name="log_startup_failed_no_watchdog">=== Startup error, watchdog not activated ===</string>
+    <string name="log_quick_exit">=== Quick exit (%1$dms) — check VK link and settings ===</string>
+    <string name="log_watchdog_limit">=== WATCHDOG: attempt limit exceeded (%1$d), stopping ===</string>
+    <string name="log_watchdog_restart">=== WATCHDOG: restarting in %1$dms (attempt %2$d/%3$d) ===</string>
+    <string name="log_network_change">=== NETWORK CHANGE — RESTARTING ===</string>
+    <string name="log_stop_ui">=== STOPPED FROM UI ===</string>
+    <string name="log_jazz_unavailable">>>> bk.salutejazz.ru UNAVAILABLE — CHANGE IP (RESTART NETWORK)</string>
+    <string name="error_jazz_unavailable">SaluteJazz API unavailable</string>
+    <string name="error_invalid_turnable_url">Invalid Turnable link</string>
+    <string name="error_turnable_failed">Turnable error: %1$s</string>
 
-    <string name="error_release_info_failed">Не удалось получить информацию о релизе</string>
-    <string name="error_process_no_output">Процесс завершился без вывода (код: %1$d)</string>
-    <string name="error_kernel_permission_denied">КРИТИЧЕСКАЯ ОШИБКА: Отказано в запуске ядра — ваше устройство блокирует выполнение файлов из внутреннего хранилища (SELinux/noexec). Используйте встроенное ядро.</string>
-    <string name="error_critical_format">КРИТИЧЕСКАЯ ОШИБКА: %1$s</string>
-    <string name="error_connecting">Ошибка подключения</string>
-    <string name="error_kernel_or_settings">Проблема с ядром или настройками</string>
+    <string name="error_release_info_failed">Could not get release information</string>
+    <string name="error_process_no_output">Process finished with no output (code: %1$d)</string>
+    <string name="error_kernel_permission_denied">CRITICAL ERROR: Core execution denied — your device blocks running files from internal storage (SELinux/noexec). Use the built-in core.</string>
+    <string name="error_critical_format">CRITICAL ERROR: %1$s</string>
+    <string name="error_connecting">Connection error</string>
+    <string name="error_kernel_or_settings">Problem with core or settings</string>
 
-    <!-- Уведомления (Notifications) -->
-    <string name="notification_title">WireTurn</string>
-    <string name="notification_channel_description">Уведомление о состоянии и для управления</string>
-    <string name="captcha_channel_name">Уведомления о капче</string>
-    <string name="captcha_channel_description">Уведомления о необходимости прохождения капчи</string>
-    <string name="xray_short">Xray</string>
-    <string name="xray_protocol_label">Протокол</string>
-    <string name="wg_short">WG</string>
-    <string name="vpn_short">VPN</string>
-    <string name="captcha_notification_title">Требуется капча</string>
-    <string name="captcha_notification_text">Нажмите, чтобы пройти проверку</string>
-    <string name="tile_active">Запущено</string>
-    <string name="tile_captcha">Капча!</string>
-    <string name="notification_reconnecting">Переподключение (%1$d/%2$d)…</string>
-    <string name="notification_network_change">Смена сети, переподключение…</string>
+    <!-- Notifications -->
+    <string name="notification_title" translatable="false">WireTurn</string>
+    <string name="notification_channel_description">Status and management notification</string>
+    <string name="captcha_channel_name">Captcha notifications</string>
+    <string name="captcha_channel_description">Notifications for captcha requirements</string>
+    <string name="xray_short" translatable="false">Xray</string>
+    <string name="xray_protocol_label">Protocol</string>
+    <string name="wg_short" translatable="false">WG</string>
+    <string name="vpn_short" translatable="false">VPN</string>
+    <string name="captcha_notification_title">Captcha required</string>
+    <string name="captcha_notification_text">Tap to complete check</string>
+    <string name="tile_active">Started</string>
+    <string name="tile_captcha">Captcha!</string>
+    <string name="notification_reconnecting">Reconnecting (%1$d/%2$d)…</string>
+    <string name="notification_network_change">Network change, reconnecting…</string>
     <string name="error_with_details">%1$s: %2$s</string>
-    <string name="vless">VLESS</string>
-    <!-- Элементы интерфейса и форматирование -->
-    <string name="redacted_value">••••••</string>
-    <string name="not_set">не задано</string>
-    <string name="dash">—</string>
-    <string name="check_mark">✔</string>
-    <string name="ping_unknown">\?</string>
-    <string name="version_format">v%1$s</string>
+    <string name="vless" translatable="false">VLESS</string>
+    <!-- UI elements and formatting -->
+    <string name="redacted_value" translatable="false">••••••</string>
+    <string name="not_set">not set</string>
+    <string name="dash" translatable="false">—</string>
+    <string name="check_mark" translatable="false">✔</string>
+    <string name="ping_unknown" translatable="false">\?</string>
+    <string name="version_format" translatable="false">v%1$s</string>
     <string name="clipboard_label_socks5">Xray SOCKS5</string>
     <string name="clipboard_label_http">Xray HTTP</string>
-    <string name="restart_required">Настройки изменены</string>
-    <string name="restart_reason_client">Изменён конфиг клиента</string>
-    <string name="restart_reason_xray">Изменены настройки Xray</string>
-    <string name="btn_restart">Перезапустить</string>
+    <string name="restart_required">Settings changed</string>
+    <string name="restart_reason_client">Client config changed</string>
+    <string name="restart_reason_xray">Xray settings changed</string>
+    <string name="btn_restart">Restart</string>
 
-    <!-- Настройка VLESS -->
-    <string name="vless_link_label">VLESS-ссылка</string>
+    <!-- VLESS Setup -->
+    <string name="vless_link_label">VLESS link</string>
     <string name="vless_link_placeholder">vless://…</string>
-    <string name="vless_link_config_desc">Конфигурация VLESS</string>
-    <string name="vless_import_qr">Импорт VLESS</string>
-    <string name="vless_qr_scan_desc">Наведите камеру на QR-код конфигурации VLESS для импорта</string>
-    <string name="use_local_listen_address">Использовать адрес прослушивания</string>
-    <string name="use_local_listen_desc">Вместо указанного сервера VLESS\nбудет использоваться локальный</string>
+    <string name="vless_link_config_desc">VLESS configuration</string>
+    <string name="vless_import_qr">VLESS Import</string>
+    <string name="vless_qr_scan_desc">Point the camera at the VLESS configuration QR code to import</string>
+    <string name="use_local_listen_address">Use listen address</string>
+    <string name="use_local_listen_desc">Instead of the specified VLESS server,\nthe local one will be used</string>
 
-    <!-- Предупреждения (Warnings) -->
-    <string name="warn_unsupported_arch_title">Архитектура не поддерживается</string>
-    <string name="warn_unsupported_arch_desc">Ваше устройство использует архитектуру (%1$s), которая не поддерживается встроенными бинарными файлами. Приложение может работать некорректно или не запускаться.\n\nПоддерживаемые архитектуры: arm64-v8a, x86_64.</string>
-    <string name="warn_proxy_vless_mismatch">Несоответствие: Прокси в режиме VLESS, а Xray — WireGuard</string>
-    <string name="warn_proxy_wg_mismatch">Несоответствие: Прокси в обычном режиме, а Xray — VLESS</string>
-    <string name="warn_vpn_requires_xray">Режим VPN требует включенного Xray!</string>
+    <!-- Warnings -->
+    <string name="warn_unsupported_arch_title">Architecture not supported</string>
+    <string name="warn_unsupported_arch_desc">Your device uses an architecture (%1$s) not supported by the built-in binaries. The app may not work correctly or fail to start.\n\nSupported architectures: arm64-v8a, x86_64.</string>
+    <string name="warn_proxy_vless_mismatch">Mismatch: Proxy in VLESS mode, but Xray is WireGuard</string>
+    <string name="warn_proxy_wg_mismatch">Mismatch: Proxy in normal mode, but Xray is VLESS</string>
+    <string name="warn_vpn_requires_xray">VPN mode requires Xray to be enabled!</string>
 
-    <!-- Импорт через QR и расширенные параметры -->
-    <string name="qr_import">QR-код</string>
-    <string name="qr_scan_desc">Наведите камеру на QR-код конфигурации (WireGuard или VLESS) для импорта</string>
-    <string name="xray_local_addresses">Локальные адреса</string>
-    <string name="xray_socks_desc">Адрес для SOCKS5 прокси</string>
-    <string name="xray_http_desc">Адрес для HTTP прокси (опционально)</string>
-    <string name="xray_protocol_desc">Выберите протокол для Xray-core</string>
-    <string name="vless_settings">Настройки VLESS</string>
-    <string name="protocol_wireguard">WireGuard</string>
-    <string name="connection_method_desc">Способ проброса трафика</string>
-    <string name="client_variants_desc">Варианты клиента</string>
-    <string name="connection_details">Детали подключения</string>
-    <string name="dc_type_desc">Тип DataChannel</string>
-    <string name="math_minus">−</string>
-    <string name="math_plus">+</string>
-    <string name="edit_url_params">Параметры ссылки</string>
-    <string name="url_param_key">Ключ</string>
-    <string name="url_param_value">Значение</string>
-    <string name="url_base">Базовый URL</string>
-    <string name="add_parameter">Добавить параметр</string>
+    <!-- QR Import and Advanced Parameters -->
+    <string name="qr_import">QR Code</string>
+    <string name="qr_scan_desc">Point the camera at the configuration QR code (WireGuard or VLESS) to import</string>
+    <string name="xray_local_addresses">Local addresses</string>
+    <string name="xray_socks_desc">Address for SOCKS5 proxy</string>
+    <string name="xray_http_desc">Address for HTTP proxy (optional)</string>
+    <string name="xray_protocol_desc">Choose protocol for Xray-core</string>
+    <string name="vless_settings">VLESS Settings</string>
+    <string name="protocol_wireguard" translatable="false">WireGuard</string>
+    <string name="connection_method_desc">Traffic tunneling method</string>
+    <string name="client_variants_desc">Client variants</string>
+    <string name="connection_details">Connection details</string>
+    <string name="dc_type_desc">DataChannel type</string>
+    <string name="math_minus" translatable="false">−</string>
+    <string name="math_plus" translatable="false">+</string>
+    <string name="edit_url_params">URL parameters</string>
+    <string name="url_param_key">Key</string>
+    <string name="url_param_value">Value</string>
+    <string name="url_base">Base URL</string>
+    <string name="add_parameter">Add parameter</string>
 
-    <!-- Управление профилями -->
-    <string name="profiles_title">Профили</string>
-    <string name="notification_btn_change_profile">Сменить профиль</string>
-    <string name="profile_create">Создать профиль</string>
-    <string name="profile_clone">Клонировать</string>
-    <string name="profile_rename">Переименовать</string>
-    <string name="profile_delete">Удалить</string>
-    <string name="profile_export">Экспортировать</string>
-    <string name="profile_export_all">Экспортировать всё (zip)</string>
-    <string name="profile_import">Импортировать</string>
-    <string name="profile_name_label">Название профиля</string>
-    <string name="profile_default_name">Основной профиль</string>
-    <string name="profile_delete_confirm">Удалить профиль %1$s?</string>
-    <string name="profile_delete_desc">Все настройки этого профиля будут удалены.</string>
+    <!-- Profile Management -->
+    <string name="profiles_title">Profiles</string>
+    <string name="notification_btn_change_profile">Change profile</string>
+    <string name="profile_create">Create profile</string>
+    <string name="profile_clone">Clone</string>
+    <string name="profile_rename">Rename</string>
+    <string name="profile_delete">Delete</string>
+    <string name="profile_export">Export</string>
+    <string name="profile_export_all">Export all (zip)</string>
+    <string name="profile_import">Import</string>
+    <string name="profile_name_label">Profile name</string>
+    <string name="profile_default_name">Primary profile</string>
+    <string name="profile_delete_confirm">Delete profile %1$s?</string>
+    <string name="profile_delete_desc">All settings for this profile will be deleted.</string>
 </resources>
