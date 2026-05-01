@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
     <style name="Base.Theme.wireturn" parent="Theme.AppCompat.DayNight.NoActionBar">
         <!-- Customize your dark theme here. -->
@@ -6,9 +6,11 @@
     </style>
 
     <!-- Splash screen theme (Core Splash Screen API) — dark variant -->
-    <style name="Theme.wireturn.Splash" parent="Theme.SplashScreen">
+    <style name="Theme.wireturn.Splash" parent="Theme.SplashScreen" tools:targetApi="31">
         <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="android:windowSplashScreenBackground">@color/splash_background</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
         <item name="postSplashScreenTheme">@style/Theme.wireturn</item>
     </style>
 </resources>

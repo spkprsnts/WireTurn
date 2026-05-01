@@ -75,7 +75,7 @@ object NotificationHelper {
             .setContentTitle(context.getString(R.string.notification_title))
             .setContentText(contentText)
             .setSubText(runningProfileName)
-            .setSmallIcon(android.R.drawable.ic_menu_preferences)
+            .setSmallIcon(R.drawable.plug_connect_24px)
             .setOngoing(true)
             .setContentIntent(openAppIntent)
 
@@ -166,7 +166,7 @@ object NotificationHelper {
         val builder = NotificationCompat.Builder(context, CAPTCHA_CHANNEL_ID)
             .setContentTitle(context.getString(R.string.captcha_notification_title))
             .setContentText(context.getString(R.string.captcha_notification_text))
-            .setSmallIcon(android.R.drawable.stat_notify_error)
+            .setSmallIcon(R.drawable.error_24px)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
