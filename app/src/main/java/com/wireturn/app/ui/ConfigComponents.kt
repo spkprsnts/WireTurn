@@ -3,12 +3,9 @@ package com.wireturn.app.ui
 import android.annotation.SuppressLint
 import android.app.Activity
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -492,13 +489,8 @@ fun FieldTrailingIcons(
     modifier: Modifier = Modifier,
     iconSize: Dp = 24.dp
 ) {
-    AnimatedVisibility(
-        visible = history.isNotEmpty(),
-        modifier = modifier,
-        enter = fadeIn() + expandVertically(),
-        exit = fadeOut() + shrinkVertically()
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+    if (history.isNotEmpty()) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
             HistoryIconButton(
                 history = history,
                 onSelect = onSelect,

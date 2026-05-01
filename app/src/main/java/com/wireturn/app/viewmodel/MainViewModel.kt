@@ -32,11 +32,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -109,6 +107,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _vlessConfig = MutableStateFlow(VlessConfig())
     val vlessConfig: StateFlow<VlessConfig> = _vlessConfig.asStateFlow()
 
+    private val _vkLinkHistory = MutableStateFlow<List<String>>(emptyList())
+    val vkLinkHistory: StateFlow<List<String>> = _vkLinkHistory.asStateFlow()
+
+    private val _wbstreamUuidHistory = MutableStateFlow<List<String>>(emptyList())
+    val wbstreamUuidHistory: StateFlow<List<String>> = _wbstreamUuidHistory.asStateFlow()
+
+    private val _serverAddressHistory = MutableStateFlow<List<String>>(emptyList())
+    val serverAddressHistory: StateFlow<List<String>> = _serverAddressHistory.asStateFlow()
+
+    private val _jazzCredsHistory = MutableStateFlow<List<String>>(emptyList())
+    val jazzCredsHistory: StateFlow<List<String>> = _jazzCredsHistory.asStateFlow()
+
+    private val _turnableUrlHistory = MutableStateFlow<List<String>>(emptyList())
+    val turnableUrlHistory: StateFlow<List<String>> = _turnableUrlHistory.asStateFlow()
+
+    private val _vlessLinkHistory = MutableStateFlow<List<String>>(emptyList())
+    val vlessLinkHistory: StateFlow<List<String>> = _vlessLinkHistory.asStateFlow()
+
     val profiles: StateFlow<List<Profile>> = profileManager.profiles
     val currentProfileId: StateFlow<String> = profileManager.currentProfileId
 
@@ -167,6 +183,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val vlessConfig = prefs.vlessConfigFlow.first()
             val excludedApps = prefs.excludedAppsFlow.first()
 
+            val vkLinkHistory = prefs.vkLinkHistoryFlow.first()
+            val wbstreamUuidHistory = prefs.wbstreamUuidHistoryFlow.first()
+            val serverAddressHistory = prefs.serverAddressHistoryFlow.first()
+            val jazzCredsHistory = prefs.jazzCredsHistoryFlow.first()
+            val turnableUrlHistory = prefs.turnableUrlHistoryFlow.first()
+            val vlessLinkHistory = prefs.vlessLinkHistoryFlow.first()
+
             _onboardingDone.value = done
             _themeMode.value = theme
             _dynamicTheme.value = dynamic
@@ -182,6 +205,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _xrayConfig.value = xrayConfig
             _vlessConfig.value = vlessConfig
             _excludedApps.value = excludedApps
+
+            _vkLinkHistory.value = vkLinkHistory
+            _wbstreamUuidHistory.value = wbstreamUuidHistory
+            _serverAddressHistory.value = serverAddressHistory
+            _jazzCredsHistory.value = jazzCredsHistory
+            _turnableUrlHistory.value = turnableUrlHistory
+            _vlessLinkHistory.value = vlessLinkHistory
 
             val currentProfiles = prefs.profilesFlow.first()
             if (currentProfiles.isEmpty()) {
@@ -228,6 +258,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.vlessConfigFlow.collect { _vlessConfig.value = it } }
             launch { prefs.globalVpnSettingsFlow.collect { _globalVpnSettings.value = it } }
             launch { prefs.excludedAppsFlow.collect { _excludedApps.value = it } }
+
+            launch { prefs.vkLinkHistoryFlow.collect { _vkLinkHistory.value = it } }
+            launch { prefs.wbstreamUuidHistoryFlow.collect { _wbstreamUuidHistory.value = it } }
+            launch { prefs.serverAddressHistoryFlow.collect { _serverAddressHistory.value = it } }
+            launch { prefs.jazzCredsHistoryFlow.collect { _jazzCredsHistory.value = it } }
+            launch { prefs.turnableUrlHistoryFlow.collect { _turnableUrlHistory.value = it } }
+            launch { prefs.vlessLinkHistoryFlow.collect { _vlessLinkHistory.value = it } }
         }
 
         viewModelScope.launch { proxyManager.observeProxyLifecycle() }
@@ -335,24 +372,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { prefs.setThemeMode(mode) }
     }
-
-    val vkLinkHistory: StateFlow<List<String>> = prefs.vkLinkHistoryFlow
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    val wbstreamUuidHistory: StateFlow<List<String>> = prefs.wbstreamUuidHistoryFlow
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    val serverAddressHistory: StateFlow<List<String>> = prefs.serverAddressHistoryFlow
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    val jazzCredsHistory: StateFlow<List<String>> = prefs.jazzCredsHistoryFlow
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    val turnableUrlHistory: StateFlow<List<String>> = prefs.turnableUrlHistoryFlow
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    val vlessLinkHistory: StateFlow<List<String>> = prefs.vlessLinkHistoryFlow
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _privacyMode = MutableStateFlow(false)
     val privacyMode: StateFlow<Boolean> = _privacyMode.asStateFlow()

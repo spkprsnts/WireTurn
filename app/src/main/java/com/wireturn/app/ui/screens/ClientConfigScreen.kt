@@ -514,8 +514,7 @@ fun ClientConfigScreen(
                                                     history = turnableUrlHistory,
                                                     onSelect = { turnableUrl = it },
                                                     onRemove = { viewModel.removeTurnableUrlFromHistory(it) },
-                                                    privacyMode = privacyMode,
-                                                    iconSize = 20.dp
+                                                    privacyMode = privacyMode
                                                 )
                                             }
                                         }

@@ -652,8 +652,7 @@ private fun VlessSettings(
                             history = vlessLinkHistory,
                             onSelect = onVlessLinkChange,
                             onRemove = onRemoveHistory,
-                            privacyMode = privacyMode,
-                            iconSize = 20.dp
+                            privacyMode = privacyMode
                         )
                     }
                 }
