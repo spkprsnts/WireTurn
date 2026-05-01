@@ -289,7 +289,12 @@ fun SettingsScreen(
                 if (isDark) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surfaceContainerHigh
             } else blockContainerColor
 
-            SettingsGroup(title = stringResource(R.string.update_title)) {
+            SettingsGroup(
+                title = stringResource(R.string.update_title),
+                modifier = Modifier.onGloballyPositioned { coordinates ->
+                    updateBlockOffset = coordinates.positionInParent().y
+                }
+            ) {
                 SettingsGroupItem(
                     isTop = true,
                     isBottom = false,
@@ -302,10 +307,7 @@ fun SettingsScreen(
                             else -> viewModel.checkForUpdate()
                         }
                     },
-                    enabled = updateState !is UpdateState.Checking && updateState !is UpdateState.Downloading,
-                    modifier = Modifier.onGloballyPositioned { coordinates ->
-                        updateBlockOffset = coordinates.positionInParent().y
-                    }
+                    enabled = updateState !is UpdateState.Checking && updateState !is UpdateState.Downloading
                 ) {
                     UpdateBlock(
                         state = updateState
