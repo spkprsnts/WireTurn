@@ -646,9 +646,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun createProfile(name: String) {
-        profileManager.createProfile(name) { id, profile ->
-            selectProfile(id, profile)
-        }
+        profileManager.createProfile(name) { _, _ -> }
     }
     fun cloneProfile(id: String, newName: String) = profileManager.cloneProfile(id, newName)
     fun deleteProfile(id: String) = profileManager.deleteProfile(id) { nextId -> selectProfile(nextId) }
