@@ -64,6 +64,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import com.wireturn.app.data.DCType
 import com.wireturn.app.data.KernelVariant
+import com.wireturn.app.data.XrayConfiguration
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -334,26 +335,31 @@ fun HomeScreen(
         }
     }
 
-    var hasShownMismatchForCurrentRun by remember { mutableStateOf(xrayState == XrayState.Running) }
-    LaunchedEffect(xrayState) {
-        if (xrayState != XrayState.Running) {
+    var hasShownMismatchForCurrentRun by remember { mutableStateOf(false) }
+    LaunchedEffect(proxyState, xrayState) {
+        if (proxyState is ProxyState.Idle && xrayState == XrayState.Idle) {
             hasShownMismatchForCurrentRun = false
         }
     }
 
-    LaunchedEffect(xrayState, runningConfig, runningVlessConfig, runningWgConfig) {
-        if (xrayState != XrayState.Running || hasShownMismatchForCurrentRun) return@LaunchedEffect
-        val config = runningConfig ?: return@LaunchedEffect
-        if (config.isRawMode) return@LaunchedEffect
-        val supportsMismatchCheck = config.dcMode || config.kernelVariant == KernelVariant.VK_TURN_PROXY
+    LaunchedEffect(proxyState, xrayState, clientConfig, xrayConfig, xraySettings.xrayEnabled) {
+        if (hasShownMismatchForCurrentRun || !xraySettings.xrayEnabled) return@LaunchedEffect
+
+        // Warn if proxy is active or starting while Xray is enabled
+        val isProxyActive = proxyState !is ProxyState.Idle && proxyState !is ProxyState.Error
+        if (!isProxyActive) return@LaunchedEffect
+
+        if (clientConfig.isRawMode) return@LaunchedEffect
+        val supportsMismatchCheck = clientConfig.dcMode || clientConfig.kernelVariant == KernelVariant.VK_TURN_PROXY
         if (!supportsMismatchCheck) return@LaunchedEffect
 
-        val xrayIsVlessRunning = runningVlessConfig != null
-        val xrayShouldBeVless = config.vlessMode
-        if (xrayIsVlessRunning != xrayShouldBeVless) {
+        val isVlessConfigured = xrayConfig.xrayConfiguration == XrayConfiguration.VLESS
+        val shouldBeVless = clientConfig.vlessMode
+
+        if (isVlessConfigured != shouldBeVless) {
             hasShownMismatchForCurrentRun = true
             snackbarHostState.showSnackbar(
-                message = if (xrayShouldBeVless) warnVlessMismatch else warnWgMismatch,
+                message = if (shouldBeVless) warnVlessMismatch else warnWgMismatch,
                 duration = androidx.compose.material3.SnackbarDuration.Long
             )
         }
@@ -885,12 +891,12 @@ fun HomeScreen(
                         viewModel.updateXraySettings(xraySettings.copy(xrayEnabled = next))
                     }
                 ) {
-                    val isSettingsValid = if (xrayConfig.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS) activeVlessConfig.isValid() else activeWgConfig.isValid()
+                    val isSettingsValid = if (xrayConfig.xrayConfiguration == XrayConfiguration.VLESS) activeVlessConfig.isValid() else activeWgConfig.isValid()
                     val configValid = isSettingsValid || xrayState != XrayState.Idle
 
                     val xrayProtocol = when {
                         xrayState == XrayState.Running -> if (runningVlessConfig != null) stringResource(R.string.vless) else stringResource(R.string.wg_short)
-                        else -> if (xrayConfig.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS) stringResource(R.string.vless) else stringResource(R.string.wg_short)
+                        else -> if (xrayConfig.xrayConfiguration == XrayConfiguration.VLESS) stringResource(R.string.vless) else stringResource(R.string.wg_short)
                     }
 
                     LaunchedEffect(configValid, xraySettings.xrayEnabled, currentProfileId) {
