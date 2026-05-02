@@ -117,13 +117,14 @@ class ProxyService : Service() {
         val prefs = AppPreferences(applicationContext)
         val vlessConfig = runBlocking { prefs.vlessConfigFlow.first() }
         val xraySettings = runBlocking { prefs.xraySettingsFlow.first() }
-        val isDualRoute = xraySettings.xrayEnabled && vlessConfig.isDualRoute
+        val isDualRouteStart = xraySettings.xrayEnabled && vlessConfig.isDualRoute
 
         NotificationHelper.cancelErrorNotification(this)
         ProxyServiceState.setStartupResult(null)
         ProxyServiceState.setRunning(true)
         
-        if (isDualRoute) {
+        // Если стартуем с уже включенным Dual Route — сначала ждем вердикта от Xray
+        if (isDualRouteStart) {
             ProxyServiceState.setTunnelSuppressed(true)
         }
         
@@ -170,12 +171,14 @@ class ProxyService : Service() {
             }
         }
 
+        var wasSuppressed = false
         while (isActive && !userStopped.get()) {
             val vlessConfig = prefs.vlessConfigFlow.first()
             val xraySettings = prefs.xraySettingsFlow.first()
             val isDualRoute = xraySettings.xrayEnabled && vlessConfig.isDualRoute
             
             if (isDualRoute && ProxyServiceState.isTunnelSuppressed.value) {
+                wasSuppressed = true
                 val xrayState = XrayServiceState.state.value
                 val isActuallyWorking = xrayState == XrayState.DirectRoute
                 
@@ -193,6 +196,10 @@ class ProxyService : Service() {
                 ProxyTileService.requestUpdate(this@ProxyService)
                 delay(1000)
                 continue
+            }
+
+            if (wasSuppressed) {
+                wasSuppressed = false
             }
 
             var cfg = prefs.clientConfigFlow.first()
@@ -570,17 +577,34 @@ class ProxyService : Service() {
             val prefs = AppPreferences(applicationContext)
             ProxyServiceState.isRunning.collectLatest { running ->
                 if (running) {
-                    val vlessConfig = prefs.vlessConfigFlow.first()
-                    val xraySettings = prefs.xraySettingsFlow.first()
-                    val isDualRoute = xraySettings.xrayEnabled && vlessConfig.isDualRoute
+                    val initialVless = prefs.vlessConfigFlow.first()
+                    val initialXray = prefs.xraySettingsFlow.first()
+                    val initialDualRoute = initialXray.xrayEnabled && initialVless.isDualRoute
 
-                    if (!isDualRoute) {
+                    if (!initialDualRoute) {
                         // Ждем первого появления isWorking в рамках текущего запуска сессии
                         ProxyServiceState.isWorking.first { it }
                     }
                     
-                    // После того как прокси заработал хотя бы раз, следим за состоянием xrayEnabled
-                    prefs.xraySettingsFlow.collect { settings ->
+                    // Следим за изменениями настроек Xray и VLESS для управления XrayService и подавлением туннеля
+                    combine(prefs.xraySettingsFlow, prefs.vlessConfigFlow) { settings, vless ->
+                        settings to vless
+                    }.collect { (settings, vless) ->
+                        if (!ProxyServiceState.isRunning.value) return@collect
+
+                        val isDualRoute = settings.xrayEnabled && vless.isDualRoute
+                        val prevSuppressed = ProxyServiceState.isTunnelSuppressed.value
+                        
+                        if (!isDualRoute && prevSuppressed) {
+                            // Если Dual Route выключен, но туннель был подавлен — разрешаем его
+                            ProxyServiceState.setTunnelSuppressed(false)
+
+                            // Немедленно сбрасываем статус в "Подключение", не дожидаясь цикла mainSupervisor
+                            ProxyServiceState.setWorking(false)
+                            updateNotification(getString(R.string.proxy_connecting))
+                            ProxyTileService.requestUpdate(this@ProxyService)
+                        }
+
                         withContext(Dispatchers.Main) {
                             val currentState = XrayServiceState.state.value
                             if (settings.xrayEnabled) {
