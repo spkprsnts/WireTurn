@@ -605,15 +605,13 @@ class ProxyService : Service() {
 
     private fun observeStartupResultForNotification() {
         serviceScope.launch {
-            val prefs = AppPreferences(applicationContext)
             combine(
                 ProxyServiceState.startupResult,
-                AppLifecycleState.isAppInForeground,
-                prefs.autoLaunchSettingsFlow
-            ) { result, isForeground, autoLaunch ->
-                Triple(result, isForeground, autoLaunch.enabled)
-            }.collect { (result, isForeground, autoLaunchEnabled) ->
-                if (result is StartupResult.Failed && !isForeground && autoLaunchEnabled) {
+                AppLifecycleState.isAppInForeground
+            ) { result, isForeground ->
+                result to isForeground
+            }.collect { (result, isForeground) ->
+                if (result is StartupResult.Failed && !isForeground) {
                     NotificationHelper.notifyError(this@ProxyService, result.message)
                 } else if (result is StartupResult.Success || isForeground) {
                     NotificationHelper.cancelErrorNotification(this@ProxyService)
