@@ -62,7 +62,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
-import com.wireturn.app.data.DCType
 import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.XrayConfiguration
 import android.content.Intent
@@ -116,10 +115,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import com.wireturn.app.ui.InlineConfigIndicator
 import com.wireturn.app.ui.SwitchRow
-import com.wireturn.app.ui.redact
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.AppExclusionTooltip
-import com.wireturn.app.ui.SettingsGroup
 import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.ProxyState
@@ -384,6 +381,7 @@ fun HomeScreen(
                 }
             )
         },
+        bottomBar = { Spacer(Modifier.height(64.dp)) },
         snackbarHost = {
             SnackbarHost(
                 hostState = snackbarHostState,
@@ -403,8 +401,9 @@ fun HomeScreen(
                 .widthIn(max = 600.dp)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 80.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(bottom = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             Spacer(Modifier.height(24.dp))
 
@@ -1578,29 +1577,6 @@ private fun formatBytes(bytes: Long): String {
 
 private fun formatSpeed(bytesPerSecond: Long): String {
     return formatBytes(bytesPerSecond) + "/s"
-}
-
-
-
-@Composable
-private fun ConfigRow(label: String, value: String, isLast: Boolean = false) {
-    Row(
-        horizontalArrangement = Arrangement.SpaceBetween,
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.Medium
-        )
-    }
 }
 
 @Composable

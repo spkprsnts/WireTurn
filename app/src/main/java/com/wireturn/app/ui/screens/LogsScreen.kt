@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -108,6 +109,7 @@ fun LogsScreen(
 
     Scaffold(
         modifier = modifier,
+        bottomBar = { Spacer(Modifier.height(64.dp)) },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.logs_title)) },
@@ -183,7 +185,7 @@ fun LogsScreen(
                             .fillMaxWidth()
                             .wrapContentWidth(Alignment.CenterHorizontally)
                             .widthIn(max = 840.dp),
-                        contentPadding = PaddingValues(bottom = 80.dp)
+                        contentPadding = PaddingValues(bottom = 12.dp)
                     ) {
                         itemsIndexed(logs, key = { index, _ -> index }) { _, line ->
                             LogLine(line = line)
@@ -197,7 +199,7 @@ fun LogsScreen(
                     exit = fadeOut() + scaleOut(),
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 80.dp)
+                        .padding(bottom = 12.dp)
                 ) {
                     ElevatedButton(
                         onClick = {
