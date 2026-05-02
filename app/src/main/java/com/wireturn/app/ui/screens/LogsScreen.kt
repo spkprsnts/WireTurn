@@ -236,7 +236,8 @@ private fun LogLine(line: String) {
                   lower.contains("did not complete")
     val isWarning = lower.contains("watchdog") || lower.contains("перезапуск") ||
                     lower.contains("quota") || lower.contains("warn") ||
-                    lower.contains(">>>") || lower.contains("stopped")
+                    lower.contains(">>>") || lower.contains("stopped") ||
+                    lower.contains("connection lost")
     val isSuccess = lower.contains("запущен") || lower.contains("подключен") ||
                     lower.contains("success") || lower.contains("started") ||
                     lower.contains("ok") || lower.contains("established") ||
