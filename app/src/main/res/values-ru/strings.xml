@@ -9,10 +9,6 @@
     <string name="proxy_running">Ядро активно</string>
     <string name="proxy_press_to_start">Нажмите для запуска</string>
     <string name="proxy_stop">Остановить</string>
-    <string name="current_client_settings">Текущие настройки клиента</string>
-    <string name="server">Сервер</string>
-    <string name="threads">Потоки</string>
-    <string name="local_port">Локальный порт</string>
     <string name="proxy_active_stop">Прокси активен — нажмите для остановки</string>
     <string name="proxy_error_restart">Ошибка — нажмите для повторного запуска</string>
     <string name="proxy_captcha_required">Требуется капча</string>
@@ -122,7 +118,6 @@
     <string name="jazz_creds_label">Код:пароль комнаты SaluteJazz</string>
     <string name="jazz_creds_placeholder">room:password</string>
     <string name="jazz_creds_support">Создаётся на сервере</string>
-    <string name="jazz_room">Комната SaluteJazz</string>
     <string name="core_title">Загрузка ядра</string>
     <string name="custom_core">Кастомное ядро</string>
     <string name="builtin_core">Встроенное ядро</string>
@@ -251,7 +246,6 @@
     <string name="error_with_details">%1$s: %2$s</string>
 
     <!-- Элементы интерфейса и форматирование -->
-    <string name="not_set">не задано</string>
     <string name="clipboard_label_socks5">Xray SOCKS5</string>
     <string name="clipboard_label_http">Xray HTTP</string>
     <string name="restart_required">Настройки изменены</string>

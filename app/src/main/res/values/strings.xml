@@ -10,12 +10,8 @@
     <string name="proxy_running">Core active</string>
     <string name="proxy_press_to_start">Tap to start</string>
     <string name="proxy_stop">Stop</string>
-    <string name="current_client_settings">Current client settings</string>
-    <string name="server">Server</string>
-    <string name="threads">Threads</string>
     <string name="tcp" translatable="false">TCP</string>
     <string name="udp" translatable="false">UDP</string>
-    <string name="local_port">Local port</string>
     <string name="proxy_active_stop">Proxy active — tap to stop</string>
     <string name="proxy_error_restart">Error — tap to restart</string>
     <string name="proxy_captcha_required">Captcha required</string>
@@ -159,7 +155,6 @@
     <string name="jazz_creds_label">SaluteJazz room code:password</string>
     <string name="jazz_creds_placeholder">room:password</string>
     <string name="jazz_creds_support">Created on the server</string>
-    <string name="jazz_room">SaluteJazz room</string>
     <string name="core_title">Core download</string>
     <string name="custom_core">Custom core</string>
     <string name="builtin_core">Built-in core</string>
@@ -294,9 +289,7 @@
     <string name="vless" translatable="false">VLESS</string>
     <!-- UI elements and formatting -->
     <string name="redacted_value" translatable="false">••••••</string>
-    <string name="not_set">not set</string>
     <string name="dash" translatable="false">—</string>
-    <string name="check_mark" translatable="false">✔</string>
     <string name="ping_unknown" translatable="false">\?</string>
     <string name="version_format" translatable="false">v%1$s</string>
     <string name="clipboard_label_socks5">Xray SOCKS5</string>
