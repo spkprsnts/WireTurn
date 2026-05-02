@@ -449,7 +449,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             autoLaunchJob = viewModelScope.launch(Dispatchers.IO) {
                 while (true) {
                     val isReachable = isUrlReachable(settings.checkUrl)
-                    val isProxyRunning = proxyState.value !is ProxyState.Idle && proxyState.value !is ProxyState.Error
+                    val isProxyRunning = ProxyServiceState.isRunning.value
 
                     if (!isReachable && !isProxyRunning) {
                         withContext(Dispatchers.Main) {
@@ -457,7 +457,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     } else if (isReachable && isProxyRunning) {
                         withContext(Dispatchers.Main) {
-                            stopProxy()
+                            // Автоматическая остановка (интернет появился сам)
+                            ProxyService.stop(getApplication(), byUser = false)
                         }
                     }
 

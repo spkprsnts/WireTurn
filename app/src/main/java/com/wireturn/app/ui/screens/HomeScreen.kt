@@ -596,20 +596,20 @@ fun HomeScreen(
 
                 Text(
                     text = when {
-                        autoLaunchSettings.enabled -> stringResource(R.string.proxy_auto_launch_active)
                         proxyState is ProxyState.Working -> stringResource(if (customKernelExists) R.string.proxy_running else R.string.proxy_active)
                         proxyState is ProxyState.Starting -> stringResource(R.string.starting)
                         proxyState is ProxyState.Running -> stringResource(R.string.proxy_connecting)
-                        proxyState is ProxyState.Error -> (proxyState as ProxyState.Error).message
                         proxyState is ProxyState.CaptchaRequired -> stringResource(R.string.proxy_captcha_required)
+                        proxyState is ProxyState.Error -> (proxyState as ProxyState.Error).message
+                        autoLaunchSettings.enabled -> stringResource(R.string.proxy_auto_launch_active)
                         else -> stringResource(R.string.proxy_press_to_start)
                     },
                     style = MaterialTheme.typography.titleMedium,
                     color = when {
-                        autoLaunchSettings.enabled -> MaterialTheme.colorScheme.primary
                         proxyState is ProxyState.Working -> MaterialTheme.colorScheme.primary
                         proxyState is ProxyState.Running || proxyState is ProxyState.CaptchaRequired -> MaterialTheme.colorScheme.tertiary
                         proxyState is ProxyState.Error -> MaterialTheme.colorScheme.error
+                        autoLaunchSettings.enabled -> MaterialTheme.colorScheme.primary
                         else -> MaterialTheme.colorScheme.onBackground.copy(alpha = 0.65f)
                     },
                     textAlign = TextAlign.Center
