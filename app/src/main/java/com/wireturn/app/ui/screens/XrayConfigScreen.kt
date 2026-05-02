@@ -214,7 +214,6 @@ fun XrayConfigScreen(
 
     Scaffold(
         modifier = modifier,
-        bottomBar = { Spacer(Modifier.height(64.dp)) },
         snackbarHost = {
             SnackbarHost(
                 hostState = snackbarHostState,
@@ -290,7 +289,7 @@ fun XrayConfigScreen(
                 .imePadding()
                 .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 12.dp),
+                .padding(bottom = 76.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             Spacer(Modifier.height(8.dp))

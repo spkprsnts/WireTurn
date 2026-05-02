@@ -109,7 +109,6 @@ fun LogsScreen(
 
     Scaffold(
         modifier = modifier,
-        bottomBar = { Spacer(Modifier.height(64.dp)) },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.logs_title)) },
@@ -185,7 +184,7 @@ fun LogsScreen(
                             .fillMaxWidth()
                             .wrapContentWidth(Alignment.CenterHorizontally)
                             .widthIn(max = 840.dp),
-                        contentPadding = PaddingValues(bottom = 12.dp)
+                        contentPadding = PaddingValues(bottom = 76.dp)
                     ) {
                         itemsIndexed(logs, key = { index, _ -> index }) { _, line ->
                             LogLine(line = line)
@@ -199,7 +198,7 @@ fun LogsScreen(
                     exit = fadeOut() + scaleOut(),
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 12.dp)
+                        .padding(bottom = 76.dp)
                 ) {
                     ElevatedButton(
                         onClick = {

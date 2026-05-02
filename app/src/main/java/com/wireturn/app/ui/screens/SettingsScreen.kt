@@ -144,7 +144,6 @@ fun SettingsScreen(
     Scaffold(
         modifier = modifier,
         topBar = { TopAppBar(title = { Text(stringResource(R.string.app_settings_title)) }) },
-        bottomBar = { Spacer(Modifier.height(64.dp)) },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = screenBackgroundColor
     ) { padding ->
@@ -159,7 +158,7 @@ fun SettingsScreen(
                 .imePadding()
                 .padding(horizontal = 16.dp)
                 .verticalScroll(scrollState)
-                .padding(bottom = 12.dp),
+                .padding(bottom = 76.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             Spacer(Modifier.height(8.dp))
