@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
@@ -78,6 +79,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ProfileSummary(
     profile: Profile,
+    modifier: Modifier = Modifier,
     color: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurfaceVariant
 ) {
     val clientConfig = profile.clientConfig
@@ -136,7 +138,8 @@ fun ProfileSummary(
             text = parts.joinToString(" • "),
             style = MaterialTheme.typography.labelSmall,
             color = color,
-            maxLines = 1
+            maxLines = 1,
+            modifier = modifier
         )
     }
 }
@@ -167,14 +170,19 @@ fun ProfilesBlock(
                     modifier = Modifier
                         .size(24.dp)
                 )
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = currentProfile.name,
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        modifier = Modifier.basicMarquee()
                     )
-                    ProfileSummary(currentProfile)
+                    ProfileSummary(
+                        profile = currentProfile,
+                        modifier = Modifier.basicMarquee()
+                    )
                 }
             }
         }
