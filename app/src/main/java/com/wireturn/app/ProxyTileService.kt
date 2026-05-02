@@ -43,10 +43,11 @@ class ProxyTileService : TileService() {
         // Мгновенное обновление при открытии шторки
         val initialAutoLaunch = runBlocking { prefs.autoLaunchSettingsFlow.first() }
         updateTileState(
-            ProxyServiceState.isRunning.value,
-            ProxyServiceState.isWorking.value,
-            ProxyServiceState.captchaSession.value != null,
-            initialAutoLaunch.enabled
+            isRunning = ProxyServiceState.isRunning.value,
+            isWorking = ProxyServiceState.isWorking.value,
+            isCaptcha = ProxyServiceState.captchaSession.value != null,
+            autoLaunchEnabled = initialAutoLaunch.enabled,
+            isDirect = ProxyServiceState.isTunnelSuppressed.value
         )
 
         statusJob?.cancel()
@@ -55,10 +56,11 @@ class ProxyTileService : TileService() {
                 ProxyServiceState.isRunning,
                 ProxyServiceState.isWorking,
                 ProxyServiceState.captchaSession,
+                ProxyServiceState.isTunnelSuppressed,
                 prefs.autoLaunchSettingsFlow
-            ) { running, working, captcha, autoLaunch ->
+            ) { running, working, captcha, suppressed, autoLaunch ->
                 val isCaptcha = captcha != null
-                updateTileState(running, working, isCaptcha, autoLaunch.enabled)
+                updateTileState(running, working, isCaptcha, autoLaunch.enabled, suppressed)
             }.collect {}
         }
     }
@@ -116,7 +118,13 @@ class ProxyTileService : TileService() {
         sendBroadcast(intent)
     }
 
-    private fun updateTileState(isRunning: Boolean, isWorking: Boolean, isCaptcha: Boolean = false, autoLaunchEnabled: Boolean = false) {
+    private fun updateTileState(
+        isRunning: Boolean,
+        isWorking: Boolean,
+        isCaptcha: Boolean = false,
+        autoLaunchEnabled: Boolean = false,
+        isDirect: Boolean = false
+    ) {
         val tile = qsTile ?: return
         
         tile.state = if (isRunning || autoLaunchEnabled) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
@@ -125,8 +133,9 @@ class ProxyTileService : TileService() {
             tile.subtitle = when {
                 isCaptcha -> getString(R.string.tile_captcha)
                 autoLaunchEnabled && !isRunning -> getString(R.string.settings_auto_launch_title)
-                isRunning && isWorking -> getString(R.string.tile_active)
-                isRunning -> getString(R.string.starting)
+                isWorking && isDirect -> getString(R.string.tile_direct)
+                isWorking && isRunning -> getString(R.string.tile_active)
+                isRunning -> getString(R.string.connecting)
                 else -> ""
             }
         }
