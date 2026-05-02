@@ -311,7 +311,6 @@ fun HomeScreen(
         }
     }
 
-    val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
     val showBottomSheet = rememberSaveable { mutableStateOf(false) }
     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -1092,150 +1091,51 @@ fun HomeScreen(
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            // 6. Current Connection Details (Only for Raw Mode)
+            if (activeConfig.isValid && activeConfig.isRawMode) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp)
+                        .graphicsLayer { alpha = 0.55f }
+                ) {
+                    androidx.compose.material3.HorizontalDivider(
+                        modifier = Modifier.padding(top = 24.dp, bottom = 12.dp),
+                        thickness = 0.5.dp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+                    )
+                    
+                    Text(
+                        text = stringResource(R.string.raw_mode),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
 
-            // 6. Current Connection Details
-            if (activeConfig.isValid) {
-                SettingsGroup(title = stringResource(R.string.current_client_settings)) {
-                    Column (
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp)
-                    ) {
-                        if (activeConfig.isRawMode) {
-                            Text(
-                                stringResource(R.string.raw_mode),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Spacer(Modifier.height(4.dp))
-
-                            // Разбираем rawCommand с группировкой параметров и значений
-                            val parts = activeConfig.rawCommand.split("\\s+".toRegex())
-                                .filter { it.isNotBlank() }
-                            val args = mutableListOf<String>()
-                            var i = 0
-                            while (i < parts.size) {
-                                val part = parts[i]
-                                if (part.startsWith("-") && i + 1 < parts.size && !parts[i + 1].startsWith(
-                                        "-"
-                                    )
-                                ) {
-                                    // Параметр со значением: объединяем в одну строку
-                                    args.add("$part ${parts[i + 1]}")
-                                    i += 2
-                                } else {
-                                    // Флаг без значения или одиночный элемент
-                                    args.add(part)
-                                    i += 1
-                                }
-                            }
-                            Column {
-                                args.forEach { arg ->
-                                    Text(
-                                        arg,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Spacer(Modifier.height(4.dp))  // Небольшой отступ между аргументами
-                                }
-                            }
+                    val parts = activeConfig.rawCommand.split("\\s+".toRegex())
+                        .filter { it.isNotBlank() }
+                    val args = mutableListOf<String>()
+                    var i = 0
+                    while (i < parts.size) {
+                        val part = parts[i]
+                        if (part.startsWith("-") && i + 1 < parts.size && !parts[i + 1].startsWith("-")) {
+                            args.add("$part ${parts[i + 1]}")
+                            i += 2
                         } else {
-                            if (activeConfig.dcMode) {
-                                ConfigRow(
-                                    stringResource(R.string.tunnel_label),
-                                    stringResource(R.string.dc_tunnel)
-                                )
-                                ConfigRow(
-                                    stringResource(R.string.dc_type_label),
-                                    stringResource(if (activeConfig.dcType == DCType.SALUTE_JAZZ) R.string.jazz_label else R.string.wb_stream_label)
-                                )
-                                if (activeConfig.dcType == DCType.SALUTE_JAZZ) {
-                                    ConfigRow(
-                                        stringResource(R.string.jazz_room),
-                                        activeConfig.jazzCreds.redact(privacyMode)
-                                    )
-                                } else {
-                                    val wbstreamUuid = activeConfig.wbstreamUuid.redact(privacyMode)
-                                    if (activeConfig.wbstreamUuid.isNotBlank()) {
-                                        ConfigRow(
-                                            stringResource(R.string.wbstream_uuid_label),
-                                            if (wbstreamUuid.length > 30) {
-                                                wbstreamUuid.take(8) + "..." + wbstreamUuid.takeLast(6)
-                                            } else {
-                                                wbstreamUuid.ifBlank { stringResource(R.string.not_set) }
-                                            }
-                                        )
-                                    }
-                                }
-                                if (activeConfig.vlessMode) {
-                                    ConfigRow(
-                                        stringResource(R.string.transport_protocol),
-                                        stringResource(R.string.vless)
-                                    )
-                                }
-                            } else {
-                                ConfigRow(
-                                    stringResource(R.string.tunnel_label),
-                                    stringResource(R.string.turn_tunnel)
-                                )
-                                when (activeConfig.kernelVariant) {
-                                    KernelVariant.VK_TURN_PROXY -> {
-                                        ConfigRow(
-                                            stringResource(R.string.server),
-                                            activeConfig.serverAddress.redact(privacyMode)
-                                        )
-                                        val vkLink = activeConfig.vkLink.redact(privacyMode)
-                                        if (activeConfig.vkLink.isNotBlank()) {
-                                            ConfigRow(
-                                                stringResource(R.string.vk_link_label),
-                                                if (vkLink.length > 30) {
-                                                    vkLink.take(21) + "..." + vkLink.takeLast(6)
-                                                } else {
-                                                    vkLink.ifBlank { stringResource(R.string.not_set) }
-                                                }
-                                            )
-                                        }
-                                        ConfigRow(
-                                            stringResource(R.string.threads),
-                                            "${activeConfig.threads}"
-                                        )
-                                        ConfigRow(
-                                            stringResource(R.string.transport_protocol),
-                                            stringResource(if (activeConfig.vlessMode) R.string.vless else {
-                                                if (activeConfig.useUdp) R.string.udp else R.string.tcp
-                                            })
-                                        )
-                                        if (activeConfig.noDtls && activeConfig.useUdp) {
-                                            ConfigRow(stringResource(R.string.no_dtls), stringResource(R.string.check_mark))
-                                        }
-                                        if (activeConfig.manualCaptcha) {
-                                            ConfigRow(stringResource(R.string.manual_captcha), stringResource(R.string.check_mark))
-                                        }
-                                        if (activeConfig.forceTurnPort443) {
-                                            ConfigRow(stringResource(R.string.force_turn_port_443), stringResource(R.string.check_mark))
-                                        }
-                                    }
-
-                                    KernelVariant.TURNABLE -> {
-                                        val turnableUrl = activeConfig.turnableUrl.redact(privacyMode)
-                                        if (activeConfig.turnableUrl.isNotBlank()) {
-                                            ConfigRow(
-                                                stringResource(R.string.turnable_url_label),
-                                                if (turnableUrl.length > 30) {
-                                                    turnableUrl.take(21) + "..." + turnableUrl.takeLast(6)
-                                                } else {
-                                                    turnableUrl.ifBlank { stringResource(R.string.not_set) }
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                            ConfigRow(
-                                stringResource(R.string.local_port),
-                                activeConfig.localPort.redact(privacyMode)
+                            args.add(part)
+                            i += 1
+                        }
+                    }
+                    Column(
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        args.forEach { arg ->
+                            Text(
+                                text = "• $arg",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -1683,23 +1583,24 @@ private fun formatSpeed(bytesPerSecond: Long): String {
 
 
 @Composable
-private fun ConfigRow(label: String, value: String) {
+private fun ConfigRow(label: String, value: String, isLast: Boolean = false) {
     Row(
         horizontalArrangement = Arrangement.SpaceBetween,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.Medium
         )
     }
-    Spacer(Modifier.height(4.dp))
 }
 
 @Composable
