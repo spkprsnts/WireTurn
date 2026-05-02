@@ -14,8 +14,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 class ProxyTileService : TileService() {
@@ -39,23 +38,29 @@ class ProxyTileService : TileService() {
     override fun onStartListening() {
         super.onStartListening()
         
-        // Мгновенное обновление из текущего состояния при открытии шторки
+        val prefs = AppPreferences(this)
+
+        // Мгновенное обновление при открытии шторки
+        val initialAutoLaunch = runBlocking { prefs.autoLaunchSettingsFlow.first() }
         updateTileState(
             ProxyServiceState.isRunning.value,
             ProxyServiceState.isWorking.value,
-            ProxyServiceState.captchaSession.value != null
+            ProxyServiceState.captchaSession.value != null,
+            initialAutoLaunch.enabled
         )
 
         statusJob?.cancel()
-        statusJob = combine(
-            ProxyServiceState.isRunning,
-            ProxyServiceState.isWorking,
-            ProxyServiceState.captchaSession
-        ) { running, working, captcha ->
-            Triple(running, working, captcha != null)
-        }.onEach { (isRunning, isWorking, isCaptcha) ->
-            updateTileState(isRunning, isWorking, isCaptcha)
-        }.launchIn(serviceScope)
+        statusJob = serviceScope.launch {
+            combine(
+                ProxyServiceState.isRunning,
+                ProxyServiceState.isWorking,
+                ProxyServiceState.captchaSession,
+                prefs.autoLaunchSettingsFlow
+            ) { running, working, captcha, autoLaunch ->
+                val isCaptcha = captcha != null
+                updateTileState(running, working, isCaptcha, autoLaunch.enabled)
+            }.collect {}
+        }
     }
 
     override fun onStopListening() {
@@ -71,9 +76,17 @@ class ProxyTileService : TileService() {
     override fun onClick() {
         super.onClick()
         val currentlyRunning = ProxyServiceState.isRunning.value
+        val prefs = AppPreferences(this)
+        val autoLaunch = runBlocking { prefs.autoLaunchSettingsFlow.first() }
+
+        if (autoLaunch.enabled) {
+            // Если включен автозапуск — выключаем его и останавливаем прокси
+            runBlocking { prefs.updateAutoLaunchSettings(autoLaunch.copy(enabled = false)) }
+            ProxyService.stop(this)
+            return
+        }
 
         if (!currentlyRunning) {
-            val prefs = AppPreferences(this)
             val cfg = runBlocking { prefs.clientConfigFlow.first() }
 
             cfg.getValidationErrorResId()?.let { errorRes ->
@@ -82,19 +95,19 @@ class ProxyTileService : TileService() {
             }
             
             // Оптимистичное обновление: сразу показываем состояние "запуска"
-            updateTileState(isRunning = true, isWorking = false)
+            updateTileState(isRunning = true, isWorking = false, autoLaunchEnabled = false)
             ProxyServiceState.setRunning(true)
         } else {
             // Оптимистичное обновление: сразу выключаем плитку
-            updateTileState(isRunning = false, isWorking = false)
+            updateTileState(isRunning = false, isWorking = false, autoLaunchEnabled = false)
             ProxyServiceState.setRunning(false)
             ProxyServiceState.setWorking(false)
         }
 
         val action = if (currentlyRunning) {
-            "${packageName}.STOP_PROXY"
+            "$packageName.STOP_PROXY"
         } else {
-            "${packageName}.START_PROXY"
+            "$packageName.START_PROXY"
         }
         
         val intent = Intent(this, ProxyReceiver::class.java).apply {
@@ -103,14 +116,15 @@ class ProxyTileService : TileService() {
         sendBroadcast(intent)
     }
 
-    private fun updateTileState(isRunning: Boolean, isWorking: Boolean, isCaptcha: Boolean = false) {
+    private fun updateTileState(isRunning: Boolean, isWorking: Boolean, isCaptcha: Boolean = false, autoLaunchEnabled: Boolean = false) {
         val tile = qsTile ?: return
         
-        tile.state = if (isRunning) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
+        tile.state = if (isRunning || autoLaunchEnabled) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             tile.subtitle = when {
                 isCaptcha -> getString(R.string.tile_captcha)
+                autoLaunchEnabled && !isRunning -> getString(R.string.settings_auto_launch_title)
                 isRunning && isWorking -> getString(R.string.tile_active)
                 isRunning -> getString(R.string.starting)
                 else -> ""

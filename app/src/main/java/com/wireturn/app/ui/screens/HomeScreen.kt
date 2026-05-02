@@ -160,6 +160,7 @@ fun HomeScreen(
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
 
     val currentProfileId by viewModel.currentProfileId.collectAsStateWithLifecycle()
+    val autoLaunchSettings by viewModel.autoLaunchSettings.collectAsStateWithLifecycle()
 
     val isArchitectureSupported = viewModel.isArchitectureSupported
     val deviceArchitecture = viewModel.deviceArchitecture
@@ -182,6 +183,34 @@ fun HomeScreen(
     var lastSuccessPing by remember { mutableStateOf<MainViewModel.PingResult.Success?>(null) }
     var isControlPingScheduled by rememberSaveable { mutableStateOf(value = false) }
     
+    val showAutoLaunchOverride = rememberSaveable { mutableStateOf(false) }
+    var pendingProxyAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+
+    if (showAutoLaunchOverride.value) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showAutoLaunchOverride.value = false },
+            title = { Text(stringResource(R.string.auto_launch_override_title)) },
+            text = { Text(stringResource(R.string.auto_launch_override_desc)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showAutoLaunchOverride.value = false
+                    viewModel.updateAutoLaunchSettings(autoLaunchSettings.copy(enabled = false))
+                    pendingProxyAction?.invoke()
+                    pendingProxyAction = null
+                }) {
+                    Text(stringResource(R.string.auto_launch_disable_and_continue))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { 
+                    showAutoLaunchOverride.value = false
+                }) {
+                    Text(stringResource(R.string.btn_close))
+                }
+            }
+        )
+    }
+
     // --- Effects & Lifecycle ---
     LaunchedEffect(proxyPing) {
         if (proxyPing is MainViewModel.PingResult.Success) {
@@ -531,44 +560,56 @@ fun HomeScreen(
             ) {
                 ProxyToggleButton(
                     state = proxyState,
+                    isLocked = autoLaunchSettings.enabled,
                     onClick = {
-                        when (proxyState) {
-                            is ProxyState.Idle, is ProxyState.Error -> {
-                                HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                                if (xraySettings.xrayVpnMode) {
-                                    val intent = VpnService.prepare(context)
-                                    if (intent != null) {
-                                        vpnLauncher.launch(intent)
+                        val action = {
+                            when (proxyState) {
+                                is ProxyState.Idle, is ProxyState.Error -> {
+                                    HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
+                                    if (xraySettings.xrayVpnMode) {
+                                        val intent = VpnService.prepare(context)
+                                        if (intent != null) {
+                                            vpnLauncher.launch(intent)
+                                        } else {
+                                            viewModel.startProxy()
+                                        }
                                     } else {
                                         viewModel.startProxy()
                                     }
-                                } else {
-                                    viewModel.startProxy()
                                 }
+                                is ProxyState.Running, is ProxyState.Working, is ProxyState.CaptchaRequired -> {
+                                    HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_OFF)
+                                    viewModel.stopProxy()
+                                }
+                                else -> {}
                             }
-                            is ProxyState.Running, is ProxyState.Working, is ProxyState.CaptchaRequired -> {
-                                HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_OFF)
-                                viewModel.stopProxy()
-                            }
-                            else -> {}
+                        }
+
+                        if (autoLaunchSettings.enabled) {
+                            pendingProxyAction = action
+                            showAutoLaunchOverride.value = true
+                        } else {
+                            action()
                         }
                     }
                 )
 
                 Text(
-                    text = when (proxyState) {
-                        is ProxyState.Working -> stringResource(if (customKernelExists) R.string.proxy_running else R.string.proxy_active)
-                        is ProxyState.Starting -> stringResource(R.string.starting)
-                        is ProxyState.Running -> stringResource(R.string.proxy_connecting)
-                        is ProxyState.Error -> (proxyState as ProxyState.Error).message
-                        is ProxyState.CaptchaRequired -> stringResource(R.string.proxy_captcha_required)
+                    text = when {
+                        autoLaunchSettings.enabled -> stringResource(R.string.proxy_auto_launch_active)
+                        proxyState is ProxyState.Working -> stringResource(if (customKernelExists) R.string.proxy_running else R.string.proxy_active)
+                        proxyState is ProxyState.Starting -> stringResource(R.string.starting)
+                        proxyState is ProxyState.Running -> stringResource(R.string.proxy_connecting)
+                        proxyState is ProxyState.Error -> (proxyState as ProxyState.Error).message
+                        proxyState is ProxyState.CaptchaRequired -> stringResource(R.string.proxy_captcha_required)
                         else -> stringResource(R.string.proxy_press_to_start)
                     },
                     style = MaterialTheme.typography.titleMedium,
-                    color = when (proxyState) {
-                        is ProxyState.Working -> MaterialTheme.colorScheme.primary
-                        is ProxyState.Running, is ProxyState.CaptchaRequired -> MaterialTheme.colorScheme.tertiary
-                        is ProxyState.Error -> MaterialTheme.colorScheme.error
+                    color = when {
+                        autoLaunchSettings.enabled -> MaterialTheme.colorScheme.primary
+                        proxyState is ProxyState.Working -> MaterialTheme.colorScheme.primary
+                        proxyState is ProxyState.Running || proxyState is ProxyState.CaptchaRequired -> MaterialTheme.colorScheme.tertiary
+                        proxyState is ProxyState.Error -> MaterialTheme.colorScheme.error
                         else -> MaterialTheme.colorScheme.onBackground.copy(alpha = 0.65f)
                     },
                     textAlign = TextAlign.Center
@@ -898,9 +939,9 @@ fun HomeScreen(
                         viewModel.updateXraySettings(xraySettings.copy(xrayEnabled = next))
                     }
                 ) {
-                    LaunchedEffect(configValid, xraySettings.xrayEnabled, currentProfileId) {
+                    LaunchedEffect(configValid, xraySettings.xrayEnabled, currentProfileId, autoLaunchSettings.enabled) {
                         delay(500)
-                        if (!configValid && xraySettings.xrayEnabled) {
+                        if (!configValid && xraySettings.xrayEnabled && !autoLaunchSettings.enabled) {
                             viewModel.updateXraySettings(viewModel.xraySettings.value.copy(xrayEnabled = false))
                         }
                     }
@@ -982,13 +1023,15 @@ fun HomeScreen(
                                 hintShown = appsExclusionHintShown,
                                 onHintShown = { viewModel.setAppsExclusionHintShown(true) }
                             ) {
-                                IconButton(onClick = {
-                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                    if (!appsExclusionHintShown) {
-                                        viewModel.setAppsExclusionHintShown(true)
+                                IconButton(
+                                    onClick = {
+                                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                        if (!appsExclusionHintShown) {
+                                            viewModel.setAppsExclusionHintShown(true)
+                                        }
+                                        onNavigateToExclusions()
                                     }
-                                    onNavigateToExclusions()
-                                }) {
+                                ) {
                                     Icon(
                                         painter = painterResource(R.drawable.apps_24px),
                                         contentDescription = stringResource(R.string.vpn_apps_exceptions),
@@ -1285,7 +1328,7 @@ private fun UpdateBanner(
 
 // Кнопка прокси
 @Composable
-private fun ProxyToggleButton(state: ProxyState, onClick: () -> Unit) {
+private fun ProxyToggleButton(state: ProxyState, isLocked: Boolean = false, onClick: () -> Unit) {
     val containerColor by animateColorAsState(
         targetValue = when (state) {
             is ProxyState.Working -> MaterialTheme.colorScheme.primary
@@ -1331,42 +1374,79 @@ private fun ProxyToggleButton(state: ProxyState, onClick: () -> Unit) {
         label = "elevation"
     )
 
-    Surface(
-        onClick = onClick,
-        modifier = Modifier
-            .size(148.dp)
-            .scale(scale)
-            .shadow(
-                elevation = elevation,
-                shape = CircleShape,
-                ambientColor = Color.Black.copy(alpha = 0.8f),
-                spotColor = Color.Black.copy(alpha = 0.2f)
-            )
-            .clip(CircleShape),
-        shape = CircleShape,
-        color = containerColor,
-        shadowElevation = 0.dp,
-        tonalElevation = elevation
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(160.dp)) {
+        Surface(
+            onClick = onClick,
+            modifier = Modifier
+                .size(148.dp)
+                .scale(scale)
+                .shadow(
+                    elevation = elevation,
+                    shape = CircleShape,
+                    ambientColor = Color.Black.copy(alpha = 0.8f),
+                    spotColor = Color.Black.copy(alpha = 0.2f)
+                )
+                .clip(CircleShape),
+            shape = CircleShape,
+            color = containerColor,
+            shadowElevation = 0.dp,
+            tonalElevation = elevation
         ) {
-            when (state) {
-                is ProxyState.Starting, is ProxyState.Running, is ProxyState.CaptchaRequired -> CircularWavyProgressIndicator(color = contentColor)
-                is ProxyState.Working -> Icon(
-                    painterResource(R.drawable.check_circle_24px), stringResource(R.string.proxy_active_stop),
-                    Modifier.size(66.dp), tint = contentColor
-                )
-                is ProxyState.Error -> Icon(
-                    painterResource(R.drawable.error_24px), stringResource(R.string.proxy_error_restart),
-                    Modifier.size(66.dp), tint = contentColor
-                )
-                else -> Icon(
-                    painterResource(R.drawable.power_24px), stringResource(R.string.start_proxy),
-                    Modifier.size(66.dp), tint = contentColor
-                )
+            Box(contentAlignment = Alignment.Center) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    when (state) {
+                        is ProxyState.Starting, is ProxyState.Running, is ProxyState.CaptchaRequired -> CircularWavyProgressIndicator(
+                            color = contentColor
+                        )
+
+                        is ProxyState.Working -> Icon(
+                            painterResource(R.drawable.check_circle_24px),
+                            stringResource(R.string.proxy_active_stop),
+                            Modifier.size(66.dp),
+                            tint = contentColor
+                        )
+
+                        is ProxyState.Error -> Icon(
+                            painterResource(R.drawable.error_24px),
+                            stringResource(R.string.proxy_error_restart),
+                            Modifier.size(66.dp),
+                            tint = contentColor
+                        )
+
+                        else -> Icon(
+                            painterResource(R.drawable.power_24px),
+                            stringResource(R.string.start_proxy),
+                            Modifier.size(66.dp),
+                            tint = contentColor
+                        )
+                    }
+                }
+            }
+        }
+
+        if (isLocked) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = (-12).dp, y = 12.dp)
+                    .size(36.dp)
+                    .shadow(elevation = 3.dp, shape = CircleShape),
+                tonalElevation = 3.dp
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        painter = painterResource(R.drawable.lock_24px),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
     }

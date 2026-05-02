@@ -133,6 +133,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _vlessLinkHistory = MutableStateFlow<List<String>>(emptyList())
     val vlessLinkHistory: StateFlow<List<String>> = _vlessLinkHistory.asStateFlow()
 
+    private val _autoLaunchSettings = MutableStateFlow(com.wireturn.app.data.AutoLaunchSettings())
+    val autoLaunchSettings: StateFlow<com.wireturn.app.data.AutoLaunchSettings> = _autoLaunchSettings.asStateFlow()
+
+    private var autoLaunchJob: Job? = null
+
     val profiles: StateFlow<List<Profile>> = profileManager.profiles
     val currentProfileId: StateFlow<String> = profileManager.currentProfileId
 
@@ -185,6 +190,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val captchaStyleMod = prefs.captchaStyleModFlow.first()
             val captchaForceTint = prefs.captchaForceTintFlow.first()
             val appLanguage = prefs.appLanguageFlow.first()
+            val autoLaunchSettings = prefs.autoLaunchSettingsFlow.first()
 
             val wgConfig = prefs.wgConfigFlow.first()
             val xraySettings = prefs.xraySettingsFlow.first()
@@ -211,6 +217,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _captchaStyleMod.value = captchaStyleMod
             _captchaForceTint.value = captchaForceTint
             _appLanguage.value = appLanguage
+            _autoLaunchSettings.value = autoLaunchSettings
+            updateAutoLaunchJob(autoLaunchSettings)
             applyLanguage(appLanguage)
             _wgConfig.value = wgConfig
             _xraySettings.value = xraySettings
@@ -259,6 +267,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.captchaStyleModFlow.collect { _captchaStyleMod.value = it } }
             launch { prefs.captchaForceTintFlow.collect { _captchaForceTint.value = it } }
             launch { prefs.appLanguageFlow.collect { _appLanguage.value = it } }
+            launch { 
+                prefs.autoLaunchSettingsFlow.collect { settings ->
+                    _autoLaunchSettings.value = settings
+                    updateAutoLaunchJob(settings)
+                } 
+            }
             launch {
                 prefs.allowUnstableUpdatesFlow
                     .drop(1)
@@ -392,6 +406,66 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val privacyMode: StateFlow<Boolean> = _privacyMode.asStateFlow()
 
     fun setPrivacyMode(enabled: Boolean) { _privacyMode.value = enabled }
+
+    fun updateAutoLaunchSettings(settings: com.wireturn.app.data.AutoLaunchSettings) {
+        viewModelScope.launch { 
+            prefs.updateAutoLaunchSettings(settings)
+            com.wireturn.app.ProxyTileService.requestUpdate(getApplication())
+        }
+    }
+
+    private fun isNetworkAvailable(): Boolean {
+        val cm = getApplication<Application>().getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+        val network = cm?.activeNetwork ?: return false
+        val capabilities = cm.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
+    private suspend fun isUrlReachable(url: String): Boolean {
+        if (!isNetworkAvailable()) return true // No connection at all, don't trigger proxy
+
+        repeat(3) {
+            try {
+                val connection = withContext(Dispatchers.IO) {
+                    val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+                    conn.connectTimeout = 2500
+                    conn.readTimeout = 2500
+                    conn.requestMethod = "HEAD"
+                    conn.useCaches = false
+                    conn
+                }
+                val responseCode = withContext(Dispatchers.IO) { connection.responseCode }
+                if (responseCode in 200..399) return true
+            } catch (_: Exception) {
+            }
+            if (it < 2) delay(500) // Async delay between retries
+        }
+        return false
+    }
+
+    private fun updateAutoLaunchJob(settings: com.wireturn.app.data.AutoLaunchSettings) {
+        autoLaunchJob?.cancel()
+        if (settings.enabled) {
+            autoLaunchJob = viewModelScope.launch(Dispatchers.IO) {
+                while (true) {
+                    val isReachable = isUrlReachable(settings.checkUrl)
+                    val isProxyRunning = proxyState.value !is ProxyState.Idle && proxyState.value !is ProxyState.Error
+
+                    if (!isReachable && !isProxyRunning) {
+                        withContext(Dispatchers.Main) {
+                            startProxy()
+                        }
+                    } else if (isReachable && isProxyRunning) {
+                        withContext(Dispatchers.Main) {
+                            stopProxy()
+                        }
+                    }
+
+                    delay(settings.intervalMinutes * 60 * 1000L)
+                }
+            }
+        }
+    }
 
     fun startProxy() {
         ProcessLifecycleOwner.get().lifecycleScope.launch {

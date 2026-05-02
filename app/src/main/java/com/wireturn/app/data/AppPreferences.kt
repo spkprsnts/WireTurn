@@ -123,6 +123,12 @@ data class GlobalVpnSettings(
     @SerializedName("groupAppsByLetter") val groupAppsByLetter: Boolean = true
 )
 
+data class AutoLaunchSettings(
+    @SerializedName("enabled") val enabled: Boolean = false,
+    @SerializedName("checkUrl") val checkUrl: String = "https://www.google.com",
+    @SerializedName("intervalMinutes") val intervalMinutes: Int = 15
+)
+
 data class XrayConfig(
     @SerializedName("socksBindAddress") val socksBindAddress: String = DEFAULT_SOCKS_BIND_ADDRESS,
     @SerializedName("httpBindAddress") val httpBindAddress: String = "",
@@ -295,6 +301,9 @@ class AppPreferences(context: Context) {
         val CAPTCHA_STYLE_MOD = booleanPreferencesKey("captcha_style_mod")
         val CAPTCHA_FORCE_TINT = booleanPreferencesKey("captcha_force_tint")
         val APP_LANGUAGE = stringPreferencesKey("app_language")
+        val AUTO_LAUNCH_ENABLED = booleanPreferencesKey("auto_launch_enabled")
+        val AUTO_LAUNCH_URL = stringPreferencesKey("auto_launch_url")
+        val AUTO_LAUNCH_INTERVAL = intPreferencesKey("auto_launch_interval")
     }
 
     val profilesFlow: Flow<List<Profile>> = context.dataStore.data
@@ -328,6 +337,14 @@ class AppPreferences(context: Context) {
 
     val currentProfileNameFlow: Flow<String?> = combine(profilesFlow, currentProfileIdFlow) { profiles, id ->
         profiles.find { it.id == id }?.name
+    }
+
+    suspend fun updateAutoLaunchSettings(settings: AutoLaunchSettings) {
+        context.dataStore.edit { prefs ->
+            prefs[AUTO_LAUNCH_ENABLED] = settings.enabled
+            prefs[AUTO_LAUNCH_URL] = settings.checkUrl
+            prefs[AUTO_LAUNCH_INTERVAL] = settings.intervalMinutes
+        }
     }
 
     suspend fun saveProfiles(profiles: List<Profile>) {
@@ -478,6 +495,17 @@ class AppPreferences(context: Context) {
     val appLanguageFlow: Flow<String> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { it[APP_LANGUAGE] ?: "system" }
+        .distinctUntilChanged()
+
+    val autoLaunchSettingsFlow: Flow<AutoLaunchSettings> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { prefs ->
+            AutoLaunchSettings(
+                enabled = prefs[AUTO_LAUNCH_ENABLED] ?: false,
+                checkUrl = prefs[AUTO_LAUNCH_URL] ?: "https://www.google.com",
+                intervalMinutes = prefs[AUTO_LAUNCH_INTERVAL] ?: 15
+            )
+        }
         .distinctUntilChanged()
 
     val vkLinkHistoryFlow: Flow<List<String>> = context.dataStore.data

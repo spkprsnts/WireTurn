@@ -13,6 +13,7 @@ import com.wireturn.app.viewmodel.VpnState
 object NotificationHelper {
     const val NOTIFICATION_ID = 1
     const val CAPTCHA_NOTIFICATION_ID = 2
+    const val ERROR_NOTIFICATION_ID = 3
     const val CHANNEL_ID = "ProxyChannel"
     const val CAPTCHA_CHANNEL_ID = "CaptchaChannel"
 
@@ -173,6 +174,28 @@ object NotificationHelper {
 
         context.getSystemService(NotificationManager::class.java)
             .notify(CAPTCHA_NOTIFICATION_ID, builder.build())
+    }
+
+    fun notifyError(context: Context, message: String) {
+        val openAppIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.let {
+            PendingIntent.getActivity(context, 2, it, PendingIntent.FLAG_IMMUTABLE)
+        }
+
+        val builder = NotificationCompat.Builder(context, CAPTCHA_CHANNEL_ID)
+            .setContentTitle(context.getString(R.string.error_notification_title))
+            .setContentText(message)
+            .setSmallIcon(R.drawable.error_24px)
+            .setContentIntent(openAppIntent)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+
+        context.getSystemService(NotificationManager::class.java)
+            .notify(ERROR_NOTIFICATION_ID, builder.build())
+    }
+
+    fun cancelErrorNotification(context: Context) {
+        context.getSystemService(NotificationManager::class.java)
+            .cancel(ERROR_NOTIFICATION_ID)
     }
 
     fun cancelCaptchaNotification(context: Context) {

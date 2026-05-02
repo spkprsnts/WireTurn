@@ -282,6 +282,7 @@
     <string name="vpn_short" translatable="false">VPN</string>
     <string name="captcha_notification_title">Captcha required</string>
     <string name="captcha_notification_text">Tap to complete check</string>
+    <string name="error_notification_title">Startup failed</string>
     <string name="tile_active">Started</string>
     <string name="tile_captcha">Captcha!</string>
     <string name="notification_reconnecting">Reconnecting (%1$d/%2$d)…</string>
@@ -301,6 +302,15 @@
     <string name="restart_reason_client">Client config changed</string>
     <string name="restart_reason_xray">Xray settings changed</string>
     <string name="btn_restart">Restart</string>
+
+    <string name="proxy_auto_launch_active">Auto-launch active</string>
+    <string name="settings_auto_launch_title">Auto-launch</string>
+    <string name="settings_auto_launch_desc">Start proxy only when internet is restricted</string>
+    <string name="settings_auto_launch_url">Check URL</string>
+    <string name="settings_auto_launch_interval">Check interval (min)</string>
+    <string name="auto_launch_override_title">Manual control disabled</string>
+    <string name="auto_launch_override_desc">Proxy is currently managed by auto-launch. To perform manual control, you need to disable auto-launch.</string>
+    <string name="auto_launch_disable_and_continue">Disable and continue</string>
 
     <!-- VLESS Setup -->
     <string name="vless_link_label">VLESS link</string>

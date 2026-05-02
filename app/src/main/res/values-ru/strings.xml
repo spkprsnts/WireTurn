@@ -239,6 +239,7 @@
     <string name="xray_protocol_label">Протокол</string>
     <string name="captcha_notification_title">Требуется капча</string>
     <string name="captcha_notification_text">Нажмите, чтобы пройти проверку</string>
+    <string name="error_notification_title">Ошибка запуска</string>
     <string name="tile_active">Запущено</string>
     <string name="tile_captcha">Капча!</string>
     <string name="notification_reconnecting">Переподключение (%1$d/%2$d)…</string>
@@ -253,6 +254,15 @@
     <string name="restart_reason_client">Изменён конфиг клиента</string>
     <string name="restart_reason_xray">Изменены настройки Xray</string>
     <string name="btn_restart">Перезапустить</string>
+
+    <string name="proxy_auto_launch_active">Автозапуск активен</string>
+    <string name="settings_auto_launch_title">Автозапуск</string>
+    <string name="settings_auto_launch_desc">Запуск прокси только при ограничении интернета</string>
+    <string name="settings_auto_launch_url">URL для проверки</string>
+    <string name="settings_auto_launch_interval">Интервал проверки (мин)</string>
+    <string name="auto_launch_override_title">Ручное управление заблокировано</string>
+    <string name="auto_launch_override_desc">Сейчас прокси управляется автозапуском. Чтобы управлять вручную, необходимо отключить режим автозапуска.</string>
+    <string name="auto_launch_disable_and_continue">Отключить и продолжить</string>
 
     <!-- Настройка VLESS -->
     <string name="vless_link_label">VLESS-ссылка</string>

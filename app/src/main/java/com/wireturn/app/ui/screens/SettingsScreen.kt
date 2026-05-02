@@ -77,6 +77,7 @@ import com.wireturn.app.ui.MarkdownUtils
 import com.wireturn.app.ui.SettingsGroup
 import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.ui.SwitchRow
+import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.UpdateState
 
@@ -275,6 +276,7 @@ fun SettingsScreen(
 
             // 2.1 Сеть
             val restartOnNetworkChange by viewModel.restartOnNetworkChange.collectAsStateWithLifecycle()
+            val autoLaunchSettings by viewModel.autoLaunchSettings.collectAsStateWithLifecycle()
 
             SettingsGroup(title = stringResource(R.string.connection_title)) {
                 SettingsGroupItem(
@@ -291,6 +293,92 @@ fun SettingsScreen(
                         supportingText = stringResource(R.string.restart_on_network_change_desc),
                         checked = restartOnNetworkChange,
                         onCheckedChange = { viewModel.setRestartOnNetworkChange(it) }
+                    )
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                var localUrl by remember { mutableStateOf(autoLaunchSettings.checkUrl) }
+                var localInterval by remember { mutableStateOf(autoLaunchSettings.intervalMinutes.toString()) }
+
+                val defaultUrl = "https://www.google.com"
+                val defaultInterval = 15
+
+                val isUrlValid = remember(localUrl) {
+                    localUrl.isNotBlank() && (localUrl.startsWith("http://") || localUrl.startsWith("https://"))
+                }
+                val minutesInt = localInterval.toIntOrNull()
+                val isIntervalValid = minutesInt != null && minutesInt >= 1
+                val canEnable = isUrlValid && isIntervalValid
+
+                LaunchedEffect(localUrl) {
+                    delay(500)
+                    val valueToSave = if (isUrlValid) localUrl else defaultUrl
+                    if (valueToSave != autoLaunchSettings.checkUrl) {
+                        viewModel.updateAutoLaunchSettings(autoLaunchSettings.copy(checkUrl = valueToSave))
+                    }
+                }
+
+                LaunchedEffect(localInterval) {
+                    delay(500)
+                    val valueToSave = if (isIntervalValid) minutesInt else defaultInterval
+                    if (valueToSave != autoLaunchSettings.intervalMinutes) {
+                        viewModel.updateAutoLaunchSettings(autoLaunchSettings.copy(intervalMinutes = valueToSave))
+                    }
+                }
+
+                LaunchedEffect(canEnable) {
+                    if (!canEnable && autoLaunchSettings.enabled) {
+                        viewModel.updateAutoLaunchSettings(autoLaunchSettings.copy(enabled = false))
+                    }
+                }
+
+                SettingsGroupItem(
+                    isTop = true,
+                    isBottom = false,
+                    containerColor = blockContainerColor,
+                    enabled = canEnable,
+                    onClick = {
+                        if (!canEnable) return@SettingsGroupItem
+                        val next = !autoLaunchSettings.enabled
+                        HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                        viewModel.updateAutoLaunchSettings(autoLaunchSettings.copy(enabled = next))
+                    }
+                ) {
+                    SwitchRow(
+                        label = stringResource(R.string.settings_auto_launch_title),
+                        supportingText = stringResource(R.string.settings_auto_launch_desc),
+                        checked = autoLaunchSettings.enabled,
+                        enabled = canEnable,
+                        onCheckedChange = { viewModel.updateAutoLaunchSettings(autoLaunchSettings.copy(enabled = it)) }
+                    )
+                }
+
+                SettingsGroupItem(
+                    isTop = false,
+                    isBottom = false,
+                    containerColor = blockContainerColor
+                ) {
+                    TextFieldRow(
+                        label = stringResource(R.string.settings_auto_launch_url),
+                        value = localUrl,
+                        onValueChange = { localUrl = it },
+                        isError = !isUrlValid && localUrl.isNotBlank(),
+                        placeholder = defaultUrl
+                    )
+                }
+
+                SettingsGroupItem(
+                    isTop = false,
+                    isBottom = true,
+                    containerColor = blockContainerColor
+                ) {
+                    TextFieldRow(
+                        label = stringResource(R.string.settings_auto_launch_interval),
+                        value = localInterval,
+                        onValueChange = { localInterval = it },
+                        isError = !isIntervalValid && localInterval.isNotBlank(),
+                        placeholder = defaultInterval.toString()
                     )
                 }
             }

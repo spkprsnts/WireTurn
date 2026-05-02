@@ -18,7 +18,7 @@ class ProxyReceiver : BroadcastReceiver() {
                 ProxyService.start(context, cfg)
             }
             "$pkg.STOP_PROXY" -> {
-                ProxyService.stop(context)
+                ProxyService.stop(context, byUser = true)
             }
             "$pkg.START_VPN" -> {
                 val prefs = AppPreferences(context)

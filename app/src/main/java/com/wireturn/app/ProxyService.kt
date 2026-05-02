@@ -71,12 +71,14 @@ class ProxyService : Service() {
         serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
         NotificationHelper.createChannel(this)
         observeCaptchaForNotification()
+        observeStartupResultForNotification()
         startXraySupervisor()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) {
-            handleStopAction()
+        val action = intent?.action
+        if (action == ACTION_STOP || action == ACTION_STOP_BY_USER) {
+            handleStopAction(disableAutoLaunch = action == ACTION_STOP_BY_USER)
             return START_NOT_STICKY
         }
 
@@ -88,8 +90,13 @@ class ProxyService : Service() {
         val prefs = AppPreferences(applicationContext)
         val cfg = runBlocking { prefs.clientConfigFlow.first() }
         if (!cfg.isValid) {
+            val errorRes = cfg.getValidationErrorResId() ?: R.string.error_settings_empty
+            ProxyServiceState.setStartupResult(StartupResult.Failed(getString(errorRes)))
             ProxyServiceState.setRunning(false)
-            stopSelf()
+            serviceScope.launch {
+                delay(500)
+                withContext(Dispatchers.Main) { stopSelf() }
+            }
             return START_NOT_STICKY
         }
 
@@ -107,6 +114,7 @@ class ProxyService : Service() {
     }
 
     private fun initStartup() {
+        NotificationHelper.cancelErrorNotification(this)
         ProxyServiceState.setStartupResult(null)
         ProxyServiceState.setRunning(true)
         userStopped.set(false)
@@ -172,6 +180,7 @@ class ProxyService : Service() {
                     ProxyServiceState.setStartupResult(StartupResult.Failed(getString(R.string.error_kernel_or_settings)))
                 }
                 ProxyServiceState.setRunning(false)
+                delay(500) // Даем время на показ уведомления об ошибке в фоне
                 withContext(Dispatchers.Main) { stopSelf() }
                 break
             }
@@ -522,6 +531,25 @@ class ProxyService : Service() {
         }
     }
 
+    private fun observeStartupResultForNotification() {
+        serviceScope.launch {
+            val prefs = AppPreferences(applicationContext)
+            combine(
+                ProxyServiceState.startupResult,
+                AppLifecycleState.isAppInForeground,
+                prefs.autoLaunchSettingsFlow
+            ) { result, isForeground, autoLaunch ->
+                Triple(result, isForeground, autoLaunch.enabled)
+            }.collect { (result, isForeground, autoLaunchEnabled) ->
+                if (result is StartupResult.Failed && !isForeground && autoLaunchEnabled) {
+                    NotificationHelper.notifyError(this@ProxyService, result.message)
+                } else if (result is StartupResult.Success || isForeground) {
+                    NotificationHelper.cancelErrorNotification(this@ProxyService)
+                }
+            }
+        }
+    }
+
     private fun observeCaptchaForNotification() {
         serviceScope.launch {
             combine(
@@ -589,10 +617,18 @@ class ProxyService : Service() {
         networkCallback = null
     }
 
-    private fun handleStopAction() {
+    private fun handleStopAction(disableAutoLaunch: Boolean) {
         if (userStopped.getAndSet(true)) return
+        NotificationHelper.cancelErrorNotification(this)
         ProxyServiceState.setRunning(false)
         serviceScope.launch {
+            if (disableAutoLaunch) {
+                val prefs = AppPreferences(applicationContext)
+                val autoLaunch = prefs.autoLaunchSettingsFlow.first()
+                if (autoLaunch.enabled) {
+                    prefs.updateAutoLaunchSettings(autoLaunch.copy(enabled = false))
+                }
+            }
             stopBinaryProcessGracefully()
             withContext(Dispatchers.Main) {
                 stopSelf()
@@ -647,6 +683,7 @@ class ProxyService : Service() {
 
     companion object {
         const val ACTION_STOP = "ACTION_STOP"
+        const val ACTION_STOP_BY_USER = "ACTION_STOP_BY_USER"
         const val MAX_RESTARTS = 8
         private val CAPTCHA_URL_REGEX = Pattern.compile("""Open this URL in your browser:\s*(https?://\S+)""")
 
@@ -659,9 +696,9 @@ class ProxyService : Service() {
             context.startForegroundService(serviceIntent)
         }
 
-        fun stop(context: Context) {
+        fun stop(context: Context, byUser: Boolean = false) {
             val intent = Intent(context, ProxyService::class.java).apply {
-                action = ACTION_STOP
+                action = if (byUser) ACTION_STOP_BY_USER else ACTION_STOP
             }
             context.startService(intent)
         }
