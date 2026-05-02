@@ -42,6 +42,9 @@ object ProxyServiceState {
     private val _statusText = MutableStateFlow<String?>(null)
     val statusText: StateFlow<String?> = _statusText.asStateFlow()
 
+    private val _isTunnelSuppressed = MutableStateFlow(false)
+    val isTunnelSuppressed: StateFlow<Boolean> = _isTunnelSuppressed.asStateFlow()
+
     fun setRunning(value: Boolean) {
         _isRunning.value = value
         if (!value) {
@@ -50,8 +53,13 @@ object ProxyServiceState {
             _statusText.value = null
             _isWorking.value = false
             _captchaSession.value = null
+            _isTunnelSuppressed.value = false
             // Не сбрасываем _startupResult здесь, чтобы UI успел прочитать ошибку
         }
+    }
+
+    fun setTunnelSuppressed(suppressed: Boolean) {
+        _isTunnelSuppressed.value = suppressed
     }
 
     fun setStatusText(text: String?) {

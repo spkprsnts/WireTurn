@@ -322,6 +322,13 @@
     <string name="vless_qr_scan_desc">Point the camera at the VLESS configuration QR code to import</string>
     <string name="use_local_listen_address">Use listen address</string>
     <string name="use_local_listen_desc">Instead of the specified VLESS server,\nthe local one will be used</string>
+    <string name="vless_dual_route">Dual-route mode</string>
+    <string name="vless_dual_route_desc">Prefer direct connection to VLESS server, falling back to local tunnel if direct route is restricted</string>
+    <string name="vless_direct_address">Direct server address (host:port)</string>
+    <string name="vless_direct_address_placeholder">1.2.3.4:443</string>
+    <string name="vless_direct_address_desc">External address of the VLESS server</string>
+    <string name="vless_parse_from_link">Parse from link</string>
+    <string name="vless_direct_active">Direct connection</string>
 
     <!-- Warnings -->
     <string name="warn_unsupported_arch_title">Architecture not supported</string>

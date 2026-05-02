@@ -114,9 +114,19 @@ class ProxyService : Service() {
     }
 
     private fun initStartup() {
+        val prefs = AppPreferences(applicationContext)
+        val vlessConfig = runBlocking { prefs.vlessConfigFlow.first() }
+        val xraySettings = runBlocking { prefs.xraySettingsFlow.first() }
+        val isDualRoute = xraySettings.xrayEnabled && vlessConfig.isDualRoute
+
         NotificationHelper.cancelErrorNotification(this)
         ProxyServiceState.setStartupResult(null)
         ProxyServiceState.setRunning(true)
+        
+        if (isDualRoute) {
+            ProxyServiceState.setTunnelSuppressed(true)
+        }
+        
         userStopped.set(false)
         restartCount = 0
 
@@ -152,7 +162,39 @@ class ProxyService : Service() {
     private suspend fun mainSupervisor() = coroutineScope {
         val prefs = AppPreferences(applicationContext)
         
+        launch {
+            ProxyServiceState.isTunnelSuppressed.collect { suppressed ->
+                if (suppressed) {
+                    stopBinaryProcessGracefully()
+                }
+            }
+        }
+
         while (isActive && !userStopped.get()) {
+            val vlessConfig = prefs.vlessConfigFlow.first()
+            val xraySettings = prefs.xraySettingsFlow.first()
+            val isDualRoute = xraySettings.xrayEnabled && vlessConfig.isDualRoute
+            
+            if (isDualRoute && ProxyServiceState.isTunnelSuppressed.value) {
+                val xrayState = XrayServiceState.state.value
+                val isActuallyWorking = xrayState == XrayState.DirectRoute
+                
+                ProxyServiceState.setWorking(isActuallyWorking)
+                
+                if (ProxyServiceState.startupResult.value == null) {
+                    ProxyServiceState.setStartupResult(StartupResult.Success)
+                }
+
+                if (isActuallyWorking) {
+                    updateNotification(getString(R.string.vless_direct_active))
+                } else {
+                    updateNotification(getString(R.string.proxy_connecting))
+                }
+                ProxyTileService.requestUpdate(this@ProxyService)
+                delay(1000)
+                continue
+            }
+
             var cfg = prefs.clientConfigFlow.first()
             val profileName = prefs.currentProfileNameFlow.first()
             
@@ -170,6 +212,13 @@ class ProxyService : Service() {
             val duration = System.currentTimeMillis() - startTime
             
             if (userStopped.get()) break
+
+            // Если туннель был подавлен (переход на прямой маршрут), 
+            // то это не ошибка и не повод для лога о перезапуске
+            if (isDualRoute && ProxyServiceState.isTunnelSuppressed.value) {
+                restartCount = 0
+                continue
+            }
 
             // Check for rapid failure (e.g. invalid arguments or kernel issue)
             val currentResult = ProxyServiceState.startupResult.value
@@ -521,8 +570,14 @@ class ProxyService : Service() {
             val prefs = AppPreferences(applicationContext)
             ProxyServiceState.isRunning.collectLatest { running ->
                 if (running) {
-                    // Ждем первого появления isWorking в рамках текущего запуска сессии
-                    ProxyServiceState.isWorking.first { it }
+                    val vlessConfig = prefs.vlessConfigFlow.first()
+                    val xraySettings = prefs.xraySettingsFlow.first()
+                    val isDualRoute = xraySettings.xrayEnabled && vlessConfig.isDualRoute
+
+                    if (!isDualRoute) {
+                        // Ждем первого появления isWorking в рамках текущего запуска сессии
+                        ProxyServiceState.isWorking.first { it }
+                    }
                     
                     // После того как прокси заработал хотя бы раз, следим за состоянием xrayEnabled
                     prefs.xraySettingsFlow.collect { settings ->

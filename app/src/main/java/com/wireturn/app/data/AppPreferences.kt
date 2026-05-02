@@ -106,7 +106,9 @@ data class ClientConfig(
 
 data class VlessConfig(
     @SerializedName("vlessLink") val vlessLink: String = "",
-    @SerializedName("vlessUseLocalAddress") val vlessUseLocalAddress: Boolean = true
+    @SerializedName("vlessUseLocalAddress") val vlessUseLocalAddress: Boolean = true,
+    @SerializedName("isDualRoute") val isDualRoute: Boolean = false,
+    @SerializedName("directAddress") val directAddress: String = ""
 ) {
     fun isValid(): Boolean = vlessLink.isNotBlank() && com.wireturn.app.ui.ValidatorUtils.isValidVlessLink(vlessLink)
 }
@@ -265,6 +267,8 @@ class AppPreferences(context: Context) {
         val CLIENT_VLESS = booleanPreferencesKey("client_vless")
         val CLIENT_VLESS_LINK = stringPreferencesKey("client_vless_link")
         val CLIENT_VLESS_USE_LOCAL_ADDRESS = booleanPreferencesKey("client_vless_use_local_address")
+        val CLIENT_VLESS_IS_DUAL_ROUTE = booleanPreferencesKey("client_vless_is_dual_route")
+        val CLIENT_VLESS_DIRECT_ADDRESS = stringPreferencesKey("client_vless_direct_address")
         val VLESS_LINK_HISTORY = stringPreferencesKey("vless_link_history")
         val CLIENT_DC_MODE = booleanPreferencesKey("client_dc_mode")
         val CLIENT_FORCE_PORT_443 = booleanPreferencesKey("client_force_port_443")
@@ -440,7 +444,9 @@ class AppPreferences(context: Context) {
         .map { prefs ->
             VlessConfig(
                 vlessLink = prefs[CLIENT_VLESS_LINK] ?: "",
-                vlessUseLocalAddress = prefs[CLIENT_VLESS_USE_LOCAL_ADDRESS] ?: true
+                vlessUseLocalAddress = prefs[CLIENT_VLESS_USE_LOCAL_ADDRESS] ?: true,
+                isDualRoute = prefs[CLIENT_VLESS_IS_DUAL_ROUTE] ?: false,
+                directAddress = prefs[CLIENT_VLESS_DIRECT_ADDRESS] ?: ""
             )
         }
         .distinctUntilChanged()
@@ -758,6 +764,8 @@ class AppPreferences(context: Context) {
         context.dataStore.edit { prefs ->
             prefs[CLIENT_VLESS_LINK] = (c.vlessLink as String?) ?: ""
             prefs[CLIENT_VLESS_USE_LOCAL_ADDRESS] = (c.vlessUseLocalAddress as Boolean?) ?: true
+            prefs[CLIENT_VLESS_IS_DUAL_ROUTE] = (c.isDualRoute as Boolean?) ?: false
+            prefs[CLIENT_VLESS_DIRECT_ADDRESS] = (c.directAddress as String?) ?: ""
         }
     }
 

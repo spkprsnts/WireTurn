@@ -117,6 +117,8 @@ fun XrayConfigScreen(
     // VLESS states
     var vlessLink by rememberSaveable(currentProfileId, vlessSaved.vlessLink) { mutableStateOf(vlessSaved.vlessLink) }
     var vlessUseLocalAddress by rememberSaveable(currentProfileId, vlessSaved.vlessUseLocalAddress) { mutableStateOf(vlessSaved.vlessUseLocalAddress) }
+    var vlessIsDualRoute by rememberSaveable(currentProfileId, vlessSaved.isDualRoute) { mutableStateOf(vlessSaved.isDualRoute) }
+    var vlessDirectAddress by rememberSaveable(currentProfileId, vlessSaved.directAddress) { mutableStateOf(vlessSaved.directAddress) }
 
     val showQrScanner = remember { mutableStateOf(false) }
     val showVlessQrScanner = remember { mutableStateOf(false) }
@@ -141,6 +143,8 @@ fun XrayConfigScreen(
     LaunchedEffect(vlessSaved) {
         vlessLink = vlessSaved.vlessLink
         vlessUseLocalAddress = vlessSaved.vlessUseLocalAddress
+        vlessIsDualRoute = vlessSaved.isDualRoute
+        vlessDirectAddress = vlessSaved.directAddress
     }
 
     // Auto-save debounced
@@ -171,11 +175,13 @@ fun XrayConfigScreen(
         }
     }
 
-    LaunchedEffect(vlessLink, vlessUseLocalAddress) {
+    LaunchedEffect(vlessLink, vlessUseLocalAddress, vlessIsDualRoute, vlessDirectAddress) {
         delay(200)
         val next = com.wireturn.app.data.VlessConfig(
             vlessLink = vlessLink,
-            vlessUseLocalAddress = vlessUseLocalAddress
+            vlessUseLocalAddress = vlessUseLocalAddress,
+            isDualRoute = vlessIsDualRoute,
+            directAddress = vlessDirectAddress
         )
         if (next != vlessSaved) {
             viewModel.updateVlessConfig(next)
@@ -402,6 +408,26 @@ fun XrayConfigScreen(
                             HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
                             vlessUseLocalAddress = it
                         },
+                        vlessIsDualRoute = vlessIsDualRoute,
+                        onVlessIsDualRouteChange = {
+                            HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                            vlessIsDualRoute = it
+                            if (it) {
+                                vlessUseLocalAddress = true
+                                if (vlessDirectAddress.isBlank()) {
+                                    ValidatorUtils.parseVlessAddress(vlessLink)?.let { addr ->
+                                        vlessDirectAddress = addr
+                                    }
+                                }
+                            }
+                        },
+                        vlessDirectAddress = vlessDirectAddress,
+                        onVlessDirectAddressChange = { if (!privacyMode) vlessDirectAddress = it },
+                        onParseDirectAddress = {
+                            ValidatorUtils.parseVlessAddress(vlessLink)?.let { addr ->
+                                vlessDirectAddress = addr
+                            }
+                        },
                         vlessLinkHistory = vlessLinkHistory,
                         onRemoveHistory = { viewModel.removeVlessLinkFromHistory(it) },
                         runningVlessConfig = runningVlessConfig,
@@ -613,6 +639,11 @@ private fun VlessSettings(
     onVlessLinkChange: (String) -> Unit,
     vlessUseLocalAddress: Boolean,
     onVlessUseLocalAddressChange: (Boolean) -> Unit,
+    vlessIsDualRoute: Boolean,
+    onVlessIsDualRouteChange: (Boolean) -> Unit,
+    vlessDirectAddress: String,
+    onVlessDirectAddressChange: (String) -> Unit,
+    onParseDirectAddress: () -> Unit,
     vlessLinkHistory: List<String>,
     onRemoveHistory: (String) -> Unit,
     runningVlessConfig: com.wireturn.app.data.VlessConfig?,
@@ -626,7 +657,7 @@ private fun VlessSettings(
     }
 
     SettingsGroup(title = stringResource(R.string.vless_settings)) {
-        SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
+        SettingsGroupItem(isTop = true, isBottom = true, containerColor = blockContainerColor) {
             TextFieldRow(
                 label = stringResource(R.string.vless_link_label) + vlessName,
                 value = vlessLink.redact(privacyMode),
@@ -659,21 +690,63 @@ private fun VlessSettings(
             )
         }
 
+        Spacer(Modifier.height(12.dp))
+
         SettingsGroupItem(
-            isTop = false,
-            isBottom = true,
+            isTop = true,
+            isBottom = false,
             containerColor = blockContainerColor,
-            onClick = {
-                onVlessUseLocalAddressChange(!vlessUseLocalAddress)
-            }
+            onClick = if (!vlessIsDualRoute) { { onVlessUseLocalAddressChange(!vlessUseLocalAddress) } } else null
         ) {
             SwitchRow(
                 label = stringResource(R.string.use_local_listen_address),
                 supportingText = stringResource(R.string.use_local_listen_desc),
                 checked = vlessUseLocalAddress,
                 onCheckedChange = onVlessUseLocalAddressChange,
+                enabled = !vlessIsDualRoute,
                 isModified = runningVlessConfig != null && vlessUseLocalAddress != runningVlessConfig.vlessUseLocalAddress
             )
+        }
+
+        SettingsGroupItem(
+            isTop = false,
+            isBottom = !vlessIsDualRoute,
+            containerColor = blockContainerColor,
+            onClick = {
+                onVlessIsDualRouteChange(!vlessIsDualRoute)
+            }
+        ) {
+            SwitchRow(
+                label = stringResource(R.string.vless_dual_route),
+                supportingText = stringResource(R.string.vless_dual_route_desc),
+                checked = vlessIsDualRoute,
+                onCheckedChange = onVlessIsDualRouteChange,
+                isModified = runningVlessConfig != null && vlessIsDualRoute != runningVlessConfig.isDualRoute
+            )
+        }
+
+        if (vlessIsDualRoute) {
+            SettingsGroupItem(
+                isTop = false,
+                isBottom = true,
+                containerColor = blockContainerColor
+            ) {
+                TextFieldRow(
+                    label = stringResource(R.string.vless_direct_address),
+                    value = vlessDirectAddress.redact(privacyMode),
+                    onValueChange = onVlessDirectAddressChange,
+                    placeholder = stringResource(R.string.vless_direct_address_placeholder),
+                    isError = !ValidatorUtils.isValidHostPort(vlessDirectAddress),
+                    readOnly = privacyMode,
+                    supportingText = stringResource(R.string.vless_direct_address_desc),
+                    isModified = runningVlessConfig != null && vlessDirectAddress != runningVlessConfig.directAddress,
+                    trailingIcon = {
+                        IconButton(onClick = onParseDirectAddress) {
+                            Icon(painterResource(R.drawable.sync_24px), stringResource(R.string.vless_parse_from_link))
+                        }
+                    }
+                )
+            }
         }
     }
 }

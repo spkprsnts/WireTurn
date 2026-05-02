@@ -304,7 +304,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             delay(1500)
             XrayServiceState.state.collect { state ->
-                val isRunning = state is XrayState.Running
+                val isRunning = state == XrayState.Running || state == XrayState.DirectRoute
                 if (isRunning) {
                     checkProxyPing()
                     startMetricsPoller()
@@ -325,9 +325,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         metricsJob = viewModelScope.launch {
             while (true) {
                 if (_isHomeScreenActive.value) {
-                    val port = XrayServiceState.metricsPort.value
-                    if (port != null) {
-                        updateMetrics(port)
+                    val state = XrayServiceState.state.value
+                    if (state == XrayState.Running || state == XrayState.DirectRoute) {
+                        val port = XrayServiceState.metricsPort.value
+                        if (port != null) {
+                            updateMetrics(port)
+                        }
+                    } else {
+                        _proxyTransfer.value = null
                     }
                 }
                 delay(1000)
@@ -358,12 +363,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                 content.lines().forEach { line ->
                     val trimmed = line.trim()
-                    if (trimmed.startsWith("#")) return@forEach
+                    if (trimmed.startsWith("#") || trimmed.isBlank()) return@forEach
 
-                    if (trimmed.startsWith("rx_bytes")) {
-                        rx += trimmed.split("=").lastOrNull()?.toLongOrNull() ?: 0L
-                    } else if (trimmed.startsWith("tx_bytes")) {
-                        tx += trimmed.split("=").lastOrNull()?.toLongOrNull() ?: 0L
+                    val value = trimmed.split("=", " ").lastOrNull()?.toLongOrNull() ?: 0L
+                    if (trimmed.contains("rx_bytes")) {
+                        rx += value
+                    } else if (trimmed.contains("tx_bytes")) {
+                        tx += value
                     }
                 }
 
@@ -573,7 +579,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         pingJob = viewModelScope.launch {
             _proxyPing.value = PingResult.Loading
             repeat(5) { attempt ->
-                if (XrayServiceState.state.value != XrayState.Running) {
+                val state = XrayServiceState.state.value
+                if (state != XrayState.Running && state != XrayState.DirectRoute) {
                     _proxyPing.value = null
                     return@launch
                 }

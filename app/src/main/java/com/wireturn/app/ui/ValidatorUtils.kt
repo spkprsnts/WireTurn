@@ -46,4 +46,18 @@ object ValidatorUtils {
         if (input.isBlank()) return true
         return input.startsWith("turnable://", ignoreCase = true) && input.contains("@")
     }
+
+    /**
+     * Извлекает host:port из VLESS ссылки.
+     */
+    fun parseVlessAddress(link: String): String? {
+        if (!isValidVlessLink(link)) return null
+        return try {
+            val afterVless = link.substring(8)
+            val hostPart = afterVless.substringAfter('@').substringBefore('?').substringBefore('/')
+            if (hostPart.contains(':')) hostPart else null
+        } catch (_: Exception) {
+            null
+        }
+    }
 }

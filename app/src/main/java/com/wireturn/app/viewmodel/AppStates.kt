@@ -7,6 +7,7 @@ sealed class XrayState {
     object Idle : XrayState()
     object Starting : XrayState()
     object Running : XrayState()
+    object DirectRoute : XrayState()
 }
 
 // VPN states

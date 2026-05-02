@@ -71,7 +71,7 @@ class XrayService : Service() {
                 val vpnState = args[5] as VpnState
 
                 DataBundle(
-                    isRunning = state == XrayState.Running,
+                    isRunning = state == XrayState.Running || state == XrayState.DirectRoute,
                     vpnEnabled = xraySettings.xrayVpnMode,
                     bypassMode = globalVpn.bypassMode,
                     filteringEnabled = globalVpn.filteringEnabled,
@@ -169,16 +169,12 @@ class XrayService : Service() {
 
         try {
             val prefs = AppPreferences(this)
-            val runningClientConfig = ProxyServiceState.runningConfig.value
             val rawWgConfig = prefs.wgConfigFlow.first()
             val rawXrayConfig = prefs.xrayConfigFlow.first()
             val rawVlessConfig = prefs.vlessConfigFlow.first()
-
-            if (runningClientConfig == null) {
-                AppLogsState.addLog("[Xray] Error: runningClientConfig is null")
-                stopSelf()
-                return
-            }
+            
+            // Получаем конфиг: либо уже запущенный, либо из настроек (для Dual-route старта)
+            val runningClientConfig = ProxyServiceState.runningConfig.value ?: prefs.clientConfigFlow.first()
 
             val isXrayVless = rawXrayConfig.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS
 
@@ -240,6 +236,10 @@ class XrayService : Service() {
             if (isXrayVless) {
                 prefs.addVlessLinkToHistory(rawVlessConfig.vlessLink)
                 cmdArgs.addAll(listOf("-link", rawVlessConfig.vlessLink))
+                if (rawVlessConfig.isDualRoute && rawVlessConfig.directAddress.isNotBlank()) {
+                    cmdArgs.add("-direct-address")
+                    cmdArgs.add(rawVlessConfig.directAddress)
+                }
             } else {
                 cmdArgs.addAll(listOf(
                     "-wg-private-key", wgConfig.privateKey,
@@ -267,6 +267,10 @@ class XrayService : Service() {
                     val rawLine = reader.readLine() ?: break
                     val cleanLine = AppLogsState.stripAnsi(rawLine)
                     AppLogsState.addLog("[Xray] $cleanLine")
+
+                    if (isXrayVless && rawVlessConfig.isDualRoute) {
+                        handleDualRouteLog(cleanLine, randomMetricsPort)
+                    }
                 }
             }
             val exitCode = withContext(Dispatchers.IO) {
@@ -287,6 +291,57 @@ class XrayService : Service() {
                 stopSelf()
             } else {
                 scheduleWatchdogRestart()
+            }
+        }
+    }
+
+    private fun handleDualRouteLog(line: String, metricsPort: Int) {
+        when {
+            line.contains("active route: direct") -> {
+                XrayServiceState.updateStatus(XrayState.DirectRoute)
+                if (ProxyServiceState.isRunning.value && !ProxyServiceState.isTunnelSuppressed.value) {
+                    AppLogsState.addLog("[DualRoute] Direct connection established, suppressing tunnel")
+                    ProxyServiceState.setTunnelSuppressed(true)
+                }
+            }
+            line.contains("active route: local") -> {
+                XrayServiceState.updateStatus(XrayState.Running)
+                
+                val directUnreachable = line.contains("direct unreachable")
+                val bothUnreachable = line.contains("both unreachable")
+                
+                if (directUnreachable || bothUnreachable) {
+                    if (ProxyServiceState.isTunnelSuppressed.value) {
+                        AppLogsState.addLog("[DualRoute] Direct connection lost, unsuppressing tunnel")
+                        ProxyServiceState.setTunnelSuppressed(false)
+                    }
+                    
+                    if (!ProxyServiceState.isRunning.value) {
+                        AppLogsState.addLog("[DualRoute] Routes unreachable, starting tunnel")
+                        serviceScope.launch {
+                            val prefs = AppPreferences(applicationContext)
+                            val cfg = prefs.clientConfigFlow.first()
+                            ProxyService.start(this@XrayService, cfg)
+                            
+                            // Force Xray to check connection after tunnel starts
+                            ProxyServiceState.isWorking.first { it }
+                            delay(500)
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    val url = java.net.URL("http://127.0.0.1:$metricsPort/check?n=3")
+                                    val connection = url.openConnection() as java.net.HttpURLConnection
+                                    connection.requestMethod = "GET"
+                                    connection.connectTimeout = 1000
+                                    connection.readTimeout = 1000
+                                    connection.inputStream.use { it.readBytes() }
+                                    connection.disconnect()
+                                }
+                            } catch (e: Exception) {
+                                AppLogsState.addLog("[DualRoute] Failed to trigger check: ${e.message}")
+                            }
+                        }
+                    }
+                }
             }
         }
     }

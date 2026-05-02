@@ -560,6 +560,7 @@ fun HomeScreen(
             ) {
                 ProxyToggleButton(
                     state = proxyState,
+                    xrayState = xrayState,
                     isLocked = autoLaunchSettings.enabled,
                     onClick = {
                         val action = {
@@ -596,7 +597,10 @@ fun HomeScreen(
 
                 Text(
                     text = when {
-                        proxyState is ProxyState.Working -> stringResource(if (customKernelExists) R.string.proxy_running else R.string.proxy_active)
+                        proxyState is ProxyState.Working -> {
+                            if (xrayState == XrayState.DirectRoute) stringResource(R.string.vless_direct_active)
+                            else stringResource(if (customKernelExists) R.string.proxy_running else R.string.proxy_active)
+                        }
                         proxyState is ProxyState.Starting -> stringResource(R.string.starting)
                         proxyState is ProxyState.Running -> stringResource(R.string.proxy_connecting)
                         proxyState is ProxyState.CaptchaRequired -> stringResource(R.string.proxy_captcha_required)
@@ -620,7 +624,7 @@ fun HomeScreen(
             
             // 4. Ping & Transfer Stats
             AnimatedVisibility(
-                visible = xrayState == XrayState.Running,
+                visible = (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute) && proxyState == ProxyState.Working,
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
@@ -918,7 +922,7 @@ fun HomeScreen(
             val configValid = isSettingsValid || xrayState != XrayState.Idle
 
             val xrayProtocol = when {
-                xrayState == XrayState.Running -> if (runningVlessConfig != null) stringResource(R.string.vless) else stringResource(R.string.wg_short)
+                xrayState == XrayState.Running || xrayState == XrayState.DirectRoute -> if (runningVlessConfig != null) stringResource(R.string.vless) else stringResource(R.string.wg_short)
                 else -> if (xrayConfig.xrayConfiguration == XrayConfiguration.VLESS) stringResource(R.string.vless) else stringResource(R.string.wg_short)
             }
 
@@ -954,12 +958,13 @@ fun HomeScreen(
                             when (xrayState) {
                                 XrayState.Starting -> stringResource(R.string.starting)
                                 XrayState.Running -> stringResource(R.string.running)
+                                XrayState.DirectRoute -> stringResource(R.string.vless_direct_active)
                                 else -> stringResource(R.string.idle)
                             }
                         },
                         leadingIcon = {
                             when (xrayState) {
-                                XrayState.Idle, XrayState.Running -> Icon(
+                                XrayState.Idle, XrayState.Running, XrayState.DirectRoute -> Icon(
                                     painter = painterResource(R.drawable.ic_xray_24px),
                                     contentDescription = null,
                                     tint = if (xrayState == XrayState.Idle) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
@@ -1328,10 +1333,10 @@ private fun UpdateBanner(
 
 // Кнопка прокси
 @Composable
-private fun ProxyToggleButton(state: ProxyState, isLocked: Boolean = false, onClick: () -> Unit) {
+private fun ProxyToggleButton(state: ProxyState, xrayState: XrayState = XrayState.Idle, isLocked: Boolean = false, onClick: () -> Unit) {
     val containerColor by animateColorAsState(
         targetValue = when (state) {
-            is ProxyState.Working -> MaterialTheme.colorScheme.primary
+            is ProxyState.Working -> if (xrayState == XrayState.DirectRoute) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
             is ProxyState.Running, is ProxyState.CaptchaRequired -> MaterialTheme.colorScheme.tertiary
             is ProxyState.Error -> MaterialTheme.colorScheme.errorContainer
             is ProxyState.Starting -> MaterialTheme.colorScheme.surfaceContainerHigh
@@ -1342,7 +1347,7 @@ private fun ProxyToggleButton(state: ProxyState, isLocked: Boolean = false, onCl
     )
     val contentColor by animateColorAsState(
         targetValue = when (state) {
-            is ProxyState.Working -> MaterialTheme.colorScheme.onPrimary
+            is ProxyState.Working -> if (xrayState == XrayState.DirectRoute) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onPrimary
             is ProxyState.Running, is ProxyState.CaptchaRequired -> MaterialTheme.colorScheme.onTertiary
             is ProxyState.Error -> MaterialTheme.colorScheme.onErrorContainer
             is ProxyState.Starting -> MaterialTheme.colorScheme.onSurfaceVariant
@@ -1403,12 +1408,15 @@ private fun ProxyToggleButton(state: ProxyState, isLocked: Boolean = false, onCl
                             color = contentColor
                         )
 
-                        is ProxyState.Working -> Icon(
-                            painterResource(R.drawable.check_circle_24px),
-                            stringResource(R.string.proxy_active_stop),
-                            Modifier.size(66.dp),
-                            tint = contentColor
-                        )
+                        is ProxyState.Working -> {
+                            val icon = if (xrayState == XrayState.DirectRoute) R.drawable.ethernet_24px else R.drawable.check_circle_24px
+                            Icon(
+                                painterResource(icon),
+                                stringResource(R.string.proxy_active_stop),
+                                Modifier.size(66.dp),
+                                tint = contentColor
+                            )
+                        }
 
                         is ProxyState.Error -> Icon(
                             painterResource(R.drawable.error_24px),
