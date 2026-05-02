@@ -221,6 +221,7 @@ class ProxyService : Service() {
         var captchaActive = false
         var captchaSessionCounter = 0L
         val sessionKillScheduled = AtomicBoolean(false)
+        var peerConnectFailedCount = 0
 
         try {
             AppLogsState.addLog(getString(R.string.log_command, cmdArgs.joinToString(" ")))
@@ -248,7 +249,7 @@ class ProxyService : Service() {
                         if (!isActive) continue
 
                         // Process logic
-                        if (!useCustom && !l.contains("[xray]") && !l.contains("[tun2socks]")) {
+                        if (!useCustom) {
                             if (l.contains("[VK Auth]", ignoreCase = true) || l.contains("joining room", ignoreCase = true) ||
                                 l.contains("starting turnable client")) {
                                 if (!startupEmitted) {
@@ -276,6 +277,7 @@ class ProxyService : Service() {
                                 l.contains("DataChannel connected", ignoreCase = true) ||
                                 l.contains("peer online"))
                             {
+                                peerConnectFailedCount = 0
                                 ProxyServiceState.setWorking(true)
                                 updateNotification(getString(R.string.proxy_active))
                                 if (!startupEmitted) {
@@ -295,6 +297,21 @@ class ProxyService : Service() {
                                         startupFailed = true
                                         break
                                     }
+                                }
+                            }
+
+                            if (l.contains("peer connect failed", ignoreCase = true)) {
+                                peerConnectFailedCount++
+                                if (peerConnectFailedCount >= 30) {
+                                    AppLogsState.addLog(getString(R.string.log_too_many_peer_failures))
+                                    ProxyServiceState.setStartupResult(StartupResult.Failed(getString(R.string.error_too_many_peer_failures)))
+                                    startupFailed = true
+                                    break
+                                }
+                                if (ProxyServiceState.isWorking.value) {
+                                    ProxyServiceState.setWorking(false)
+                                    updateNotification(getString(R.string.proxy_connecting))
+                                    ProxyTileService.requestUpdate(this@ProxyService)
                                 }
                             }
                         }

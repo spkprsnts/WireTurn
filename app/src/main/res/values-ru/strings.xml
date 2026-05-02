@@ -221,7 +221,9 @@
     <string name="log_network_change">=== СМЕНА СЕТИ — ПЕРЕЗАПУСК ===</string>
     <string name="log_stop_ui">=== ОСТАНОВКА ИЗ ИНТЕРФЕЙСА ===</string>
     <string name="log_jazz_unavailable">>>> bk.salutejazz.ru НЕДОСТУПЕН — СМЕНИТЕ IP (ПЕРЕЗАГРУЗИТЕ СЕТЬ)</string>
+    <string name="log_too_many_peer_failures">>>> СЛИШКОМ МНОГО ОШИБОК ПОДКЛЮЧЕНИЯ — остановка</string>
     <string name="error_jazz_unavailable">API SaluteJazz недоступен</string>
+    <string name="error_too_many_peer_failures">Слишком много ошибок подключения</string>
     <string name="error_invalid_turnable_url">Неверная ссылка Turnable</string>
     <string name="error_turnable_failed">Ошибка Turnable: %1$s</string>
 

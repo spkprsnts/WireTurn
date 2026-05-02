@@ -260,7 +260,9 @@
     <string name="log_network_change">=== NETWORK CHANGE — RESTARTING ===</string>
     <string name="log_stop_ui">=== STOPPED FROM UI ===</string>
     <string name="log_jazz_unavailable">>>> bk.salutejazz.ru UNAVAILABLE — CHANGE IP (RESTART NETWORK)</string>
+    <string name="log_too_many_peer_failures">>>> TOO MANY PEER FAILURES — stopping</string>
     <string name="error_jazz_unavailable">SaluteJazz API unavailable</string>
+    <string name="error_too_many_peer_failures">Too many connection failures</string>
     <string name="error_invalid_turnable_url">Invalid Turnable link</string>
     <string name="error_turnable_failed">Turnable error: %1$s</string>
 
