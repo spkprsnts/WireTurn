@@ -191,7 +191,7 @@ class ProxyService : Service() {
                 if (isActuallyWorking) {
                     updateNotification(getString(R.string.vless_direct_active))
                 } else {
-                    updateNotification(getString(R.string.proxy_connecting))
+                    updateNotification(getString(R.string.connecting))
                 }
                 ProxyTileService.requestUpdate(this@ProxyService)
                 delay(1000)
@@ -310,7 +310,7 @@ class ProxyService : Service() {
                                 l.contains("starting turnable client")) {
                                 if (!startupEmitted) {
                                     ProxyServiceState.setStartupResult(StartupResult.Success)
-                                    updateNotification(getString(R.string.proxy_connecting))
+                                    updateNotification(getString(R.string.connecting))
                                     startupEmitted = true
                                 }
                             }
@@ -366,7 +366,7 @@ class ProxyService : Service() {
                                 }
                                 if (ProxyServiceState.isWorking.value) {
                                     ProxyServiceState.setWorking(false)
-                                    updateNotification(getString(R.string.proxy_connecting))
+                                    updateNotification(getString(R.string.connecting))
                                     ProxyTileService.requestUpdate(this@ProxyService)
                                 }
                             }
@@ -601,7 +601,7 @@ class ProxyService : Service() {
 
                             // Немедленно сбрасываем статус в "Подключение", не дожидаясь цикла mainSupervisor
                             ProxyServiceState.setWorking(false)
-                            updateNotification(getString(R.string.proxy_connecting))
+                            updateNotification(getString(R.string.connecting))
                             ProxyTileService.requestUpdate(this@ProxyService)
                         }
 

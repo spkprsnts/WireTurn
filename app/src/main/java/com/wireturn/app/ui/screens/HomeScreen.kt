@@ -602,7 +602,7 @@ fun HomeScreen(
                             else stringResource(if (customKernelExists) R.string.proxy_running else R.string.proxy_active)
                         }
                         proxyState is ProxyState.Starting -> stringResource(R.string.starting)
-                        proxyState is ProxyState.Running -> stringResource(R.string.proxy_connecting)
+                        proxyState is ProxyState.Running -> stringResource(R.string.connecting)
                         proxyState is ProxyState.CaptchaRequired -> stringResource(R.string.proxy_captcha_required)
                         proxyState is ProxyState.Error -> (proxyState as ProxyState.Error).message
                         autoLaunchSettings.enabled -> stringResource(R.string.proxy_auto_launch_active)
