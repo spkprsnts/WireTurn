@@ -56,7 +56,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val profileManager = ProfileManager(prefs, ProcessLifecycleOwner.get().lifecycleScope)
 
     val proxyState: StateFlow<ProxyState> = proxyManager.proxyState
-    val logs: StateFlow<List<String>> = AppLogsState.logs
+    val logs: StateFlow<List<AppLogsState.LogEntry>> = AppLogsState.logs
     val customKernelExists: StateFlow<Boolean> = proxyManager.customKernelExists
     val customKernelLastModified: StateFlow<Long?> = proxyManager.customKernelLastModified
     val updateState: StateFlow<UpdateState> = appUpdater.state

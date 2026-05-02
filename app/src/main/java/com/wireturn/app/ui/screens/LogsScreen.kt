@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -23,7 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -124,7 +123,7 @@ fun LogsScreen(
                         onClick = {
                             isCopied = true
                             scope.launch {
-                                clipboard.setClipEntry(ClipData.newPlainText("wireturn logs", logs.joinToString("\n")).toClipEntry())
+                                clipboard.setClipEntry(ClipData.newPlainText("wireturn logs", logs.joinToString("\n") { it.message }).toClipEntry())
                                 HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
                             }
                         },
@@ -176,19 +175,17 @@ fun LogsScreen(
                     .fillMaxSize()
                     .padding(padding)
             ) {
-                SelectionContainer {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .fillMaxWidth()
-                            .wrapContentWidth(Alignment.CenterHorizontally)
-                            .widthIn(max = 840.dp),
-                        contentPadding = PaddingValues(bottom = 76.dp)
-                    ) {
-                        itemsIndexed(logs, key = { index, _ -> index }) { _, line ->
-                            LogLine(line = line)
-                        }
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .fillMaxWidth()
+                        .wrapContentWidth(Alignment.CenterHorizontally)
+                        .widthIn(max = 840.dp),
+                    contentPadding = PaddingValues(bottom = 76.dp)
+                ) {
+                    items(logs, key = { it.id }) { entry ->
+                        LogLine(line = entry.message)
                     }
                 }
 
@@ -269,17 +266,19 @@ private fun LogLine(line: String) {
         } else {
             Spacer(Modifier.width(11.dp))
         }
-        Text(
-            text = line,
-            style = MaterialTheme.typography.bodySmall.copy(
-                fontFamily = FontFamily.Monospace,
-                fontWeight = when {
-                    isHeader || isXrayLog -> FontWeight.SemiBold
-                    else -> FontWeight.Normal
-                }
-            ),
-            color = textColor
-        )
+        SelectionContainer {
+            Text(
+                text = line,
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = when {
+                        isHeader || isXrayLog -> FontWeight.SemiBold
+                        else -> FontWeight.Normal
+                    }
+                ),
+                color = textColor
+            )
+        }
     }
 }
 

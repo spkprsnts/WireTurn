@@ -9,14 +9,18 @@ import kotlinx.coroutines.flow.update
  * Глобальное состояние логов приложения (прокси, Xray, VPN и др.)
  */
 object AppLogsState {
+    
+    data class LogEntry(val id: Long, val message: String)
+
     private const val MAX_LOG_LINES = 500
-    private val _logs = MutableStateFlow<List<String>>(emptyList())
-    val logs: StateFlow<List<String>> = _logs.asStateFlow()
+    private var nextId = 0L
+    private val _logs = MutableStateFlow<List<LogEntry>>(emptyList())
+    val logs: StateFlow<List<LogEntry>> = _logs.asStateFlow()
 
     fun addLog(msg: String) {
         val cleanMsg = stripAnsi(msg)
         _logs.update { current ->
-            val next = current + cleanMsg
+            val next = current + LogEntry(nextId++, cleanMsg)
             if (next.size > MAX_LOG_LINES) next.drop(next.size - MAX_LOG_LINES) else next
         }
     }
