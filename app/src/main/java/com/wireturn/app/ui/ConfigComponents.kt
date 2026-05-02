@@ -5,6 +5,7 @@ import android.app.Activity
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -551,15 +552,11 @@ fun HistoryIconButton(
                         }
                     },
                     text = {
-                        val text = historyItem.redact(privacyMode)
+                        val displayText = if (!privacyMode) truncateUrlParameters(historyItem) else historyItem.redact(true)
                         Text(
-                            text = if (text.length > 30) {
-                                text.take(21) + "..." + text.takeLast(6)
-                            } else {
-                                text
-                            },
+                            text = displayText,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            modifier = Modifier.basicMarquee(velocity = 60.dp, initialDelayMillis = 2_500)
                         )
                     },
                     onClick = {
@@ -748,5 +745,25 @@ fun TurnableUrlEditorDialog(
                 Spacer(Modifier.height(32.dp))
             }
         }
+    }
+}
+
+private fun truncateUrlParameters(url: String): String {
+    return try {
+        val limit = 50
+        val uri = url.toUri()
+        if (uri.query.isNullOrBlank()) return url
+        val builder = uri.buildUpon()
+        builder.clearQuery()
+        uri.queryParameterNames.forEach { key ->
+            val values = uri.getQueryParameters(key)
+            values.forEach { value ->
+                val truncated = if (value.length > limit) value.take(limit) + "..." else value
+                builder.appendQueryParameter(key, truncated)
+            }
+        }
+        builder.build().toString()
+    } catch (_: Exception) {
+        url
     }
 }
