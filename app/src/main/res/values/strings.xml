@@ -323,6 +323,7 @@
     <string name="use_local_listen_address">Use listen address</string>
     <string name="use_local_listen_desc">Instead of the specified VLESS server,\nthe local one will be used</string>
     <string name="vless_dual_route">Dual-route mode</string>
+    <string name="vless_dual_route_short">Dual-route</string>
     <string name="vless_dual_route_desc">Prefer direct connection to VLESS server, falling back to local tunnel if direct route is restricted</string>
     <string name="vless_direct_address">Direct server address (host:port)</string>
     <string name="vless_direct_address_placeholder">1.2.3.4:443</string>

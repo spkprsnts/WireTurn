@@ -275,6 +275,7 @@
     <string name="use_local_listen_address">Использовать адрес прослушивания</string>
     <string name="use_local_listen_desc">Вместо указанного сервера VLESS\nбудет использоваться локальный</string>
     <string name="vless_dual_route">Режим Dual-route</string>
+    <string name="vless_dual_route_short">Dual-route</string>
     <string name="vless_dual_route_desc">Предпочитать прямое подключение к VLESS-серверу, используя локальный туннель только при ограничении прямого доступа</string>
     <string name="vless_direct_address">Прямой адрес сервера (host:port)</string>
     <string name="vless_direct_address_placeholder">1.2.3.4:443</string>

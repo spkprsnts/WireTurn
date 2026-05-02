@@ -122,6 +122,9 @@ fun ProfileSummary(
                     XrayConfiguration.WIREGUARD -> stringResource(R.string.wg_short)
                 }
             )
+            if (config.xrayConfiguration == XrayConfiguration.VLESS && profile.vlessConfig.isDualRoute) {
+                parts.add(stringResource(R.string.vless_dual_route_short))
+            }
             if (profile.xraySettings.xrayVpnMode) {
                 parts.add(stringResource(R.string.vpn_short))
             }
