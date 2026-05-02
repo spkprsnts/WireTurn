@@ -272,7 +272,7 @@ private val navItems = listOf(
     NavItem(Routes.HOME, R.string.nav_home, R.drawable.home_24px, R.drawable.home_outlined_24px),
     NavItem(Routes.CLIENT_CONFIG, R.string.client_title, R.drawable.mobile_24px, R.drawable.mobile_outlined_24px),
     NavItem(Routes.XRAY_CONFIG, R.string.xray_short, R.drawable.ic_xray_24px, R.drawable.ic_xray_24px),
-    NavItem(Routes.appSettings(), R.string.app_settings_title, R.drawable.baseline_app_settings_alt_24px, R.drawable.outline_app_settings_alt_24px),
+    NavItem(Routes.appSettings(), R.string.app_settings_title, R.drawable.settings_24px, R.drawable.settings_outlined_24px),
     NavItem(Routes.LOGS, R.string.logs_title, R.drawable.terminal_24px, R.drawable.terminal_24px)
 )
 
