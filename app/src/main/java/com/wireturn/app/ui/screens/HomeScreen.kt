@@ -434,7 +434,7 @@ fun HomeScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(12.dp))
 
             LaunchedEffect(hasNotificationPermission, isIgnoringBatteryOptimizations) {
                 if (hasNotificationPermission && isIgnoringBatteryOptimizations) {
