@@ -62,8 +62,8 @@
     <string name="import_from_clipboard">Вставить из буфера</string>
     <string name="apps_imported_count">Добавлено приложений: %1$d</string>
     <string name="no_apps_imported">Не найдены пакеты для исключения</string>
-    <string name="vpn_start">Включить VPN</string>
-    <string name="vpn_stop">Выключить VPN</string>
+    <string name="vpn_start">Вкл. VPN</string>
+    <string name="vpn_stop">Выкл. VPN</string>
 
     <!-- Настройка WireGuard -->
     <string name="wg_import_config">Импорт WireGuard</string>
@@ -306,7 +306,7 @@
 
     <!-- Управление профилями -->
     <string name="profiles_title">Профили</string>
-    <string name="notification_btn_change_profile">Сменить профиль</string>
+    <string name="notification_btn_change_profile">Профиль</string>
     <string name="profile_create">Создать профиль</string>
     <string name="profile_clone">Клонировать</string>
     <string name="profile_rename">Переименовать</string>

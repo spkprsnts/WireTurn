@@ -23,9 +23,11 @@ object NotificationHelper {
         val channel = NotificationChannel(
             CHANNEL_ID,
             context.getString(R.string.notification_title),
-            NotificationManager.IMPORTANCE_LOW
+            NotificationManager.IMPORTANCE_DEFAULT
         ).apply {
             description = context.getString(R.string.notification_channel_description)
+            setSound(null, null)
+            enableVibration(false)
         }
         nm.createNotificationChannel(channel)
 
@@ -78,6 +80,9 @@ object NotificationHelper {
             .setSubText(runningProfileName)
             .setSmallIcon(R.drawable.plug_connect_24px)
             .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setSound(null)
             .setContentIntent(openAppIntent)
 
         if (proxyRunning || xrayState != XrayState.Idle) {

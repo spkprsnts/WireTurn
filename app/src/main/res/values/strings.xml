@@ -68,8 +68,8 @@
     <string name="import_from_clipboard">Import from clipboard</string>
     <string name="apps_imported_count">Added apps: %1$d</string>
     <string name="no_apps_imported">No packages found to exclude</string>
-    <string name="vpn_start">Start VPN</string>
-    <string name="vpn_stop">Stop VPN</string>
+    <string name="vpn_start">On VPN</string>
+    <string name="vpn_stop">Off VPN</string>
 
     <!-- WireGuard Setup -->
     <string name="wg_import_config">WireGuard Import</string>
@@ -355,7 +355,7 @@
 
     <!-- Profile Management -->
     <string name="profiles_title">Profiles</string>
-    <string name="notification_btn_change_profile">Change profile</string>
+    <string name="notification_btn_change_profile">Profile</string>
     <string name="profile_create">Create profile</string>
     <string name="profile_clone">Clone</string>
     <string name="profile_rename">Rename</string>
