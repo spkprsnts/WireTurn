@@ -8,7 +8,6 @@
     <string name="info_desc">Info</string>
     <string name="proxy_active">Proxy active</string>
     <string name="proxy_running">Core active</string>
-    <string name="proxy_connecting">Connecting…</string>
     <string name="proxy_press_to_start">Tap to start</string>
     <string name="proxy_stop">Stop</string>
     <string name="current_client_settings">Current client settings</string>
@@ -27,9 +26,10 @@
     <string name="error_format_short">Error: %1$s</string>
     <string name="repo_links">Repository links</string>
 
+    <string name="idle">Stopped</string>
     <string name="starting">Starting…</string>
     <string name="running">Running</string>
-    <string name="idle">Stopped</string>
+    <string name="connecting">Connecting…</string>
 
     <!-- Permissions -->
     <string name="permissions_title">Permissions</string>
@@ -285,7 +285,8 @@
     <string name="captcha_notification_title">Captcha required</string>
     <string name="captcha_notification_text">Tap to complete check</string>
     <string name="error_notification_title">Startup failed</string>
-    <string name="tile_active">Started</string>
+    <string name="tile_active">Active</string>
+    <string name="tile_direct">Direct</string>
     <string name="tile_captcha">Captcha!</string>
     <string name="notification_reconnecting">Reconnecting (%1$d/%2$d)…</string>
     <string name="notification_network_change">Network change, reconnecting…</string>
