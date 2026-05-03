@@ -35,8 +35,16 @@ jobs:
       - name: Resolve latest NDK version
         id: ndk_version
         run: |
-          # Исправлен захват версии и добавлена переменная для версии без префикса
-          PKG=$(sdkmanager --list 2>/dev/null | grep -oP 'ndk;\d+\.\d+\.\d+' | sort -Vu | tail -1)
+          # Add sdkmanager to PATH
+          echo "${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/tools/bin" >> $GITHUB_PATH
+          export PATH="${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/tools/bin:$PATH"
+
+          # Resolve latest NDK version
+          PKG=$(sdkmanager --list | grep -oP 'ndk;[\d\.]+' | sort -Vu | tail -1)
+          if [ -z "$PKG" ]; then
+            echo "Error: Could not resolve NDK package."
+            exit 1
+          fi
           VERSION=$(echo $PKG | cut -d';' -f2)
           echo "pkg=$PKG" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
@@ -46,13 +54,12 @@ jobs:
         uses: actions/cache@v4
         id: ndk_cache
         with:
-          # Кэшируем только конкретную папку версии NDK
           path: ${{ env.ANDROID_HOME }}/ndk/${{ steps.ndk_version.outputs.version }}
           key: ndk-${{ steps.ndk_version.outputs.version }}
 
       - name: Install latest NDK
         if: steps.ndk_cache.outputs.cache-hit != 'true'
-        run: sdkmanager "${{ steps.ndk_version.outputs.pkg }}"
+        run: yes | sdkmanager "${{ steps.ndk_version.outputs.pkg }}"
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
