@@ -100,18 +100,18 @@ nohup ./server-linux-amd64 -vless -listen 0.0.0.0:56000 -connect 127.0.0.1:<по
 ## Стек технологий
 
 - **Kotlin** + **Jetpack Compose** (Material 3)
-- **Native Go Kernels** (автоматическая сборка из исходников через Git-субмодули):
+- **Native Kernels (C/Go)** (автоматическая сборка из исходников через Git-субмодули):
     - `libvkturn.so` — ядро проброса TURN ([spkprsnts/vk-turn-proxy](https://github.com/spkprsnts/vk-turn-proxy/tree/dc)).
     - `libxray.so` — движок Xray (WireGuard/VLESS) ([spkprsnts/vless-client](https://github.com/spkprsnts/vless-client)).
-    - `libturnable.so` — ядро Turnable.
-    - `libtun2socks.so` — сетевой стек для VPN-режима.
+    - `libturnable.so` — ядро Turnable ([TheAirBlow/Turnable](https://github.com/TheAirBlow/Turnable)).
+    - `libhevsocks5.so` — сетевой стек для VPN-режима ([heiher/hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel)).
 
 ## Для разработчиков
 
 Проект поддерживает автоматизированную сборку нативных компонентов.
 ```bash
 git clone --recursive https://github.com/spkprsnts/WireTurn.git
-./gradlew buildGoBinaries # Сборка всех .so через Docker/WSL
+./gradlew buildCBinaries buildGoBinaries # Сборка всех .so через Docker/WSL
 ./gradlew assembleDebug
 ```
 
@@ -122,7 +122,7 @@ git clone --recursive https://github.com/spkprsnts/WireTurn.git
 - [alxmcp/vk-turn-proxy](https://github.com/alxmcp/vk-turn-proxy) — оригинальная реализация DataChannel.
 - [samosvalishe/turn-proxy-android](https://github.com/samosvalishe/turn-proxy-android) — база UI и логики.
 - [XTLS/Xray-core](https://github.com/XTLS/Xray-core) — база для ядра Xray.
-- [xjasonlyu/tun2socks](https://github.com/xjasonlyu/tun2socks) — реализация tun2socks.
+- [heiher/hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel) — реализация сетевого стека для VPN-режима.
 
 ## Лицензия
 
