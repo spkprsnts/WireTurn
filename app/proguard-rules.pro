@@ -25,6 +25,15 @@
 -keep class com.wireturn.app.data.KernelVariant { *; }
 -keep class com.wireturn.app.data.XrayConfiguration { *; }
 
+# ── JNI / Native ──────────────────────────────────────────────────────────────
+# Сохраняем класс и нативные методы для hev-socks5-tunnel
+-keep class com.wireturn.app.HevSocks5Tunnel {
+    native <methods>;
+}
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
 # ── Tink (транзитивная зависимость security-crypto) ───────────────────────────
 # Аннотационные библиотеки не включены в runtime, предупреждения безопасно подавить
 -dontwarn com.google.errorprone.annotations.CanIgnoreReturnValue

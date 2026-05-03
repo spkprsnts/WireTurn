@@ -17,7 +17,8 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 
-private class HevSocks5Tunnel {
+@Suppress("unused")
+internal class HevSocks5Tunnel {
     external fun TProxyStartService(configPath: String, fd: Int)
     external fun TProxyStopService()
     external fun TProxyGetStats(): LongArray
