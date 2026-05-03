@@ -221,8 +221,9 @@ class ProxyService : Service() {
             if (userStopped.get()) break
 
             // Если туннель был подавлен (переход на прямой маршрут), 
-            // то это не ошибка и не повод для лога о перезапуске
-            if (isDualRoute && ProxyServiceState.isTunnelSuppressed.value) {
+            // то это не ошибка и не повод для лога о перезапуске.
+            // Проверяем только флаг подавления, так как локальная переменная isDualRoute может быть устаревшей.
+            if (ProxyServiceState.isTunnelSuppressed.value) {
                 restartCount = 0
                 continue
             }
