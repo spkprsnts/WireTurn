@@ -1,6 +1,3 @@
-[submodule "external/tun2socks"]
-	path = external/tun2socks
-	url = https://github.com/xjasonlyu/tun2socks.git
 [submodule "external/vk-turn-proxy"]
 	path = external/vk-turn-proxy
 	url = https://github.com/spkprsnts/vk-turn-proxy.git
@@ -11,3 +8,6 @@
 [submodule "external/turnable"]
 	path = external/turnable
 	url = https://github.com/TheAirBlow/Turnable.git
+[submodule "external/hev-socks5-tunnel"]
+	path = external/hev-socks5-tunnel
+	url = https://github.com/heiher/hev-socks5-tunnel.git

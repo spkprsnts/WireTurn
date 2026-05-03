@@ -119,8 +119,8 @@ object NotificationHelper {
         }
 
         if (vpnState != VpnState.Idle) {
-            val stopVpnIntent = Intent(context, Tun2SocksVpnService::class.java).apply {
-                action = Tun2SocksVpnService.ACTION_STOP_BY_USER
+            val stopVpnIntent = Intent(context, HevVpnService::class.java).apply {
+                action = HevVpnService.ACTION_STOP_BY_USER
             }
             val stopVpnPendingIntent = PendingIntent.getService(
                 context, 

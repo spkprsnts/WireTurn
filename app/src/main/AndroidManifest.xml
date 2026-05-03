@@ -69,7 +69,7 @@
         </service>
 
         <service
-            android:name=".Tun2SocksVpnService"
+            android:name=".HevVpnService"
             android:exported="false"
             android:permission="android.permission.BIND_VPN_SERVICE"
             android:foregroundServiceType="specialUse"
@@ -79,7 +79,7 @@
             </intent-filter>
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Maintaining a VPN tunnel via tun2socks to route system traffic through a SOCKS5 proxy." />
+                android:value="Maintaining a VPN tunnel via hev-socks5-tunnel to route system traffic through a SOCKS5 proxy." />
         </service>
 
         <activity

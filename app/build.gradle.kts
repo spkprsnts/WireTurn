@@ -11,6 +11,7 @@ plugins {
 android {
     namespace = "com.wireturn.app"
     compileSdk = project.property("project.compileSdk").toString().toInt()
+    ndkVersion = project.findProperty("android.ndkVersion")?.toString() ?: "27.0.12077973"
 
     defaultConfig {
         applicationId = "com.wireturn.app"
@@ -38,7 +39,7 @@ android {
         resources.excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
         jniLibs {
             useLegacyPackaging = true
-            keepDebugSymbols += "**/libtun2socks.so"
+            keepDebugSymbols += "**/libhevsocks5.so"
             keepDebugSymbols += "**/libturnable.so"
             keepDebugSymbols += "**/libvkturn.so"
             keepDebugSymbols += "**/libxray.so"
@@ -137,44 +138,58 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
 
+val androidComponents = project.extensions.findByType<com.android.build.api.variant.ApplicationAndroidComponentsExtension>()
+val ndkDir: String? = try {
+    androidComponents?.sdkComponents?.ndkDirectory?.orNull?.asFile?.absolutePath
+} catch (_: Exception) { null }
+
+fun Exec.configureNdk() {
+    if (org.gradle.internal.os.OperatingSystem.current().isWindows && ndkDir != null) {
+        environment("NDK_PATH", ndkDir)
+        val currentWslEnv = System.getenv("WSLENV") ?: ""
+        if (!currentWslEnv.contains("NDK_PATH/p")) {
+            environment("WSLENV", if (currentWslEnv.isEmpty()) "NDK_PATH/p" else "$currentWslEnv:NDK_PATH/p")
+        }
+    } else if (ndkDir != null) {
+        environment("NDK_PATH", ndkDir)
+    }
+}
+
+fun Exec.wslOrBash(script: String) {
+    if (org.gradle.internal.os.OperatingSystem.current().isWindows) {
+        commandLine("wsl", "bash", "-l", "-c",
+            $$"cd $(wslpath '$${rootDir.absolutePath}') && $${script}"
+        )
+    } else {
+        commandLine("bash", "-c", "chmod +x build.sh && $script")
+    }
+}
+
+// C/CMake binaries (hev-socks5-tunnel) — doNotTrackState to avoid symlink issues on Windows
+tasks.register<Exec>("buildCBinaries") {
+    group = "build"
+    description = "Compiles hev-socks5-tunnel (C/Makefile) for Android"
+    workingDir = rootDir
+    doNotTrackState("hev-socks5-tunnel contains symlinks that Gradle cannot snapshot on Windows")
+    outputs.dir(file("${projectDir}/src/main/jniLibs"))
+    configureNdk()
+    wslOrBash("./build.sh cmake")
+}
+
+// Go binaries — proper incremental tracking (no symlinks in Go submodules)
 tasks.register<Exec>("buildGoBinaries") {
     group = "build"
     description = "Compiles Go binaries for Android"
     workingDir = rootDir
-
-    // Enable incremental builds: only run if Go files or build script changed
-    inputs.dir(file("${rootDir}/external")).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.dir(file("${rootDir}/external/vk-turn-proxy")).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.dir(file("${rootDir}/external/vless-client")).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.dir(file("${rootDir}/external/turnable")).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.file(file("${rootDir}/build.sh")).withPathSensitivity(PathSensitivity.RELATIVE)
     outputs.dir(file("${projectDir}/src/main/jniLibs"))
-
-    // Pass NDK path from AGP to script (AGP 8.x / 9.x compatible)
-    val androidComponents = project.extensions.findByType<com.android.build.api.variant.ApplicationAndroidComponentsExtension>()
-    val ndkDir = try {
-        androidComponents?.sdkComponents?.ndkDirectory?.orNull?.asFile?.absolutePath
-    } catch (_: Exception) {
-        null
-    }
-
-    if (org.gradle.internal.os.OperatingSystem.current().isWindows) {
-        if (ndkDir != null) {
-            // Use WSLENV with /p flag to auto-convert Windows path to WSL path
-            environment("NDK_PATH", ndkDir)
-            val currentWslEnv = System.getenv("WSLENV") ?: ""
-            if (!currentWslEnv.contains("NDK_PATH/p")) {
-                environment("WSLENV", if (currentWslEnv.isEmpty()) "NDK_PATH/p" else "$currentWslEnv:NDK_PATH/p")
-            }
-        }
-        // Use login shell to load PATH and wslpath for reliable mapping
-        commandLine("wsl", "bash", "-l", "-c",
-            $$"cd $(wslpath '$${rootDir.absolutePath}') && ./build.sh"
-        )
-    } else {
-        if (ndkDir != null) environment("NDK_PATH", ndkDir)
-        commandLine("bash", "-c", "chmod +x build.sh && ./build.sh")
-    }
+    configureNdk()
+    wslOrBash("./build.sh go")
 }
 
-// Заставляем Android собирать бинарники перед компиляцией Java/Kotlin кода
 tasks.named("preBuild") {
-    dependsOn("buildGoBinaries")
+    dependsOn("buildCBinaries", "buildGoBinaries")
 }

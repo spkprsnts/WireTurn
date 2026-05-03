@@ -41,7 +41,7 @@
     <string name="turnable_core">Proxy core (Turnable)</string>
     <string name="xray_core_name" translatable="false">vless-client</string>
     <string name="xray_core_original" translatable="false">Xray-core</string>
-    <string name="tun2socks" translatable="false">tun2socks</string>
+    <string name="hev_socks5_tunnel" translatable="false">hev-socks5-tunnel</string>
     <!-- Buttons and Common Actions -->
     <string name="btn_open">Open</string>
     <string name="btn_close">Close</string>

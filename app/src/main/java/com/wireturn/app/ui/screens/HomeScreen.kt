@@ -1592,9 +1592,9 @@ private fun RepoLinksContent(
 
             item {
                 RepoLinkItem(
-                    title = stringResource(R.string.tun2socks),
-                    subtitle = "xjasonlyu/libtun2socks.so",
-                    url = "https://github.com/xjasonlyu/tun2socks",
+                    title = stringResource(R.string.hev_socks5_tunnel),
+                    subtitle = "heiher/hev-socks5-tunnel",
+                    url = "https://github.com/heiher/hev-socks5-tunnel",
                     containerColor = containerColor,
                     onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
                     onOpen = { uriHandler.openUri(it) }

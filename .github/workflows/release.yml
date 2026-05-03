@@ -32,13 +32,34 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
+      - name: Resolve latest NDK version
+        id: ndk_version
+        run: |
+          # Исправлен захват версии и добавлена переменная для версии без префикса
+          PKG=$(sdkmanager --list 2>/dev/null | grep -oP 'ndk;\d+\.\d+\.\d+' | sort -Vu | tail -1)
+          VERSION=$(echo $PKG | cut -d';' -f2)
+          echo "pkg=$PKG" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+
+      - name: Cache NDK
+        uses: actions/cache@v4
+        id: ndk_cache
+        with:
+          # Кэшируем только конкретную папку версии NDK
+          path: ${{ env.ANDROID_HOME }}/ndk/${{ steps.ndk_version.outputs.version }}
+          key: ndk-${{ steps.ndk_version.outputs.version }}
+
+      - name: Install latest NDK
+        if: steps.ndk_cache.outputs.cache-hit != 'true'
+        run: sdkmanager "${{ steps.ndk_version.outputs.pkg }}"
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
       - name: Build with Gradle
-        run: ./gradlew assembleRelease
-        env:
-          NDK_PATH: ${{ env.ANDROID_HOME }}/ndk-bundle
+        # Передаем версию NDK в проект
+        run: ./gradlew assembleRelease -Pandroid.ndkVersion=${{ steps.ndk_version.outputs.version }}
 
       - name: Sign APK
         uses: r0adkll/sign-android-release@v1

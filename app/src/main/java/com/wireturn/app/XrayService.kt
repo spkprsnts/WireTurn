@@ -97,8 +97,8 @@ class XrayService : Service() {
                             if (!vpnRunning || ((excludedChanged || bypassModeChanged || filteringChanged) && bundle.vpnState == VpnState.Running)) {
                                 if (vpnRunning) {
                                     AppLogsState.addLog("[VPN] Restarting due to settings change")
-                                    val stopIntent = Intent(this@XrayService, Tun2SocksVpnService::class.java).apply {
-                                        action = Tun2SocksVpnService.ACTION_STOP
+                                    val stopIntent = Intent(this@XrayService, HevVpnService::class.java).apply {
+                                        action = HevVpnService.ACTION_STOP
                                     }
                                     startService(stopIntent)
                                     // Give it a small moment to stop before the next emission or within this block
@@ -107,8 +107,8 @@ class XrayService : Service() {
                                 
                                 // Start VPN if it's Idle (either just stopped or was never running)
                                 if (VpnServiceState.state.value == VpnState.Idle) {
-                                    val vpnIntent = Intent(this@XrayService, Tun2SocksVpnService::class.java).apply {
-                                        putExtra(Tun2SocksVpnService.EXTRA_SOCKS5_ADDR, runningXray.connectableAddress)
+                                    val vpnIntent = Intent(this@XrayService, HevVpnService::class.java).apply {
+                                        putExtra(HevVpnService.EXTRA_SOCKS5_ADDR, runningXray.connectableAddress)
                                     }
                                     startService(vpnIntent)
                                 }
@@ -116,8 +116,8 @@ class XrayService : Service() {
                         }
                     } else {
                         if (bundle.vpnState != VpnState.Idle) {
-                            val stopIntent = Intent(this@XrayService, Tun2SocksVpnService::class.java).apply {
-                                action = Tun2SocksVpnService.ACTION_STOP
+                            val stopIntent = Intent(this@XrayService, HevVpnService::class.java).apply {
+                                action = HevVpnService.ACTION_STOP
                             }
                             startService(stopIntent)
                         }
@@ -372,8 +372,8 @@ class XrayService : Service() {
         process.get()?.destroyForcibly()
 
         // Explicitly stop child VPN service
-        val stopIntent = Intent(this, Tun2SocksVpnService::class.java).apply {
-            action = Tun2SocksVpnService.ACTION_STOP
+        val stopIntent = Intent(this, HevVpnService::class.java).apply {
+            action = HevVpnService.ACTION_STOP
         }
         startService(stopIntent)
 
