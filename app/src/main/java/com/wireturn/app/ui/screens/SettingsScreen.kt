@@ -218,41 +218,6 @@ fun SettingsScreen(
                 }
             }
 
-            // 1.1 Язык
-            val appLanguage by viewModel.appLanguage.collectAsStateWithLifecycle()
-            val languages = listOf("system", "en", "ru")
-
-            SettingsGroup(title = stringResource(R.string.lang_title)) {
-                SettingsGroupItem(isTop = true, isBottom = true, containerColor = blockContainerColor) {
-                    SingleChoiceSegmentedButtonRow(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        languages.forEachIndexed { index, lang ->
-                            SegmentedButton(
-                                selected = appLanguage == lang,
-                                onClick = {
-                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                    viewModel.setAppLanguage(lang)
-                                },
-                                shape = SegmentedButtonDefaults.itemShape(
-                                    index = index,
-                                    count = languages.size
-                                ),
-                                label = {
-                                    Text(
-                                        when (lang) {
-                                            "en" -> stringResource(R.string.lang_en)
-                                            "ru" -> stringResource(R.string.lang_ru)
-                                            else -> stringResource(R.string.lang_system)
-                                        }
-                                    )
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-
             // 2. Приватность
             SettingsGroup(title = stringResource(R.string.privacy_mode_title)) {
                 SettingsGroupItem(
@@ -484,6 +449,41 @@ fun SettingsScreen(
                         checked = allowUnstableUpdates,
                         onCheckedChange = { viewModel.setAllowUnstableUpdates(it) }
                     )
+                }
+            }
+
+            // Язык
+            val appLanguage by viewModel.appLanguage.collectAsStateWithLifecycle()
+            val languages = listOf("system", "en", "ru")
+
+            SettingsGroup(title = stringResource(R.string.lang_title)) {
+                SettingsGroupItem(isTop = true, isBottom = true, containerColor = blockContainerColor) {
+                    SingleChoiceSegmentedButtonRow(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        languages.forEachIndexed { index, lang ->
+                            SegmentedButton(
+                                selected = appLanguage == lang,
+                                onClick = {
+                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                    viewModel.setAppLanguage(lang)
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(
+                                    index = index,
+                                    count = languages.size
+                                ),
+                                label = {
+                                    Text(
+                                        when (lang) {
+                                            "en" -> stringResource(R.string.lang_en)
+                                            "ru" -> stringResource(R.string.lang_ru)
+                                            else -> stringResource(R.string.lang_system)
+                                        }
+                                    )
+                                }
+                            )
+                        }
+                    }
                 }
             }
 
