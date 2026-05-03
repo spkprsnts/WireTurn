@@ -410,7 +410,6 @@ fun HomeScreen(
                 }
             )
         },
-        bottomBar = { Spacer(Modifier.height(64.dp)) },
         snackbarHost = {
             SnackbarHost(
                 hostState = snackbarHostState,
@@ -430,11 +429,11 @@ fun HomeScreen(
                 .widthIn(max = 600.dp)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 12.dp),
+                .padding(bottom = 76.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(8.dp))
 
             LaunchedEffect(hasNotificationPermission, isIgnoringBatteryOptimizations) {
                 if (hasNotificationPermission && isIgnoringBatteryOptimizations) {
@@ -1038,7 +1037,7 @@ fun HomeScreen(
                                     }
                                 ) {
                                     Icon(
-                                        painter = painterResource(R.drawable.apps_24px),
+                                        painter = painterResource(R.drawable.route_24px),
                                         contentDescription = stringResource(R.string.vpn_apps_exceptions),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(
                                             alpha = if (globalVpnSettings.filteringEnabled) 1f else 0.38f
