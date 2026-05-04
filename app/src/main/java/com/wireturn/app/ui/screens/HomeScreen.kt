@@ -211,22 +211,34 @@ fun HomeScreen(
         )
     }
 
+    val lifecycleOwner = LocalLifecycleOwner.current
+
     // --- Effects & Lifecycle ---
-    LaunchedEffect(proxyPing) {
+    LaunchedEffect(proxyPing, proxyState) {
         if (proxyPing is MainViewModel.PingResult.Success) {
             lastSuccessPing = proxyPing as MainViewModel.PingResult.Success
         }
 
-        if (!isControlPingScheduled && (proxyPing is MainViewModel.PingResult.Success || proxyPing is MainViewModel.PingResult.Error)) {
-            isControlPingScheduled = true
-            delay(1000)
-            viewModel.checkProxyPing()
+        if (proxyState is ProxyState.Working) {
+            if (proxyPing is MainViewModel.PingResult.Success || proxyPing is MainViewModel.PingResult.Error) {
+                if (!isControlPingScheduled) {
+                    isControlPingScheduled = true
+                    delay(1000)
+                } else {
+                    delay(15000)
+                }
+
+                if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                    viewModel.checkProxyPing()
+                }
+            } else if (proxyPing == null) {
+                viewModel.checkProxyPing()
+            }
         }
     }
 
     LaunchedEffect(runningXrayConfig) {
         lastSuccessPing = null
-        isControlPingScheduled = false
     }
 
     val proxyTransfer by viewModel.proxyTransfer.collectAsStateWithLifecycle()
@@ -254,8 +266,6 @@ fun HomeScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val lifecycleOwner = LocalLifecycleOwner.current
-    
     // --- Launchers ---
     val batteryOptLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
