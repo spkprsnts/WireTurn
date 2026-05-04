@@ -36,7 +36,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -85,39 +84,39 @@ class ProxyService : Service() {
         // Если уже запущено и основной цикл работает — ничего не делаем.
         if (ProxyServiceState.isRunning.value && proxyJob?.isActive == true) return START_STICKY
 
-        // Проверяем валидность конфига перед началом работы.
-        // Это защищает от фантомных запусков (например, после сброса настроек)
-        val prefs = AppPreferences(applicationContext)
-        val cfg = runBlocking { prefs.clientConfigFlow.first() }
-        if (!cfg.isValid) {
-            val errorRes = cfg.getValidationErrorResId() ?: R.string.error_settings_empty
-            ProxyServiceState.setStartupResult(StartupResult.Failed(getString(errorRes)))
-            ProxyServiceState.setRunning(false)
-            serviceScope.launch {
-                delay(500)
-                withContext(Dispatchers.Main) { stopSelf() }
-            }
-            return START_NOT_STICKY
-        }
-
-        initStartup()
-        
         proxyJob?.cancel()
         proxyJob = serviceScope.launch {
+            // Проверяем валидность конфига перед началом работы.
+            val prefs = AppPreferences(applicationContext)
+            val cfg = prefs.clientConfigFlow.first()
+            if (!cfg.isValid) {
+                val errorRes = cfg.getValidationErrorResId() ?: R.string.error_settings_empty
+                ProxyServiceState.setStartupResult(StartupResult.Failed(getString(errorRes)))
+                ProxyServiceState.setRunning(false)
+                delay(500)
+                withContext(Dispatchers.Main) { stopSelf() }
+                return@launch
+            }
+
+            initStartup()
             mainSupervisor()
+            
             if (!userStopped.get()) {
-                stopSelf()
+                withContext(Dispatchers.Main) { stopSelf() }
             }
         }
 
         return START_STICKY
     }
 
-    private fun initStartup() {
+    private suspend fun initStartup() {
         val prefs = AppPreferences(applicationContext)
-        val vlessConfig = runBlocking { prefs.vlessConfigFlow.first() }
-        val xraySettings = runBlocking { prefs.xraySettingsFlow.first() }
-        val isDualRouteStart = xraySettings.xrayEnabled && vlessConfig.isDualRoute
+        val vlessConfig = prefs.vlessConfigFlow.first()
+        val xraySettings = prefs.xraySettingsFlow.first()
+        val xrayConfig = prefs.xrayConfigFlow.first()
+        
+        val isXrayVless = xrayConfig.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS
+        val isDualRouteStart = xraySettings.xrayEnabled && isXrayVless && vlessConfig.isDualRoute
 
         NotificationHelper.cancelErrorNotification(this)
         ProxyServiceState.setStartupResult(null)
@@ -131,19 +130,21 @@ class ProxyService : Service() {
         userStopped.set(false)
         restartCount = 0
 
-        try {
-            val notification = NotificationHelper.buildNotification(this)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                startForeground(
-                    NotificationHelper.NOTIFICATION_ID,
-                    notification,
-                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-                )
-            } else {
-                startForeground(NotificationHelper.NOTIFICATION_ID, notification)
+        withContext(Dispatchers.Main) {
+            try {
+                val notification = NotificationHelper.buildNotification(this@ProxyService)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    startForeground(
+                        NotificationHelper.NOTIFICATION_ID,
+                        notification,
+                        android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                    )
+                } else {
+                    startForeground(NotificationHelper.NOTIFICATION_ID, notification)
+                }
+            } catch (e: Exception) {
+                AppLogsState.addLog("[Proxy] Failed to start foreground: ${e.message}")
             }
-        } catch (e: Exception) {
-            AppLogsState.addLog("[Proxy] Failed to start foreground: ${e.message}")
         }
 
         NotificationHelper.updateNotification(this)
@@ -173,9 +174,12 @@ class ProxyService : Service() {
 
         var wasSuppressed = false
         while (isActive && !userStopped.get()) {
-            val vlessConfig = prefs.vlessConfigFlow.first()
+            val vlessConfig = XrayServiceState.runningVlessConfig.value ?: prefs.vlessConfigFlow.first()
             val xraySettings = prefs.xraySettingsFlow.first()
-            val isDualRoute = xraySettings.xrayEnabled && vlessConfig.isDualRoute
+            val xrayConfig = XrayServiceState.runningXrayConfig.value ?: prefs.xrayConfigFlow.first()
+            
+            val isXrayVless = xrayConfig.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS
+            val isDualRoute = xraySettings.xrayEnabled && isXrayVless && vlessConfig.isDualRoute
             
             if (isDualRoute && ProxyServiceState.isTunnelSuppressed.value) {
                 wasSuppressed = true
@@ -588,16 +592,27 @@ class ProxyService : Service() {
                     }
                     
                     // Следим за изменениями настроек Xray и VLESS для управления XrayService и подавлением туннеля
-                    combine(prefs.xraySettingsFlow, prefs.vlessConfigFlow) { settings, vless ->
-                        settings to vless
-                    }.collect { (settings, vless) ->
+                    combine(
+                        prefs.xraySettingsFlow,
+                        prefs.vlessConfigFlow,
+                        prefs.xrayConfigFlow,
+                        XrayServiceState.runningVlessConfig,
+                        XrayServiceState.runningXrayConfig
+                    ) { settings, vless, xray, runningVless, runningXray ->
+                        // Используем запущенный конфиг, если он есть, чтобы избежать переключения маршрутов "на горячую" при изменении настроек в UI
+                        val effectiveVless = runningVless ?: vless
+                        val effectiveXray = runningXray ?: xray
+                        val isXrayVless = effectiveXray.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS
+                        
+                        val isDualRoute = settings.xrayEnabled && isXrayVless && effectiveVless.isDualRoute
+                        settings to isDualRoute
+                    }.collect { (settings, isDualRoute) ->
                         if (!ProxyServiceState.isRunning.value) return@collect
 
-                        val isDualRoute = settings.xrayEnabled && vless.isDualRoute
                         val prevSuppressed = ProxyServiceState.isTunnelSuppressed.value
                         
                         if (!isDualRoute && prevSuppressed) {
-                            // Если Dual Route выключен, но туннель был подавлен — разрешаем его
+                            // Если Dual Route выключен (или протокол сменился), но туннель был подавлен — разрешаем его
                             ProxyServiceState.setTunnelSuppressed(false)
 
                             // Немедленно сбрасываем статус в "Подключение", не дожидаясь цикла mainSupervisor
