@@ -102,13 +102,10 @@ class XrayService : Service() {
                                         action = HevVpnService.ACTION_STOP
                                     }
                                     startService(stopIntent)
-                                    // Give it a small moment to stop before the next emission or within this block
-                                    delay(300)
                                 }
                                 
                                 // Start VPN if it's Idle (either just stopped or was never running)
                                 if (VpnServiceState.state.value == VpnState.Idle) {
-                                    delay(500) // Small delay to avoid tight loops
                                     val vpnIntent = Intent(this@XrayService, HevVpnService::class.java).apply {
                                         putExtra(HevVpnService.EXTRA_SOCKS5_ADDR, runningXray.connectableAddress)
                                     }

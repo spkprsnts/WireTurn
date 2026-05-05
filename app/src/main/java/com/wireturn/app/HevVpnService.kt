@@ -16,6 +16,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 @Suppress("unused")
 internal class HevSocks5Tunnel {
@@ -37,6 +39,7 @@ class HevVpnService : VpnService() {
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var tunInterface: ParcelFileDescriptor? = null
     private val isStopping = AtomicBoolean(false)
+    private val nativeLock = Mutex()
 
     private fun disableVpnMode() {
         val context = applicationContext
@@ -147,20 +150,11 @@ class HevVpnService : VpnService() {
             }
 
             val tunFd = established.fd
-            synchronized(this) {
-                if (isStopping.get()) {
-                    try { established.close() } catch (_: Exception) {}
-                    return
-                }
-                tunInterface = established
-                hevRunning.set(true)
-            }
-
+            val configFile = File(filesDir, "hev-socks5-tunnel.yaml")
             val lastColon = socks5Addr.lastIndexOf(':')
             val socks5Host = if (lastColon > 0) socks5Addr.substring(0, lastColon) else socks5Addr
             val socks5Port = if (lastColon > 0) socks5Addr.substring(lastColon + 1).toIntOrNull() ?: 1080 else 1080
 
-            val configFile = File(filesDir, "hev-socks5-tunnel.yaml")
             configFile.writeText(
                 """
 tunnel:
@@ -175,14 +169,26 @@ misc:
 """.trimIndent()
             )
 
-            AppLogsState.addLog("[hev-socks5-tunnel] Starting (fd=$tunFd, proxy=$socks5Addr)")
-            VpnServiceState.updateStatus(VpnState.Running)
-            NotificationHelper.updateNotification(this@HevVpnService)
+            nativeLock.withLock {
+                if (isStopping.get()) {
+                    try { established.close() } catch (_: Exception) {}
+                    return
+                }
+                
+                synchronized(this@HevVpnService) {
+                    tunInterface = established
+                }
 
-            withContext(Dispatchers.IO) {
-                hevTunnel.TProxyStartService(configFile.absolutePath, tunFd)
+                AppLogsState.addLog("[hev-socks5-tunnel] Starting (fd=$tunFd, proxy=$socks5Addr)")
+                withContext(Dispatchers.IO) {
+                    hevTunnel.TProxyStartService(configFile.absolutePath, tunFd)
+                }
+                
+                hevRunning.set(true)
+                VpnServiceState.updateStatus(VpnState.Running)
+                NotificationHelper.updateNotification(this@HevVpnService)
+                AppLogsState.addLog("[hev-socks5-tunnel] Tunnel start command sent")
             }
-            AppLogsState.addLog("[hev-socks5-tunnel] Tunnel start command sent")
 
         } catch (e: Exception) {
             AppLogsState.addLog("[hev-socks5-tunnel] Error: ${e.message}")
@@ -195,24 +201,25 @@ misc:
         isStopping.set(true)
         val wasRunning = hevRunning.getAndSet(false)
         
-        @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
-        kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
-            if (wasRunning) {
-                try {
-                    hevTunnel.TProxyStopService()
-                    AppLogsState.addLog("[hev-socks5-tunnel] Tunnel stopped")
-                } catch (e: Exception) {
-                    AppLogsState.addLog("[hev-socks5-tunnel] Stop error: ${e.message}")
+        serviceScope.launch {
+            nativeLock.withLock {
+                if (wasRunning) {
+                    try {
+                        hevTunnel.TProxyStopService()
+                        AppLogsState.addLog("[hev-socks5-tunnel] Tunnel stopped")
+                    } catch (e: Exception) {
+                        AppLogsState.addLog("[hev-socks5-tunnel] Stop error: ${e.message}")
+                    }
+                }
+
+                synchronized(this@HevVpnService) {
+                    tunInterface?.let { try { it.close() } catch (_: Exception) {} }
+                    tunInterface = null
                 }
             }
 
-            synchronized(this@HevVpnService) {
-                tunInterface?.let { try { it.close() } catch (_: Exception) {} }
-                tunInterface = null
-            }
-
             withContext(Dispatchers.Main) {
-                if (!isStopping.get()) return@withContext // New start already happened, don't set to Idle
+                if (!isStopping.get()) return@withContext // New start already happened
 
                 val currentState = VpnServiceState.state.value
                 if (currentState !is VpnState.Error) {
