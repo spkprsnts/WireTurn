@@ -38,13 +38,16 @@ class HevVpnService : VpnService() {
     private var tunInterface: ParcelFileDescriptor? = null
     private val isStopping = AtomicBoolean(false)
 
-    fun disableVpnMode() {
-        serviceScope.launch {
-            val prefs = AppPreferences(applicationContext)
-            val settings = prefs.xraySettingsFlow.first()
-            if (settings.xrayVpnMode) {
-                prefs.saveXraySettings(settings.copy(xrayVpnMode = false))
-            }
+    private fun disableVpnMode() {
+        val context = applicationContext
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val prefs = AppPreferences(context)
+                val settings = prefs.xraySettingsFlow.first()
+                if (settings.xrayVpnMode) {
+                    prefs.saveXraySettings(settings.copy(xrayVpnMode = false))
+                }
+            } catch (_: Exception) {}
         }
     }
 
@@ -56,21 +59,19 @@ class HevVpnService : VpnService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action
         if (action == ACTION_STOP) {
-            isStopping.set(true)
             stopVpn()
             return START_NOT_STICKY
         }
 
         if (action == ACTION_STOP_BY_USER) {
-            isStopping.set(true)
-            VpnServiceState.setManuallyDisabled(true)
             disableVpnMode()
             stopVpn()
             return START_NOT_STICKY
         }
 
-        if (tunInterface != null) {
-            AppLogsState.addLog("[VPN] Service already running")
+        val currentState = VpnServiceState.state.value
+        if (tunInterface != null || currentState == VpnState.Starting || currentState == VpnState.Running) {
+            AppLogsState.addLog("[VPN] Service already running or starting")
             return START_STICKY
         }
         isStopping.set(false)
@@ -137,17 +138,22 @@ class HevVpnService : VpnService() {
                 }
             }
 
-            tunInterface = builder.establish()
-            if (tunInterface == null) {
+            val established = builder.establish()
+            if (established == null) {
                 AppLogsState.addLog("[hev-socks5-tunnel] Failed to establish TUN interface")
                 disableVpnMode()
                 stopSelf()
                 return
             }
 
-            if (isStopping.get()) {
-                AppLogsState.addLog("[hev-socks5-tunnel] Stop requested before tunnel start")
-                return
+            val tunFd = established.fd
+            synchronized(this) {
+                if (isStopping.get()) {
+                    try { established.close() } catch (_: Exception) {}
+                    return
+                }
+                tunInterface = established
+                hevRunning.set(true)
             }
 
             val lastColon = socks5Addr.lastIndexOf(':')
@@ -169,16 +175,14 @@ misc:
 """.trimIndent()
             )
 
-            val tunFd = tunInterface!!.fd
             AppLogsState.addLog("[hev-socks5-tunnel] Starting (fd=$tunFd, proxy=$socks5Addr)")
+            VpnServiceState.updateStatus(VpnState.Running)
+            NotificationHelper.updateNotification(this@HevVpnService)
 
             withContext(Dispatchers.IO) {
                 hevTunnel.TProxyStartService(configFile.absolutePath, tunFd)
             }
-            hevRunning.set(true)
-            VpnServiceState.updateStatus(VpnState.Running)
-            NotificationHelper.updateNotification(this@HevVpnService)
-            AppLogsState.addLog("[hev-socks5-tunnel] Tunnel running")
+            AppLogsState.addLog("[hev-socks5-tunnel] Tunnel start command sent")
 
         } catch (e: Exception) {
             AppLogsState.addLog("[hev-socks5-tunnel] Error: ${e.message}")
@@ -188,21 +192,37 @@ misc:
     }
 
     private fun stopVpn() {
-        if (hevRunning.getAndSet(false)) {
-            try {
-                hevTunnel.TProxyStopService()
-                AppLogsState.addLog("[hev-socks5-tunnel] Tunnel stopped")
-            } catch (e: Exception) {
-                AppLogsState.addLog("[hev-socks5-tunnel] Stop error: ${e.message}")
+        isStopping.set(true)
+        val wasRunning = hevRunning.getAndSet(false)
+        
+        @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
+        kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+            if (wasRunning) {
+                try {
+                    hevTunnel.TProxyStopService()
+                    AppLogsState.addLog("[hev-socks5-tunnel] Tunnel stopped")
+                } catch (e: Exception) {
+                    AppLogsState.addLog("[hev-socks5-tunnel] Stop error: ${e.message}")
+                }
+            }
+
+            synchronized(this@HevVpnService) {
+                tunInterface?.let { try { it.close() } catch (_: Exception) {} }
+                tunInterface = null
+            }
+
+            withContext(Dispatchers.Main) {
+                if (!isStopping.get()) return@withContext // New start already happened, don't set to Idle
+
+                val currentState = VpnServiceState.state.value
+                if (currentState !is VpnState.Error) {
+                    VpnServiceState.updateStatus(VpnState.Idle)
+                }
+                NotificationHelper.updateNotification(this@HevVpnService)
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
             }
         }
-
-        tunInterface?.let { try { it.close() } catch (_: Exception) {} }
-        tunInterface = null
-
-        VpnServiceState.updateStatus(VpnState.Idle)
-        NotificationHelper.updateNotification(this)
-        stopSelf()
     }
 
     override fun onDestroy() {

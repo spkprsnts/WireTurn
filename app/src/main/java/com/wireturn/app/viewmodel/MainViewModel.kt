@@ -634,8 +634,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateXraySettings(settings: XraySettings) {
+        val oldSettings = _xraySettings.value
         _xraySettings.value = settings
         viewModelScope.launch {
+            if (!oldSettings.xrayVpnMode && settings.xrayVpnMode) {
+                com.wireturn.app.VpnServiceState.setManuallyDisabled(false)
+            }
             prefs.saveXraySettings(settings)
             updateCurrentProfileInList()
         }

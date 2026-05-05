@@ -21,6 +21,7 @@ class ProxyReceiver : BroadcastReceiver() {
                 ProxyService.stop(context, byUser = true)
             }
             "$pkg.START_VPN" -> {
+                VpnServiceState.setManuallyDisabled(false)
                 val prefs = AppPreferences(context)
                 runBlocking {
                     val settings = prefs.xraySettingsFlow.first()

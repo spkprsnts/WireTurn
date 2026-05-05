@@ -134,7 +134,7 @@ object NotificationHelper {
                 context.getString(R.string.vpn_stop),
                 stopVpnPendingIntent
             )
-        } else if (xrayState == XrayState.Running && VpnServiceState.wasManuallyDisabled.value) {
+        } else if (xrayState != XrayState.Idle) {
             val startVpnIntent = Intent(context, ProxyReceiver::class.java).apply {
                 action = "${context.packageName}.START_VPN"
             }

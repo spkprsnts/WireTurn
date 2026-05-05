@@ -54,7 +54,8 @@ class XrayService : Service() {
                     prefs.globalVpnSettingsFlow,
                     prefs.excludedAppsFlow,
                     XrayServiceState.runningXrayConfig,
-                    VpnServiceState.state
+                    VpnServiceState.state,
+                    VpnServiceState.wasManuallyDisabled
                 )
             ) { args ->
                 @Suppress("UNCHECKED_CAST")
@@ -107,6 +108,7 @@ class XrayService : Service() {
                                 
                                 // Start VPN if it's Idle (either just stopped or was never running)
                                 if (VpnServiceState.state.value == VpnState.Idle) {
+                                    delay(500) // Small delay to avoid tight loops
                                     val vpnIntent = Intent(this@XrayService, HevVpnService::class.java).apply {
                                         putExtra(HevVpnService.EXTRA_SOCKS5_ADDR, runningXray.connectableAddress)
                                     }
@@ -259,14 +261,26 @@ class XrayService : Service() {
             }
             process.set(proc)
             XrayServiceState.updateMetricsPort(randomMetricsPort)
-            XrayServiceState.updateStatus(XrayState.Running)
+            XrayServiceState.updateStatus(XrayState.Starting)
             NotificationHelper.updateNotification(this@XrayService)
 
             BufferedReader(InputStreamReader(proc.inputStream)).use { reader ->
+                var started = false
+                var linesProcessed = 0
                 while (true) {
                     val rawLine = reader.readLine() ?: break
                     val cleanLine = AppLogsState.stripAnsi(rawLine)
                     AppLogsState.addLog("[Xray] $cleanLine")
+                    linesProcessed++
+
+                    if (!started && (linesProcessed > 10 || 
+                        cleanLine.contains("Xray started") || 
+                        cleanLine.contains("proxy on") || 
+                        cleanLine.contains("Listening"))) {
+                        started = true
+                        XrayServiceState.updateStatus(XrayState.Running)
+                        NotificationHelper.updateNotification(this@XrayService)
+                    }
 
                     if (isXrayVless && rawVlessConfig.isDualRoute) {
                         handleDualRouteLog(cleanLine, randomMetricsPort)
