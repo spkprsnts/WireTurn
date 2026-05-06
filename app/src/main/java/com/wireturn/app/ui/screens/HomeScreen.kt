@@ -1385,9 +1385,9 @@ private fun ProxyToggleButton(
         label = "btn_fg"
     )
     val scale by animateFloatAsState(
-        targetValue = when {
-            proxyState is ProxyState.Idle || proxyState is ProxyState.Error -> if (isRestarting) 0.92f else 1f
-            proxyState is ProxyState.Starting || proxyState is ProxyState.Connecting || proxyState is ProxyState.CaptchaRequired -> 0.92f
+        targetValue = when (proxyState) {
+            is ProxyState.Idle, is ProxyState.Error -> if (isRestarting) 0.92f else 1f
+            is ProxyState.Starting, is ProxyState.Connecting, is ProxyState.CaptchaRequired -> 0.92f
             else -> 0.96f
         },
         animationSpec = spring(
@@ -1435,7 +1435,7 @@ private fun ProxyToggleButton(
                     
                     // Хак для избежания "призрачного" состояния Xray от предыдущей сессии.
                     // Сбрасываем флаг, когда прокси не активен, и ждем хотя бы одного переходного состояния Xray перед тем как верить в его "готовность".
-                    var xrayWasResetted by rememberSaveable(proxyState is ProxyState.Idle) { mutableStateOf(false) }
+                    var xrayWasResetted by rememberSaveable(proxyState is ProxyState.Idle) { mutableStateOf(true) }
                     if (!isXrayWorking || xrayState == XrayState.Idle) {
                         xrayWasResetted = true
                     }
