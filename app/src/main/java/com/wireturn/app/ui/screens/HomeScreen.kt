@@ -594,7 +594,6 @@ fun HomeScreen(
                                     HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_OFF)
                                     viewModel.stopProxy()
                                 }
-                                else -> {}
                             }
                         }
 

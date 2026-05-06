@@ -23,16 +23,12 @@ object XrayServiceState {
     private val _vlessConfigSnapshot = MutableStateFlow<VlessConfig?>(null)
     val vlessConfigSnapshot = _vlessConfigSnapshot.asStateFlow()
 
-    private val _xraySettingsSnapshot = MutableStateFlow<com.wireturn.app.data.XraySettings?>(null)
-    val xraySettingsSnapshot = _xraySettingsSnapshot.asStateFlow()
-
     fun updateStatus(newStatus: XrayState) {
         _state.value = newStatus
         if (newStatus == XrayState.Idle) {
             _wgConfigSnapshot.value = null
             _xrayConfigSnapshot.value = null
             _vlessConfigSnapshot.value = null
-            _xraySettingsSnapshot.value = null
             _metricsPort.value = null
         }
     }
@@ -41,10 +37,9 @@ object XrayServiceState {
         _metricsPort.value = port
     }
 
-    fun setConfigsSnapshot(wg: WgConfig?, xray: XrayConfig?, vless: VlessConfig?, settings: com.wireturn.app.data.XraySettings? = null) {
+    fun setConfigsSnapshot(wg: WgConfig?, xray: XrayConfig?, vless: VlessConfig?) {
         _wgConfigSnapshot.value = wg
         _xrayConfigSnapshot.value = xray
         _vlessConfigSnapshot.value = vless
-        _xraySettingsSnapshot.value = settings
     }
 }

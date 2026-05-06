@@ -7,9 +7,12 @@ import android.os.IBinder
 import com.wireturn.app.viewmodel.XrayState
 import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.data.AppPreferences
+import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.XrayConfig
 import com.wireturn.app.data.XraySettings
 import com.wireturn.app.data.GlobalVpnSettings
+import com.wireturn.app.data.VlessConfig
+import com.wireturn.app.data.WgConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -20,7 +23,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.CancellationException
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -179,7 +181,6 @@ class XrayService : Service() {
                 wg = prefs.wgConfigFlow.first(),
                 xray = prefs.xrayConfigFlow.first(),
                 vless = prefs.vlessConfigFlow.first(),
-                settings = prefs.xraySettingsFlow.first(),
                 client = ProxyServiceState.clientConfigSnapshot.value ?: prefs.clientConfigFlow.first()
             )
             startXray(snapshot)
@@ -189,11 +190,10 @@ class XrayService : Service() {
     }
 
     private data class XrayConfigsSnapshot(
-        val wg: com.wireturn.app.data.WgConfig,
-        val xray: com.wireturn.app.data.XrayConfig,
-        val vless: com.wireturn.app.data.VlessConfig,
-        val settings: com.wireturn.app.data.XraySettings,
-        val client: com.wireturn.app.data.ClientConfig
+        val wg: WgConfig,
+        val xray: XrayConfig,
+        val vless: VlessConfig,
+        val client: ClientConfig
     )
 
     private suspend fun startXray(snapshot: XrayConfigsSnapshot) {
@@ -203,7 +203,6 @@ class XrayService : Service() {
             val rawWgConfig = snapshot.wg
             val rawXrayConfig = snapshot.xray
             val rawVlessConfig = snapshot.vless
-            val rawXraySettings = snapshot.settings
             val runningClientConfig = snapshot.client
             
             val isXrayVless = rawXrayConfig.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS
@@ -237,8 +236,7 @@ class XrayService : Service() {
             XrayServiceState.setConfigsSnapshot(
                 wg = if (isXrayVless) null else wgConfig,
                 xray = xrayConfig,
-                vless = if (isXrayVless) rawVlessConfig else null,
-                settings = rawXraySettings
+                vless = if (isXrayVless) rawVlessConfig else null
             )
             
             val randomMetricsPort = withContext(Dispatchers.IO) {

@@ -60,9 +60,6 @@ object ProxyServiceState {
     
     val isWorking: StateFlow<Boolean> = _status.map { it is ProxyStatus.Connected || it is ProxyStatus.Suppressed }
         .stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, false)
-    
-    val isTunnelSuppressed: StateFlow<Boolean> = _status.map { it is ProxyStatus.Suppressed }
-        .stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, false)
 
     fun setStatus(newStatus: ProxyStatus) {
         if (newStatus is ProxyStatus.Idle) {
