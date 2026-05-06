@@ -101,8 +101,16 @@ class LocalProxyManager(private val context: Context) {
     }
 
     suspend fun startProxy(cfg: ClientConfig, forceRestart: Boolean = false) {
-        if (!forceRestart && ProxyServiceState.isRunning.value) return
-        if (_proxyState.value is ProxyState.Error) _proxyState.value = ProxyState.Idle
+        val currentStatus = ProxyServiceState.status.value
+        // Разрешаем запуск, если сервис простаивает ИЛИ находится в состоянии ошибки.
+        // Это позволяет пользователю нажать "Retry" без ожидания автосброса ошибки.
+        if (!forceRestart && currentStatus !is ProxyStatus.Idle && currentStatus !is ProxyStatus.Error) return
+        
+        // Сбрасываем локальное состояние ошибки и таймер авто-сброса перед новым запуском
+        resetJob?.cancel()
+        if (_proxyState.value is ProxyState.Error) {
+            _proxyState.value = ProxyState.Idle
+        }
 
         ProxyService.start(context, cfg)
 
@@ -114,14 +122,21 @@ class LocalProxyManager(private val context: Context) {
 
         if (_proxyState.value is ProxyState.Error) return
 
-        if (result == null) {
-            ProxyService.stop(context)
-            setErrorWithAutoReset(context.getString(R.string.error_proxy_not_started))
-        } else if (result is ProxyStatus.Error) {
-            ProxyService.stop(context)
-            setErrorWithAutoReset(result.message)
-        } else {
-            syncStateWithService()
+        when (result) {
+            null -> {
+                ProxyService.stop(context)
+                setErrorWithAutoReset(context.getString(R.string.error_proxy_not_started))
+            }
+            is ProxyStatus.Error -> {
+                // Если сервис вернул ошибку (например, Jazz недоступен),
+                // останавливаем его и показываем ошибку в UI.
+                ProxyService.stop(context)
+                setErrorWithAutoReset(result.message)
+            }
+
+            else -> {
+                syncStateWithService()
+            }
         }
     }
 

@@ -789,6 +789,9 @@ class ProxyService : Service() {
                 ProxyServiceState.setStatus(ProxyStatus.Error(context.getString(errorRes)))
                 return
             }
+            // Устанавливаем статус Starting сразу, чтобы UI и LocalProxyManager
+            // поняли, что запущен новый процесс попытки подключения, даже если до этого была ошибка.
+            ProxyServiceState.setStatus(ProxyStatus.Starting)
             context.startForegroundService(Intent(context, ProxyService::class.java))
         }
 
