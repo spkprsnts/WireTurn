@@ -72,14 +72,14 @@ object NotificationHelper {
             if (pStatus.isNotEmpty()) statusParts.add(pStatus)
         }
         
-        if (xrayState != XrayState.Idle && (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute || xrayState == XrayState.Connecting)) {
+        if (xrayState != XrayState.Idle && (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute || xrayState == XrayState.Connecting || xrayState == XrayState.Starting)) {
             val isVless = ProxyServiceState.clientConfigSnapshot.value?.vlessMode == true
             statusParts.add(context.getString(if (isVless) R.string.vless else R.string.wg_short))
         }
         if (vpnState != VpnState.Idle && vpnState is VpnState.Running) statusParts.add(context.getString(R.string.vpn_short))
 
         val contentText = if (statusParts.isEmpty()) {
-            context.getString(R.string.proxy_press_to_start)
+            context.getString(R.string.stopping)
         } else {
             statusParts.joinToString(" • ")
         }

@@ -21,6 +21,7 @@
 
     <string name="idle">Остановлен</string>
     <string name="starting">Запускается…</string>
+    <string name="stopping">Остановка…</string>
     <string name="proxy_restarting">Перезапуск…</string>
     <string name="running">Запущен</string>
     <string name="connecting">Подключение…</string>
