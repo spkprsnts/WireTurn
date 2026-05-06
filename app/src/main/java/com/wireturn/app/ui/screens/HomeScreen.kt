@@ -125,7 +125,6 @@ import com.wireturn.app.ProxyServiceState
 import com.wireturn.app.VpnServiceState
 import com.wireturn.app.XrayServiceState
 import com.wireturn.app.ui.CompactSettingsItem
-import com.wireturn.app.ui.theme.extendedColorScheme
 import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.viewmodel.XrayState
 import kotlin.math.ln
@@ -769,11 +768,7 @@ fun HomeScreen(
                                                 Text(
                                                     text = stringResource(R.string.ping_ms, lastSuccessPing!!.ms),
                                                     style = MaterialTheme.typography.labelMedium,
-                                                    color = when {
-                                                        lastSuccessPing!!.ms < 150 -> MaterialTheme.extendedColorScheme.success
-                                                        lastSuccessPing!!.ms < 300 -> MaterialTheme.extendedColorScheme.warning
-                                                        else -> MaterialTheme.colorScheme.error
-                                                    }.copy(alpha = pulseAlpha),
+                                                    color = (if (lastSuccessPing!!.ms < 300) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error).copy(alpha = pulseAlpha),
                                                     fontWeight = FontWeight.Bold
                                                 )
                                             } else {
@@ -793,11 +788,7 @@ fun HomeScreen(
                                             Text(
                                                 text = stringResource(R.string.ping_ms, currentPing.ms),
                                                 style = MaterialTheme.typography.labelMedium,
-                                                color = when {
-                                                    currentPing.ms < 150 -> MaterialTheme.extendedColorScheme.success
-                                                    currentPing.ms < 300 -> MaterialTheme.extendedColorScheme.warning
-                                                    else -> MaterialTheme.colorScheme.error
-                                                },
+                                                color = if (currentPing.ms < 300) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
                                                 fontWeight = FontWeight.Bold
                                             )
                                         }
