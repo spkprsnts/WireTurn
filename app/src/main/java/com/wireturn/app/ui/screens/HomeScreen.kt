@@ -572,6 +572,7 @@ fun HomeScreen(
                 ProxyToggleButton(
                     proxyState = proxyState,
                     xrayState = xrayState,
+                    xrayEnabled = xraySettings.xrayEnabled,
                     isRestarting = isRestarting,
                     isLocked = autoLaunchSettings.enabled,
                     onClick = {
@@ -1353,7 +1354,14 @@ private fun UpdateBanner(
 
 // Кнопка прокси
 @Composable
-private fun ProxyToggleButton(proxyState: ProxyState, xrayState: XrayState = XrayState.Idle, isRestarting: Boolean = false, isLocked: Boolean = false, onClick: () -> Unit) {
+private fun ProxyToggleButton(
+    proxyState: ProxyState,
+    xrayState: XrayState = XrayState.Idle,
+    xrayEnabled: Boolean = true,
+    isRestarting: Boolean = false,
+    isLocked: Boolean = false,
+    onClick: () -> Unit
+) {
     val containerColor by animateColorAsState(
         targetValue = when {
             proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed -> if (xrayState == XrayState.DirectRoute) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
@@ -1423,16 +1431,40 @@ private fun ProxyToggleButton(proxyState: ProxyState, xrayState: XrayState = Xra
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    when (proxyState) {
-                        is ProxyState.Starting, is ProxyState.Connecting, is ProxyState.CaptchaRequired -> CircularWavyProgressIndicator(
-                            color = contentColor
-                        )
+                    val isXrayWorking = xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
+                    
+                    // Хак для избежания "призрачного" состояния Xray от предыдущей сессии.
+                    // Сбрасываем флаг, когда прокси не активен, и ждем хотя бы одного переходного состояния Xray перед тем как верить в его "готовность".
+                    var xrayWasResetted by rememberSaveable(proxyState is ProxyState.Idle) { mutableStateOf(false) }
+                    if (!isXrayWorking || xrayState == XrayState.Idle) {
+                        xrayWasResetted = true
+                    }
+                    val xrayActuallyReady = isXrayWorking && xrayWasResetted
 
-                        is ProxyState.Connected, is ProxyState.Suppressed -> {
-                            if (proxyState is ProxyState.Suppressed && (xrayState == XrayState.Starting || xrayState == XrayState.Connecting)) {
+                    // Анимированная задержка для появления крутилки, если мы уже подключены.
+                    // Это позволяет избежать мерцания при быстром переключении режимов (например, выключение Dual Route).
+                    var showXraySpinner by remember { mutableStateOf(false) }
+                    LaunchedEffect(xrayActuallyReady, proxyState) {
+                        val isProxyActive = proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed
+                        if (!xrayActuallyReady && isProxyActive && xrayEnabled) {
+                            delay(300)
+                            showXraySpinner = true
+                        } else {
+                            showXraySpinner = !xrayActuallyReady && xrayEnabled
+                        }
+                    }
+
+                    when {
+                        isRestarting || proxyState is ProxyState.Starting || proxyState is ProxyState.Connecting || proxyState is ProxyState.CaptchaRequired -> {
+                            CircularWavyProgressIndicator(color = contentColor)
+                        }
+
+                        proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed -> {
+                            if (showXraySpinner) {
                                 CircularWavyProgressIndicator(color = contentColor)
                             } else {
-                                val icon = if (xrayState == XrayState.DirectRoute || proxyState is ProxyState.Suppressed) R.drawable.ethernet_24px else R.drawable.check_circle_24px
+                                // Показываем иконку (ethernet для прямого пути, галочку для проксирования)
+                                val icon = if (xrayState == XrayState.DirectRoute) R.drawable.ethernet_24px else R.drawable.check_circle_24px
                                 Icon(
                                     painterResource(icon),
                                     stringResource(R.string.proxy_active_stop),
@@ -1442,7 +1474,7 @@ private fun ProxyToggleButton(proxyState: ProxyState, xrayState: XrayState = Xra
                             }
                         }
 
-                        is ProxyState.Error -> Icon(
+                        proxyState is ProxyState.Error -> Icon(
                             painterResource(R.drawable.error_24px),
                             stringResource(R.string.proxy_error_restart),
                             Modifier.size(66.dp),
