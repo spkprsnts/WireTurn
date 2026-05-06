@@ -26,6 +26,7 @@ sealed class ProxyState {
     object Connecting : ProxyState()
     object Connected : ProxyState()
     object Suppressed : ProxyState()
+    object WaitingForNetwork : ProxyState()
     data class Error(val message: String) : ProxyState()
     data class CaptchaRequired(val url: String, val sessionId: Long = 0L) : ProxyState()
 }

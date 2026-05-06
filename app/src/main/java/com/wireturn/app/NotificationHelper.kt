@@ -65,6 +65,7 @@ object NotificationHelper {
                     is ProxyStatus.Connected -> context.getString(R.string.proxy_active)
                     is ProxyStatus.Starting -> context.getString(R.string.starting)
                     is ProxyStatus.Connecting -> context.getString(R.string.connecting)
+                    is ProxyStatus.WaitingForNetwork -> context.getString(R.string.status_waiting_for_network)
                     is ProxyStatus.CaptchaRequired -> context.getString(R.string.proxy_captcha_required)
                     is ProxyStatus.Error -> proxyStatus.message
                 }

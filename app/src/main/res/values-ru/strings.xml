@@ -25,6 +25,7 @@
     <string name="proxy_restarting">Перезапуск…</string>
     <string name="running">Запущен</string>
     <string name="connecting">Подключение…</string>
+    <string name="status_waiting_for_network">Ожидание сети…</string>
 
     <!-- Разрешения -->
     <string name="permissions_title">Разрешения</string>
@@ -218,6 +219,7 @@
     <string name="log_watchdog_limit">=== WATCHDOG: превышен лимит попыток (%1$d), остановка ===</string>
     <string name="log_watchdog_restart">=== WATCHDOG: перезапуск через %1$dмс (попытка %2$d/%3$d) ===</string>
     <string name="log_network_change">=== СМЕНА СЕТИ — ПЕРЕЗАПУСК ===</string>
+    <string name="log_no_network_waiting">=== НЕТ СЕТИ — БЕСКОНЕЧНОЕ ОЖИДАНИЕ ===</string>
     <string name="log_stop_ui">=== ОСТАНОВКА ИЗ ИНТЕРФЕЙСА ===</string>
     <string name="log_jazz_unavailable">>>> bk.salutejazz.ru НЕДОСТУПЕН — СМЕНИТЕ IP (ПЕРЕЗАГРУЗИТЕ СЕТЬ)</string>
     <string name="log_too_many_peer_failures">>>> СЛИШКОМ МНОГО ОШИБОК ПОДКЛЮЧЕНИЯ — остановка</string>

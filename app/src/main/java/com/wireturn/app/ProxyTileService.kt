@@ -48,12 +48,14 @@ class ProxyTileService : TileService() {
         val xrayState = XrayServiceState.state.value
         
         val isDirect = status is ProxyStatus.Suppressed
+        val isWaiting = status is ProxyStatus.WaitingForNetwork
         val isXrayWorking = xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
         val isWorking = status is ProxyStatus.Connected || (isDirect && isXrayWorking)
 
         updateTileState(
             isRunning = status !is ProxyStatus.Idle,
             isWorking = isWorking,
+            isWaiting = isWaiting,
             isCaptcha = status is ProxyStatus.CaptchaRequired,
             autoLaunchEnabled = initialAutoLaunch.enabled,
             isDirect = isDirect,
@@ -71,6 +73,7 @@ class ProxyTileService : TileService() {
             ) { status, xrayState, statusText, autoLaunch ->
                 val isRunning = status !is ProxyStatus.Idle
                 val isDirect = status is ProxyStatus.Suppressed
+                val isWaiting = status is ProxyStatus.WaitingForNetwork
                 val isXrayWorking = xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
                 val isWorking = status is ProxyStatus.Connected || (isDirect && isXrayWorking)
                 val isCaptcha = status is ProxyStatus.CaptchaRequired
@@ -78,6 +81,7 @@ class ProxyTileService : TileService() {
                 updateTileState(
                     isRunning = isRunning,
                     isWorking = isWorking,
+                    isWaiting = isWaiting,
                     isCaptcha = isCaptcha,
                     autoLaunchEnabled = autoLaunch.enabled,
                     isDirect = isDirect,
@@ -143,6 +147,7 @@ class ProxyTileService : TileService() {
     private fun updateTileState(
         isRunning: Boolean,
         isWorking: Boolean,
+        isWaiting: Boolean = false,
         isCaptcha: Boolean = false,
         autoLaunchEnabled: Boolean = false,
         isDirect: Boolean = false,
@@ -156,6 +161,7 @@ class ProxyTileService : TileService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             tile.subtitle = when {
                 isCaptcha -> getString(R.string.tile_captcha)
+                isWaiting -> getString(R.string.status_waiting_for_network)
                 autoLaunchEnabled && !isRunning -> getString(R.string.settings_auto_launch_title)
                 statusText != null -> statusText
                 isDirect -> {

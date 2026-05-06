@@ -590,7 +590,7 @@ fun HomeScreen(
                                         viewModel.startProxy()
                                     }
                                 }
-                                is ProxyState.Starting, is ProxyState.Connecting, is ProxyState.Connected, is ProxyState.Suppressed, is ProxyState.CaptchaRequired -> {
+                                else -> {
                                     HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_OFF)
                                     viewModel.stopProxy()
                                 }
@@ -619,6 +619,7 @@ fun HomeScreen(
                             else stringResource(R.string.connecting)
                         }
                         is ProxyState.CaptchaRequired -> stringResource(R.string.proxy_captcha_required)
+                        is ProxyState.WaitingForNetwork -> stringResource(R.string.status_waiting_for_network)
                         is ProxyState.Error -> (proxyState as ProxyState.Error).message
                         else -> when {
                             isRestarting -> stringResource(R.string.proxy_restarting)
@@ -629,7 +630,7 @@ fun HomeScreen(
                     style = MaterialTheme.typography.titleMedium,
                     color = when {
                         proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed -> MaterialTheme.colorScheme.primary
-                        proxyState is ProxyState.Starting || proxyState is ProxyState.Connecting || proxyState is ProxyState.CaptchaRequired -> MaterialTheme.colorScheme.tertiary
+                        proxyState is ProxyState.Starting || proxyState is ProxyState.Connecting || proxyState is ProxyState.CaptchaRequired || proxyState is ProxyState.WaitingForNetwork -> MaterialTheme.colorScheme.tertiary
                         proxyState is ProxyState.Error -> MaterialTheme.colorScheme.error
                         isRestarting -> MaterialTheme.colorScheme.tertiary
                         autoLaunchSettings.enabled -> MaterialTheme.colorScheme.primary
@@ -1356,7 +1357,7 @@ private fun ProxyToggleButton(
     val containerColor by animateColorAsState(
         targetValue = when {
             proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed -> if (xrayState == XrayState.DirectRoute) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
-            proxyState is ProxyState.Connecting || proxyState is ProxyState.CaptchaRequired -> MaterialTheme.colorScheme.tertiary
+            proxyState is ProxyState.Connecting || proxyState is ProxyState.CaptchaRequired || proxyState is ProxyState.WaitingForNetwork -> MaterialTheme.colorScheme.tertiary
             proxyState is ProxyState.Error -> MaterialTheme.colorScheme.errorContainer
             proxyState is ProxyState.Starting || isRestarting -> MaterialTheme.colorScheme.surfaceContainerHigh
             else -> MaterialTheme.colorScheme.surfaceVariant
@@ -1367,7 +1368,7 @@ private fun ProxyToggleButton(
     val contentColor by animateColorAsState(
         targetValue = when {
             proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed -> if (xrayState == XrayState.DirectRoute) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onPrimary
-            proxyState is ProxyState.Connecting || proxyState is ProxyState.CaptchaRequired -> MaterialTheme.colorScheme.onTertiary
+            proxyState is ProxyState.Connecting || proxyState is ProxyState.CaptchaRequired || proxyState is ProxyState.WaitingForNetwork -> MaterialTheme.colorScheme.onTertiary
             proxyState is ProxyState.Error -> MaterialTheme.colorScheme.onErrorContainer
             proxyState is ProxyState.Starting || isRestarting -> MaterialTheme.colorScheme.onSurfaceVariant
             else -> MaterialTheme.colorScheme.onSurfaceVariant
@@ -1378,7 +1379,7 @@ private fun ProxyToggleButton(
     val scale by animateFloatAsState(
         targetValue = when (proxyState) {
             is ProxyState.Idle, is ProxyState.Error -> if (isRestarting) 0.92f else 1f
-            is ProxyState.Starting, is ProxyState.Connecting, is ProxyState.CaptchaRequired -> 0.92f
+            is ProxyState.Starting, is ProxyState.Connecting, is ProxyState.CaptchaRequired, is ProxyState.WaitingForNetwork -> 0.92f
             else -> 0.96f
         },
         animationSpec = spring(
@@ -1392,7 +1393,7 @@ private fun ProxyToggleButton(
     val elevation by animateDpAsState(
         targetValue = when (proxyState) {
             is ProxyState.Idle, is ProxyState.Error -> 16.dp
-            is ProxyState.Starting, is ProxyState.Connecting, is ProxyState.CaptchaRequired -> 2.dp
+            is ProxyState.Starting, is ProxyState.Connecting, is ProxyState.CaptchaRequired, is ProxyState.WaitingForNetwork -> 2.dp
             else -> 6.dp
         },
         label = "elevation"
@@ -1446,7 +1447,7 @@ private fun ProxyToggleButton(
                     }
 
                     when {
-                        isRestarting || proxyState is ProxyState.Starting || proxyState is ProxyState.Connecting || proxyState is ProxyState.CaptchaRequired -> {
+                        isRestarting || proxyState is ProxyState.Starting || proxyState is ProxyState.Connecting || proxyState is ProxyState.CaptchaRequired || proxyState is ProxyState.WaitingForNetwork -> {
                             CircularWavyProgressIndicator(color = contentColor)
                         }
 

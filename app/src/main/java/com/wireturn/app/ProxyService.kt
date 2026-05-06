@@ -244,6 +244,12 @@ class ProxyService : Service() {
                 continue
             }
 
+            if (ProxyServiceState.status.value is ProxyStatus.WaitingForNetwork) {
+                // В режиме ожидания сети мы ничего не делаем, пока NetworkCallback не перезапустит нас
+                delay(1000)
+                continue
+            }
+
             val startTime = System.currentTimeMillis()
             val startupSuccessful = runBinary(runningCfg)
             val duration = System.currentTimeMillis() - startTime
@@ -260,6 +266,13 @@ class ProxyService : Service() {
             // Check for rapid failure
             val currentStatus = ProxyServiceState.status.value
             if (!startupSuccessful || (currentStatus !is ProxyStatus.Connected && duration < 2500)) {
+                if (!isNetworkAvailable()) {
+                    AppLogsState.addLog(getString(R.string.log_no_network_waiting))
+                    ProxyServiceState.setStatus(ProxyStatus.WaitingForNetwork)
+                    updateNotification(getString(R.string.status_waiting_for_network))
+                    continue
+                }
+
                 AppLogsState.addLog(getString(R.string.log_quick_exit, duration))
                 AppLogsState.addLog(getString(R.string.log_startup_failed_no_watchdog))
                 if (ProxyServiceState.status.value !is ProxyStatus.Error) {
@@ -607,7 +620,10 @@ class ProxyService : Service() {
                 ProxyServiceState.status,
                 XrayServiceState.state
             ) { settings, status, xrayState ->
-                val shouldBeRunning = settings.xrayEnabled && status !is ProxyStatus.Idle && status !is ProxyStatus.Error
+                val shouldBeRunning = settings.xrayEnabled && 
+                        status !is ProxyStatus.Idle && 
+                        status !is ProxyStatus.Error && 
+                        status !is ProxyStatus.WaitingForNetwork
                 val needsStart = shouldBeRunning && xrayState == XrayState.Idle
                 val needsStop = !shouldBeRunning && xrayState != XrayState.Idle
                 needsStart to needsStop
@@ -641,7 +657,7 @@ class ProxyService : Service() {
             }.collect { (status, isForeground) ->
                 if (status is ProxyStatus.Error && !isForeground) {
                     NotificationHelper.notifyError(this@ProxyService, status.message)
-                } else if ((status is ProxyStatus.Connected || status is ProxyStatus.Suppressed) || isForeground) {
+                } else if ((status is ProxyStatus.Connected || status is ProxyStatus.Suppressed || status is ProxyStatus.WaitingForNetwork) || isForeground) {
                     NotificationHelper.cancelErrorNotification(this@ProxyService)
                 }
             }
@@ -676,7 +692,15 @@ class ProxyService : Service() {
         val cb = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 val capabilities = cm.getNetworkCapabilities(network)
-                if (capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true) return
+                if (capabilities == null || capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) return
+                if (!capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) return
+
+                if (ProxyServiceState.status.value is ProxyStatus.WaitingForNetwork) {
+                    // Сеть появилась — перезапускаемся с самого начала
+                    val intent = Intent(this@ProxyService, ProxyService::class.java)
+                    startService(intent)
+                    return
+                }
 
                 val handle = network.getNetworkHandle()
                 if (handle == lastNetworkHandle) return
@@ -701,9 +725,24 @@ class ProxyService : Service() {
                     }
                 }
             }
+
+            override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+                if (ProxyServiceState.status.value is ProxyStatus.WaitingForNetwork) {
+                    if (networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                        !networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) {
+                        val intent = Intent(this@ProxyService, ProxyService::class.java)
+                        startService(intent)
+                    }
+                }
+            }
         }
         networkCallback = cb
-        cm.registerDefaultNetworkCallback(cb)
+        
+        val request = android.net.NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+            .build()
+        cm.registerNetworkCallback(request, cb)
     }
 
     private fun unregisterNetworkCallback() {
@@ -754,9 +793,21 @@ class ProxyService : Service() {
         }
     }
 
+    private fun isNetworkAvailable(): Boolean {
+        val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+        // Проверяем все доступные сети. Нам нужна хотя бы одна физическая сеть (не VPN) с интернетом.
+        return cm.allNetworks.any { net ->
+            val caps = cm.getNetworkCapabilities(net)
+            caps != null &&
+                    caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                    !caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
+        }
+    }
+
     private fun updateNotification(text: String) {
         ProxyServiceState.setStatusText(text)
         NotificationHelper.updateNotification(this)
+        ProxyTileService.requestUpdate(this)
     }
 
     private fun isQuotaError(line: String): Boolean {

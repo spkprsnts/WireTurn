@@ -21,6 +21,7 @@ sealed class ProxyStatus {
     data object Connecting : ProxyStatus()
     data object Connected : ProxyStatus()
     data object Suppressed : ProxyStatus()
+    data object WaitingForNetwork : ProxyStatus()
     data class CaptchaRequired(val session: CaptchaSession) : ProxyStatus()
     data class Error(val message: String) : ProxyStatus()
 }

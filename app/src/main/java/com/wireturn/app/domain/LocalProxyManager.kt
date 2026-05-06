@@ -91,6 +91,7 @@ class LocalProxyManager(private val context: Context) {
             is ProxyStatus.Connecting -> ProxyState.Connecting
             is ProxyStatus.Connected -> ProxyState.Connected
             is ProxyStatus.Suppressed -> ProxyState.Suppressed
+            is ProxyStatus.WaitingForNetwork -> ProxyState.WaitingForNetwork
             is ProxyStatus.CaptchaRequired -> ProxyState.CaptchaRequired(status.session.url, status.session.sessionId)
             is ProxyStatus.Error -> ProxyState.Error(status.message)
         }
@@ -102,9 +103,10 @@ class LocalProxyManager(private val context: Context) {
 
     suspend fun startProxy(cfg: ClientConfig, forceRestart: Boolean = false) {
         val currentStatus = ProxyServiceState.status.value
-        // Разрешаем запуск, если сервис простаивает ИЛИ находится в состоянии ошибки.
-        // Это позволяет пользователю нажать "Retry" без ожидания автосброса ошибки.
-        if (!forceRestart && currentStatus !is ProxyStatus.Idle && currentStatus !is ProxyStatus.Error) return
+        // Разрешаем запуск, если сервис простаивает ИЛИ находится в состоянии ошибки/ожидания сети.
+        // Это позволяет пользователю нажать "Retry" без ожидания.
+        if (!forceRestart && currentStatus !is ProxyStatus.Idle && 
+            currentStatus !is ProxyStatus.Error && currentStatus !is ProxyStatus.WaitingForNetwork) return
         
         // Сбрасываем локальное состояние ошибки и таймер авто-сброса перед новым запуском
         resetJob?.cancel()

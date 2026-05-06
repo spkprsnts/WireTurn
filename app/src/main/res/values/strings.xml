@@ -28,6 +28,7 @@
     <string name="proxy_restarting">Restarting…</string>
     <string name="running">Running</string>
     <string name="connecting">Connecting…</string>
+    <string name="status_waiting_for_network">Waiting for network…</string>
 
     <!-- Permissions -->
     <string name="permissions_title">Permissions</string>
@@ -256,6 +257,7 @@
     <string name="log_watchdog_limit">=== WATCHDOG: attempt limit exceeded (%1$d), stopping ===</string>
     <string name="log_watchdog_restart">=== WATCHDOG: restarting in %1$dms (attempt %2$d/%3$d) ===</string>
     <string name="log_network_change">=== NETWORK CHANGE — RESTARTING ===</string>
+    <string name="log_no_network_waiting">=== NO NETWORK — WAITING INDEFINITELY ===</string>
     <string name="log_stop_ui">=== STOPPED FROM UI ===</string>
     <string name="log_jazz_unavailable">>>> bk.salutejazz.ru UNAVAILABLE — CHANGE IP (RESTART NETWORK)</string>
     <string name="log_too_many_peer_failures">>>> TOO MANY PEER FAILURES — stopping</string>
