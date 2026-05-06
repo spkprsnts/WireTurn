@@ -6,18 +6,18 @@
     <string name="app_settings_title">Settings</string>
     <string name="turn_proxy_title" translatable="false">WireTurn</string>
     <string name="info_desc">Info</string>
-    <string name="proxy_active">Proxy active</string>
+    <string name="proxy_active">Tunnel active</string>
     <string name="proxy_running">Core active</string>
     <string name="proxy_press_to_start">Tap to start</string>
     <string name="proxy_stop">Stop</string>
     <string name="tcp" translatable="false">TCP</string>
     <string name="udp" translatable="false">UDP</string>
-    <string name="proxy_active_stop">Proxy active — tap to stop</string>
+    <string name="proxy_active_stop">Tunnel active — tap to stop</string>
     <string name="proxy_error_restart">Error — tap to restart</string>
     <string name="proxy_captcha_required">Captcha required</string>
     <string name="captcha_title">VK Check</string>
     <string name="captcha_desc">Complete the check to continue</string>
-    <string name="start_proxy">Start proxy</string>
+    <string name="start_proxy">Start tunnel</string>
     <string name="xray_config_invalid">Invalid config</string>
     <string name="error_format_short">Error: %1$s</string>
     <string name="repo_links">Repository links</string>
@@ -38,10 +38,10 @@
     <!-- Component and Core Names -->
     <string name="android_client">Android client</string>
     <string name="android_client_original">Android client (original)</string>
-    <string name="proxy_core_current">Proxy core (current)</string>
-    <string name="proxy_core">Proxy core (base)</string>
-    <string name="proxy_core_use">Proxy core (legacy)</string>
-    <string name="turnable_core">Proxy core (Turnable)</string>
+    <string name="proxy_core_current">Tunnel core (current)</string>
+    <string name="proxy_core">Tunnel core (base)</string>
+    <string name="proxy_core_use">Tunnel core (legacy)</string>
+    <string name="turnable_core">Tunnel core (Turnable)</string>
     <string name="xray_core_name" translatable="false">vless-client</string>
     <string name="xray_core_original" translatable="false">Xray-core</string>
     <string name="hev_socks5_tunnel" translatable="false">hev-socks5-tunnel</string>
@@ -166,7 +166,7 @@
     <string name="from_apk">From APK</string>
     <string name="btn_load">Load</string>
     <string name="finish_setup">Finish setup</string>
-    <string name="vk_help_text">A VK Call link is required for the proxy to work.</string>
+    <string name="vk_help_text">A VK Call link is required for the tunnel to work.</string>
     <string name="vk_help_secondary">It can be found on Google by searching for \"https://vk.com/call/join/\" or created manually in the web version of VK Calls (vk.com/calls) using desktop mode in your browser.</string>
     <string name="vk_help_search_btn">Search Google</string>
     <string name="local_port_help_text">This is the network address and port where the app will start the local proxy server.</string>
@@ -211,8 +211,10 @@
     <string name="privacy_mode_desc">Hides IP and ports</string>
     <string name="unstable_updates_title">Beta versions</string>
     <string name="unstable_updates_desc">Check for unstable updates</string>
+    <string name="wait_for_network_title">Wait for network</string>
+    <string name="wait_for_network_desc">When connection is lost, the tunnel will wait indefinitely for Wi-Fi or mobile network availability</string>
     <string name="restart_on_network_change_title">Restart on network change</string>
-    <string name="restart_on_network_change_desc">Automatically restart proxy when switching between Wi-Fi and mobile network</string>
+    <string name="restart_on_network_change_desc">Automatically restart tunnel when switching between Wi-Fi and mobile network</string>
 
     <!-- Captcha Setup -->
     <string name="captcha_settings_title">Captcha appearance</string>
@@ -228,10 +230,10 @@
     <string name="ping_ms">%1$d ms</string>
 
     <!-- Errors and system messages -->
-    <string name="error_proxy_crashed">Proxy crashed %1$d times — check settings</string>
+    <string name="error_proxy_crashed">Tunnel crashed %1$d times — check settings</string>
     <string name="error_settings_empty">Client settings not filled</string>
     <string name="error_raw_empty">Raw command not specified</string>
-    <string name="error_proxy_not_started">Proxy failed to start</string>
+    <string name="error_proxy_not_started">Tunnel failed to start</string>
     <string name="error_file_open">Could not open file</string>
     <string name="error_not_elf">File is not an ELF binary. Make sure you are loading the correct core.</string>
     <string name="error_file_empty">File is empty</string>
@@ -249,8 +251,8 @@
     <string name="log_custom_kernel">Using custom core from phone memory</string>
     <string name="log_command">Command: %1$s</string>
     <string name="log_quota_error">>>> QUOTA ERROR — resetting session in 2s</string>
-    <string name="log_proxy_start">=== PROXY STARTING: %1$s ===</string>
-    <string name="log_proxy_restart">=== RESTARTING PROXY ===</string>
+    <string name="log_proxy_start">=== TUNNEL STARTING: %1$s ===</string>
+    <string name="log_proxy_restart">=== RESTARTING TUNNEL ===</string>
     <string name="log_process_stopped">=== PROCESS STOPPED (Code: %1$d) ===</string>
     <string name="log_startup_failed_no_watchdog">=== Startup error, watchdog not activated ===</string>
     <string name="log_quick_exit">=== Quick exit (%1$dms) — check VK link and settings ===</string>
@@ -305,11 +307,11 @@
 
     <string name="proxy_auto_launch_active">Auto-launch active</string>
     <string name="settings_auto_launch_title">Auto-launch</string>
-    <string name="settings_auto_launch_desc">Start proxy only when internet is restricted</string>
+    <string name="settings_auto_launch_desc">Start tunnel only when internet is restricted</string>
     <string name="settings_auto_launch_url">Check URL</string>
     <string name="settings_auto_launch_interval">Check interval (min)</string>
     <string name="auto_launch_override_title">Manual control disabled</string>
-    <string name="auto_launch_override_desc">Proxy is currently managed by auto-launch. To perform manual control, you need to disable auto-launch.</string>
+    <string name="auto_launch_override_desc">Tunnel is currently managed by auto-launch. To perform manual control, you need to disable auto-launch.</string>
     <string name="auto_launch_disable_and_continue">Disable and continue</string>
 
     <!-- VLESS Setup -->
@@ -332,8 +334,8 @@
     <!-- Warnings -->
     <string name="warn_unsupported_arch_title">Architecture not supported</string>
     <string name="warn_unsupported_arch_desc">Your device uses an architecture (%1$s) not supported by the built-in binaries. The app may not work correctly or fail to start.\n\nSupported architectures: arm64-v8a, x86_64.</string>
-    <string name="warn_proxy_vless_mismatch">Mismatch: Proxy in VLESS mode, but Xray is WireGuard</string>
-    <string name="warn_proxy_wg_mismatch">Mismatch: Proxy in normal mode, but Xray is VLESS</string>
+    <string name="warn_proxy_vless_mismatch">Mismatch: Tunnel in VLESS mode, but Xray is WireGuard</string>
+    <string name="warn_proxy_wg_mismatch">Mismatch: Tunnel in normal mode, but Xray is VLESS</string>
     <string name="warn_vpn_requires_xray">VPN mode requires Xray to be enabled!</string>
 
     <!-- QR Import and Advanced Parameters -->

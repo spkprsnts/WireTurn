@@ -301,6 +301,7 @@ class AppPreferences(context: Context) {
         val BATTERY_NOTIFICATION_DISMISSED = booleanPreferencesKey("battery_notification_dismissed")
         val APPS_EXCLUSION_HINT_SHOWN = booleanPreferencesKey("apps_exclusion_hint_shown")
         val ALLOW_UNSTABLE_UPDATES = booleanPreferencesKey("allow_unstable_updates")
+        val WAIT_FOR_NETWORK = booleanPreferencesKey("wait_for_network")
         val RESTART_ON_NETWORK_CHANGE = booleanPreferencesKey("restart_on_network_change")
         val CAPTCHA_STYLE_MOD = booleanPreferencesKey("captcha_style_mod")
         val CAPTCHA_FORCE_TINT = booleanPreferencesKey("captcha_force_tint")
@@ -483,9 +484,14 @@ class AppPreferences(context: Context) {
         .map { prefs -> prefs[ALLOW_UNSTABLE_UPDATES] ?: false }
         .distinctUntilChanged()
 
+    val waitForNetworkFlow: Flow<Boolean> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { prefs -> prefs[WAIT_FOR_NETWORK] ?: true }
+        .distinctUntilChanged()
+
     val restartOnNetworkChangeFlow: Flow<Boolean> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
-        .map { prefs -> prefs[RESTART_ON_NETWORK_CHANGE] ?: true }
+        .map { prefs -> prefs[RESTART_ON_NETWORK_CHANGE] ?: false }
         .distinctUntilChanged()
 
     val captchaStyleModFlow: Flow<Boolean> = context.dataStore.data
@@ -697,6 +703,10 @@ class AppPreferences(context: Context) {
 
     suspend fun setAllowUnstableUpdates(allow: Boolean) {
         context.dataStore.edit { prefs -> prefs[ALLOW_UNSTABLE_UPDATES] = allow }
+    }
+
+    suspend fun setWaitForNetwork(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[WAIT_FOR_NETWORK] = enabled }
     }
 
     suspend fun setRestartOnNetworkChange(enabled: Boolean) {

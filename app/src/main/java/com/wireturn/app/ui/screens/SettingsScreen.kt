@@ -239,12 +239,30 @@ fun SettingsScreen(
             }
 
             // 2.1 Сеть
+            val waitForNetwork by viewModel.waitForNetwork.collectAsStateWithLifecycle()
             val restartOnNetworkChange by viewModel.restartOnNetworkChange.collectAsStateWithLifecycle()
             val autoLaunchSettings by viewModel.autoLaunchSettings.collectAsStateWithLifecycle()
 
             SettingsGroup(title = stringResource(R.string.connection_title)) {
                 SettingsGroupItem(
                     isTop = true,
+                    isBottom = false,
+                    containerColor = blockContainerColor,
+                    onClick = {
+                        HapticUtil.perform(context, if (waitForNetwork) HapticUtil.Pattern.TOGGLE_OFF else HapticUtil.Pattern.TOGGLE_ON)
+                        viewModel.setWaitForNetwork(!waitForNetwork)
+                    }
+                ) {
+                    SwitchRow(
+                        label = stringResource(R.string.wait_for_network_title),
+                        supportingText = stringResource(R.string.wait_for_network_desc),
+                        checked = waitForNetwork,
+                        onCheckedChange = { viewModel.setWaitForNetwork(it) }
+                    )
+                }
+
+                SettingsGroupItem(
+                    isTop = false,
                     isBottom = true,
                     containerColor = blockContainerColor,
                     onClick = {

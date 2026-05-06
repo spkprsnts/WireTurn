@@ -88,7 +88,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _allowUnstableUpdates = MutableStateFlow(false)
     val allowUnstableUpdates: StateFlow<Boolean> = _allowUnstableUpdates.asStateFlow()
 
-    private val _restartOnNetworkChange = MutableStateFlow(true)
+    private val _waitForNetwork = MutableStateFlow(true)
+    val waitForNetwork: StateFlow<Boolean> = _waitForNetwork.asStateFlow()
+
+    private val _restartOnNetworkChange = MutableStateFlow(false)
     val restartOnNetworkChange: StateFlow<Boolean> = _restartOnNetworkChange.asStateFlow()
 
     private val _captchaStyleMod = MutableStateFlow(true)
@@ -189,6 +192,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val batteryDismissed = prefs.batteryNotificationDismissedFlow.first()
             val appsExclusionHintShown = prefs.appsExclusionHintShownFlow.first()
             val allowUnstableUpdates = prefs.allowUnstableUpdatesFlow.first()
+            val waitForNetwork = prefs.waitForNetworkFlow.first()
             val restartOnNetworkChange = prefs.restartOnNetworkChangeFlow.first()
             val captchaStyleMod = prefs.captchaStyleModFlow.first()
             val captchaForceTint = prefs.captchaForceTintFlow.first()
@@ -216,6 +220,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _batteryNotificationDismissed.value = batteryDismissed
             _appsExclusionHintShown.value = appsExclusionHintShown
             _allowUnstableUpdates.value = allowUnstableUpdates
+            _waitForNetwork.value = waitForNetwork
             _restartOnNetworkChange.value = restartOnNetworkChange
             _captchaStyleMod.value = captchaStyleMod
             _captchaForceTint.value = captchaForceTint
@@ -266,6 +271,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.batteryNotificationDismissedFlow.collect { _batteryNotificationDismissed.value = it } }
             launch { prefs.appsExclusionHintShownFlow.collect { _appsExclusionHintShown.value = it } }
             launch { prefs.allowUnstableUpdatesFlow.collect { _allowUnstableUpdates.value = it } }
+            launch { prefs.waitForNetworkFlow.collect { _waitForNetwork.value = it } }
             launch { prefs.restartOnNetworkChangeFlow.collect { _restartOnNetworkChange.value = it } }
             launch { prefs.captchaStyleModFlow.collect { _captchaStyleMod.value = it } }
             launch { prefs.captchaForceTintFlow.collect { _captchaForceTint.value = it } }
@@ -566,6 +572,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setBatteryNotificationDismissed(dismissed: Boolean) { viewModelScope.launch { prefs.setBatteryNotificationDismissed(dismissed) } }
     fun setAppsExclusionHintShown(shown: Boolean) { viewModelScope.launch { prefs.setAppsExclusionHintShown(shown) } }
     fun setAllowUnstableUpdates(allow: Boolean) { viewModelScope.launch { prefs.setAllowUnstableUpdates(allow) } }
+    fun setWaitForNetwork(enabled: Boolean) { viewModelScope.launch { prefs.setWaitForNetwork(enabled) } }
     fun setRestartOnNetworkChange(enabled: Boolean) { viewModelScope.launch { prefs.setRestartOnNetworkChange(enabled) } }
 
     fun setCaptchaStyleMod(enabled: Boolean) { viewModelScope.launch { prefs.setCaptchaStyleMod(enabled) } }

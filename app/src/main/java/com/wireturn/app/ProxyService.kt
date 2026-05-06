@@ -267,10 +267,7 @@ class ProxyService : Service() {
             // Check for rapid failure
             val currentStatus = ProxyServiceState.status.value
             if (!startupSuccessful || (currentStatus !is ProxyStatus.Connected && duration < 2500)) {
-                if (!isNetworkAvailable()) {
-                    AppLogsState.addLog(getString(R.string.log_no_network_waiting))
-                    ProxyServiceState.setStatus(ProxyStatus.WaitingForNetwork)
-                    updateNotification(getString(R.string.status_waiting_for_network))
+                if (isNetworkMissingAndHandled()) {
                     continue
                 }
 
@@ -842,14 +839,17 @@ class ProxyService : Service() {
         }
     }
 
-    private fun isNetworkMissingAndHandled(): Boolean {
+    private suspend fun isNetworkMissingAndHandled(): Boolean {
         if (!isNetworkAvailable()) {
-            AppLogsState.addLog(getString(R.string.log_no_network_waiting))
-            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
-                ProxyServiceState.setStatus(ProxyStatus.WaitingForNetwork)
-                updateNotification(getString(R.string.status_waiting_for_network))
+            val prefs = AppPreferences(applicationContext)
+            if (prefs.waitForNetworkFlow.first()) {
+                AppLogsState.addLog(getString(R.string.log_no_network_waiting))
+                if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                    ProxyServiceState.setStatus(ProxyStatus.WaitingForNetwork)
+                    updateNotification(getString(R.string.status_waiting_for_network))
+                }
+                return true
             }
-            return true
         }
         return false
     }
