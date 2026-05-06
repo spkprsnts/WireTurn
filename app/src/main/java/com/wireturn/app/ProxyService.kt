@@ -598,21 +598,27 @@ class ProxyService : Service() {
             val prefs = AppPreferences(applicationContext)
             combine(
                 prefs.xraySettingsFlow,
-                ProxyServiceState.isRunning,
+                ProxyServiceState.status,
                 XrayServiceState.state
-            ) { settings, proxyRunning, xrayState ->
-                val shouldBeRunning = settings.xrayEnabled && proxyRunning
+            ) { settings, status, xrayState ->
+                val shouldBeRunning = settings.xrayEnabled && status !is ProxyStatus.Idle && status !is ProxyStatus.Error
                 val needsStart = shouldBeRunning && xrayState == XrayState.Idle
-                needsStart
+                val needsStop = !shouldBeRunning && xrayState != XrayState.Idle
+                needsStart to needsStop
             }.distinctUntilChanged()
-            .collectLatest { needsStart ->
+            .collectLatest { (needsStart, needsStop) ->
                 if (needsStart) {
                     delay(500) // Debounce during profile switches
                     withContext(Dispatchers.Main) {
                         val currentXrayState = XrayServiceState.state.value
-                        if (currentXrayState == XrayState.Idle && ProxyServiceState.isRunning.value) {
+                        val currentStatus = ProxyServiceState.status.value
+                        if (currentXrayState == XrayState.Idle && currentStatus !is ProxyStatus.Idle && currentStatus !is ProxyStatus.Error) {
                             startForegroundService(Intent(this@ProxyService, XrayService::class.java))
                         }
+                    }
+                } else if (needsStop) {
+                    withContext(Dispatchers.Main) {
+                        stopService(Intent(this@ProxyService, XrayService::class.java))
                     }
                 }
             }
