@@ -16,6 +16,7 @@ import com.wireturn.app.R
 import com.wireturn.app.ProxyService
 import com.wireturn.app.XrayService
 import com.wireturn.app.ProxyServiceState
+import com.wireturn.app.ProxyStatus
 import com.wireturn.app.XrayServiceState
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.ClientConfig
@@ -297,10 +298,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         viewModelScope.launch { proxyManager.observeProxyLifecycle() }
-        viewModelScope.launch { proxyManager.observeStartupResult() }
         viewModelScope.launch { proxyManager.observeProxyServiceStatus() }
         viewModelScope.launch { proxyManager.observeCaptchaEvents() }
-        viewModelScope.launch { proxyManager.observeProxyServiceWorking() }
         viewModelScope.launch {
             delay(1500)
             XrayServiceState.state.collect { state ->
@@ -476,45 +475,61 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun startProxy() {
         ProcessLifecycleOwner.get().lifecycleScope.launch {
-            val cfg = clientConfig.value
-            if (cfg.dcMode) {
-                when (cfg.dcType) {
-                    DCType.SALUTE_JAZZ -> prefs.addJazzCredsToHistory(cfg.jazzCreds)
-                    DCType.WB_STREAM -> prefs.addWbstreamUuidToHistory(cfg.wbstreamUuid)
-                }
-            } else {
-                prefs.addVkLinkToHistory(cfg.vkLink)
-                prefs.addTurnableUrlToHistory(cfg.turnableUrl)
-            }
-            prefs.addServerAddressToHistory(cfg.serverAddress)
-            proxyManager.startProxy(cfg)
+            startProxyInternal()
         }
+    }
+
+    private suspend fun startProxyInternal() {
+        val cfg = clientConfig.value
+        if (cfg.dcMode) {
+            when (cfg.dcType) {
+                DCType.SALUTE_JAZZ -> prefs.addJazzCredsToHistory(cfg.jazzCreds)
+                DCType.WB_STREAM -> prefs.addWbstreamUuidToHistory(cfg.wbstreamUuid)
+            }
+        } else {
+            prefs.addVkLinkToHistory(cfg.vkLink)
+            prefs.addTurnableUrlToHistory(cfg.turnableUrl)
+        }
+        prefs.addServerAddressToHistory(cfg.serverAddress)
+        proxyManager.startProxy(cfg)
+    }
+
+    private suspend fun restartProxyInternal() {
+        proxyManager.stopProxy()
+        withTimeoutOrNull(5000) {
+            ProxyServiceState.isRunning.first { !it }
+        }
+        delay(600)
+        startProxyInternal()
     }
 
     fun restartProxy() {
         ProcessLifecycleOwner.get().lifecycleScope.launch {
-            proxyManager.stopProxy()
-            // Ждем реальной остановки сервиса через его состояние
-            withTimeoutOrNull(5000) {
-                ProxyServiceState.isRunning.first { !it }
+            ProxyServiceState.setRestarting(true)
+            try {
+                restartProxyInternal()
+            } finally {
+                delay(100)
+                ProxyServiceState.setRestarting(false)
             }
-            delay(500) // Дополнительная пауза для стабильности
-            startProxy()
+        }
+    }
+
+    private suspend fun restartXrayInternal() {
+        getApplication<Application>().stopService(Intent(getApplication(), XrayService::class.java))
+        withTimeoutOrNull(5000) {
+            XrayServiceState.state.first { it == XrayState.Idle }
         }
     }
 
     fun restartXray() {
         ProcessLifecycleOwner.get().lifecycleScope.launch {
-            getApplication<Application>().stopService(Intent(getApplication(), XrayService::class.java))
-            withTimeoutOrNull(5000) {
-                XrayServiceState.state.first { it == XrayState.Idle }
-            }
-            delay(300)
-            // XraySupervisor в ProxyService сам его перезапустит, 
-            // так как он следит за xrayEnabled и ProxyServiceState.isRunning
-            // Но мы можем явно дернуть старт, если хотим быстрее
-            if (ProxyServiceState.isRunning.value && xraySettings.value.xrayEnabled) {
-                getApplication<Application>().startForegroundService(Intent(getApplication(), XrayService::class.java))
+            ProxyServiceState.setRestarting(true)
+            try {
+                restartXrayInternal()
+            } finally {
+                delay(100)
+                ProxyServiceState.setRestarting(false)
             }
         }
     }
@@ -523,11 +538,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         proxyManager.stopProxy()
     }
 
-    fun revertToRunningConfigs() {
-        ProxyServiceState.runningConfig.value?.let { saveClientConfig(it) }
-        XrayServiceState.runningWgConfig.value?.let { updateWgConfig(it) }
-        XrayServiceState.runningVlessConfig.value?.let { updateVlessConfig(it) }
-        XrayServiceState.runningXrayConfig.value?.let { updateXrayConfig(it) }
+    fun revertToSnapshotConfigs() {
+        ProxyServiceState.clientConfigSnapshot.value?.let { saveClientConfig(it) }
+        XrayServiceState.wgConfigSnapshot.value?.let { updateWgConfig(it) }
+        XrayServiceState.vlessConfigSnapshot.value?.let { updateVlessConfig(it) }
+        XrayServiceState.xrayConfigSnapshot.value?.let { updateXrayConfig(it) }
     }
 
     fun dismissCaptcha() { proxyManager.dismissCaptcha() }
@@ -572,7 +587,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun checkProxyPing() {
-        val socksAddr = XrayServiceState.runningXrayConfig.value?.connectableAddress ?: return
+        val socksAddr = XrayServiceState.xrayConfigSnapshot.value?.connectableAddress ?: return
         if (socksAddr.isBlank() || !isValidHostPort(socksAddr)) return
 
         pingJob?.cancel()
@@ -719,38 +734,57 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun selectProfileAndRestart(id: String, onCompletion: (() -> Unit)? = null) {
-        val profileName = profiles.value.find { it.id == id }?.name
-        profileManager.selectProfile(id) { client, settings, xray, wg, vless ->
-            _clientConfig.value = client
-            _wgConfig.value = wg
-            _vlessConfig.value = vless
-            _xraySettings.value = settings
-            _xrayConfig.value = xray
+        val profile = profiles.value.find { it.id == id } ?: return
+        val profileName = profile.name
 
+        // Set restarting true EARLY to avoid flicker in UI during profile switch
+        if (ProxyServiceState.isRunning.value) {
+            ProxyServiceState.setRestarting(true)
+        }
+
+        profileManager.selectProfile(id, profile) { client, settings, xray, wg, vless ->
             ProcessLifecycleOwner.get().lifecycleScope.launch {
-                // Wait for prefs to be saved
-                delay(200)
+                try {
+                    // Use passed values to avoid redundant reads and delays
+                    _clientConfig.value = client
+                    _wgConfig.value = wg
+                    _vlessConfig.value = vless
+                    _xraySettings.value = settings
+                    _xrayConfig.value = xray
 
-                val runningProfileName = ProxyServiceState.runningProfileName.value
-                val profileChanged = runningProfileName != null && profileName != runningProfileName
+                    val isRunning = ProxyServiceState.isRunning.value
+                    if (!isRunning) return@launch
 
-                val runningConfig = ProxyServiceState.runningConfig.value
-                val mainConfigChanged = profileChanged || (runningConfig != null && client != runningConfig)
+                    val profileNameSnapshot = ProxyServiceState.profileNameSnapshot.value
+                    val profileChanged = profileNameSnapshot != profileName
+                    val clientSnapshot = ProxyServiceState.clientConfigSnapshot.value
+                    val vlessSnapshot = XrayServiceState.vlessConfigSnapshot.value
+                    val wgSnapshot = XrayServiceState.wgConfigSnapshot.value
+                    val xraySnapshot = XrayServiceState.xrayConfigSnapshot.value
 
-                if (mainConfigChanged) {
-                    restartProxy()
-                } else if (ProxyServiceState.isRunning.value) {
-                    ProxyServiceState.setRunningProfileName(profileName)
-                }
+                    val mainConfigChanged = profileChanged || (clientSnapshot != null && client != clientSnapshot)
+                    
+                    val xrayDataChanged = (wgSnapshot != null && wg.fillDefaults() != wgSnapshot) ||
+                            (vlessSnapshot != null && vless != vlessSnapshot) ||
+                            (xraySnapshot != null && xray.fillDefaults() != xraySnapshot)
 
-                val runningWg = XrayServiceState.runningWgConfig.value
-                val runningVless = XrayServiceState.runningVlessConfig.value
-                val runningXray = XrayServiceState.runningXrayConfig.value
-
-                if ((runningWg != null && wg != runningWg) ||
-                    (runningVless != null && vless != runningVless) ||
-                    (runningXray != null && xray != runningXray)) {
-                    restartXray()
+                    if (mainConfigChanged || clientSnapshot == null) {
+                        restartProxyInternal()
+                    } else if (xrayDataChanged || xraySnapshot == null) {
+                        ProxyServiceState.setProfileNameSnapshot(profileName)
+                        // Just stop Xray, ProxyService supervisor will start it with new settings
+                        getApplication<Application>().stopService(Intent(getApplication(), XrayService::class.java))
+                    } else {
+                        // Settings match exactly, but update snapshots anyway to ensure UI/Notification consistency
+                        ProxyServiceState.setProfileNameSnapshot(profileName)
+                        ProxyServiceState.setClientConfigSnapshot(client)
+                    }
+                } catch (e: Exception) {
+                    ProxyServiceState.setRestarting(false)
+                    throw e
+                } finally {
+                    delay(500) // Give more time for snapshots to settle
+                    ProxyServiceState.setRestarting(false)
                 }
             }
             onCompletion?.invoke()
@@ -781,7 +815,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             context.stopService(Intent(context, ProxyService::class.java))
             context.stopService(Intent(context, XrayService::class.java))
-            ProxyServiceState.setRunning(false)
+            ProxyServiceState.setStatus(ProxyStatus.Idle)
             XrayServiceState.updateStatus(XrayState.Idle)
             prefs.resetAll()
             proxyManager.clearState()

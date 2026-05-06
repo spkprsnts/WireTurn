@@ -24,6 +24,7 @@
 
     <string name="idle">Stopped</string>
     <string name="starting">Starting…</string>
+    <string name="proxy_restarting">Restarting…</string>
     <string name="running">Running</string>
     <string name="connecting">Connecting…</string>
 

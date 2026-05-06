@@ -14,11 +14,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.CancellationException
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.InterruptedIOException
@@ -28,6 +31,7 @@ class XrayService : Service() {
 
     private val process = AtomicReference<Process?>()
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var xrayJob: kotlinx.coroutines.Job? = null
     private val userStopped = java.util.concurrent.atomic.AtomicBoolean(false)
     private var restartCount = 0
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -39,6 +43,9 @@ class XrayService : Service() {
         NotificationHelper.createChannel(this)
         startXraySupervisor()
     }
+
+    // Removed observeLifecycle() to prevent race conditions during ProxyService restarts.
+    // ProxyService is now solely responsible for managing XrayService lifecycle.
 
     private fun startXraySupervisor() {
         serviceScope.launch {
@@ -53,7 +60,7 @@ class XrayService : Service() {
                     prefs.xraySettingsFlow,
                     prefs.globalVpnSettingsFlow,
                     prefs.excludedAppsFlow,
-                    XrayServiceState.runningXrayConfig,
+                    XrayServiceState.xrayConfigSnapshot,
                     VpnServiceState.state,
                     VpnServiceState.wasManuallyDisabled
                 )
@@ -137,8 +144,18 @@ class XrayService : Service() {
     )
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val currentState = XrayServiceState.state.value
+        if ((currentState == XrayState.Starting || currentState == XrayState.Running) && xrayJob?.isActive == true) {
+            return START_STICKY
+        }
+
         userStopped.set(false)
         restartCount = 0
+        
+        // Предотвращаем запуск нескольких процессов одновременно
+        xrayJob?.cancel()
+        process.getAndSet(null)?.destroyForcibly()
+        
         XrayServiceState.updateStatus(XrayState.Starting)
 
         try {
@@ -156,25 +173,39 @@ class XrayService : Service() {
             AppLogsState.addLog("[Xray] Failed to start foreground: ${e.message}")
         }
 
-        serviceScope.launch {
-            startXray()
+        xrayJob = serviceScope.launch {
+            val prefs = AppPreferences(this@XrayService)
+            val snapshot = XrayConfigsSnapshot(
+                wg = prefs.wgConfigFlow.first(),
+                xray = prefs.xrayConfigFlow.first(),
+                vless = prefs.vlessConfigFlow.first(),
+                settings = prefs.xraySettingsFlow.first(),
+                client = ProxyServiceState.clientConfigSnapshot.value ?: prefs.clientConfigFlow.first()
+            )
+            startXray(snapshot)
         }
 
         return START_STICKY
     }
 
-    private suspend fun startXray() {
+    private data class XrayConfigsSnapshot(
+        val wg: com.wireturn.app.data.WgConfig,
+        val xray: com.wireturn.app.data.XrayConfig,
+        val vless: com.wireturn.app.data.VlessConfig,
+        val settings: com.wireturn.app.data.XraySettings,
+        val client: com.wireturn.app.data.ClientConfig
+    )
+
+    private suspend fun startXray(snapshot: XrayConfigsSnapshot) {
         val executable = "${applicationInfo.nativeLibraryDir}/libxray.so"
 
         try {
-            val prefs = AppPreferences(this)
-            val rawWgConfig = prefs.wgConfigFlow.first()
-            val rawXrayConfig = prefs.xrayConfigFlow.first()
-            val rawVlessConfig = prefs.vlessConfigFlow.first()
+            val rawWgConfig = snapshot.wg
+            val rawXrayConfig = snapshot.xray
+            val rawVlessConfig = snapshot.vless
+            val rawXraySettings = snapshot.settings
+            val runningClientConfig = snapshot.client
             
-            // Получаем конфиг: либо уже запущенный, либо из настроек (для Dual-route старта)
-            val runningClientConfig = ProxyServiceState.runningConfig.value ?: prefs.clientConfigFlow.first()
-
             val isXrayVless = rawXrayConfig.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS
 
             val isConfigValid = if (isXrayVless) {
@@ -194,6 +225,7 @@ class XrayService : Service() {
 
             // Save filled defaults back to preferences if they changed,
             // so UI doesn't see a difference between "raw" and "running" configs.
+            val prefs = AppPreferences(this@XrayService)
             if (!isXrayVless && wgConfig != rawWgConfig) {
                 prefs.saveWgConfig(wgConfig)
             }
@@ -202,10 +234,11 @@ class XrayService : Service() {
             }
             
             // Фиксируем только тот конфиг, который реально запускаем
-            XrayServiceState.setRunningConfigs(
+            XrayServiceState.setConfigsSnapshot(
                 wg = if (isXrayVless) null else wgConfig,
                 xray = xrayConfig,
-                vless = if (isXrayVless) rawVlessConfig else null
+                vless = if (isXrayVless) rawVlessConfig else null,
+                settings = rawXraySettings
             )
             
             val randomMetricsPort = withContext(Dispatchers.IO) {
@@ -270,12 +303,16 @@ class XrayService : Service() {
                     AppLogsState.addLog("[Xray] $cleanLine")
                     linesProcessed++
 
-                    if (!started && (linesProcessed > 10 || 
-                        cleanLine.contains("Xray started") || 
+                    if (!started && (cleanLine.contains("Xray started") || 
                         cleanLine.contains("proxy on") || 
                         cleanLine.contains("Listening"))) {
                         started = true
-                        XrayServiceState.updateStatus(XrayState.Running)
+                        
+                        if (!(isXrayVless && rawVlessConfig.isDualRoute)) {
+                            XrayServiceState.updateStatus(XrayState.Running)
+                        } else {
+                            XrayServiceState.updateStatus(XrayState.Connecting)
+                        }
                         NotificationHelper.updateNotification(this@XrayService)
                     }
 
@@ -290,18 +327,30 @@ class XrayService : Service() {
             AppLogsState.addLog("[Xray] process exited with code $exitCode")
         } catch (_: InterruptedIOException) {
             // pass
+        } catch (_: CancellationException) {
+            // normal cancellation on restart
         } catch (e: Exception) {
             AppLogsState.addLog("[Xray] Error: ${e.message}")
         } finally {
             process.set(null)
             XrayServiceState.updateMetricsPort(null)
-            XrayServiceState.updateStatus(XrayState.Idle)
+            
+            // Only set Idle if we are NOT being cancelled by a new start command
+            val isJobActive = try {
+                currentCoroutineContext()[kotlinx.coroutines.Job]?.isActive == true
+            } catch (_: Exception) {
+                false
+            }
+            if (isJobActive) {
+                XrayServiceState.updateStatus(XrayState.Idle)
+            }
+            
             NotificationHelper.updateNotification(this@XrayService)
             if (userStopped.get()) {
                 AppLogsState.addLog("[Xray] stopped by user")
                 stopSelf()
-            } else {
-                scheduleWatchdogRestart()
+            } else if (isJobActive) {
+                scheduleWatchdogRestart(snapshot)
             }
         }
     }
@@ -310,9 +359,9 @@ class XrayService : Service() {
         when {
             line.contains("active route: direct") -> {
                 XrayServiceState.updateStatus(XrayState.DirectRoute)
-                if (ProxyServiceState.isRunning.value && !ProxyServiceState.isTunnelSuppressed.value) {
+                if (ProxyServiceState.isRunning.value && ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
                     AppLogsState.addLog("[DualRoute] Direct connection established, suppressing tunnel")
-                    ProxyServiceState.setTunnelSuppressed(true)
+                    ProxyServiceState.setStatus(ProxyStatus.Suppressed)
                 }
             }
             line.contains("active route: local") -> {
@@ -322,9 +371,9 @@ class XrayService : Service() {
                 val bothUnreachable = line.contains("both unreachable")
                 
                 if (directUnreachable || bothUnreachable) {
-                    if (ProxyServiceState.isTunnelSuppressed.value) {
+                    if (ProxyServiceState.status.value is ProxyStatus.Suppressed) {
                         AppLogsState.addLog("[DualRoute] Direct connection lost, unsuppressing tunnel")
-                        ProxyServiceState.setTunnelSuppressed(false)
+                        ProxyServiceState.setStatus(ProxyStatus.Connecting)
                     }
                     
                     if (!ProxyServiceState.isRunning.value) {
@@ -357,7 +406,7 @@ class XrayService : Service() {
         }
     }
 
-    private fun scheduleWatchdogRestart() {
+    private fun scheduleWatchdogRestart(snapshot: XrayConfigsSnapshot) {
         restartCount++
         if (restartCount > MAX_RESTARTS) {
             AppLogsState.addLog("[Xray] watchdog limit reached ($MAX_RESTARTS)")
@@ -371,7 +420,7 @@ class XrayService : Service() {
         
         handler.postDelayed({
             if (!userStopped.get()) {
-                serviceScope.launch { startXray() }
+                serviceScope.launch { startXray(snapshot) }
             }
         }, delay)
     }
@@ -380,7 +429,8 @@ class XrayService : Service() {
         super.onDestroy()
         userStopped.set(true)
         handler.removeCallbacksAndMessages(null)
-        process.get()?.destroyForcibly()
+        xrayJob?.cancel()
+        process.getAndSet(null)?.destroyForcibly()
 
         // Explicitly stop child VPN service
         val stopIntent = Intent(this, HevVpnService::class.java).apply {

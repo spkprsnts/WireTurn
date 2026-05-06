@@ -6,20 +6,16 @@ import com.wireturn.app.R
 import com.wireturn.app.AppLogsState
 import com.wireturn.app.ProxyService
 import com.wireturn.app.ProxyServiceState
-import com.wireturn.app.StartupResult
-import com.wireturn.app.data.ClientConfig
+import com.wireturn.app.ProxyStatus
 import com.wireturn.app.viewmodel.ProxyState
+import com.wireturn.app.data.ClientConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.dropWhile
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.cancel
@@ -56,145 +52,86 @@ class LocalProxyManager(private val context: Context) {
         }
     }
 
-    suspend fun observeStartupResult() {
-        ProxyServiceState.startupResult.collect { result ->
-            if (result is StartupResult.Failed) {
-                setErrorWithAutoReset(result.message)
-            }
-        }
-    }
-
     suspend fun observeCaptchaEvents() {
-        ProxyServiceState.captchaSession.collect { session ->
-            if (session != null) {
-                _proxyState.value = ProxyState.CaptchaRequired(session.url, session.sessionId)
+        ProxyServiceState.status.collect { status ->
+            if (status is ProxyStatus.CaptchaRequired) {
+                _proxyState.value = ProxyState.CaptchaRequired(status.session.url, status.session.sessionId)
             } else if (_proxyState.value is ProxyState.CaptchaRequired) {
-                // Капча-сессия закрыта — возвращаемся в рабочее состояние,
-                // но только если сервис всё ещё запущен.
-                if (ProxyServiceState.isRunning.value) {
-                    updateStateAfterSuccess()
-                } else {
-                    _proxyState.value = ProxyState.Idle
-                }
+                syncStateWithService()
             }
         }
     }
 
     suspend fun observeProxyServiceStatus() {
-        ProxyServiceState.isRunning.collect { running ->
-            if (running) {
-                // Если сервис запущен, но мы еще в Idle, переходим в Starting.
-                if (_proxyState.value is ProxyState.Idle) {
-                    _proxyState.value = ProxyState.Starting
+        ProxyServiceState.status.collect { status ->
+            when (status) {
+                is ProxyStatus.Error -> {
+                    setErrorWithAutoReset(status.message)
                 }
-            } else {
-                // Если сервис НЕ запущен, переводим UI в Idle из любых активных состояний
-                val current = _proxyState.value
-                if (current !is ProxyState.Idle && current !is ProxyState.Error) {
-                    _proxyState.value = ProxyState.Idle
-                }
-            }
-        }
-    }
-
-    suspend fun observeProxyServiceWorking() {
-        ProxyServiceState.isWorking.collect { working ->
-            if (working) {
-                // Если сейчас висит ошибка, не перебиваем её сразу (пусть пользователь увидит)
-                // Но если это состояние запуска, то переходим в Working
-                if (_proxyState.value !is ProxyState.Error && _proxyState.value !is ProxyState.CaptchaRequired) {
-                    _proxyState.value = ProxyState.Working
-                } else if (_proxyState.value is ProxyState.CaptchaRequired) {
-                    // Если капча была решена и пошли данные — переходим в Working
-                    _proxyState.value = ProxyState.Working
-                }
-            } else if (_proxyState.value is ProxyState.Working) {
-                // Больше не "Working" — если сервис всё еще запущен, возвращаемся в Running
-                if (ProxyServiceState.isRunning.value) {
-                    if (!_customKernelExists.value) {
-                        _proxyState.value = ProxyState.Running
+                is ProxyStatus.Idle -> {
+                    // Если сервис остановился, но у нас висит ошибка, не сбрасываем её сразу.
+                    // Она сбросится сама через 4 секунды (resetJob) или при новом запуске.
+                    if (_proxyState.value !is ProxyState.Error) {
+                        syncStateWithService()
                     }
-                } else {
-                    _proxyState.value = ProxyState.Idle
+                }
+                else -> {
+                    // Для всех остальных состояний (Starting, Connecting, Connected и т.д.)
+                    // синхронизируем состояние немедленно.
+                    syncStateWithService()
                 }
             }
         }
     }
 
-    private fun updateStateAfterSuccess() {
-        if (_customKernelExists.value || ProxyServiceState.isWorking.value) {
-            _proxyState.value = ProxyState.Working
-        } else {
-            _proxyState.value = ProxyState.Running
+    private fun syncStateWithService() {
+        _proxyState.value = when (val status = ProxyServiceState.status.value) {
+            is ProxyStatus.Idle -> ProxyState.Idle
+            is ProxyStatus.Starting -> ProxyState.Starting
+            is ProxyStatus.Connecting -> ProxyState.Connecting
+            is ProxyStatus.Connected -> ProxyState.Connected
+            is ProxyStatus.Suppressed -> ProxyState.Suppressed
+            is ProxyStatus.CaptchaRequired -> ProxyState.CaptchaRequired(status.session.url, status.session.sessionId)
+            is ProxyStatus.Error -> ProxyState.Error(status.message)
         }
     }
 
     fun syncInitialState() {
-        val captcha = ProxyServiceState.captchaSession.value
-        if (captcha != null) {
-            _proxyState.value = ProxyState.CaptchaRequired(captcha.url, captcha.sessionId)
-        } else if (ProxyServiceState.isWorking.value) {
-            _proxyState.value = ProxyState.Working
-        } else if (ProxyServiceState.isRunning.value) {
-            updateStateAfterSuccess()
-        }
+        syncStateWithService()
     }
 
     suspend fun startProxy(cfg: ClientConfig) {
         if (ProxyServiceState.isRunning.value) return
         if (_proxyState.value is ProxyState.Error) _proxyState.value = ProxyState.Idle
 
-        _proxyState.value = ProxyState.Starting
-
-        // Сбрасываем старые результаты перед запуском, чтобы не подхватить их из Flow
-        ProxyServiceState.setStartupResult(null)
-        ProxyServiceState.setWorking(false)
-
         ProxyService.start(context, cfg)
 
-        var result = withTimeoutOrNull(20_000L) {
-            merge(
-                ProxyServiceState.startupResult.filterNotNull(),
-                ProxyServiceState.isRunning.dropWhile { !it }.filter { !it }.map { null }
-            ).first()
-        }
-
-        // Если получили null (сервис остановился или таймаут), 
-        // проверяем не успел ли сервис выставить ошибку напоследок
-        if (result == null) {
-            val lastResult = ProxyServiceState.startupResult.value
-            if (lastResult is StartupResult.Failed) {
-                result = lastResult
-            }
+        val result = withTimeoutOrNull(20_000L) {
+            ProxyServiceState.status
+                .dropWhile { it is ProxyStatus.Idle || it is ProxyStatus.Starting }
+                .first()
         }
 
         if (_proxyState.value is ProxyState.Error) return
 
-        when (result) {
-            null -> {
-                ProxyService.stop(context)
-                setErrorWithAutoReset(context.getString(R.string.error_proxy_not_started))
-            }
-            is StartupResult.Failed -> {
-                ProxyService.stop(context)
-                setErrorWithAutoReset(result.message)
-            }
-            is StartupResult.Success -> {
-                updateStateAfterSuccess()
-            }
+        if (result == null) {
+            ProxyService.stop(context)
+            setErrorWithAutoReset(context.getString(R.string.error_proxy_not_started))
+        } else if (result is ProxyStatus.Error) {
+            ProxyService.stop(context)
+            setErrorWithAutoReset(result.message)
+        } else {
+            syncStateWithService()
         }
     }
 
     fun stopProxy() {
         ProxyService.stop(context)
-        _proxyState.value = ProxyState.Idle
     }
 
     fun dismissCaptcha() {
         ProxyServiceState.setCaptchaSession(null)
-        if (_proxyState.value is ProxyState.CaptchaRequired) {
-            updateStateAfterSuccess()
-        }
+        syncStateWithService()
     }
 
     fun setErrorWithAutoReset(message: String) {
@@ -202,7 +139,7 @@ class LocalProxyManager(private val context: Context) {
         _proxyState.value = ProxyState.Error(message)
         resetJob = scope.launch {
             delay(4_000)
-            if (_proxyState.value is ProxyState.Error) _proxyState.value = ProxyState.Idle
+            if (_proxyState.value is ProxyState.Error) syncStateWithService()
         }
     }
 
@@ -214,7 +151,6 @@ class LocalProxyManager(private val context: Context) {
             val inputStream = context.contentResolver.openInputStream(uri)
                 ?: return@withContext context.getString(R.string.error_file_open)
 
-            // Читаем первые 4 байта для проверки ELF-магии
             val header = ByteArray(4)
             val headerRead = inputStream.read(header)
             inputStream.close()
@@ -223,13 +159,11 @@ class LocalProxyManager(private val context: Context) {
                 return@withContext context.getString(R.string.error_not_elf)
             }
 
-            // Копируем файл
             val dest = File(context.filesDir, "custom_vkturn")
             context.contentResolver.openInputStream(uri)?.use { input ->
                 dest.outputStream().use { output -> input.copyTo(output) }
             }
 
-            // Пытаемся получить дату изменения оригинала
             val originalLastModified = try {
                 context.contentResolver.query(uri, arrayOf(android.provider.DocumentsContract.Document.COLUMN_LAST_MODIFIED), null, null, null)?.use { cursor ->
                     if (cursor.moveToFirst()) {
@@ -286,4 +220,3 @@ class LocalProxyManager(private val context: Context) {
         scope.cancel()
     }
 }
-

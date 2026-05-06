@@ -50,20 +50,30 @@ object NotificationHelper {
 
         val statusParts = mutableListOf<String>()
         
-        val proxyRunning = ProxyServiceState.isRunning.value
-        val proxyWorking = ProxyServiceState.isWorking.value
+        val proxyStatus = ProxyServiceState.status.value
         val proxyStatusText = ProxyServiceState.statusText.value
-        val runningProfileName = ProxyServiceState.runningProfileName.value
+        val profileNameSnapshot = ProxyServiceState.profileNameSnapshot.value
         val xrayState = XrayServiceState.state.value
         val vpnState = VpnServiceState.state.value
 
-        if (proxyRunning) {
-            val pStatus = proxyStatusText ?: (if (proxyWorking) context.getString(R.string.proxy_active) else context.getString(R.string.starting))
+        if (proxyStatus !is ProxyStatus.Idle) {
+            val pStatus = proxyStatusText ?: when (proxyStatus) {
+                is ProxyStatus.Connected -> context.getString(R.string.proxy_active)
+                is ProxyStatus.Suppressed -> {
+                    if (xrayState == XrayState.Starting || xrayState == XrayState.Connecting) context.getString(R.string.connecting)
+                    else context.getString(R.string.vless_direct_active)
+                }
+                is ProxyStatus.Starting -> context.getString(R.string.starting)
+                is ProxyStatus.Connecting -> context.getString(R.string.connecting)
+                is ProxyStatus.CaptchaRequired -> context.getString(R.string.proxy_captcha_required)
+                is ProxyStatus.Error -> proxyStatus.message
+                else -> context.getString(R.string.starting)
+            }
             statusParts.add(pStatus)
         }
         
-        if (xrayState != XrayState.Idle && xrayState is XrayState.Running) {
-            val isVless = ProxyServiceState.runningConfig.value?.vlessMode == true
+        if (xrayState != XrayState.Idle && (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute || xrayState == XrayState.Connecting)) {
+            val isVless = ProxyServiceState.clientConfigSnapshot.value?.vlessMode == true
             statusParts.add(context.getString(if (isVless) R.string.vless else R.string.wg_short))
         }
         if (vpnState != VpnState.Idle && vpnState is VpnState.Running) statusParts.add(context.getString(R.string.vpn_short))
@@ -77,7 +87,7 @@ object NotificationHelper {
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle(context.getString(R.string.notification_title))
             .setContentText(contentText)
-            .setSubText(runningProfileName)
+            .setSubText(profileNameSnapshot)
             .setSmallIcon(R.drawable.plug_connect_24px)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -85,7 +95,7 @@ object NotificationHelper {
             .setSound(null)
             .setContentIntent(openAppIntent)
 
-        if (proxyRunning || xrayState != XrayState.Idle) {
+        if (proxyStatus !is ProxyStatus.Idle || xrayState != XrayState.Idle) {
             val stopProxyIntent = Intent(context, ProxyReceiver::class.java).apply {
                 action = "${context.packageName}.STOP_PROXY"
             }
@@ -210,7 +220,8 @@ object NotificationHelper {
 
     fun updateNotification(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java)
-        if (ProxyServiceState.isRunning.value || 
+        val status = ProxyServiceState.status.value
+        if (status !is ProxyStatus.Idle ||
             XrayServiceState.state.value != XrayState.Idle ||
             VpnServiceState.state.value != VpnState.Idle) {
             nm.notify(NOTIFICATION_ID, buildNotification(context))

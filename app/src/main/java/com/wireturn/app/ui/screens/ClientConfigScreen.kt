@@ -98,7 +98,7 @@ fun ClientConfigScreen(
     val serverAddressHistory by viewModel.serverAddressHistory.collectAsStateWithLifecycle()
     val turnableUrlHistory by viewModel.turnableUrlHistory.collectAsStateWithLifecycle()
     val jazzCredsHistory by viewModel.jazzCredsHistory.collectAsStateWithLifecycle()
-    val runningConfig by com.wireturn.app.ProxyServiceState.runningConfig.collectAsStateWithLifecycle()
+    val clientConfigSnapshot by com.wireturn.app.ProxyServiceState.clientConfigSnapshot.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
 
@@ -239,7 +239,7 @@ fun ClientConfigScreen(
                         supportingText = stringResource(R.string.raw_mode_desc),
                         checked = isRawMode,
                         onCheckedChange = { isRawMode = it },
-                        isModified = runningConfig != null && isRawMode != runningConfig?.isRawMode
+                        isModified = clientConfigSnapshot != null && isRawMode != clientConfigSnapshot?.isRawMode
                     )
                 }
 
@@ -255,7 +255,7 @@ fun ClientConfigScreen(
                             singleLine = false,
                             minLines = 2,
                             maxLines = 4,
-                            isModified = runningConfig != null && (rawCommand != runningConfig?.rawCommand || !runningConfig!!.isRawMode)
+                            isModified = clientConfigSnapshot != null && (rawCommand != clientConfigSnapshot?.rawCommand || !clientConfigSnapshot!!.isRawMode)
                         )
                     }
                     // Выбор ядра в Raw Mode
@@ -263,7 +263,7 @@ fun ClientConfigScreen(
                         LabeledSegmentedButton(
                             label = if (customKernelExists) stringResource(R.string.kernel_config_label) else stringResource(R.string.kernel_label),
                             supportingText = if (customKernelExists) stringResource(R.string.kernel_config_desc) else stringResource(R.string.client_variants_desc),
-                            isModified = runningConfig != null && kernelVariant != runningConfig?.kernelVariant
+                            isModified = clientConfigSnapshot != null && kernelVariant != clientConfigSnapshot?.kernelVariant
                         ) {
                             SegmentedButton(
                                 selected = kernelVariant == KernelVariant.VK_TURN_PROXY,
@@ -289,7 +289,7 @@ fun ClientConfigScreen(
                         LabeledSegmentedButton(
                             label = stringResource(R.string.tunnel_label),
                             supportingText = stringResource(R.string.connection_method_desc),
-                            isModified = runningConfig != null && dcMode != runningConfig?.dcMode
+                            isModified = clientConfigSnapshot != null && dcMode != clientConfigSnapshot?.dcMode
                         ) {
                             SegmentedButton(
                                 selected = !dcMode,
@@ -316,7 +316,7 @@ fun ClientConfigScreen(
                             LabeledSegmentedButton(
                                 label = if (customKernelExists) stringResource(R.string.kernel_config_label) else stringResource(R.string.kernel_label),
                                 supportingText = if (customKernelExists) stringResource(R.string.kernel_config_desc) else stringResource(R.string.client_variants_desc),
-                                isModified = runningConfig != null && kernelVariant != runningConfig?.kernelVariant
+                                isModified = clientConfigSnapshot != null && kernelVariant != clientConfigSnapshot?.kernelVariant
                             ) {
                                 SegmentedButton(
                                     selected = kernelVariant == KernelVariant.VK_TURN_PROXY,
@@ -349,7 +349,7 @@ fun ClientConfigScreen(
                                 LabeledSegmentedButton(
                                     label = stringResource(R.string.dc_type_label),
                                     supportingText = stringResource(R.string.dc_type_desc),
-                                    isModified = runningConfig != null && dcType != runningConfig?.dcType
+                                    isModified = clientConfigSnapshot != null && dcType != clientConfigSnapshot?.dcType
                                 ) {
                                     DCType.entries.forEachIndexed { index, type ->
                                         SegmentedButton(
@@ -380,7 +380,7 @@ fun ClientConfigScreen(
                                             isError = jazzCreds.isBlank() || !jazzCreds.contains(":"),
                                             readOnly = privacyMode,
                                             supportingText = stringResource(R.string.jazz_creds_support),
-                                            isModified = runningConfig != null && (jazzCreds.trim() != runningConfig?.jazzCreds || runningConfig!!.isRawMode),
+                                            isModified = clientConfigSnapshot != null && (jazzCreds.trim() != clientConfigSnapshot?.jazzCreds || clientConfigSnapshot!!.isRawMode),
                                             trailingIcon = if (jazzCredsHistory.isNotEmpty()) {
                                                 {
                                                     FieldTrailingIcons(
@@ -402,7 +402,7 @@ fun ClientConfigScreen(
                                             isError = wbstreamUuid.isBlank(),
                                             readOnly = privacyMode,
                                             supportingText = stringResource(R.string.wbstream_uuid_support),
-                                            isModified = runningConfig != null && (wbstreamUuid.trim() != runningConfig?.wbstreamUuid || runningConfig!!.isRawMode),
+                                            isModified = clientConfigSnapshot != null && (wbstreamUuid.trim() != clientConfigSnapshot?.wbstreamUuid || clientConfigSnapshot!!.isRawMode),
                                             trailingIcon = if (wbstreamUuidHistory.isNotEmpty()) {
                                                 {
                                                     FieldTrailingIcons(
@@ -428,7 +428,7 @@ fun ClientConfigScreen(
                                         isError = !isServerAddressValid || serverAddress.isBlank(),
                                         readOnly = privacyMode,
                                         supportingText = stringResource(R.string.server_address_support),
-                                        isModified = runningConfig != null && (serverAddress.trim() != runningConfig?.serverAddress || runningConfig!!.isRawMode),
+                                        isModified = clientConfigSnapshot != null && (serverAddress.trim() != clientConfigSnapshot?.serverAddress || clientConfigSnapshot!!.isRawMode),
                                         onHelpClick = { showServerHelp.value = true },
                                         trailingIcon = if (serverAddressHistory.isNotEmpty()) {
                                             {
@@ -450,7 +450,7 @@ fun ClientConfigScreen(
                                         placeholder = stringResource(R.string.vk_link_placeholder),
                                         isError = !ValidatorUtils.isValidUrl(vkLink) || vkLink.isBlank(),
                                         readOnly = privacyMode,
-                                        isModified = runningConfig != null && (vkLink.trim() != runningConfig?.vkLink || runningConfig!!.isRawMode),
+                                        isModified = clientConfigSnapshot != null && (vkLink.trim() != clientConfigSnapshot?.vkLink || clientConfigSnapshot!!.isRawMode),
                                         onHelpClick = { showVkHelp.value = true },
                                         trailingIcon = if (vkLinkHistory.isNotEmpty()) {
                                             {
@@ -476,7 +476,7 @@ fun ClientConfigScreen(
                                         singleLine = false,
                                         readOnly = privacyMode,
                                         supportingText = stringResource(R.string.turnable_url_support),
-                                        isModified = runningConfig != null && (turnableUrl.trim() != runningConfig?.turnableUrl || runningConfig!!.isRawMode),
+                                        isModified = clientConfigSnapshot != null && (turnableUrl.trim() != clientConfigSnapshot?.turnableUrl || clientConfigSnapshot!!.isRawMode),
                                         trailingIcon = {
                                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                                 if (!privacyMode && turnableUrl.isNotBlank()) {
@@ -545,7 +545,7 @@ fun ClientConfigScreen(
                                 placeholder = stringResource(R.string.local_listen_placeholder),
                                 isError = !isLocalPortValid || localPort.isBlank(),
                                 readOnly = privacyMode,
-                                isModified = runningConfig != null && localPort.trim() != runningConfig?.localPort,
+                                isModified = clientConfigSnapshot != null && localPort.trim() != clientConfigSnapshot?.localPort,
                                 onHelpClick = { showPortHelp.value = true }
                             )
                         }
@@ -565,7 +565,7 @@ fun ClientConfigScreen(
                                             fontWeight = FontWeight.Medium,
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
-                                        InlineConfigIndicator(runningConfig != null && threads.roundToInt() != runningConfig?.threads)
+                                        InlineConfigIndicator(clientConfigSnapshot != null && threads.roundToInt() != clientConfigSnapshot?.threads)
                                     }
                                     Text(
                                         text = stringResource(R.string.threads_recommendation),
@@ -611,7 +611,7 @@ fun ClientConfigScreen(
                                         HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
                                         vlessMode = it
                                     },
-                                    isModified = runningConfig != null && vlessMode != runningConfig?.vlessMode
+                                    isModified = clientConfigSnapshot != null && vlessMode != clientConfigSnapshot?.vlessMode
                                 )
                             }
                         }
@@ -626,7 +626,7 @@ fun ClientConfigScreen(
                                 LabeledSegmentedButton(
                                     label = stringResource(R.string.transport_protocol),
                                     supportingText = stringResource(R.string.transport_protocol_desc),
-                                    isModified = runningConfig != null && useUdp != runningConfig?.useUdp
+                                    isModified = clientConfigSnapshot != null && useUdp != clientConfigSnapshot?.useUdp
                                 ) {
                                     SegmentedButton(
                                         selected = !useUdp,
@@ -670,7 +670,7 @@ fun ClientConfigScreen(
                                             HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
                                             noDtls = it
                                         },
-                                        isModified = runningConfig != null && noDtls != runningConfig?.noDtls,
+                                        isModified = clientConfigSnapshot != null && noDtls != clientConfigSnapshot?.noDtls,
                                         enabled = customKernelExists
                                     )
                                 }
@@ -697,7 +697,7 @@ fun ClientConfigScreen(
                                         HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
                                         manualCaptcha = it
                                     },
-                                    isModified = runningConfig != null && manualCaptcha != runningConfig?.manualCaptcha
+                                    isModified = clientConfigSnapshot != null && manualCaptcha != clientConfigSnapshot?.manualCaptcha
                                 )
                             }
                             SettingsGroupItem(
@@ -718,7 +718,7 @@ fun ClientConfigScreen(
                                         HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
                                         forcePort443 = it
                                     },
-                                    isModified = runningConfig != null && forcePort443 != runningConfig?.forceTurnPort443
+                                    isModified = clientConfigSnapshot != null && forcePort443 != clientConfigSnapshot?.forceTurnPort443
                                 )
                             }
                         }

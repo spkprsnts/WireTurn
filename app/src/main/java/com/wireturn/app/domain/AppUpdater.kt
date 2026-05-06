@@ -179,11 +179,11 @@ class AppUpdater(private val context: Context) {
     }
 
     private fun getXrayIfRunning(): java.net.Proxy? {
-        val runningXrayConfig = com.wireturn.app.XrayServiceState.runningXrayConfig.value ?: return null
+        val xrayConfigSnapshot = com.wireturn.app.XrayServiceState.xrayConfigSnapshot.value ?: return null
         if (com.wireturn.app.XrayServiceState.state.value != com.wireturn.app.viewmodel.XrayState.Running) return null
 
         return try {
-            val socksAddr = runningXrayConfig.connectableAddress
+            val socksAddr = xrayConfigSnapshot.connectableAddress
             if (socksAddr.isNotBlank()) {
                 val parts = socksAddr.split(":")
                 if (parts.size == 2) {

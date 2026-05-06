@@ -14,21 +14,26 @@ object XrayServiceState {
     private val _metricsPort = MutableStateFlow<Int?>(null)
     val metricsPort = _metricsPort.asStateFlow()
 
-    private val _runningWgConfig = MutableStateFlow<WgConfig?>(null)
-    val runningWgConfig = _runningWgConfig.asStateFlow()
+    private val _wgConfigSnapshot = MutableStateFlow<WgConfig?>(null)
+    val wgConfigSnapshot = _wgConfigSnapshot.asStateFlow()
 
-    private val _runningXrayConfig = MutableStateFlow<XrayConfig?>(null)
-    val runningXrayConfig = _runningXrayConfig.asStateFlow()
+    private val _xrayConfigSnapshot = MutableStateFlow<XrayConfig?>(null)
+    val xrayConfigSnapshot = _xrayConfigSnapshot.asStateFlow()
 
-    private val _runningVlessConfig = MutableStateFlow<VlessConfig?>(null)
-    val runningVlessConfig = _runningVlessConfig.asStateFlow()
+    private val _vlessConfigSnapshot = MutableStateFlow<VlessConfig?>(null)
+    val vlessConfigSnapshot = _vlessConfigSnapshot.asStateFlow()
+
+    private val _xraySettingsSnapshot = MutableStateFlow<com.wireturn.app.data.XraySettings?>(null)
+    val xraySettingsSnapshot = _xraySettingsSnapshot.asStateFlow()
 
     fun updateStatus(newStatus: XrayState) {
         _state.value = newStatus
         if (newStatus == XrayState.Idle) {
-            _runningWgConfig.value = null
-            _runningXrayConfig.value = null
-            _runningVlessConfig.value = null
+            _wgConfigSnapshot.value = null
+            _xrayConfigSnapshot.value = null
+            _vlessConfigSnapshot.value = null
+            _xraySettingsSnapshot.value = null
+            _metricsPort.value = null
         }
     }
 
@@ -36,9 +41,10 @@ object XrayServiceState {
         _metricsPort.value = port
     }
 
-    fun setRunningConfigs(wg: WgConfig?, xray: XrayConfig?, vless: VlessConfig?) {
-        _runningWgConfig.value = wg
-        _runningXrayConfig.value = xray
-        _runningVlessConfig.value = vless
+    fun setConfigsSnapshot(wg: WgConfig?, xray: XrayConfig?, vless: VlessConfig?, settings: com.wireturn.app.data.XraySettings? = null) {
+        _wgConfigSnapshot.value = wg
+        _xrayConfigSnapshot.value = xray
+        _vlessConfigSnapshot.value = vless
+        _xraySettingsSnapshot.value = settings
     }
 }

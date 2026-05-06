@@ -94,9 +94,9 @@ fun XrayConfigScreen(
     val vlessSaved by viewModel.vlessConfig.collectAsStateWithLifecycle()
     val vlessLinkHistory by viewModel.vlessLinkHistory.collectAsStateWithLifecycle()
     
-    val runningWgConfig by com.wireturn.app.XrayServiceState.runningWgConfig.collectAsStateWithLifecycle()
-    val runningVlessConfig by com.wireturn.app.XrayServiceState.runningVlessConfig.collectAsStateWithLifecycle()
-    val runningXrayConfig by com.wireturn.app.XrayServiceState.runningXrayConfig.collectAsStateWithLifecycle()
+    val wgConfigSnapshot by com.wireturn.app.XrayServiceState.wgConfigSnapshot.collectAsStateWithLifecycle()
+    val vlessConfigSnapshot by com.wireturn.app.XrayServiceState.vlessConfigSnapshot.collectAsStateWithLifecycle()
+    val xrayConfigSnapshot by com.wireturn.app.XrayServiceState.xrayConfigSnapshot.collectAsStateWithLifecycle()
 
     val isDark = com.wireturn.app.ui.theme.LocalIsDark.current
     val screenBackgroundColor = if (isDark) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerLow
@@ -310,7 +310,7 @@ fun XrayConfigScreen(
                         placeholder = stringResource(R.string.xray_socks5_placeholder),
                         isError = !isSocksValid || (socksBindAddress.isNotEmpty() && socksBindAddress == httpBindAddress),
                         supportingText = stringResource(R.string.xray_socks_desc),
-                        isModified = runningXrayConfig != null && socksBindAddress != runningXrayConfig?.socksBindAddress
+                        isModified = xrayConfigSnapshot != null && socksBindAddress != xrayConfigSnapshot?.socksBindAddress
                     )
                 }
 
@@ -322,7 +322,7 @@ fun XrayConfigScreen(
                         placeholder = stringResource(R.string.xray_http_placeholder),
                         isError = !isHttpValid || (httpBindAddress.isNotEmpty() && socksBindAddress == httpBindAddress),
                         supportingText = stringResource(R.string.xray_http_desc),
-                        isModified = runningXrayConfig != null && httpBindAddress != runningXrayConfig?.httpBindAddress
+                        isModified = xrayConfigSnapshot != null && httpBindAddress != xrayConfigSnapshot?.httpBindAddress
                     )
                 }
             }
@@ -337,7 +337,7 @@ fun XrayConfigScreen(
                     LabeledSegmentedButton(
                         label = stringResource(R.string.xray_protocol_label),
                         supportingText = stringResource(R.string.xray_protocol_desc),
-                        isModified = runningXrayConfig != null && (runningWgConfig != null && xrayConfiguration != XrayConfiguration.WIREGUARD || runningVlessConfig != null && xrayConfiguration != XrayConfiguration.VLESS)
+                        isModified = xrayConfigSnapshot != null && (wgConfigSnapshot != null && xrayConfiguration != XrayConfiguration.WIREGUARD || vlessConfigSnapshot != null && xrayConfiguration != XrayConfiguration.VLESS)
                     ) {
                         XrayConfiguration.entries.forEachIndexed { index, config ->
                             SegmentedButton(
@@ -377,7 +377,7 @@ fun XrayConfigScreen(
                         isEndpointValid = isEndpointValid,
                         isTargetEndpoint = isTargetEndpoint,
                         onFixEndpoint = { endpoint = clientConfig.connectableAddress },
-                        runningWgConfig = runningWgConfig,
+                        wgConfigSnapshot = wgConfigSnapshot,
                         privacyMode = privacyMode,
                         onImportFile = { filePickerLauncher.launch("*/*") },
                         onImportQr = { showQrScanner.value = true },
@@ -430,7 +430,7 @@ fun XrayConfigScreen(
                         },
                         vlessLinkHistory = vlessLinkHistory,
                         onRemoveHistory = { viewModel.removeVlessLinkFromHistory(it) },
-                        runningVlessConfig = runningVlessConfig,
+                        vlessConfigSnapshot = vlessConfigSnapshot,
                         privacyMode = privacyMode,
                         onImportQr = { showVlessQrScanner.value = true },
                         blockContainerColor = blockContainerColor
@@ -529,7 +529,7 @@ private fun WireGuardSettings(
     isEndpointValid: Boolean,
     isTargetEndpoint: Boolean,
     onFixEndpoint: () -> Unit,
-    runningWgConfig: WgConfig?,
+    wgConfigSnapshot: WgConfig?,
     privacyMode: Boolean,
     onImportFile: () -> Unit,
     onImportQr: () -> Unit,
@@ -556,7 +556,7 @@ private fun WireGuardSettings(
                     placeholder = stringResource(R.string.wg_private_key_placeholder),
                     isError = privateKey.isBlank(),
                     readOnly = privacyMode,
-                    isModified = runningWgConfig != null && privateKey != runningWgConfig.privateKey
+                    isModified = wgConfigSnapshot != null && privateKey != wgConfigSnapshot.privateKey
                 )
             }
 
@@ -568,7 +568,7 @@ private fun WireGuardSettings(
                     placeholder = stringResource(R.string.wg_address_placeholder),
                     isError = address.isBlank(),
                     readOnly = privacyMode,
-                    isModified = runningWgConfig != null && address != runningWgConfig.address
+                    isModified = wgConfigSnapshot != null && address != wgConfigSnapshot.address
                 )
             }
 
@@ -578,7 +578,7 @@ private fun WireGuardSettings(
                     value = mtu,
                     onValueChange = onMtuChange,
                     placeholder = stringResource(R.string.wg_mtu_placeholder),
-                    isModified = runningWgConfig != null && mtu != runningWgConfig.mtu,
+                    isModified = wgConfigSnapshot != null && mtu != wgConfigSnapshot.mtu,
                     supportingText = if (mtu != "1280") stringResource(R.string.wg_mtu_recommendation) else null
                 )
             }
@@ -593,7 +593,7 @@ private fun WireGuardSettings(
                     placeholder = stringResource(R.string.wg_public_key_placeholder),
                     isError = publicKey.isBlank(),
                     readOnly = privacyMode,
-                    isModified = runningWgConfig != null && publicKey != runningWgConfig.publicKey
+                    isModified = wgConfigSnapshot != null && publicKey != wgConfigSnapshot.publicKey
                 )
             }
 
@@ -606,7 +606,7 @@ private fun WireGuardSettings(
                         placeholder = stringResource(R.string.wg_endpoint_placeholder),
                         isError = !isTargetEndpoint || !isEndpointValid,
                         readOnly = privacyMode,
-                        isModified = runningWgConfig != null && endpoint != runningWgConfig.endpoint
+                        isModified = wgConfigSnapshot != null && endpoint != wgConfigSnapshot.endpoint
                     )
                     if (!isTargetEndpoint) {
                         Column {
@@ -626,7 +626,7 @@ private fun WireGuardSettings(
                     value = persistentKeepalive,
                     onValueChange = onPersistentKeepaliveChange,
                     placeholder = stringResource(R.string.wg_persistent_keepalive_placeholder),
-                    isModified = runningWgConfig != null && persistentKeepalive != runningWgConfig.persistentKeepalive
+                    isModified = wgConfigSnapshot != null && persistentKeepalive != wgConfigSnapshot.persistentKeepalive
                 )
             }
         }
@@ -646,7 +646,7 @@ private fun VlessSettings(
     onParseDirectAddress: () -> Unit,
     vlessLinkHistory: List<String>,
     onRemoveHistory: (String) -> Unit,
-    runningVlessConfig: com.wireturn.app.data.VlessConfig?,
+    vlessConfigSnapshot: com.wireturn.app.data.VlessConfig?,
     privacyMode: Boolean,
     onImportQr: () -> Unit,
     blockContainerColor: Color
@@ -670,7 +670,7 @@ private fun VlessSettings(
                 singleLine = false,
                 readOnly = privacyMode,
                 supportingText = stringResource(R.string.vless_link_config_desc),
-                isModified = runningVlessConfig != null && vlessLink.trim() != runningVlessConfig.vlessLink,
+                isModified = vlessConfigSnapshot != null && vlessLink.trim() != vlessConfigSnapshot.vlessLink,
                 trailingIcon = {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         IconButton(
@@ -704,7 +704,7 @@ private fun VlessSettings(
                 checked = vlessUseLocalAddress,
                 onCheckedChange = onVlessUseLocalAddressChange,
                 enabled = !vlessIsDualRoute,
-                isModified = runningVlessConfig != null && vlessUseLocalAddress != runningVlessConfig.vlessUseLocalAddress
+                isModified = vlessConfigSnapshot != null && vlessUseLocalAddress != vlessConfigSnapshot.vlessUseLocalAddress
             )
         }
 
@@ -721,7 +721,7 @@ private fun VlessSettings(
                 supportingText = stringResource(R.string.vless_dual_route_desc),
                 checked = vlessIsDualRoute,
                 onCheckedChange = onVlessIsDualRouteChange,
-                isModified = runningVlessConfig != null && vlessIsDualRoute != runningVlessConfig.isDualRoute
+                isModified = vlessConfigSnapshot != null && vlessIsDualRoute != vlessConfigSnapshot.isDualRoute
             )
         }
 
@@ -739,7 +739,7 @@ private fun VlessSettings(
                     isError = !ValidatorUtils.isValidHostPort(vlessDirectAddress),
                     readOnly = privacyMode,
                     supportingText = stringResource(R.string.vless_direct_address_desc),
-                    isModified = runningVlessConfig != null && vlessDirectAddress != runningVlessConfig.directAddress,
+                    isModified = vlessConfigSnapshot != null && vlessDirectAddress != vlessConfigSnapshot.directAddress,
                     trailingIcon = {
                         IconButton(onClick = onParseDirectAddress) {
                             Icon(painterResource(R.drawable.sync_24px), stringResource(R.string.vless_parse_from_link))

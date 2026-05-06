@@ -33,18 +33,15 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.InterruptedIOException
 
-sealed class StartupResult {
-    data object Success : StartupResult()
-    data class Failed(val message: String) : StartupResult()
-}
 
 class ProxyService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
@@ -70,8 +67,7 @@ class ProxyService : Service() {
         serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
         NotificationHelper.createChannel(this)
         observeCaptchaForNotification()
-        observeStartupResultForNotification()
-        startXraySupervisor()
+        observeErrorForNotification()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -81,25 +77,36 @@ class ProxyService : Service() {
             return START_NOT_STICKY
         }
 
-        // Если уже запущено и основной цикл работает — ничего не делаем.
-        if (ProxyServiceState.isRunning.value && proxyJob?.isActive == true) return START_STICKY
-
+        // При каждом явном вызове Start — перезапускаем цикл, чтобы подхватить возможные изменения в конфиге
+        userStopped.set(false)
         proxyJob?.cancel()
         proxyJob = serviceScope.launch {
-            // Проверяем валидность конфига перед началом работы.
             val prefs = AppPreferences(applicationContext)
             val cfg = prefs.clientConfigFlow.first()
+            val profileName = prefs.currentProfileNameFlow.first()
+            val xraySettings = prefs.xraySettingsFlow.first()
+            val vlessConfig = prefs.vlessConfigFlow.first()
+            val xrayConfig = prefs.xrayConfigFlow.first()
+
+            // Сразу фиксируем работающий конфиг для UI
+            var runningCfg = cfg
+            if (runningCfg.jazzCreds.contains("@salutejazz.ru", ignoreCase = true)) {
+                runningCfg = runningCfg.copy(jazzCreds = runningCfg.jazzCreds.replace("@salutejazz.ru", "", ignoreCase = true))
+            }
+            ProxyServiceState.setClientConfigSnapshot(runningCfg)
+            ProxyServiceState.setProfileNameSnapshot(profileName)
+
             if (!cfg.isValid) {
                 val errorRes = cfg.getValidationErrorResId() ?: R.string.error_settings_empty
-                ProxyServiceState.setStartupResult(StartupResult.Failed(getString(errorRes)))
-                ProxyServiceState.setRunning(false)
+                ProxyServiceState.setStatus(ProxyStatus.Error(getString(errorRes)))
                 delay(500)
                 withContext(Dispatchers.Main) { stopSelf() }
                 return@launch
             }
 
-            initStartup()
-            mainSupervisor()
+            initStartup(vlessConfig, xraySettings, xrayConfig)
+            startXraySupervisor()
+            mainSupervisor(runningCfg, profileName, xraySettings, vlessConfig, xrayConfig)
             
             if (!userStopped.get()) {
                 withContext(Dispatchers.Main) { stopSelf() }
@@ -109,24 +116,24 @@ class ProxyService : Service() {
         return START_STICKY
     }
 
-    private suspend fun initStartup() {
-        val prefs = AppPreferences(applicationContext)
-        val vlessConfig = prefs.vlessConfigFlow.first()
-        val xraySettings = prefs.xraySettingsFlow.first()
-        val xrayConfig = prefs.xrayConfigFlow.first()
-        
+    private suspend fun initStartup(
+        vlessConfig: com.wireturn.app.data.VlessConfig,
+        xraySettings: com.wireturn.app.data.XraySettings,
+        xrayConfig: com.wireturn.app.data.XrayConfig
+    ) {
         val isXrayVless = xrayConfig.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS
         val isDualRouteStart = xraySettings.xrayEnabled && isXrayVless && vlessConfig.isDualRoute
 
         NotificationHelper.cancelErrorNotification(this)
-        ProxyServiceState.setStartupResult(null)
-        ProxyServiceState.setRunning(true)
         
-        // Если стартуем с уже включенным Dual Route — сначала ждем вердикта от Xray
         if (isDualRouteStart) {
-            ProxyServiceState.setTunnelSuppressed(true)
+            // В режиме Dual-route стартуем в паузе, чтобы не запускать бинарник зря
+            ProxyServiceState.setStatus(ProxyStatus.Suppressed)
+            updateNotification(getString(R.string.connecting))
+        } else {
+            ProxyServiceState.setStatus(ProxyStatus.Starting)
         }
-        
+
         userStopped.set(false)
         restartCount = 0
 
@@ -161,87 +168,87 @@ class ProxyService : Service() {
         AppLogsState.addLog(getString(R.string.log_proxy_start))
     }
 
-    private suspend fun mainSupervisor() = coroutineScope {
+    private suspend fun mainSupervisor(
+        runningCfg: ClientConfig,
+        @Suppress("UNUSED_PARAMETER") profileName: String?,
+        @Suppress("UNUSED_PARAMETER") initialXraySettings: com.wireturn.app.data.XraySettings,
+        @Suppress("UNUSED_PARAMETER") initialVlessConfig: com.wireturn.app.data.VlessConfig,
+        @Suppress("UNUSED_PARAMETER") initialXrayConfig: com.wireturn.app.data.XrayConfig
+    ) = coroutineScope {
         val prefs = AppPreferences(applicationContext)
-        
+
+        // Реактивное управление состоянием паузы (Suppressed)
         launch {
-            ProxyServiceState.isTunnelSuppressed.collect { suppressed ->
-                if (suppressed) {
+            combine(
+                XrayServiceState.state,
+                prefs.xraySettingsFlow,
+                prefs.xrayConfigFlow,
+                prefs.vlessConfigFlow
+            ) { state, settings, xray, vless ->
+                val isXrayVless = xray.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS
+                val isDualRoute = settings.xrayEnabled && isXrayVless && vless.isDualRoute
+                
+                if (isDualRoute) {
+                    when (state) {
+                        XrayState.DirectRoute -> {
+                            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                                ProxyServiceState.setStatus(ProxyStatus.Suppressed)
+                                updateNotification(getString(R.string.vless_direct_active))
+                                ProxyTileService.requestUpdate(this@ProxyService)
+                            }
+                        }
+                        XrayState.Running -> {
+                            if (ProxyServiceState.status.value is ProxyStatus.Suppressed) {
+                                ProxyServiceState.setStatus(ProxyStatus.Connecting)
+                            }
+                        }
+                        // В промежуточных состояниях (Starting, Connecting, Idle) держим текущий статус
+                        else -> {}
+                    }
+                } else if (ProxyServiceState.status.value is ProxyStatus.Suppressed) {
+                    // Режим Dual-route был выключен — пробуждаем туннель немедленно
+                    ProxyServiceState.setStatus(ProxyStatus.Connecting)
+                }
+            }.collect {}
+        }
+
+        launch {
+            ProxyServiceState.status.collect { status ->
+                if (status is ProxyStatus.Suppressed) {
                     stopBinaryProcessGracefully()
                 }
             }
         }
 
-        var wasSuppressed = false
         while (isActive && !userStopped.get()) {
-            val vlessConfig = XrayServiceState.runningVlessConfig.value ?: prefs.vlessConfigFlow.first()
-            val xraySettings = prefs.xraySettingsFlow.first()
-            val xrayConfig = XrayServiceState.runningXrayConfig.value ?: prefs.xrayConfigFlow.first()
-            
-            val isXrayVless = xrayConfig.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS
-            val isDualRoute = xraySettings.xrayEnabled && isXrayVless && vlessConfig.isDualRoute
-            
-            if (isDualRoute && ProxyServiceState.isTunnelSuppressed.value) {
-                wasSuppressed = true
-                val xrayState = XrayServiceState.state.value
-                val isActuallyWorking = xrayState == XrayState.DirectRoute
-                
-                ProxyServiceState.setWorking(isActuallyWorking)
-                
-                if (ProxyServiceState.startupResult.value == null) {
-                    ProxyServiceState.setStartupResult(StartupResult.Success)
-                }
-
-                if (isActuallyWorking) {
-                    updateNotification(getString(R.string.vless_direct_active))
-                } else {
-                    updateNotification(getString(R.string.connecting))
-                }
-                ProxyTileService.requestUpdate(this@ProxyService)
+            if (ProxyServiceState.status.value is ProxyStatus.Suppressed) {
+                // Если мы в режиме паузы, просто ждем сигнала к пробуждению
                 delay(1000)
                 continue
             }
 
-            if (wasSuppressed) {
-                wasSuppressed = false
-            }
-
-            var cfg = prefs.clientConfigFlow.first()
-            val profileName = prefs.currentProfileNameFlow.first()
-            
-            // Cleanup jazz creds if needed
-            if (cfg.jazzCreds.contains("@salutejazz.ru", ignoreCase = true)) {
-                cfg = cfg.copy(jazzCreds = cfg.jazzCreds.replace("@salutejazz.ru", "", ignoreCase = true))
-                prefs.saveClientConfig(cfg)
-            }
-            
-            ProxyServiceState.setRunningConfig(cfg)
-            ProxyServiceState.setRunningProfileName(profileName)
-            
             val startTime = System.currentTimeMillis()
-            val startupSuccessful = runBinary(cfg)
+            val startupSuccessful = runBinary(runningCfg)
             val duration = System.currentTimeMillis() - startTime
             
             if (userStopped.get()) break
 
-            // Если туннель был подавлен (переход на прямой маршрут), 
-            // то это не ошибка и не повод для лога о перезапуске.
-            // Проверяем только флаг подавления, так как локальная переменная isDualRoute может быть устаревшей.
-            if (ProxyServiceState.isTunnelSuppressed.value) {
+            // ПРОВЕРКА ПАУЗЫ: Если бинарник был убит супервизором для перехода в DirectRoute,
+            // мы НЕ должны запускать логику вотчдога.
+            if (ProxyServiceState.status.value is ProxyStatus.Suppressed) {
                 restartCount = 0
                 continue
             }
 
-            // Check for rapid failure (e.g. invalid arguments or kernel issue)
-            val currentResult = ProxyServiceState.startupResult.value
-            if (!startupSuccessful || (currentResult !is StartupResult.Success && duration < 2500)) {
+            // Check for rapid failure
+            val currentStatus = ProxyServiceState.status.value
+            if (!startupSuccessful || (currentStatus !is ProxyStatus.Connected && duration < 2500)) {
                 AppLogsState.addLog(getString(R.string.log_quick_exit, duration))
                 AppLogsState.addLog(getString(R.string.log_startup_failed_no_watchdog))
-                if (ProxyServiceState.startupResult.value !is StartupResult.Failed) {
-                    ProxyServiceState.setStartupResult(StartupResult.Failed(getString(R.string.error_kernel_or_settings)))
+                if (ProxyServiceState.status.value !is ProxyStatus.Error) {
+                    ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_kernel_or_settings)))
                 }
-                ProxyServiceState.setRunning(false)
-                delay(500) // Даем время на показ уведомления об ошибке в фоне
+                delay(500)
                 withContext(Dispatchers.Main) { stopSelf() }
                 break
             }
@@ -250,16 +257,14 @@ class ProxyService : Service() {
             restartCount++
             if (restartCount > MAX_RESTARTS) {
                 AppLogsState.addLog(getString(R.string.log_watchdog_limit, MAX_RESTARTS))
-                ProxyServiceState.setRunning(false)
                 ProxyServiceState.emitFailed()
                 withContext(Dispatchers.Main) { stopSelf() }
                 break
             }
 
-            ProxyServiceState.setWorking(false)
+            ProxyServiceState.setStatus(ProxyStatus.Connecting)
             ProxyTileService.requestUpdate(this@ProxyService)
             
-            // Backoff delay: if ran for more than 30s, reset backoff to 1s
             val baseDelay = if (duration > 30_000) 1000L else minOf(1000L * restartCount, 30_000L)
             val delayMs = baseDelay + Random.nextLong(0, 500)
             
@@ -273,7 +278,7 @@ class ProxyService : Service() {
     private suspend fun runBinary(cfg: ClientConfig): Boolean = coroutineScope {
         val cmdArgs = buildCommandArgs(cfg)
 
-        if (ProxyServiceState.startupResult.value is StartupResult.Failed) {
+        if (ProxyServiceState.status.value is ProxyStatus.Error) {
             return@coroutineScope false
         }
 
@@ -294,8 +299,7 @@ class ProxyService : Service() {
 
             val useCustom = cmdArgs.any { it.contains("custom_vkturn") }
             if (useCustom) {
-                ProxyServiceState.setWorking(true)
-                ProxyServiceState.setStartupResult(StartupResult.Success)
+                ProxyServiceState.setStatus(ProxyStatus.Connected)
                 startupEmitted = true
                 ProxyTileService.requestUpdate(this@ProxyService)
             }
@@ -309,26 +313,29 @@ class ProxyService : Service() {
 
                         if (!isActive) continue
 
-                        // Process logic
                         if (!useCustom) {
                             if (l.contains("[VK Auth]", ignoreCase = true) || l.contains("joining room", ignoreCase = true) ||
                                 l.contains("starting turnable client")) {
-                                if (!startupEmitted) {
-                                    ProxyServiceState.setStartupResult(StartupResult.Success)
+                                if (!startupEmitted && ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                                    ProxyServiceState.setStatus(ProxyStatus.Connecting)
                                     updateNotification(getString(R.string.connecting))
                                     startupEmitted = true
                                 }
                             }
                             
                             if (l.contains("failed to validate connection URL")) {
-                                ProxyServiceState.setStartupResult(StartupResult.Failed(getString(R.string.error_invalid_turnable_url)))
+                                if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                                    ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_invalid_turnable_url)))
+                                }
                                 startupFailed = true
                                 break
                             }
 
                             if (l.contains("failed to start vpn client")) {
                                 val errorPart = l.substringAfterLast(":").trim()
-                                ProxyServiceState.setStartupResult(StartupResult.Failed(getString(R.string.error_turnable_failed, errorPart)))
+                                if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                                    ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_turnable_failed, errorPart)))
+                                }
                                 startupFailed = true
                                 break
                             }
@@ -339,24 +346,25 @@ class ProxyService : Service() {
                                 l.contains("peer online"))
                             {
                                 peerConnectFailedCount = 0
-                                ProxyServiceState.setWorking(true)
-                                updateNotification(getString(R.string.proxy_active))
-                                if (!startupEmitted) {
-                                    ProxyServiceState.setStartupResult(StartupResult.Success)
+                                if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                                    ProxyServiceState.setStatus(ProxyStatus.Connected)
+                                    updateNotification(getString(R.string.proxy_active))
                                     startupEmitted = true
+                                    ProxyTileService.requestUpdate(this@ProxyService)
                                 }
-                                ProxyTileService.requestUpdate(this@ProxyService)
                             }
                             if (l.contains("DataChannel closed", ignoreCase = true)) {
-                                ProxyServiceState.setWorking(false)
-                                ProxyTileService.requestUpdate(this@ProxyService)
+                                if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                                    ProxyServiceState.setStatus(ProxyStatus.Connecting)
+                                    ProxyTileService.requestUpdate(this@ProxyService)
 
-                                if (cfg.dcType == DCType.SALUTE_JAZZ) {
-                                    if (!checkJazzAvailability()) {
-                                        AppLogsState.addLog(getString(R.string.log_jazz_unavailable))
-                                        ProxyServiceState.setStartupResult(StartupResult.Failed(getString(R.string.error_jazz_unavailable)))
-                                        startupFailed = true
-                                        break
+                                    if (cfg.dcType == DCType.SALUTE_JAZZ) {
+                                        if (!checkJazzAvailability()) {
+                                            AppLogsState.addLog(getString(R.string.log_jazz_unavailable))
+                                            ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_jazz_unavailable)))
+                                            startupFailed = true
+                                            break
+                                        }
                                     }
                                 }
                             }
@@ -365,12 +373,14 @@ class ProxyService : Service() {
                                 peerConnectFailedCount++
                                 if (peerConnectFailedCount >= 30) {
                                     AppLogsState.addLog(getString(R.string.log_too_many_peer_failures))
-                                    ProxyServiceState.setStartupResult(StartupResult.Failed(getString(R.string.error_too_many_peer_failures)))
+                                    if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                                        ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_too_many_peer_failures)))
+                                    }
                                     startupFailed = true
                                     break
                                 }
-                                if (ProxyServiceState.isWorking.value) {
-                                    ProxyServiceState.setWorking(false)
+                                if (ProxyServiceState.status.value is ProxyStatus.Connected) {
+                                    ProxyServiceState.setStatus(ProxyStatus.Connecting)
                                     updateNotification(getString(R.string.connecting))
                                     ProxyTileService.requestUpdate(this@ProxyService)
                                 }
@@ -379,11 +389,7 @@ class ProxyService : Service() {
 
                         // Captcha logic
                         if (l.contains("Triggering manual captcha fallback")) {
-                            captchaActive = true
-                            if (!startupEmitted) {
-                                ProxyServiceState.setStartupResult(StartupResult.Success)
-                                startupEmitted = true
-                            }
+                            startupEmitted = true
                         }
 
                         val captchaMatcher = CAPTCHA_URL_REGEX.matcher(l)
@@ -394,11 +400,7 @@ class ProxyService : Service() {
                             captchaActive = true
                             updateNotification(getString(R.string.proxy_captcha_required))
                             ProxyTileService.requestUpdate(this@ProxyService)
-                            
-                            if (!startupEmitted) {
-                                ProxyServiceState.setStartupResult(StartupResult.Success)
-                                startupEmitted = true
-                            }
+                            startupEmitted = true
                         }
 
                         if (captchaActive && (
@@ -409,13 +411,16 @@ class ProxyService : Service() {
                             ProxyServiceState.setCaptchaSession(null)
                             updateNotification(getString(R.string.proxy_active))
                             captchaActive = false
+                            // Status will be restored to CONNECTED/CONNECTING on next peer activity log
                         }
 
                         // Error detection
                         val lower = l.lowercase()
                         if (lower.contains("panic") || lower.contains("fatal") || lower.contains("rate limit")) {
-                            ProxyServiceState.setStartupResult(StartupResult.Failed(l))
-                            updateNotification(getString(R.string.error_connecting))
+                            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                                ProxyServiceState.setStatus(ProxyStatus.Error(l))
+                                updateNotification(getString(R.string.error_connecting))
+                            }
                             startupFailed = true
                             break
                         }
@@ -443,7 +448,7 @@ class ProxyService : Service() {
             AppLogsState.addLog(getString(R.string.log_process_stopped, exitCode))
             
             if (!startupEmitted && !startupFailed) {
-                ProxyServiceState.setStartupResult(StartupResult.Failed(getString(R.string.error_process_no_output, exitCode)))
+                ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_process_no_output, exitCode)))
             }
 
             !startupFailed
@@ -457,7 +462,6 @@ class ProxyService : Service() {
         } finally {
             ProxyServiceState.setCaptchaSession(null)
             process.set(null)
-            // Decisions on what to do next are made in mainSupervisor based on userStopped
         }
     }
 
@@ -492,9 +496,8 @@ class ProxyService : Service() {
                 if (cfg.dcType == DCType.SALUTE_JAZZ) {
                     if (!checkJazzAvailability()) {
                         AppLogsState.addLog(getString(R.string.log_jazz_unavailable))
-                        ProxyServiceState.setStartupResult(StartupResult.Failed(getString(R.string.error_jazz_unavailable)))
+                        ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_jazz_unavailable)))
                     }
-                    // If unavailable, we still try to run but it will likely fail or we can abort
                     cmdArgs.add("-jazz-room")
                     cmdArgs.add(cfg.jazzCreds)
                 } else {
@@ -546,7 +549,7 @@ class ProxyService : Service() {
         val msg = e.message ?: ""
         if (msg.contains("error=13") || msg.contains("Permission denied")) {
             AppLogsState.addLog(getString(R.string.error_kernel_permission_denied))
-            ProxyServiceState.setStartupResult(StartupResult.Failed(msg))
+            ProxyServiceState.setStatus(ProxyStatus.Error(msg))
         } else {
             AppLogsState.addLog(getString(R.string.error_critical_format, e.message))
         }
@@ -578,82 +581,43 @@ class ProxyService : Service() {
     }
 
     private fun startXraySupervisor() {
+        xraySupervisorJob?.cancel()
         xraySupervisorJob = serviceScope.launch {
             val prefs = AppPreferences(applicationContext)
-            ProxyServiceState.isRunning.collectLatest { running ->
-                if (running) {
-                    val initialVless = prefs.vlessConfigFlow.first()
-                    val initialXray = prefs.xraySettingsFlow.first()
-                    val initialDualRoute = initialXray.xrayEnabled && initialVless.isDualRoute
-
-                    if (!initialDualRoute) {
-                        // Ждем первого появления isWorking в рамках текущего запуска сессии
-                        ProxyServiceState.isWorking.first { it }
-                    }
-                    
-                    // Следим за изменениями настроек Xray и VLESS для управления XrayService и подавлением туннеля
-                    combine(
-                        prefs.xraySettingsFlow,
-                        prefs.vlessConfigFlow,
-                        prefs.xrayConfigFlow,
-                        XrayServiceState.runningVlessConfig,
-                        XrayServiceState.runningXrayConfig
-                    ) { settings, vless, xray, runningVless, runningXray ->
-                        // Используем запущенный конфиг, если он есть, чтобы избежать переключения маршрутов "на горячую" при изменении настроек в UI
-                        val effectiveVless = runningVless ?: vless
-                        val effectiveXray = runningXray ?: xray
-                        val isXrayVless = effectiveXray.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS
-                        
-                        val isDualRoute = settings.xrayEnabled && isXrayVless && effectiveVless.isDualRoute
-                        settings to isDualRoute
-                    }.collect { (settings, isDualRoute) ->
-                        if (!ProxyServiceState.isRunning.value) return@collect
-
-                        val prevSuppressed = ProxyServiceState.isTunnelSuppressed.value
-                        
-                        if (!isDualRoute && prevSuppressed) {
-                            // Если Dual Route выключен (или протокол сменился), но туннель был подавлен — разрешаем его
-                            ProxyServiceState.setTunnelSuppressed(false)
-
-                            // Немедленно сбрасываем статус в "Подключение", не дожидаясь цикла mainSupervisor
-                            ProxyServiceState.setWorking(false)
-                            updateNotification(getString(R.string.connecting))
-                            ProxyTileService.requestUpdate(this@ProxyService)
-                        }
-
-                        withContext(Dispatchers.Main) {
-                            val currentState = XrayServiceState.state.value
-                            if (settings.xrayEnabled) {
-                                if (currentState == XrayState.Idle) {
-                                    startForegroundService(Intent(this@ProxyService, XrayService::class.java))
-                                }
-                            } else {
-                                if (currentState != XrayState.Idle) {
-                                    stopService(Intent(this@ProxyService, XrayService::class.java))
-                                }
-                            }
-                        }
-                    }
-                } else {
+            combine(
+                prefs.xraySettingsFlow,
+                ProxyServiceState.isRunning,
+                XrayServiceState.state
+            ) { settings, proxyRunning, xrayState ->
+                val shouldBeRunning = settings.xrayEnabled && proxyRunning
+                val needsStart = shouldBeRunning && xrayState == XrayState.Idle
+                needsStart
+            }.distinctUntilChanged()
+            .collectLatest { needsStart ->
+                if (needsStart) {
+                    delay(500) // Debounce during profile switches
                     withContext(Dispatchers.Main) {
-                        stopService(Intent(this@ProxyService, XrayService::class.java))
+                        val currentXrayState = XrayServiceState.state.value
+                        if (currentXrayState == XrayState.Idle && ProxyServiceState.isRunning.value) {
+                            startForegroundService(Intent(this@ProxyService, XrayService::class.java))
+                        }
                     }
                 }
             }
         }
     }
 
-    private fun observeStartupResultForNotification() {
+    private fun observeErrorForNotification() {
         serviceScope.launch {
             combine(
-                ProxyServiceState.startupResult,
+                ProxyServiceState.status,
                 AppLifecycleState.isAppInForeground
-            ) { result, isForeground ->
-                result to isForeground
-            }.collect { (result, isForeground) ->
-                if (result is StartupResult.Failed && !isForeground) {
-                    NotificationHelper.notifyError(this@ProxyService, result.message)
-                } else if (result is StartupResult.Success || isForeground) {
+            ) { status, isForeground ->
+                status to isForeground
+            }.collect { (status, isForeground) ->
+                if (status is ProxyStatus.Error && !isForeground) {
+                    NotificationHelper.notifyError(this@ProxyService, status.message)
+                } else if ((status is ProxyStatus.Connected || status is ProxyStatus.Suppressed) || isForeground) {
                     NotificationHelper.cancelErrorNotification(this@ProxyService)
                 }
             }
@@ -729,8 +693,10 @@ class ProxyService : Service() {
 
     private fun handleStopAction(disableAutoLaunch: Boolean) {
         if (userStopped.getAndSet(true)) return
+        xraySupervisorJob?.cancel()
+        xraySupervisorJob = null
         NotificationHelper.cancelErrorNotification(this)
-        ProxyServiceState.setRunning(false)
+        ProxyServiceState.setStatus(ProxyStatus.Idle)
         serviceScope.launch {
             if (disableAutoLaunch) {
                 val prefs = AppPreferences(applicationContext)
@@ -739,6 +705,12 @@ class ProxyService : Service() {
                     prefs.updateAutoLaunchSettings(autoLaunch.copy(enabled = false))
                 }
             }
+            
+            // Explicitly stop Xray when tunnel stops
+            withContext(Dispatchers.Main) {
+                stopService(Intent(this@ProxyService, XrayService::class.java))
+            }
+
             stopBinaryProcessGracefully()
             withContext(Dispatchers.Main) {
                 stopSelf()
@@ -772,12 +744,9 @@ class ProxyService : Service() {
         isStarted.set(false)
         userStopped.set(true)
         
-        ProxyServiceState.setWorking(false)
-        ProxyServiceState.setRunning(false)
+        ProxyServiceState.setStatus(ProxyStatus.Idle)
         NotificationHelper.updateNotification(this)
         ProxyTileService.requestUpdate(this)
-        
-        stopService(Intent(this, XrayService::class.java))
         
         handler.removeCallbacksAndMessages(null)
         unregisterNetworkCallback()
@@ -799,11 +768,10 @@ class ProxyService : Service() {
 
         fun start(context: Context, cfg: ClientConfig) {
             cfg.getValidationErrorResId()?.let { errorRes ->
-                ProxyServiceState.setStartupResult(StartupResult.Failed(context.getString(errorRes)))
+                ProxyServiceState.setStatus(ProxyStatus.Error(context.getString(errorRes)))
                 return
             }
-            val serviceIntent = Intent(context, ProxyService::class.java)
-            context.startForegroundService(serviceIntent)
+            context.startForegroundService(Intent(context, ProxyService::class.java))
         }
 
         fun stop(context: Context, byUser: Boolean = false) {

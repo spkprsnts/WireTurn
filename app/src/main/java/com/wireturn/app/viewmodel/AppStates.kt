@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 sealed class XrayState {
     object Idle : XrayState()
     object Starting : XrayState()
+    object Connecting : XrayState()
     object Running : XrayState()
     object DirectRoute : XrayState()
 }
@@ -22,8 +23,9 @@ sealed class VpnState {
 sealed class ProxyState {
     object Idle : ProxyState()
     object Starting : ProxyState()
-    object Running : ProxyState()
-    object Working : ProxyState()
+    object Connecting : ProxyState()
+    object Connected : ProxyState()
+    object Suppressed : ProxyState()
     data class Error(val message: String) : ProxyState()
     data class CaptchaRequired(val url: String, val sessionId: Long = 0L) : ProxyState()
 }

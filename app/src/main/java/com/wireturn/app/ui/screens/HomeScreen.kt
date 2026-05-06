@@ -153,10 +153,11 @@ fun HomeScreen(
     val appsExclusionHintShown by viewModel.appsExclusionHintShown.collectAsStateWithLifecycle()
     val customKernelExists by viewModel.customKernelExists.collectAsStateWithLifecycle()
     val vlessConfig by viewModel.vlessConfig.collectAsStateWithLifecycle()
-    val runningConfig by ProxyServiceState.runningConfig.collectAsStateWithLifecycle()
-    val runningWgConfig by XrayServiceState.runningWgConfig.collectAsStateWithLifecycle()
-    val runningVlessConfig by XrayServiceState.runningVlessConfig.collectAsStateWithLifecycle()
-    val runningXrayConfig by XrayServiceState.runningXrayConfig.collectAsStateWithLifecycle()
+    val clientConfigSnapshot by ProxyServiceState.clientConfigSnapshot.collectAsStateWithLifecycle()
+    val wgConfigSnapshot by XrayServiceState.wgConfigSnapshot.collectAsStateWithLifecycle()
+    val vlessConfigSnapshot by XrayServiceState.vlessConfigSnapshot.collectAsStateWithLifecycle()
+    val xrayConfigSnapshot by XrayServiceState.xrayConfigSnapshot.collectAsStateWithLifecycle()
+    val isRestarting by ProxyServiceState.isRestarting.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
 
     val currentProfileId by viewModel.currentProfileId.collectAsStateWithLifecycle()
@@ -219,7 +220,8 @@ fun HomeScreen(
             lastSuccessPing = proxyPing as MainViewModel.PingResult.Success
         }
 
-        if (proxyState is ProxyState.Working) {
+        val isProxyActive = proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed
+        if (isProxyActive) {
             if (proxyPing is MainViewModel.PingResult.Success || proxyPing is MainViewModel.PingResult.Error) {
                 if (!isControlPingScheduled) {
                     isControlPingScheduled = true
@@ -237,31 +239,31 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(runningXrayConfig) {
+    LaunchedEffect(xrayConfigSnapshot) {
         lastSuccessPing = null
     }
 
     val proxyTransfer by viewModel.proxyTransfer.collectAsStateWithLifecycle()
     val wgConfig by viewModel.wgConfig.collectAsStateWithLifecycle()
 
-    val activeConfig = runningConfig ?: clientConfig
-    val activeWgConfig = runningWgConfig ?: wgConfig
-    val activeVlessConfig = runningVlessConfig ?: vlessConfig
+    val activeConfig = clientConfigSnapshot ?: clientConfig
+    val activeWgConfig = wgConfigSnapshot ?: wgConfig
+    val activeVlessConfig = vlessConfigSnapshot ?: vlessConfig
 
-    val configChanged = remember(clientConfig, runningConfig, wgConfig, runningWgConfig, vlessConfig, runningVlessConfig, xrayConfig, runningXrayConfig) {
-        (runningConfig != null && clientConfig != runningConfig) ||
-                (runningWgConfig != null && wgConfig != runningWgConfig) ||
-                (runningVlessConfig != null && vlessConfig != runningVlessConfig) ||
-                (runningXrayConfig != null && xrayConfig != runningXrayConfig)
+    val configChanged = remember(clientConfig, clientConfigSnapshot, wgConfig, wgConfigSnapshot, vlessConfig, vlessConfigSnapshot, xrayConfig, xrayConfigSnapshot, isRestarting) {
+        !isRestarting && ((clientConfigSnapshot != null && clientConfig != clientConfigSnapshot) ||
+                (wgConfigSnapshot != null && wgConfig.fillDefaults() != wgConfigSnapshot) ||
+                (vlessConfigSnapshot != null && vlessConfig != vlessConfigSnapshot) ||
+                (xrayConfigSnapshot != null && xrayConfig.fillDefaults() != xrayConfigSnapshot))
     }
 
-    val mainConfigChanged = remember(clientConfig, runningConfig) {
-        (runningConfig != null && clientConfig != runningConfig)
+    val mainConfigChanged = remember(clientConfig, clientConfigSnapshot, isRestarting) {
+        !isRestarting && (clientConfigSnapshot != null && clientConfig != clientConfigSnapshot)
     }
-    val xrayConfigChanged = remember(wgConfig, runningWgConfig, vlessConfig, runningVlessConfig, xrayConfig, runningXrayConfig) {
-        (runningWgConfig != null && wgConfig != runningWgConfig) ||
-                (runningVlessConfig != null && vlessConfig != runningVlessConfig) ||
-                (runningXrayConfig != null && xrayConfig != runningXrayConfig)
+    val xrayConfigChanged = remember(wgConfig, wgConfigSnapshot, vlessConfig, vlessConfigSnapshot, xrayConfig, xrayConfigSnapshot, isRestarting) {
+        !isRestarting && ((wgConfigSnapshot != null && wgConfig.fillDefaults() != wgConfigSnapshot) ||
+                (vlessConfigSnapshot != null && vlessConfig != vlessConfigSnapshot) ||
+                (xrayConfigSnapshot != null && xrayConfig.fillDefaults() != xrayConfigSnapshot))
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -568,8 +570,9 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 ProxyToggleButton(
-                    state = proxyState,
+                    proxyState = proxyState,
                     xrayState = xrayState,
+                    isRestarting = isRestarting,
                     isLocked = autoLaunchSettings.enabled,
                     onClick = {
                         val action = {
@@ -587,7 +590,7 @@ fun HomeScreen(
                                         viewModel.startProxy()
                                     }
                                 }
-                                is ProxyState.Running, is ProxyState.Working, is ProxyState.CaptchaRequired -> {
+                                is ProxyState.Starting, is ProxyState.Connecting, is ProxyState.Connected, is ProxyState.Suppressed, is ProxyState.CaptchaRequired -> {
                                     HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_OFF)
                                     viewModel.stopProxy()
                                 }
@@ -605,23 +608,31 @@ fun HomeScreen(
                 )
 
                 Text(
-                    text = when {
-                        proxyState is ProxyState.Working -> {
+                    text = when (proxyState) {
+                        is ProxyState.Connected -> {
                             if (xrayState == XrayState.DirectRoute) stringResource(R.string.vless_direct_active)
                             else stringResource(if (customKernelExists) R.string.proxy_running else R.string.proxy_active)
                         }
-                        proxyState is ProxyState.Starting -> stringResource(R.string.starting)
-                        proxyState is ProxyState.Running -> stringResource(R.string.connecting)
-                        proxyState is ProxyState.CaptchaRequired -> stringResource(R.string.proxy_captcha_required)
-                        proxyState is ProxyState.Error -> (proxyState as ProxyState.Error).message
-                        autoLaunchSettings.enabled -> stringResource(R.string.proxy_auto_launch_active)
-                        else -> stringResource(R.string.proxy_press_to_start)
+                        is ProxyState.Starting -> stringResource(R.string.starting)
+                        is ProxyState.Connecting -> stringResource(R.string.connecting)
+                        is ProxyState.Suppressed -> {
+                            if (xrayState == XrayState.DirectRoute) stringResource(R.string.vless_direct_active)
+                            else stringResource(R.string.connecting)
+                        }
+                        is ProxyState.CaptchaRequired -> stringResource(R.string.proxy_captcha_required)
+                        is ProxyState.Error -> (proxyState as ProxyState.Error).message
+                        else -> when {
+                            isRestarting -> stringResource(R.string.proxy_restarting)
+                            autoLaunchSettings.enabled -> stringResource(R.string.proxy_auto_launch_active)
+                            else -> stringResource(R.string.proxy_press_to_start)
+                        }
                     },
                     style = MaterialTheme.typography.titleMedium,
                     color = when {
-                        proxyState is ProxyState.Working -> MaterialTheme.colorScheme.primary
-                        proxyState is ProxyState.Running || proxyState is ProxyState.CaptchaRequired -> MaterialTheme.colorScheme.tertiary
+                        proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed -> MaterialTheme.colorScheme.primary
+                        proxyState is ProxyState.Starting || proxyState is ProxyState.Connecting || proxyState is ProxyState.CaptchaRequired -> MaterialTheme.colorScheme.tertiary
                         proxyState is ProxyState.Error -> MaterialTheme.colorScheme.error
+                        isRestarting -> MaterialTheme.colorScheme.tertiary
                         autoLaunchSettings.enabled -> MaterialTheme.colorScheme.primary
                         else -> MaterialTheme.colorScheme.onBackground.copy(alpha = 0.65f)
                     },
@@ -631,12 +642,12 @@ fun HomeScreen(
 
             Spacer(Modifier.height(22.dp))
             
-            // 4. Ping & Transfer Stats
-            AnimatedVisibility(
-                visible = (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute) && proxyState == ProxyState.Working,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
+    // 4. Ping & Transfer Stats
+    AnimatedVisibility(
+        visible = (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute) && (proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed),
+        enter = fadeIn() + expandVertically(),
+        exit = fadeOut() + shrinkVertically()
+    ) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -821,7 +832,7 @@ fun HomeScreen(
             val showProfilesDialog = rememberSaveable { mutableStateOf(false) }
             SettingsGroupItem(
                 isTop = true,
-                isBottom = !configChanged || !(proxyState is ProxyState.Working || proxyState is ProxyState.Running || proxyState is ProxyState.Starting || proxyState is ProxyState.CaptchaRequired),
+                isBottom = !configChanged || proxyState is ProxyState.Idle,
                 containerColor = blockContainerColor,
                 onClick = {
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -832,7 +843,7 @@ fun HomeScreen(
             }
 
             AnimatedVisibility(
-                visible = (proxyState is ProxyState.Working || proxyState is ProxyState.Running || proxyState is ProxyState.Starting || proxyState is ProxyState.CaptchaRequired) && configChanged,
+                visible = proxyState !is ProxyState.Idle && configChanged,
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
@@ -888,7 +899,7 @@ fun HomeScreen(
                                             .clip(MaterialTheme.shapes.small)
                                             .clickable {
                                                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                                viewModel.revertToRunningConfigs()
+                                                viewModel.revertToSnapshotConfigs()
                                             }
                                             .padding(horizontal = 12.dp, vertical = 8.dp)
                                     )
@@ -931,7 +942,7 @@ fun HomeScreen(
             val configValid = isSettingsValid || xrayState != XrayState.Idle
 
             val xrayProtocol = when {
-                xrayState == XrayState.Running || xrayState == XrayState.DirectRoute -> if (runningVlessConfig != null) stringResource(R.string.vless) else stringResource(R.string.wg_short)
+                xrayState == XrayState.Running || xrayState == XrayState.DirectRoute -> if (vlessConfigSnapshot != null) stringResource(R.string.vless) else stringResource(R.string.wg_short)
                 else -> if (xrayConfig.xrayConfiguration == XrayConfiguration.VLESS) stringResource(R.string.vless) else stringResource(R.string.wg_short)
             }
 
@@ -966,6 +977,7 @@ fun HomeScreen(
                         supportingText = if (!configValid) stringResource(R.string.xray_config_invalid) else {
                             when (xrayState) {
                                 XrayState.Starting -> stringResource(R.string.starting)
+                                XrayState.Connecting -> stringResource(R.string.connecting)
                                 XrayState.Running -> stringResource(R.string.running)
                                 XrayState.DirectRoute -> stringResource(R.string.vless_direct_active)
                                 else -> stringResource(R.string.idle)
@@ -979,7 +991,7 @@ fun HomeScreen(
                                     tint = if (xrayState == XrayState.Idle) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(24.dp)
                                 )
-                                XrayState.Starting -> CircularWavyProgressIndicator(modifier = Modifier.size(24.dp))
+                                XrayState.Starting, XrayState.Connecting -> CircularWavyProgressIndicator(modifier = Modifier.size(24.dp))
                             }
                         },
                         enabled = configValid
@@ -1014,7 +1026,7 @@ fun HomeScreen(
                         label = stringResource(R.string.vpn_mode),
                         checked = xraySettings.xrayVpnMode,
                         onCheckedChange = {}, // Обрабатывается родителем
-                        isModified = runningWgConfig != null && xraySettings.xrayVpnMode != (vpnServiceState == VpnState.Running),
+                        isModified = wgConfigSnapshot != null && xraySettings.xrayVpnMode != (vpnServiceState == VpnState.Running),
                         supportingText = when (vpnServiceState) {
                             VpnState.Starting -> stringResource(R.string.starting)
                             VpnState.Running -> stringResource(R.string.running)
@@ -1080,7 +1092,7 @@ fun HomeScreen(
 
                 SettingsGroupItem(
                     isTop = true,
-                    isBottom = xrayConfig.httpBindAddress.isBlank() && !(runningXrayConfig != null && xrayConfig.httpBindAddress != runningXrayConfig?.httpBindAddress),
+                    isBottom = xrayConfig.httpBindAddress.isBlank() && !(xrayConfigSnapshot != null && xrayConfig.httpBindAddress != xrayConfigSnapshot?.httpBindAddress),
                     containerColor = blockContainerColor,
                     enabled = xraySettings.xrayEnabled,
                     onClick = {
@@ -1094,7 +1106,7 @@ fun HomeScreen(
                     ProxyAddressRow(
                         label = stringResource(R.string.xray_socks5),
                         address = xrayConfig.socksBindAddress,
-                        isModified = runningXrayConfig != null && xrayConfig.socksBindAddress != runningXrayConfig?.socksBindAddress,
+                        isModified = xrayConfigSnapshot != null && xrayConfig.socksBindAddress != xrayConfigSnapshot?.socksBindAddress,
                         isCopied = socksCopied,
                         leadingIcon = {
                             Icon(
@@ -1107,7 +1119,7 @@ fun HomeScreen(
                     )
                 }
 
-                if (xrayConfig.httpBindAddress.isNotBlank() || (runningXrayConfig != null && xrayConfig.httpBindAddress != runningXrayConfig?.httpBindAddress)) {
+                if (xrayConfig.httpBindAddress.isNotBlank() || (xrayConfigSnapshot != null && xrayConfig.httpBindAddress != xrayConfigSnapshot?.httpBindAddress)) {
                     var httpCopied by remember { mutableStateOf(false) }
                     LaunchedEffect(httpCopied) {
                         if (httpCopied) {
@@ -1132,7 +1144,7 @@ fun HomeScreen(
                         ProxyAddressRow(
                             label = stringResource(R.string.xray_http),
                             address = xrayConfig.httpBindAddress,
-                            isModified = runningXrayConfig != null && xrayConfig.httpBindAddress != runningXrayConfig?.httpBindAddress,
+                            isModified = xrayConfigSnapshot != null && xrayConfig.httpBindAddress != xrayConfigSnapshot?.httpBindAddress,
                             isCopied = httpCopied,
                             leadingIcon = {
                                 Icon(
@@ -1342,33 +1354,33 @@ private fun UpdateBanner(
 
 // Кнопка прокси
 @Composable
-private fun ProxyToggleButton(state: ProxyState, xrayState: XrayState = XrayState.Idle, isLocked: Boolean = false, onClick: () -> Unit) {
+private fun ProxyToggleButton(proxyState: ProxyState, xrayState: XrayState = XrayState.Idle, isRestarting: Boolean = false, isLocked: Boolean = false, onClick: () -> Unit) {
     val containerColor by animateColorAsState(
-        targetValue = when (state) {
-            is ProxyState.Working -> if (xrayState == XrayState.DirectRoute) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
-            is ProxyState.Running, is ProxyState.CaptchaRequired -> MaterialTheme.colorScheme.tertiary
-            is ProxyState.Error -> MaterialTheme.colorScheme.errorContainer
-            is ProxyState.Starting -> MaterialTheme.colorScheme.surfaceContainerHigh
+        targetValue = when {
+            proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed -> if (xrayState == XrayState.DirectRoute) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+            proxyState is ProxyState.Connecting || proxyState is ProxyState.CaptchaRequired -> MaterialTheme.colorScheme.tertiary
+            proxyState is ProxyState.Error -> MaterialTheme.colorScheme.errorContainer
+            proxyState is ProxyState.Starting || isRestarting -> MaterialTheme.colorScheme.surfaceContainerHigh
             else -> MaterialTheme.colorScheme.surfaceVariant
         },
         animationSpec = tween(600),
         label = "btn_bg"
     )
     val contentColor by animateColorAsState(
-        targetValue = when (state) {
-            is ProxyState.Working -> if (xrayState == XrayState.DirectRoute) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onPrimary
-            is ProxyState.Running, is ProxyState.CaptchaRequired -> MaterialTheme.colorScheme.onTertiary
-            is ProxyState.Error -> MaterialTheme.colorScheme.onErrorContainer
-            is ProxyState.Starting -> MaterialTheme.colorScheme.onSurfaceVariant
+        targetValue = when {
+            proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed -> if (xrayState == XrayState.DirectRoute) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onPrimary
+            proxyState is ProxyState.Connecting || proxyState is ProxyState.CaptchaRequired -> MaterialTheme.colorScheme.onTertiary
+            proxyState is ProxyState.Error -> MaterialTheme.colorScheme.onErrorContainer
+            proxyState is ProxyState.Starting || isRestarting -> MaterialTheme.colorScheme.onSurfaceVariant
             else -> MaterialTheme.colorScheme.onSurfaceVariant
         },
         animationSpec = tween(600),
         label = "btn_fg"
     )
     val scale by animateFloatAsState(
-        targetValue = when (state) {
-            is ProxyState.Idle, is ProxyState.Error -> 1f
-            is ProxyState.Starting, is ProxyState.Running, is ProxyState.CaptchaRequired -> 0.92f
+        targetValue = when {
+            proxyState is ProxyState.Idle || proxyState is ProxyState.Error -> if (isRestarting) 0.92f else 1f
+            proxyState is ProxyState.Starting || proxyState is ProxyState.Connecting || proxyState is ProxyState.CaptchaRequired -> 0.92f
             else -> 0.96f
         },
         animationSpec = spring(
@@ -1380,9 +1392,9 @@ private fun ProxyToggleButton(state: ProxyState, xrayState: XrayState = XrayStat
 
     // Вычисляем размер тени отдельно для анимации (опционально)
     val elevation by animateDpAsState(
-        targetValue = when (state) {
+        targetValue = when (proxyState) {
             is ProxyState.Idle, is ProxyState.Error -> 16.dp
-            is ProxyState.Starting, is ProxyState.Running, is ProxyState.CaptchaRequired -> 2.dp
+            is ProxyState.Starting, is ProxyState.Connecting, is ProxyState.CaptchaRequired -> 2.dp
             else -> 6.dp
         },
         label = "elevation"
@@ -1412,19 +1424,23 @@ private fun ProxyToggleButton(state: ProxyState, xrayState: XrayState = XrayStat
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    when (state) {
-                        is ProxyState.Starting, is ProxyState.Running, is ProxyState.CaptchaRequired -> CircularWavyProgressIndicator(
+                    when (proxyState) {
+                        is ProxyState.Starting, is ProxyState.Connecting, is ProxyState.CaptchaRequired -> CircularWavyProgressIndicator(
                             color = contentColor
                         )
 
-                        is ProxyState.Working -> {
-                            val icon = if (xrayState == XrayState.DirectRoute) R.drawable.ethernet_24px else R.drawable.check_circle_24px
-                            Icon(
-                                painterResource(icon),
-                                stringResource(R.string.proxy_active_stop),
-                                Modifier.size(66.dp),
-                                tint = contentColor
-                            )
+                        is ProxyState.Connected, is ProxyState.Suppressed -> {
+                            if (proxyState is ProxyState.Suppressed && (xrayState == XrayState.Starting || xrayState == XrayState.Connecting)) {
+                                CircularWavyProgressIndicator(color = contentColor)
+                            } else {
+                                val icon = if (xrayState == XrayState.DirectRoute || proxyState is ProxyState.Suppressed) R.drawable.ethernet_24px else R.drawable.check_circle_24px
+                                Icon(
+                                    painterResource(icon),
+                                    stringResource(R.string.proxy_active_stop),
+                                    Modifier.size(66.dp),
+                                    tint = contentColor
+                                )
+                            }
                         }
 
                         is ProxyState.Error -> Icon(

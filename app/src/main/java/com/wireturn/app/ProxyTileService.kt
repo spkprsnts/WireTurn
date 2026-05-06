@@ -42,25 +42,26 @@ class ProxyTileService : TileService() {
 
         // Мгновенное обновление при открытии шторки
         val initialAutoLaunch = runBlocking { prefs.autoLaunchSettingsFlow.first() }
+        val status = ProxyServiceState.status.value
         updateTileState(
-            isRunning = ProxyServiceState.isRunning.value,
-            isWorking = ProxyServiceState.isWorking.value,
-            isCaptcha = ProxyServiceState.captchaSession.value != null,
+            isRunning = status !is ProxyStatus.Idle,
+            isWorking = status is ProxyStatus.Connected || status is ProxyStatus.Suppressed,
+            isCaptcha = status is ProxyStatus.CaptchaRequired,
             autoLaunchEnabled = initialAutoLaunch.enabled,
-            isDirect = ProxyServiceState.isTunnelSuppressed.value
+            isDirect = status is ProxyStatus.Suppressed
         )
 
         statusJob?.cancel()
         statusJob = serviceScope.launch {
             combine(
-                ProxyServiceState.isRunning,
-                ProxyServiceState.isWorking,
-                ProxyServiceState.captchaSession,
-                ProxyServiceState.isTunnelSuppressed,
+                ProxyServiceState.status,
                 prefs.autoLaunchSettingsFlow
-            ) { running, working, captcha, suppressed, autoLaunch ->
-                val isCaptcha = captcha != null
-                updateTileState(running, working, isCaptcha, autoLaunch.enabled, suppressed)
+            ) { status, autoLaunch ->
+                val isRunning = status !is ProxyStatus.Idle
+                val isWorking = status is ProxyStatus.Connected || status is ProxyStatus.Suppressed
+                val isCaptcha = status is ProxyStatus.CaptchaRequired
+                val isDirect = status is ProxyStatus.Suppressed
+                updateTileState(isRunning, isWorking, isCaptcha, autoLaunch.enabled, isDirect)
             }.collect {}
         }
     }
@@ -77,7 +78,7 @@ class ProxyTileService : TileService() {
 
     override fun onClick() {
         super.onClick()
-        val currentlyRunning = ProxyServiceState.isRunning.value
+        val currentlyRunning = ProxyServiceState.status.value !is ProxyStatus.Idle
         val prefs = AppPreferences(this)
         val autoLaunch = runBlocking { prefs.autoLaunchSettingsFlow.first() }
 
@@ -92,18 +93,17 @@ class ProxyTileService : TileService() {
             val cfg = runBlocking { prefs.clientConfigFlow.first() }
 
             cfg.getValidationErrorResId()?.let { errorRes ->
-                ProxyServiceState.setStartupResult(StartupResult.Failed(getString(errorRes)))
+                ProxyServiceState.setStatus(ProxyStatus.Error(getString(errorRes)))
                 return
             }
             
             // Оптимистичное обновление: сразу показываем состояние "запуска"
             updateTileState(isRunning = true, isWorking = false, autoLaunchEnabled = false)
-            ProxyServiceState.setRunning(true)
+            ProxyServiceState.setStatus(ProxyStatus.Starting)
         } else {
             // Оптимистичное обновление: сразу выключаем плитку
             updateTileState(isRunning = false, isWorking = false, autoLaunchEnabled = false)
-            ProxyServiceState.setRunning(false)
-            ProxyServiceState.setWorking(false)
+            ProxyServiceState.setStatus(ProxyStatus.Idle)
         }
 
         val action = if (currentlyRunning) {
