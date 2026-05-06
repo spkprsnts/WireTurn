@@ -15,6 +15,7 @@ import com.wireturn.app.AppLogsState
 import com.wireturn.app.R
 import com.wireturn.app.ProxyService
 import com.wireturn.app.XrayService
+import com.wireturn.app.NotificationHelper
 import com.wireturn.app.ProxyServiceState
 import com.wireturn.app.ProxyStatus
 import com.wireturn.app.XrayServiceState
@@ -479,7 +480,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private suspend fun startProxyInternal() {
+    private suspend fun startProxyInternal(forceRestart: Boolean = false) {
         val cfg = clientConfig.value
         if (cfg.dcMode) {
             when (cfg.dcType) {
@@ -491,7 +492,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             prefs.addTurnableUrlToHistory(cfg.turnableUrl)
         }
         prefs.addServerAddressToHistory(cfg.serverAddress)
-        proxyManager.startProxy(cfg)
+        proxyManager.startProxy(cfg, forceRestart)
     }
 
     private suspend fun restartProxyInternal() {
@@ -737,8 +738,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val profile = profiles.value.find { it.id == id } ?: return
         val profileName = profile.name
 
-        // Set restarting true EARLY to avoid flicker in UI during profile switch
-        if (ProxyServiceState.isRunning.value) {
+        // Determine if restart is actually needed to avoid UI flicker for identical profiles
+        val client = profile.clientConfig
+        val wg = profile.wgConfig
+        val vless = profile.vlessConfig
+        val xray = profile.xrayConfig
+
+        val clientSnapshot = ProxyServiceState.clientConfigSnapshot.value
+        val vlessSnapshot = XrayServiceState.vlessConfigSnapshot.value
+        val wgSnapshot = XrayServiceState.wgConfigSnapshot.value
+        val xraySnapshot = XrayServiceState.xrayConfigSnapshot.value
+
+        val mainConfigChanged = (clientSnapshot != null && client != clientSnapshot)
+        val xrayDataChanged = (wgSnapshot != null && wg.fillDefaults() != wgSnapshot) ||
+                (vlessSnapshot != null && vless != vlessSnapshot) ||
+                (xraySnapshot != null && xray.fillDefaults() != xraySnapshot)
+
+        // Set restarting true EARLY only if configuration changes
+        if (ProxyServiceState.isRunning.value && (mainConfigChanged || xrayDataChanged || clientSnapshot == null)) {
             ProxyServiceState.setRestarting(true)
         }
 
@@ -762,14 +779,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val wgSnapshot = XrayServiceState.wgConfigSnapshot.value
                     val xraySnapshot = XrayServiceState.xrayConfigSnapshot.value
 
-                    val mainConfigChanged = profileChanged || (clientSnapshot != null && client != clientSnapshot)
+                    val mainConfigChanged = (clientSnapshot != null && client != clientSnapshot)
                     
                     val xrayDataChanged = (wgSnapshot != null && wg.fillDefaults() != wgSnapshot) ||
                             (vlessSnapshot != null && vless != vlessSnapshot) ||
                             (xraySnapshot != null && xray.fillDefaults() != xraySnapshot)
 
+                    /*
+                    val xrayDependsOnClient = (clientSnapshot != null && (
+                            client.localPort != clientSnapshot.localPort ||
+                                    client.vlessMode != clientSnapshot.vlessMode
+                            ))
+                    */
+
                     if (mainConfigChanged || clientSnapshot == null) {
-                        restartProxyInternal()
+                        if (!xrayDataChanged /* && !xrayDependsOnClient */ && clientSnapshot != null) {
+                            // Soft restart: only restart tunnel binary, keep Xray alive
+                            ProxyServiceState.setProfileNameSnapshot(profileName)
+                            startProxyInternal(forceRestart = true)
+                        } else {
+                            // Hard restart: everything stops and starts again
+                            restartProxyInternal()
+                        }
                     } else if (xrayDataChanged || xraySnapshot == null) {
                         ProxyServiceState.setProfileNameSnapshot(profileName)
                         // Just stop Xray, ProxyService supervisor will start it with new settings
@@ -778,6 +809,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         // Settings match exactly, but update snapshots anyway to ensure UI/Notification consistency
                         ProxyServiceState.setProfileNameSnapshot(profileName)
                         ProxyServiceState.setClientConfigSnapshot(client)
+                        
+                        // If only profile name changed and service is running, update notification to show new name
+                        if (profileChanged && ProxyServiceState.isRunning.value) {
+                            NotificationHelper.updateNotification(getApplication<Application>())
+                        }
                     }
                 } catch (e: Exception) {
                     ProxyServiceState.setRestarting(false)

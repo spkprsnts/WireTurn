@@ -81,6 +81,9 @@ class ProxyService : Service() {
         userStopped.set(false)
         proxyJob?.cancel()
         proxyJob = serviceScope.launch {
+            // Очищаем старый процесс перед запуском нового, чтобы избежать конфликтов портов (особенно при мягком перезапуске)
+            stopBinaryProcessGracefully()
+
             val prefs = AppPreferences(applicationContext)
             val cfg = prefs.clientConfigFlow.first()
             val profileName = prefs.currentProfileNameFlow.first()
@@ -104,12 +107,14 @@ class ProxyService : Service() {
                 return@launch
             }
 
-            initStartup(vlessConfig, xraySettings, xrayConfig)
-            startXraySupervisor()
-            mainSupervisor(runningCfg, profileName, xraySettings, vlessConfig, xrayConfig)
-            
-            if (!userStopped.get()) {
-                withContext(Dispatchers.Main) { stopSelf() }
+            try {
+                initStartup(vlessConfig, xraySettings, xrayConfig)
+                startXraySupervisor()
+                mainSupervisor(runningCfg, profileName, xraySettings, vlessConfig, xrayConfig)
+            } finally {
+                if (!userStopped.get() && isActive) {
+                    withContext(Dispatchers.Main) { stopSelf() }
+                }
             }
         }
 
@@ -461,6 +466,7 @@ class ProxyService : Service() {
             false
         } finally {
             ProxyServiceState.setCaptchaSession(null)
+            stopBinaryProcessGracefully()
             process.set(null)
         }
     }

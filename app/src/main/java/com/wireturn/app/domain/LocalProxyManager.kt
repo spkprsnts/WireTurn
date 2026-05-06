@@ -100,8 +100,8 @@ class LocalProxyManager(private val context: Context) {
         syncStateWithService()
     }
 
-    suspend fun startProxy(cfg: ClientConfig) {
-        if (ProxyServiceState.isRunning.value) return
+    suspend fun startProxy(cfg: ClientConfig, forceRestart: Boolean = false) {
+        if (!forceRestart && ProxyServiceState.isRunning.value) return
         if (_proxyState.value is ProxyState.Error) _proxyState.value = ProxyState.Idle
 
         ProxyService.start(context, cfg)
