@@ -74,6 +74,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -452,7 +454,7 @@ fun HomeScreen(
                 }
             }
 
-            // 1. Update Banner
+            // --- Update Banner ---
             UpdateBanner(
                 state = updateState,
                 onDownload = { viewModel.downloadUpdate() },
@@ -461,7 +463,7 @@ fun HomeScreen(
                 containerColor = blockContainerColor
             )
 
-            // 2. Permission & Optimization Banner
+            // --- Permissions & Optimization Banner ---
             AnimatedVisibility(
                 visible = (!isIgnoringBatteryOptimizations || !hasNotificationPermission) && !batteryNotificationDismissed,
                 enter = fadeIn() + expandVertically(),
@@ -563,7 +565,7 @@ fun HomeScreen(
                 }
             }
 
-            // 3. Proxy Toggle Button
+            // --- Proxy Toggle ---
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -641,8 +643,8 @@ fun HomeScreen(
             }
 
             Spacer(Modifier.height(22.dp))
-            
-    // 4. Ping & Transfer Stats
+
+    // --- Ping & Transfer Stats ---
     AnimatedVisibility(
         visible = (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute) && (proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed),
         enter = fadeIn() + expandVertically(),
@@ -820,7 +822,7 @@ fun HomeScreen(
 
             Spacer(Modifier.height(8.dp))
 
-            // 3. Profiles Block
+            // --- Profiles Section ---
             val showProfilesDialog = rememberSaveable { mutableStateOf(false) }
             SettingsGroupItem(
                 isTop = true,
@@ -834,6 +836,7 @@ fun HomeScreen(
                 ProfilesBlock(viewModel)
             }
 
+            // --- Permissions & Optimization Banner ---
             AnimatedVisibility(
                 visible = proxyState !is ProxyState.Idle && configChanged,
                 enter = fadeIn() + expandVertically(),
@@ -929,7 +932,7 @@ fun HomeScreen(
                 )
             }
 
-            // 5. Xray & VPN Settings Card
+            // --- Xray & VPN Settings ---
             val isSettingsValid = if (xrayConfig.xrayConfiguration == XrayConfiguration.VLESS) activeVlessConfig.isValid() else activeWgConfig.isValid()
             val configValid = isSettingsValid || xrayState != XrayState.Idle
 
@@ -1151,7 +1154,7 @@ fun HomeScreen(
                 }
             }
 
-            // 6. Current Connection Details (Only for Raw Mode)
+            // --- Raw Mode Details ---
             if (activeConfig.isValid && activeConfig.isRawMode) {
                 Column(
                     modifier = Modifier
@@ -1241,6 +1244,7 @@ fun HomeScreen(
     }
 }
 
+// --- Update Banner Component ---
 @Composable
 private fun UpdateBanner(
     state: com.wireturn.app.viewmodel.UpdateState,
@@ -1249,6 +1253,7 @@ private fun UpdateBanner(
     onDetails: () -> Unit,
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHighest
 ) {
+    // --- State & Data ---
     val context = LocalContext.current
     val isVisible = state is com.wireturn.app.viewmodel.UpdateState.Available || state is com.wireturn.app.viewmodel.UpdateState.ReadyToInstall || state is com.wireturn.app.viewmodel.UpdateState.Downloading
 
@@ -1292,7 +1297,6 @@ private fun UpdateBanner(
                         modifier = Modifier.weight(1f)
                     )
 
-                    // Кнопки действий
                     when (state) {
                         is com.wireturn.app.viewmodel.UpdateState.Available -> {
                             TextButton(
@@ -1344,7 +1348,7 @@ private fun UpdateBanner(
     }
 }
 
-// Кнопка прокси
+// --- Proxy Toggle Component ---
 @Composable
 private fun ProxyToggleButton(
     proxyState: ProxyState,
@@ -1354,54 +1358,91 @@ private fun ProxyToggleButton(
     isLocked: Boolean = false,
     onClick: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val isXrayWorking = xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
+    
+    var xrayWasResetted by rememberSaveable(proxyState is ProxyState.Idle) { mutableStateOf(true) }
+    if (!isXrayWorking || xrayState == XrayState.Idle) {
+        xrayWasResetted = true
+    }
+    val xrayActuallyReady = isXrayWorking && xrayWasResetted
+
+    var showXraySpinner by remember { mutableStateOf(false) }
+    LaunchedEffect(xrayActuallyReady, proxyState) {
+        val isProxyActive = proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed
+        if (!xrayActuallyReady && isProxyActive && xrayEnabled) {
+            delay(300)
+            showXraySpinner = true
+        } else {
+            showXraySpinner = !xrayActuallyReady && xrayEnabled
+        }
+    }
+
+    val toggleState = remember(proxyState, xrayState, isRestarting, showXraySpinner) {
+        when {
+            isRestarting || proxyState is ProxyState.Starting || proxyState is ProxyState.Connecting || proxyState is ProxyState.CaptchaRequired || proxyState is ProxyState.WaitingForNetwork -> "loading"
+            proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed -> if (showXraySpinner) "loading" else "active"
+            proxyState is ProxyState.Error -> "error"
+            else -> "idle"
+        }
+    }
+
     val containerColor by animateColorAsState(
-        targetValue = when {
-            proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed -> if (xrayState == XrayState.DirectRoute) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
-            proxyState is ProxyState.Connecting || proxyState is ProxyState.CaptchaRequired || proxyState is ProxyState.WaitingForNetwork -> MaterialTheme.colorScheme.tertiary
-            proxyState is ProxyState.Error -> MaterialTheme.colorScheme.errorContainer
-            proxyState is ProxyState.Starting || isRestarting -> MaterialTheme.colorScheme.surfaceContainerHigh
-            else -> MaterialTheme.colorScheme.surfaceVariant
+        targetValue = when (toggleState) {
+            "active" -> if (xrayState == XrayState.DirectRoute) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+            "loading" -> MaterialTheme.colorScheme.tertiary
+            "error" -> MaterialTheme.colorScheme.errorContainer
+            else -> if (isRestarting || proxyState is ProxyState.Starting) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceVariant
         },
         animationSpec = tween(600),
         label = "btn_bg"
     )
+
     val contentColor by animateColorAsState(
-        targetValue = when {
-            proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed -> if (xrayState == XrayState.DirectRoute) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onPrimary
-            proxyState is ProxyState.Connecting || proxyState is ProxyState.CaptchaRequired || proxyState is ProxyState.WaitingForNetwork -> MaterialTheme.colorScheme.onTertiary
-            proxyState is ProxyState.Error -> MaterialTheme.colorScheme.onErrorContainer
-            proxyState is ProxyState.Starting || isRestarting -> MaterialTheme.colorScheme.onSurfaceVariant
+        targetValue = when (toggleState) {
+            "active" -> if (xrayState == XrayState.DirectRoute) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onPrimary
+            "loading" -> MaterialTheme.colorScheme.onTertiary
+            "error" -> MaterialTheme.colorScheme.onErrorContainer
             else -> MaterialTheme.colorScheme.onSurfaceVariant
         },
         animationSpec = tween(600),
         label = "btn_fg"
     )
+
     val scale by animateFloatAsState(
-        targetValue = when (proxyState) {
-            is ProxyState.Idle, is ProxyState.Error -> if (isRestarting) 0.92f else 1f
-            is ProxyState.Starting, is ProxyState.Connecting, is ProxyState.CaptchaRequired, is ProxyState.WaitingForNetwork -> 0.92f
-            else -> 0.96f
+        targetValue = when {
+            isPressed -> 0.84f
+            toggleState == "loading" -> 0.90f
+            toggleState == "active" || toggleState == "error" -> 0.95f
+            else -> 1f
         },
         animationSpec = spring(
-            dampingRatio = 0.3f, // Значения меньше 0.5 дают очень сильный резонанс
+            dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
         ),
         label = "btn_scale"
     )
 
-    // Вычисляем размер тени отдельно для анимации (опционально)
     val elevation by animateDpAsState(
-        targetValue = when (proxyState) {
-            is ProxyState.Idle, is ProxyState.Error -> 16.dp
-            is ProxyState.Starting, is ProxyState.Connecting, is ProxyState.CaptchaRequired, is ProxyState.WaitingForNetwork -> 2.dp
-            else -> 6.dp
+        targetValue = when {
+            isPressed -> 0.dp
+            toggleState == "loading" -> 2.dp
+            toggleState == "active" || toggleState == "error" -> 8.dp
+            else -> 20.dp
         },
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
         label = "elevation"
     )
 
     Box(contentAlignment = Alignment.Center, modifier = Modifier.size(160.dp)) {
         Surface(
             onClick = onClick,
+            interactionSource = interactionSource,
             modifier = Modifier
                 .size(148.dp)
                 .scale(scale)
@@ -1423,50 +1464,25 @@ private fun ProxyToggleButton(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    val isXrayWorking = xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
-                    
-                    // Хак для избежания "призрачного" состояния Xray от предыдущей сессии.
-                    // Сбрасываем флаг, когда прокси не активен, и ждем хотя бы одного переходного состояния Xray перед тем как верить в его "готовность".
-                    var xrayWasResetted by rememberSaveable(proxyState is ProxyState.Idle) { mutableStateOf(true) }
-                    if (!isXrayWorking || xrayState == XrayState.Idle) {
-                        xrayWasResetted = true
-                    }
-                    val xrayActuallyReady = isXrayWorking && xrayWasResetted
-
-                    // Анимированная задержка для появления крутилки, если мы уже подключены.
-                    // Это позволяет избежать мерцания при быстром переключении режимов (например, выключение Dual Route).
-                    var showXraySpinner by remember { mutableStateOf(false) }
-                    LaunchedEffect(xrayActuallyReady, proxyState) {
-                        val isProxyActive = proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed
-                        if (!xrayActuallyReady && isProxyActive && xrayEnabled) {
-                            delay(300)
-                            showXraySpinner = true
-                        } else {
-                            showXraySpinner = !xrayActuallyReady && xrayEnabled
-                        }
-                    }
-
-                    when {
-                        isRestarting || proxyState is ProxyState.Starting || proxyState is ProxyState.Connecting || proxyState is ProxyState.CaptchaRequired || proxyState is ProxyState.WaitingForNetwork -> {
-                            CircularWavyProgressIndicator(color = contentColor)
+                    when (toggleState) {
+                        "loading" -> {
+                            CircularWavyProgressIndicator(
+                                modifier = Modifier.size(54.dp),
+                                color = contentColor
+                            )
                         }
 
-                        proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed -> {
-                            if (showXraySpinner) {
-                                CircularWavyProgressIndicator(color = contentColor)
-                            } else {
-                                // Показываем иконку (ethernet для прямого пути, галочку для проксирования)
-                                val icon = if (xrayState == XrayState.DirectRoute) R.drawable.ethernet_24px else R.drawable.check_circle_24px
-                                Icon(
-                                    painterResource(icon),
-                                    stringResource(R.string.proxy_active_stop),
-                                    Modifier.size(66.dp),
-                                    tint = contentColor
-                                )
-                            }
+                        "active" -> {
+                            val icon = if (xrayState == XrayState.DirectRoute) R.drawable.ethernet_24px else R.drawable.check_circle_24px
+                            Icon(
+                                painterResource(icon),
+                                stringResource(R.string.proxy_active_stop),
+                                Modifier.size(66.dp),
+                                tint = contentColor
+                            )
                         }
 
-                        proxyState is ProxyState.Error -> Icon(
+                        "error" -> Icon(
                             painterResource(R.drawable.error_24px),
                             stringResource(R.string.proxy_error_restart),
                             Modifier.size(66.dp),
@@ -1506,14 +1522,16 @@ private fun ProxyToggleButton(
             }
         }
     }
+
+
 }
 
-// Bottom sheet
-
+// --- Repo Links Sheet Content ---
 @Composable
 private fun RepoLinksContent(
     containerColor: Color
 ) {
+    // --- State & Data ---
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
 
@@ -1654,8 +1672,7 @@ private fun RepoLinksContent(
     }
 }
 
-// Общие компоненты
-
+// --- Repo Link Item Component ---
 @Composable
 private fun RepoLinkItem(
     title: String,
@@ -1700,9 +1717,7 @@ private fun RepoLinkItem(
     }
 }
 
-
 // --- Utils ---
-
 private fun formatBytes(bytes: Long): String {
     if (bytes <= 0) return "0 B"
     if (bytes < 1024) return "$bytes B"
