@@ -119,6 +119,7 @@ import com.wireturn.app.ui.InlineConfigIndicator
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.AppExclusionTooltip
+import com.wireturn.app.ui.VerticalAnimatedText
 import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.ProxyState
@@ -608,29 +609,29 @@ fun HomeScreen(
                     }
                 )
 
-                Text(
-                    text = when (proxyState) {
-                        is ProxyState.Connected -> {
-                            if (xrayState == XrayState.DirectRoute) stringResource(R.string.vless_direct_active)
-                            else stringResource(if (customKernelExists) R.string.proxy_running else R.string.proxy_active)
-                        }
-                        is ProxyState.Starting -> stringResource(R.string.starting)
-                        is ProxyState.Connecting -> stringResource(R.string.connecting)
-                        is ProxyState.Suppressed -> {
-                            if (xrayState == XrayState.DirectRoute) stringResource(R.string.vless_direct_active)
-                            else stringResource(R.string.connecting)
-                        }
-                        is ProxyState.CaptchaRequired -> stringResource(R.string.proxy_captcha_required)
-                        is ProxyState.WaitingForNetwork -> stringResource(R.string.status_waiting_for_network)
-                        is ProxyState.Error -> (proxyState as ProxyState.Error).message
-                        else -> when {
-                            isRestarting -> stringResource(R.string.proxy_restarting)
-                            autoLaunchSettings.enabled -> stringResource(R.string.proxy_auto_launch_active)
-                            else -> stringResource(R.string.proxy_press_to_start)
-                        }
-                    },
-                    style = MaterialTheme.typography.titleMedium,
-                    color = when {
+                val statusText = when (proxyState) {
+                    is ProxyState.Connected -> {
+                        if (xrayState == XrayState.DirectRoute) stringResource(R.string.vless_direct_active)
+                        else stringResource(if (customKernelExists) R.string.proxy_running else R.string.proxy_active)
+                    }
+                    is ProxyState.Starting -> stringResource(R.string.starting)
+                    is ProxyState.Connecting -> stringResource(R.string.connecting)
+                    is ProxyState.Suppressed -> {
+                        if (xrayState == XrayState.DirectRoute) stringResource(R.string.vless_direct_active)
+                        else stringResource(R.string.connecting)
+                    }
+                    is ProxyState.CaptchaRequired -> stringResource(R.string.proxy_captcha_required)
+                    is ProxyState.WaitingForNetwork -> stringResource(R.string.status_waiting_for_network)
+                    is ProxyState.Error -> (proxyState as ProxyState.Error).message
+                    else -> when {
+                        isRestarting -> stringResource(R.string.proxy_restarting)
+                        autoLaunchSettings.enabled -> stringResource(R.string.proxy_auto_launch_active)
+                        else -> stringResource(R.string.proxy_press_to_start)
+                    }
+                }
+
+                val statusColor by animateColorAsState(
+                    targetValue = when {
                         proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed -> MaterialTheme.colorScheme.primary
                         proxyState is ProxyState.Starting || proxyState is ProxyState.Connecting || proxyState is ProxyState.CaptchaRequired || proxyState is ProxyState.WaitingForNetwork -> MaterialTheme.colorScheme.tertiary
                         proxyState is ProxyState.Error -> MaterialTheme.colorScheme.error
@@ -638,7 +639,15 @@ fun HomeScreen(
                         autoLaunchSettings.enabled -> MaterialTheme.colorScheme.primary
                         else -> MaterialTheme.colorScheme.onBackground.copy(alpha = 0.65f)
                     },
-                    textAlign = TextAlign.Center
+                    label = "status_color"
+                )
+
+                VerticalAnimatedText(
+                    text = statusText,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = statusColor,
+                    textAlign = TextAlign.Center,
+                    contentAlignment = Alignment.Center
                 )
             }
 
@@ -765,14 +774,15 @@ fun HomeScreen(
                                         label = "pulse_alpha"
                                     )
 
-                                    when (currentPing) {
+                                    when (val targetPing = currentPing) {
                                         is MainViewModel.PingResult.Loading -> {
                                             if (lastSuccessPing != null) {
-                                                Text(
+                                                VerticalAnimatedText(
                                                     text = stringResource(R.string.ping_ms, lastSuccessPing!!.ms),
                                                     style = MaterialTheme.typography.labelMedium,
                                                     color = (if (lastSuccessPing!!.ms < 300) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error).copy(alpha = pulseAlpha),
-                                                    fontWeight = FontWeight.Bold
+                                                    fontWeight = FontWeight.Bold,
+                                                    contentAlignment = Alignment.Center
                                                 )
                                             } else {
                                                 Box(
@@ -788,27 +798,30 @@ fun HomeScreen(
                                         }
 
                                         is MainViewModel.PingResult.Success -> {
-                                            Text(
-                                                text = stringResource(R.string.ping_ms, currentPing.ms),
+                                            VerticalAnimatedText(
+                                                text = stringResource(R.string.ping_ms, targetPing.ms),
                                                 style = MaterialTheme.typography.labelMedium,
-                                                color = if (currentPing.ms < 300) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
-                                                fontWeight = FontWeight.Bold
+                                                color = if (targetPing.ms < 300) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
+                                                fontWeight = FontWeight.Bold,
+                                                contentAlignment = Alignment.Center
                                             )
                                         }
 
                                         is MainViewModel.PingResult.Error -> {
-                                            Text(
+                                            VerticalAnimatedText(
                                                 text = stringResource(R.string.ping_error),
                                                 style = MaterialTheme.typography.labelMedium,
-                                                color = MaterialTheme.colorScheme.error
+                                                color = MaterialTheme.colorScheme.error,
+                                                contentAlignment = Alignment.Center
                                             )
                                         }
 
                                         null -> {
-                                            Text(
+                                            VerticalAnimatedText(
                                                 text = stringResource(R.string.ping_unknown),
                                                 style = MaterialTheme.typography.labelMedium,
-                                                color = MaterialTheme.colorScheme.error
+                                                color = MaterialTheme.colorScheme.error,
+                                                contentAlignment = Alignment.Center
                                             )
                                         }
                                     }
@@ -867,14 +880,15 @@ fun HomeScreen(
                                         color = MaterialTheme.colorScheme.onSurface,
                                         fontWeight = FontWeight.Bold
                                     )
-                                    Text(
-                                        text = when {
-                                            mainConfigChanged -> stringResource(R.string.restart_reason_client)
-                                            else -> stringResource(R.string.restart_reason_xray)
-                                        },
+                                    val restartReasonText = when {
+                                        mainConfigChanged -> stringResource(R.string.restart_reason_client)
+                                        else -> stringResource(R.string.restart_reason_xray)
+                                    }
+                                    VerticalAnimatedText(
+                                        text = restartReasonText,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                                        )
+                                    )
                                     }
                                 }
 
@@ -1284,16 +1298,19 @@ private fun UpdateBanner(
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(Modifier.width(12.dp))
-                    Text(
-                        text = when (state) {
-                            is com.wireturn.app.viewmodel.UpdateState.Available -> stringResource(R.string.update_available, state.version)
-                            is com.wireturn.app.viewmodel.UpdateState.Downloading -> stringResource(R.string.update_downloading, state.progress)
-                            is com.wireturn.app.viewmodel.UpdateState.ReadyToInstall -> stringResource(R.string.update_ready_desc_short)
-                            else -> ""
-                        },
+                    val updateStatusText = when (state) {
+                        is com.wireturn.app.viewmodel.UpdateState.Available -> stringResource(R.string.update_available, state.version)
+                        is com.wireturn.app.viewmodel.UpdateState.Downloading -> stringResource(R.string.update_downloading, state.progress)
+                        is com.wireturn.app.viewmodel.UpdateState.ReadyToInstall -> stringResource(R.string.update_ready_desc_short)
+                        else -> ""
+                    }
+
+                    VerticalAnimatedText(
+                        text = updateStatusText,
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Bold,
+                        maxLines = 1,
                         modifier = Modifier.weight(1f)
                     )
 
@@ -1763,6 +1780,7 @@ private fun ProxyAddressRow(
                 Text(
                     label,
                     style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 InlineConfigIndicator(isModified)
@@ -1776,4 +1794,5 @@ private fun ProxyAddressRow(
         )
     }
 }
+
 
