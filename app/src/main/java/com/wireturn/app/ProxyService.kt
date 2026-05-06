@@ -188,10 +188,16 @@ class ProxyService : Service() {
                 XrayServiceState.state,
                 prefs.xraySettingsFlow,
                 prefs.xrayConfigFlow,
-                prefs.vlessConfigFlow
-            ) { state, settings, xray, vless ->
+                prefs.vlessConfigFlow,
+                XrayServiceState.vlessConfigSnapshot
+            ) { state, settings, xray, vless, snapshotVless ->
                 val isXrayVless = xray.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS
-                val isDualRoute = settings.xrayEnabled && isXrayVless && vless.isDualRoute
+                
+                // Используем снапшот работающего конфига Xray для определения режима Dual-route.
+                // Это предотвращает преждевременный запуск бинарника при отключении Dual-route,
+                // пока Xray еще не перезагружен с новыми настройками.
+                val effectiveVless = if (state != XrayState.Idle) (snapshotVless ?: vless) else vless
+                val isDualRoute = settings.xrayEnabled && isXrayVless && effectiveVless.isDualRoute
                 
                 if (isDualRoute) {
                     when (state) {
@@ -207,7 +213,7 @@ class ProxyService : Service() {
                                 ProxyServiceState.setStatus(ProxyStatus.Connecting)
                             }
                         }
-                        // В промежуточных состояниях (Starting, Connecting, Idle) держим текущий статус
+                        // В промежуточных состояниях (Starting, Connecting) держим текущий статус
                         else -> {}
                     }
                 } else if (ProxyServiceState.status.value is ProxyStatus.Suppressed) {
