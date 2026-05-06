@@ -18,6 +18,8 @@ class ProxyReceiver : BroadcastReceiver() {
                 ProxyService.start(context, cfg)
             }
             "$pkg.STOP_PROXY" -> {
+                ProxyServiceState.setStatus(ProxyStatus.Idle)
+                NotificationHelper.updateNotification(context)
                 ProxyService.stop(context, byUser = true)
             }
             "$pkg.START_VPN" -> {

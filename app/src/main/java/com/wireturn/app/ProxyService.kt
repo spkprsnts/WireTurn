@@ -138,7 +138,7 @@ class ProxyService : Service() {
         if (isDualRouteStart) {
             // В режиме Dual-route стартуем в паузе, чтобы не запускать бинарник зря
             ProxyServiceState.setStatus(ProxyStatus.Suppressed)
-            updateNotification(getString(R.string.connecting))
+            ProxyServiceState.setStatusText(getString(R.string.connecting))
         } else {
             ProxyServiceState.setStatus(ProxyStatus.Starting)
         }
@@ -163,7 +163,6 @@ class ProxyService : Service() {
             }
         }
 
-        NotificationHelper.updateNotification(this)
         ProxyTileService.requestUpdate(this)
 
         val powerManager = getSystemService(POWER_SERVICE) as PowerManager
@@ -720,6 +719,7 @@ class ProxyService : Service() {
         xraySupervisorJob = null
         NotificationHelper.cancelErrorNotification(this)
         ProxyServiceState.setStatus(ProxyStatus.Idle)
+        NotificationHelper.updateNotification(this)
         serviceScope.launch {
             if (disableAutoLaunch) {
                 val prefs = AppPreferences(applicationContext)

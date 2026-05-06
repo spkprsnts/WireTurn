@@ -40,6 +40,7 @@ class HevVpnService : VpnService() {
     private var tunInterface: ParcelFileDescriptor? = null
     private val isStopping = AtomicBoolean(false)
     private val nativeLock = Mutex()
+    private var startJob: kotlinx.coroutines.Job? = null
 
     private fun disableVpnMode() {
         val context = applicationContext
@@ -67,17 +68,21 @@ class HevVpnService : VpnService() {
         }
 
         if (action == ACTION_STOP_BY_USER) {
+            VpnServiceState.updateStatus(VpnState.Idle)
+            NotificationHelper.updateNotification(this)
             disableVpnMode()
             stopVpn()
             return START_NOT_STICKY
         }
 
         val currentState = VpnServiceState.state.value
-        if (tunInterface != null || currentState == VpnState.Starting || currentState == VpnState.Running) {
-            AppLogsState.addLog("[VPN] Service already running or starting")
+        val isStarting = startJob?.isActive == true
+        if (tunInterface != null || currentState == VpnState.Running || (isStarting && currentState == VpnState.Starting)) {
+            AppLogsState.addLog("[VPN] Service already running or starting (status=$currentState, job=$isStarting)")
             return START_STICKY
         }
         isStopping.set(false)
+        VpnServiceState.updateStatus(VpnState.Starting)
 
         try {
             val notification = NotificationHelper.buildNotification(this)
@@ -97,9 +102,7 @@ class HevVpnService : VpnService() {
         val defaultSocks = DEFAULT_SOCKS_BIND_ADDRESS
         val socks5Addr = intent?.getStringExtra(EXTRA_SOCKS5_ADDR)?.takeIf { it.isNotBlank() } ?: defaultSocks
 
-        VpnServiceState.updateStatus(VpnState.Starting)
-        NotificationHelper.updateNotification(this)
-        serviceScope.launch {
+        startJob = serviceScope.launch {
             startVpn(socks5Addr)
         }
         return START_STICKY
@@ -144,6 +147,9 @@ class HevVpnService : VpnService() {
             val established = builder.establish()
             if (established == null) {
                 AppLogsState.addLog("[hev-socks5-tunnel] Failed to establish TUN interface")
+                if (VpnServiceState.state.value == VpnState.Starting) {
+                    VpnServiceState.updateStatus(VpnState.Idle)
+                }
                 disableVpnMode()
                 stopSelf()
                 return
@@ -172,6 +178,9 @@ misc:
             nativeLock.withLock {
                 if (isStopping.get()) {
                     try { established.close() } catch (_: Exception) {}
+                    if (VpnServiceState.state.value == VpnState.Starting) {
+                        VpnServiceState.updateStatus(VpnState.Idle)
+                    }
                     return
                 }
                 
@@ -192,13 +201,18 @@ misc:
 
         } catch (e: Exception) {
             AppLogsState.addLog("[hev-socks5-tunnel] Error: ${e.message}")
-            VpnServiceState.updateStatus(VpnState.Error(e.message ?: "Unknown error"))
+            if (e !is kotlinx.coroutines.CancellationException) {
+                VpnServiceState.updateStatus(VpnState.Error(e.message ?: "Unknown error"))
+            } else if (VpnServiceState.state.value == VpnState.Starting) {
+                VpnServiceState.updateStatus(VpnState.Idle)
+            }
             stopVpn()
         }
     }
 
     private fun stopVpn() {
         isStopping.set(true)
+        startJob?.cancel()
         val wasRunning = hevRunning.getAndSet(false)
         
         serviceScope.launch {

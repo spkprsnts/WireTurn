@@ -57,18 +57,19 @@ object NotificationHelper {
         val vpnState = VpnServiceState.state.value
 
         if (proxyStatus !is ProxyStatus.Idle) {
-            val pStatus = proxyStatusText ?: when (proxyStatus) {
-                is ProxyStatus.Connected -> context.getString(R.string.proxy_active)
-                is ProxyStatus.Suppressed -> {
-                    if (xrayState == XrayState.Starting || xrayState == XrayState.Connecting) context.getString(R.string.connecting)
-                    else context.getString(R.string.vless_direct_active)
+            val pStatus = if (proxyStatus is ProxyStatus.Suppressed) {
+                if (xrayState == XrayState.Starting || xrayState == XrayState.Connecting) context.getString(R.string.connecting)
+                else context.getString(R.string.vless_direct_active)
+            } else {
+                proxyStatusText ?: when (proxyStatus) {
+                    is ProxyStatus.Connected -> context.getString(R.string.proxy_active)
+                    is ProxyStatus.Starting -> context.getString(R.string.starting)
+                    is ProxyStatus.Connecting -> context.getString(R.string.connecting)
+                    is ProxyStatus.CaptchaRequired -> context.getString(R.string.proxy_captcha_required)
+                    is ProxyStatus.Error -> proxyStatus.message
                 }
-                is ProxyStatus.Starting -> context.getString(R.string.starting)
-                is ProxyStatus.Connecting -> context.getString(R.string.connecting)
-                is ProxyStatus.CaptchaRequired -> context.getString(R.string.proxy_captcha_required)
-                is ProxyStatus.Error -> proxyStatus.message
             }
-            statusParts.add(pStatus)
+            if (pStatus.isNotEmpty()) statusParts.add(pStatus)
         }
         
         if (xrayState != XrayState.Idle && (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute || xrayState == XrayState.Connecting)) {

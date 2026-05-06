@@ -81,7 +81,7 @@ class XrayService : Service() {
                 val vpnState = args[5] as VpnState
 
                 DataBundle(
-                    isRunning = state == XrayState.Running || state == XrayState.DirectRoute,
+                    xrayState = state,
                     vpnEnabled = xraySettings.xrayVpnMode,
                     bypassMode = globalVpn.bypassMode,
                     filteringEnabled = globalVpn.filteringEnabled,
@@ -99,7 +99,9 @@ class XrayService : Service() {
                     lastBypassMode = bundle.bypassMode
                     lastFilteringEnabled = bundle.filteringEnabled
 
-                    if (bundle.isRunning && bundle.vpnEnabled) {
+                    val shouldVpnBeActive = bundle.vpnEnabled && bundle.xrayState != XrayState.Idle
+
+                    if (shouldVpnBeActive) {
                         val runningXray = bundle.runningXray
                         val vpnRunning = bundle.vpnState != VpnState.Idle
 
@@ -113,8 +115,8 @@ class XrayService : Service() {
                                     startService(stopIntent)
                                 }
                                 
-                                // Start VPN if it's Idle (either just stopped or was never running)
-                                if (VpnServiceState.state.value == VpnState.Idle) {
+                                // Start VPN if it's not Running
+                                if (VpnServiceState.state.value != VpnState.Running) {
                                     val vpnIntent = Intent(this@XrayService, HevVpnService::class.java).apply {
                                         putExtra(HevVpnService.EXTRA_SOCKS5_ADDR, runningXray.connectableAddress)
                                     }
@@ -136,7 +138,7 @@ class XrayService : Service() {
     }
 
     private data class DataBundle(
-        val isRunning: Boolean,
+        val xrayState: XrayState,
         val vpnEnabled: Boolean,
         val bypassMode: Boolean,
         val filteringEnabled: Boolean,
@@ -357,6 +359,7 @@ class XrayService : Service() {
         when {
             line.contains("active route: direct") -> {
                 XrayServiceState.updateStatus(XrayState.DirectRoute)
+                NotificationHelper.updateNotification(this@XrayService)
                 if (ProxyServiceState.isRunning.value && ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
                     AppLogsState.addLog("[DualRoute] Direct connection established, suppressing tunnel")
                     ProxyServiceState.setStatus(ProxyStatus.Suppressed)
@@ -364,6 +367,7 @@ class XrayService : Service() {
             }
             line.contains("active route: local") -> {
                 XrayServiceState.updateStatus(XrayState.Running)
+                NotificationHelper.updateNotification(this@XrayService)
                 
                 val directUnreachable = line.contains("direct unreachable")
                 val bothUnreachable = line.contains("both unreachable")
