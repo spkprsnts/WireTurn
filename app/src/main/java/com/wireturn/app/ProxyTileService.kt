@@ -7,6 +7,7 @@ import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import com.wireturn.app.data.AppPreferences
+import com.wireturn.app.viewmodel.XrayState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -43,25 +44,46 @@ class ProxyTileService : TileService() {
         // Мгновенное обновление при открытии шторки
         val initialAutoLaunch = runBlocking { prefs.autoLaunchSettingsFlow.first() }
         val status = ProxyServiceState.status.value
+        val statusText = ProxyServiceState.statusText.value
+        val xrayState = XrayServiceState.state.value
+        
+        val isDirect = status is ProxyStatus.Suppressed
+        val isXrayWorking = xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
+        val isWorking = status is ProxyStatus.Connected || (isDirect && isXrayWorking)
+
         updateTileState(
             isRunning = status !is ProxyStatus.Idle,
-            isWorking = status is ProxyStatus.Connected || status is ProxyStatus.Suppressed,
+            isWorking = isWorking,
             isCaptcha = status is ProxyStatus.CaptchaRequired,
             autoLaunchEnabled = initialAutoLaunch.enabled,
-            isDirect = status is ProxyStatus.Suppressed
+            isDirect = isDirect,
+            isXrayWorking = isXrayWorking,
+            statusText = statusText
         )
 
         statusJob?.cancel()
         statusJob = serviceScope.launch {
             combine(
                 ProxyServiceState.status,
+                XrayServiceState.state,
+                ProxyServiceState.statusText,
                 prefs.autoLaunchSettingsFlow
-            ) { status, autoLaunch ->
+            ) { status, xrayState, statusText, autoLaunch ->
                 val isRunning = status !is ProxyStatus.Idle
-                val isWorking = status is ProxyStatus.Connected || status is ProxyStatus.Suppressed
-                val isCaptcha = status is ProxyStatus.CaptchaRequired
                 val isDirect = status is ProxyStatus.Suppressed
-                updateTileState(isRunning, isWorking, isCaptcha, autoLaunch.enabled, isDirect)
+                val isXrayWorking = xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
+                val isWorking = status is ProxyStatus.Connected || (isDirect && isXrayWorking)
+                val isCaptcha = status is ProxyStatus.CaptchaRequired
+
+                updateTileState(
+                    isRunning = isRunning,
+                    isWorking = isWorking,
+                    isCaptcha = isCaptcha,
+                    autoLaunchEnabled = autoLaunch.enabled,
+                    isDirect = isDirect,
+                    isXrayWorking = isXrayWorking,
+                    statusText = statusText
+                )
             }.collect {}
         }
     }
@@ -123,7 +145,9 @@ class ProxyTileService : TileService() {
         isWorking: Boolean,
         isCaptcha: Boolean = false,
         autoLaunchEnabled: Boolean = false,
-        isDirect: Boolean = false
+        isDirect: Boolean = false,
+        isXrayWorking: Boolean = false,
+        statusText: String? = null
     ) {
         val tile = qsTile ?: return
         
@@ -133,8 +157,12 @@ class ProxyTileService : TileService() {
             tile.subtitle = when {
                 isCaptcha -> getString(R.string.tile_captcha)
                 autoLaunchEnabled && !isRunning -> getString(R.string.settings_auto_launch_title)
-                isWorking && isDirect -> getString(R.string.tile_direct)
-                isWorking && isRunning -> getString(R.string.tile_active)
+                statusText != null -> statusText
+                isDirect -> {
+                    if (isXrayWorking) getString(R.string.vless_direct_active)
+                    else getString(R.string.connecting)
+                }
+                isWorking -> getString(R.string.tile_active)
                 isRunning -> getString(R.string.connecting)
                 else -> ""
             }

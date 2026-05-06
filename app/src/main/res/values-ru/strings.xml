@@ -241,7 +241,6 @@
     <string name="captcha_notification_text">Нажмите, чтобы пройти проверку</string>
     <string name="error_notification_title">Ошибка запуска</string>
     <string name="tile_active">Активен</string>
-    <string name="tile_direct">Прямое</string>
     <string name="tile_captcha">Капча!</string>
     <string name="notification_reconnecting">Переподключение (%1$d/%2$d)…</string>
     <string name="notification_network_change">Смена сети, переподключение…</string>

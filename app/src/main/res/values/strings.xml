@@ -283,7 +283,6 @@
     <string name="captcha_notification_text">Tap to complete check</string>
     <string name="error_notification_title">Startup failed</string>
     <string name="tile_active">Active</string>
-    <string name="tile_direct">Direct</string>
     <string name="tile_captcha">Captcha!</string>
     <string name="notification_reconnecting">Reconnecting (%1$d/%2$d)…</string>
     <string name="notification_network_change">Network change, reconnecting…</string>

@@ -126,9 +126,9 @@ class ProxyService : Service() {
 
     private suspend fun initStartup(
         vlessConfig: com.wireturn.app.data.VlessConfig,
-        xraySettings: com.wireturn.app.data.XraySettings,
+        @Suppress("UNUSED_PARAMETER") xraySettings: com.wireturn.app.data.XraySettings,
         xrayConfig: com.wireturn.app.data.XrayConfig,
-        profileName: String?
+        @Suppress("UNUSED_PARAMETER") profileName: String?
     ) {
         val isXrayVless = xrayConfig.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS
         val isDualRouteStart = xraySettings.xrayEnabled && isXrayVless && vlessConfig.isDualRoute
@@ -145,6 +145,8 @@ class ProxyService : Service() {
 
         userStopped.set(false)
         restartCount = 0
+        
+        ProxyTileService.requestUpdate(this)
 
         withContext(Dispatchers.Main) {
             try {
@@ -208,9 +210,9 @@ class ProxyService : Service() {
                         XrayState.DirectRoute -> {
                             if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
                                 ProxyServiceState.setStatus(ProxyStatus.Suppressed)
-                                updateNotification(getString(R.string.vless_direct_active))
-                                ProxyTileService.requestUpdate(this@ProxyService)
                             }
+                            updateNotification(getString(R.string.vless_direct_active))
+                            ProxyTileService.requestUpdate(this@ProxyService)
                         }
                         XrayState.Running -> {
                             if (ProxyServiceState.status.value is ProxyStatus.Suppressed) {

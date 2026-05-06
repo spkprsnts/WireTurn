@@ -15,6 +15,7 @@ import com.wireturn.app.AppLogsState
 import com.wireturn.app.R
 import com.wireturn.app.ProxyService
 import com.wireturn.app.XrayService
+import com.wireturn.app.ProxyTileService
 import com.wireturn.app.NotificationHelper
 import com.wireturn.app.ProxyServiceState
 import com.wireturn.app.ProxyStatus
@@ -416,7 +417,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun updateAutoLaunchSettings(settings: com.wireturn.app.data.AutoLaunchSettings) {
         viewModelScope.launch { 
             prefs.updateAutoLaunchSettings(settings)
-            com.wireturn.app.ProxyTileService.requestUpdate(getApplication())
+            ProxyTileService.requestUpdate(getApplication())
         }
     }
 
@@ -803,6 +804,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     } else if (xrayDataChanged || xraySnapshot == null) {
                         ProxyServiceState.setProfileNameSnapshot(profileName)
+                        ProxyServiceState.setStatusText(getApplication<Application>().getString(R.string.connecting))
+                        ProxyTileService.requestUpdate(getApplication())
                         // Just stop Xray, ProxyService supervisor will start it with new settings
                         getApplication<Application>().stopService(Intent(getApplication(), XrayService::class.java))
                     } else {
@@ -812,7 +815,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         
                         // If only profile name changed and service is running, update notification to show new name
                         if (profileChanged && ProxyServiceState.isRunning.value) {
-                            NotificationHelper.updateNotification(getApplication<Application>())
+                            NotificationHelper.updateNotification(getApplication())
                         }
                     }
                 } catch (e: Exception) {
