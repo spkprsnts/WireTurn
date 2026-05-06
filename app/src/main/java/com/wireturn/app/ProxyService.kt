@@ -79,6 +79,9 @@ class ProxyService : Service() {
 
         // При каждом явном вызове Start — перезапускаем цикл, чтобы подхватить возможные изменения в конфиге
         userStopped.set(false)
+        if (proxyJob?.isActive == true) {
+            AppLogsState.addLog(getString(R.string.log_proxy_restart))
+        }
         proxyJob?.cancel()
         proxyJob = serviceScope.launch {
             // Очищаем старый процесс перед запуском нового, чтобы избежать конфликтов портов (особенно при мягком перезапуске)
@@ -108,7 +111,7 @@ class ProxyService : Service() {
             }
 
             try {
-                initStartup(vlessConfig, xraySettings, xrayConfig)
+                initStartup(vlessConfig, xraySettings, xrayConfig, profileName)
                 startXraySupervisor()
                 mainSupervisor(runningCfg, profileName, xraySettings, vlessConfig, xrayConfig)
             } finally {
@@ -124,7 +127,8 @@ class ProxyService : Service() {
     private suspend fun initStartup(
         vlessConfig: com.wireturn.app.data.VlessConfig,
         xraySettings: com.wireturn.app.data.XraySettings,
-        xrayConfig: com.wireturn.app.data.XrayConfig
+        xrayConfig: com.wireturn.app.data.XrayConfig,
+        profileName: String?
     ) {
         val isXrayVless = xrayConfig.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS
         val isDualRouteStart = xraySettings.xrayEnabled && isXrayVless && vlessConfig.isDualRoute
@@ -170,7 +174,8 @@ class ProxyService : Service() {
         if (AppLogsState.logs.value.isNotEmpty()) {
             AppLogsState.addLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         }
-        AppLogsState.addLog(getString(R.string.log_proxy_start))
+        val safeProfileName = profileName?.take(50) ?: "-"
+        AppLogsState.addLog(getString(R.string.log_proxy_start, safeProfileName))
     }
 
     private suspend fun mainSupervisor(
