@@ -117,10 +117,15 @@
     <string name="manual_captcha_desc">Решать капчу вручную вместо автоматического распознавания</string>
     <string name="force_turn_port_443">TURN-порт 443</string>
     <string name="force_turn_port_443_desc">Использовать порт 443 вместо стандартного.</string>
-    <string name="dc_type_label">Сервис DC</string>
+    <string name="platform_label">Платформа</string>
     <string name="jazz_creds_label">Код:пароль комнаты SaluteJazz</string>
     <string name="jazz_creds_placeholder">room:password</string>
     <string name="jazz_creds_support">Создаётся на сервере</string>
+    <string name="vp8c_tunnel">VP8C</string>
+    <string name="telemost_label">Telemost</string>
+    <string name="telemost_url_label">Ссылка на комнату Telemost</string>
+    <string name="telemost_url_placeholder">https://telemost.yandex.ru/j/…</string>
+    <string name="telemost_url_support">Должно соответствовать указанной на сервере</string>
     <string name="core_title">Загрузка ядра</string>
     <string name="custom_core">Кастомное ядро</string>
     <string name="builtin_core">Встроенное ядро</string>
@@ -302,7 +307,7 @@
     <string name="connection_method_desc">Способ проброса трафика</string>
     <string name="client_variants_desc">Варианты клиента</string>
     <string name="connection_details">Детали подключения</string>
-    <string name="dc_type_desc">Тип DataChannel</string>
+    <string name="platform_desc">Выберите платформу для туннелирования</string>
     <string name="edit_url_params">Параметры ссылки</string>
     <string name="url_param_key">Ключ</string>
     <string name="url_param_value">Значение</string>

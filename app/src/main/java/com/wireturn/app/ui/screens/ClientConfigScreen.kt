@@ -59,6 +59,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.data.DCType
+import com.wireturn.app.data.VP8CType
+import com.wireturn.app.data.TunnelType
 import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.ui.FieldTrailingIcons
 import com.wireturn.app.ui.HapticUtil
@@ -98,6 +100,7 @@ fun ClientConfigScreen(
     val serverAddressHistory by viewModel.serverAddressHistory.collectAsStateWithLifecycle()
     val turnableUrlHistory by viewModel.turnableUrlHistory.collectAsStateWithLifecycle()
     val jazzCredsHistory by viewModel.jazzCredsHistory.collectAsStateWithLifecycle()
+    val telemostRoomUrlHistory by viewModel.telemostRoomUrlHistory.collectAsStateWithLifecycle()
     val clientConfigSnapshot by com.wireturn.app.ProxyServiceState.clientConfigSnapshot.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
@@ -118,10 +121,12 @@ fun ClientConfigScreen(
     var manualCaptcha by rememberSaveable(currentProfileId, saved.manualCaptcha) { mutableStateOf(saved.manualCaptcha) }
     var localPort    by rememberSaveable(currentProfileId, saved.localPort)      { mutableStateOf(saved.localPort) }
     var vlessMode    by rememberSaveable(currentProfileId, saved.vlessMode)      { mutableStateOf(saved.vlessMode) }
-    var dcMode       by rememberSaveable(currentProfileId, saved.dcMode)         { mutableStateOf(saved.dcMode) }
+    var tunnelType   by rememberSaveable(currentProfileId, saved.tunnelType)     { mutableStateOf(saved.tunnelType) }
     var forcePort443 by rememberSaveable(currentProfileId, saved.forceTurnPort443) { mutableStateOf(saved.forceTurnPort443) }
     var dcType       by rememberSaveable(currentProfileId, saved.dcType)         { mutableStateOf(saved.dcType) }
+    var vp8cType     by rememberSaveable(currentProfileId, saved.vp8cType)       { mutableStateOf(saved.vp8cType) }
     var jazzCreds    by rememberSaveable(currentProfileId, saved.jazzCreds)      { mutableStateOf(saved.jazzCreds) }
+    var telemostRoomUrl by rememberSaveable(currentProfileId, saved.telemostRoomUrl) { mutableStateOf(saved.telemostRoomUrl) }
     var kernelVariant by rememberSaveable(currentProfileId, saved.kernelVariant) { mutableStateOf(saved.kernelVariant) }
     var lastSliderInt by rememberSaveable { mutableIntStateOf(saved.threads) }
     var isUrlParsing by remember { mutableStateOf(false) }
@@ -148,10 +153,12 @@ fun ClientConfigScreen(
         manualCaptcha = saved.manualCaptcha
         localPort = saved.localPort
         vlessMode = saved.vlessMode
-        dcMode = saved.dcMode
+        tunnelType = saved.tunnelType
         forcePort443 = saved.forceTurnPort443
         dcType = saved.dcType
+        vp8cType = saved.vp8cType
         jazzCreds = saved.jazzCreds
+        telemostRoomUrl = saved.telemostRoomUrl
         kernelVariant = saved.kernelVariant
     }
 
@@ -160,7 +167,7 @@ fun ClientConfigScreen(
     val isTurnableUrlValid = remember(turnableUrl) { ValidatorUtils.isValidTurnableUrl(turnableUrl) }
 
     LaunchedEffect(isRawMode, rawCommand, serverAddress, turnableUrl, vkLink, wbstreamUuid, threads, useUdp, noDtls,
-        manualCaptcha, localPort, vlessMode, dcMode, forcePort443, dcType, jazzCreds, kernelVariant
+        manualCaptcha, localPort, vlessMode, tunnelType, forcePort443, dcType, vp8cType, jazzCreds, telemostRoomUrl, kernelVariant
     ) {
         delay(200)
         val current = viewModel.clientConfig.value
@@ -177,10 +184,12 @@ fun ClientConfigScreen(
             manualCaptcha    = manualCaptcha,
             localPort        = localPort.trim(),
             vlessMode        = vlessMode,
-            dcMode           = dcMode,
+            tunnelType       = tunnelType,
             forceTurnPort443 = forcePort443,
             dcType           = dcType,
+            vp8cType         = vp8cType,
             jazzCreds        = jazzCreds.trim(),
+            telemostRoomUrl  = telemostRoomUrl.trim(),
             kernelVariant    = kernelVariant
         )
         if (next != current) {
@@ -285,33 +294,41 @@ fun ClientConfigScreen(
                     }
                 } else {
                     // Обычный режим: Метод туннеля
-                    SettingsGroupItem(isTop = false, isBottom = dcMode, containerColor = blockContainerColor) {
+                    SettingsGroupItem(isTop = false, isBottom = tunnelType != TunnelType.TURN, containerColor = blockContainerColor) {
                         LabeledSegmentedButton(
                             label = stringResource(R.string.tunnel_label),
                             supportingText = stringResource(R.string.connection_method_desc),
-                            isModified = clientConfigSnapshot != null && dcMode != clientConfigSnapshot?.dcMode
+                            isModified = clientConfigSnapshot != null && tunnelType != clientConfigSnapshot?.tunnelType
                         ) {
                             SegmentedButton(
-                                selected = !dcMode,
+                                selected = tunnelType == TunnelType.TURN,
                                 onClick = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                                    dcMode = false
+                                    tunnelType = TunnelType.TURN
                                 },
-                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3)
                             ) { Text(stringResource(R.string.turn_tunnel)) }
                             SegmentedButton(
-                                selected = dcMode,
+                                selected = tunnelType == TunnelType.DC,
                                 onClick = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                                    dcMode = true
+                                    tunnelType = TunnelType.DC
                                 },
-                                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3)
                             ) { Text(stringResource(R.string.dc_tunnel)) }
+                            SegmentedButton(
+                                selected = tunnelType == TunnelType.VP8C,
+                                onClick = {
+                                    HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
+                                    tunnelType = TunnelType.VP8C
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3)
+                            ) { Text(stringResource(R.string.vp8c_tunnel)) }
                         }
                     }
 
-                    if (!dcMode) {
-                        // Обычный режим: Выбор ядра (если не DC)
+                    if (tunnelType == TunnelType.TURN) {
+                        // Обычный режим: Выбор ядра (если не DC и не VP8C)
                         SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
                             LabeledSegmentedButton(
                                 label = if (customKernelExists) stringResource(R.string.kernel_config_label) else stringResource(R.string.kernel_label),
@@ -344,11 +361,11 @@ fun ClientConfigScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
                     // 2. Детали подключения
                     SettingsGroup(title = stringResource(R.string.connection_details)) {
-                        if (dcMode) {
+                        if (tunnelType == TunnelType.DC) {
                             SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
                                 LabeledSegmentedButton(
-                                    label = stringResource(R.string.dc_type_label),
-                                    supportingText = stringResource(R.string.dc_type_desc),
+                                    label = stringResource(R.string.platform_label),
+                                    supportingText = stringResource(R.string.platform_desc),
                                     isModified = clientConfigSnapshot != null && dcType != clientConfigSnapshot?.dcType
                                 ) {
                                     DCType.entries.forEachIndexed { index, type ->
@@ -409,6 +426,56 @@ fun ClientConfigScreen(
                                                         history = wbstreamUuidHistory,
                                                         onSelect = { wbstreamUuid = it },
                                                         onRemove = { viewModel.removeWbstreamUuidFromHistory(it) },
+                                                        privacyMode = privacyMode
+                                                    )
+                                                }
+                                            } else null
+                                        )
+                                    }
+                                }
+                            }
+                        } else if (tunnelType == TunnelType.VP8C) {
+                            SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
+                                LabeledSegmentedButton(
+                                    label = stringResource(R.string.platform_label),
+                                    supportingText = stringResource(R.string.platform_desc),
+                                    isModified = clientConfigSnapshot != null && vp8cType != clientConfigSnapshot?.vp8cType
+                                ) {
+                                    VP8CType.entries.forEachIndexed { index, type ->
+                                        SegmentedButton(
+                                            selected = vp8cType == type,
+                                            onClick = {
+                                                HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
+                                                vp8cType = type
+                                            },
+                                            shape = SegmentedButtonDefaults.itemShape(index = index, count = VP8CType.entries.size)
+                                        ) {
+                                            Text(when (type) {
+                                                VP8CType.TELEMOST -> stringResource(R.string.telemost_label)
+                                            })
+                                        }
+                                    }
+                                }
+                            }
+
+                            SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+                                when (vp8cType) {
+                                    VP8CType.TELEMOST -> {
+                                        TextFieldRow(
+                                            label = stringResource(R.string.telemost_url_label),
+                                            value = telemostRoomUrl.redact(privacyMode),
+                                            onValueChange = { if (!privacyMode) telemostRoomUrl = it },
+                                            placeholder = stringResource(R.string.telemost_url_placeholder),
+                                            isError = telemostRoomUrl.isBlank(),
+                                            readOnly = privacyMode,
+                                            supportingText = stringResource(R.string.telemost_url_support),
+                                            isModified = clientConfigSnapshot != null && (telemostRoomUrl.trim() != clientConfigSnapshot?.telemostRoomUrl || clientConfigSnapshot!!.isRawMode),
+                                            trailingIcon = if (telemostRoomUrlHistory.isNotEmpty()) {
+                                                {
+                                                    FieldTrailingIcons(
+                                                        history = telemostRoomUrlHistory,
+                                                        onSelect = { telemostRoomUrl = it },
+                                                        onRemove = { viewModel.removeTelemostRoomUrlFromHistory(it) },
                                                         privacyMode = privacyMode
                                                     )
                                                 }
@@ -526,11 +593,11 @@ fun ClientConfigScreen(
 
                     // 3. Тонкая настройка
                     SettingsGroup(title = stringResource(R.string.parameters_title)) {
-                        val showsThreads = !dcMode && kernelVariant == KernelVariant.VK_TURN_PROXY
-                        val showsVless = dcMode || kernelVariant == KernelVariant.VK_TURN_PROXY
-                        val showsTransport = !vlessMode && !dcMode && kernelVariant == KernelVariant.VK_TURN_PROXY
+                        val showsThreads = tunnelType == TunnelType.TURN && kernelVariant == KernelVariant.VK_TURN_PROXY
+                        val showsVless = tunnelType != TunnelType.TURN || kernelVariant == KernelVariant.VK_TURN_PROXY
+                        val showsTransport = !vlessMode && tunnelType == TunnelType.TURN && kernelVariant == KernelVariant.VK_TURN_PROXY
                         val showsNoDtls = showsTransport && useUdp
-                        val showsCaptchaGroup = !dcMode && kernelVariant != KernelVariant.TURNABLE
+                        val showsCaptchaGroup = tunnelType == TunnelType.TURN && kernelVariant != KernelVariant.TURNABLE
                         
                         // 3.1 Local Port
                         SettingsGroupItem(
@@ -785,13 +852,15 @@ fun ClientConfigScreen(
             }
 
             if (showFinishButton && onFinish != null) {
-                val isValid = remember(isRawMode, rawCommand, dcMode, dcType, jazzCreds, wbstreamUuid, serverAddress, vkLink, turnableUrl, kernelVariant) {
+                val isValid = remember(isRawMode, rawCommand, tunnelType, dcType, vp8cType, jazzCreds, telemostRoomUrl, wbstreamUuid, serverAddress, vkLink, turnableUrl, kernelVariant) {
                     com.wireturn.app.data.ClientConfig(
                         isRawMode = isRawMode,
                         rawCommand = rawCommand,
-                        dcMode = dcMode,
+                        tunnelType = tunnelType,
                         dcType = dcType,
+                        vp8cType = vp8cType,
                         jazzCreds = jazzCreds,
+                        telemostRoomUrl = telemostRoomUrl,
                         wbstreamUuid = wbstreamUuid,
                         serverAddress = serverAddress,
                         vkLink = vkLink,

@@ -127,6 +127,7 @@ import androidx.core.net.toUri
 import com.wireturn.app.ProxyServiceState
 import com.wireturn.app.VpnServiceState
 import com.wireturn.app.XrayServiceState
+import com.wireturn.app.data.TunnelType
 import com.wireturn.app.ui.CompactSettingsItem
 import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.viewmodel.XrayState
@@ -389,7 +390,7 @@ fun HomeScreen(
         if (!isProxyActive) return@LaunchedEffect
 
         if (clientConfig.isRawMode) return@LaunchedEffect
-        val supportsMismatchCheck = clientConfig.dcMode || clientConfig.kernelVariant == KernelVariant.VK_TURN_PROXY
+        val supportsMismatchCheck = clientConfig.tunnelType != TunnelType.TURN || clientConfig.kernelVariant == KernelVariant.VK_TURN_PROXY
         if (!supportsMismatchCheck) return@LaunchedEffect
 
         val isVlessConfigured = xrayConfig.xrayConfiguration == XrayConfiguration.VLESS

@@ -27,6 +27,14 @@ enum class DCType {
     SALUTE_JAZZ, WB_STREAM
 }
 
+enum class VP8CType {
+    TELEMOST
+}
+
+enum class TunnelType {
+    TURN, DC, VP8C
+}
+
 enum class KernelVariant {
     VK_TURN_PROXY, TURNABLE
 }
@@ -47,19 +55,34 @@ data class ClientConfig(
     @SerializedName("isRawMode") val isRawMode: Boolean = false,
     @SerializedName("rawCommand") val rawCommand: String = "",
     @SerializedName("vlessMode") val vlessMode: Boolean = false,
-    @SerializedName("dcMode") val dcMode: Boolean = false,
+    @SerializedName("tunnelType") val tunnelType: TunnelType = TunnelType.TURN,
     @SerializedName("forceTurnPort443") val forceTurnPort443: Boolean = false,
     @SerializedName("dcType") val dcType: DCType = DCType.SALUTE_JAZZ,
+    @SerializedName("vp8cType") val vp8cType: VP8CType = VP8CType.TELEMOST,
     @SerializedName("jazzCreds") val jazzCreds: String = "",
+    @SerializedName("telemostRoomUrl") val telemostRoomUrl: String = "",
     @SerializedName("turnableUrl") val turnableUrl: String = "",
-    @SerializedName("kernelVariant") val kernelVariant: KernelVariant = KernelVariant.VK_TURN_PROXY
+    @SerializedName("kernelVariant") val kernelVariant: KernelVariant = KernelVariant.VK_TURN_PROXY,
+    // Поля для миграции из старых версий JSON (не private для доступа при санитации)
+    @SerializedName("dcMode") val dcMode: Boolean? = null,
+    @SerializedName("vp8cMode") val vp8cMode: Boolean? = null
 ) {
     fun getValidationErrorResId(): Int? {
         if (isRawMode) {
             return if (rawCommand.isBlank()) com.wireturn.app.R.string.error_raw_empty else null
         }
 
-        return if (dcMode) {
+        if (tunnelType == TunnelType.VP8C) {
+            when (vp8cType) {
+                VP8CType.TELEMOST -> {
+                    if (telemostRoomUrl.isBlank() || !com.wireturn.app.ui.ValidatorUtils.isValidTelemostLink(telemostRoomUrl)) {
+                        return com.wireturn.app.R.string.error_settings_empty
+                    }
+                }
+            }
+        }
+
+        return if (tunnelType == TunnelType.DC) {
             when (dcType) {
                 DCType.SALUTE_JAZZ -> {
                     if (jazzCreds.isBlank()) com.wireturn.app.R.string.error_settings_empty else null
@@ -69,7 +92,7 @@ data class ClientConfig(
                     else com.wireturn.app.R.string.error_settings_empty
                 }
             }
-        } else {
+        } else if (tunnelType == TunnelType.TURN) {
             when (kernelVariant) {
                 KernelVariant.VK_TURN_PROXY -> {
                     if (serverAddress.isBlank() || vkLink.isBlank()) com.wireturn.app.R.string.error_settings_empty else null
@@ -78,7 +101,7 @@ data class ClientConfig(
                     if (turnableUrl.isBlank()) com.wireturn.app.R.string.error_settings_empty else null
                 }
             }
-        }
+        } else null
     }
 
     val isValid: Boolean get() = getValidationErrorResId() == null
@@ -270,7 +293,7 @@ class AppPreferences(context: Context) {
         val CLIENT_VLESS_IS_DUAL_ROUTE = booleanPreferencesKey("client_vless_is_dual_route")
         val CLIENT_VLESS_DIRECT_ADDRESS = stringPreferencesKey("client_vless_direct_address")
         val VLESS_LINK_HISTORY = stringPreferencesKey("vless_link_history")
-        val CLIENT_DC_MODE = booleanPreferencesKey("client_dc_mode")
+        val CLIENT_TUNNEL_TYPE = stringPreferencesKey("client_tunnel_type")
         val CLIENT_FORCE_PORT_443 = booleanPreferencesKey("client_force_port_443")
         val DYNAMIC_THEME = booleanPreferencesKey("dynamic_theme")
         val THEME_MODE = stringPreferencesKey("theme_mode")
@@ -293,8 +316,11 @@ class AppPreferences(context: Context) {
         val WBSTREAM_UUID_HISTORY = stringPreferencesKey("wbstream_uuid_history")
         val SERVER_ADDR_HISTORY = stringPreferencesKey("server_addr_history")
         val JAZZ_CREDS_HISTORY = stringPreferencesKey("jazz_creds_history")
+        val TELEMOST_ROOM_URL_HISTORY = stringPreferencesKey("telemost_room_url_history")
         val CLIENT_DC_TYPE = stringPreferencesKey("client_dc_type")
+        val CLIENT_VP8C_TYPE = stringPreferencesKey("client_vp8c_type")
         val CLIENT_JAZZ_CREDS = stringPreferencesKey("client_jazz_creds")
+        val CLIENT_TELEMOST_ROOM_URL = stringPreferencesKey("client_telemost_room_url")
         val CLIENT_TURNABLE_URL = stringPreferencesKey("client_turnable_url")
         val CLIENT_KERNEL_VARIANT = stringPreferencesKey("client_kernel_variant")
         val TURNABLE_URL_HISTORY = stringPreferencesKey("turnable_url_history")
@@ -322,10 +348,22 @@ class AppPreferences(context: Context) {
                 rawList.map { p ->
                     // GSON can bypass Kotlin's null-safety if fields are missing in JSON.
                     // We sanitize the object here to ensure all fields are non-null.
+                    val c = p.clientConfig
+                    val sanitizedConfig = if (c != null) {
+                        // Миграция со старых dcMode/vp8cMode в JSON профиля
+                        val cType = (c.tunnelType as TunnelType?)
+                        val migratedType = cType ?: when {
+                            c.vp8cMode == true -> TunnelType.VP8C
+                            c.dcMode == true -> TunnelType.DC
+                            else -> TunnelType.TURN
+                        }
+                        c.copy(tunnelType = migratedType)
+                    } else ClientConfig()
+
                     Profile(
                         id = (p.id as String?) ?: java.util.UUID.randomUUID().toString(),
                         name = (p.name as String?) ?: "Unnamed",
-                        clientConfig = (p.clientConfig as ClientConfig?) ?: ClientConfig(),
+                        clientConfig = sanitizedConfig,
                         xraySettings = (p.xraySettings as XraySettings?) ?: XraySettings(),
                         xrayConfig = (p.xrayConfig as XrayConfig?) ?: XrayConfig(),
                         wgConfig = (p.wgConfig as WgConfig?) ?: WgConfig(),
@@ -379,10 +417,19 @@ class AppPreferences(context: Context) {
                 isRawMode = prefs[CLIENT_IS_RAW] ?: false,
                 rawCommand = prefs[CLIENT_RAW_CMD] ?: "",
                 vlessMode = prefs[CLIENT_VLESS] ?: false,
-                dcMode = prefs[CLIENT_DC_MODE] ?: false,
+                tunnelType = prefs[CLIENT_TUNNEL_TYPE]?.let { 
+                    try { TunnelType.valueOf(it) } catch(_: Exception) { null } 
+                } ?: when {
+                    // Миграция из DataStore
+                    prefs[booleanPreferencesKey("client_vp8c_mode")] == true -> TunnelType.VP8C
+                    prefs[booleanPreferencesKey("client_dc_mode")] == true -> TunnelType.DC
+                    else -> TunnelType.TURN
+                },
                 forceTurnPort443 = prefs[CLIENT_FORCE_PORT_443] ?: false,
                 dcType = DCType.valueOf(prefs[CLIENT_DC_TYPE] ?: DCType.SALUTE_JAZZ.name),
+                vp8cType = VP8CType.valueOf(prefs[CLIENT_VP8C_TYPE] ?: VP8CType.TELEMOST.name),
                 jazzCreds = prefs[CLIENT_JAZZ_CREDS] ?: "",
+                telemostRoomUrl = prefs[CLIENT_TELEMOST_ROOM_URL] ?: "",
                 turnableUrl = prefs[CLIENT_TURNABLE_URL] ?: "",
                 kernelVariant = KernelVariant.valueOf(prefs[CLIENT_KERNEL_VARIANT] ?: KernelVariant.VK_TURN_PROXY.name)
             ).fillDefaults()
@@ -552,6 +599,14 @@ class AppPreferences(context: Context) {
             else historyString.split("|").filter { it.isNotBlank() }
         }
 
+    val telemostRoomUrlHistoryFlow: Flow<List<String>> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { prefs ->
+            val historyString = prefs[TELEMOST_ROOM_URL_HISTORY] ?: ""
+            if (historyString.isBlank()) emptyList()
+            else historyString.split("|").filter { it.isNotBlank() }
+        }
+
     val turnableUrlHistoryFlow: Flow<List<String>> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { prefs ->
@@ -601,6 +656,15 @@ class AppPreferences(context: Context) {
             val currentHistory = prefs[JAZZ_CREDS_HISTORY]?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
             val newHistory = (listOf(creds) + currentHistory.filter { it != creds }).take(3)
             prefs[JAZZ_CREDS_HISTORY] = newHistory.joinToString("|")
+        }
+    }
+
+    suspend fun addTelemostRoomUrlToHistory(url: String) {
+        if (url.isBlank()) return
+        context.dataStore.edit { prefs ->
+            val currentHistory = prefs[TELEMOST_ROOM_URL_HISTORY]?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
+            val newHistory = (listOf(url) + currentHistory.filter { it != url }).take(3)
+            prefs[TELEMOST_ROOM_URL_HISTORY] = newHistory.joinToString("|")
         }
     }
 
@@ -654,6 +718,14 @@ class AppPreferences(context: Context) {
         }
     }
 
+    suspend fun removeTelemostRoomUrlFromHistory(url: String) {
+        context.dataStore.edit { prefs ->
+            val currentHistory = prefs[TELEMOST_ROOM_URL_HISTORY]?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
+            val newHistory = currentHistory.filter { it != url }
+            prefs[TELEMOST_ROOM_URL_HISTORY] = newHistory.joinToString("|")
+        }
+    }
+
     suspend fun removeTurnableUrlFromHistory(url: String) {
         context.dataStore.edit { prefs ->
             val currentHistory = prefs[TURNABLE_URL_HISTORY]?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
@@ -684,10 +756,12 @@ class AppPreferences(context: Context) {
             prefs[CLIENT_IS_RAW] = (c.isRawMode as Boolean?) ?: false
             prefs[CLIENT_RAW_CMD] = (c.rawCommand as String?) ?: ""
             prefs[CLIENT_VLESS] = (c.vlessMode as Boolean?) ?: false
-            prefs[CLIENT_DC_MODE] = (c.dcMode as Boolean?) ?: false
+            prefs[CLIENT_TUNNEL_TYPE] = ((c.tunnelType as TunnelType?) ?: TunnelType.TURN).name
             prefs[CLIENT_FORCE_PORT_443] = (c.forceTurnPort443 as Boolean?) ?: false
             prefs[CLIENT_DC_TYPE] = ((c.dcType as DCType?) ?: DCType.SALUTE_JAZZ).name
+            prefs[CLIENT_VP8C_TYPE] = ((c.vp8cType as VP8CType?) ?: VP8CType.TELEMOST).name
             prefs[CLIENT_JAZZ_CREDS] = (c.jazzCreds as String?) ?: ""
+            prefs[CLIENT_TELEMOST_ROOM_URL] = (c.telemostRoomUrl as String?) ?: ""
             prefs[CLIENT_TURNABLE_URL] = (c.turnableUrl as String?) ?: ""
             prefs[CLIENT_KERNEL_VARIANT] = ((c.kernelVariant as KernelVariant?) ?: KernelVariant.VK_TURN_PROXY).name
         }

@@ -48,6 +48,14 @@ object ValidatorUtils {
     }
 
     /**
+     * Проверяет, является ли строка валидной ссылкой Yandex Telemost.
+     */
+    fun isValidTelemostLink(input: String): Boolean {
+        if (input.isBlank()) return true
+        return input.startsWith("https://telemost.yandex.ru/j/", ignoreCase = true)
+    }
+
+    /**
      * Извлекает host:port из VLESS ссылки.
      */
     fun parseVlessAddress(link: String): String? {

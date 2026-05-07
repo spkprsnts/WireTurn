@@ -15,6 +15,8 @@ import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.DCType
 import com.wireturn.app.data.KernelVariant
+import com.wireturn.app.data.TunnelType
+import com.wireturn.app.data.VP8CType
 import com.wireturn.app.viewmodel.AppLifecycleState
 import com.wireturn.app.viewmodel.XrayState
 import java.io.BufferedReader
@@ -395,7 +397,7 @@ class ProxyService : Service() {
                         }
 
                         if (lower.contains("established") ||
-                            lower.contains("listening on") ||
+                            lower.contains("first data frame received") ||
                             lower.contains("datachannel connected") ||
                             lower.contains("peer online"))
                         {
@@ -543,7 +545,7 @@ class ProxyService : Service() {
             customBin.absolutePath
         } else {
             AppLogsState.addLog(getString(R.string.log_standard_kernel))
-            if (cfg.dcMode) {
+            if (cfg.tunnelType != TunnelType.TURN) {
                 vkTurnProxyKernel
             } else {
                 when (cfg.kernelVariant) {
@@ -560,47 +562,58 @@ class ProxyService : Service() {
             val parts = cfg.rawCommand.trim().split("\\s+".toRegex())
             if (parts.isNotEmpty()) cmdArgs.addAll(parts)
         } else {
-            if(cfg.dcMode) {
-                cmdArgs.add("-listen"); cmdArgs.add(cfg.localPort.ifBlank { ClientConfig.DEFAULT_LOCAL_PORT })
-                if (cfg.dcType == DCType.SALUTE_JAZZ) {
-                    if (!checkJazzAvailability()) {
-                        AppLogsState.addLog(getString(R.string.log_jazz_unavailable))
-                        ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_jazz_unavailable)))
+            when (cfg.tunnelType) {
+                TunnelType.DC -> {
+                    cmdArgs.add("-listen"); cmdArgs.add(cfg.localPort.ifBlank { ClientConfig.DEFAULT_LOCAL_PORT })
+                    if (cfg.dcType == DCType.SALUTE_JAZZ) {
+                        if (!checkJazzAvailability()) {
+                            AppLogsState.addLog(getString(R.string.log_jazz_unavailable))
+                            ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_jazz_unavailable)))
+                        }
+                        cmdArgs.add("-jazz-room")
+                        cmdArgs.add(cfg.jazzCreds)
+                    } else {
+                        cmdArgs.add("-wb-room")
+                        cmdArgs.add(cfg.wbstreamUuid)
                     }
-                    cmdArgs.add("-jazz-room")
-                    cmdArgs.add(cfg.jazzCreds)
-                } else {
-                    cmdArgs.add("-wb-room")
-                    cmdArgs.add(cfg.wbstreamUuid)
+                    if (cfg.vlessMode) cmdArgs.add("-vless")
+                    cmdArgs.add("-dc")
                 }
-                if (cfg.vlessMode) cmdArgs.add("-vless")
-                cmdArgs.add("-dc")
-            } else {
-                when (cfg.kernelVariant) {
-                    KernelVariant.VK_TURN_PROXY -> {
-                        cmdArgs.add("-listen"); cmdArgs.add(cfg.localPort.ifBlank { ClientConfig.DEFAULT_LOCAL_PORT })
-                        cmdArgs.add("-peer"); cmdArgs.add(cfg.serverAddress)
-                        cmdArgs.add("-vk-link"); cmdArgs.add(cfg.vkLink)
-                        if (cfg.threads > 0) {
-                            cmdArgs.add("-n"); cmdArgs.add(cfg.threads.toString())
-                        }
-                        if (cfg.vlessMode) cmdArgs.add("-vless")
-                        else if (cfg.useUdp) cmdArgs.add("-udp")
-                        if (cfg.forceTurnPort443) {
-                            cmdArgs.add("-port"); cmdArgs.add("443")
-                        }
-                        if (cfg.manualCaptcha) cmdArgs.add("--manual-captcha")
-                        if (cfg.noDtls && useCustom) cmdArgs.add("-no-dtls")
+                TunnelType.VP8C -> {
+                    cmdArgs.add("-listen"); cmdArgs.add(cfg.localPort.ifBlank { ClientConfig.DEFAULT_LOCAL_PORT })
+                    if (cfg.vp8cType == VP8CType.TELEMOST) {
+                        cmdArgs.add("-telemost-room")
+                        cmdArgs.add(cfg.telemostRoomUrl)
                     }
-
-                    KernelVariant.TURNABLE -> {
-                        cmdArgs.addAll(
-                            listOf(
-                                "client",
-                                "-l", cfg.localPort.ifBlank { ClientConfig.DEFAULT_LOCAL_PORT },
-                                cfg.turnableUrl
+                    if (cfg.vlessMode) cmdArgs.add("-vless")
+                    cmdArgs.add("-vp8c")
+                }
+                TunnelType.TURN -> {
+                    when (cfg.kernelVariant) {
+                        KernelVariant.VK_TURN_PROXY -> {
+                            cmdArgs.add("-listen"); cmdArgs.add(cfg.localPort.ifBlank { ClientConfig.DEFAULT_LOCAL_PORT })
+                            cmdArgs.add("-peer"); cmdArgs.add(cfg.serverAddress)
+                            cmdArgs.add("-vk-link"); cmdArgs.add(cfg.vkLink)
+                            if (cfg.threads > 0) {
+                                cmdArgs.add("-n"); cmdArgs.add(cfg.threads.toString())
+                            }
+                            if (cfg.vlessMode) cmdArgs.add("-vless")
+                            else if (cfg.useUdp) cmdArgs.add("-udp")
+                            if (cfg.forceTurnPort443) {
+                                cmdArgs.add("-port"); cmdArgs.add("443")
+                            }
+                            if (cfg.manualCaptcha) cmdArgs.add("--manual-captcha")
+                            if (cfg.noDtls && useCustom) cmdArgs.add("-no-dtls")
+                        }
+                        KernelVariant.TURNABLE -> {
+                            cmdArgs.addAll(
+                                listOf(
+                                    "client",
+                                    "-l", cfg.localPort.ifBlank { ClientConfig.DEFAULT_LOCAL_PORT },
+                                    cfg.turnableUrl
+                                )
                             )
-                        )
+                        }
                     }
                 }
             }

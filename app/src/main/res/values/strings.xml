@@ -154,10 +154,15 @@
     <string name="force_turn_port_443_desc">Use port 443 instead of the default.</string>
     <string name="jazz_label" translatable="false">SaluteJazz</string>
     <string name="wb_stream_label" translatable="false">WB Stream</string>
-    <string name="dc_type_label">DC Service</string>
+    <string name="platform_label">Platform</string>
     <string name="jazz_creds_label">SaluteJazz room code:password</string>
     <string name="jazz_creds_placeholder">room:password</string>
     <string name="jazz_creds_support">Created on the server</string>
+    <string name="vp8c_tunnel" translatable="false">VP8C</string>
+    <string name="telemost_label" translatable="false">Telemost</string>
+    <string name="telemost_url_label">Telemost room link</string>
+    <string name="telemost_url_placeholder">https://telemost.yandex.ru/j/…</string>
+    <string name="telemost_url_support">Must match the one specified on the server</string>
     <string name="core_title">Core download</string>
     <string name="custom_core">Custom core</string>
     <string name="builtin_core">Built-in core</string>
@@ -350,7 +355,7 @@
     <string name="connection_method_desc">Traffic tunneling method</string>
     <string name="client_variants_desc">Client variants</string>
     <string name="connection_details">Connection details</string>
-    <string name="dc_type_desc">DataChannel type</string>
+    <string name="platform_desc">Select the platform for tunneling</string>
     <string name="math_minus" translatable="false">−</string>
     <string name="math_plus" translatable="false">+</string>
     <string name="edit_url_params">URL parameters</string>

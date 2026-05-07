@@ -133,6 +133,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _jazzCredsHistory = MutableStateFlow<List<String>>(emptyList())
     val jazzCredsHistory: StateFlow<List<String>> = _jazzCredsHistory.asStateFlow()
 
+    private val _telemostRoomUrlHistory = MutableStateFlow<List<String>>(emptyList())
+    val telemostRoomUrlHistory: StateFlow<List<String>> = _telemostRoomUrlHistory.asStateFlow()
+
     private val _turnableUrlHistory = MutableStateFlow<List<String>>(emptyList())
     val turnableUrlHistory: StateFlow<List<String>> = _turnableUrlHistory.asStateFlow()
 
@@ -210,6 +213,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val wbstreamUuidHistory = prefs.wbstreamUuidHistoryFlow.first()
             val serverAddressHistory = prefs.serverAddressHistoryFlow.first()
             val jazzCredsHistory = prefs.jazzCredsHistoryFlow.first()
+            val telemostRoomUrlHistory = prefs.telemostRoomUrlHistoryFlow.first()
             val turnableUrlHistory = prefs.turnableUrlHistoryFlow.first()
             val vlessLinkHistory = prefs.vlessLinkHistoryFlow.first()
 
@@ -239,6 +243,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _wbstreamUuidHistory.value = wbstreamUuidHistory
             _serverAddressHistory.value = serverAddressHistory
             _jazzCredsHistory.value = jazzCredsHistory
+            _telemostRoomUrlHistory.value = telemostRoomUrlHistory
             _turnableUrlHistory.value = turnableUrlHistory
             _vlessLinkHistory.value = vlessLinkHistory
 
@@ -301,6 +306,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.wbstreamUuidHistoryFlow.collect { _wbstreamUuidHistory.value = it } }
             launch { prefs.serverAddressHistoryFlow.collect { _serverAddressHistory.value = it } }
             launch { prefs.jazzCredsHistoryFlow.collect { _jazzCredsHistory.value = it } }
+            launch { prefs.telemostRoomUrlHistoryFlow.collect { _telemostRoomUrlHistory.value = it } }
             launch { prefs.turnableUrlHistoryFlow.collect { _turnableUrlHistory.value = it } }
             launch { prefs.vlessLinkHistoryFlow.collect { _vlessLinkHistory.value = it } }
         }
@@ -489,14 +495,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private suspend fun startProxyInternal(forceRestart: Boolean = false) {
         val cfg = clientConfig.value
-        if (cfg.dcMode) {
-            when (cfg.dcType) {
-                DCType.SALUTE_JAZZ -> prefs.addJazzCredsToHistory(cfg.jazzCreds)
-                DCType.WB_STREAM -> prefs.addWbstreamUuidToHistory(cfg.wbstreamUuid)
+        when (cfg.tunnelType) {
+            com.wireturn.app.data.TunnelType.DC -> {
+                when (cfg.dcType) {
+                    DCType.SALUTE_JAZZ -> prefs.addJazzCredsToHistory(cfg.jazzCreds)
+                    DCType.WB_STREAM -> prefs.addWbstreamUuidToHistory(cfg.wbstreamUuid)
+                }
             }
-        } else {
-            prefs.addVkLinkToHistory(cfg.vkLink)
-            prefs.addTurnableUrlToHistory(cfg.turnableUrl)
+            com.wireturn.app.data.TunnelType.VP8C -> {
+                prefs.addTelemostRoomUrlToHistory(cfg.telemostRoomUrl)
+            }
+            com.wireturn.app.data.TunnelType.TURN -> {
+                prefs.addVkLinkToHistory(cfg.vkLink)
+                prefs.addTurnableUrlToHistory(cfg.turnableUrl)
+            }
         }
         prefs.addServerAddressToHistory(cfg.serverAddress)
         proxyManager.startProxy(cfg, forceRestart)
@@ -566,6 +578,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun removeWbstreamUuidFromHistory(uuid: String) { viewModelScope.launch { prefs.removeWbstreamUuidFromHistory(uuid) } }
     fun removeServerAddressFromHistory(address: String) { viewModelScope.launch { prefs.removeServerAddressFromHistory(address) } }
     fun removeJazzCredsFromHistory(creds: String) { viewModelScope.launch { prefs.removeJazzCredsFromHistory(creds) } }
+    fun removeTelemostRoomUrlFromHistory(url: String) { viewModelScope.launch { prefs.removeTelemostRoomUrlFromHistory(url) } }
     fun removeTurnableUrlFromHistory(url: String) { viewModelScope.launch { prefs.removeTurnableUrlFromHistory(url) } }
     fun removeVlessLinkFromHistory(link: String) { viewModelScope.launch { prefs.removeVlessLinkFromHistory(link) } }
     fun setOnboardingDone() { viewModelScope.launch { prefs.setOnboardingDone(true) } }
