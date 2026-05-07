@@ -147,9 +147,7 @@ class HevVpnService : VpnService() {
             val established = builder.establish()
             if (established == null) {
                 AppLogsState.addLog("[hev-socks5-tunnel] Failed to establish TUN interface")
-                if (VpnServiceState.state.value == VpnState.Starting) {
-                    VpnServiceState.updateStatus(VpnState.Idle)
-                }
+                VpnServiceState.updateStatus(VpnState.Error(getString(R.string.error_connecting)))
                 disableVpnMode()
                 stopSelf()
                 return

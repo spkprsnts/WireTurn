@@ -55,6 +55,7 @@ class XrayService : Service() {
             var lastExcludedApps: Set<String>? = null
             var lastBypassMode: Boolean? = null
             var lastFilteringEnabled: Boolean? = null
+            var lastVpnEnabled: Boolean? = null
 
             combine(
                 listOf(
@@ -63,8 +64,7 @@ class XrayService : Service() {
                     prefs.globalVpnSettingsFlow,
                     prefs.excludedAppsFlow,
                     XrayServiceState.xrayConfigSnapshot,
-                    VpnServiceState.state,
-                    VpnServiceState.wasManuallyDisabled
+                    VpnServiceState.state
                 )
             ) { args ->
                 @Suppress("UNCHECKED_CAST")
@@ -94,29 +94,36 @@ class XrayService : Service() {
                     val excludedChanged = lastExcludedApps != null && lastExcludedApps != bundle.excludedApps
                     val bypassModeChanged = lastBypassMode != null && lastBypassMode != bundle.bypassMode
                     val filteringChanged = lastFilteringEnabled != null && lastFilteringEnabled != bundle.filteringEnabled
+                    val vpnEnabledChanged = lastVpnEnabled != null && lastVpnEnabled != bundle.vpnEnabled
                     
                     lastExcludedApps = bundle.excludedApps
                     lastBypassMode = bundle.bypassMode
                     lastFilteringEnabled = bundle.filteringEnabled
+                    lastVpnEnabled = bundle.vpnEnabled
 
                     val shouldVpnBeActive = bundle.vpnEnabled && bundle.xrayState != XrayState.Idle
 
                     if (shouldVpnBeActive) {
                         val runningXray = bundle.runningXray
-                        val vpnRunning = bundle.vpnState != VpnState.Idle
+                        val vpnRunning = bundle.vpnState == VpnState.Running
+                        val vpnError = bundle.vpnState is VpnState.Error
+                        val anySettingChanged = excludedChanged || bypassModeChanged || filteringChanged || vpnEnabledChanged
 
                         if (runningXray != null) {
-                            if (!vpnRunning || ((excludedChanged || bypassModeChanged || filteringChanged) && bundle.vpnState == VpnState.Running)) {
-                                if (vpnRunning) {
-                                    AppLogsState.addLog("[VPN] Restarting due to settings change")
+                            // Запускаем если Idle ИЛИ если что-то изменилось (перезапуск)
+                            // Если состояние Error — перезапускаем только при изменении настроек
+                            val needsStart = bundle.vpnState == VpnState.Idle || (anySettingChanged && (vpnRunning || vpnError))
+                            
+                            if (needsStart) {
+                                if (vpnRunning || vpnError) {
+                                    AppLogsState.addLog("[VPN] Restarting due to settings change or recovery")
                                     val stopIntent = Intent(this@XrayService, HevVpnService::class.java).apply {
                                         action = HevVpnService.ACTION_STOP
                                     }
                                     startService(stopIntent)
                                 }
                                 
-                                // Start VPN if it's not Running
-                                if (VpnServiceState.state.value != VpnState.Running) {
+                                if (VpnServiceState.state.value != VpnState.Starting) {
                                     val vpnIntent = Intent(this@XrayService, HevVpnService::class.java).apply {
                                         putExtra(HevVpnService.EXTRA_SOCKS5_ADDR, runningXray.connectableAddress)
                                     }

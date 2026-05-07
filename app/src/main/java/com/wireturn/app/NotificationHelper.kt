@@ -130,10 +130,10 @@ object NotificationHelper {
         }
 
         if (vpnState != VpnState.Idle) {
-            val stopVpnIntent = Intent(context, HevVpnService::class.java).apply {
-                action = HevVpnService.ACTION_STOP_BY_USER
+            val stopVpnIntent = Intent(context, ProxyReceiver::class.java).apply {
+                action = "${context.packageName}.STOP_VPN"
             }
-            val stopVpnPendingIntent = PendingIntent.getService(
+            val stopVpnPendingIntent = PendingIntent.getBroadcast(
                 context, 
                 101, 
                 stopVpnIntent,
