@@ -252,7 +252,7 @@
     <string name="log_command">Command: %1$s</string>
     <string name="log_quota_error">>>> QUOTA ERROR — resetting session in 2s</string>
     <string name="log_proxy_start">=== TUNNEL STARTING: %1$s ===</string>
-    <string name="log_proxy_restart">=== RESTARTING TUNNEL ===</string>
+    <string name="log_proxy_suppressed">=== TUNNEL SUPPRESSED (DIRECT ROUTE) ===</string>
     <string name="log_process_stopped">=== PROCESS STOPPED (Code: %1$d) ===</string>
     <string name="log_startup_failed_no_watchdog">=== Startup error, watchdog not activated ===</string>
     <string name="log_quick_exit">=== Quick exit (%1$dms) — check VK link and settings ===</string>

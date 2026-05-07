@@ -214,7 +214,7 @@
     <string name="log_command">Команда: %1$s</string>
     <string name="log_quota_error">>>> QUOTA ERROR — сброс сессии через 2с</string>
     <string name="log_proxy_start">=== ЗАПУСК ТУННЕЛЯ: %1$s ===</string>
-    <string name="log_proxy_restart">=== ПЕРЕЗАПУСК ТУННЕЛЯ ===</string>
+    <string name="log_proxy_suppressed">=== ТУННЕЛЬ ПОДАВЛЕН (ПРЯМОЙ МАРШРУТ) ===</string>
     <string name="log_process_stopped">=== ПРОЦЕСС ОСТАНОВЛЕН (Код: %1$d) ===</string>
     <string name="log_startup_failed_no_watchdog">=== Ошибка при запуске, watchdog не активирован ===</string>
     <string name="log_quick_exit">=== Быстрый выход (%1$dмс) — проверьте VK-ссылку и настройки ===</string>

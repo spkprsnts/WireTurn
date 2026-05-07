@@ -80,9 +80,6 @@ class ProxyService : Service() {
 
         // При каждом явном вызове Start — перезапускаем цикл, чтобы подхватить возможные изменения в конфиге
         userStopped.set(false)
-        if (proxyJob?.isActive == true) {
-            AppLogsState.addLog(getString(R.string.log_proxy_restart))
-        }
         proxyJob?.cancel()
         proxyJob = serviceScope.launch {
             // Очищаем старый процесс перед запуском нового, чтобы избежать конфликтов портов (особенно при мягком перезапуске)
@@ -131,6 +128,12 @@ class ProxyService : Service() {
         xrayConfig: com.wireturn.app.data.XrayConfig,
         @Suppress("UNUSED_PARAMETER") profileName: String?
     ) {
+        if (AppLogsState.logs.value.isNotEmpty()) {
+            AppLogsState.addLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        }
+        val safeProfileName = profileName?.take(50) ?: "-"
+        AppLogsState.addLog(getString(R.string.log_proxy_start, safeProfileName))
+
         val isXrayVless = xrayConfig.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS
         val isDualRouteStart = xraySettings.xrayEnabled && isXrayVless && vlessConfig.isDualRoute
 
@@ -138,6 +141,7 @@ class ProxyService : Service() {
         
         if (isDualRouteStart) {
             // В режиме Dual-route стартуем в паузе, чтобы не запускать бинарник зря
+            AppLogsState.addLog(getString(R.string.log_proxy_suppressed))
             ProxyServiceState.setStatus(ProxyStatus.Suppressed)
             ProxyServiceState.setStatusText(getString(R.string.connecting))
         } else {
@@ -173,11 +177,6 @@ class ProxyService : Service() {
         wakeLock?.acquire(TimeUnit.HOURS.toMillis(24))
 
         registerNetworkCallback()
-        if (AppLogsState.logs.value.isNotEmpty()) {
-            AppLogsState.addLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        }
-        val safeProfileName = profileName?.take(50) ?: "-"
-        AppLogsState.addLog(getString(R.string.log_proxy_start, safeProfileName))
     }
 
     private suspend fun mainSupervisor(
@@ -210,6 +209,7 @@ class ProxyService : Service() {
                     when (state) {
                         XrayState.DirectRoute -> {
                             if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                                AppLogsState.addLog(getString(R.string.log_proxy_suppressed))
                                 ProxyServiceState.setStatus(ProxyStatus.Suppressed)
                             }
                             updateNotification(getString(R.string.vless_direct_active))
@@ -264,16 +264,17 @@ class ProxyService : Service() {
                 continue
             }
 
+            // В ЛЮБОМ СЛУЧАЕ проверяем сеть, если процесс упал не по воле пользователя
+            if (isNetworkMissingAndHandled()) {
+                continue
+            }
+
             // Check for rapid failure
             val currentStatus = ProxyServiceState.status.value
             if (!startupSuccessful || (currentStatus !is ProxyStatus.Connected && duration < 2500)) {
-                if (isNetworkMissingAndHandled()) {
-                    continue
-                }
-
-                AppLogsState.addLog(getString(R.string.log_quick_exit, duration))
-                AppLogsState.addLog(getString(R.string.log_startup_failed_no_watchdog))
-                if (ProxyServiceState.status.value !is ProxyStatus.Error) {
+                if (currentStatus !is ProxyStatus.Error) {
+                    AppLogsState.addLog(getString(R.string.log_quick_exit, duration))
+                    AppLogsState.addLog(getString(R.string.log_startup_failed_no_watchdog))
                     ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_kernel_or_settings)))
                 }
                 delay(500)
@@ -367,85 +368,83 @@ class ProxyService : Service() {
                             }
                         }
 
-                        if (!useCustom) {
-                            if (lower.contains("[vk auth]") || lower.contains("joining room") ||
-                                lower.contains("starting turnable client")) {
-                                if (!startupEmitted && ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
-                                    ProxyServiceState.setStatus(ProxyStatus.Connecting)
-                                    updateNotification(getString(R.string.connecting))
-                                    startupEmitted = true
-                                }
+                        if (lower.contains("[vk auth]") || lower.contains("joining room") ||
+                            lower.contains("starting turnable client")) {
+                            if (!startupEmitted && ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                                ProxyServiceState.setStatus(ProxyStatus.Connecting)
+                                updateNotification(getString(R.string.connecting))
+                                startupEmitted = true
                             }
-                            
-                            if (lower.contains("failed to validate connection url")) {
-                                if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
-                                    ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_invalid_turnable_url)))
-                                }
-                                startupFailed = true
-                                break
+                        }
+
+                        if (lower.contains("failed to validate connection url")) {
+                            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                                ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_invalid_turnable_url)))
                             }
+                            startupFailed = true
+                            break
+                        }
 
-                            if (lower.contains("failed to start vpn client")) {
-                                val errorPart = l.substringAfterLast(":").trim()
-                                if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
-                                    ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_turnable_failed, errorPart)))
-                                }
-                                startupFailed = true
-                                break
+                        if (lower.contains("failed to start vpn client")) {
+                            val errorPart = l.substringAfterLast(":").trim()
+                            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                                ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_turnable_failed, errorPart)))
                             }
+                            startupFailed = true
+                            break
+                        }
 
-                            if (lower.contains("established") || 
-                                lower.contains("listening on") || 
-                                lower.contains("datachannel connected") ||
-                                lower.contains("peer online"))
-                            {
-                                peerConnectFailedCount = 0
-                                unreachableNetworkCount = 0
-                                smuxErrorCount = 0
-                                publishDataErrorCount = 0
-                                if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
-                                    ProxyServiceState.setStatus(ProxyStatus.Connected)
-                                    updateNotification(getString(R.string.proxy_active))
-                                    startupEmitted = true
-                                    ProxyTileService.requestUpdate(this@ProxyService)
-                                }
+                        if (lower.contains("established") ||
+                            lower.contains("listening on") ||
+                            lower.contains("datachannel connected") ||
+                            lower.contains("peer online"))
+                        {
+                            peerConnectFailedCount = 0
+                            unreachableNetworkCount = 0
+                            smuxErrorCount = 0
+                            publishDataErrorCount = 0
+                            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                                ProxyServiceState.setStatus(ProxyStatus.Connected)
+                                updateNotification(getString(R.string.proxy_active))
+                                startupEmitted = true
+                                ProxyTileService.requestUpdate(this@ProxyService)
                             }
-                            if (lower.contains("datachannel closed")) {
-                                if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
-                                    if (isNetworkMissingAndHandled()) {
-                                        startupFailed = true
-                                        break
-                                    }
-
-                                    ProxyServiceState.setStatus(ProxyStatus.Connecting)
-                                    ProxyTileService.requestUpdate(this@ProxyService)
-
-                                    if (cfg.dcType == DCType.SALUTE_JAZZ) {
-                                        if (!checkJazzAvailability()) {
-                                            AppLogsState.addLog(getString(R.string.log_jazz_unavailable))
-                                            ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_jazz_unavailable)))
-                                            startupFailed = true
-                                            break
-                                        }
-                                    }
-                                }
-                            }
-
-                            if (lower.contains("peer connect failed")) {
-                                peerConnectFailedCount++
-                                if (peerConnectFailedCount >= 30) {
-                                    AppLogsState.addLog(getString(R.string.log_too_many_peer_failures))
-                                    if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
-                                        ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_too_many_peer_failures)))
-                                    }
+                        }
+                        if (lower.contains("datachannel closed")) {
+                            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                                if (isNetworkMissingAndHandled()) {
                                     startupFailed = true
                                     break
                                 }
-                                if (ProxyServiceState.status.value is ProxyStatus.Connected) {
-                                    ProxyServiceState.setStatus(ProxyStatus.Connecting)
-                                    updateNotification(getString(R.string.connecting))
-                                    ProxyTileService.requestUpdate(this@ProxyService)
+
+                                ProxyServiceState.setStatus(ProxyStatus.Connecting)
+                                ProxyTileService.requestUpdate(this@ProxyService)
+
+                                if (cfg.dcType == DCType.SALUTE_JAZZ) {
+                                    if (!checkJazzAvailability()) {
+                                        AppLogsState.addLog(getString(R.string.log_jazz_unavailable))
+                                        ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_jazz_unavailable)))
+                                        startupFailed = true
+                                        break
+                                    }
                                 }
+                            }
+                        }
+
+                        if (lower.contains("peer connect failed")) {
+                            peerConnectFailedCount++
+                            if (peerConnectFailedCount >= 30) {
+                                AppLogsState.addLog(getString(R.string.log_too_many_peer_failures))
+                                if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                                    ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_too_many_peer_failures)))
+                                }
+                                startupFailed = true
+                                break
+                            }
+                            if (ProxyServiceState.status.value is ProxyStatus.Connected) {
+                                ProxyServiceState.setStatus(ProxyStatus.Connecting)
+                                updateNotification(getString(R.string.connecting))
+                                ProxyTileService.requestUpdate(this@ProxyService)
                             }
                         }
 
