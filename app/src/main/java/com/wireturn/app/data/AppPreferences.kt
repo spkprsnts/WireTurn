@@ -349,7 +349,7 @@ class AppPreferences(context: Context) {
                     // GSON can bypass Kotlin's null-safety if fields are missing in JSON.
                     // We sanitize the object here to ensure all fields are non-null.
                     val c = p.clientConfig
-                    val sanitizedConfig = if (c != null) {
+                    val sanitizedConfig = run {
                         // Миграция со старых dcMode/vp8cMode в JSON профиля
                         val cType = (c.tunnelType as TunnelType?)
                         val migratedType = cType ?: when {
@@ -358,7 +358,7 @@ class AppPreferences(context: Context) {
                             else -> TunnelType.TURN
                         }
                         c.copy(tunnelType = migratedType)
-                    } else ClientConfig()
+                    }
 
                     Profile(
                         id = (p.id as String?) ?: java.util.UUID.randomUUID().toString(),
