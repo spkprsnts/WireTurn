@@ -349,6 +349,11 @@ class ProxyService : Service() {
 
                         val lower = l.lowercase()
 
+                        if (lower.contains("peer reconnected") && isNetworkMissingAndHandled()) {
+                            startupFailed = true
+                            break
+                        }
+
                         val isUnreachable = lower.contains("network is unreachable")
                         val isSmuxError = lower.contains("smux open stream error")
                         val isPublishDataError = lower.contains("publish data error")
@@ -371,7 +376,7 @@ class ProxyService : Service() {
                         }
 
                         if (lower.contains("[vk auth]") || lower.contains("joining room") ||
-                            lower.contains("starting turnable client")) {
+                            lower.contains("starting turnable client") || lower.contains("publisher") || lower.contains("subscriber")) {
                             if (!startupEmitted && ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
                                 ProxyServiceState.setStatus(ProxyStatus.Connecting)
                                 updateNotification(getString(R.string.connecting))
