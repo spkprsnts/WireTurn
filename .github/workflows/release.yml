@@ -39,7 +39,7 @@ jobs:
         id: vars
         run: |
           # Read NDK version from build.gradle.kts or use a fallback
-          NDK_VERSION=$(grep "ndkVersion =" app/build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/' || echo "27.0.12077973")
+          NDK_VERSION=$(grep "ndkVersion =" app/build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/' || echo "29.0.14206865")
           # Read Compile SDK (matches build tools) from gradle.properties
           BUILD_TOOLS=$(grep "project.compileSdk=" gradle.properties | cut -d'=' -f2 || echo "36")
           
