@@ -17,11 +17,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -74,6 +76,7 @@ import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.Profile
 import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -172,31 +175,28 @@ fun ProfilesBlock(
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
+            StandardLeadingIcon {
                 Icon(
                     painter = painterResource(R.drawable.mobile_24px),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier
-                        .size(24.dp)
+                    modifier = Modifier.size(24.dp)
                 )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = currentProfile.name,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        modifier = Modifier.basicMarquee()
-                    )
-                    ProfileSummary(
-                        profile = currentProfile,
-                        modifier = Modifier.basicMarquee()
-                    )
-                }
+            }
+            Spacer(Modifier.width(20.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = currentProfile.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    modifier = Modifier.basicMarquee()
+                )
+                ProfileSummary(
+                    profile = currentProfile,
+                    modifier = Modifier.basicMarquee()
+                )
             }
         }
     }
@@ -226,9 +226,11 @@ fun ProfileListItem(
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            leadingContent?.invoke()
+            if (leadingContent != null) {
+                StandardLeadingIcon(content = leadingContent)
+                Spacer(Modifier.width(20.dp))
+            }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = profile.name,
@@ -245,7 +247,10 @@ fun ProfileListItem(
                     modifier = Modifier.basicMarquee()
                 )
             }
-            trailingContent?.invoke()
+            if (trailingContent != null) {
+                Spacer(Modifier.width(12.dp))
+                trailingContent()
+            }
         }
     }
 }

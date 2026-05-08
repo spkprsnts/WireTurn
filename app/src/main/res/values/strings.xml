@@ -32,7 +32,7 @@
 
     <!-- Permissions -->
     <string name="permissions_title">Permissions</string>
-    <string name="permissions_desc">Access management for stable operation</string>
+    <string name="permissions_desc">For stable operation</string>
     <string name="permission_notifications">Notifications</string>
     <string name="permission_battery">Battery</string>
     <!-- Component and Core Names -->
@@ -195,6 +195,7 @@
     <string name="update_checking">Checking…</string>
     <string name="update_available">Version %1$s available</string>
     <string name="update_download">Download</string>
+    <string name="update_downloading_short">Downloading…</string>
     <string name="update_downloading">Downloading: %1$d%%</string>
     <string name="update_ready_desc_short">Ready to install</string>
     <string name="update_install">Install</string>

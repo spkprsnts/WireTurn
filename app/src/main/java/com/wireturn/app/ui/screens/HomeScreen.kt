@@ -47,8 +47,6 @@ import androidx.compose.ui.res.stringResource
 import com.wireturn.app.R
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -95,6 +93,8 @@ import android.content.ClipData
 import android.net.VpnService
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -112,6 +112,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.unit.Dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
@@ -121,6 +122,7 @@ import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.AppExclusionTooltip
 import com.wireturn.app.ui.VerticalAnimatedText
 import com.wireturn.app.ui.SettingsGroupItem
+import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.ProxyState
 import androidx.core.net.toUri
@@ -129,6 +131,10 @@ import com.wireturn.app.VpnServiceState
 import com.wireturn.app.XrayServiceState
 import com.wireturn.app.data.TunnelType
 import com.wireturn.app.ui.CompactSettingsItem
+import com.wireturn.app.ui.ConfigRowLabel
+import com.wireturn.app.ui.SupportingText
+import com.wireturn.app.ui.UpdateBlock
+import com.wireturn.app.viewmodel.UpdateState
 import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.viewmodel.XrayState
 import kotlin.math.ln
@@ -139,7 +145,6 @@ import kotlin.math.pow
 fun HomeScreen(
     viewModel: MainViewModel,
     onNavigateToExclusions: () -> Unit,
-    onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     // --- State & Data ---
@@ -162,6 +167,7 @@ fun HomeScreen(
     val xrayConfigSnapshot by XrayServiceState.xrayConfigSnapshot.collectAsStateWithLifecycle()
     val isRestarting by ProxyServiceState.isRestarting.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+    val updateProgress by viewModel.updateProgress.collectAsStateWithLifecycle()
 
     val currentProfileId by viewModel.currentProfileId.collectAsStateWithLifecycle()
     val autoLaunchSettings by viewModel.autoLaunchSettings.collectAsStateWithLifecycle()
@@ -443,7 +449,7 @@ fun HomeScreen(
                 .wrapContentWidth(Alignment.CenterHorizontally)
                 .widthIn(max = 600.dp)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = 16.dp)
                 .padding(bottom = 76.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -459,10 +465,11 @@ fun HomeScreen(
             // --- Update Banner ---
             UpdateBanner(
                 state = updateState,
+                progress = updateProgress,
                 onDownload = { viewModel.downloadUpdate() },
                 onInstall = { viewModel.installUpdate() },
-                onDetails = onNavigateToSettings,
-                containerColor = blockContainerColor
+                onCheck = { viewModel.checkForUpdate() },
+                containerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surfaceContainerHigh
             )
 
             // --- Permissions & Optimization Banner ---
@@ -477,90 +484,92 @@ fun HomeScreen(
                     containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f),
                     modifier = Modifier.padding(bottom = 24.dp)
                 ) {
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                painter = painterResource(R.drawable.error_24px),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onErrorContainer,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(Modifier.width(12.dp))
-                            Text(
-                                text = stringResource(R.string.permissions_title),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = stringResource(R.string.permissions_desc),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(modifier = Modifier.weight(1f)) {
-                                if (!hasNotificationPermission) {
-                                    Button(
-                                        onClick = {
-                                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                            notificationLauncher.launch("android.permission.POST_NOTIFICATIONS")
-                                        },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.onErrorContainer,
-                                            contentColor = MaterialTheme.colorScheme.errorContainer
-                                        ),
-                                        contentPadding = PaddingValues(horizontal = 12.dp),
-                                        modifier = Modifier.height(32.dp)
-                                    ) {
-                                        Icon(painterResource(R.drawable.info_24px), null, Modifier.size(16.dp))
-                                        Spacer(Modifier.width(6.dp))
-                                        Text(stringResource(R.string.permission_notifications), style = MaterialTheme.typography.labelMedium)
-                                    }
+                    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                StandardLeadingIcon {
+                                    Icon(
+                                        painter = painterResource(R.drawable.error_24px),
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                                        modifier = Modifier.size(24.dp)
+                                    )
                                 }
-                                if (!hasNotificationPermission && !isIgnoringBatteryOptimizations) {
-                                    Spacer(Modifier.width(8.dp))
-                                }
-                                if (!isIgnoringBatteryOptimizations) {
-                                    Button(
-                                        onClick = {
-                                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                            batteryOptLauncher.launch(
-                                                Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                                                    data = "package:${context.packageName}".toUri()
-                                                }
-                                            )
-                                        },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.onErrorContainer,
-                                            contentColor = MaterialTheme.colorScheme.errorContainer
-                                        ),
-                                        contentPadding = PaddingValues(horizontal = 12.dp),
-                                        modifier = Modifier.height(32.dp)
-                                    ) {
-                                        Icon(painterResource(R.drawable.power_24px), null, Modifier.size(16.dp))
-                                        Spacer(Modifier.width(6.dp))
-                                        Text(stringResource(R.string.permission_battery), style = MaterialTheme.typography.labelMedium)
-                                    }
+                                Spacer(Modifier.width(20.dp))
+                                Column {
+                                    ConfigRowLabel(stringResource(R.string.permissions_title))
+                                    Spacer(Modifier.height(2.dp))
+                                    SupportingText(
+                                        stringResource(R.string.permissions_desc),
+                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                    )
                                 }
                             }
-
-                            TextButton(
-                                onClick = {
-                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                    viewModel.setBatteryNotificationDismissed(true)
-                                }
+                            Spacer(Modifier.height(16.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    stringResource(R.string.btn_close),
-                                    color = MaterialTheme.colorScheme.onErrorContainer,
-                                    style = MaterialTheme.typography.labelMedium
-                                )
+                                Row(modifier = Modifier.weight(1f)) {
+                                    if (!hasNotificationPermission) {
+                                        Button(
+                                            onClick = {
+                                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                                notificationLauncher.launch("android.permission.POST_NOTIFICATIONS")
+                                            },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = MaterialTheme.colorScheme.onErrorContainer,
+                                                contentColor = MaterialTheme.colorScheme.errorContainer
+                                            ),
+                                            contentPadding = PaddingValues(horizontal = 12.dp),
+                                            modifier = Modifier.height(32.dp)
+                                        ) {
+                                            Icon(painterResource(R.drawable.info_24px), null, Modifier.size(16.dp))
+                                            Spacer(Modifier.width(6.dp))
+                                            Text(stringResource(R.string.permission_notifications), style = MaterialTheme.typography.labelMedium)
+                                        }
+                                    }
+                                    if (!hasNotificationPermission && !isIgnoringBatteryOptimizations) {
+                                        Spacer(Modifier.width(8.dp))
+                                    }
+                                    if (!isIgnoringBatteryOptimizations) {
+                                        Button(
+                                            onClick = {
+                                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                                batteryOptLauncher.launch(
+                                                    Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                                        data = "package:${context.packageName}".toUri()
+                                                    }
+                                                )
+                                            },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = MaterialTheme.colorScheme.onErrorContainer,
+                                                contentColor = MaterialTheme.colorScheme.errorContainer
+                                            ),
+                                            contentPadding = PaddingValues(horizontal = 12.dp),
+                                            modifier = Modifier.height(32.dp)
+                                        ) {
+                                            Icon(painterResource(R.drawable.power_24px), null, Modifier.size(16.dp))
+                                            Spacer(Modifier.width(6.dp))
+                                            Text(stringResource(R.string.permission_battery), style = MaterialTheme.typography.labelMedium)
+                                        }
+                                    }
+                                }
+
+                                TextButton(
+                                    onClick = {
+                                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                        viewModel.setBatteryNotificationDismissed(true)
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 12.dp),
+                                    modifier = Modifier.height(32.dp)
+                                ) {
+                                    Text(
+                                        stringResource(R.string.btn_close),
+                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                }
                             }
                         }
                     }
@@ -775,7 +784,7 @@ fun HomeScreen(
                                         label = "pulse_alpha"
                                     )
 
-                                    when (val targetPing = currentPing) {
+                                    when (currentPing) {
                                         is MainViewModel.PingResult.Loading -> {
                                             if (lastSuccessPing != null) {
                                                 VerticalAnimatedText(
@@ -800,9 +809,10 @@ fun HomeScreen(
 
                                         is MainViewModel.PingResult.Success -> {
                                             VerticalAnimatedText(
-                                                text = stringResource(R.string.ping_ms, targetPing.ms),
+                                                text = stringResource(R.string.ping_ms,
+                                                    currentPing.ms),
                                                 style = MaterialTheme.typography.labelMedium,
-                                                color = if (targetPing.ms < 300) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
+                                                color = if (currentPing.ms < 300) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
                                                 fontWeight = FontWeight.Bold,
                                                 contentAlignment = Alignment.Center
                                             )
@@ -866,76 +876,69 @@ fun HomeScreen(
                         Column {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                horizontalArrangement = Arrangement.spacedBy(20.dp)
                             ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.refresh_24px),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                    tint = MaterialTheme.colorScheme.onSurface
-                                )
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = stringResource(R.string.restart_required),
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        fontWeight = FontWeight.Bold
+                                StandardLeadingIcon {
+                                    Icon(
+                                        painter = painterResource(R.drawable.refresh_24px),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(24.dp),
+                                        tint = MaterialTheme.colorScheme.onSurface
                                     )
-                                    val restartReasonText = when {
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    ConfigRowLabel(stringResource(R.string.restart_required))
+                                    Spacer(Modifier.height(2.dp))
+                                    SupportingText(when {
                                         mainConfigChanged -> stringResource(R.string.restart_reason_client)
                                         else -> stringResource(R.string.restart_reason_xray)
-                                    }
-                                    VerticalAnimatedText(
-                                        text = restartReasonText,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                                    )
-                                    }
+                                    })
                                 }
+                            }
 
-                                Spacer(Modifier.height(12.dp))
+                            Spacer(Modifier.height(16.dp))
 
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.End,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.reset),
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier
-                                            .clip(MaterialTheme.shapes.small)
-                                            .clickable {
-                                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                                viewModel.revertToSnapshotConfigs()
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.reset),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier
+                                        .clip(MaterialTheme.shapes.small)
+                                        .clickable {
+                                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                            viewModel.revertToSnapshotConfigs()
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = stringResource(R.string.btn_restart),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier
+                                        .clip(MaterialTheme.shapes.small)
+                                        .clickable {
+                                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                            if (mainConfigChanged) {
+                                                viewModel.restartProxy()
+                                            } else if (xrayConfigChanged) {
+                                                viewModel.restartXray()
                                             }
-                                            .padding(horizontal = 12.dp, vertical = 8.dp)
-                                    )
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(
-                                        text = stringResource(R.string.btn_restart),
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier
-                                            .clip(MaterialTheme.shapes.small)
-                                            .clickable {
-                                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                                if (mainConfigChanged) {
-                                                    viewModel.restartProxy()
-                                                } else if (xrayConfigChanged) {
-                                                    viewModel.restartXray()
-                                                }
-                                            }
-                                            .padding(horizontal = 12.dp, vertical = 8.dp)
-                                    )
-                                }
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                )
                             }
                         }
                     }
                 }
+            }
 
             Spacer(Modifier.height(24.dp))
 
@@ -1262,106 +1265,34 @@ fun HomeScreen(
 // --- Update Banner Component ---
 @Composable
 private fun UpdateBanner(
-    state: com.wireturn.app.viewmodel.UpdateState,
+    state: UpdateState,
+    progress: Int,
     onDownload: () -> Unit,
     onInstall: () -> Unit,
-    onDetails: () -> Unit,
+    onCheck: () -> Unit,
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHighest
 ) {
-    // --- State & Data ---
-    val context = LocalContext.current
-    val isVisible = state is com.wireturn.app.viewmodel.UpdateState.Available || state is com.wireturn.app.viewmodel.UpdateState.ReadyToInstall || state is com.wireturn.app.viewmodel.UpdateState.Downloading
+    val isVisible = state is UpdateState.Available || state is UpdateState.ReadyToInstall || state is UpdateState.Downloading
 
     AnimatedVisibility(
         visible = isVisible,
         enter = fadeIn() + expandVertically(),
         exit = fadeOut() + shrinkVertically()
     ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 24.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = containerColor
-            ),
-            shape = MaterialTheme.shapes.medium,
-            onClick = onDetails
+        SettingsGroupItem(
+            isTop = true,
+            isBottom = true,
+            containerColor = containerColor,
+            modifier = Modifier.padding(bottom = 24.dp)
         ) {
-            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.refresh_24px),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    val updateStatusText = when (state) {
-                        is com.wireturn.app.viewmodel.UpdateState.Available -> stringResource(R.string.update_available, state.version)
-                        is com.wireturn.app.viewmodel.UpdateState.Downloading -> stringResource(R.string.update_downloading, state.progress)
-                        is com.wireturn.app.viewmodel.UpdateState.ReadyToInstall -> stringResource(R.string.update_ready_desc_short)
-                        else -> ""
-                    }
-
-                    VerticalAnimatedText(
-                        text = updateStatusText,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    when (state) {
-                        is com.wireturn.app.viewmodel.UpdateState.Available -> {
-                            TextButton(
-                                onClick = {
-                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                    onDownload()
-                                },
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                                modifier = Modifier.height(32.dp)
-                            ) {
-                                Text(stringResource(R.string.update_download), style = MaterialTheme.typography.labelLarge)
-                            }
-                        }
-                        is com.wireturn.app.viewmodel.UpdateState.ReadyToInstall -> {
-                            TextButton(
-                                onClick = {
-                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                    onInstall()
-                                },
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                                modifier = Modifier.height(32.dp)
-                            ) {
-                                Text(stringResource(R.string.update_install), style = MaterialTheme.typography.labelLarge)
-                            }
-                        }
-                        else -> {}
-                    }
-
-                    Spacer(Modifier.width(4.dp))
-                    Icon(
-                        painter = painterResource(R.drawable.open_in_new_24px),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.5f),
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-
-                if (state is com.wireturn.app.viewmodel.UpdateState.Downloading) {
-                    androidx.compose.material3.LinearWavyProgressIndicator(
-                        progress = { state.progress / 100f },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp, bottom = 4.dp),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
+            UpdateBlock(
+                state = state,
+                progress = progress,
+                showChangelog = false,
+                onDownload = onDownload,
+                onInstall = onInstall,
+                onCheck = onCheck
+            )
         }
     }
 }
@@ -1762,10 +1693,8 @@ private fun ProxyAddressRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (leadingIcon != null) {
-            Box(modifier = Modifier.size(24.dp)) {
-                leadingIcon()
-            }
-            Spacer(Modifier.width(16.dp))
+            StandardLeadingIcon(content = leadingIcon)
+            Spacer(Modifier.width(20.dp))
         }
 
         Column(modifier = Modifier.weight(1f)) {

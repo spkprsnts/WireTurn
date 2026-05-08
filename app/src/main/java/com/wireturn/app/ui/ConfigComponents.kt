@@ -3,13 +3,16 @@ package com.wireturn.app.ui
 import android.annotation.SuppressLint
 import android.app.Activity
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
@@ -21,6 +24,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -37,15 +41,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -56,6 +56,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -71,6 +72,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -78,10 +80,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Alignment
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -90,7 +89,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
@@ -99,6 +105,7 @@ import androidx.core.view.WindowCompat
 import com.wireturn.app.R
 import com.wireturn.app.data.ThemeMode
 import com.wireturn.app.ui.theme.LocalThemeMode
+import com.wireturn.app.viewmodel.UpdateState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -177,6 +184,30 @@ fun SectionHeader(title: String, modifier: Modifier = Modifier) {
 }
 
 /**
+ * Shared label for settings rows.
+ */
+@Composable
+fun ConfigRowLabel(
+    text: String,
+    modifier: Modifier = Modifier,
+    isModified: Boolean = false
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        InlineConfigIndicator(isModified)
+    }
+}
+
+/**
  * A reusable component for animated text transitions.
  */
 @Composable
@@ -222,29 +253,17 @@ fun VerticalAnimatedText(
 fun SupportingText(
     text: String?,
     modifier: Modifier = Modifier,
-    secondaryText: String? = null,
     style: TextStyle = MaterialTheme.typography.bodyMedium,
-    color: Color = MaterialTheme.colorScheme.onSurfaceVariant,
-    verticalSpacing: Dp = 2.dp
+    color: Color = MaterialTheme.colorScheme.onSurfaceVariant
 ) {
-    if (text.isNullOrBlank() && secondaryText.isNullOrBlank()) return
+    if (text.isNullOrBlank()) return
 
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(verticalSpacing)) {
-        if (!text.isNullOrBlank()) {
-            VerticalAnimatedText(
-                text = text,
-                style = style,
-                color = color
-            )
-        }
-        if (!secondaryText.isNullOrBlank()) {
-            Text(
-                text = secondaryText,
-                style = MaterialTheme.typography.bodySmall,
-                color = color.copy(alpha = 0.8f)
-            )
-        }
-    }
+    VerticalAnimatedText(
+        text = text,
+        style = style,
+        color = color,
+        modifier = modifier
+    )
 }
 
 @Composable
@@ -264,6 +283,20 @@ fun SettingsGroup(
 }
 
 @Composable
+fun StandardLeadingIcon(
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .padding(start = 8.dp)
+            .size(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
+    }
+}
+
+@Composable
 fun SettingsGroupItem(
     isTop: Boolean,
     isBottom: Boolean,
@@ -274,7 +307,7 @@ fun SettingsGroupItem(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit
 ) {
-    val cornerSize = 16.dp
+    val cornerSize = 20.dp
     val smallCornerSize = 4.dp
 
     val topRadius by animateDpAsState(targetValue = if (isTop) cornerSize else smallCornerSize, label = "top_corner")
@@ -356,22 +389,13 @@ fun LabeledSegmentedButton(
     label: String,
     modifier: Modifier = Modifier,
     supportingText: String? = null,
-    secondaryText: String? = null,
     isModified: Boolean = false,
     content: @Composable SingleChoiceSegmentedButtonRowScope.() -> Unit
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            InlineConfigIndicator(isModified)
-        }
+        ConfigRowLabel(text = label, isModified = isModified)
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth(), content = content)
-        SupportingText(text = supportingText, secondaryText = secondaryText)
+        SupportingText(text = supportingText)
     }
 }
 
@@ -382,7 +406,6 @@ fun SwitchRow(
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     supportingText: String? = null,
-    secondaryText: String? = null,
     isModified: Boolean = false,
     enabled: Boolean = true,
     leadingIcon: @Composable (() -> Unit)? = null,
@@ -413,32 +436,27 @@ fun SwitchRow(
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
         modifier = rowModifier
     ) {
         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
             if (leadingIcon != null) {
-                leadingIcon()
+                StandardLeadingIcon(content = leadingIcon)
+                Spacer(Modifier.width(20.dp))
             }
 
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    InlineConfigIndicator(isModified)
-                }
+                ConfigRowLabel(text = label, isModified = isModified)
                 Spacer(Modifier.height(2.dp))
-                SupportingText(text = supportingText, secondaryText = secondaryText)
+                SupportingText(text = supportingText)
             }
 
             if (trailingContent != null) {
+                Spacer(Modifier.width(16.dp))
                 trailingContent()
             }
         }
+
+        Spacer(Modifier.width(16.dp))
 
         ConfigSwitch(
             checked = checked,
@@ -457,7 +475,6 @@ fun TextFieldRow(
     modifier: Modifier = Modifier,
     placeholder: String = "",
     supportingText: String? = null,
-    secondaryText: String? = null,
     isError: Boolean = false,
     readOnly: Boolean = false,
     singleLine: Boolean = true,
@@ -474,17 +491,11 @@ fun TextFieldRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f, fill = false)) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                InlineConfigIndicator(isModified)
-            }
+            ConfigRowLabel(
+                text = label,
+                isModified = isModified,
+                modifier = Modifier.weight(1f, fill = false)
+            )
 
             if (onHelpClick != null) {
                 IconButton(
@@ -510,7 +521,11 @@ fun TextFieldRow(
             minLines = minLines,
             maxLines = maxLines,
             placeholder = { Text(placeholder) },
-            leadingIcon = leadingIcon,
+            leadingIcon = leadingIcon?.let {
+                {
+                    StandardLeadingIcon(content = it)
+                }
+            },
             trailingIcon = trailingIcon,
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Transparent,
@@ -522,7 +537,7 @@ fun TextFieldRow(
             )
         )
         Spacer(Modifier.height(2.dp))
-        SupportingText(text = supportingText, secondaryText = secondaryText)
+        SupportingText(text = supportingText)
     }
 }
 
@@ -791,6 +806,180 @@ fun TurnableUrlEditorDialog(
                 
                 Spacer(Modifier.height(32.dp))
             }
+        }
+    }
+}
+
+/**
+ * A shared component to display application update status.
+ */
+@Composable
+fun UpdateBlock(
+    state: UpdateState,
+    progress: Int,
+    modifier: Modifier = Modifier,
+    showChangelog: Boolean = true,
+    onDownload: (() -> Unit)? = null,
+    onInstall: (() -> Unit)? = null,
+    onCheck: (() -> Unit)? = null
+) {
+    val titleText = stringResource(R.string.update_title)
+
+    val supportingText = when (state) {
+        is UpdateState.Idle -> stringResource(R.string.update_tap_to_check)
+        is UpdateState.Checking -> stringResource(R.string.update_checking)
+        is UpdateState.Available -> stringResource(R.string.update_available, state.version)
+        is UpdateState.Downloading -> stringResource(R.string.update_downloading_short)
+        is UpdateState.ReadyToInstall -> stringResource(R.string.update_ready_desc_short)
+        is UpdateState.NoUpdate -> stringResource(R.string.update_no_update)
+        is UpdateState.Error -> stringResource(R.string.update_error, state.message)
+    }
+
+    // Сохраняем описание обновы, чтобы оно не пропадало во время загрузки или когда всё готово
+    var currentChangelog by remember { mutableStateOf("") }
+    LaunchedEffect(state) {
+        if (state is UpdateState.Available) {
+            currentChangelog = state.changelog
+        } else if (state is UpdateState.Idle || state is UpdateState.NoUpdate) {
+            currentChangelog = ""
+        }
+    }
+
+    val contentColor = MaterialTheme.colorScheme.onSurface
+
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier.heightIn(min = 40.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            StandardLeadingIcon {
+                val targetContentColor = MaterialTheme.colorScheme.onSurface
+
+                when (state) {
+                    is UpdateState.Checking, is UpdateState.Downloading -> {
+                        androidx.compose.material3.CircularWavyProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = targetContentColor
+                        )
+                    }
+                    else -> {
+                        Icon(
+                            painter = painterResource(
+                                when (state) {
+                                    is UpdateState.Error -> R.drawable.error_24px
+                                    is UpdateState.Available, is UpdateState.ReadyToInstall -> R.drawable.info_24px
+                                    else -> R.drawable.sync_24px
+                                }
+                            ),
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                            tint = if (state is UpdateState.Error) MaterialTheme.colorScheme.error
+                            else targetContentColor
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.width(20.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                ConfigRowLabel(text = titleText)
+                Spacer(Modifier.height(2.dp))
+                SupportingText(
+                    text = supportingText,
+                    color = if (state is UpdateState.Error) MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            when (state) {
+                is UpdateState.Available -> {
+                    if (onDownload != null) {
+                        Spacer(Modifier.width(12.dp))
+                        TextButton(
+                            onClick = { onDownload.invoke() },
+                            modifier = Modifier.padding(start = 8.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.update_download),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+                is UpdateState.Downloading -> {
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = "$progress%",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                        textAlign = TextAlign.End
+                    )
+                }
+                is UpdateState.ReadyToInstall -> {
+                    if (onInstall != null) {
+                        Spacer(Modifier.width(12.dp))
+                        TextButton(
+                            onClick = { onInstall.invoke() },
+                            modifier = Modifier.padding(start = 8.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.update_install),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+                is UpdateState.Idle, is UpdateState.NoUpdate, is UpdateState.Error -> {
+                    if (onCheck != null) {
+                        Spacer(Modifier.width(12.dp))
+                        IconButton(
+                            onClick = { onCheck.invoke() }
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.refresh_24px),
+                                contentDescription = stringResource(R.string.update_tap_to_check),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+                else -> {}
+            }
+        }
+
+        // Линейный прогресс-бар при скачивании
+        AnimatedVisibility(
+            visible = state is UpdateState.Downloading,
+            enter = expandVertically(animationSpec = tween(300)) + fadeIn(tween(300)),
+            exit = shrinkVertically(animationSpec = tween(300)) + fadeOut(tween(300))
+        ) {
+            androidx.compose.material3.LinearWavyProgressIndicator(
+                progress = { progress.div(100f) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp),
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        if (showChangelog && currentChangelog.isNotBlank()) {
+            Text(
+                text = MarkdownUtils.parseMarkdown(
+                    text = currentChangelog,
+                    linkStyle = SpanStyle(
+                        color = MaterialTheme.colorScheme.primary,
+                        textDecoration = TextDecoration.Underline
+                    )
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = contentColor.copy(alpha = 0.7f),
+                modifier = Modifier.padding(top = 12.dp)
+            )
         }
     }
 }

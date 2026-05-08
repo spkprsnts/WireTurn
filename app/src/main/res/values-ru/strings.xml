@@ -29,7 +29,7 @@
 
     <!-- Разрешения -->
     <string name="permissions_title">Разрешения</string>
-    <string name="permissions_desc">Управление доступом для стабильной работы</string>
+    <string name="permissions_desc">Для стабильной работы</string>
     <string name="permission_notifications">Уведомления</string>
     <string name="permission_battery">Батарея</string>
     <!-- Названия компонентов и ядер -->
@@ -157,6 +157,7 @@
     <string name="update_checking">Проверка…</string>
     <string name="update_available">Доступна версия %1$s</string>
     <string name="update_download">Скачать</string>
+    <string name="update_downloading_short">Загрузка…</string>
     <string name="update_downloading">Загрузка: %1$d%%</string>
     <string name="update_ready_desc_short">Готово к установке</string>
     <string name="update_install">Установить</string>

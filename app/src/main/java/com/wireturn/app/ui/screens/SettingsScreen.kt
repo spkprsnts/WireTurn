@@ -6,17 +6,7 @@
 package com.wireturn.app.ui.screens
 
 import android.os.Build
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,7 +15,6 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -35,7 +24,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -63,21 +51,18 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.data.ThemeMode
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.LabeledSegmentedButton
-import com.wireturn.app.ui.MarkdownUtils
 import com.wireturn.app.ui.SettingsGroup
 import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
+import com.wireturn.app.ui.UpdateBlock
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.UpdateState
 
@@ -85,7 +70,7 @@ import com.wireturn.app.viewmodel.UpdateState
 fun SettingsScreen(
     viewModel: MainViewModel,
     modifier: Modifier = Modifier,
-    scrollToUpdate: Boolean = false
+    scrollToUpdate: Long = 0L
 ) {
     val context = LocalContext.current
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
@@ -93,14 +78,15 @@ fun SettingsScreen(
     val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
     val allowUnstableUpdates by viewModel.allowUnstableUpdates.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+    val updateProgress by viewModel.updateProgress.collectAsStateWithLifecycle()
     val showResetDialog = rememberSaveable { mutableStateOf(false) }
 
     val scrollState = rememberScrollState()
     var updateBlockOffset by remember { mutableFloatStateOf(0f) }
-    var hasScrolled by rememberSaveable(scrollToUpdate) { mutableStateOf(false) }
+    var hasScrolled by remember(scrollToUpdate) { mutableStateOf(false) }
 
     LaunchedEffect(scrollToUpdate) {
-        if (scrollToUpdate && !hasScrolled) {
+        if (scrollToUpdate > 0L && !hasScrolled) {
             // Ждем пока координаты блока станут доступны
             while (updateBlockOffset <= 0f) {
                 delay(16)
@@ -435,19 +421,24 @@ fun SettingsScreen(
                 SettingsGroupItem(
                     isTop = true,
                     isBottom = false,
-                    containerColor = updateContainerColor,
-                    onClick = {
-                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                        when (updateState) {
-                            is UpdateState.Available -> viewModel.downloadUpdate()
-                            is UpdateState.ReadyToInstall -> viewModel.installUpdate()
-                            else -> viewModel.checkForUpdate()
-                        }
-                    },
-                    enabled = updateState !is UpdateState.Checking && updateState !is UpdateState.Downloading
+                    containerColor = updateContainerColor
                 ) {
                     UpdateBlock(
-                        state = updateState
+                        state = updateState,
+                        progress = updateProgress,
+                        showChangelog = true,
+                        onDownload = {
+                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                            viewModel.downloadUpdate()
+                        },
+                        onInstall = {
+                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                            viewModel.installUpdate()
+                        },
+                        onCheck = {
+                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                            viewModel.checkForUpdate()
+                        }
                     )
                 }
 
@@ -568,171 +559,5 @@ fun SettingsScreen(
                 TextButton(onClick = { showResetDialog.value = false }) { Text(stringResource(R.string.cancel)) }
             }
         )
-    }
-}
-
-@Composable
-private fun UpdateBlock(
-    state: UpdateState
-) {
-    val titleText = stringResource(R.string.update_title)
-    val supportingText = when (state) {
-        is UpdateState.Idle -> stringResource(R.string.update_tap_to_check)
-        is UpdateState.Checking -> stringResource(R.string.update_checking)
-        is UpdateState.Available -> stringResource(R.string.update_available, state.version)
-        is UpdateState.Downloading -> stringResource(R.string.update_downloading, state.progress)
-        is UpdateState.ReadyToInstall -> stringResource(R.string.update_ready_desc_short)
-        is UpdateState.NoUpdate -> stringResource(R.string.update_no_update)
-        is UpdateState.Error -> stringResource(R.string.update_error, state.message)
-    }
-
-    // Сохраняем описание обновы, чтобы оно не пропадало во время загрузки или когда всё готово
-    var currentChangelog by rememberSaveable { mutableStateOf("") }
-    LaunchedEffect(state) {
-        if (state is UpdateState.Available) {
-            currentChangelog = state.changelog
-        } else if (state is UpdateState.Idle || state is UpdateState.NoUpdate) {
-            currentChangelog = ""
-        }
-    }
-
-    val contentColor = MaterialTheme.colorScheme.onSurface
-
-    Column {
-        Row(
-            modifier = Modifier.heightIn(min = 40.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Box(modifier = Modifier.size(24.dp), contentAlignment = Alignment.Center) {
-                AnimatedContent(
-                    targetState = state,
-                    label = "update_indicator",
-                    transitionSpec = {
-                        fadeIn(tween(200)) togetherWith fadeOut(tween(200))
-                    },
-                    contentKey = { it::class }
-                ) { targetState ->
-                    val targetContentColor = MaterialTheme.colorScheme.onSurface
-
-                    when (targetState) {
-                        is UpdateState.Checking, is UpdateState.Downloading -> {
-                            CircularWavyProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                color = targetContentColor
-                            )
-                        }
-                        else -> {
-                            Icon(
-                                painter = painterResource(
-                                    when (targetState) {
-                                        is UpdateState.Error -> R.drawable.error_24px
-                                        is UpdateState.Available, is UpdateState.ReadyToInstall -> R.drawable.info_24px
-                                        else -> R.drawable.sync_24px
-                                    }
-                                ),
-                                contentDescription = null,
-                                modifier = Modifier.size(24.dp),
-                                tint = if (targetState is UpdateState.Error) MaterialTheme.colorScheme.error
-                                else targetContentColor
-                            )
-                        }
-                    }
-                }
-            }
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = titleText,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = contentColor,
-                    fontWeight = FontWeight.Medium
-                )
-                AnimatedContent(
-                    targetState = state,
-                    label = "update_supporting_text",
-                    transitionSpec = {
-                        fadeIn(tween(200)) togetherWith fadeOut(tween(200)) using SizeTransform(clip = false)
-                    },
-                    contentKey = { if (it is UpdateState.Downloading) "downloading" else it }
-                ) { targetState ->
-                    val targetContentColor = MaterialTheme.colorScheme.onSurface
-
-                    val targetSupportingText = when (targetState) {
-                        is UpdateState.Idle -> stringResource(R.string.update_tap_to_check)
-                        is UpdateState.Checking -> stringResource(R.string.update_checking)
-                        is UpdateState.Available -> stringResource(R.string.update_available, targetState.version)
-                        is UpdateState.Downloading -> supportingText // Use outer supportingText for real-time progress
-                        is UpdateState.ReadyToInstall -> stringResource(R.string.update_ready_desc_short)
-                        is UpdateState.NoUpdate -> stringResource(R.string.update_no_update)
-                        is UpdateState.Error -> stringResource(R.string.update_error, targetState.message)
-                    }
-
-                    Text(
-                        text = targetSupportingText,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = (if (targetState is UpdateState.Error) MaterialTheme.colorScheme.error
-                                else targetContentColor).copy(alpha = 0.7f)
-                    )
-                }
-            }
-
-            AnimatedContent(
-                targetState = when(state) {
-                    is UpdateState.Available -> "download"
-                    is UpdateState.ReadyToInstall -> "install"
-                    else -> "none"
-                },
-                label = "update_actions",
-                transitionSpec = {
-                    fadeIn(animationSpec = tween(200)) togetherWith fadeOut(animationSpec = tween(200))
-                }
-            ) { targetKey ->
-                val actionText = when (targetKey) {
-                    "download" -> stringResource(R.string.update_download)
-                    "install" -> stringResource(R.string.update_install)
-                    else -> null
-                }
-                if (actionText != null) {
-                    Text(
-                        text = actionText,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 8.dp)
-                    )
-                }
-            }
-        }
-
-        // Линейный прогресс-бар при скачивании
-        AnimatedVisibility(
-            visible = state is UpdateState.Downloading,
-            enter = expandVertically(animationSpec = tween(300)) + fadeIn(tween(300)),
-            exit = shrinkVertically(animationSpec = tween(300)) + fadeOut(tween(300))
-        ) {
-            androidx.compose.material3.LinearWavyProgressIndicator(
-                progress = { (state as? UpdateState.Downloading)?.progress?.div(100f) ?: 0f },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp),
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-
-        if (currentChangelog.isNotBlank()) {
-            Text(
-                text = MarkdownUtils.parseMarkdown(
-                    text = currentChangelog,
-                    linkStyle = SpanStyle(
-                        color = MaterialTheme.colorScheme.primary,
-                        textDecoration = TextDecoration.Underline
-                    )
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = contentColor.copy(alpha = 0.7f),
-                modifier = Modifier.padding(top = 12.dp)
-            )
-        }
     }
 }

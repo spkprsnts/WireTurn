@@ -62,12 +62,14 @@ import com.wireturn.app.data.DCType
 import com.wireturn.app.data.VP8CType
 import com.wireturn.app.data.TunnelType
 import com.wireturn.app.data.KernelVariant
+import com.wireturn.app.ui.ConfigRowLabel
 import com.wireturn.app.ui.FieldTrailingIcons
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.InlineConfigIndicator
 import com.wireturn.app.ui.LabeledSegmentedButton
 import com.wireturn.app.ui.SettingsGroup
 import com.wireturn.app.ui.SettingsGroupItem
+import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SupportingText
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
@@ -801,28 +803,22 @@ fun ClientConfigScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.weight(1f)) {
-                            Icon(
-                                painter = painterResource(if (customKernelExists) R.drawable.check_circle_24px else R.drawable.memory_24px),
-                                contentDescription = null,
-                                tint = if (customKernelExists) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp), modifier = Modifier.weight(1f)) {
+                            StandardLeadingIcon {
+                                Icon(
+                                    painter = painterResource(if (customKernelExists) R.drawable.check_circle_24px else R.drawable.memory_24px),
+                                    contentDescription = null,
+                                    tint = if (customKernelExists) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                Text(
-                                    text = if (customKernelExists) stringResource(R.string.custom_core) else stringResource(R.string.builtin_core),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = if (customKernelExists) {
-                                        customKernelLastModified?.let {
-                                            SimpleDateFormat("dd.MM.yyyy HH:mm", LocalLocale.current.platformLocale).format(Date(it))
-                                        }?.let { stringResource(R.string.kernel_date_format, it) } ?: stringResource(R.string.loaded_from_memory)
-                                    } else stringResource(R.string.from_apk),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                ConfigRowLabel(if (customKernelExists) stringResource(R.string.custom_core) else stringResource(R.string.builtin_core))
+                                SupportingText(if (customKernelExists) {
+                                    customKernelLastModified?.let {
+                                        SimpleDateFormat("dd.MM.yyyy HH:mm", LocalLocale.current.platformLocale).format(Date(it))
+                                    }?.let { stringResource(R.string.kernel_date_format, it) } ?: stringResource(R.string.loaded_from_memory)
+                                } else stringResource(R.string.from_apk))
                             }
                         }
                         if (customKernelExists) {
@@ -843,9 +839,16 @@ fun ClientConfigScreen(
                 }
                 if (kernelError != null) {
                     SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(painter = painterResource(R.drawable.error_24px), contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
-                            Text(kernelError!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                            StandardLeadingIcon {
+                                Icon(
+                                    painter = painterResource(R.drawable.error_24px),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            SupportingText(kernelError!!, color = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
@@ -896,11 +899,17 @@ fun ClientConfigScreen(
             onDismissRequest = { showServerHelp.value = false },
             title = { Text(stringResource(R.string.server_address_label)) },
             text = { 
-                SupportingText(
-                    text = stringResource(R.string.server_help_text),
-                    secondaryText = stringResource(R.string.server_help_secondary),
-                    verticalSpacing = 8.dp
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = stringResource(R.string.server_help_text),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = stringResource(R.string.server_help_secondary),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             },
             confirmButton = {
                 TextButton(onClick = { showServerHelp.value = false }) {
@@ -916,11 +925,17 @@ fun ClientConfigScreen(
             onDismissRequest = { showVkHelp.value = false },
             title = { Text(stringResource(R.string.vk_link_label)) },
             text = { 
-                SupportingText(
-                    text = stringResource(R.string.vk_help_text),
-                    secondaryText = stringResource(R.string.vk_help_secondary),
-                    verticalSpacing = 8.dp
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = stringResource(R.string.vk_help_text),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = stringResource(R.string.vk_help_secondary),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             },
             confirmButton = {
                 TextButton(onClick = { 
@@ -942,11 +957,17 @@ fun ClientConfigScreen(
             onDismissRequest = { showPortHelp.value = false },
             title = { Text(stringResource(R.string.local_listen_address)) },
             text = { 
-                SupportingText(
-                    text = stringResource(R.string.local_port_help_text),
-                    secondaryText = stringResource(R.string.local_port_help_secondary),
-                    verticalSpacing = 8.dp
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = stringResource(R.string.local_port_help_text),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = stringResource(R.string.local_port_help_secondary),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             },
             confirmButton = {
                 TextButton(onClick = { showPortHelp.value = false }) {

@@ -22,6 +22,9 @@ class AppUpdater(private val context: Context) {
     private val _state = MutableStateFlow<UpdateState>(UpdateState.Idle)
     val state: StateFlow<UpdateState> = _state.asStateFlow()
 
+    private val _downloadProgress = MutableStateFlow(0)
+    val downloadProgress: StateFlow<Int> = _downloadProgress.asStateFlow()
+
     private var latestApkUrl: String? = null
 
     private val apkFile: File
@@ -88,7 +91,8 @@ class AppUpdater(private val context: Context) {
             return
         }
 
-        _state.value = UpdateState.Downloading(0)
+        _state.value = UpdateState.Downloading
+        _downloadProgress.value = 0
         try {
             withContext(Dispatchers.IO) {
                 val proxy = getXrayIfRunning()
@@ -114,7 +118,7 @@ class AppUpdater(private val context: Context) {
                             if (totalSize > 0) {
                                 val progress = (downloaded * 100 / totalSize).toInt()
                                 if (progress != lastProgress) {
-                                    _state.value = UpdateState.Downloading(progress)
+                                    _downloadProgress.value = progress
                                     lastProgress = progress
                                 }
                             }

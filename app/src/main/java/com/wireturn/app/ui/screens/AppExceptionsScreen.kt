@@ -829,7 +829,7 @@ private fun AppListItem(
             label = app.name,
             checked = isExcluded,
             onCheckedChange = { }, // Обрабатывается родителем (SettingsGroupItem)
-            secondaryText = app.packageName,
+            supportingText = app.packageName,
             leadingIcon = {
                 if (iconBitmap != null) {
                     Image(

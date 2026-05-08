@@ -68,7 +68,7 @@ object Routes {
     const val CLIENT_CONFIG = "client_config"
     const val HOME = "home"
     const val APP_SETTINGS = "app_settings?scrollToUpdate={scrollToUpdate}"
-    fun appSettings(scrollToUpdate: Boolean = false) = "app_settings?scrollToUpdate=$scrollToUpdate"
+    fun appSettings(scrollToUpdate: Long = 0L) = "app_settings?scrollToUpdate=$scrollToUpdate"
     const val LOGS = "logs"
     const val APP_EXCLUSIONS = "app_exclusions"
 }
@@ -175,7 +175,7 @@ fun AppNavigation(
                         viewModel = viewModel,
                         onNavigateToExclusions = { navController.navigate(Routes.APP_EXCLUSIONS) },
                         onNavigateToSettings = { 
-                            navController.navigate(Routes.appSettings(scrollToUpdate = true)) {
+                            navController.navigate(Routes.appSettings(scrollToUpdate = System.currentTimeMillis())) {
                                 popUpTo(Routes.HOME) { saveState = true }
                                 launchSingleTop = true
                                 restoreState = true
@@ -187,11 +187,11 @@ fun AppNavigation(
                 composable(
                     route = Routes.APP_SETTINGS,
                     arguments = listOf(navArgument("scrollToUpdate") {
-                        type = NavType.BoolType
-                        defaultValue = false
+                        type = NavType.LongType
+                        defaultValue = 0L
                     })
                 ) { backStackEntry ->
-                    val scrollToUpdate = backStackEntry.arguments?.getBoolean("scrollToUpdate") ?: false
+                    val scrollToUpdate = backStackEntry.arguments?.getLong("scrollToUpdate") ?: 0L
                     SettingsScreen(
                         modifier = Modifier.statusBarsPadding(),
                         viewModel = viewModel,
