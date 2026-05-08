@@ -121,9 +121,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _vlessConfig = MutableStateFlow(VlessConfig())
     val vlessConfig: StateFlow<VlessConfig> = _vlessConfig.asStateFlow()
 
-    private val _turnableUrlHistory = MutableStateFlow<List<String>>(emptyList())
-    val turnableUrlHistory: StateFlow<List<String>> = _turnableUrlHistory.asStateFlow()
-
     private val _vlessLinkHistory = MutableStateFlow<List<String>>(emptyList())
     val vlessLinkHistory: StateFlow<List<String>> = _vlessLinkHistory.asStateFlow()
 
@@ -194,7 +191,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val vlessConfig = prefs.vlessConfigFlow.first()
             val excludedApps = prefs.excludedAppsFlow.first()
 
-            val turnableUrlHistory = prefs.turnableUrlHistoryFlow.first()
             val vlessLinkHistory = prefs.vlessLinkHistoryFlow.first()
 
             _onboardingDone.value = done
@@ -219,7 +215,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _vlessConfig.value = vlessConfig
             _excludedApps.value = excludedApps
 
-            _turnableUrlHistory.value = turnableUrlHistory
             _vlessLinkHistory.value = vlessLinkHistory
 
             val currentProfiles = prefs.profilesFlow.first()
@@ -277,7 +272,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.globalVpnSettingsFlow.collect { _globalVpnSettings.value = it } }
             launch { prefs.excludedAppsFlow.collect { _excludedApps.value = it } }
 
-            launch { prefs.turnableUrlHistoryFlow.collect { _turnableUrlHistory.value = it } }
             launch { prefs.vlessLinkHistoryFlow.collect { _vlessLinkHistory.value = it } }
         }
 
@@ -465,7 +459,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private suspend fun startProxyInternal(forceRestart: Boolean = false) {
         val cfg = clientConfig.value
-        prefs.addTurnableUrlToHistory(cfg.turnableUrl)
         proxyManager.startProxy(cfg, forceRestart)
     }
 
@@ -529,7 +522,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             updateCurrentProfileInList()
         }
     }
-    fun removeTurnableUrlFromHistory(url: String) { viewModelScope.launch { prefs.removeTurnableUrlFromHistory(url) } }
     fun removeVlessLinkFromHistory(link: String) { viewModelScope.launch { prefs.removeVlessLinkFromHistory(link) } }
     fun setOnboardingDone() { viewModelScope.launch { prefs.setOnboardingDone(true) } }
     fun setBatteryNotificationDismissed(dismissed: Boolean) { viewModelScope.launch { prefs.setBatteryNotificationDismissed(dismissed) } }

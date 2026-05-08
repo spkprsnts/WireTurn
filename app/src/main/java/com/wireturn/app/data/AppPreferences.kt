@@ -411,7 +411,6 @@ class AppPreferences(context: Context) {
         val XRAY_CONFIGURATION = stringPreferencesKey("xray_configuration")
         val CLIENT_TURNABLE_URL = stringPreferencesKey("client_turnable_url")
         val CLIENT_KERNEL_VARIANT = stringPreferencesKey("client_kernel_variant")
-        val TURNABLE_URL_HISTORY = stringPreferencesKey("turnable_url_history")
         val BATTERY_NOTIFICATION_DISMISSED = booleanPreferencesKey("battery_notification_dismissed")
         val APPS_EXCLUSION_HINT_SHOWN = booleanPreferencesKey("apps_exclusion_hint_shown")
         val ALLOW_UNSTABLE_UPDATES = booleanPreferencesKey("allow_unstable_updates")
@@ -628,14 +627,6 @@ class AppPreferences(context: Context) {
         }
         .distinctUntilChanged()
 
-    val turnableUrlHistoryFlow: Flow<List<String>> = context.dataStore.data
-        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
-        .map { prefs ->
-            val historyString = prefs[TURNABLE_URL_HISTORY] ?: ""
-            if (historyString.isBlank()) emptyList()
-            else historyString.split("|").filter { it.isNotBlank() }
-        }
-
     val vlessLinkHistoryFlow: Flow<List<String>> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { prefs ->
@@ -644,29 +635,12 @@ class AppPreferences(context: Context) {
             else historyString.split("|").filter { it.isNotBlank() }
         }
 
-    suspend fun addTurnableUrlToHistory(url: String) {
-        if (url.isBlank()) return
-        context.dataStore.edit { prefs ->
-            val currentHistory = prefs[TURNABLE_URL_HISTORY]?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
-            val newHistory = (listOf(url) + currentHistory.filter { it != url }).take(3)
-            prefs[TURNABLE_URL_HISTORY] = newHistory.joinToString("|")
-        }
-    }
-
     suspend fun addVlessLinkToHistory(link: String) {
         if (link.isBlank()) return
         context.dataStore.edit { prefs ->
             val currentHistory = prefs[VLESS_LINK_HISTORY]?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
             val newHistory = (listOf(link) + currentHistory.filter { it != link }).take(3)
             prefs[VLESS_LINK_HISTORY] = newHistory.joinToString("|")
-        }
-    }
-
-    suspend fun removeTurnableUrlFromHistory(url: String) {
-        context.dataStore.edit { prefs ->
-            val currentHistory = prefs[TURNABLE_URL_HISTORY]?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
-            val newHistory = currentHistory.filter { it != url }
-            prefs[TURNABLE_URL_HISTORY] = newHistory.joinToString("|")
         }
     }
 
