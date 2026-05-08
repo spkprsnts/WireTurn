@@ -2,5 +2,3 @@
 /build/
 
 # Ignore Go-compiled binaries (they are built by CI or locally via build.sh)
-/src/main/jniLibs/
-*.so
