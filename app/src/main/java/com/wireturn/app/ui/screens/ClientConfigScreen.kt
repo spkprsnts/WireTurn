@@ -193,7 +193,11 @@ fun ClientConfigScreen(
 
                 if (isRawMode) {
                     // Строка для команды в Raw Mode
-                    SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                    SettingsGroupItem(
+                        isTop = false,
+                        isBottom = customKernelExists,
+                        containerColor = blockContainerColor
+                    ) {
                         TextFieldRow(
                             label = stringResource(R.string.raw_label),
                             value = rawCommand,
@@ -207,20 +211,22 @@ fun ClientConfigScreen(
                         )
                     }
                     // Выбор ядра в Raw Mode
-                    SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
-                        LabeledSegmentedButton(
-                            label = if (customKernelExists) stringResource(R.string.kernel_config_label) else stringResource(R.string.kernel_label),
-                            supportingText = if (customKernelExists) stringResource(R.string.kernel_config_desc) else stringResource(R.string.client_variants_desc),
-                            isModified = clientConfigSnapshot != null && kernelVariant != clientConfigSnapshot?.kernelVariant
-                        ) {
-                            SegmentedButton(
-                                selected = kernelVariant == KernelVariant.TURNABLE,
-                                onClick = {
-                                    HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                                    kernelVariant = KernelVariant.TURNABLE
-                                },
-                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 1)
-                            ) { Text(stringResource(R.string.kernel_turnable)) }
+                    if (!customKernelExists) {
+                        SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+                            LabeledSegmentedButton(
+                                label = stringResource(R.string.kernel_label),
+                                supportingText = stringResource(R.string.client_variants_desc),
+                                isModified = clientConfigSnapshot != null && kernelVariant != clientConfigSnapshot?.kernelVariant
+                            ) {
+                                SegmentedButton(
+                                    selected = kernelVariant == KernelVariant.TURNABLE,
+                                    onClick = {
+                                        HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
+                                        kernelVariant = KernelVariant.TURNABLE
+                                    },
+                                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 1)
+                                ) { Text(stringResource(R.string.kernel_turnable)) }
+                            }
                         }
                     }
                 } else {
