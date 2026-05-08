@@ -21,7 +21,6 @@
 -keep class com.wireturn.app.data.XrayConfig { *; }
 -keep class com.wireturn.app.data.WgConfig { *; }
 -keep class com.wireturn.app.data.VlessConfig { *; }
--keep class com.wireturn.app.data.DCType { *; }
 -keep class com.wireturn.app.data.KernelVariant { *; }
 -keep class com.wireturn.app.data.XrayConfiguration { *; }
 

@@ -69,9 +69,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
-import com.wireturn.app.data.DCType
-import com.wireturn.app.data.VP8CType
-import com.wireturn.app.data.TunnelType
 import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.Profile
 import com.wireturn.app.data.XrayConfiguration
@@ -93,34 +90,11 @@ fun ProfileSummary(
     val parts = mutableListOf<String>()
 
     // Core mode
-    when (clientConfig.tunnelType) {
-        TunnelType.DC -> {
-            parts.add(stringResource(R.string.dc_tunnel))
-            parts.add(
-                when (clientConfig.dcType) {
-                    DCType.SALUTE_JAZZ -> stringResource(R.string.jazz_label)
-                    DCType.WB_STREAM -> stringResource(R.string.wb_stream_label)
-                }
-            )
+    parts.add(
+        when (clientConfig.kernelVariant) {
+            KernelVariant.TURNABLE -> stringResource(R.string.kernel_turnable)
         }
-        TunnelType.VP8C -> {
-            parts.add(stringResource(R.string.vp8c_tunnel))
-            parts.add(
-                when (clientConfig.vp8cType) {
-                    VP8CType.TELEMOST -> stringResource(R.string.telemost_label)
-                }
-            )
-        }
-        TunnelType.TURN -> {
-            parts.add(stringResource(R.string.turn_tunnel))
-            parts.add(
-                when (clientConfig.kernelVariant) {
-                    KernelVariant.VK_TURN_PROXY -> stringResource(R.string.kernel_vk_turn_proxy)
-                    KernelVariant.TURNABLE -> stringResource(R.string.kernel_turnable)
-                }
-            )
-        }
-    }
+    )
 
     if (clientConfig.isRawMode) {
         parts.add(stringResource(R.string.raw_label))

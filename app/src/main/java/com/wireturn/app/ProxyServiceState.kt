@@ -100,8 +100,6 @@ object ProxyServiceState {
         _captchaSession.value = session
         if (session != null) {
             setStatus(ProxyStatus.CaptchaRequired(session))
-        } else if (_status.value is ProxyStatus.CaptchaRequired) {
-            // Restore status logic will be handled by service
         }
     }
 }

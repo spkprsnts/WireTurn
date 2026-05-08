@@ -16,6 +16,7 @@ object NotificationHelper {
     const val ERROR_NOTIFICATION_ID = 3
     const val CHANNEL_ID = "ProxyChannel"
     const val CAPTCHA_CHANNEL_ID = "CaptchaChannel"
+    const val ERROR_CHANNEL_ID = "ErrorChannel"
 
     fun createChannel(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java)
@@ -41,6 +42,16 @@ object NotificationHelper {
             enableVibration(true)
         }
         nm.createNotificationChannel(captchaChannel)
+
+        val errorChannel = NotificationChannel(
+            ERROR_CHANNEL_ID,
+            context.getString(R.string.error_notification_title),
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            enableLights(true)
+            enableVibration(true)
+        }
+        nm.createNotificationChannel(errorChannel)
     }
 
     fun buildNotification(context: Context): Notification {
@@ -74,8 +85,7 @@ object NotificationHelper {
         }
         
         if (xrayState != XrayState.Idle && (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute || xrayState == XrayState.Connecting || xrayState == XrayState.Starting)) {
-            val isVless = ProxyServiceState.clientConfigSnapshot.value?.vlessMode == true
-            statusParts.add(context.getString(if (isVless) R.string.vless else R.string.wg_short))
+            statusParts.add(context.getString(R.string.vless))
         }
         if (vpnState != VpnState.Idle && vpnState is VpnState.Running) statusParts.add(context.getString(R.string.vpn_short))
 
@@ -166,30 +176,28 @@ object NotificationHelper {
         return builder.build()
     }
 
-    fun notifyCaptcha(context: Context, captchaUrl: String, sessionId: String) {
-        val intent = Intent(context, CaptchaActivity::class.java).apply {
-            putExtra("CAPTCHA_URL", captchaUrl)
-            putExtra("SESSION_ID", sessionId)
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+    fun notifyCaptcha(context: Context, url: String, sessionId: String) {
+        val openAppIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.let {
+            PendingIntent.getActivity(context, 1, it, PendingIntent.FLAG_IMMUTABLE)
         }
-
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            1,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
 
         val builder = NotificationCompat.Builder(context, CAPTCHA_CHANNEL_ID)
             .setContentTitle(context.getString(R.string.captcha_notification_title))
             .setContentText(context.getString(R.string.captcha_notification_text))
-            .setSmallIcon(R.drawable.error_24px)
-            .setContentIntent(pendingIntent)
+            .setSmallIcon(R.drawable.plug_connect_24px)
+            .setContentIntent(openAppIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setFullScreenIntent(openAppIntent, true)
             .setAutoCancel(true)
 
         context.getSystemService(NotificationManager::class.java)
             .notify(CAPTCHA_NOTIFICATION_ID, builder.build())
+    }
+
+    fun cancelCaptchaNotification(context: Context) {
+        context.getSystemService(NotificationManager::class.java)
+            .cancel(CAPTCHA_NOTIFICATION_ID)
     }
 
     fun notifyError(context: Context, message: String) {
@@ -197,7 +205,7 @@ object NotificationHelper {
             PendingIntent.getActivity(context, 2, it, PendingIntent.FLAG_IMMUTABLE)
         }
 
-        val builder = NotificationCompat.Builder(context, CAPTCHA_CHANNEL_ID)
+        val builder = NotificationCompat.Builder(context, ERROR_CHANNEL_ID)
             .setContentTitle(context.getString(R.string.error_notification_title))
             .setContentText(message)
             .setSmallIcon(R.drawable.error_24px)
@@ -212,11 +220,6 @@ object NotificationHelper {
     fun cancelErrorNotification(context: Context) {
         context.getSystemService(NotificationManager::class.java)
             .cancel(ERROR_NOTIFICATION_ID)
-    }
-
-    fun cancelCaptchaNotification(context: Context) {
-        context.getSystemService(NotificationManager::class.java)
-            .cancel(CAPTCHA_NOTIFICATION_ID)
     }
 
     fun updateNotification(context: Context) {

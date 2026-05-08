@@ -22,7 +22,6 @@ import com.wireturn.app.ProxyStatus
 import com.wireturn.app.XrayServiceState
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.ClientConfig
-import com.wireturn.app.data.DCType
 import com.wireturn.app.data.GlobalVpnSettings
 import com.wireturn.app.data.Profile
 import com.wireturn.app.data.ThemeMode
@@ -122,21 +121,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _vlessConfig = MutableStateFlow(VlessConfig())
     val vlessConfig: StateFlow<VlessConfig> = _vlessConfig.asStateFlow()
 
-    private val _vkLinkHistory = MutableStateFlow<List<String>>(emptyList())
-    val vkLinkHistory: StateFlow<List<String>> = _vkLinkHistory.asStateFlow()
-
-    private val _wbstreamUuidHistory = MutableStateFlow<List<String>>(emptyList())
-    val wbstreamUuidHistory: StateFlow<List<String>> = _wbstreamUuidHistory.asStateFlow()
-
-    private val _serverAddressHistory = MutableStateFlow<List<String>>(emptyList())
-    val serverAddressHistory: StateFlow<List<String>> = _serverAddressHistory.asStateFlow()
-
-    private val _jazzCredsHistory = MutableStateFlow<List<String>>(emptyList())
-    val jazzCredsHistory: StateFlow<List<String>> = _jazzCredsHistory.asStateFlow()
-
-    private val _telemostRoomUrlHistory = MutableStateFlow<List<String>>(emptyList())
-    val telemostRoomUrlHistory: StateFlow<List<String>> = _telemostRoomUrlHistory.asStateFlow()
-
     private val _turnableUrlHistory = MutableStateFlow<List<String>>(emptyList())
     val turnableUrlHistory: StateFlow<List<String>> = _turnableUrlHistory.asStateFlow()
 
@@ -210,11 +194,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val vlessConfig = prefs.vlessConfigFlow.first()
             val excludedApps = prefs.excludedAppsFlow.first()
 
-            val vkLinkHistory = prefs.vkLinkHistoryFlow.first()
-            val wbstreamUuidHistory = prefs.wbstreamUuidHistoryFlow.first()
-            val serverAddressHistory = prefs.serverAddressHistoryFlow.first()
-            val jazzCredsHistory = prefs.jazzCredsHistoryFlow.first()
-            val telemostRoomUrlHistory = prefs.telemostRoomUrlHistoryFlow.first()
             val turnableUrlHistory = prefs.turnableUrlHistoryFlow.first()
             val vlessLinkHistory = prefs.vlessLinkHistoryFlow.first()
 
@@ -240,11 +219,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _vlessConfig.value = vlessConfig
             _excludedApps.value = excludedApps
 
-            _vkLinkHistory.value = vkLinkHistory
-            _wbstreamUuidHistory.value = wbstreamUuidHistory
-            _serverAddressHistory.value = serverAddressHistory
-            _jazzCredsHistory.value = jazzCredsHistory
-            _telemostRoomUrlHistory.value = telemostRoomUrlHistory
             _turnableUrlHistory.value = turnableUrlHistory
             _vlessLinkHistory.value = vlessLinkHistory
 
@@ -303,11 +277,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.globalVpnSettingsFlow.collect { _globalVpnSettings.value = it } }
             launch { prefs.excludedAppsFlow.collect { _excludedApps.value = it } }
 
-            launch { prefs.vkLinkHistoryFlow.collect { _vkLinkHistory.value = it } }
-            launch { prefs.wbstreamUuidHistoryFlow.collect { _wbstreamUuidHistory.value = it } }
-            launch { prefs.serverAddressHistoryFlow.collect { _serverAddressHistory.value = it } }
-            launch { prefs.jazzCredsHistoryFlow.collect { _jazzCredsHistory.value = it } }
-            launch { prefs.telemostRoomUrlHistoryFlow.collect { _telemostRoomUrlHistory.value = it } }
             launch { prefs.turnableUrlHistoryFlow.collect { _turnableUrlHistory.value = it } }
             launch { prefs.vlessLinkHistoryFlow.collect { _vlessLinkHistory.value = it } }
         }
@@ -496,22 +465,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private suspend fun startProxyInternal(forceRestart: Boolean = false) {
         val cfg = clientConfig.value
-        when (cfg.tunnelType) {
-            com.wireturn.app.data.TunnelType.DC -> {
-                when (cfg.dcType) {
-                    DCType.SALUTE_JAZZ -> prefs.addJazzCredsToHistory(cfg.jazzCreds)
-                    DCType.WB_STREAM -> prefs.addWbstreamUuidToHistory(cfg.wbstreamUuid)
-                }
-            }
-            com.wireturn.app.data.TunnelType.VP8C -> {
-                prefs.addTelemostRoomUrlToHistory(cfg.telemostRoomUrl)
-            }
-            com.wireturn.app.data.TunnelType.TURN -> {
-                prefs.addVkLinkToHistory(cfg.vkLink)
-                prefs.addTurnableUrlToHistory(cfg.turnableUrl)
-            }
-        }
-        prefs.addServerAddressToHistory(cfg.serverAddress)
+        prefs.addTurnableUrlToHistory(cfg.turnableUrl)
         proxyManager.startProxy(cfg, forceRestart)
     }
 
@@ -575,11 +529,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             updateCurrentProfileInList()
         }
     }
-    fun removeVkLinkFromHistory(link: String) { viewModelScope.launch { prefs.removeVkLinkFromHistory(link) } }
-    fun removeWbstreamUuidFromHistory(uuid: String) { viewModelScope.launch { prefs.removeWbstreamUuidFromHistory(uuid) } }
-    fun removeServerAddressFromHistory(address: String) { viewModelScope.launch { prefs.removeServerAddressFromHistory(address) } }
-    fun removeJazzCredsFromHistory(creds: String) { viewModelScope.launch { prefs.removeJazzCredsFromHistory(creds) } }
-    fun removeTelemostRoomUrlFromHistory(url: String) { viewModelScope.launch { prefs.removeTelemostRoomUrlFromHistory(url) } }
     fun removeTurnableUrlFromHistory(url: String) { viewModelScope.launch { prefs.removeTurnableUrlFromHistory(url) } }
     fun removeVlessLinkFromHistory(link: String) { viewModelScope.launch { prefs.removeVlessLinkFromHistory(link) } }
     fun setOnboardingDone() { viewModelScope.launch { prefs.setOnboardingDone(true) } }
@@ -803,15 +752,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             (vlessSnapshot != null && vless != vlessSnapshot) ||
                             (xraySnapshot != null && xray.fillDefaults() != xraySnapshot)
 
-                    /*
-                    val xrayDependsOnClient = (clientSnapshot != null && (
-                            client.localPort != clientSnapshot.localPort ||
-                                    client.vlessMode != clientSnapshot.vlessMode
-                            ))
-                    */
-
                     if (mainConfigChanged || clientSnapshot == null) {
-                        if (!xrayDataChanged /* && !xrayDependsOnClient */ && clientSnapshot != null) {
+                        if (!xrayDataChanged && clientSnapshot != null) {
                             // Soft restart: only restart tunnel binary, keep Xray alive
                             ProxyServiceState.setProfileNameSnapshot(profileName)
                             startProxyInternal(forceRestart = true)
@@ -885,4 +827,3 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 }
-

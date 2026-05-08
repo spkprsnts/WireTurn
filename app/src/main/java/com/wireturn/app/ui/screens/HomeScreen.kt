@@ -60,7 +60,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
-import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.XrayConfiguration
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -129,7 +128,6 @@ import androidx.core.net.toUri
 import com.wireturn.app.ProxyServiceState
 import com.wireturn.app.VpnServiceState
 import com.wireturn.app.XrayServiceState
-import com.wireturn.app.data.TunnelType
 import com.wireturn.app.ui.CompactSettingsItem
 import com.wireturn.app.ui.ConfigRowLabel
 import com.wireturn.app.ui.SupportingText
@@ -370,44 +368,12 @@ fun HomeScreen(
     }
 
     // --- Business Logic Logic (Mismatches & Alerts) ---
-    val warnVlessMismatch = stringResource(R.string.warn_proxy_vless_mismatch)
-    val warnWgMismatch = stringResource(R.string.warn_proxy_wg_mismatch)
     val warnVpnRequiresXray = stringResource(R.string.warn_vpn_requires_xray)
 
     val showVpnWarning = {
         scope.launch {
             snackbarHostState.currentSnackbarData?.dismiss()
             snackbarHostState.showSnackbar(warnVpnRequiresXray)
-        }
-    }
-
-    var hasShownMismatchForCurrentRun by remember { mutableStateOf(false) }
-    LaunchedEffect(proxyState, xrayState) {
-        if (proxyState is ProxyState.Idle && xrayState == XrayState.Idle) {
-            hasShownMismatchForCurrentRun = false
-        }
-    }
-
-    LaunchedEffect(proxyState, xrayState, clientConfig, xrayConfig, xraySettings.xrayEnabled) {
-        if (hasShownMismatchForCurrentRun || !xraySettings.xrayEnabled) return@LaunchedEffect
-
-        // Warn if proxy is active or starting while Xray is enabled
-        val isProxyActive = proxyState !is ProxyState.Idle && proxyState !is ProxyState.Error
-        if (!isProxyActive) return@LaunchedEffect
-
-        if (clientConfig.isRawMode) return@LaunchedEffect
-        val supportsMismatchCheck = clientConfig.tunnelType != TunnelType.TURN || clientConfig.kernelVariant == KernelVariant.VK_TURN_PROXY
-        if (!supportsMismatchCheck) return@LaunchedEffect
-
-        val isVlessConfigured = xrayConfig.xrayConfiguration == XrayConfiguration.VLESS
-        val shouldBeVless = clientConfig.vlessMode
-
-        if (isVlessConfigured != shouldBeVless) {
-            hasShownMismatchForCurrentRun = true
-            snackbarHostState.showSnackbar(
-                message = if (shouldBeVless) warnVlessMismatch else warnWgMismatch,
-                duration = androidx.compose.material3.SnackbarDuration.Long
-            )
         }
     }
 
@@ -1533,39 +1499,6 @@ private fun RepoLinksContent(
                     title = stringResource(R.string.android_client_original),
                     subtitle = "samosvalishe/turn-proxy-android",
                     url = "https://github.com/samosvalishe/turn-proxy-android",
-                    containerColor = containerColor,
-                    onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
-                    onOpen = { uriHandler.openUri(it) }
-                )
-            }
-
-            item {
-                RepoLinkItem(
-                    title = stringResource(R.string.proxy_core_current),
-                    subtitle = "spkprsnts/vk-turn-proxy (branch: dc)",
-                    url = "https://github.com/spkprsnts/vk-turn-proxy/tree/dc",
-                    containerColor = containerColor,
-                    onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
-                    onOpen = { uriHandler.openUri(it) }
-                )
-            }
-
-            item {
-                RepoLinkItem(
-                    title = stringResource(R.string.proxy_core_use),
-                    subtitle = "alxmcp/vk-turn-proxy",
-                    url = "https://github.com/alxmcp/vk-turn-proxy",
-                    containerColor = containerColor,
-                    onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
-                    onOpen = { uriHandler.openUri(it) }
-                )
-            }
-
-            item {
-                RepoLinkItem(
-                    title = stringResource(R.string.proxy_core),
-                    subtitle = "cacggghp/vk-turn-proxy",
-                    url = "https://github.com/cacggghp/vk-turn-proxy",
                     containerColor = containerColor,
                     onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
                     onOpen = { uriHandler.openUri(it) }

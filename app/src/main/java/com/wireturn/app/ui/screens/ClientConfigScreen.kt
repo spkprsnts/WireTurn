@@ -31,7 +31,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -40,8 +39,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -51,21 +48,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLocale
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
-import com.wireturn.app.data.DCType
-import com.wireturn.app.data.VP8CType
-import com.wireturn.app.data.TunnelType
 import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.ui.ConfigRowLabel
 import com.wireturn.app.ui.FieldTrailingIcons
 import com.wireturn.app.ui.HapticUtil
-import com.wireturn.app.ui.InlineConfigIndicator
 import com.wireturn.app.ui.LabeledSegmentedButton
 import com.wireturn.app.ui.SettingsGroup
 import com.wireturn.app.ui.SettingsGroupItem
@@ -79,7 +70,6 @@ import com.wireturn.app.ui.redact
 import com.wireturn.app.viewmodel.MainViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
-import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -97,12 +87,7 @@ fun ClientConfigScreen(
     val kernelError by viewModel.kernelError.collectAsStateWithLifecycle()
     val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
 
-    val vkLinkHistory by viewModel.vkLinkHistory.collectAsStateWithLifecycle()
-    val wbstreamUuidHistory by viewModel.wbstreamUuidHistory.collectAsStateWithLifecycle()
-    val serverAddressHistory by viewModel.serverAddressHistory.collectAsStateWithLifecycle()
     val turnableUrlHistory by viewModel.turnableUrlHistory.collectAsStateWithLifecycle()
-    val jazzCredsHistory by viewModel.jazzCredsHistory.collectAsStateWithLifecycle()
-    val telemostRoomUrlHistory by viewModel.telemostRoomUrlHistory.collectAsStateWithLifecycle()
     val clientConfigSnapshot by com.wireturn.app.ProxyServiceState.clientConfigSnapshot.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
@@ -113,29 +98,12 @@ fun ClientConfigScreen(
 
     var isRawMode by rememberSaveable(currentProfileId, saved.isRawMode) { mutableStateOf(saved.isRawMode) }
     var rawCommand by rememberSaveable(currentProfileId, saved.rawCommand) { mutableStateOf(saved.rawCommand) }
-    var serverAddress by rememberSaveable(currentProfileId, saved.serverAddress) { mutableStateOf(saved.serverAddress) }
     var turnableUrl  by rememberSaveable(currentProfileId, saved.turnableUrl)    { mutableStateOf(saved.turnableUrl) }
-    var vkLink       by rememberSaveable(currentProfileId, saved.vkLink)         { mutableStateOf(saved.vkLink) }
-    var wbstreamUuid by rememberSaveable(currentProfileId, saved.wbstreamUuid)   { mutableStateOf(saved.wbstreamUuid) }
-    var threads      by rememberSaveable(currentProfileId, saved.threads)        { mutableFloatStateOf(saved.threads.toFloat()) }
-    var useUdp       by rememberSaveable(currentProfileId, saved.useUdp)         { mutableStateOf(saved.useUdp) }
-    var noDtls       by rememberSaveable(currentProfileId, saved.noDtls)         { mutableStateOf(saved.noDtls) }
-    var manualCaptcha by rememberSaveable(currentProfileId, saved.manualCaptcha) { mutableStateOf(saved.manualCaptcha) }
     var localPort    by rememberSaveable(currentProfileId, saved.localPort)      { mutableStateOf(saved.localPort) }
-    var vlessMode    by rememberSaveable(currentProfileId, saved.vlessMode)      { mutableStateOf(saved.vlessMode) }
-    var tunnelType   by rememberSaveable(currentProfileId, saved.tunnelType)     { mutableStateOf(saved.tunnelType) }
-    var forcePort443 by rememberSaveable(currentProfileId, saved.forceTurnPort443) { mutableStateOf(saved.forceTurnPort443) }
-    var dcType       by rememberSaveable(currentProfileId, saved.dcType)         { mutableStateOf(saved.dcType) }
-    var vp8cType     by rememberSaveable(currentProfileId, saved.vp8cType)       { mutableStateOf(saved.vp8cType) }
-    var jazzCreds    by rememberSaveable(currentProfileId, saved.jazzCreds)      { mutableStateOf(saved.jazzCreds) }
-    var telemostRoomUrl by rememberSaveable(currentProfileId, saved.telemostRoomUrl) { mutableStateOf(saved.telemostRoomUrl) }
     var kernelVariant by rememberSaveable(currentProfileId, saved.kernelVariant) { mutableStateOf(saved.kernelVariant) }
-    var lastSliderInt by rememberSaveable { mutableIntStateOf(saved.threads) }
     var isUrlParsing by remember { mutableStateOf(false) }
     
-    val showVkHelp = remember { mutableStateOf(false) }
     val showPortHelp = remember { mutableStateOf(false) }
-    val showServerHelp = remember { mutableStateOf(false) }
     val showUrlEditor = remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -145,53 +113,22 @@ fun ClientConfigScreen(
     LaunchedEffect(saved) {
         isRawMode = saved.isRawMode
         rawCommand = saved.rawCommand
-        serverAddress = saved.serverAddress
         turnableUrl = saved.turnableUrl
-        vkLink = saved.vkLink
-        wbstreamUuid = saved.wbstreamUuid
-        threads = saved.threads.toFloat()
-        useUdp = saved.useUdp
-        noDtls = saved.noDtls
-        manualCaptcha = saved.manualCaptcha
         localPort = saved.localPort
-        vlessMode = saved.vlessMode
-        tunnelType = saved.tunnelType
-        forcePort443 = saved.forceTurnPort443
-        dcType = saved.dcType
-        vp8cType = saved.vp8cType
-        jazzCreds = saved.jazzCreds
-        telemostRoomUrl = saved.telemostRoomUrl
         kernelVariant = saved.kernelVariant
     }
 
-    val isServerAddressValid = remember(serverAddress) { ValidatorUtils.isValidHostPort(serverAddress) }
     val isLocalPortValid = remember(localPort) { ValidatorUtils.isValidHostPort(localPort) }
     val isTurnableUrlValid = remember(turnableUrl) { ValidatorUtils.isValidTurnableUrl(turnableUrl) }
 
-    LaunchedEffect(isRawMode, rawCommand, serverAddress, turnableUrl, vkLink, wbstreamUuid, threads, useUdp, noDtls,
-        manualCaptcha, localPort, vlessMode, tunnelType, forcePort443, dcType, vp8cType, jazzCreds, telemostRoomUrl, kernelVariant
-    ) {
+    LaunchedEffect(isRawMode, rawCommand, turnableUrl, localPort, kernelVariant) {
         delay(200)
         val current = viewModel.clientConfig.value
         val next = current.copy(
             isRawMode        = isRawMode,
             rawCommand       = rawCommand,
-            serverAddress    = serverAddress.trim(),
             turnableUrl      = turnableUrl.trim(),
-            vkLink           = vkLink.trim(),
-            wbstreamUuid     = wbstreamUuid.trim(),
-            threads          = threads.roundToInt(),
-            useUdp           = useUdp,
-            noDtls           = noDtls,
-            manualCaptcha    = manualCaptcha,
             localPort        = localPort.trim(),
-            vlessMode        = vlessMode,
-            tunnelType       = tunnelType,
-            forceTurnPort443 = forcePort443,
-            dcType           = dcType,
-            vp8cType         = vp8cType,
-            jazzCreds        = jazzCreds.trim(),
-            telemostRoomUrl  = telemostRoomUrl.trim(),
             kernelVariant    = kernelVariant
         )
         if (next != current) {
@@ -277,83 +214,31 @@ fun ClientConfigScreen(
                             isModified = clientConfigSnapshot != null && kernelVariant != clientConfigSnapshot?.kernelVariant
                         ) {
                             SegmentedButton(
-                                selected = kernelVariant == KernelVariant.VK_TURN_PROXY,
+                                selected = kernelVariant == KernelVariant.TURNABLE,
                                 onClick = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                                    kernelVariant = KernelVariant.VK_TURN_PROXY
+                                    kernelVariant = KernelVariant.TURNABLE
                                 },
-                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-                            ) { Text(stringResource(R.string.kernel_vk_turn_proxy)) }
+                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 1)
+                            ) { Text(stringResource(R.string.kernel_turnable)) }
+                        }
+                    }
+                } else {
+                    // Обычный режим: Выбор ядра
+                    SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+                        LabeledSegmentedButton(
+                            label = if (customKernelExists) stringResource(R.string.kernel_config_label) else stringResource(R.string.kernel_label),
+                            supportingText = if (customKernelExists) stringResource(R.string.kernel_config_desc) else stringResource(R.string.client_variants_desc),
+                            isModified = clientConfigSnapshot != null && kernelVariant != clientConfigSnapshot?.kernelVariant
+                        ) {
                             SegmentedButton(
                                 selected = kernelVariant == KernelVariant.TURNABLE,
                                 onClick = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
                                     kernelVariant = KernelVariant.TURNABLE
                                 },
-                                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 1)
                             ) { Text(stringResource(R.string.kernel_turnable)) }
-                        }
-                    }
-                } else {
-                    // Обычный режим: Метод туннеля
-                    SettingsGroupItem(isTop = false, isBottom = tunnelType != TunnelType.TURN, containerColor = blockContainerColor) {
-                        LabeledSegmentedButton(
-                            label = stringResource(R.string.tunnel_label),
-                            supportingText = stringResource(R.string.connection_method_desc),
-                            isModified = clientConfigSnapshot != null && tunnelType != clientConfigSnapshot?.tunnelType
-                        ) {
-                            SegmentedButton(
-                                selected = tunnelType == TunnelType.TURN,
-                                onClick = {
-                                    HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                                    tunnelType = TunnelType.TURN
-                                },
-                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3)
-                            ) { Text(stringResource(R.string.turn_tunnel)) }
-                            SegmentedButton(
-                                selected = tunnelType == TunnelType.DC,
-                                onClick = {
-                                    HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                                    tunnelType = TunnelType.DC
-                                },
-                                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3)
-                            ) { Text(stringResource(R.string.dc_tunnel)) }
-                            SegmentedButton(
-                                selected = tunnelType == TunnelType.VP8C,
-                                onClick = {
-                                    HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                                    tunnelType = TunnelType.VP8C
-                                },
-                                shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3)
-                            ) { Text(stringResource(R.string.vp8c_tunnel)) }
-                        }
-                    }
-
-                    if (tunnelType == TunnelType.TURN) {
-                        // Обычный режим: Выбор ядра (если не DC и не VP8C)
-                        SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
-                            LabeledSegmentedButton(
-                                label = if (customKernelExists) stringResource(R.string.kernel_config_label) else stringResource(R.string.kernel_label),
-                                supportingText = if (customKernelExists) stringResource(R.string.kernel_config_desc) else stringResource(R.string.client_variants_desc),
-                                isModified = clientConfigSnapshot != null && kernelVariant != clientConfigSnapshot?.kernelVariant
-                            ) {
-                                SegmentedButton(
-                                    selected = kernelVariant == KernelVariant.VK_TURN_PROXY,
-                                    onClick = {
-                                        HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                                        kernelVariant = KernelVariant.VK_TURN_PROXY
-                                    },
-                                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-                                ) { Text(stringResource(R.string.kernel_vk_turn_proxy)) }
-                                SegmentedButton(
-                                    selected = kernelVariant == KernelVariant.TURNABLE,
-                                    onClick = {
-                                        HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                                        kernelVariant = KernelVariant.TURNABLE
-                                    },
-                                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-                                ) { Text(stringResource(R.string.kernel_turnable)) }
-                            }
                         }
                     }
                 }
@@ -363,248 +248,69 @@ fun ClientConfigScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
                     // 2. Детали подключения
                     SettingsGroup(title = stringResource(R.string.connection_details)) {
-                        if (tunnelType == TunnelType.DC) {
-                            SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
-                                LabeledSegmentedButton(
-                                    label = stringResource(R.string.platform_label),
-                                    supportingText = stringResource(R.string.platform_desc),
-                                    isModified = clientConfigSnapshot != null && dcType != clientConfigSnapshot?.dcType
-                                ) {
-                                    DCType.entries.forEachIndexed { index, type ->
-                                        SegmentedButton(
-                                            selected = dcType == type,
-                                            onClick = {
-                                                HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                                                dcType = type
-                                            },
-                                            shape = SegmentedButtonDefaults.itemShape(index = index, count = DCType.entries.size)
-                                        ) {
-                                            Text(when (type) {
-                                                DCType.SALUTE_JAZZ -> stringResource(R.string.jazz_label)
-                                                DCType.WB_STREAM -> stringResource(R.string.wb_stream_label)
-                                            })
-                                        }
-                                    }
-                                }
-                            }
-
-                            SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
-                                when (dcType) {
-                                    DCType.SALUTE_JAZZ -> {
-                                        TextFieldRow(
-                                            label = stringResource(R.string.jazz_creds_label),
-                                            value = jazzCreds.redact(privacyMode),
-                                            onValueChange = { if (!privacyMode) jazzCreds = it },
-                                            placeholder = stringResource(R.string.jazz_creds_placeholder),
-                                            isError = jazzCreds.isBlank() || !jazzCreds.contains(":"),
-                                            readOnly = privacyMode,
-                                            supportingText = stringResource(R.string.jazz_creds_support),
-                                            isModified = clientConfigSnapshot != null && (jazzCreds.trim() != clientConfigSnapshot?.jazzCreds || clientConfigSnapshot!!.isRawMode),
-                                            trailingIcon = if (jazzCredsHistory.isNotEmpty()) {
-                                                {
-                                                    FieldTrailingIcons(
-                                                        history = jazzCredsHistory,
-                                                        onSelect = { jazzCreds = it },
-                                                        onRemove = { viewModel.removeJazzCredsFromHistory(it) },
-                                                        privacyMode = privacyMode
+                        SettingsGroupItem(isTop = true, isBottom = true, containerColor = blockContainerColor) {
+                            TextFieldRow(
+                                label = stringResource(R.string.turnable_url_label),
+                                value = turnableUrl.redact(privacyMode),
+                                onValueChange = { if (!privacyMode) turnableUrl = it },
+                                placeholder = stringResource(R.string.turnable_url_placeholder),
+                                isError = !isTurnableUrlValid || turnableUrl.isBlank(),
+                                maxLines = 5,
+                                singleLine = false,
+                                readOnly = privacyMode,
+                                supportingText = stringResource(R.string.turnable_url_support),
+                                isModified = clientConfigSnapshot != null && (turnableUrl.trim() != clientConfigSnapshot?.turnableUrl || clientConfigSnapshot!!.isRawMode),
+                                trailingIcon = {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        if (!privacyMode && turnableUrl.isNotBlank()) {
+                                            Box(
+                                                modifier = Modifier.size(40.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                if (isUrlParsing) {
+                                                    CircularWavyProgressIndicator(
+                                                        modifier = Modifier.size(20.dp)
                                                     )
-                                                }
-                                            } else null
-                                        )
-                                    }
-                                    DCType.WB_STREAM -> {
-                                        TextFieldRow(
-                                            label = stringResource(R.string.wbstream_uuid_label),
-                                            value = wbstreamUuid.redact(privacyMode),
-                                            onValueChange = { if (!privacyMode) wbstreamUuid = it },
-                                            placeholder = stringResource(R.string.wbstream_uuid_placeholder),
-                                            isError = wbstreamUuid.isBlank(),
-                                            readOnly = privacyMode,
-                                            supportingText = stringResource(R.string.wbstream_uuid_support),
-                                            isModified = clientConfigSnapshot != null && (wbstreamUuid.trim() != clientConfigSnapshot?.wbstreamUuid || clientConfigSnapshot!!.isRawMode),
-                                            trailingIcon = if (wbstreamUuidHistory.isNotEmpty()) {
-                                                {
-                                                    FieldTrailingIcons(
-                                                        history = wbstreamUuidHistory,
-                                                        onSelect = { wbstreamUuid = it },
-                                                        onRemove = { viewModel.removeWbstreamUuidFromHistory(it) },
-                                                        privacyMode = privacyMode
-                                                    )
-                                                }
-                                            } else null
-                                        )
-                                    }
-                                }
-                            }
-                        } else if (tunnelType == TunnelType.VP8C) {
-                            SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
-                                LabeledSegmentedButton(
-                                    label = stringResource(R.string.platform_label),
-                                    supportingText = stringResource(R.string.platform_desc),
-                                    isModified = clientConfigSnapshot != null && vp8cType != clientConfigSnapshot?.vp8cType
-                                ) {
-                                    VP8CType.entries.forEachIndexed { index, type ->
-                                        SegmentedButton(
-                                            selected = vp8cType == type,
-                                            onClick = {
-                                                HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                                                vp8cType = type
-                                            },
-                                            shape = SegmentedButtonDefaults.itemShape(index = index, count = VP8CType.entries.size)
-                                        ) {
-                                            Text(when (type) {
-                                                VP8CType.TELEMOST -> stringResource(R.string.telemost_label)
-                                            })
-                                        }
-                                    }
-                                }
-                            }
-
-                            SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
-                                when (vp8cType) {
-                                    VP8CType.TELEMOST -> {
-                                        TextFieldRow(
-                                            label = stringResource(R.string.telemost_url_label),
-                                            value = telemostRoomUrl.redact(privacyMode),
-                                            onValueChange = { if (!privacyMode) telemostRoomUrl = it },
-                                            placeholder = stringResource(R.string.telemost_url_placeholder),
-                                            isError = telemostRoomUrl.isBlank(),
-                                            readOnly = privacyMode,
-                                            supportingText = stringResource(R.string.telemost_url_support),
-                                            isModified = clientConfigSnapshot != null && (telemostRoomUrl.trim() != clientConfigSnapshot?.telemostRoomUrl || clientConfigSnapshot!!.isRawMode),
-                                            trailingIcon = if (telemostRoomUrlHistory.isNotEmpty()) {
-                                                {
-                                                    FieldTrailingIcons(
-                                                        history = telemostRoomUrlHistory,
-                                                        onSelect = { telemostRoomUrl = it },
-                                                        onRemove = { viewModel.removeTelemostRoomUrlFromHistory(it) },
-                                                        privacyMode = privacyMode
-                                                    )
-                                                }
-                                            } else null
-                                        )
-                                    }
-                                }
-                            }
-                        } else {
-                            if (kernelVariant == KernelVariant.VK_TURN_PROXY) {
-                                SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
-                                    TextFieldRow(
-                                        label = stringResource(R.string.server_address_label),
-                                        value = serverAddress.redact(privacyMode),
-                                        onValueChange = { if (!privacyMode) serverAddress = it },
-                                        placeholder = stringResource(R.string.server_address_placeholder),
-                                        isError = !isServerAddressValid || serverAddress.isBlank(),
-                                        readOnly = privacyMode,
-                                        supportingText = stringResource(R.string.server_address_support),
-                                        isModified = clientConfigSnapshot != null && (serverAddress.trim() != clientConfigSnapshot?.serverAddress || clientConfigSnapshot!!.isRawMode),
-                                        onHelpClick = { showServerHelp.value = true },
-                                        trailingIcon = if (serverAddressHistory.isNotEmpty()) {
-                                            {
-                                                FieldTrailingIcons(
-                                                    history = serverAddressHistory,
-                                                    onSelect = { serverAddress = it },
-                                                    onRemove = { viewModel.removeServerAddressFromHistory(it) },
-                                                    privacyMode = privacyMode
-                                                )
-                                            }
-                                        } else null
-                                    )
-                                }
-                                SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
-                                    TextFieldRow(
-                                        label = stringResource(R.string.vk_link_label),
-                                        value = vkLink.redact(privacyMode),
-                                        onValueChange = { if (!privacyMode) vkLink = it },
-                                        placeholder = stringResource(R.string.vk_link_placeholder),
-                                        isError = !ValidatorUtils.isValidUrl(vkLink) || vkLink.isBlank(),
-                                        readOnly = privacyMode,
-                                        isModified = clientConfigSnapshot != null && (vkLink.trim() != clientConfigSnapshot?.vkLink || clientConfigSnapshot!!.isRawMode),
-                                        onHelpClick = { showVkHelp.value = true },
-                                        trailingIcon = if (vkLinkHistory.isNotEmpty()) {
-                                            {
-                                                FieldTrailingIcons(
-                                                    history = vkLinkHistory,
-                                                    onSelect = { vkLink = it },
-                                                    onRemove = { viewModel.removeVkLinkFromHistory(it) },
-                                                    privacyMode = privacyMode
-                                                )
-                                            }
-                                        } else null
-                                    )
-                                }
-                            } else {
-                                SettingsGroupItem(isTop = true, isBottom = true, containerColor = blockContainerColor) {
-                                    TextFieldRow(
-                                        label = stringResource(R.string.turnable_url_label),
-                                        value = turnableUrl.redact(privacyMode),
-                                        onValueChange = { if (!privacyMode) turnableUrl = it },
-                                        placeholder = stringResource(R.string.turnable_url_placeholder),
-                                        isError = !isTurnableUrlValid || turnableUrl.isBlank(),
-                                        maxLines = 5,
-                                        singleLine = false,
-                                        readOnly = privacyMode,
-                                        supportingText = stringResource(R.string.turnable_url_support),
-                                        isModified = clientConfigSnapshot != null && (turnableUrl.trim() != clientConfigSnapshot?.turnableUrl || clientConfigSnapshot!!.isRawMode),
-                                        trailingIcon = {
-                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                if (!privacyMode && turnableUrl.isNotBlank()) {
-                                                    Box(
-                                                        modifier = Modifier.size(40.dp),
-                                                        contentAlignment = Alignment.Center
-                                                    ) {
-                                                        if (isUrlParsing) {
-                                                            CircularWavyProgressIndicator(
-                                                                modifier = Modifier.size(20.dp)
-                                                            )
-                                                        } else {
-                                                            IconButton(
-                                                                onClick = {
-                                                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                                                    scope.launch {
-                                                                        isUrlParsing = true
-                                                                        delay(400)
-                                                                        showUrlEditor.value = true
-                                                                        isUrlParsing = false
-                                                                    }
-                                                                },
-                                                                modifier = Modifier.size(40.dp)
-                                                            ) {
-                                                                Icon(
-                                                                    painter = painterResource(R.drawable.edit_24px),
-                                                                    contentDescription = null,
-                                                                    modifier = Modifier.size(20.dp)
-                                                                )
+                                                } else {
+                                                    IconButton(
+                                                        onClick = {
+                                                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                                            scope.launch {
+                                                                isUrlParsing = true
+                                                                delay(400)
+                                                                showUrlEditor.value = true
+                                                                isUrlParsing = false
                                                             }
-                                                        }
+                                                        },
+                                                        modifier = Modifier.size(40.dp)
+                                                    ) {
+                                                        Icon(
+                                                            painter = painterResource(R.drawable.edit_24px),
+                                                            contentDescription = null,
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
                                                     }
                                                 }
-                                                FieldTrailingIcons(
-                                                    history = turnableUrlHistory,
-                                                    onSelect = { turnableUrl = it },
-                                                    onRemove = { viewModel.removeTurnableUrlFromHistory(it) },
-                                                    privacyMode = privacyMode
-                                                )
                                             }
                                         }
-                                    )
+                                        FieldTrailingIcons(
+                                            history = turnableUrlHistory,
+                                            onSelect = { turnableUrl = it },
+                                            onRemove = { viewModel.removeTurnableUrlFromHistory(it) },
+                                            privacyMode = privacyMode
+                                        )
+                                    }
                                 }
-                            }
+                            )
                         }
                     }
 
                     // 3. Тонкая настройка
                     SettingsGroup(title = stringResource(R.string.parameters_title)) {
-                        val showsThreads = tunnelType == TunnelType.TURN && kernelVariant == KernelVariant.VK_TURN_PROXY
-                        val showsVless = tunnelType != TunnelType.TURN || kernelVariant == KernelVariant.VK_TURN_PROXY
-                        val showsTransport = !vlessMode && tunnelType == TunnelType.TURN && kernelVariant == KernelVariant.VK_TURN_PROXY
-                        val showsNoDtls = showsTransport && useUdp
-                        val showsCaptchaGroup = tunnelType == TunnelType.TURN && kernelVariant != KernelVariant.TURNABLE
-                        
                         // 3.1 Local Port
                         SettingsGroupItem(
                             isTop = true, 
-                            isBottom = !(showsThreads || showsVless || showsTransport || showsCaptchaGroup), 
+                            isBottom = true, 
                             containerColor = blockContainerColor
                         ) {
                             TextFieldRow(
@@ -617,179 +323,6 @@ fun ClientConfigScreen(
                                 isModified = clientConfigSnapshot != null && localPort.trim() != clientConfigSnapshot?.localPort,
                                 onHelpClick = { showPortHelp.value = true }
                             )
-                        }
-
-                        // 3.2 Threads
-                        if (showsThreads) {
-                            SettingsGroupItem(
-                                isTop = false, 
-                                isBottom = !(showsVless || showsTransport || showsCaptchaGroup), 
-                                containerColor = blockContainerColor
-                            ) {
-                                Column {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = stringResource(R.string.threads_format, threads.roundToInt()),
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            fontWeight = FontWeight.Medium,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        InlineConfigIndicator(clientConfigSnapshot != null && threads.roundToInt() != clientConfigSnapshot?.threads)
-                                    }
-                                    Text(
-                                        text = stringResource(R.string.threads_recommendation),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Spacer(Modifier.height(8.dp))
-                                    Slider(
-                                        value = threads,
-                                        onValueChange = {
-                                            val newInt = it.roundToInt()
-                                            if (newInt != lastSliderInt) {
-                                                HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
-                                                lastSliderInt = newInt
-                                            }
-                                            threads = it
-                                        },
-                                        valueRange = 1f..8f,
-                                        steps = 6,
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                }
-                            }
-                        }
-
-                        // 3.3 VLESS Mode
-                        if (showsVless) {
-                            SettingsGroupItem(
-                                isTop = false, 
-                                isBottom = !(showsTransport || showsCaptchaGroup), 
-                                containerColor = blockContainerColor,
-                                onClick = {
-                                    val next = !vlessMode
-                                    HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
-                                    vlessMode = next
-                                }
-                            ) {
-                                SwitchRow(
-                                    label = stringResource(R.string.vless_mode),
-                                    supportingText = stringResource(R.string.vless_mode_desc),
-                                    checked = vlessMode,
-                                    onCheckedChange = {
-                                        HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
-                                        vlessMode = it
-                                    },
-                                    isModified = clientConfigSnapshot != null && vlessMode != clientConfigSnapshot?.vlessMode
-                                )
-                            }
-                        }
-
-                        // 3.4 Transport Protocol
-                        if (showsTransport) {
-                            SettingsGroupItem(
-                                isTop = false, 
-                                isBottom = !(showsNoDtls || showsCaptchaGroup), 
-                                containerColor = blockContainerColor
-                            ) {
-                                LabeledSegmentedButton(
-                                    label = stringResource(R.string.transport_protocol),
-                                    supportingText = stringResource(R.string.transport_protocol_desc),
-                                    isModified = clientConfigSnapshot != null && useUdp != clientConfigSnapshot?.useUdp
-                                ) {
-                                    SegmentedButton(
-                                        selected = !useUdp,
-                                        onClick = {
-                                            HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                                            useUdp = false
-                                            noDtls = false
-                                        },
-                                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-                                    ) { Text(stringResource(R.string.tcp)) }
-                                    SegmentedButton(
-                                        selected = useUdp,
-                                        onClick = {
-                                            HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                                            useUdp = true
-                                        },
-                                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-                                    ) { Text(stringResource(R.string.udp)) }
-                                }
-                            }
-
-                            if (useUdp) {
-                                SettingsGroupItem(
-                                    isTop = false, 
-                                    isBottom = !showsCaptchaGroup, 
-                                    containerColor = blockContainerColor,
-                                    onClick = if (customKernelExists) {
-                                        {
-                                            val next = !noDtls
-                                            HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
-                                            noDtls = next
-                                        }
-                                    } else null,
-                                    enabled = customKernelExists
-                                ) {
-                                    SwitchRow(
-                                        label = stringResource(R.string.no_dtls),
-                                        supportingText = stringResource(R.string.no_dtls_desc),
-                                        checked = noDtls,
-                                        onCheckedChange = {
-                                            HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
-                                            noDtls = it
-                                        },
-                                        isModified = clientConfigSnapshot != null && noDtls != clientConfigSnapshot?.noDtls,
-                                        enabled = customKernelExists
-                                    )
-                                }
-                            }
-                        }
-
-                        // 3.5 Captcha & Port 443
-                        if (showsCaptchaGroup) {
-                            SettingsGroupItem(
-                                isTop = false, 
-                                isBottom = false, 
-                                containerColor = blockContainerColor,
-                                onClick = {
-                                    val next = !manualCaptcha
-                                    HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
-                                    manualCaptcha = next
-                                }
-                            ) {
-                                SwitchRow(
-                                    label = stringResource(R.string.manual_captcha),
-                                    supportingText = stringResource(R.string.manual_captcha_desc),
-                                    checked = manualCaptcha,
-                                    onCheckedChange = {
-                                        HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
-                                        manualCaptcha = it
-                                    },
-                                    isModified = clientConfigSnapshot != null && manualCaptcha != clientConfigSnapshot?.manualCaptcha
-                                )
-                            }
-                            SettingsGroupItem(
-                                isTop = false, 
-                                isBottom = true, 
-                                containerColor = blockContainerColor,
-                                onClick = {
-                                    val next = !forcePort443
-                                    HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
-                                    forcePort443 = next
-                                }
-                            ) {
-                                SwitchRow(
-                                    label = stringResource(R.string.force_turn_port_443),
-                                    supportingText = stringResource(R.string.force_turn_port_443_desc),
-                                    checked = forcePort443,
-                                    onCheckedChange = {
-                                        HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
-                                        forcePort443 = it
-                                    },
-                                    isModified = clientConfigSnapshot != null && forcePort443 != clientConfigSnapshot?.forceTurnPort443
-                                )
-                            }
                         }
                     }
                 }
@@ -855,18 +388,10 @@ fun ClientConfigScreen(
             }
 
             if (showFinishButton && onFinish != null) {
-                val isValid = remember(isRawMode, rawCommand, tunnelType, dcType, vp8cType, jazzCreds, telemostRoomUrl, wbstreamUuid, serverAddress, vkLink, turnableUrl, kernelVariant) {
+                val isValid = remember(isRawMode, rawCommand, turnableUrl, kernelVariant) {
                     com.wireturn.app.data.ClientConfig(
                         isRawMode = isRawMode,
                         rawCommand = rawCommand,
-                        tunnelType = tunnelType,
-                        dcType = dcType,
-                        vp8cType = vp8cType,
-                        jazzCreds = jazzCreds,
-                        telemostRoomUrl = telemostRoomUrl,
-                        wbstreamUuid = wbstreamUuid,
-                        serverAddress = serverAddress,
-                        vkLink = vkLink,
                         turnableUrl = turnableUrl,
                         kernelVariant = kernelVariant
                     ).isValid
@@ -890,64 +415,6 @@ fun ClientConfigScreen(
             onConfirm = {
                 turnableUrl = it
                 showUrlEditor.value = false
-            }
-        )
-    }
-
-    if (showServerHelp.value) {
-        AlertDialog(
-            onDismissRequest = { showServerHelp.value = false },
-            title = { Text(stringResource(R.string.server_address_label)) },
-            text = { 
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = stringResource(R.string.server_help_text),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Text(
-                        text = stringResource(R.string.server_help_secondary),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showServerHelp.value = false }) {
-                    Text(stringResource(R.string.btn_close))
-                }
-            }
-        )
-    }
-
-    if (showVkHelp.value) {
-        val uriHandler = LocalUriHandler.current
-        AlertDialog(
-            onDismissRequest = { showVkHelp.value = false },
-            title = { Text(stringResource(R.string.vk_link_label)) },
-            text = { 
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = stringResource(R.string.vk_help_text),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Text(
-                        text = stringResource(R.string.vk_help_secondary),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { 
-                    uriHandler.openUri("https://www.google.com/search?q=https://vk.com/call/join/+")
-                }) {
-                    Text(stringResource(R.string.vk_help_search_btn))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showVkHelp.value = false }) {
-                    Text(stringResource(R.string.btn_close))
-                }
             }
         )
     }
