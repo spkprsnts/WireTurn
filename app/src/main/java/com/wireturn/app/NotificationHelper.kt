@@ -176,7 +176,7 @@ object NotificationHelper {
         return builder.build()
     }
 
-    fun notifyCaptcha(context: Context, url: String, sessionId: String) {
+    fun notifyCaptcha(context: Context, @Suppress("UNUSED_PARAMETER") url: String, @Suppress("UNUSED_PARAMETER") sessionId: String) {
         val openAppIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.let {
             PendingIntent.getActivity(context, 1, it, PendingIntent.FLAG_IMMUTABLE)
         }
@@ -188,7 +188,6 @@ object NotificationHelper {
             .setContentIntent(openAppIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setFullScreenIntent(openAppIntent, true)
             .setAutoCancel(true)
 
         context.getSystemService(NotificationManager::class.java)

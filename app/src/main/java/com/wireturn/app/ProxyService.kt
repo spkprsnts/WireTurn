@@ -310,7 +310,6 @@ class ProxyService : Service() {
         var startupFailed = false
         var captchaActive = false
         var captchaSessionCounter = 0L
-        val sessionKillScheduled = AtomicBoolean(false)
         var peerConnectFailedCount = 0
         var unreachableNetworkCount = 0
         var smuxErrorCount = 0
@@ -484,18 +483,6 @@ class ProxyService : Service() {
                                 updateNotification(getString(R.string.connecting))
                                 ProxyTileService.requestUpdate(this@ProxyService)
                             }
-
-//                            if (sessionKillScheduled.compareAndSet(false, true))
-//                            {
-//                                AppLogsState.addLog(getString(R.string.log_quota_error))
-//                                launch {
-//                                    delay(2000)
-//                                    sessionKillScheduled.set(false)
-//                                    if (!userStopped.get()) {
-//                                        stopBinaryProcessGracefully()
-//                                    }
-//                                }
-//                            }
                         }
                     }
                 }
@@ -525,7 +512,7 @@ class ProxyService : Service() {
         }
     }
 
-    private suspend fun buildCommandArgs(cfg: ClientConfig): List<String> {
+    private fun buildCommandArgs(cfg: ClientConfig): List<String> {
         val customBin = File(filesDir, "custom_vkturn")
         val useCustom = customBin.exists()
         val executable = if (useCustom) {
