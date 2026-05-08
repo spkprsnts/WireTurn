@@ -849,7 +849,7 @@ fun UpdateBlock(
 
     Column(modifier = modifier) {
         Row(
-            modifier = Modifier.heightIn(min = 40.dp),
+            modifier = Modifier.heightIn(min = 48.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             StandardLeadingIcon {
@@ -967,7 +967,11 @@ fun UpdateBlock(
             )
         }
 
-        if (showChangelog && currentChangelog.isNotBlank()) {
+        AnimatedVisibility(
+            visible = showChangelog && currentChangelog.isNotBlank(),
+            enter = expandVertically(animationSpec = tween(300)) + fadeIn(tween(300)),
+            exit = shrinkVertically(animationSpec = tween(300)) + fadeOut(tween(300))
+        ) {
             Text(
                 text = MarkdownUtils.parseMarkdown(
                     text = currentChangelog,
