@@ -35,12 +35,10 @@
     <!-- Названия компонентов и ядер -->
     <string name="android_client">Android-клиент</string>
     <string name="android_client_original">Android-клиент (оригинал)</string>
-    <string name="proxy_core_current">Ядро туннеля (текущее)</string>
-    <string name="proxy_core">Ядро туннеля (базовое)</string>
-    <string name="proxy_core_use">Ядро туннеля (устаревшее)</string>
     <string name="turnable_core">Ядро туннеля (Turnable)</string>
     <!-- Кнопки и общие действия -->
     <string name="btn_open">Открыть</string>
+    <string name="btn_start">Запустить</string>
     <string name="btn_close">Закрыть</string>
     <string name="btn_save">Сохранить</string>
     <string name="reset_settings">Сбросить настройки</string>
@@ -84,48 +82,38 @@
     <string name="client_title">Клиент</string>
     <string name="connection_title">Подключение</string>
     <string name="raw_mode_desc">Ввод аргументов вручную</string>
-    <string name="server_address_label">Адрес vk-turn-proxy сервера</string>
-    <string name="server_address_placeholder">292.313.32.45:56000</string>
-    <string name="server_address_support">IP и порт вашего сервера (параметр -listen)</string>
-    <string name="server_help_text">Укажите публичный IP-адрес и порт вашего VPS, на котором запущен vk‑turn‑proxy.</string>
-    <string name="server_help_secondary">Обратите внимание: если на сервере использован параметр -listen 0.0.0.0:56000, в приложении нужно указать именно внешний IP-адрес вашего сервера (например, 292.313.32.45:56000), а не нули.</string>
-    <string name="vk_link_label">Ссылка VK-звонок</string>
-    <string name="vk_link_placeholder">https://vk.com/call/join/…</string>
-    <string name="turnable_url_label">Turnable-ссылка</string>
-    <string name="turnable_url_placeholder">turnable://user:pass@vk.com…</string>
-    <string name="turnable_url_support">Создаётся и формируется на сервере</string>
-    <string name="wbstream_uuid_label">ID комнаты WB Stream</string>
-    <string name="wbstream_uuid_placeholder">UUID</string>
-    <string name="wbstream_uuid_support">Создаётся на сервере</string>
+    <string name="import_turnable_title">Импорт конфига Turnable</string>
+    <string name="route_title">Маршрут</string>
+    <string name="user_uuid_label">UUID пользователя</string>
+    <string name="user_uuid_desc">Используется для авторизации пользователя на сервере Turnable</string>
+    <string name="username_label">Имя участника звонка</string>
+    <string name="username_desc">Используется для анонимной авторизации на получение данных для TURN-сервера</string>
+    <string name="platform_id_label">ID платформы звонков</string>
+    <string name="platform_id_desc">На данный момент поддерживается только vk.com</string>
+    <string name="call_id_label">ID звонка</string>
+    <string name="call_id_desc">Берется из ссылки на звонок.\nVK: Звонки «https://vk.com/call/join/[ID]»</string>
+    <string name="connection_type_label">Тип подключения</string>
+    <string name="connection_type_desc">Использовать Direct крайне не рекомендуется в большинстве случаев</string>
+    <string name="encryption_label">Режим шифрования</string>
+    <string name="encryption_desc">Вариант шифрования трафика</string>
+    <string name="pub_key_label">Публичный ключ</string>
+    <string name="pub_key_desc">Ключ для шифрования трафика</string>
+    <string name="peers_label">Параллельные соединения</string>
+    <string name="peers_desc">Число одновременных подключений для повышения производительности</string>
+    <string name="gateway_label">Адрес сервера Turnable</string>
+    <string name="gateway_desc">IP и порт сервера, указанные в конфиге Turnable</string>
+    <string name="proto_label">Транспортный протокол</string>
+    <string name="proto_desc">Необходим для типа Relay. Рекомендуется использовать SRTP</string>
+    <string name="force_turn_label">Принудительный TURN</string>
+    <string name="force_turn_desc">Всегда использовать TURN-сервер для соединений (опционально)</string>
+    <string name="turnable_qr_scan_desc">Наведите камеру на QR-код конфигурации Turnable для импорта</string>
     <string name="history_label">История</string>
-    <string name="tunnel_label">Туннель</string>
     <string name="kernel_label">Ядро</string>
     <string name="kernel_config_label">Формат параметров</string>
     <string name="kernel_config_desc">Выберите структуру аргументов для кастомного ядра</string>
     <string name="local_listen_address">Локальный адрес прослушивания</string>
     <string name="local_listen_placeholder">127.0.0.1:9000</string>
     <string name="parameters_title">Параметры</string>
-    <string name="threads_format">Потоки: %1$d</string>
-    <string name="threads_recommendation">Рекомендуется 4–8</string>
-    <string name="vless_mode">VLESS-режим</string>
-    <string name="vless_mode_desc">Проброс VLESS через туннель</string>
-    <string name="transport_protocol">Транспорт</string>
-    <string name="transport_protocol_desc">UDP снижает задержки, TCP — стабильнее</string>
-    <string name="no_dtls">Без DTLS-шифрования</string>
-    <string name="no_dtls_desc">Может ускорить соединение, повышает риск блокировки</string>
-    <string name="manual_captcha">Ручной ввод капчи</string>
-    <string name="manual_captcha_desc">Решать капчу вручную вместо автоматического распознавания</string>
-    <string name="force_turn_port_443">TURN-порт 443</string>
-    <string name="force_turn_port_443_desc">Использовать порт 443 вместо стандартного.</string>
-    <string name="platform_label">Платформа</string>
-    <string name="jazz_creds_label">Код:пароль комнаты SaluteJazz</string>
-    <string name="jazz_creds_placeholder">room:password</string>
-    <string name="jazz_creds_support">Создаётся на сервере</string>
-    <string name="vp8c_tunnel">VP8C</string>
-    <string name="telemost_label">Telemost</string>
-    <string name="telemost_url_label">Ссылка на комнату Telemost</string>
-    <string name="telemost_url_placeholder">https://telemost.yandex.ru/j/…</string>
-    <string name="telemost_url_support">Должно соответствовать указанной на сервере</string>
     <string name="core_title">Загрузка ядра</string>
     <string name="custom_core">Кастомное ядро</string>
     <string name="builtin_core">Встроенное ядро</string>
@@ -134,9 +122,6 @@
     <string name="from_apk">Из APK</string>
     <string name="btn_load">Загрузить</string>
     <string name="finish_setup">Завершить настройку</string>
-    <string name="vk_help_text">Для работы туннеля необходима ссылка на звонок ВКонтакте.</string>
-    <string name="vk_help_secondary">Её можно найти в Google по запросу \"https://vk.com/call/join/\" или создать самостоятельно в веб-версии VK Звонков (vk.com/calls), используя режим ПК в браузере.</string>
-    <string name="vk_help_search_btn">Искать в Google</string>
     <string name="local_port_help_text">Это сетевой адрес и порт, на которых приложение запустит локальный прокси-сервер.</string>
     <string name="local_port_help_secondary">К этому адресу должен подключаться либо встроенный в приложение Xray, либо ваши сторонние VPN-клиенты (WireGuard, v2raytun и др.), чтобы трафик шел через созданный туннель.</string>
 
@@ -158,7 +143,6 @@
     <string name="update_available">Доступна версия %1$s</string>
     <string name="update_download">Скачать</string>
     <string name="update_downloading_short">Загрузка…</string>
-    <string name="update_downloading">Загрузка: %1$d%%</string>
     <string name="update_ready_desc_short">Готово к установке</string>
     <string name="update_install">Установить</string>
     <string name="update_no_update">Установлена последняя версия</string>
@@ -218,7 +202,6 @@
     <string name="log_standard_kernel">Используется стандартное ядро из APK</string>
     <string name="log_custom_kernel">Используется кастомное ядро из памяти телефона</string>
     <string name="log_command">Команда: %1$s</string>
-    <string name="log_quota_error">>>> QUOTA ERROR — сброс сессии через 2с</string>
     <string name="log_proxy_start">=== ЗАПУСК ТУННЕЛЯ: %1$s ===</string>
     <string name="log_proxy_suppressed">=== ТУННЕЛЬ ПОДАВЛЕН (ПРЯМОЙ МАРШРУТ) ===</string>
     <string name="log_process_stopped">=== ПРОЦЕСС ОСТАНОВЛЕН (Код: %1$d) ===</string>
@@ -229,9 +212,7 @@
     <string name="log_network_change">=== СМЕНА СЕТИ — ПЕРЕЗАПУСК ===</string>
     <string name="log_no_network_waiting">=== НЕТ СЕТИ — БЕСКОНЕЧНОЕ ОЖИДАНИЕ ===</string>
     <string name="log_stop_ui">=== ОСТАНОВКА ИЗ ИНТЕРФЕЙСА ===</string>
-    <string name="log_jazz_unavailable">>>> bk.salutejazz.ru НЕДОСТУПЕН — СМЕНИТЕ IP (ПЕРЕЗАГРУЗИТЕ СЕТЬ)</string>
     <string name="log_too_many_peer_failures">>>> СЛИШКОМ МНОГО ОШИБОК ПОДКЛЮЧЕНИЯ — остановка</string>
-    <string name="error_jazz_unavailable">API SaluteJazz недоступен</string>
     <string name="error_too_many_peer_failures">Слишком много ошибок подключения</string>
     <string name="error_invalid_turnable_url">Неверная ссылка Turnable</string>
     <string name="error_turnable_failed">Ошибка Turnable: %1$s</string>
@@ -293,8 +274,9 @@
     <!-- Предупреждения -->
     <string name="warn_unsupported_arch_title">Архитектура не поддерживается</string>
     <string name="warn_unsupported_arch_desc">Ваше устройство использует архитектуру (%1$s), которая не поддерживается встроенными бинарными файлами. Приложение может работать некорректно или не запускаться.\n\nПоддерживаемые архитектуры: arm64-v8a, x86_64.</string>
-    <string name="warn_proxy_vless_mismatch">Несоответствие: Туннель в режиме VLESS, а Xray — WireGuard</string>
-    <string name="warn_proxy_wg_mismatch">Несоответствие: Туннель в обычном режиме, а Xray — VLESS</string>
+    <string name="mismatch_title">Несоответствие</string>
+    <string name="warn_proxy_vless_mismatch">Туннель ожидает VLESS-подключение, а Xray настроен на WireGuard</string>
+    <string name="warn_proxy_wg_mismatch">Туннель ожидает WireGuard-подключение, а Xray настроен на VLESS</string>
     <string name="warn_vpn_requires_xray">Режим VPN требует включенного Xray!</string>
 
     <!-- Импорт через QR и расширенные параметры -->
@@ -305,15 +287,9 @@
     <string name="xray_http_desc">Адрес для HTTP прокси (опционально)</string>
     <string name="xray_protocol_desc">Выберите протокол для Xray-core</string>
     <string name="vless_settings">Настройки VLESS</string>
-    <string name="connection_method_desc">Способ проброса трафика</string>
     <string name="client_variants_desc">Варианты клиента</string>
     <string name="connection_details">Детали подключения</string>
-    <string name="platform_desc">Выберите платформу для туннелирования</string>
-    <string name="edit_url_params">Параметры ссылки</string>
-    <string name="url_param_key">Ключ</string>
-    <string name="url_param_value">Значение</string>
-    <string name="url_base">Базовый URL</string>
-    <string name="add_parameter">Добавить параметр</string>
+    <string name="server_settings_title">Настройки сервера</string>
 
     <!-- Управление профилями -->
     <string name="profiles_title">Профили</string>

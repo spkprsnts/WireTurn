@@ -536,7 +536,7 @@ class ProxyService : Service() {
                         listOf(
                             "client",
                             "-l", cfg.localPort.ifBlank { ClientConfig.DEFAULT_LOCAL_PORT },
-                            cfg.turnableUrl
+                            cfg.turnableConfig.toUrl(true)
                         )
                     )
                 }

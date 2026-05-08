@@ -1,7 +1,5 @@
 package com.wireturn.app.ui
 
-import android.annotation.SuppressLint
-import android.app.Activity
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
@@ -20,7 +18,6 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,52 +25,37 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SingleChoiceSegmentedButtonRowScope
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -83,10 +65,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
@@ -97,15 +77,10 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.net.toUri
-import androidx.core.view.WindowCompat
 import com.wireturn.app.R
-import com.wireturn.app.data.ThemeMode
-import com.wireturn.app.ui.theme.LocalThemeMode
 import com.wireturn.app.viewmodel.UpdateState
+import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -385,6 +360,50 @@ fun CompactSettingsItem(
 }
 
 @Composable
+fun SliderRow(
+    label: String,
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+    valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
+    steps: Int = 0,
+    supportingText: String? = null,
+    isModified: Boolean = false,
+    valueDisplay: @Composable (Float) -> Unit = {
+        Text(
+            text = it.roundToInt().toString(),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+    }
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            ConfigRowLabel(text = label, isModified = isModified, modifier = Modifier.weight(1f))
+            valueDisplay(value)
+        }
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = valueRange,
+            steps = steps,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+        )
+        SupportingText(text = supportingText)
+    }
+}
+
+@Composable
 fun LabeledSegmentedButton(
     label: String,
     modifier: Modifier = Modifier,
@@ -632,184 +651,6 @@ fun HistoryIconButton(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@SuppressLint("AuthLeak")
-@Composable
-fun TurnableUrlEditorDialog(
-    url: String,
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
-) {
-    val initialData = remember(url) {
-        try {
-            val uri = url.toUri()
-            val userInfo = uri.encodedUserInfo?.let { "$it@" } ?: ""
-            val scheme = uri.scheme ?: "turnable"
-            val host = uri.host ?: ""
-            val path = uri.path ?: ""
-            val baseUrl = "$scheme://$userInfo$host$path"
-            val params = uri.queryParameterNames.map { it to (uri.getQueryParameter(it) ?: "") }
-            baseUrl to params
-        } catch (_: Exception) {
-            url to emptyList()
-        }
-    }
-
-    var baseUrl by remember { mutableStateOf(initialData.first) }
-    var params by remember { mutableStateOf(initialData.second) }
-
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
-        )
-    ) {
-        val view = LocalView.current
-        val themeMode = LocalThemeMode.current
-        val systemDarkTheme = isSystemInDarkTheme()
-        val isDark = when (themeMode) {
-            ThemeMode.DARK -> true
-            ThemeMode.LIGHT -> false
-            ThemeMode.SYSTEM -> systemDarkTheme
-        }
-
-        SideEffect {
-            val window = (view.parent as? DialogWindowProvider)?.window ?: (view.context as? Activity)?.window
-            window?.let {
-                val controller = WindowCompat.getInsetsController(it, view)
-                controller.isAppearanceLightStatusBars = !isDark
-                controller.isAppearanceLightNavigationBars = !isDark
-            }
-        }
-
-        val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
-        Scaffold(
-            modifier = Modifier
-                .fillMaxSize()
-                .nestedScroll(scrollBehavior.nestedScrollConnection),
-            topBar = {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.edit_url_params)) },
-                    navigationIcon = {
-                        IconButton(onClick = onDismiss) {
-                            Icon(
-                                painter = painterResource(R.drawable.close_24px),
-                                contentDescription = stringResource(R.string.cancel)
-                            )
-                        }
-                    },
-                    actions = {
-                        TextButton(
-                            onClick = {
-                                try {
-                                    val builder = baseUrl.toUri().buildUpon()
-                                    builder.clearQuery()
-                                    params.forEach { (key, value) ->
-                                        if (key.isNotBlank()) {
-                                            builder.appendQueryParameter(key, value)
-                                        }
-                                    }
-                                    onConfirm(builder.build().toString())
-                                } catch (_: Exception) {
-                                    onConfirm(baseUrl)
-                                }
-                            }
-                        ) {
-                            Text(stringResource(R.string.btn_save))
-                        }
-                    },
-                    scrollBehavior = scrollBehavior
-                )
-            },
-            contentWindowInsets = WindowInsets(0, 0, 0, 0)
-        ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .fillMaxWidth()
-                    .wrapContentWidth(Alignment.CenterHorizontally)
-                    .widthIn(max = 840.dp)
-                    .padding(padding)
-                    .consumeWindowInsets(padding)
-                    .imePadding()
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                OutlinedTextField(
-                    value = baseUrl,
-                    onValueChange = { baseUrl = it },
-                    label = { Text(stringResource(R.string.url_base)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    supportingText = { Text("scheme://user:pass@host/path") }
-                )
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                
-                Text(
-                    text = stringResource(R.string.edit_url_params), 
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                params.forEachIndexed { index, pair ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = pair.first,
-                            onValueChange = { newKey ->
-                                params = params.toMutableList().apply { this[index] = newKey to pair.second }
-                            },
-                            label = { Text(stringResource(R.string.url_param_key)) },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true
-                        )
-                        OutlinedTextField(
-                            value = pair.second,
-                            onValueChange = { newValue ->
-                                params = params.toMutableList().apply { this[index] = pair.first to newValue }
-                            },
-                            label = { Text(stringResource(R.string.url_param_value)) },
-                            modifier = Modifier.weight(1.5f),
-                            singleLine = true,
-                            trailingIcon = {
-                                IconButton(
-                                    onClick = {
-                                        params = params.toMutableList().apply { removeAt(index) }
-                                    }
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.delete_24px),
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                        )
-                    }
-                }
-
-                FilledTonalButton(
-                    onClick = { params = params + ("" to "") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Icon(painterResource(R.drawable.add_24px), null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.add_parameter))
-                }
-                
-                Spacer(Modifier.height(32.dp))
-            }
-        }
-    }
-}
-
 /**
  * A shared component to display application update status.
  */
@@ -985,6 +826,24 @@ fun UpdateBlock(
                 modifier = Modifier.padding(top = 12.dp)
             )
         }
+    }
+}
+
+@Composable
+fun ImportButton(
+    onClick: () -> Unit,
+    icon: Int,
+    label: String,
+    modifier: Modifier = Modifier
+) {
+    androidx.compose.material3.Button(
+        onClick = onClick,
+        modifier = modifier,
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp)
+    ) {
+        Icon(painterResource(icon), null, Modifier.size(18.dp))
+        Spacer(Modifier.width(4.dp))
+        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelSmall)
     }
 }
 

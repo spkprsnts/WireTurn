@@ -10,8 +10,6 @@
     <string name="proxy_running">Core active</string>
     <string name="proxy_press_to_start">Tap to start</string>
     <string name="proxy_stop">Stop</string>
-    <string name="tcp" translatable="false">TCP</string>
-    <string name="udp" translatable="false">UDP</string>
     <string name="proxy_active_stop">Tunnel active — tap to stop</string>
     <string name="proxy_error_restart">Error — tap to restart</string>
     <string name="proxy_captcha_required">Captcha required</string>
@@ -38,15 +36,13 @@
     <!-- Component and Core Names -->
     <string name="android_client">Android client</string>
     <string name="android_client_original">Android client (original)</string>
-    <string name="proxy_core_current">Tunnel core (current)</string>
-    <string name="proxy_core">Tunnel core (base)</string>
-    <string name="proxy_core_use">Tunnel core (legacy)</string>
     <string name="turnable_core">Tunnel core (Turnable)</string>
     <string name="xray_core_name" translatable="false">vless-client</string>
     <string name="xray_core_original" translatable="false">Xray-core</string>
     <string name="hev_socks5_tunnel" translatable="false">hev-socks5-tunnel</string>
     <!-- Buttons and Common Actions -->
     <string name="btn_open">Open</string>
+    <string name="btn_start">Start</string>
     <string name="btn_close">Close</string>
     <string name="btn_save">Save</string>
     <string name="reset_settings">Reset settings</string>
@@ -115,54 +111,39 @@
     <string name="raw_mode_desc">Manual argument input</string>
     <string name="raw_label" translatable="false">Raw</string>
     <string name="raw_placeholder" translatable="false">-listen 127.0.0.1:900 -peer 292.313.32.45:56000 …</string>
-    <string name="server_address_label">vk-turn-proxy server address</string>
-    <string name="server_address_placeholder">292.313.32.45:56000</string>
-    <string name="server_address_support">Your server\'s IP and port (-listen parameter)</string>
-    <string name="server_help_text">Specify the public IP address and port of your VPS running vk-turn-proxy.</string>
-    <string name="server_help_secondary">Note: if the -listen 0.0.0.0:56000 parameter is used on the server, you must specify the external IP address of your server in the app (e.g., 292.313.32.45:56000), not zeros.</string>
-    <string name="vk_link_label">VK Call link</string>
-    <string name="vk_link_placeholder">https://vk.com/call/join/…</string>
-    <string name="turnable_url_label">Turnable link</string>
-    <string name="turnable_url_placeholder">turnable://user:pass@vk.com…</string>
-    <string name="turnable_url_support">Created and formed on the server</string>
-    <string name="wbstream_uuid_label">WB Stream Room ID</string>
-    <string name="wbstream_uuid_placeholder">UUID</string>
-    <string name="wbstream_uuid_support">Created on the server</string>
+    <string name="import_turnable_title">Turnable config import</string>
+    <string name="route_title">Route</string>
+    <string name="user_uuid_label">User UUID</string>
+    <string name="user_uuid_desc">Used for user authorization on the Turnable server</string>
+    <string name="username_label">Call participant name</string>
+    <string name="username_desc">Used for anonymous authorization to obtain TURN server data</string>
+    <string name="platform_id_label">Call platform ID</string>
+    <string name="platform_id_desc">Only vk.com is supported at the moment</string>
+    <string name="call_id_label">Call ID</string>
+    <string name="call_id_desc">Extracted from the call link.\nVK: «https://vk.com/call/join/[ID]»</string>
+    <string name="connection_type_label">Connection type</string>
+    <string name="connection_type_desc">Using Direct mode is highly discouraged for most cases</string>
+    <string name="encryption_label">Encryption mode</string>
+    <string name="encryption_desc">Traffic encryption algorithm</string>
+    <string name="pub_key_label">Public key</string>
+    <string name="pub_key_desc">Key for traffic encryption</string>
+    <string name="peers_label">Parallel connections</string>
+    <string name="peers_desc">Number of parallel sessions for better performance</string>
+    <string name="gateway_label">Turnable server address</string>
+    <string name="gateway_desc">Server IP and port from the Turnable configuration</string>
+    <string name="proto_label">Transport protocol</string>
+    <string name="proto_desc">Required for Relay type. SRTP is highly recommended</string>
+    <string name="force_turn_label">Force TURN</string>
+    <string name="force_turn_desc">Always use TURN server for connections (optional)</string>
+    <string name="turnable_qr_scan_desc">Point the camera at the Turnable configuration QR code to import</string>
     <string name="history_label">History</string>
-    <string name="tunnel_label">Tunnel</string>
     <string name="kernel_label">Core</string>
     <string name="kernel_config_label">Parameter format</string>
     <string name="kernel_config_desc">Select argument structure for custom core</string>
-    <string name="kernel_vk_turn_proxy" translatable="false">vk-turn-proxy</string>
     <string name="kernel_turnable" translatable="false">Turnable</string>
-    <string name="turn_tunnel" translatable="false">TURN</string>
-    <string name="dc_tunnel" translatable="false">DC</string>
     <string name="local_listen_address">Local listen address</string>
     <string name="local_listen_placeholder">127.0.0.1:9000</string>
     <string name="parameters_title">Parameters</string>
-    <string name="threads_format">Threads: %1$d</string>
-    <string name="threads_recommendation">Recommended 4–8</string>
-    <string name="vless_mode">VLESS mode</string>
-    <string name="vless_mode_desc">VLESS tunneling</string>
-    <string name="transport_protocol">Transport</string>
-    <string name="transport_protocol_desc">UDP reduces latency, TCP is more stable</string>
-    <string name="no_dtls">Without DTLS encryption</string>
-    <string name="no_dtls_desc">May speed up connection, increases blocking risk</string>
-    <string name="manual_captcha">Manual captcha entry</string>
-    <string name="manual_captcha_desc">Solve captcha manually instead of automatic recognition</string>
-    <string name="force_turn_port_443">TURN port 443</string>
-    <string name="force_turn_port_443_desc">Use port 443 instead of the default.</string>
-    <string name="jazz_label" translatable="false">SaluteJazz</string>
-    <string name="wb_stream_label" translatable="false">WB Stream</string>
-    <string name="platform_label">Platform</string>
-    <string name="jazz_creds_label">SaluteJazz room code:password</string>
-    <string name="jazz_creds_placeholder">room:password</string>
-    <string name="jazz_creds_support">Created on the server</string>
-    <string name="vp8c_tunnel" translatable="false">VP8C</string>
-    <string name="telemost_label" translatable="false">Telemost</string>
-    <string name="telemost_url_label">Telemost room link</string>
-    <string name="telemost_url_placeholder">https://telemost.yandex.ru/j/…</string>
-    <string name="telemost_url_support">Must match the one specified on the server</string>
     <string name="core_title">Core download</string>
     <string name="custom_core">Custom core</string>
     <string name="builtin_core">Built-in core</string>
@@ -171,9 +152,6 @@
     <string name="from_apk">From APK</string>
     <string name="btn_load">Load</string>
     <string name="finish_setup">Finish setup</string>
-    <string name="vk_help_text">A VK Call link is required for the tunnel to work.</string>
-    <string name="vk_help_secondary">It can be found on Google by searching for \"https://vk.com/call/join/\" or created manually in the web version of VK Calls (vk.com/calls) using desktop mode in your browser.</string>
-    <string name="vk_help_search_btn">Search Google</string>
     <string name="local_port_help_text">This is the network address and port where the app will start the local proxy server.</string>
     <string name="local_port_help_secondary">Either the built-in Xray or your third-party VPN clients (WireGuard, v2raytun, etc.) must connect to this address for traffic to go through the created tunnel.</string>
 
@@ -196,7 +174,6 @@
     <string name="update_available">Version %1$s available</string>
     <string name="update_download">Download</string>
     <string name="update_downloading_short">Downloading…</string>
-    <string name="update_downloading">Downloading: %1$d%%</string>
     <string name="update_ready_desc_short">Ready to install</string>
     <string name="update_install">Install</string>
     <string name="update_no_update">Latest version installed</string>
@@ -256,7 +233,6 @@
     <string name="log_standard_kernel">Using standard core from APK</string>
     <string name="log_custom_kernel">Using custom core from phone memory</string>
     <string name="log_command">Command: %1$s</string>
-    <string name="log_quota_error">>>> QUOTA ERROR — resetting session in 2s</string>
     <string name="log_proxy_start">=== TUNNEL STARTING: %1$s ===</string>
     <string name="log_proxy_suppressed">=== TUNNEL SUPPRESSED (DIRECT ROUTE) ===</string>
     <string name="log_process_stopped">=== PROCESS STOPPED (Code: %1$d) ===</string>
@@ -267,9 +243,7 @@
     <string name="log_network_change">=== NETWORK CHANGE — RESTARTING ===</string>
     <string name="log_no_network_waiting">=== NO NETWORK — WAITING INDEFINITELY ===</string>
     <string name="log_stop_ui">=== STOPPED FROM UI ===</string>
-    <string name="log_jazz_unavailable">>>> bk.salutejazz.ru UNAVAILABLE — CHANGE IP (RESTART NETWORK)</string>
     <string name="log_too_many_peer_failures">>>> TOO MANY PEER FAILURES — stopping</string>
-    <string name="error_jazz_unavailable">SaluteJazz API unavailable</string>
     <string name="error_too_many_peer_failures">Too many connection failures</string>
     <string name="error_invalid_turnable_url">Invalid Turnable link</string>
     <string name="error_turnable_failed">Turnable error: %1$s</string>
@@ -340,8 +314,9 @@
     <!-- Warnings -->
     <string name="warn_unsupported_arch_title">Architecture not supported</string>
     <string name="warn_unsupported_arch_desc">Your device uses an architecture (%1$s) not supported by the built-in binaries. The app may not work correctly or fail to start.\n\nSupported architectures: arm64-v8a, x86_64.</string>
-    <string name="warn_proxy_vless_mismatch">Mismatch: Tunnel in VLESS mode, but Xray is WireGuard</string>
-    <string name="warn_proxy_wg_mismatch">Mismatch: Tunnel in normal mode, but Xray is VLESS</string>
+    <string name="mismatch_title">Mismatch</string>
+    <string name="warn_proxy_vless_mismatch">Tunnel expects a VLESS connection, but Xray is configured for WireGuard</string>
+    <string name="warn_proxy_wg_mismatch">Tunnel expects a WireGuard connection, but Xray is configured for VLESS</string>
     <string name="warn_vpn_requires_xray">VPN mode requires Xray to be enabled!</string>
 
     <!-- QR Import and Advanced Parameters -->
@@ -353,17 +328,11 @@
     <string name="xray_protocol_desc">Choose protocol for Xray-core</string>
     <string name="vless_settings">VLESS Settings</string>
     <string name="protocol_wireguard" translatable="false">WireGuard</string>
-    <string name="connection_method_desc">Traffic tunneling method</string>
     <string name="client_variants_desc">Client variants</string>
     <string name="connection_details">Connection details</string>
-    <string name="platform_desc">Select the platform for tunneling</string>
+    <string name="server_settings_title">Server settings</string>
     <string name="math_minus" translatable="false">−</string>
     <string name="math_plus" translatable="false">+</string>
-    <string name="edit_url_params">URL parameters</string>
-    <string name="url_param_key">Key</string>
-    <string name="url_param_value">Value</string>
-    <string name="url_base">Base URL</string>
-    <string name="add_parameter">Add parameter</string>
 
     <!-- Profile Management -->
     <string name="profiles_title">Profiles</string>

@@ -61,6 +61,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import com.wireturn.app.data.XrayConfiguration
+import com.wireturn.app.data.KernelVariant
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -192,7 +193,34 @@ fun HomeScreen(
     var isControlPingScheduled by rememberSaveable { mutableStateOf(value = false) }
     
     val showAutoLaunchOverride = rememberSaveable { mutableStateOf(false) }
+    val showMismatchDialog = rememberSaveable { mutableStateOf(false) }
+    var mismatchMessage by rememberSaveable { mutableStateOf("") }
     var pendingProxyAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+
+    if (showMismatchDialog.value) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showMismatchDialog.value = false },
+            title = { Text(stringResource(R.string.mismatch_title)) },
+            text = { Text(mismatchMessage) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showMismatchDialog.value = false
+                    pendingProxyAction?.invoke()
+                    pendingProxyAction = null
+                }) {
+                    Text(stringResource(R.string.btn_start))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { 
+                    showMismatchDialog.value = false
+                    pendingProxyAction = null
+                }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
 
     if (showAutoLaunchOverride.value) {
         androidx.compose.material3.AlertDialog(
@@ -220,6 +248,28 @@ fun HomeScreen(
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current
+
+    val vlessMismatch = stringResource(R.string.warn_proxy_vless_mismatch)
+    val wgMismatch = stringResource(R.string.warn_proxy_wg_mismatch)
+
+    val checkMismatch = { targetXrayEnabled: Boolean, onConfirmed: () -> Unit ->
+        val selectedRoute = clientConfig.turnableConfig.routes.find { it.routeId == clientConfig.turnableConfig.selectedRouteId }
+        val isTunnelVless = selectedRoute?.transport?.contains("KCP", ignoreCase = true) == true
+
+        val isTurnable = clientConfig.kernelVariant == KernelVariant.TURNABLE
+        val mismatch = isTurnable && targetXrayEnabled && (
+                (isTunnelVless && xrayConfig.xrayConfiguration == XrayConfiguration.WIREGUARD) ||
+                        (!isTunnelVless && xrayConfig.xrayConfiguration == XrayConfiguration.VLESS)
+                )
+
+        if (mismatch) {
+            mismatchMessage = if (isTunnelVless) vlessMismatch else wgMismatch
+            pendingProxyAction = onConfirmed
+            showMismatchDialog.value = true
+        } else {
+            onConfirmed()
+        }
+    }
 
     // --- Effects & Lifecycle ---
     LaunchedEffect(proxyPing, proxyState) {
@@ -557,16 +607,18 @@ fun HomeScreen(
                         val action = {
                             when (proxyState) {
                                 is ProxyState.Idle, is ProxyState.Error -> {
-                                    HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                                    if (xraySettings.xrayVpnMode) {
-                                        val intent = VpnService.prepare(context)
-                                        if (intent != null) {
-                                            vpnLauncher.launch(intent)
+                                    checkMismatch(xraySettings.xrayEnabled) {
+                                        HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
+                                        if (xraySettings.xrayVpnMode) {
+                                            val intent = VpnService.prepare(context)
+                                            if (intent != null) {
+                                                vpnLauncher.launch(intent)
+                                            } else {
+                                                viewModel.startProxy()
+                                            }
                                         } else {
                                             viewModel.startProxy()
                                         }
-                                    } else {
-                                        viewModel.startProxy()
                                     }
                                 }
                                 else -> {
@@ -933,13 +985,21 @@ fun HomeScreen(
                     enabled = configValid,
                     onClick = {
                         val next = !xraySettings.xrayEnabled
-                        HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
-                        
-                        if (!next && xraySettings.xrayVpnMode) {
-                            showVpnWarning()
+                        val action = {
+                            HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+
+                            if (!next && xraySettings.xrayVpnMode) {
+                                showVpnWarning()
+                            }
+
+                            viewModel.updateXraySettings(xraySettings.copy(xrayEnabled = next))
                         }
-                        
-                        viewModel.updateXraySettings(xraySettings.copy(xrayEnabled = next))
+
+                        if (next) {
+                            checkMismatch(true, action)
+                        } else {
+                            action()
+                        }
                     }
                 ) {
                     LaunchedEffect(configValid, xraySettings.xrayEnabled, currentProfileId, autoLaunchSettings.enabled) {

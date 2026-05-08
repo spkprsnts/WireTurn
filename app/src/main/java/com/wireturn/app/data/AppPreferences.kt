@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
+import androidx.core.net.toUri
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "app_prefs")
 
@@ -31,30 +32,181 @@ enum class XrayConfiguration {
     WIREGUARD, VLESS
 }
 
+data class TurnableRoute(
+    @SerializedName("route_id") val routeId: String = "",
+    @SerializedName("name") val name: String = "",
+    @SerializedName("socket") val socket: String = "",
+    @SerializedName("transport") val transport: String? = null
+)
+
+data class TurnableConfig(
+    @SerializedName("user_uuid") val userUuid: String? = null,
+    @SerializedName("username") val username: String = "",
+    @SerializedName("platform_id") val platformId: String = "vk.com",
+    @SerializedName("call_id") val callId: String = "",
+    @SerializedName("type") val type: String = "relay",
+    @SerializedName("encryption") val encryption: String? = null,
+    @SerializedName("pub_key") val pubKey: String? = null,
+    @SerializedName("peers") val peers: Int = 1,
+    @SerializedName("forceturn") val forceTurn: Boolean = false,
+    @SerializedName("gateway") val gateway: String = "",
+    @SerializedName("proto") val proto: String? = null,
+    @SerializedName("routes") val routes: List<TurnableRoute> = emptyList(),
+    @SerializedName("selected_route_id") val selectedRouteId: String = ""
+) {
+    fun toUrl(onlySelected: Boolean = false): String {
+        val targetRoutes = if (onlySelected && selectedRouteId.isNotBlank()) {
+            routes.filter { it.routeId == selectedRouteId }
+        } else {
+            routes
+        }
+
+        val builder = StringBuilder("turnable://")
+        if (!userUuid.isNullOrBlank()) {
+            builder.append(android.net.Uri.encode(userUuid)).append(":")
+        }
+        builder.append(android.net.Uri.encode(callId)).append("@").append(platformId)
+
+        targetRoutes.forEach {
+            builder.append("/").append(android.net.Uri.encode(it.routeId))
+        }
+
+        val params = mutableListOf<String>()
+        params.add("username=${android.net.Uri.encode(username)}")
+        params.add("gateway=${android.net.Uri.encode(gateway)}")
+        params.add("type=${android.net.Uri.encode(type)}")
+        encryption?.let { params.add("encryption=${android.net.Uri.encode(it)}") }
+        pubKey?.let { params.add("pub_key=${android.net.Uri.encode(it)}") }
+        proto?.let { params.add("proto=${android.net.Uri.encode(it)}") }
+        if (peers != 1) params.add("peers=$peers")
+        if (forceTurn) params.add("forceturn=true")
+
+        if (targetRoutes.size == 1) {
+            val r = targetRoutes[0]
+            if (r.socket != "udp") params.add("socket=${android.net.Uri.encode(r.socket)}")
+            r.transport?.let { params.add("transport=${android.net.Uri.encode(it)}") }
+        } else {
+            targetRoutes.forEachIndexed { index, r ->
+                val idx = index + 1
+                if (r.socket != "udp") params.add("socket[$idx]=${android.net.Uri.encode(r.socket)}")
+                r.transport?.let { params.add("transport[$idx]=${android.net.Uri.encode(it)}") }
+            }
+        }
+
+        if (params.isNotEmpty()) {
+            builder.append("?").append(params.joinToString("&"))
+        }
+
+        if (targetRoutes.isNotEmpty()) {
+            builder.append("#").append(targetRoutes.joinToString(",") { android.net.Uri.encode(it.name) })
+        }
+
+        return builder.toString()
+    }
+
+    fun isValid(): Boolean {
+        if (username.isBlank() || platformId.isBlank() || callId.isBlank() || gateway.isBlank() || routes.isEmpty()) return false
+        if (selectedRouteId.isNotBlank() && routes.none { it.routeId == selectedRouteId }) return false
+        return when (type) {
+            "relay" -> {
+                !userUuid.isNullOrBlank() && !encryption.isNullOrBlank() && !pubKey.isNullOrBlank() && !proto.isNullOrBlank()
+            }
+            "direct" -> {
+                proto == "none" && routes.all { it.socket == "udp" && (it.transport == null || it.transport == "none") }
+            }
+            else -> false
+        }
+    }
+
+    companion object {
+        fun parse(url: String): TurnableConfig? {
+            if (!url.startsWith("turnable://", ignoreCase = true)) return null
+            return try {
+                val uri = url.toUri()
+                val userInfo = uri.userInfo ?: ""
+                val userParts = userInfo.split(":")
+
+                val pathParts = uri.path?.split("/")?.filter { it.isNotBlank() } ?: emptyList()
+                val fragment = uri.fragment ?: ""
+                val routeNames = fragment.split(",").map { it.trim() }.filter { it.isNotBlank() }
+
+                val type = uri.getQueryParameter("type") ?: "relay"
+
+                val routes = pathParts.mapIndexed { index, routeId ->
+                    val idx = index + 1
+                    TurnableRoute(
+                        routeId = routeId,
+                        name = routeNames.getOrNull(index) ?: routeId,
+                        socket = uri.getQueryParameter("socket[$idx]")
+                            ?: (if (index == 0) uri.getQueryParameter("socket") else null)
+                            ?: "udp",
+                        transport = uri.getQueryParameter("transport[$idx]")
+                            ?: (if (index == 0) uri.getQueryParameter("transport") else null)
+                    )
+                }
+
+                TurnableConfig(
+                    userUuid = userParts.getOrNull(0),
+                    callId = userParts.getOrNull(1) ?: "",
+                    platformId = uri.host ?: "",
+                    username = uri.getQueryParameter("username") ?: "",
+                    type = type,
+                    encryption = uri.getQueryParameter("encryption"),
+                    pubKey = uri.getQueryParameter("pub_key"),
+                    peers = uri.getQueryParameter("peers")?.toIntOrNull() ?: 1,
+                    forceTurn = uri.getQueryParameter("forceturn")?.toBoolean() ?: false,
+                    gateway = uri.getQueryParameter("gateway") ?: "",
+                    proto = uri.getQueryParameter("proto"),
+                    routes = routes,
+                    selectedRouteId = routes.firstOrNull()?.routeId ?: ""
+                )
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+}
+
 data class ClientConfig(
     @SerializedName("localPort") val localPort: String = DEFAULT_LOCAL_PORT,
     @SerializedName("isRawMode") val isRawMode: Boolean = false,
     @SerializedName("rawCommand") val rawCommand: String = "",
     @SerializedName("turnableUrl") val turnableUrl: String = "",
+    @SerializedName("turnableConfig") val turnableConfig: TurnableConfig = TurnableConfig(),
     @SerializedName("kernelVariant") val kernelVariant: KernelVariant = KernelVariant.TURNABLE
 ) {
     /** GSON can leave fields null if they are missing/invalid in JSON. This ensures safety. */
-    fun sanitize(): ClientConfig = copy(
-        localPort = localPort ?: DEFAULT_LOCAL_PORT,
-        rawCommand = rawCommand ?: "",
-        turnableUrl = turnableUrl ?: "",
-        kernelVariant = kernelVariant ?: KernelVariant.TURNABLE
-    )
+    fun migrateAndSanitize(): ClientConfig {
+        var current = copy(
+            localPort = localPort ?: DEFAULT_LOCAL_PORT,
+            rawCommand = rawCommand ?: "",
+            turnableUrl = turnableUrl ?: "",
+            turnableConfig = turnableConfig ?: TurnableConfig(),
+            kernelVariant = kernelVariant ?: KernelVariant.TURNABLE
+        )
+        
+        // Migration logic: if we have a URL but no valid config, parse it once
+        if (!current.turnableConfig.isValid() && current.turnableUrl.isNotBlank()) {
+            val parsed = TurnableConfig.parse(current.turnableUrl)
+            if (parsed != null) {
+                current = current.copy(
+                    turnableConfig = parsed,
+                    turnableUrl = "" // Clear the URL after successful migration
+                )
+            }
+        }
+        return current
+    }
 
     fun getValidationErrorResId(): Int? {
-        val c = sanitize()
+        val c = migrateAndSanitize()
         if (c.isRawMode) {
             return if (c.rawCommand.isBlank()) com.wireturn.app.R.string.error_raw_empty else null
         }
 
         return when (c.kernelVariant) {
             KernelVariant.TURNABLE -> {
-                if (c.turnableUrl.isBlank()) com.wireturn.app.R.string.error_settings_empty else null
+                if (c.turnableUrl.isBlank() && !c.turnableConfig.isValid()) com.wireturn.app.R.string.error_settings_empty else null
             }
         }
     }
@@ -74,7 +226,7 @@ data class ClientConfig(
     fun fillDefaults(): ClientConfig {
         return copy(
             localPort = localPort.ifBlank { DEFAULT_LOCAL_PORT }
-        )
+        ).migrateAndSanitize()
     }
 
     companion object {
@@ -268,6 +420,7 @@ class AppPreferences(context: Context) {
         val CAPTCHA_STYLE_MOD = booleanPreferencesKey("captcha_style_mod")
         val CAPTCHA_FORCE_TINT = booleanPreferencesKey("captcha_force_tint")
         val APP_LANGUAGE = stringPreferencesKey("app_language")
+        val CLIENT_TURNABLE_CONFIG = stringPreferencesKey("client_turnable_config")
         val AUTO_LAUNCH_ENABLED = booleanPreferencesKey("auto_launch_enabled")
         val AUTO_LAUNCH_URL = stringPreferencesKey("auto_launch_url")
         val AUTO_LAUNCH_INTERVAL = intPreferencesKey("auto_launch_interval")
@@ -285,7 +438,7 @@ class AppPreferences(context: Context) {
                     Profile(
                         id = (p.id as String?) ?: java.util.UUID.randomUUID().toString(),
                         name = (p.name as String?) ?: "Unnamed",
-                        clientConfig = (p.clientConfig ?: ClientConfig()).sanitize(),
+                        clientConfig = (p.clientConfig ?: ClientConfig()).migrateAndSanitize(),
                         xraySettings = (p.xraySettings as XraySettings?) ?: XraySettings(),
                         xrayConfig = (p.xrayConfig as XrayConfig?) ?: XrayConfig(),
                         wgConfig = (p.wgConfig as WgConfig?) ?: WgConfig(),
@@ -332,12 +485,15 @@ class AppPreferences(context: Context) {
                 isRawMode = prefs[CLIENT_IS_RAW] ?: false,
                 rawCommand = prefs[CLIENT_RAW_CMD] ?: "",
                 turnableUrl = prefs[CLIENT_TURNABLE_URL] ?: "",
+                turnableConfig = prefs[CLIENT_TURNABLE_CONFIG]?.let {
+                    try { gson.fromJson(it, TurnableConfig::class.java) } catch (_: Exception) { null }
+                } ?: TurnableConfig(),
                 kernelVariant = try {
                     KernelVariant.valueOf(prefs[CLIENT_KERNEL_VARIANT] ?: KernelVariant.TURNABLE.name)
                 } catch (_: Exception) {
                     KernelVariant.TURNABLE
                 }
-            ).fillDefaults()
+            ).migrateAndSanitize()
         }
         .distinctUntilChanged()
 
@@ -529,6 +685,7 @@ class AppPreferences(context: Context) {
             prefs[CLIENT_IS_RAW] = (c.isRawMode as Boolean?) ?: false
             prefs[CLIENT_RAW_CMD] = (c.rawCommand as String?) ?: ""
             prefs[CLIENT_TURNABLE_URL] = (c.turnableUrl as String?) ?: ""
+            prefs[CLIENT_TURNABLE_CONFIG] = gson.toJson(c.turnableConfig)
             prefs[CLIENT_KERNEL_VARIANT] = ((c.kernelVariant as KernelVariant?) ?: KernelVariant.TURNABLE).name
         }
     }

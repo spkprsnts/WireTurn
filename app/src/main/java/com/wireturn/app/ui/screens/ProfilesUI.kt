@@ -90,11 +90,19 @@ fun ProfileSummary(
     val parts = mutableListOf<String>()
 
     // Core mode
-    parts.add(
-        when (clientConfig.kernelVariant) {
-            KernelVariant.TURNABLE -> stringResource(R.string.kernel_turnable)
+    val kernelPart = when (clientConfig.kernelVariant) {
+        KernelVariant.TURNABLE -> {
+            val base = stringResource(R.string.kernel_turnable)
+            val selectedRoute = clientConfig.turnableConfig.routes.find { it.routeId == clientConfig.turnableConfig.selectedRouteId }
+                ?: clientConfig.turnableConfig.routes.firstOrNull()
+            if (selectedRoute != null) {
+                "$base (${selectedRoute.name.ifBlank { selectedRoute.routeId }})"
+            } else {
+                base
+            }
         }
-    )
+    }
+    parts.add(kernelPart)
 
     if (clientConfig.isRawMode) {
         parts.add(stringResource(R.string.raw_label))
