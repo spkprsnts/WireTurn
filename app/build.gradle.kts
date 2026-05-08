@@ -41,7 +41,7 @@ android {
             useLegacyPackaging = true
             keepDebugSymbols += "**/libhevsocks5.so"
             keepDebugSymbols += "**/libturnable.so"
-            keepDebugSymbols += "**/libvkturn.so"
+            keepDebugSymbols += "**/libolcrtc.so"
             keepDebugSymbols += "**/libxray.so"
         }
     }
@@ -181,7 +181,7 @@ tasks.register<Exec>("buildGoBinaries") {
     group = "build"
     description = "Compiles Go binaries for Android"
     workingDir = rootDir
-    inputs.dir(file("${rootDir}/external/vk-turn-proxy")).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.dir(file("${rootDir}/external/olcrtc")).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.dir(file("${rootDir}/external/vless-client")).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.dir(file("${rootDir}/external/turnable")).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.file(file("${rootDir}/build.sh")).withPathSensitivity(PathSensitivity.RELATIVE)

@@ -103,10 +103,10 @@ if [ "$TARGET" = "all" ] || [ "$TARGET" = "cmake" ]; then
 fi
 
 if [ "$TARGET" = "all" ] || [ "$TARGET" = "go" ]; then
-    [ ! -f "external/vk-turn-proxy/go.mod" ]  && git submodule update --init external/vk-turn-proxy
+    [ ! -f "external/olcrtc/go.mod" ]         && git submodule update --init external/olcrtc
     [ ! -f "external/vless-client/go.mod" ]   && git submodule update --init external/vless-client
     [ ! -f "external/turnable/go.mod" ]        && git submodule update --init external/turnable
-    build_go_project "external/vk-turn-proxy" "libvkturn.so"    "./client"
+    build_go_project "external/olcrtc"       "libolcrtc.so"     "./cmd/olcrtc"
     build_go_project "external/vless-client"  "libxray.so"      "."
     build_go_project "external/turnable"      "libturnable.so"  "./cmd"
 fi

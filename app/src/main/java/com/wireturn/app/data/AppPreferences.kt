@@ -766,7 +766,7 @@ class AppPreferences(context: Context) {
     suspend fun resetAll() {
         context.dataStore.edit { it.clear() }
         withContext(Dispatchers.IO) {
-            File(context.filesDir, "custom_vkturn").delete()
+            File(context.filesDir, "custom_core").delete()
         }
     }
 }

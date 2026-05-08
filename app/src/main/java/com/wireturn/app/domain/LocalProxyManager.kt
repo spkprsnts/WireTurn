@@ -39,7 +39,7 @@ class LocalProxyManager(private val context: Context) {
     private var resetJob: kotlinx.coroutines.Job? = null
 
     init {
-        val file = File(context.filesDir, "custom_vkturn")
+        val file = File(context.filesDir, "custom_core")
         _customKernelExists.value = file.exists()
         if (file.exists()) {
             _customKernelLastModified.value = file.lastModified()
@@ -176,7 +176,7 @@ class LocalProxyManager(private val context: Context) {
                 return@withContext context.getString(R.string.error_not_elf)
             }
 
-            val dest = File(context.filesDir, "custom_vkturn")
+            val dest = File(context.filesDir, "custom_core")
             context.contentResolver.openInputStream(uri)?.use { input ->
                 dest.outputStream().use { output -> input.copyTo(output) }
             }
@@ -220,7 +220,7 @@ class LocalProxyManager(private val context: Context) {
     }
 
     fun clearCustomKernel() {
-        File(context.filesDir, "custom_vkturn").delete()
+        File(context.filesDir, "custom_core").delete()
         _customKernelExists.value = false
         _customKernelLastModified.value = null
         AppLogsState.addLog(context.getString(R.string.log_custom_kernel_deleted))
@@ -228,7 +228,7 @@ class LocalProxyManager(private val context: Context) {
 
     fun clearState() {
         _proxyState.value = ProxyState.Idle
-        File(context.filesDir, "custom_vkturn").delete()
+        File(context.filesDir, "custom_core").delete()
         _customKernelExists.value = false
         _customKernelLastModified.value = null
     }

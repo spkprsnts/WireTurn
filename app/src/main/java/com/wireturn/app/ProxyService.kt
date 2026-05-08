@@ -323,7 +323,7 @@ class ProxyService : Service() {
             }
             process.set(proc)
 
-            val useCustom = cmdArgs.any { it.contains("custom_vkturn") }
+            val useCustom = cmdArgs.any { it.contains("custom_core") }
             if (useCustom) {
                 ProxyServiceState.setStatus(ProxyStatus.Connected)
                 startupEmitted = true
@@ -513,7 +513,7 @@ class ProxyService : Service() {
     }
 
     private fun buildCommandArgs(cfg: ClientConfig): List<String> {
-        val customBin = File(filesDir, "custom_vkturn")
+        val customBin = File(filesDir, "custom_core")
         val useCustom = customBin.exists()
         val executable = if (useCustom) {
             AppLogsState.addLog(getString(R.string.log_custom_kernel))
