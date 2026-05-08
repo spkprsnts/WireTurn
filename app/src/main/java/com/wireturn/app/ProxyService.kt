@@ -404,7 +404,8 @@ class ProxyService : Service() {
                         if (lower.contains("established") ||
                             lower.contains("first data frame received") ||
                             lower.contains("datachannel connected") ||
-                            lower.contains("peer online"))
+                            lower.contains("peer online") ||
+                            lower.contains("vp8 track receiving"))
                         {
                             peerConnectFailedCount = 0
                             unreachableNetworkCount = 0
