@@ -64,6 +64,7 @@ object NotificationHelper {
         val proxyStatus = ProxyServiceState.status.value
         val proxyStatusText = ProxyServiceState.statusText.value
         val profileNameSnapshot = ProxyServiceState.profileNameSnapshot.value
+        val clientConfig = ProxyServiceState.clientConfigSnapshot.value
         val xrayState = XrayServiceState.state.value
         val vpnState = VpnServiceState.state.value
 
@@ -95,10 +96,14 @@ object NotificationHelper {
             statusParts.joinToString(" • ")
         }
 
+        val limitedProfileName = profileNameSnapshot?.take(15)
+        val kernelPart = clientConfig?.getKernelDescription(context)
+        val subText = listOfNotNull(limitedProfileName, kernelPart).joinToString(" • ")
+
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle(context.getString(R.string.notification_title))
             .setContentText(contentText)
-            .setSubText(profileNameSnapshot)
+            .setSubText(subText)
             .setSmallIcon(R.drawable.plug_connect_24px)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)

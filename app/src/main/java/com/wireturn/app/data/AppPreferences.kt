@@ -271,6 +271,39 @@ data class ClientConfig(
         ).migrateAndSanitize()
     }
 
+    fun getKernelDescription(context: Context): String {
+        return when (kernelVariant) {
+            KernelVariant.TURNABLE -> {
+                val base = context.getString(com.wireturn.app.R.string.kernel_turnable)
+                val selectedRoute = turnableConfig.routes.find { it.routeId == turnableConfig.selectedRouteId }
+                    ?: turnableConfig.routes.firstOrNull()
+                if (selectedRoute != null) {
+                    "$base r:${selectedRoute.name.ifBlank { selectedRoute.routeId }}"
+                } else {
+                    base
+                }
+            }
+            KernelVariant.OLCRTC -> {
+                val base = context.getString(com.wireturn.app.R.string.kernel_olcrtc)
+                val config = olcrtcConfig
+                val carrier = when (config.carrier) {
+                    "wbstream" -> "WB Stream"
+                    "telemost" -> "Telemost"
+                    "jazz" -> "Jazz"
+                    else -> config.carrier
+                }
+                val transport = when (config.transport) {
+                    "datachannel" -> "DC"
+                    "vp8channel" -> "VP8C"
+                    "seichannel" -> "SEIC"
+                    "videochannel" -> "VC"
+                    else -> config.transport
+                }
+                "$base • $carrier • $transport"
+            }
+        }
+    }
+
     companion object {
         const val DEFAULT_LOCAL_PORT = "127.0.0.1:9000"
         val DEFAULT_SOCKS_HOST: String get() = DEFAULT_LOCAL_PORT.substringBefore(':')

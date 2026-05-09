@@ -69,7 +69,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
-import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.Profile
 import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.ui.HapticUtil
@@ -90,36 +89,7 @@ fun ProfileSummary(
     val parts = mutableListOf<String>()
 
     // Core mode
-    val kernelPart = when (clientConfig.kernelVariant) {
-        KernelVariant.TURNABLE -> {
-            val base = stringResource(R.string.kernel_turnable)
-            val selectedRoute = clientConfig.turnableConfig.routes.find { it.routeId == clientConfig.turnableConfig.selectedRouteId }
-                ?: clientConfig.turnableConfig.routes.firstOrNull()
-            if (selectedRoute != null) {
-                "$base r:${selectedRoute.name.ifBlank { selectedRoute.routeId }}"
-            } else {
-                base
-            }
-        }
-        KernelVariant.OLCRTC -> {
-            val base = stringResource(R.string.kernel_olcrtc)
-            val config = clientConfig.olcrtcConfig
-            val carrier = when (config.carrier) {
-                "wbstream" -> "WB Stream"
-                "telemost" -> "Telemost"
-                "jazz" -> "Jazz"
-                else -> config.carrier
-            }
-            val transport = when (config.transport) {
-                "datachannel" -> "DC"
-                "vp8channel" -> "VP8C"
-                "seichannel" -> "SEIC"
-                "videochannel" -> "VC"
-                else -> config.transport
-            }
-            "$base • $carrier • $transport"
-        }
-    }
+    val kernelPart = clientConfig.getKernelDescription(LocalContext.current)
     parts.add(kernelPart)
 
     if (clientConfig.isRawMode) {
