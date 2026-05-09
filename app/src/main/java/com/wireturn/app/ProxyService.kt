@@ -69,6 +69,7 @@ class ProxyService : Service() {
         NotificationHelper.createChannel(this)
         observeCaptchaForNotification()
         observeErrorForNotification()
+        startXraySupervisor()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -106,7 +107,6 @@ class ProxyService : Service() {
 
             try {
                 initStartup(vlessConfig, xraySettings, xrayConfig, profileName)
-                startXraySupervisor()
                 mainSupervisor(cfg, profileName, xraySettings, vlessConfig, xrayConfig)
             } finally {
                 if (!userStopped.get() && isActive) {
