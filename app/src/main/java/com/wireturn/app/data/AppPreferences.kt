@@ -54,6 +54,27 @@ data class TurnableConfig(
     @SerializedName("routes") val routes: List<TurnableRoute> = emptyList(),
     @SerializedName("selected_route_id") val selectedRouteId: String = ""
 ) {
+    fun sanitize(): TurnableConfig {
+        return copy(
+            userUuid = userUuid?.take(200),
+            username = username.take(200),
+            platformId = platformId.take(200),
+            callId = callId.take(200),
+            type = type.take(100),
+            encryption = encryption?.take(100),
+            pubKey = pubKey?.take(500),
+            gateway = gateway.take(500),
+            proto = proto?.take(100),
+            selectedRouteId = selectedRouteId.take(100),
+            routes = routes.map { it.copy(
+                routeId = it.routeId.take(100),
+                name = it.name.take(100),
+                socket = it.socket.take(100),
+                transport = it.transport?.take(100)
+            ) }
+        )
+    }
+
     fun toUrl(onlySelected: Boolean = false): String {
         val targetRoutes = if (onlySelected && selectedRouteId.isNotBlank()) {
             routes.filter { it.routeId == selectedRouteId }
@@ -199,6 +220,23 @@ data class OlcrtcConfig(
     @SerializedName("video_tile_module") val videoTileModule: Int = 4,
     @SerializedName("video_tile_rs") val videoTileRs: Int = 20
 ) {
+    fun sanitize(): OlcrtcConfig {
+        return copy(
+            carrier = carrier.take(100),
+            transport = transport.take(100),
+            id = id.take(200),
+            clientId = clientId.take(200),
+            key = key.take(1000),
+            dns = dns.take(200),
+            socksHost = socksHost.take(200),
+            socksPort = socksPort.take(10),
+            videoCodec = videoCodec.take(100),
+            videoBitrate = videoBitrate.take(20),
+            videoHw = videoHw.take(50),
+            videoQrRecovery = videoQrRecovery.take(20)
+        )
+    }
+
     fun isValid(): Boolean {
         return id.isNotBlank() && clientId.isNotBlank() && key.isNotBlank() && dns.isNotBlank()
     }
@@ -216,11 +254,11 @@ data class ClientConfig(
     /** GSON can leave fields null if they are missing/invalid in JSON. This ensures safety. */
     fun migrateAndSanitize(): ClientConfig {
         var current = copy(
-            localPort = localPort ?: DEFAULT_LOCAL_PORT,
-            rawCommand = rawCommand ?: "",
-            turnableUrl = turnableUrl ?: "",
-            turnableConfig = turnableConfig ?: TurnableConfig(),
-            olcrtcConfig = olcrtcConfig ?: OlcrtcConfig(),
+            localPort = (localPort ?: DEFAULT_LOCAL_PORT).take(100),
+            rawCommand = (rawCommand ?: "").take(2000),
+            turnableUrl = (turnableUrl ?: "").take(2000),
+            turnableConfig = (turnableConfig ?: TurnableConfig()).sanitize(),
+            olcrtcConfig = (olcrtcConfig ?: OlcrtcConfig()).sanitize(),
             kernelVariant = kernelVariant ?: KernelVariant.TURNABLE
         )
         
@@ -318,6 +356,13 @@ data class VlessConfig(
     @SerializedName("directAddress") val directAddress: String = ""
 ) {
     fun isValid(): Boolean = vlessLink.isNotBlank() && com.wireturn.app.ui.ValidatorUtils.isValidVlessLink(vlessLink)
+
+    fun sanitize(): VlessConfig {
+        return copy(
+            vlessLink = vlessLink.take(4096),
+            directAddress = directAddress.take(500)
+        )
+    }
 }
 
 data class XraySettings(
@@ -374,9 +419,12 @@ data class WgConfig(
 
     fun fillDefaults(): WgConfig {
         return copy(
-            mtu = mtu.ifBlank { DEFAULT_MTU },
-            endpoint = endpoint.ifBlank { DEFAULT_ENDPOINT },
-            persistentKeepalive = persistentKeepalive.ifBlank { DEFAULT_PERSISTENT_KEEPALIVE }
+            privateKey = privateKey.take(500),
+            address = address.take(500),
+            mtu = mtu.ifBlank { DEFAULT_MTU }.take(20),
+            publicKey = publicKey.take(500),
+            endpoint = endpoint.ifBlank { DEFAULT_ENDPOINT }.take(500),
+            persistentKeepalive = persistentKeepalive.ifBlank { DEFAULT_PERSISTENT_KEEPALIVE }.take(20)
         )
     }
 
@@ -450,6 +498,17 @@ data class Profile(
                 xraySettings == XraySettings() &&
                 xrayConfig == XrayConfig()
     }
+
+    fun sanitize(): Profile {
+        return copy(
+            id = id.ifBlank { java.util.UUID.randomUUID().toString() }.take(100),
+            name = name.ifBlank { "Unnamed" }.take(100),
+            clientConfig = clientConfig.migrateAndSanitize(),
+            wgConfig = wgConfig.fillDefaults(),
+            xrayConfig = xrayConfig.fillDefaults(),
+            vlessConfig = vlessConfig.sanitize()
+        )
+    }
 }
 
 // P2-3 / P3-6: всегда используем applicationContext, чтобы lazy-init encryptedPrefs
@@ -511,17 +570,7 @@ class AppPreferences(context: Context) {
             else try {
                 val type = object : com.google.gson.reflect.TypeToken<List<Profile>>() {}.type
                 val rawList = gson.fromJson<List<Profile>>(json, type) ?: emptyList()
-                rawList.map { p ->
-                    Profile(
-                        id = (p.id as String?) ?: java.util.UUID.randomUUID().toString(),
-                        name = (p.name as String?) ?: "Unnamed",
-                        clientConfig = (p.clientConfig ?: ClientConfig()).migrateAndSanitize(),
-                        xraySettings = (p.xraySettings as XraySettings?) ?: XraySettings(),
-                        xrayConfig = (p.xrayConfig as XrayConfig?) ?: XrayConfig(),
-                        wgConfig = (p.wgConfig as WgConfig?) ?: WgConfig(),
-                        vlessConfig = (p.vlessConfig as VlessConfig?) ?: VlessConfig()
-                    )
-                }
+                rawList.map { it.sanitize() }
             } catch (_: Exception) { emptyList() }
         }
 

@@ -762,7 +762,7 @@ fun ProfileNameDialog(
         text = {
             OutlinedTextField(
                 value = name,
-                onValueChange = { name = it },
+                onValueChange = { if (it.length <= 100) name = it },
                 label = { Text(stringResource(R.string.profile_name_label)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()

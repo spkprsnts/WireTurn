@@ -116,7 +116,7 @@ class ProfileManager(
                     xrayConfig = xrayConfig,
                     wgConfig = wgConfig,
                     vlessConfig = vlessConfig
-                )
+                ).sanitize()
             } else it
         }
         if (newList != profiles.value) {
@@ -169,17 +169,13 @@ class ProfileManager(
             val newProfiles = data.mapNotNull { (fileName, json) ->
                 try {
                     val p = gson.fromJson(json, Profile::class.java) ?: return@mapNotNull null
+                    val sanitized = p.sanitize()
                     
                     val nameFromFile = fileName?.removeSuffix(".json")?.removePrefix("wt_")
 
-                    Profile(
+                    sanitized.copy(
                         id = UUID.randomUUID().toString(),
-                        name = (p.name as String?).takeIf { !it.isNullOrBlank() } ?: nameFromFile ?: "Imported",
-                        clientConfig = (p.clientConfig as ClientConfig?) ?: ClientConfig(),
-                        xraySettings = (p.xraySettings as XraySettings?) ?: XraySettings(),
-                        xrayConfig = (p.xrayConfig as XrayConfig?) ?: XrayConfig(),
-                        wgConfig = (p.wgConfig as WgConfig?) ?: WgConfig(),
-                        vlessConfig = (p.vlessConfig as VlessConfig?) ?: VlessConfig()
+                        name = sanitized.name.ifBlank { nameFromFile?.take(100) ?: "Imported" }
                     )
                 } catch (_: Exception) {
                     null
