@@ -24,35 +24,11 @@ object ValidatorUtils {
     }
 
     /**
-     * Проверяет, является ли строка валидным URL.
-     */
-    fun isValidUrl(input: String): Boolean {
-        if (input.isBlank()) return true
-        return android.util.Patterns.WEB_URL.matcher(input).matches()
-    }
-
-    /**
      * Проверяет, является ли строка валидной VLESS-ссылкой.
      */
     fun isValidVlessLink(input: String): Boolean {
         if (input.isBlank()) return true
         return input.startsWith("vless://", ignoreCase = true) && input.contains("@")
-    }
-
-    /**
-     * Проверяет, является ли строка валидной Turnable-ссылкой.
-     */
-    fun isValidTurnableUrl(input: String): Boolean {
-        if (input.isBlank()) return true
-        return input.startsWith("turnable://", ignoreCase = true) && input.contains("@")
-    }
-
-    /**
-     * Проверяет, является ли строка валидной ссылкой Yandex Telemost.
-     */
-    fun isValidTelemostLink(input: String): Boolean {
-        if (input.isBlank()) return true
-        return input.startsWith("https://telemost.yandex.ru/j/", ignoreCase = true)
     }
 
     /**
