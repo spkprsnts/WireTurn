@@ -478,7 +478,7 @@ class ProxyService : Service() {
     }
 
     private suspend fun handleSoftErrors(lower: String, state: BinaryOutputState): Boolean {
-        if (lower.contains("client link reconnect")) {
+        if (lower.contains("client link reconnect") || lower.contains("starting full reconnect")) {
             if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
                 if (isNetworkMissingAndHandled()) {
                     state.startupFailed = true
