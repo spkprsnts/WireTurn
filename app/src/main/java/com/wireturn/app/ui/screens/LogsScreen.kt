@@ -229,7 +229,9 @@ fun LogsScreen(
 private fun LogLine(line: String) {
     val lower = line.lowercase()
     val isHeader = line.startsWith("===")
-    val isXrayLog = line.startsWith("[xray]") || line.startsWith("[vpn]")
+    val isInternalLog = lower.startsWith("[xray]") || lower.startsWith("[vpn]") ||
+                        lower.startsWith("[proxy]") || lower.startsWith("[dualroute]") ||
+                        lower.startsWith("[hev-socks5-tunnel]")
     val isError = lower.contains("ошибка") || lower.contains("error") ||
                   lower.contains("критическая") || lower.contains("failed") ||
                   lower.contains("fatal") || lower.contains("panic") ||
@@ -240,9 +242,8 @@ private fun LogLine(line: String) {
                     lower.contains("connection lost")
     val isSuccess = lower.contains("запущен") || lower.contains("подключен") ||
                     lower.contains("success") || lower.contains("started") ||
-                    lower.contains("ok") || lower.contains("established") ||
-                    lower.contains("received handshake") || lower.contains("connected") ||
-                    lower.contains("peer online")
+                    lower.contains("established") || lower.contains("connected") ||
+                    lower.contains("received handshake") || lower.contains("peer online")
 
     val textColor = when {
         isError   -> MaterialTheme.colorScheme.error
@@ -273,7 +274,7 @@ private fun LogLine(line: String) {
                 style = MaterialTheme.typography.bodySmall.copy(
                     fontFamily = FontFamily.Monospace,
                     fontWeight = when {
-                        isHeader || isXrayLog -> FontWeight.SemiBold
+                        isHeader || isInternalLog -> FontWeight.SemiBold
                         else -> FontWeight.Normal
                     }
                 ),
