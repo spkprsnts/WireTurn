@@ -109,8 +109,6 @@
     <string name="kernel_label">Ядро</string>
     <string name="kernel_config_label">Формат параметров</string>
     <string name="kernel_config_desc">Выберите структуру аргументов для кастомного ядра</string>
-    <string name="kernel_turnable" translatable="false">Turnable</string>
-    <string name="kernel_olcrtc" translatable="false">olcrtc</string>
     <string name="olcrtc_settings_title">Параметры olcrtc</string>
     <string name="olcrtc_id_label">ID комнаты</string>
     <string name="olcrtc_client_id_label">ID клиента</string>
