@@ -151,9 +151,9 @@
     <string name="btn_load">Загрузить</string>
     <string name="finish_setup">Завершить настройку</string>
     <string name="local_port_help_text">Это сетевой адрес и порт, на которых приложение запустит локальный прокси-сервер.</string>
-    <string name="local_port_help_secondary">К этому адресу должен подключаться либо встроенный в приложение Xray, либо ваши сторонние VPN-клиенты (WireGuard, v2raytun и др.), чтобы трафик шел через созданный туннель.</string>
+    <string name="local_port_help_secondary">К этому адресу должен подключаться либо встроенный в приложение Xray, либо ваши сторонние VPN-клиенты (WireGuard, v2RayTun и др.), чтобы трафик шел через созданный туннель.</string>
     <string name="olcrtc_socks_help_text">Ядро olcrtc не использует традиционные VPN-протоколы. Оно запускает локальный SOCKS5-прокси, который служит точкой входа для трафика.</string>
-    <string name="olcrtc_socks_help_secondary">Встроенный Xray использует этот адрес как апстрим для маршрутизации, что позволяет работать через VLESS в режиме Dual-route или направлять весь трафик устройства через VPN.</string>
+    <string name="olcrtc_socks_help_secondary">Встроенный Xray направляет трафик через этот адрес, что позволяет работать через VLESS в режиме Dual-route и/или направлять весь трафик устройства через VPN.</string>
 
     <!-- Экран логов (Logs) -->
     <string name="logs_title">Логи</string>
@@ -163,7 +163,7 @@
     <string name="new_logs">Новые логи</string>
 
     <!-- Экран приветствия (Onboarding) -->
-    <string name="onboarding_subtitle">Туннелирование Xray-трафика через TURN и DC для надежного обхода сетевых ограничений</string>
+    <string name="onboarding_subtitle">Туннелирование трафика через WebRTC для обхода сетевых ограничений</string>
     <string name="start">Начать</string>
 
     <!-- Обновление приложения (OTA) -->
@@ -194,7 +194,7 @@
     <string name="unstable_updates_title">Бета-версии</string>
     <string name="unstable_updates_desc">Проверять нестабильные обновления</string>
     <string name="wait_for_network_title">Ожидание сети</string>
-    <string name="wait_for_network_desc">При потере связи туннель будет бесконечно ждать подключения к Wi-Fi или мобильной сети</string>
+    <string name="wait_for_network_desc">При потере связи туннель будет ждать подключения к Wi-Fi или мобильной сети</string>
     <string name="restart_on_network_change_title">Перезапуск при смене сети</string>
     <string name="restart_on_network_change_desc">Автоматически перезапускать туннель при переключении между Wi-Fi и мобильной сетью</string>
 
@@ -236,13 +236,15 @@
     <string name="log_proxy_suppressed">=== ТУННЕЛЬ ПОДАВЛЕН (ПРЯМОЙ МАРШРУТ) ===</string>
     <string name="log_process_stopped">=== ПРОЦЕСС ОСТАНОВЛЕН (Код: %1$d) ===</string>
     <string name="log_startup_failed_no_watchdog">=== Ошибка при запуске, watchdog не активирован ===</string>
-    <string name="log_quick_exit">=== Быстрый выход (%1$dмс) — проверьте VK-ссылку и настройки ===</string>
+    <string name="log_quick_exit">=== Быстрый выход (%1$dмс) — проверьте параметры подключения и настройки ===</string>
     <string name="log_watchdog_limit">=== WATCHDOG: превышен лимит попыток (%1$d), остановка ===</string>
     <string name="log_watchdog_restart">=== WATCHDOG: перезапуск через %1$dмс (попытка %2$d/%3$d) ===</string>
     <string name="log_network_change">=== СМЕНА СЕТИ — ПЕРЕЗАПУСК ===</string>
-    <string name="log_no_network_waiting">=== НЕТ СЕТИ — БЕСКОНЕЧНОЕ ОЖИДАНИЕ ===</string>
+    <string name="log_no_network_waiting">=== НЕТ СЕТИ — ОЖИДАНИЕ ===</string>
     <string name="log_stop_ui">=== ОСТАНОВКА ИЗ ИНТЕРФЕЙСА ===</string>
-    <string name="log_too_many_peer_failures">>>> СЛИШКОМ МНОГО ОШИБОК ПОДКЛЮЧЕНИЯ — остановка</string>
+    <string name="log_too_many_peer_failures">>>> СЛИШКОМ МНОГО ОШИБОК ПОДКЛЮЧЕНИЯ — перезапуск</string>
+    <string name="log_too_many_remote_not_ready">>>> СЛИШКОМ МНОГО "REMOTE NOT READY" — перезапуск</string>
+    <string name="log_slow_network_watchdog">>>> МЕДЛЕННАЯ СЕТЬ — увеличение задержки перезапуска</string>
     <string name="error_too_many_peer_failures">Слишком много ошибок подключения</string>
     <string name="error_invalid_turnable_url">Неверная ссылка Turnable</string>
     <string name="error_turnable_failed">Ошибка Turnable: %1$s</string>

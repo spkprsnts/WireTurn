@@ -266,7 +266,7 @@ class ProxyService : Service() {
 
             // Check for rapid failure
             val currentStatus = ProxyServiceState.status.value
-            if (!startupSuccessful || (currentStatus !is ProxyStatus.Connected && duration < 2500)) {
+            if (!startupSuccessful || currentStatus is ProxyStatus.Error) {
                 if (currentStatus !is ProxyStatus.Error) {
                     AppLogsState.addLog(getString(R.string.log_quick_exit, duration))
                     AppLogsState.addLog(getString(R.string.log_startup_failed_no_watchdog))
@@ -289,7 +289,11 @@ class ProxyService : Service() {
             ProxyServiceState.setStatus(ProxyStatus.Connecting)
             ProxyTileService.requestUpdate(this@ProxyService)
             
-            val baseDelay = if (duration > 30_000) 1000L else minOf(1000L * restartCount, 30_000L)
+            var baseDelay = if (duration > 30_000) 1000L else minOf(1000L * restartCount, 30_000L)
+            if (isSlowConnection()) {
+                AppLogsState.addLog(getString(R.string.log_slow_network_watchdog))
+                baseDelay = maxOf(baseDelay, 5000L)
+            }
             val delayMs = baseDelay + Random.nextLong(0, 500)
             
             AppLogsState.addLog(getString(R.string.log_watchdog_restart, delayMs, restartCount, MAX_RESTARTS))
@@ -306,14 +310,7 @@ class ProxyService : Service() {
             return@coroutineScope false
         }
 
-        var startupEmitted = false
-        var startupFailed = false
-        var captchaActive = false
-        var captchaSessionCounter = 0L
-        var peerConnectFailedCount = 0
-        var unreachableNetworkCount = 0
-        var smuxErrorCount = 0
-        var publishDataErrorCount = 0
+        val state = BinaryOutputState()
 
         try {
             AppLogsState.addLog(getString(R.string.log_command, cmdArgs.joinToString(" ")))
@@ -326,7 +323,7 @@ class ProxyService : Service() {
             val useCustom = cmdArgs.any { it.contains("custom_core") }
             if (useCustom) {
                 ProxyServiceState.setStatus(ProxyStatus.Connected)
-                startupEmitted = true
+                state.startupEmitted = true
                 ProxyTileService.requestUpdate(this@ProxyService)
             } else if (cfg.kernelVariant == KernelVariant.OLCRTC) {
                 ProxyServiceState.setStatus(ProxyStatus.Connecting)
@@ -336,161 +333,11 @@ class ProxyService : Service() {
 
             withContext(Dispatchers.IO) {
                 BufferedReader(InputStreamReader(proc.inputStream)).use { reader ->
-                    while (true) {
-                        val rawLine = reader.readLine() ?: break
-                        val l = AppLogsState.stripAnsi(rawLine)
-                        AppLogsState.addLog(l)
-
-                        if (!isActive) continue
-
-                        val lower = l.lowercase()
-
-                        if (lower.contains("peer reconnected") && isNetworkMissingAndHandled()) {
-                            startupFailed = true
-                            break
-                        }
-
-                        val isUnreachable = lower.contains("network is unreachable")
-                        val isSmuxError = lower.contains("smux open stream error")
-                        val isPublishDataError = lower.contains("publish data error")
-
-                        if (isUnreachable || isSmuxError || isPublishDataError) {
-                            if (isUnreachable) unreachableNetworkCount++
-                            if (isSmuxError) smuxErrorCount++
-                            if (isPublishDataError) publishDataErrorCount++
-
-                            if (unreachableNetworkCount >= 5 || smuxErrorCount >= 20 || publishDataErrorCount >= 5) {
-                                if (isNetworkMissingAndHandled()) {
-                                    startupFailed = true
-                                    break
-                                } else {
-                                    unreachableNetworkCount = 0
-                                    smuxErrorCount = 0
-                                    publishDataErrorCount = 0
-                                }
-                            }
-                        }
-
-                        if (lower.contains("[vk auth]") || lower.contains("joining room") ||
-                            lower.contains("starting turnable client") || lower.contains("publisher") || lower.contains("subscriber")) {
-                            if (!startupEmitted && ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
-                                ProxyServiceState.setStatus(ProxyStatus.Connecting)
-                                updateNotification(getString(R.string.connecting))
-                                startupEmitted = true
-                            }
-                        }
-
-                        if (lower.contains("failed to validate connection url")) {
-                            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
-                                ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_invalid_turnable_url)))
-                            }
-                            startupFailed = true
-                            break
-                        }
-
-                        if (lower.contains("failed to start vpn client")) {
-                            val errorPart = l.substringAfterLast(":").trim()
-                            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
-                                ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_turnable_failed, errorPart)))
-                            }
-                            startupFailed = true
-                            break
-                        }
-
-                        if (lower.contains("established") ||
-                            lower.contains("first data frame received") ||
-                            lower.contains("datachannel connected") ||
-                            lower.contains("peer online") ||
-                            lower.contains("vp8 track receiving") ||
-                            lower.contains("socks5 server listening on"))
-                        {
-                            peerConnectFailedCount = 0
-                            unreachableNetworkCount = 0
-                            smuxErrorCount = 0
-                            publishDataErrorCount = 0
-                            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
-                                ProxyServiceState.setStatus(ProxyStatus.Connected)
-                                updateNotification(getString(R.string.proxy_active))
-                                startupEmitted = true
-                                ProxyTileService.requestUpdate(this@ProxyService)
-                            }
-                        }
-                        if (lower.contains("datachannel closed") || lower.contains("remote not ready")) {
-                            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
-                                if (isNetworkMissingAndHandled()) {
-                                    startupFailed = true
-                                    break
-                                }
-
-                                if (!lower.contains("remote not ready")) {
-                                    ProxyServiceState.setStatus(ProxyStatus.Connecting)
-                                    ProxyTileService.requestUpdate(this@ProxyService)
-                                }
-                            }
-                        }
-
-                        if (lower.contains("peer connect failed")) {
-                            peerConnectFailedCount++
-                            if (peerConnectFailedCount >= 30) {
-                                AppLogsState.addLog(getString(R.string.log_too_many_peer_failures))
-                                if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
-                                    ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_too_many_peer_failures)))
-                                }
-                                startupFailed = true
-                                break
-                            }
-                            if (ProxyServiceState.status.value is ProxyStatus.Connected) {
-                                ProxyServiceState.setStatus(ProxyStatus.Connecting)
-                                updateNotification(getString(R.string.connecting))
-                                ProxyTileService.requestUpdate(this@ProxyService)
-                            }
-                        }
-
-                        // Captcha logic (Generic detection just in case)
-                        if (l.contains("Triggering manual captcha fallback")) {
-                            startupEmitted = true
-                        }
-
-                        val captchaMatcher = CAPTCHA_URL_REGEX.matcher(l)
-                        if (captchaMatcher.find()) {
-                            val captchaUrl = captchaMatcher.group(1)!!
-                            captchaSessionCounter += 1
-                            ProxyServiceState.setCaptchaSession(CaptchaSession(captchaUrl, captchaSessionCounter))
-                            captchaActive = true
-                            updateNotification(getString(R.string.proxy_captcha_required))
-                            ProxyTileService.requestUpdate(this@ProxyService)
-                            startupEmitted = true
-                        }
-
-                        if (captchaActive && (
-                                lower.contains("[vk auth] failed") ||
-                                lower.contains("[vk auth] success") ||
-                                (lower.contains("[captcha]") && lower.contains("failed"))
-                            )) {
-                            ProxyServiceState.setCaptchaSession(null)
-                            updateNotification(getString(R.string.proxy_active))
-                            captchaActive = false
-                            // Status will be restored to CONNECTED/CONNECTING on next activity log
-                        }
-
-                        // Error detection
-                        if (lower.contains("panic") || lower.contains("fatal") || lower.contains("rate limit") || lower.contains("failed to connect link")) {
-                            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
-                                ProxyServiceState.setStatus(ProxyStatus.Error(l))
-                                updateNotification(getString(R.string.error_connecting))
-                            }
-                            startupFailed = true
-                            break
-                        }
-
-                        // Quota error handling
-                        if (isQuotaError(lower)) {
-                            if (ProxyServiceState.status.value is ProxyStatus.Connected) {
-                                ProxyServiceState.setStatus(ProxyStatus.Connecting)
-                                updateNotification(getString(R.string.connecting))
-                                ProxyTileService.requestUpdate(this@ProxyService)
-                            }
-                        }
+                    for (rawLine in reader.lineSequence()) {
+                        if (!isActive) break
+                        val line = AppLogsState.stripAnsi(rawLine)
+                        AppLogsState.addLog(line)
+                        if (processOutputLine(line, state)) break
                     }
                 }
             }
@@ -499,12 +346,12 @@ class ProxyService : Service() {
                 if (proc.waitFor(5, TimeUnit.SECONDS)) proc.exitValue() else -1
             }
             AppLogsState.addLog(getString(R.string.log_process_stopped, exitCode))
-            
-            if (!startupEmitted && !startupFailed) {
+
+            if (!state.startupEmitted && !state.startupFailed) {
                 ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_process_no_output, exitCode)))
             }
 
-            !startupFailed
+            !state.startupFailed
         } catch (_: InterruptedIOException) {
             true
         } catch (_: CancellationException) {
@@ -517,6 +364,227 @@ class ProxyService : Service() {
             stopBinaryProcessGracefully()
             process.set(null)
         }
+    }
+
+    private suspend fun processOutputLine(line: String, state: BinaryOutputState): Boolean {
+        val lower = line.lowercase()
+
+        // 1. Critical Errors & Network Fatalities
+        if (handleFatalEvents(line, lower, state)) return true
+
+        // 2. Success / Connectivity Events
+        handleConnectivityEvents(lower, state)
+
+        // 3. Status/Progress Triggers
+        handleProgressEvents(lower, state)
+
+        // 4. Soft Errors & Quota
+        if (handleSoftErrors(lower, state)) return true
+
+        // 5. Captcha
+        handleCaptchaEvents(line, lower, state)
+
+        return false
+    }
+
+    private suspend fun handleFatalEvents(line: String, lower: String, state: BinaryOutputState): Boolean {
+        if (lower.contains("peer reconnected") && isNetworkMissingAndHandled()) {
+            state.startupFailed = true
+            return true
+        }
+
+        val isUnreachable = lower.contains("network is unreachable")
+        val isSmuxError = lower.contains("smux open stream error")
+        val isPublishDataError = lower.contains("publish data error")
+
+        if (isUnreachable || isSmuxError || isPublishDataError) {
+            if (isUnreachable) state.unreachableNetworkCount++
+            if (isSmuxError) state.smuxErrorCount++
+            if (isPublishDataError) state.publishDataErrorCount++
+
+            if (state.unreachableNetworkCount >= 5 || state.smuxErrorCount >= 20 || state.publishDataErrorCount >= 5) {
+                if (isNetworkMissingAndHandled()) {
+                    state.startupFailed = true
+                    return true
+                } else {
+                    state.unreachableNetworkCount = 0
+                    state.smuxErrorCount = 0
+                    state.publishDataErrorCount = 0
+                }
+            }
+        }
+
+        if (lower.contains("failed to validate connection url")) {
+            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_invalid_turnable_url)))
+            }
+            state.startupFailed = true
+            return true
+        }
+
+        if (lower.contains("failed to start vpn client")) {
+            val errorPart = line.substringAfterLast(":").trim()
+            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_turnable_failed, errorPart)))
+            }
+            state.startupFailed = true
+            return true
+        }
+
+        if (lower.contains("panic") || lower.contains("fatal") || lower.contains("rate limit")) {
+            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                ProxyServiceState.setStatus(ProxyStatus.Error(line))
+                updateNotification(getString(R.string.error_connecting))
+            }
+            state.startupFailed = true
+            return true
+        }
+
+        return false
+    }
+
+    private fun handleConnectivityEvents(lower: String, state: BinaryOutputState) {
+        if (lower.contains("established") ||
+            lower.contains("first data frame received") ||
+            lower.contains("datachannel connected") ||
+            lower.contains("peer online") ||
+            lower.contains("vp8 track receiving") ||
+            lower.contains("socks5 server listening on")
+        ) {
+            state.peerConnectFailedCount = 0
+            state.unreachableNetworkCount = 0
+            state.smuxErrorCount = 0
+            state.publishDataErrorCount = 0
+            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                ProxyServiceState.setStatus(ProxyStatus.Connected)
+                updateNotification(getString(R.string.proxy_active))
+                state.startupEmitted = true
+                ProxyTileService.requestUpdate(this)
+            }
+        }
+    }
+
+    private fun handleProgressEvents(lower: String, state: BinaryOutputState) {
+        if (lower.contains("[vk auth]") || lower.contains("joining room") ||
+            lower.contains("starting turnable client") || lower.contains("publisher") ||
+            lower.contains("subscriber")
+        ) {
+            if (!state.startupEmitted && ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                ProxyServiceState.setStatus(ProxyStatus.Connecting)
+                updateNotification(getString(R.string.connecting))
+                state.startupEmitted = true
+            }
+        }
+    }
+
+    private suspend fun handleSoftErrors(lower: String, state: BinaryOutputState): Boolean {
+        if (lower.contains("client link reconnect")) {
+            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                if (isNetworkMissingAndHandled()) {
+                    state.startupFailed = true
+                    return true
+                }
+                ProxyServiceState.setStatus(ProxyStatus.Connecting)
+                updateNotification(getString(R.string.connecting))
+                ProxyTileService.requestUpdate(this)
+            }
+        }
+
+        if (lower.contains("datachannel closed") || lower.contains("remote not ready")) {
+            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                if (isNetworkMissingAndHandled()) {
+                    state.startupFailed = true
+                    return true
+                }
+
+                if (lower.contains("remote not ready")) {
+                    val now = System.currentTimeMillis()
+                    if (now - state.lastRemoteNotReadyTime > 10_000) {
+                        state.remoteNotReadyCount = 1
+                        state.lastRemoteNotReadyTime = now
+                    } else {
+                        state.remoteNotReadyCount++
+                        if (state.remoteNotReadyCount >= 10) {
+                            AppLogsState.addLog(getString(R.string.log_too_many_remote_not_ready))
+                            state.startupEmitted = true // To ensure watchdog triggers
+                            return true
+                        }
+                    }
+                } else {
+                    ProxyServiceState.setStatus(ProxyStatus.Connecting)
+                    ProxyTileService.requestUpdate(this)
+                }
+            }
+        }
+
+        if (lower.contains("peer connect failed")) {
+            state.peerConnectFailedCount++
+            if (state.peerConnectFailedCount >= 20) {
+                AppLogsState.addLog(getString(R.string.log_too_many_peer_failures))
+                state.startupEmitted = true
+                return true
+            }
+            if (ProxyServiceState.status.value is ProxyStatus.Connected) {
+                ProxyServiceState.setStatus(ProxyStatus.Connecting)
+                updateNotification(getString(R.string.connecting))
+                ProxyTileService.requestUpdate(this)
+            }
+        }
+
+        if (lower.contains("failed to connect link")) {
+            state.startupEmitted = true
+            return true
+        }
+
+        if (isQuotaError(lower)) {
+            if (ProxyServiceState.status.value is ProxyStatus.Connected) {
+                ProxyServiceState.setStatus(ProxyStatus.Connecting)
+                updateNotification(getString(R.string.connecting))
+                ProxyTileService.requestUpdate(this)
+            }
+        }
+
+        return false
+    }
+
+    private fun handleCaptchaEvents(line: String, lower: String, state: BinaryOutputState) {
+        if (line.contains("Triggering manual captcha fallback")) {
+            state.startupEmitted = true
+        }
+
+        val captchaMatcher = CAPTCHA_URL_REGEX.matcher(line)
+        if (captchaMatcher.find()) {
+            val captchaUrl = captchaMatcher.group(1)!!
+            state.captchaSessionCounter += 1
+            ProxyServiceState.setCaptchaSession(CaptchaSession(captchaUrl, state.captchaSessionCounter))
+            state.captchaActive = true
+            updateNotification(getString(R.string.proxy_captcha_required))
+            ProxyTileService.requestUpdate(this)
+            state.startupEmitted = true
+        }
+
+        if (state.captchaActive && (
+                lower.contains("[vk auth] failed") ||
+                lower.contains("[vk auth] success") ||
+                (lower.contains("[captcha]") && lower.contains("failed"))
+            )) {
+            ProxyServiceState.setCaptchaSession(null)
+            updateNotification(getString(R.string.proxy_active))
+            state.captchaActive = false
+        }
+    }
+
+    private class BinaryOutputState {
+        var startupEmitted = false
+        var startupFailed = false
+        var captchaActive = false
+        var captchaSessionCounter = 0L
+        var peerConnectFailedCount = 0
+        var unreachableNetworkCount = 0
+        var smuxErrorCount = 0
+        var publishDataErrorCount = 0
+        var remoteNotReadyCount = 0
+        var lastRemoteNotReadyTime = 0L
     }
 
     private fun buildCommandArgs(cfg: ClientConfig): List<String> {
@@ -782,13 +850,6 @@ class ProxyService : Service() {
                 if (!capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) return
                 availablePhysicalNetworks.add(network)
 
-                if (ProxyServiceState.status.value is ProxyStatus.WaitingForNetwork) {
-                    // Сеть появилась — перезапускаемся с самого начала
-                    val intent = Intent(this@ProxyService, ProxyService::class.java)
-                    startService(intent)
-                    return
-                }
-
                 val handle = network.getNetworkHandle()
                 if (handle == lastNetworkHandle) return
                 lastNetworkHandle = handle
@@ -821,6 +882,8 @@ class ProxyService : Service() {
                 if (ProxyServiceState.status.value is ProxyStatus.WaitingForNetwork) {
                     if (networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
                         !networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) {
+                        // Сеть появилась — переходим в Starting, чтобы не сработать повторно, и запускаемся
+                        ProxyServiceState.setStatus(ProxyStatus.Starting)
                         val intent = Intent(this@ProxyService, ProxyService::class.java)
                         startService(intent)
                     }
@@ -878,7 +941,9 @@ class ProxyService : Service() {
         if (!isNetworkAvailable()) {
             val prefs = AppPreferences(applicationContext)
             if (prefs.waitForNetworkFlow.first()) {
-                AppLogsState.addLog(getString(R.string.log_no_network_waiting))
+                if (ProxyServiceState.status.value !is ProxyStatus.WaitingForNetwork) {
+                    AppLogsState.addLog(getString(R.string.log_no_network_waiting))
+                }
                 if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
                     ProxyServiceState.setStatus(ProxyStatus.WaitingForNetwork)
                     updateNotification(getString(R.string.status_waiting_for_network))
@@ -891,6 +956,20 @@ class ProxyService : Service() {
 
     private fun isNetworkAvailable(): Boolean {
         return availablePhysicalNetworks.isNotEmpty()
+    }
+
+    private fun isSlowConnection(): Boolean {
+        val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(network) ?: return false
+        
+        // If it's cellular, we check the estimated bandwidth.
+        // Usually EDGE is < 500 kbps.
+        if (caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
+            val speed = caps.linkDownstreamBandwidthKbps
+            return speed in 1..999 // Threshold: 1 Mbps
+        }
+        return false
     }
 
     private fun updateNotification(text: String) {
