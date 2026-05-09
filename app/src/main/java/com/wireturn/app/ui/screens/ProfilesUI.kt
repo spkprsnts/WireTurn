@@ -96,10 +96,28 @@ fun ProfileSummary(
             val selectedRoute = clientConfig.turnableConfig.routes.find { it.routeId == clientConfig.turnableConfig.selectedRouteId }
                 ?: clientConfig.turnableConfig.routes.firstOrNull()
             if (selectedRoute != null) {
-                "$base (${selectedRoute.name.ifBlank { selectedRoute.routeId }})"
+                "$base r:${selectedRoute.name.ifBlank { selectedRoute.routeId }}"
             } else {
                 base
             }
+        }
+        KernelVariant.OLCRTC -> {
+            val base = stringResource(R.string.kernel_olcrtc)
+            val config = clientConfig.olcrtcConfig
+            val carrier = when (config.carrier) {
+                "wbstream" -> "WB Stream"
+                "telemost" -> "Telemost"
+                "jazz" -> "Jazz"
+                else -> config.carrier
+            }
+            val transport = when (config.transport) {
+                "datachannel" -> "DC"
+                "vp8channel" -> "VP8C"
+                "seichannel" -> "SEIC"
+                "videochannel" -> "VC"
+                else -> config.transport
+            }
+            "$base • $carrier • $transport"
         }
     }
     parts.add(kernelPart)

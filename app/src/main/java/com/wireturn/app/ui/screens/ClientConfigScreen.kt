@@ -15,14 +15,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -30,17 +28,14 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -67,6 +62,7 @@ import com.wireturn.app.ui.ConfigRowLabel
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ImportButton
 import com.wireturn.app.ui.LabeledSegmentedButton
+import com.wireturn.app.ui.SelectionBottomSheet
 import com.wireturn.app.ui.SettingsGroup
 import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.ui.StandardLeadingIcon
@@ -90,7 +86,6 @@ fun ClientConfigScreen(
     onFinish: (() -> Unit)? = null
 ) {
     val saved by viewModel.clientConfig.collectAsStateWithLifecycle()
-    val currentProfileId by viewModel.currentProfileId.collectAsStateWithLifecycle()
     val customKernelExists by viewModel.customKernelExists.collectAsStateWithLifecycle()
     val customKernelLastModified by viewModel.customKernelLastModified.collectAsStateWithLifecycle()
     val kernelError by viewModel.kernelError.collectAsStateWithLifecycle()
@@ -108,12 +103,16 @@ fun ClientConfigScreen(
     var isRawMode by remember { mutableStateOf(saved.isRawMode) }
     var rawCommand by remember { mutableStateOf(saved.rawCommand) }
     var turnableConfig by remember { mutableStateOf(saved.turnableConfig) }
+    var olcrtcConfig by remember { mutableStateOf(saved.olcrtcConfig) }
+    var olcrtcSocksAddr by remember { mutableStateOf("${saved.olcrtcConfig.socksHost}:${saved.olcrtcConfig.socksPort}") }
     var localPort    by remember { mutableStateOf(saved.localPort) }
     var kernelVariant by remember { mutableStateOf(saved.kernelVariant) }
     
     val showPortHelp = remember { mutableStateOf(false) }
+    val showOlcrtcHelp = remember { mutableStateOf(false) }
     val showRoutesDialog = remember { mutableStateOf(false) }
     val showQrScanner = remember { mutableStateOf(false) }
+    val showTransportDialog = remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -126,19 +125,34 @@ fun ClientConfigScreen(
         isRawMode = saved.isRawMode
         rawCommand = saved.rawCommand
         turnableConfig = saved.turnableConfig
+        turnableConfig = saved.turnableConfig
+        olcrtcConfig = saved.olcrtcConfig
+        olcrtcSocksAddr = "${saved.olcrtcConfig.socksHost}:${saved.olcrtcConfig.socksPort}"
         localPort = saved.localPort
         kernelVariant = saved.kernelVariant
     }
 
     val isLocalPortValid = remember(localPort) { ValidatorUtils.isValidHostPort(localPort) }
+    val isOlcrtcSocksValid = remember(olcrtcSocksAddr) { ValidatorUtils.isValidHostPort(olcrtcSocksAddr) }
 
-    LaunchedEffect(isRawMode, rawCommand, turnableConfig, localPort, kernelVariant) {
+    LaunchedEffect(isRawMode, rawCommand, turnableConfig, olcrtcConfig, localPort, olcrtcSocksAddr, kernelVariant) {
         delay(200)
         val current = viewModel.clientConfig.value
+        
+        var effectiveOlcrtcConfig = olcrtcConfig
+        if (isOlcrtcSocksValid) {
+            val parts = olcrtcSocksAddr.split(":")
+            effectiveOlcrtcConfig = olcrtcConfig.copy(
+                socksHost = parts.getOrNull(0) ?: "127.0.0.1",
+                socksPort = parts.getOrNull(1) ?: "9000"
+            )
+        }
+
         val next = current.copy(
             isRawMode        = isRawMode,
             rawCommand       = rawCommand,
             turnableConfig   = turnableConfig,
+            olcrtcConfig     = effectiveOlcrtcConfig,
             localPort        = localPort.trim(),
             kernelVariant    = kernelVariant
         )
@@ -230,14 +244,21 @@ fun ClientConfigScreen(
                                 supportingText = stringResource(R.string.client_variants_desc),
                                 isModified = clientConfigSnapshot != null && kernelVariant != clientConfigSnapshot?.kernelVariant
                             ) {
-                                SegmentedButton(
-                                    selected = kernelVariant == KernelVariant.TURNABLE,
-                                    onClick = {
-                                        HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                                        kernelVariant = KernelVariant.TURNABLE
-                                    },
-                                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 1)
-                                ) { Text(stringResource(R.string.kernel_turnable)) }
+                                KernelVariant.entries.forEachIndexed { index, variant ->
+                                    SegmentedButton(
+                                        selected = kernelVariant == variant,
+                                        onClick = {
+                                            HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
+                                            kernelVariant = variant
+                                        },
+                                        shape = SegmentedButtonDefaults.itemShape(index = index, count = KernelVariant.entries.size)
+                                    ) {
+                                        Text(stringResource(when(variant) {
+                                            KernelVariant.TURNABLE -> R.string.kernel_turnable
+                                            KernelVariant.OLCRTC -> R.string.kernel_olcrtc
+                                        }))
+                                    }
+                                }
                             }
                         }
                     }
@@ -249,14 +270,21 @@ fun ClientConfigScreen(
                             supportingText = if (customKernelExists) stringResource(R.string.kernel_config_desc) else stringResource(R.string.client_variants_desc),
                             isModified = clientConfigSnapshot != null && kernelVariant != clientConfigSnapshot?.kernelVariant
                         ) {
-                            SegmentedButton(
-                                selected = kernelVariant == KernelVariant.TURNABLE,
-                                onClick = {
-                                    HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                                    kernelVariant = KernelVariant.TURNABLE
-                                },
-                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 1)
-                            ) { Text(stringResource(R.string.kernel_turnable)) }
+                            KernelVariant.entries.forEachIndexed { index, variant ->
+                                SegmentedButton(
+                                    selected = kernelVariant == variant,
+                                    onClick = {
+                                        HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
+                                        kernelVariant = variant
+                                    },
+                                    shape = SegmentedButtonDefaults.itemShape(index = index, count = KernelVariant.entries.size)
+                                ) {
+                                    Text(stringResource(when(variant) {
+                                        KernelVariant.TURNABLE -> R.string.kernel_turnable
+                                        KernelVariant.OLCRTC -> R.string.kernel_olcrtc
+                                    }))
+                                }
+                            }
                         }
                     }
                 }
@@ -264,317 +292,616 @@ fun ClientConfigScreen(
 
             if (!isRawMode) {
                 Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                    // 1.5 Импорт
-                    SettingsGroup(title = stringResource(R.string.import_turnable_title)) {
-                        SettingsGroupItem(isTop = true, isBottom = true, containerColor = blockContainerColor) {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                ImportButton(
-                                    onClick = { showQrScanner.value = true }, 
-                                    icon = R.drawable.qr_code_24px, 
-                                    label = stringResource(R.string.qr_import), 
-                                    modifier = Modifier.weight(1f)
-                                )
-                                ImportButton(
-                                    onClick = {
-                                        scope.launch {
-                                            val clipEntry = clipboard.getClipEntry()
-                                            if (clipEntry != null) {
-                                                val text = clipEntry.clipData.getItemAt(0).text?.toString() ?: ""
-                                                val parsed = TurnableConfig.parse(text)
-                                                if (parsed != null) {
-                                                    turnableConfig = parsed
-                                                    snackbarHostState.showSnackbar(importSuccessMessage)
-                                                } else {
-                                                    snackbarHostState.showSnackbar(importErrorMessage)
+                    if (kernelVariant == KernelVariant.TURNABLE) {
+                        // 1.5 Импорт
+                        SettingsGroup(title = stringResource(R.string.import_turnable_title)) {
+                            SettingsGroupItem(isTop = true, isBottom = true, containerColor = blockContainerColor) {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    ImportButton(
+                                        onClick = { showQrScanner.value = true },
+                                        icon = R.drawable.qr_code_24px,
+                                        label = stringResource(R.string.qr_import),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    ImportButton(
+                                        onClick = {
+                                            scope.launch {
+                                                val clipEntry = clipboard.getClipEntry()
+                                                if (clipEntry != null) {
+                                                    val text = clipEntry.clipData.getItemAt(0).text?.toString() ?: ""
+                                                    val parsed = TurnableConfig.parse(text)
+                                                    if (parsed != null) {
+                                                        turnableConfig = parsed
+                                                        snackbarHostState.showSnackbar(importSuccessMessage)
+                                                    } else {
+                                                        snackbarHostState.showSnackbar(importErrorMessage)
+                                                    }
                                                 }
                                             }
-                                        }
-                                    }, 
-                                    icon = R.drawable.content_paste_24px, 
-                                    label = stringResource(R.string.wg_import_clipboard), 
-                                    modifier = Modifier.weight(1f)
-                                )
+                                        },
+                                        icon = R.drawable.content_paste_24px,
+                                        label = stringResource(R.string.wg_import_clipboard),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
                             }
-                        }
-                    }
-
-                    SettingsGroup(title = stringResource(R.string.parameters_title)) {
-                        // 3.1 Local Port
-                        SettingsGroupItem(
-                            isTop = true,
-                            isBottom = true,
-                            containerColor = blockContainerColor
-                        ) {
-                            TextFieldRow(
-                                label = stringResource(R.string.local_listen_address),
-                                value = localPort.redact(privacyMode),
-                                onValueChange = { if (!privacyMode) localPort = it },
-                                placeholder = stringResource(R.string.local_listen_placeholder),
-                                isError = !isLocalPortValid || localPort.isBlank(),
-                                readOnly = privacyMode,
-                                isModified = clientConfigSnapshot != null && localPort.trim() != clientConfigSnapshot?.localPort,
-                                onHelpClick = { showPortHelp.value = true }
-                            )
                         }
                     }
                     
-                    if (turnableConfig.routes.isNotEmpty()) {
-                        SettingsGroup(title = stringResource(R.string.route_title)) {
+                    SettingsGroup(title = stringResource(R.string.parameters_title)) {
+                        if (kernelVariant == KernelVariant.OLCRTC) {
                             SettingsGroupItem(
                                 isTop = true,
                                 isBottom = true,
-                                containerColor = blockContainerColor,
-                                onClick = {
-                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                    showRoutesDialog.value = true
+                                containerColor = blockContainerColor
+                            ) {
+                                TextFieldRow(
+                                    label = stringResource(R.string.olcrtc_socks_proxy_label),
+                                    value = olcrtcSocksAddr.redact(privacyMode),
+                                    onValueChange = { if (!privacyMode) olcrtcSocksAddr = it },
+                                    placeholder = stringResource(R.string.local_listen_placeholder),
+                                    isError = !isOlcrtcSocksValid || olcrtcSocksAddr.isBlank(),
+                                    readOnly = privacyMode,
+                                    isModified = clientConfigSnapshot != null && olcrtcSocksAddr.trim() != "${clientConfigSnapshot?.olcrtcConfig?.socksHost}:${clientConfigSnapshot?.olcrtcConfig?.socksPort}",
+                                    onHelpClick = { showOlcrtcHelp.value = true }
+                                )
+                            }
+                        } else {
+                            // 3.1 Local Port
+                            SettingsGroupItem(
+                                isTop = true,
+                                isBottom = true,
+                                containerColor = blockContainerColor
+                            ) {
+                                TextFieldRow(
+                                    label = stringResource(R.string.local_listen_address),
+                                    value = localPort.redact(privacyMode),
+                                    onValueChange = { if (!privacyMode) localPort = it },
+                                    placeholder = stringResource(R.string.local_listen_placeholder),
+                                    isError = !isLocalPortValid || localPort.isBlank(),
+                                    readOnly = privacyMode,
+                                    isModified = clientConfigSnapshot != null && localPort.trim() != clientConfigSnapshot?.localPort,
+                                    onHelpClick = { showPortHelp.value = true }
+                                )
+                            }
+                        }
+                    }
+
+                    when (kernelVariant) {
+                        KernelVariant.TURNABLE -> {
+                            if (turnableConfig.routes.isNotEmpty()) {
+                                SettingsGroup(title = stringResource(R.string.route_title)) {
+                                    SettingsGroupItem(
+                                        isTop = true,
+                                        isBottom = true,
+                                        containerColor = blockContainerColor,
+                                        onClick = {
+                                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                            showRoutesDialog.value = true
+                                        }
+                                    ) {
+                                        RoutesBlock(
+                                            config = turnableConfig,
+                                            isModified = clientConfigSnapshot != null && turnableConfig.selectedRouteId != clientConfigSnapshot?.turnableConfig?.selectedRouteId
+                                        )
+                                    }
                                 }
-                            ) {
-                                RoutesBlock(
-                                    config = turnableConfig,
-                                    isModified = clientConfigSnapshot != null && turnableConfig.selectedRouteId != clientConfigSnapshot?.turnableConfig?.selectedRouteId
-                                )
-                            }
-                        }
 
-                        // 2. Детали подключения
-                        SettingsGroup(title = stringResource(R.string.connection_details)) {
-                            // Peers
-                            SettingsGroupItem(
-                                isTop = true,
-                                isBottom = false,
-                                containerColor = blockContainerColor
-                            ) {
-                                com.wireturn.app.ui.SliderRow(
-                                    label = stringResource(R.string.peers_label),
-                                    value = turnableConfig.peers.toFloat(),
-                                    onValueChange = {
-                                        turnableConfig =
-                                            turnableConfig.copy(peers = it.roundToInt())
-                                    },
-                                    valueRange = 1f..32f,
-                                    steps = 30,
-                                    supportingText = stringResource(R.string.peers_desc),
-                                    isModified = clientConfigSnapshot != null && turnableConfig.peers != clientConfigSnapshot?.turnableConfig?.peers
-                                )
-                            }
-                            // Username
-                            SettingsGroupItem(
-                                isTop = false,
-                                isBottom = false,
-                                containerColor = blockContainerColor
-                            ) {
-                                TextFieldRow(
-                                    label = stringResource(R.string.username_label),
-                                    value = turnableConfig.username.redact(privacyMode),
-                                    onValueChange = {
-                                        if (!privacyMode) turnableConfig =
-                                            turnableConfig.copy(username = it)
-                                    },
-                                    isError = turnableConfig.username.isBlank(),
-                                    readOnly = privacyMode,
-                                    supportingText = stringResource(R.string.username_desc),
-                                    isModified = clientConfigSnapshot != null && turnableConfig.username != clientConfigSnapshot?.turnableConfig?.username
-                                )
-                            }
-                            // Call ID
-                            SettingsGroupItem(
-                                isTop = false,
-                                isBottom = true,
-                                containerColor = blockContainerColor
-                            ) {
-                                TextFieldRow(
-                                    label = stringResource(R.string.call_id_label),
-                                    value = turnableConfig.callId.redact(privacyMode),
-                                    onValueChange = {
-                                        if (!privacyMode) turnableConfig =
-                                            turnableConfig.copy(callId = it)
-                                    },
-                                    isError = turnableConfig.callId.isBlank(),
-                                    readOnly = privacyMode,
-                                    supportingText = stringResource(R.string.call_id_desc),
-                                    isModified = clientConfigSnapshot != null && turnableConfig.callId != clientConfigSnapshot?.turnableConfig?.callId
-                                )
-                            }
-                        }
-
-                        SettingsGroup(title = stringResource(R.string.server_settings_title)) {
-                            // User UUID
-                            SettingsGroupItem(
-                                isTop = true,
-                                isBottom = false,
-                                containerColor = blockContainerColor
-                            ) {
-                                TextFieldRow(
-                                    label = stringResource(R.string.user_uuid_label),
-                                    value = (turnableConfig.userUuid ?: "").redact(privacyMode),
-                                    onValueChange = {
-                                        if (!privacyMode) turnableConfig =
-                                            turnableConfig.copy(userUuid = it)
-                                    },
-                                    isError = turnableConfig.type == "relay" && turnableConfig.userUuid.isNullOrBlank(),
-                                    readOnly = privacyMode,
-                                    supportingText = stringResource(R.string.user_uuid_desc),
-                                    isModified = clientConfigSnapshot != null && turnableConfig.userUuid != clientConfigSnapshot?.turnableConfig?.userUuid
-                                )
-                            }
-                            // Platform ID
-                            SettingsGroupItem(
-                                isTop = false,
-                                isBottom = false,
-                                containerColor = blockContainerColor
-                            ) {
-                                TextFieldRow(
-                                    label = stringResource(R.string.platform_id_label),
-                                    value = turnableConfig.platformId.redact(privacyMode),
-                                    onValueChange = {
-                                        if (!privacyMode) turnableConfig =
-                                            turnableConfig.copy(platformId = it)
-                                    },
-                                    isError = turnableConfig.platformId.isBlank(),
-                                    readOnly = privacyMode,
-                                    supportingText = stringResource(R.string.platform_id_desc),
-                                    isModified = clientConfigSnapshot != null && turnableConfig.platformId != clientConfigSnapshot?.turnableConfig?.platformId
-                                )
-                            }
-                            // Type
-                            SettingsGroupItem(
-                                isTop = false,
-                                isBottom = false,
-                                containerColor = blockContainerColor
-                            ) {
-                                LabeledSegmentedButton(
-                                    label = stringResource(R.string.connection_type_label),
-                                    supportingText = stringResource(R.string.connection_type_desc),
-                                    isModified = clientConfigSnapshot != null && turnableConfig.type != clientConfigSnapshot?.turnableConfig?.type
-                                ) {
-                                    listOf("relay", "direct").forEachIndexed { index, t ->
-                                        SegmentedButton(
-                                            selected = turnableConfig.type == t,
-                                            onClick = {
-                                                HapticUtil.perform(
-                                                    context,
-                                                    HapticUtil.Pattern.TOGGLE_ON
-                                                )
-                                                turnableConfig = turnableConfig.copy(type = t)
+                                // 2. Детали подключения
+                                SettingsGroup(title = stringResource(R.string.connection_details)) {
+                                    // Peers
+                                    SettingsGroupItem(
+                                        isTop = true,
+                                        isBottom = false,
+                                        containerColor = blockContainerColor
+                                    ) {
+                                        com.wireturn.app.ui.SliderRow(
+                                            label = stringResource(R.string.peers_label),
+                                            value = turnableConfig.peers.toFloat(),
+                                            onValueChange = {
+                                                turnableConfig =
+                                                    turnableConfig.copy(peers = it.roundToInt())
                                             },
-                                            shape = SegmentedButtonDefaults.itemShape(
-                                                index = index,
-                                                count = 2
+                                            valueRange = 1f..32f,
+                                            steps = 30,
+                                            supportingText = stringResource(R.string.peers_desc),
+                                            isModified = clientConfigSnapshot != null && turnableConfig.peers != clientConfigSnapshot?.turnableConfig?.peers
+                                        )
+                                    }
+                                    // Username
+                                    SettingsGroupItem(
+                                        isTop = false,
+                                        isBottom = false,
+                                        containerColor = blockContainerColor
+                                    ) {
+                                        TextFieldRow(
+                                            label = stringResource(R.string.username_label),
+                                            value = turnableConfig.username.redact(privacyMode),
+                                            onValueChange = {
+                                                if (!privacyMode) turnableConfig =
+                                                    turnableConfig.copy(username = it)
+                                            },
+                                            isError = turnableConfig.username.isBlank(),
+                                            readOnly = privacyMode,
+                                            supportingText = stringResource(R.string.username_desc),
+                                            isModified = clientConfigSnapshot != null && turnableConfig.username != clientConfigSnapshot?.turnableConfig?.username
+                                        )
+                                    }
+                                    // Call ID
+                                    SettingsGroupItem(
+                                        isTop = false,
+                                        isBottom = true,
+                                        containerColor = blockContainerColor
+                                    ) {
+                                        TextFieldRow(
+                                            label = stringResource(R.string.call_id_label),
+                                            value = turnableConfig.callId.redact(privacyMode),
+                                            onValueChange = {
+                                                if (!privacyMode) turnableConfig =
+                                                    turnableConfig.copy(callId = it)
+                                            },
+                                            isError = turnableConfig.callId.isBlank(),
+                                            readOnly = privacyMode,
+                                            supportingText = stringResource(R.string.call_id_desc),
+                                            isModified = clientConfigSnapshot != null && turnableConfig.callId != clientConfigSnapshot?.turnableConfig?.callId
+                                        )
+                                    }
+                                }
+
+                                SettingsGroup(title = stringResource(R.string.server_settings_title)) {
+                                    // User UUID
+                                    SettingsGroupItem(
+                                        isTop = true,
+                                        isBottom = false,
+                                        containerColor = blockContainerColor
+                                    ) {
+                                        TextFieldRow(
+                                            label = stringResource(R.string.user_uuid_label),
+                                            value = (turnableConfig.userUuid ?: "").redact(privacyMode),
+                                            onValueChange = {
+                                                if (!privacyMode) turnableConfig =
+                                                    turnableConfig.copy(userUuid = it)
+                                            },
+                                            isError = turnableConfig.type == "relay" && turnableConfig.userUuid.isNullOrBlank(),
+                                            readOnly = privacyMode,
+                                            supportingText = stringResource(R.string.user_uuid_desc),
+                                            isModified = clientConfigSnapshot != null && turnableConfig.userUuid != clientConfigSnapshot?.turnableConfig?.userUuid
+                                        )
+                                    }
+                                    // Platform ID
+                                    SettingsGroupItem(
+                                        isTop = false,
+                                        isBottom = false,
+                                        containerColor = blockContainerColor
+                                    ) {
+                                        TextFieldRow(
+                                            label = stringResource(R.string.platform_id_label),
+                                            value = turnableConfig.platformId.redact(privacyMode),
+                                            onValueChange = {
+                                                if (!privacyMode) turnableConfig =
+                                                    turnableConfig.copy(platformId = it)
+                                            },
+                                            isError = turnableConfig.platformId.isBlank(),
+                                            readOnly = privacyMode,
+                                            supportingText = stringResource(R.string.platform_id_desc),
+                                            isModified = clientConfigSnapshot != null && turnableConfig.platformId != clientConfigSnapshot?.turnableConfig?.platformId
+                                        )
+                                    }
+                                    // Type
+                                    SettingsGroupItem(
+                                        isTop = false,
+                                        isBottom = false,
+                                        containerColor = blockContainerColor
+                                    ) {
+                                        LabeledSegmentedButton(
+                                            label = stringResource(R.string.connection_type_label),
+                                            supportingText = stringResource(R.string.connection_type_desc),
+                                            isModified = clientConfigSnapshot != null && turnableConfig.type != clientConfigSnapshot?.turnableConfig?.type
+                                        ) {
+                                            listOf("relay", "direct").forEachIndexed { index, t ->
+                                                SegmentedButton(
+                                                    selected = turnableConfig.type == t,
+                                                    onClick = {
+                                                        HapticUtil.perform(
+                                                            context,
+                                                            HapticUtil.Pattern.TOGGLE_ON
+                                                        )
+                                                        turnableConfig = turnableConfig.copy(type = t)
+                                                    },
+                                                    shape = SegmentedButtonDefaults.itemShape(
+                                                        index = index,
+                                                        count = 2
+                                                    )
+                                                ) { Text(t.replaceFirstChar { it.uppercase() }) }
+                                            }
+                                        }
+                                    }
+                                    // Encryption
+                                    SettingsGroupItem(
+                                        isTop = false,
+                                        isBottom = false,
+                                        containerColor = blockContainerColor
+                                    ) {
+                                        TextFieldRow(
+                                            label = stringResource(R.string.encryption_label),
+                                            value = (turnableConfig.encryption ?: "").redact(privacyMode),
+                                            onValueChange = {
+                                                if (!privacyMode) turnableConfig =
+                                                    turnableConfig.copy(encryption = it)
+                                            },
+                                            isError = turnableConfig.type == "relay" && turnableConfig.encryption.isNullOrBlank(),
+                                            readOnly = privacyMode,
+                                            supportingText = stringResource(R.string.encryption_desc),
+                                            isModified = clientConfigSnapshot != null && turnableConfig.encryption != clientConfigSnapshot?.turnableConfig?.encryption
+                                        )
+                                    }
+                                    // Public Key
+                                    SettingsGroupItem(
+                                        isTop = false,
+                                        isBottom = false,
+                                        containerColor = blockContainerColor
+                                    ) {
+                                        TextFieldRow(
+                                            label = stringResource(R.string.pub_key_label),
+                                            value = (turnableConfig.pubKey ?: "").redact(privacyMode),
+                                            onValueChange = {
+                                                if (!privacyMode) turnableConfig =
+                                                    turnableConfig.copy(pubKey = it)
+                                            },
+                                            isError = turnableConfig.type == "relay" && turnableConfig.pubKey.isNullOrBlank(),
+                                            readOnly = privacyMode,
+                                            supportingText = stringResource(R.string.pub_key_desc),
+                                            isModified = clientConfigSnapshot != null && turnableConfig.pubKey != clientConfigSnapshot?.turnableConfig?.pubKey
+                                        )
+                                    }
+                                    // Gateway
+                                    SettingsGroupItem(
+                                        isTop = false,
+                                        isBottom = false,
+                                        containerColor = blockContainerColor
+                                    ) {
+                                        TextFieldRow(
+                                            label = stringResource(R.string.gateway_label),
+                                            value = turnableConfig.gateway.redact(privacyMode),
+                                            onValueChange = {
+                                                if (!privacyMode) turnableConfig =
+                                                    turnableConfig.copy(gateway = it)
+                                            },
+                                            isError = turnableConfig.gateway.isBlank(),
+                                            readOnly = privacyMode,
+                                            supportingText = stringResource(R.string.gateway_desc),
+                                            isModified = clientConfigSnapshot != null && turnableConfig.gateway != clientConfigSnapshot?.turnableConfig?.gateway
+                                        )
+                                    }
+                                    // Proto
+                                    SettingsGroupItem(
+                                        isTop = false,
+                                        isBottom = false,
+                                        containerColor = blockContainerColor
+                                    ) {
+                                        LabeledSegmentedButton(
+                                            label = stringResource(R.string.proto_label),
+                                            supportingText = stringResource(R.string.proto_desc),
+                                            isModified = clientConfigSnapshot != null && turnableConfig.proto != clientConfigSnapshot?.turnableConfig?.proto
+                                        ) {
+                                            val options = listOf("dtls", "srtp", "none")
+                                            val currentProto = turnableConfig.proto ?: "none"
+                                            options.forEachIndexed { index, p ->
+                                                SegmentedButton(
+                                                    selected = currentProto == p,
+                                                    onClick = {
+                                                        if (!privacyMode) {
+                                                            HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
+                                                            turnableConfig = turnableConfig.copy(proto = if (p == "none") null else p)
+                                                        }
+                                                    },
+                                                    shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                                                    enabled = !privacyMode
+                                                ) {
+                                                    Text(p.uppercase())
+                                                }
+                                            }
+                                        }
+                                    }
+                                    // Force Turn
+                                    SettingsGroupItem(
+                                        isTop = false,
+                                        isBottom = true,
+                                        containerColor = blockContainerColor,
+                                        onClick = {
+                                            val next = !turnableConfig.forceTurn
+                                            HapticUtil.perform(
+                                                context,
+                                                if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
                                             )
-                                        ) { Text(t.replaceFirstChar { it.uppercase() }) }
+                                            turnableConfig = turnableConfig.copy(forceTurn = next)
+                                        }
+                                    ) {
+                                        SwitchRow(
+                                            label = stringResource(R.string.force_turn_label),
+                                            supportingText = stringResource(R.string.force_turn_desc),
+                                            checked = turnableConfig.forceTurn,
+                                            onCheckedChange = {
+                                                turnableConfig = turnableConfig.copy(forceTurn = it)
+                                            },
+                                            isModified = clientConfigSnapshot != null && turnableConfig.forceTurn != clientConfigSnapshot?.turnableConfig?.forceTurn
+                                        )
                                     }
                                 }
                             }
-                            // Encryption
-                            SettingsGroupItem(
-                                isTop = false,
-                                isBottom = false,
-                                containerColor = blockContainerColor
-                            ) {
-                                TextFieldRow(
-                                    label = stringResource(R.string.encryption_label),
-                                    value = (turnableConfig.encryption ?: "").redact(privacyMode),
-                                    onValueChange = {
-                                        if (!privacyMode) turnableConfig =
-                                            turnableConfig.copy(encryption = it)
-                                    },
-                                    isError = turnableConfig.type == "relay" && turnableConfig.encryption.isNullOrBlank(),
-                                    readOnly = privacyMode,
-                                    supportingText = stringResource(R.string.encryption_desc),
-                                    isModified = clientConfigSnapshot != null && turnableConfig.encryption != clientConfigSnapshot?.turnableConfig?.encryption
-                                )
-                            }
-                            // Public Key
-                            SettingsGroupItem(
-                                isTop = false,
-                                isBottom = false,
-                                containerColor = blockContainerColor
-                            ) {
-                                TextFieldRow(
-                                    label = stringResource(R.string.pub_key_label),
-                                    value = (turnableConfig.pubKey ?: "").redact(privacyMode),
-                                    onValueChange = {
-                                        if (!privacyMode) turnableConfig =
-                                            turnableConfig.copy(pubKey = it)
-                                    },
-                                    isError = turnableConfig.type == "relay" && turnableConfig.pubKey.isNullOrBlank(),
-                                    readOnly = privacyMode,
-                                    supportingText = stringResource(R.string.pub_key_desc),
-                                    isModified = clientConfigSnapshot != null && turnableConfig.pubKey != clientConfigSnapshot?.turnableConfig?.pubKey
-                                )
-                            }
-                            // Gateway
-                            SettingsGroupItem(
-                                isTop = false,
-                                isBottom = false,
-                                containerColor = blockContainerColor
-                            ) {
-                                TextFieldRow(
-                                    label = stringResource(R.string.gateway_label),
-                                    value = turnableConfig.gateway.redact(privacyMode),
-                                    onValueChange = {
-                                        if (!privacyMode) turnableConfig =
-                                            turnableConfig.copy(gateway = it)
-                                    },
-                                    isError = turnableConfig.gateway.isBlank(),
-                                    readOnly = privacyMode,
-                                    supportingText = stringResource(R.string.gateway_desc),
-                                    isModified = clientConfigSnapshot != null && turnableConfig.gateway != clientConfigSnapshot?.turnableConfig?.gateway
-                                )
-                            }
-                            // Proto
-                            SettingsGroupItem(
-                                isTop = false,
-                                isBottom = false,
-                                containerColor = blockContainerColor
-                            ) {
-                                LabeledSegmentedButton(
-                                    label = stringResource(R.string.proto_label),
-                                    supportingText = stringResource(R.string.proto_desc),
-                                    isModified = clientConfigSnapshot != null && turnableConfig.proto != clientConfigSnapshot?.turnableConfig?.proto
-                                ) {
-                                    val options = listOf("dtls", "srtp", "none")
-                                    val currentProto = turnableConfig.proto ?: "none"
-                                    options.forEachIndexed { index, p ->
-                                        SegmentedButton(
-                                            selected = currentProto == p,
-                                            onClick = {
-                                                if (!privacyMode) {
+                        }
+                        
+                        KernelVariant.OLCRTC -> {
+                            SettingsGroup(title = stringResource(R.string.olcrtc_settings_title)) {
+                                // Carrier
+                                SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
+                                    LabeledSegmentedButton(
+                                        label = stringResource(R.string.olcrtc_carrier_label),
+                                        isModified = clientConfigSnapshot != null && olcrtcConfig.carrier != clientConfigSnapshot?.olcrtcConfig?.carrier
+                                    ) {
+                                        val carriers = listOf("wbstream" to "WB Stream", "telemost" to "Telemost", "jazz" to "Jazz")
+                                        carriers.forEachIndexed { index, (value, label) ->
+                                            SegmentedButton(
+                                                selected = olcrtcConfig.carrier == value,
+                                                onClick = {
                                                     HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                                                    turnableConfig = turnableConfig.copy(proto = if (p == "none") null else p)
-                                                }
-                                            },
-                                            shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
-                                            enabled = !privacyMode
-                                        ) {
-                                            Text(p.uppercase())
+                                                    olcrtcConfig = olcrtcConfig.copy(carrier = value)
+                                                },
+                                                shape = SegmentedButtonDefaults.itemShape(index = index, count = carriers.size)
+                                            ) {
+                                                Text(label)
+                                            }
                                         }
                                     }
                                 }
-                            }
-                            // Force Turn
-                            SettingsGroupItem(
-                                isTop = false,
-                                isBottom = true,
-                                containerColor = blockContainerColor,
-                                onClick = {
-                                    val next = !turnableConfig.forceTurn
-                                    HapticUtil.perform(
-                                        context,
-                                        if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
-                                    )
-                                    turnableConfig = turnableConfig.copy(forceTurn = next)
+                                // Transport
+                                SettingsGroupItem(
+                                    isTop = false,
+                                    isBottom = false,
+                                    containerColor = blockContainerColor,
+                                    onClick = {
+                                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                        showTransportDialog.value = true
+                                    }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        StandardLeadingIcon {
+                                            Icon(
+                                                painter = painterResource(R.drawable.route_24px),
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        }
+                                        Spacer(Modifier.width(20.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            ConfigRowLabel(stringResource(R.string.olcrtc_transport_label))
+                                            val currentLabel = when (olcrtcConfig.transport) {
+                                                "datachannel" -> "DataChannel"
+                                                "vp8channel" -> "VP8Channel"
+                                                "seichannel" -> "SEIChannel"
+                                                "videochannel" -> "VideoChannel"
+                                                else -> olcrtcConfig.transport
+                                            }
+                                            Spacer(Modifier.height(2.dp))
+                                            SupportingText(currentLabel)
+                                        }
+                                        com.wireturn.app.ui.InlineConfigIndicator(
+                                            clientConfigSnapshot != null && olcrtcConfig.transport != clientConfigSnapshot?.olcrtcConfig?.transport
+                                        )
+                                    }
                                 }
-                            ) {
-                                SwitchRow(
-                                    label = stringResource(R.string.force_turn_label),
-                                    supportingText = stringResource(R.string.force_turn_desc),
-                                    checked = turnableConfig.forceTurn,
-                                    onCheckedChange = {
-                                        turnableConfig = turnableConfig.copy(forceTurn = it)
-                                    },
-                                    isModified = clientConfigSnapshot != null && turnableConfig.forceTurn != clientConfigSnapshot?.turnableConfig?.forceTurn
-                                )
+                                // ID
+                                SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                                    TextFieldRow(
+                                        label = stringResource(R.string.olcrtc_id_label),
+                                        value = olcrtcConfig.id.redact(privacyMode),
+                                        onValueChange = { if (!privacyMode) olcrtcConfig = olcrtcConfig.copy(id = it) },
+                                        isError = olcrtcConfig.id.isBlank(),
+                                        readOnly = privacyMode,
+                                        isModified = clientConfigSnapshot != null && olcrtcConfig.id != clientConfigSnapshot?.olcrtcConfig?.id
+                                    )
+                                }
+                                // Client ID
+                                SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                                    TextFieldRow(
+                                        label = stringResource(R.string.olcrtc_client_id_label),
+                                        value = olcrtcConfig.clientId.redact(privacyMode),
+                                        onValueChange = { if (!privacyMode) olcrtcConfig = olcrtcConfig.copy(clientId = it) },
+                                        isError = olcrtcConfig.clientId.isBlank(),
+                                        readOnly = privacyMode,
+                                        isModified = clientConfigSnapshot != null && olcrtcConfig.clientId != clientConfigSnapshot?.olcrtcConfig?.clientId
+                                    )
+                                }
+                                // Key
+                                SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                                    TextFieldRow(
+                                        label = stringResource(R.string.olcrtc_key_label),
+                                        value = olcrtcConfig.key.redact(privacyMode),
+                                        onValueChange = { if (!privacyMode) olcrtcConfig = olcrtcConfig.copy(key = it) },
+                                        isError = olcrtcConfig.key.isBlank(),
+                                        readOnly = privacyMode,
+                                        isModified = clientConfigSnapshot != null && olcrtcConfig.key != clientConfigSnapshot?.olcrtcConfig?.key
+                                    )
+                                }
+                                // DNS
+                                SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+                                    TextFieldRow(
+                                        label = stringResource(R.string.olcrtc_dns_label),
+                                        value = olcrtcConfig.dns,
+                                        onValueChange = { olcrtcConfig = olcrtcConfig.copy(dns = it) },
+                                        isError = olcrtcConfig.dns.isBlank(),
+                                        isModified = clientConfigSnapshot != null && olcrtcConfig.dns != clientConfigSnapshot?.olcrtcConfig?.dns
+                                    )
+                                }
+                            }
+
+                            when (olcrtcConfig.transport) {
+                                "vp8channel" -> {
+                                    SettingsGroup(title = stringResource(R.string.olcrtc_vp8_settings_title)) {
+                                        SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
+                                            com.wireturn.app.ui.SliderRow(
+                                                label = stringResource(R.string.olcrtc_vp8_fps),
+                                                value = olcrtcConfig.vp8Fps.toFloat(),
+                                                onValueChange = { olcrtcConfig = olcrtcConfig.copy(vp8Fps = it.roundToInt()) },
+                                                valueRange = 1f..60f,
+                                                steps = 59,
+                                                isModified = clientConfigSnapshot != null && olcrtcConfig.vp8Fps != clientConfigSnapshot?.olcrtcConfig?.vp8Fps
+                                            )
+                                        }
+                                        SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+                                            com.wireturn.app.ui.SliderRow(
+                                                label = stringResource(R.string.olcrtc_vp8_batch),
+                                                value = olcrtcConfig.vp8Batch.toFloat(),
+                                                onValueChange = { olcrtcConfig = olcrtcConfig.copy(vp8Batch = it.roundToInt()) },
+                                                valueRange = 1f..100f,
+                                                steps = 99,
+                                                isModified = clientConfigSnapshot != null && olcrtcConfig.vp8Batch != clientConfigSnapshot?.olcrtcConfig?.vp8Batch
+                                            )
+                                        }
+                                    }
+                                }
+                                "seichannel" -> {
+                                    SettingsGroup(title = stringResource(R.string.olcrtc_sei_settings_title)) {
+                                        SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
+                                            com.wireturn.app.ui.SliderRow(
+                                                label = stringResource(R.string.olcrtc_sei_fps),
+                                                value = olcrtcConfig.seiFps.toFloat(),
+                                                onValueChange = { olcrtcConfig = olcrtcConfig.copy(seiFps = it.roundToInt()) },
+                                                valueRange = 1f..120f,
+                                                steps = 119,
+                                                isModified = clientConfigSnapshot != null && olcrtcConfig.seiFps != clientConfigSnapshot?.olcrtcConfig?.seiFps
+                                            )
+                                        }
+                                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                                            com.wireturn.app.ui.SliderRow(
+                                                label = stringResource(R.string.olcrtc_sei_batch),
+                                                value = olcrtcConfig.seiBatch.toFloat(),
+                                                onValueChange = { olcrtcConfig = olcrtcConfig.copy(seiBatch = it.roundToInt()) },
+                                                valueRange = 1f..256f,
+                                                steps = 255,
+                                                isModified = clientConfigSnapshot != null && olcrtcConfig.seiBatch != clientConfigSnapshot?.olcrtcConfig?.seiBatch
+                                            )
+                                        }
+                                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                                            com.wireturn.app.ui.SliderRow(
+                                                label = stringResource(R.string.olcrtc_sei_frag),
+                                                value = olcrtcConfig.seiFrag.toFloat(),
+                                                onValueChange = { olcrtcConfig = olcrtcConfig.copy(seiFrag = it.roundToInt()) },
+                                                valueRange = 100f..1500f,
+                                                steps = 140,
+                                                isModified = clientConfigSnapshot != null && olcrtcConfig.seiFrag != clientConfigSnapshot?.olcrtcConfig?.seiFrag
+                                            )
+                                        }
+                                        SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+                                            com.wireturn.app.ui.SliderRow(
+                                                label = stringResource(R.string.olcrtc_sei_ack_ms),
+                                                value = olcrtcConfig.seiAckMs.toFloat(),
+                                                onValueChange = { olcrtcConfig = olcrtcConfig.copy(seiAckMs = it.roundToInt()) },
+                                                valueRange = 100f..5000f,
+                                                steps = 49,
+                                                isModified = clientConfigSnapshot != null && olcrtcConfig.seiAckMs != clientConfigSnapshot?.olcrtcConfig?.seiAckMs
+                                            )
+                                        }
+                                    }
+                                }
+                                "videochannel" -> {
+                                    SettingsGroup(title = stringResource(R.string.olcrtc_video_settings_title)) {
+                                        SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
+                                            TextFieldRow(
+                                                label = stringResource(R.string.olcrtc_video_codec),
+                                                value = olcrtcConfig.videoCodec,
+                                                onValueChange = { olcrtcConfig = olcrtcConfig.copy(videoCodec = it) },
+                                                isModified = clientConfigSnapshot != null && olcrtcConfig.videoCodec != clientConfigSnapshot?.olcrtcConfig?.videoCodec
+                                            )
+                                        }
+                                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                                TextFieldRow(
+                                                    label = stringResource(R.string.olcrtc_video_width),
+                                                    value = olcrtcConfig.videoW.toString(),
+                                                    onValueChange = { olcrtcConfig = olcrtcConfig.copy(videoW = it.toIntOrNull() ?: 1920) },
+                                                    modifier = Modifier.weight(1f),
+                                                    isModified = clientConfigSnapshot != null && olcrtcConfig.videoW != clientConfigSnapshot?.olcrtcConfig?.videoW
+                                                )
+                                                TextFieldRow(
+                                                    label = stringResource(R.string.olcrtc_video_height),
+                                                    value = olcrtcConfig.videoH.toString(),
+                                                    onValueChange = { olcrtcConfig = olcrtcConfig.copy(videoH = it.toIntOrNull() ?: 1080) },
+                                                    modifier = Modifier.weight(1f),
+                                                    isModified = clientConfigSnapshot != null && olcrtcConfig.videoH != clientConfigSnapshot?.olcrtcConfig?.videoH
+                                                )
+                                            }
+                                        }
+                                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                                            com.wireturn.app.ui.SliderRow(
+                                                label = stringResource(R.string.olcrtc_video_fps),
+                                                value = olcrtcConfig.videoFps.toFloat(),
+                                                onValueChange = { olcrtcConfig = olcrtcConfig.copy(videoFps = it.roundToInt()) },
+                                                valueRange = 1f..60f,
+                                                steps = 59,
+                                                isModified = clientConfigSnapshot != null && olcrtcConfig.videoFps != clientConfigSnapshot?.olcrtcConfig?.videoFps
+                                            )
+                                        }
+                                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                                            TextFieldRow(
+                                                label = stringResource(R.string.olcrtc_video_bitrate),
+                                                value = olcrtcConfig.videoBitrate,
+                                                onValueChange = { olcrtcConfig = olcrtcConfig.copy(videoBitrate = it) },
+                                                isModified = clientConfigSnapshot != null && olcrtcConfig.videoBitrate != clientConfigSnapshot?.olcrtcConfig?.videoBitrate
+                                            )
+                                        }
+                                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                                            TextFieldRow(
+                                                label = stringResource(R.string.olcrtc_video_hw),
+                                                value = olcrtcConfig.videoHw,
+                                                onValueChange = { olcrtcConfig = olcrtcConfig.copy(videoHw = it) },
+                                                isModified = clientConfigSnapshot != null && olcrtcConfig.videoHw != clientConfigSnapshot?.olcrtcConfig?.videoHw
+                                            )
+                                        }
+                                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                                            TextFieldRow(
+                                                label = stringResource(R.string.olcrtc_video_qr_recovery),
+                                                value = olcrtcConfig.videoQrRecovery,
+                                                onValueChange = { olcrtcConfig = olcrtcConfig.copy(videoQrRecovery = it) },
+                                                isModified = clientConfigSnapshot != null && olcrtcConfig.videoQrRecovery != clientConfigSnapshot?.olcrtcConfig?.videoQrRecovery
+                                            )
+                                        }
+                                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                                            com.wireturn.app.ui.SliderRow(
+                                                label = stringResource(R.string.olcrtc_video_qr_size),
+                                                value = olcrtcConfig.videoQrSize.toFloat(),
+                                                onValueChange = { olcrtcConfig = olcrtcConfig.copy(videoQrSize = it.roundToInt()) },
+                                                valueRange = 0f..1000f,
+                                                steps = 100,
+                                                isModified = clientConfigSnapshot != null && olcrtcConfig.videoQrSize != clientConfigSnapshot?.olcrtcConfig?.videoQrSize
+                                            )
+                                        }
+                                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                                            com.wireturn.app.ui.SliderRow(
+                                                label = stringResource(R.string.olcrtc_video_tile_module),
+                                                value = olcrtcConfig.videoTileModule.toFloat(),
+                                                onValueChange = { olcrtcConfig = olcrtcConfig.copy(videoTileModule = it.roundToInt()) },
+                                                valueRange = 1f..32f,
+                                                steps = 31,
+                                                isModified = clientConfigSnapshot != null && olcrtcConfig.videoTileModule != clientConfigSnapshot?.olcrtcConfig?.videoTileModule
+                                            )
+                                        }
+                                        SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+                                            com.wireturn.app.ui.SliderRow(
+                                                label = stringResource(R.string.olcrtc_video_tile_rs),
+                                                value = olcrtcConfig.videoTileRs.toFloat(),
+                                                onValueChange = { olcrtcConfig = olcrtcConfig.copy(videoTileRs = it.roundToInt()) },
+                                                valueRange = 0f..100f,
+                                                steps = 100,
+                                                isModified = clientConfigSnapshot != null && olcrtcConfig.videoTileRs != clientConfigSnapshot?.olcrtcConfig?.videoTileRs
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -641,11 +968,12 @@ fun ClientConfigScreen(
             }
 
             if (showFinishButton && onFinish != null) {
-                val isValid = remember(isRawMode, rawCommand, turnableConfig, kernelVariant) {
+                val isValid = remember(isRawMode, rawCommand, turnableConfig, olcrtcConfig, kernelVariant) {
                     com.wireturn.app.data.ClientConfig(
                         isRawMode = isRawMode,
                         rawCommand = rawCommand,
                         turnableConfig = turnableConfig,
+                        olcrtcConfig = olcrtcConfig,
                         kernelVariant = kernelVariant
                     ).isValid
                 }
@@ -684,6 +1012,42 @@ fun ClientConfigScreen(
                     scope.launch { snackbarHostState.showSnackbar(importSuccessMessage) }
                 } else {
                     scope.launch { snackbarHostState.showSnackbar(importErrorMessage) }
+                }
+            }
+        )
+    }
+
+    if (showTransportDialog.value) {
+        TransportDialog(
+            currentTransport = olcrtcConfig.transport,
+            onSelect = {
+                olcrtcConfig = olcrtcConfig.copy(transport = it)
+                showTransportDialog.value = false
+            },
+            onDismiss = { showTransportDialog.value = false }
+        )
+    }
+
+    if (showOlcrtcHelp.value) {
+        AlertDialog(
+            onDismissRequest = { showOlcrtcHelp.value = false },
+            title = { Text(stringResource(R.string.olcrtc_socks_proxy_label)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = stringResource(R.string.olcrtc_socks_help_text),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = stringResource(R.string.olcrtc_socks_help_secondary),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showOlcrtcHelp.value = false }) {
+                    Text(stringResource(R.string.btn_close))
                 }
             }
         )
@@ -775,78 +1139,75 @@ fun RoutesDialog(
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val scope = rememberCoroutineScope()
-    val context = LocalContext.current
+    SelectionBottomSheet(
+        title = stringResource(R.string.route_title),
+        items = config.routes,
+        isSelected = { it.routeId == config.selectedRouteId },
+        onSelect = { onSelect(it.routeId) },
+        onDismiss = onDismiss
+    ) { route, isSelected ->
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            StandardLeadingIcon {
+                Icon(
+                    painter = painterResource(R.drawable.route_24px),
+                    contentDescription = null,
+                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            Spacer(Modifier.width(20.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = route.name.ifBlank { route.routeId },
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                    color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
+                )
+                RouteSummary(
+                    route = route,
+                    color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
+        }
+    }
+}
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(bottom = 24.dp)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+@Composable
+fun TransportDialog(
+    currentTransport: String,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val transports = listOf(
+        "datachannel" to "DataChannel",
+        "vp8channel" to "VP8Channel",
+        "seichannel" to "SEIChannel",
+        "videochannel" to "VideoChannel"
+    )
+
+    SelectionBottomSheet(
+        title = stringResource(R.string.olcrtc_transport_label),
+        description = stringResource(R.string.olcrtc_transport_desc),
+        items = transports,
+        isSelected = { it.first == currentTransport },
+        onSelect = { onSelect(it.first) },
+        onDismiss = onDismiss
+    ) { (_, label), isSelected ->
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = stringResource(R.string.route_title),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(bottom = 16.dp, start = 8.dp)
+                text = label,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
             )
-            config.routes.forEachIndexed { index, route ->
-                val isSelected = route.routeId == config.selectedRouteId
-                val shape = when {
-                    config.routes.size == 1 -> MaterialTheme.shapes.medium
-                    index == 0 -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
-                    index == config.routes.size - 1 -> RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
-                    else -> RoundedCornerShape(4.dp)
-                }
-
-                Surface(
-                    onClick = {
-                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                        onSelect(route.routeId)
-                        scope.launch {
-                            sheetState.hide()
-                            onDismiss()
-                        }
-                    },
-                    shape = shape,
-                    color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        StandardLeadingIcon {
-                            Icon(
-                                painter = painterResource(R.drawable.route_24px),
-                                contentDescription = null,
-                                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        Spacer(Modifier.width(20.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = route.name.ifBlank { route.routeId },
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-                                color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1
-                            )
-                            RouteSummary(
-                                route = route,
-                                color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                            )
-                        }
-                    }
-                }
-            }
         }
     }
 }

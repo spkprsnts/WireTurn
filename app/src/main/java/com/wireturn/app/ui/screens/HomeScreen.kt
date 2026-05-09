@@ -165,6 +165,7 @@ fun HomeScreen(
     val vlessConfigSnapshot by XrayServiceState.vlessConfigSnapshot.collectAsStateWithLifecycle()
     val xrayConfigSnapshot by XrayServiceState.xrayConfigSnapshot.collectAsStateWithLifecycle()
     val isRestarting by ProxyServiceState.isRestarting.collectAsStateWithLifecycle()
+    val isChangingProfile by ProxyServiceState.isChangingProfile.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
     val updateProgress by viewModel.updateProgress.collectAsStateWithLifecycle()
 
@@ -249,6 +250,21 @@ fun HomeScreen(
 
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    val isBusy = isRestarting || isChangingProfile
+
+    // Logic to prevent flickering "Tap to start" during hot restart gap
+    var wasActiveBeforeRestart by remember { mutableStateOf(false) }
+    LaunchedEffect(isBusy) {
+        if (isBusy && proxyState !is ProxyState.Idle) {
+            wasActiveBeforeRestart = true
+        }
+    }
+    LaunchedEffect(proxyState) {
+        if (proxyState !is ProxyState.Idle) {
+            wasActiveBeforeRestart = false
+        }
+    }
+
     val vlessMismatch = stringResource(R.string.warn_proxy_vless_mismatch)
     val wgMismatch = stringResource(R.string.warn_proxy_wg_mismatch)
 
@@ -304,23 +320,35 @@ fun HomeScreen(
     val wgConfig by viewModel.wgConfig.collectAsStateWithLifecycle()
 
     val activeConfig = clientConfigSnapshot ?: clientConfig
+    val activeXrayConfig = xrayConfigSnapshot ?: xrayConfig
     val activeWgConfig = wgConfigSnapshot ?: wgConfig
     val activeVlessConfig = vlessConfigSnapshot ?: vlessConfig
 
-    val configChanged = remember(clientConfig, clientConfigSnapshot, wgConfig, wgConfigSnapshot, vlessConfig, vlessConfigSnapshot, xrayConfig, xrayConfigSnapshot, isRestarting) {
-        !isRestarting && ((clientConfigSnapshot != null && clientConfig != clientConfigSnapshot) ||
+    val configChanged = remember(clientConfig, clientConfigSnapshot, wgConfig, wgConfigSnapshot, vlessConfig, vlessConfigSnapshot, xrayConfig, xrayConfigSnapshot, isBusy) {
+        !isBusy && ((clientConfigSnapshot != null && clientConfig != clientConfigSnapshot) ||
                 (wgConfigSnapshot != null && wgConfig.fillDefaults() != wgConfigSnapshot) ||
                 (vlessConfigSnapshot != null && vlessConfig != vlessConfigSnapshot) ||
                 (xrayConfigSnapshot != null && xrayConfig.fillDefaults() != xrayConfigSnapshot))
     }
 
-    val mainConfigChanged = remember(clientConfig, clientConfigSnapshot, isRestarting) {
-        !isRestarting && (clientConfigSnapshot != null && clientConfig != clientConfigSnapshot)
+    val mainConfigChanged = remember(clientConfig, clientConfigSnapshot, isBusy) {
+        !isBusy && (clientConfigSnapshot != null && clientConfig != clientConfigSnapshot)
     }
-    val xrayConfigChanged = remember(wgConfig, wgConfigSnapshot, vlessConfig, vlessConfigSnapshot, xrayConfig, xrayConfigSnapshot, isRestarting) {
-        !isRestarting && ((wgConfigSnapshot != null && wgConfig.fillDefaults() != wgConfigSnapshot) ||
+    val xrayConfigChanged = remember(wgConfig, wgConfigSnapshot, vlessConfig, vlessConfigSnapshot, xrayConfig, xrayConfigSnapshot, clientConfig, clientConfigSnapshot, isBusy) {
+        if (isBusy) return@remember false
+        
+        val baseChanged = (wgConfigSnapshot != null && wgConfig.fillDefaults() != wgConfigSnapshot) ||
                 (vlessConfigSnapshot != null && vlessConfig != vlessConfigSnapshot) ||
-                (xrayConfigSnapshot != null && xrayConfig.fillDefaults() != xrayConfigSnapshot))
+                (xrayConfigSnapshot != null && xrayConfig.fillDefaults() != xrayConfigSnapshot)
+        
+        val connectionToProxyChanged = clientConfigSnapshot != null && (
+                clientConfig.kernelVariant != clientConfigSnapshot?.kernelVariant ||
+                clientConfig.localPort != clientConfigSnapshot?.localPort ||
+                clientConfig.olcrtcConfig.socksHost != clientConfigSnapshot?.olcrtcConfig?.socksHost ||
+                clientConfig.olcrtcConfig.socksPort != clientConfigSnapshot?.olcrtcConfig?.socksPort
+        )
+        
+        baseChanged || connectionToProxyChanged
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -601,7 +629,8 @@ fun HomeScreen(
                     proxyState = proxyState,
                     xrayState = xrayState,
                     xrayEnabled = xraySettings.xrayEnabled,
-                    isRestarting = isRestarting,
+                    isRestarting = isBusy,
+                    wasActiveBeforeRestart = wasActiveBeforeRestart,
                     isLocked = autoLaunchSettings.enabled,
                     onClick = {
                         val action = {
@@ -637,22 +666,23 @@ fun HomeScreen(
                     }
                 )
 
-                val statusText = when (proxyState) {
-                    is ProxyState.Connected -> {
+                val statusText = when {
+                    isBusy && proxyState !is ProxyState.Idle -> stringResource(R.string.proxy_restarting)
+                    wasActiveBeforeRestart && proxyState is ProxyState.Idle -> stringResource(R.string.proxy_restarting)
+                    proxyState is ProxyState.Connected -> {
                         if (xrayState == XrayState.DirectRoute) stringResource(R.string.vless_direct_active)
                         else stringResource(if (customKernelExists) R.string.proxy_running else R.string.proxy_active)
                     }
-                    is ProxyState.Starting -> stringResource(R.string.starting)
-                    is ProxyState.Connecting -> stringResource(R.string.connecting)
-                    is ProxyState.Suppressed -> {
+                    proxyState is ProxyState.Starting -> stringResource(R.string.starting)
+                    proxyState is ProxyState.Connecting -> stringResource(R.string.connecting)
+                    proxyState is ProxyState.Suppressed -> {
                         if (xrayState == XrayState.DirectRoute) stringResource(R.string.vless_direct_active)
                         else stringResource(R.string.connecting)
                     }
-                    is ProxyState.CaptchaRequired -> stringResource(R.string.proxy_captcha_required)
-                    is ProxyState.WaitingForNetwork -> stringResource(R.string.status_waiting_for_network)
-                    is ProxyState.Error -> (proxyState as ProxyState.Error).message
+                    proxyState is ProxyState.CaptchaRequired -> stringResource(R.string.proxy_captcha_required)
+                    proxyState is ProxyState.WaitingForNetwork -> stringResource(R.string.status_waiting_for_network)
+                    proxyState is ProxyState.Error -> (proxyState as ProxyState.Error).message
                     else -> when {
-                        isRestarting -> stringResource(R.string.proxy_restarting)
                         autoLaunchSettings.enabled -> stringResource(R.string.proxy_auto_launch_active)
                         else -> stringResource(R.string.proxy_press_to_start)
                     }
@@ -660,10 +690,11 @@ fun HomeScreen(
 
                 val statusColor by animateColorAsState(
                     targetValue = when {
+                        wasActiveBeforeRestart && proxyState is ProxyState.Idle -> MaterialTheme.colorScheme.tertiary
                         proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed -> MaterialTheme.colorScheme.primary
                         proxyState is ProxyState.Starting || proxyState is ProxyState.Connecting || proxyState is ProxyState.CaptchaRequired || proxyState is ProxyState.WaitingForNetwork -> MaterialTheme.colorScheme.tertiary
                         proxyState is ProxyState.Error -> MaterialTheme.colorScheme.error
-                        isRestarting -> MaterialTheme.colorScheme.tertiary
+                        isBusy && proxyState !is ProxyState.Idle -> MaterialTheme.colorScheme.tertiary
                         autoLaunchSettings.enabled -> MaterialTheme.colorScheme.primary
                         else -> MaterialTheme.colorScheme.onBackground.copy(alpha = 0.65f)
                     },
@@ -908,6 +939,7 @@ fun HomeScreen(
                                     ConfigRowLabel(stringResource(R.string.restart_required))
                                     Spacer(Modifier.height(2.dp))
                                     SupportingText(when {
+                                        mainConfigChanged && xrayConfigChanged -> "${stringResource(R.string.restart_reason_client)} • ${stringResource(R.string.restart_reason_xray)}"
                                         mainConfigChanged -> stringResource(R.string.restart_reason_client)
                                         else -> stringResource(R.string.restart_reason_xray)
                                     })
@@ -969,12 +1001,32 @@ fun HomeScreen(
             }
 
             // --- Xray & VPN Settings ---
-            val isSettingsValid = if (xrayConfig.xrayConfiguration == XrayConfiguration.VLESS) activeVlessConfig.isValid() else activeWgConfig.isValid()
-            val configValid = isSettingsValid || xrayState != XrayState.Idle
+            val isSettingsValid = if (activeConfig.kernelVariant == KernelVariant.OLCRTC) {
+                // For OLCRTC, link is only required if DualRoute is enabled
+                if (activeXrayConfig.xrayConfiguration == XrayConfiguration.VLESS && activeVlessConfig.isDualRoute) {
+                    activeVlessConfig.isValid()
+                } else {
+                    true // WG or VLESS solo mode just uses olcrtc SOCKS5
+                }
+            } else {
+                if (activeXrayConfig.xrayConfiguration == XrayConfiguration.VLESS) activeVlessConfig.isValid() else activeWgConfig.isValid()
+            }
+            val configValid = isSettingsValid || xrayState != XrayState.Idle || isBusy
 
             val xrayProtocol = when {
+                isBusy -> ""
+                activeConfig.kernelVariant == KernelVariant.OLCRTC -> {
+                    when (xrayState) {
+                        XrayState.DirectRoute -> stringResource(R.string.vless)
+                        XrayState.Running -> stringResource(R.string.xray_socks5)
+                        else -> {
+                            if (activeVlessConfig.isDualRoute) "${stringResource(R.string.xray_socks5)} / ${stringResource(R.string.vless)}"
+                            else stringResource(R.string.xray_socks5)
+                        }
+                    }
+                }
                 xrayState == XrayState.Running || xrayState == XrayState.DirectRoute -> if (vlessConfigSnapshot != null) stringResource(R.string.vless) else stringResource(R.string.wg_short)
-                else -> if (xrayConfig.xrayConfiguration == XrayConfiguration.VLESS) stringResource(R.string.vless) else stringResource(R.string.wg_short)
+                else -> if (activeXrayConfig.xrayConfiguration == XrayConfiguration.VLESS) stringResource(R.string.vless) else stringResource(R.string.wg_short)
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -1113,8 +1165,33 @@ fun HomeScreen(
 
             Spacer(Modifier.height(12.dp))
 
+            val isOlcrtc = activeConfig.kernelVariant == KernelVariant.OLCRTC
+            val showXray = xraySettings.xrayEnabled
+
+            val displaySocksAddr = if (showXray) {
+                activeXrayConfig.socksBindAddress
+            } else if (isOlcrtc) {
+                "${activeConfig.olcrtcConfig.socksHost}:${activeConfig.olcrtcConfig.socksPort}"
+            } else {
+                activeXrayConfig.socksBindAddress
+            }
+
+            val displayHttpAddr = if (showXray) activeXrayConfig.httpBindAddress else if (isOlcrtc) "" else activeXrayConfig.httpBindAddress
+
+            val isSocksModified = if (showXray) {
+                xrayConfigSnapshot != null && xrayConfig.socksBindAddress != xrayConfigSnapshot?.socksBindAddress
+            } else if (isOlcrtc) {
+                clientConfigSnapshot != null && (activeConfig.olcrtcConfig.socksHost != clientConfigSnapshot?.olcrtcConfig?.socksHost || activeConfig.olcrtcConfig.socksPort != clientConfigSnapshot?.olcrtcConfig?.socksPort)
+            } else {
+                xrayConfigSnapshot != null && xrayConfig.socksBindAddress != xrayConfigSnapshot?.socksBindAddress
+            }
+
+            val isHttpModified = if (showXray) {
+                xrayConfigSnapshot != null && xrayConfig.httpBindAddress != xrayConfigSnapshot?.httpBindAddress
+            } else false
+
             Column(
-                modifier = Modifier.graphicsLayer { alpha = if (xraySettings.xrayEnabled) 1f else 0.38f },
+                modifier = Modifier.graphicsLayer { alpha = if (showXray || isOlcrtc) 1f else 0.38f },
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 val clipboard = LocalClipboard.current
@@ -1131,34 +1208,34 @@ fun HomeScreen(
 
                 SettingsGroupItem(
                     isTop = true,
-                    isBottom = xrayConfig.httpBindAddress.isBlank() && !(xrayConfigSnapshot != null && xrayConfig.httpBindAddress != xrayConfigSnapshot?.httpBindAddress),
+                    isBottom = displayHttpAddr.isBlank() && !isHttpModified,
                     containerColor = blockContainerColor,
-                    enabled = xraySettings.xrayEnabled,
+                    enabled = showXray || isOlcrtc,
                     onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         scope.launch {
-                            clipboard.setClipEntry(ClipData.newPlainText(socks5Label, xrayConfig.socksBindAddress).toClipEntry())
+                            clipboard.setClipEntry(ClipData.newPlainText(socks5Label, displaySocksAddr).toClipEntry())
                             socksCopied = true
                         }
                     }
                 ) {
                     ProxyAddressRow(
                         label = stringResource(R.string.xray_socks5),
-                        address = xrayConfig.socksBindAddress,
-                        isModified = xrayConfigSnapshot != null && xrayConfig.socksBindAddress != xrayConfigSnapshot?.socksBindAddress,
+                        address = displaySocksAddr,
+                        isModified = isSocksModified,
                         isCopied = socksCopied,
                         leadingIcon = {
                             Icon(
                                 painter = painterResource(R.drawable.lan_24px),
                                 contentDescription = null,
-                                tint = if (xraySettings.xrayEnabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                                tint = if (showXray || isOlcrtc) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
                                 modifier = Modifier.size(24.dp)
                             )
                         }
                     )
                 }
 
-                if (xrayConfig.httpBindAddress.isNotBlank() || (xrayConfigSnapshot != null && xrayConfig.httpBindAddress != xrayConfigSnapshot?.httpBindAddress)) {
+                if (displayHttpAddr.isNotBlank() || isHttpModified) {
                     var httpCopied by remember { mutableStateOf(false) }
                     LaunchedEffect(httpCopied) {
                         if (httpCopied) {
@@ -1171,25 +1248,25 @@ fun HomeScreen(
                         isTop = false,
                         isBottom = true,
                         containerColor = blockContainerColor,
-                        enabled = xraySettings.xrayEnabled,
+                        enabled = showXray,
                         onClick = {
                             HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                             scope.launch {
-                                clipboard.setClipEntry(ClipData.newPlainText(httpLabel, xrayConfig.httpBindAddress).toClipEntry())
+                                clipboard.setClipEntry(ClipData.newPlainText(httpLabel, displayHttpAddr).toClipEntry())
                                 httpCopied = true
                             }
                         }
                     ) {
                         ProxyAddressRow(
                             label = stringResource(R.string.xray_http),
-                            address = xrayConfig.httpBindAddress,
-                            isModified = xrayConfigSnapshot != null && xrayConfig.httpBindAddress != xrayConfigSnapshot?.httpBindAddress,
+                            address = displayHttpAddr,
+                            isModified = isHttpModified,
                             isCopied = httpCopied,
                             leadingIcon = {
                                 Icon(
                                     painter = painterResource(R.drawable.lan_24px),
                                     contentDescription = null,
-                                    tint = if (xraySettings.xrayEnabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                                    tint = if (showXray) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
@@ -1330,6 +1407,7 @@ private fun ProxyToggleButton(
     xrayState: XrayState = XrayState.Idle,
     xrayEnabled: Boolean = true,
     isRestarting: Boolean = false,
+    wasActiveBeforeRestart: Boolean = false,
     isLocked: Boolean = false,
     onClick: () -> Unit
 ) {
@@ -1355,9 +1433,11 @@ private fun ProxyToggleButton(
         }
     }
 
-    val toggleState = remember(proxyState, xrayState, isRestarting, showXraySpinner) {
+    val toggleState = remember(proxyState, xrayState, isRestarting, showXraySpinner, wasActiveBeforeRestart) {
+        val actuallyRestarting = isRestarting && (proxyState !is ProxyState.Idle || wasActiveBeforeRestart)
+        val gapFilling = wasActiveBeforeRestart && proxyState is ProxyState.Idle
         when {
-            isRestarting || proxyState is ProxyState.Starting || proxyState is ProxyState.Connecting || proxyState is ProxyState.CaptchaRequired || proxyState is ProxyState.WaitingForNetwork -> "loading"
+            actuallyRestarting || gapFilling || proxyState is ProxyState.Starting || proxyState is ProxyState.Connecting || proxyState is ProxyState.CaptchaRequired || proxyState is ProxyState.WaitingForNetwork -> "loading"
             proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed -> if (showXraySpinner) "loading" else "active"
             proxyState is ProxyState.Error -> "error"
             else -> "idle"
@@ -1369,7 +1449,7 @@ private fun ProxyToggleButton(
             "active" -> if (xrayState == XrayState.DirectRoute) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
             "loading" -> MaterialTheme.colorScheme.tertiary
             "error" -> MaterialTheme.colorScheme.errorContainer
-            else -> if (isRestarting || proxyState is ProxyState.Starting) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceVariant
+            else -> if ((isRestarting && (proxyState !is ProxyState.Idle || wasActiveBeforeRestart)) || proxyState is ProxyState.Starting) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceVariant
         },
         animationSpec = tween(600),
         label = "btn_bg"

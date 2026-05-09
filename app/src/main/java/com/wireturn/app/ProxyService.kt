@@ -328,6 +328,10 @@ class ProxyService : Service() {
                 ProxyServiceState.setStatus(ProxyStatus.Connected)
                 startupEmitted = true
                 ProxyTileService.requestUpdate(this@ProxyService)
+            } else if (cfg.kernelVariant == KernelVariant.OLCRTC) {
+                ProxyServiceState.setStatus(ProxyStatus.Connecting)
+                updateNotification(getString(R.string.connecting))
+                ProxyTileService.requestUpdate(this@ProxyService)
             }
 
             withContext(Dispatchers.IO) {
@@ -397,7 +401,8 @@ class ProxyService : Service() {
                             lower.contains("first data frame received") ||
                             lower.contains("datachannel connected") ||
                             lower.contains("peer online") ||
-                            lower.contains("vp8 track receiving"))
+                            lower.contains("vp8 track receiving") ||
+                            lower.contains("socks5 server listening on"))
                         {
                             peerConnectFailedCount = 0
                             unreachableNetworkCount = 0
@@ -410,15 +415,17 @@ class ProxyService : Service() {
                                 ProxyTileService.requestUpdate(this@ProxyService)
                             }
                         }
-                        if (lower.contains("datachannel closed")) {
+                        if (lower.contains("datachannel closed") || lower.contains("remote not ready")) {
                             if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
                                 if (isNetworkMissingAndHandled()) {
                                     startupFailed = true
                                     break
                                 }
 
-                                ProxyServiceState.setStatus(ProxyStatus.Connecting)
-                                ProxyTileService.requestUpdate(this@ProxyService)
+                                if (!lower.contains("remote not ready")) {
+                                    ProxyServiceState.setStatus(ProxyStatus.Connecting)
+                                    ProxyTileService.requestUpdate(this@ProxyService)
+                                }
                             }
                         }
 
@@ -467,7 +474,7 @@ class ProxyService : Service() {
                         }
 
                         // Error detection
-                        if (lower.contains("panic") || lower.contains("fatal") || lower.contains("rate limit")) {
+                        if (lower.contains("panic") || lower.contains("fatal") || lower.contains("rate limit") || lower.contains("failed to connect link")) {
                             if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
                                 ProxyServiceState.setStatus(ProxyStatus.Error(l))
                                 updateNotification(getString(R.string.error_connecting))
@@ -520,7 +527,10 @@ class ProxyService : Service() {
             customBin.absolutePath
         } else {
             AppLogsState.addLog(getString(R.string.log_standard_kernel))
-            "${applicationInfo.nativeLibraryDir}/libturnable.so"
+            when (cfg.kernelVariant) {
+                KernelVariant.TURNABLE -> "${applicationInfo.nativeLibraryDir}/libturnable.so"
+                KernelVariant.OLCRTC -> "${applicationInfo.nativeLibraryDir}/libolcrtc.so"
+            }
         }
 
         val cmdArgs = mutableListOf<String>()
@@ -539,6 +549,70 @@ class ProxyService : Service() {
                             cfg.turnableConfig.toUrl(true)
                         )
                     )
+                }
+                KernelVariant.OLCRTC -> {
+                    val o = cfg.olcrtcConfig
+
+                    cmdArgs.addAll(
+                        listOf(
+                            "-mode", "cnc",
+                            "-carrier", o.carrier,
+                            "-transport", o.transport,
+                            "-id", o.id,
+                            "-client-id", o.clientId,
+                            "-key", o.key,
+                            "-link", "direct",
+                            "-data", "data",
+                            "-dns", o.dns,
+                            "-socks-host", o.socksHost.ifBlank { ClientConfig.DEFAULT_SOCKS_HOST },
+                            "-socks-port", o.socksPort.ifBlank { ClientConfig.DEFAULT_SOCKS_PORT }
+                        )
+                    )
+
+                    // Transport specific flags
+                    when (o.transport) {
+                        "vp8channel" -> {
+                            cmdArgs.add("-vp8-fps")
+                            cmdArgs.add(o.vp8Fps.toString())
+                            cmdArgs.add("-vp8-batch")
+                            cmdArgs.add(o.vp8Batch.toString())
+                        }
+                        "seichannel" -> {
+                            cmdArgs.add("-fps")
+                            cmdArgs.add(o.seiFps.toString())
+                            cmdArgs.add("-batch")
+                            cmdArgs.add(o.seiBatch.toString())
+                            cmdArgs.add("-frag")
+                            cmdArgs.add(o.seiFrag.toString())
+                            cmdArgs.add("-ack-ms")
+                            cmdArgs.add(o.seiAckMs.toString())
+                        }
+                        "videochannel" -> {
+                            cmdArgs.add("-video-codec")
+                            cmdArgs.add(o.videoCodec)
+                            cmdArgs.add("-video-w")
+                            cmdArgs.add(o.videoW.toString())
+                            cmdArgs.add("-video-h")
+                            cmdArgs.add(o.videoH.toString())
+                            cmdArgs.add("-video-fps")
+                            cmdArgs.add(o.videoFps.toString())
+                            cmdArgs.add("-video-bitrate")
+                            cmdArgs.add(o.videoBitrate)
+                            cmdArgs.add("-video-hw")
+                            cmdArgs.add(o.videoHw)
+                            if (o.videoCodec == "qrcode") {
+                                cmdArgs.add("-video-qr-recovery")
+                                cmdArgs.add(o.videoQrRecovery)
+                                cmdArgs.add("-video-qr-size")
+                                cmdArgs.add(o.videoQrSize.toString())
+                            } else if (o.videoCodec == "tile") {
+                                cmdArgs.add("-video-tile-module")
+                                cmdArgs.add(o.videoTileModule.toString())
+                                cmdArgs.add("-video-tile-rs")
+                                cmdArgs.add(o.videoTileRs.toString())
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -593,18 +667,47 @@ class ProxyService : Service() {
             combine(
                 prefs.xraySettingsFlow,
                 ProxyServiceState.status,
-                XrayServiceState.state
-            ) { settings, status, xrayState ->
+                XrayServiceState.state,
+                prefs.clientConfigFlow
+            ) { settings, status, xrayState, clientConfig ->
                 val shouldBeRunning = settings.xrayEnabled && 
                         status !is ProxyStatus.Idle && 
                         status !is ProxyStatus.Error && 
                         status !is ProxyStatus.WaitingForNetwork
-                val needsStart = shouldBeRunning && xrayState == XrayState.Idle
-                val needsStop = !shouldBeRunning && xrayState != XrayState.Idle
-                needsStart to needsStop
-            }.distinctUntilChanged()
-            .collectLatest { (needsStart, needsStop) ->
-                if (needsStart) {
+                
+                // Track kernel and specific socks/port settings for restart
+                val connectionTarget = when (clientConfig.kernelVariant) {
+                    KernelVariant.OLCRTC -> "${clientConfig.olcrtcConfig.socksHost}:${clientConfig.olcrtcConfig.socksPort}"
+                    else -> clientConfig.localPort
+                }
+
+                XraySupervisorBundle(
+                    shouldBeRunning = shouldBeRunning,
+                    xrayState = xrayState,
+                    kernelVariant = clientConfig.kernelVariant,
+                    connectionTarget = connectionTarget
+                )
+            }.distinctUntilChanged { old, new ->
+                // Custom comparison to detect when we need to start/stop/restart
+                old.shouldBeRunning == new.shouldBeRunning &&
+                old.kernelVariant == new.kernelVariant &&
+                old.connectionTarget == new.connectionTarget &&
+                // if it's already in the desired state (started or stopped), don't trigger again
+                (if (new.shouldBeRunning) new.xrayState != XrayState.Idle else new.xrayState == XrayState.Idle)
+            }
+            .collectLatest { data ->
+                val needsStart = data.shouldBeRunning && data.xrayState == XrayState.Idle
+                val needsStop = !data.shouldBeRunning && data.xrayState != XrayState.Idle
+                val needsRestart = data.shouldBeRunning && data.xrayState != XrayState.Idle
+
+                if (needsRestart) {
+                    AppLogsState.addLog("[Xray] Restarting due to kernel or proxy settings change")
+                    withContext(Dispatchers.Main) {
+                        stopService(Intent(this@ProxyService, XrayService::class.java))
+                        delay(500)
+                        startForegroundService(Intent(this@ProxyService, XrayService::class.java))
+                    }
+                } else if (needsStart) {
                     delay(500) // Debounce during profile switches
                     withContext(Dispatchers.Main) {
                         val currentXrayState = XrayServiceState.state.value
@@ -621,6 +724,13 @@ class ProxyService : Service() {
             }
         }
     }
+
+    private data class XraySupervisorBundle(
+        val shouldBeRunning: Boolean,
+        val xrayState: XrayState,
+        val kernelVariant: KernelVariant,
+        val connectionTarget: String?
+    )
 
     private fun observeErrorForNotification() {
         serviceScope.launch {

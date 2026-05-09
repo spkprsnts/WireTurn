@@ -5,7 +5,6 @@ package com.wireturn.app.ui.screens
 import android.content.ClipData
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -111,12 +110,11 @@ fun XrayConfigScreen(
     var address by rememberSaveable(currentProfileId, savedWgConfig.address) { mutableStateOf(savedWgConfig.address) }
     var mtu by rememberSaveable(currentProfileId, savedWgConfig.mtu) { mutableStateOf(savedWgConfig.mtu) }
     var publicKey by rememberSaveable(currentProfileId, savedWgConfig.publicKey) { mutableStateOf(savedWgConfig.publicKey) }
-    var endpoint by rememberSaveable(currentProfileId, savedWgConfig.endpoint) { mutableStateOf(savedWgConfig.endpoint) }
+    var endpoint by rememberSaveable(currentProfileId, clientConfig.connectableAddress) { mutableStateOf(clientConfig.connectableAddress) }
     var persistentKeepalive by rememberSaveable(currentProfileId, savedWgConfig.persistentKeepalive) { mutableStateOf(savedWgConfig.persistentKeepalive) }
 
     // VLESS states
     var vlessLink by rememberSaveable(currentProfileId, vlessSaved.vlessLink) { mutableStateOf(vlessSaved.vlessLink) }
-    var vlessUseLocalAddress by rememberSaveable(currentProfileId, vlessSaved.vlessUseLocalAddress) { mutableStateOf(vlessSaved.vlessUseLocalAddress) }
     var vlessIsDualRoute by rememberSaveable(currentProfileId, vlessSaved.isDualRoute) { mutableStateOf(vlessSaved.isDualRoute) }
     var vlessDirectAddress by rememberSaveable(currentProfileId, vlessSaved.directAddress) { mutableStateOf(vlessSaved.directAddress) }
 
@@ -130,8 +128,11 @@ fun XrayConfigScreen(
         address = savedWgConfig.address
         mtu = savedWgConfig.mtu
         publicKey = savedWgConfig.publicKey
-        endpoint = savedWgConfig.endpoint
         persistentKeepalive = savedWgConfig.persistentKeepalive
+    }
+
+    LaunchedEffect(clientConfig.connectableAddress) {
+        endpoint = clientConfig.connectableAddress
     }
 
     LaunchedEffect(xrayConfig) {
@@ -142,7 +143,6 @@ fun XrayConfigScreen(
 
     LaunchedEffect(vlessSaved) {
         vlessLink = vlessSaved.vlessLink
-        vlessUseLocalAddress = vlessSaved.vlessUseLocalAddress
         vlessIsDualRoute = vlessSaved.isDualRoute
         vlessDirectAddress = vlessSaved.directAddress
     }
@@ -175,11 +175,11 @@ fun XrayConfigScreen(
         }
     }
 
-    LaunchedEffect(vlessLink, vlessUseLocalAddress, vlessIsDualRoute, vlessDirectAddress) {
+    LaunchedEffect(vlessLink, vlessIsDualRoute, vlessDirectAddress) {
         delay(200)
         val next = com.wireturn.app.data.VlessConfig(
             vlessLink = vlessLink,
-            vlessUseLocalAddress = vlessUseLocalAddress,
+            vlessUseLocalAddress = true,
             isDualRoute = vlessIsDualRoute,
             directAddress = vlessDirectAddress
         )
@@ -212,9 +212,6 @@ fun XrayConfigScreen(
     )
 
     val isEndpointValid = remember(endpoint) { ValidatorUtils.isValidHostPort(endpoint) }
-    val isTargetEndpoint = remember(endpoint, clientConfig.connectableAddress) {
-        clientConfig.connectableAddress == endpoint
-    }
     val isSocksValid = remember(socksBindAddress) { ValidatorUtils.isValidHostPort(socksBindAddress) }
     val isHttpValid = remember(httpBindAddress) { httpBindAddress.isEmpty() || ValidatorUtils.isValidHostPort(httpBindAddress) }
 
@@ -371,12 +368,10 @@ fun XrayConfigScreen(
                         publicKey = publicKey,
                         onPublicKeyChange = { if (!privacyMode) publicKey = it },
                         endpoint = endpoint,
-                        onEndpointChange = { if (!privacyMode) endpoint = it },
+                        onEndpointChange = { },
                         persistentKeepalive = persistentKeepalive,
                         onPersistentKeepaliveChange = { persistentKeepalive = it },
                         isEndpointValid = isEndpointValid,
-                        isTargetEndpoint = isTargetEndpoint,
-                        onFixEndpoint = { endpoint = clientConfig.connectableAddress },
                         wgConfigSnapshot = wgConfigSnapshot,
                         privacyMode = privacyMode,
                         onImportFile = { filePickerLauncher.launch("*/*") },
@@ -403,17 +398,11 @@ fun XrayConfigScreen(
                     VlessSettings(
                         vlessLink = vlessLink,
                         onVlessLinkChange = { if (!privacyMode) vlessLink = it },
-                        vlessUseLocalAddress = vlessUseLocalAddress,
-                        onVlessUseLocalAddressChange = {
-                            HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
-                            vlessUseLocalAddress = it
-                        },
                         vlessIsDualRoute = vlessIsDualRoute,
                         onVlessIsDualRouteChange = {
                             HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
                             vlessIsDualRoute = it
                             if (it) {
-                                vlessUseLocalAddress = true
                                 if (vlessDirectAddress.isBlank()) {
                                     ValidatorUtils.parseVlessAddress(vlessLink)?.let { addr ->
                                         vlessDirectAddress = addr
@@ -527,8 +516,6 @@ private fun WireGuardSettings(
     persistentKeepalive: String,
     onPersistentKeepaliveChange: (String) -> Unit,
     isEndpointValid: Boolean,
-    isTargetEndpoint: Boolean,
-    onFixEndpoint: () -> Unit,
     wgConfigSnapshot: WgConfig?,
     privacyMode: Boolean,
     onImportFile: () -> Unit,
@@ -598,26 +585,15 @@ private fun WireGuardSettings(
             }
 
             SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
-                Column {
-                    TextFieldRow(
-                        label = stringResource(R.string.wg_endpoint),
-                        value = endpoint.redact(privacyMode),
-                        onValueChange = onEndpointChange,
-                        placeholder = stringResource(R.string.wg_endpoint_placeholder),
-                        isError = !isTargetEndpoint || !isEndpointValid,
-                        readOnly = privacyMode,
-                        isModified = wgConfigSnapshot != null && endpoint != wgConfigSnapshot.endpoint
-                    )
-                    if (!isTargetEndpoint) {
-                        Column {
-                            Spacer(Modifier.height(8.dp))
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                Text(text = stringResource(R.string.wg_endpoint_mismatch), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                                Text(text = stringResource(R.string.wg_endpoint_fix), color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { onFixEndpoint() }, style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                    }
-                }
+                TextFieldRow(
+                    label = stringResource(R.string.wg_endpoint),
+                    value = endpoint.redact(privacyMode),
+                    onValueChange = onEndpointChange,
+                    placeholder = stringResource(R.string.wg_endpoint_placeholder),
+                    isError = !isEndpointValid,
+                    readOnly = true,
+                    isModified = wgConfigSnapshot != null && endpoint != wgConfigSnapshot.endpoint
+                )
             }
 
             SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
@@ -637,8 +613,6 @@ private fun WireGuardSettings(
 private fun VlessSettings(
     vlessLink: String,
     onVlessLinkChange: (String) -> Unit,
-    vlessUseLocalAddress: Boolean,
-    onVlessUseLocalAddressChange: (Boolean) -> Unit,
     vlessIsDualRoute: Boolean,
     onVlessIsDualRouteChange: (Boolean) -> Unit,
     vlessDirectAddress: String,
@@ -694,22 +668,6 @@ private fun VlessSettings(
 
         SettingsGroupItem(
             isTop = true,
-            isBottom = false,
-            containerColor = blockContainerColor,
-            onClick = if (!vlessIsDualRoute) { { onVlessUseLocalAddressChange(!vlessUseLocalAddress) } } else null
-        ) {
-            SwitchRow(
-                label = stringResource(R.string.use_local_listen_address),
-                supportingText = stringResource(R.string.use_local_listen_desc),
-                checked = vlessUseLocalAddress,
-                onCheckedChange = onVlessUseLocalAddressChange,
-                enabled = !vlessIsDualRoute,
-                isModified = vlessConfigSnapshot != null && vlessUseLocalAddress != vlessConfigSnapshot.vlessUseLocalAddress
-            )
-        }
-
-        SettingsGroupItem(
-            isTop = false,
             isBottom = !vlessIsDualRoute,
             containerColor = blockContainerColor,
             onClick = {

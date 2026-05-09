@@ -8,6 +8,7 @@ import com.wireturn.app.viewmodel.XrayState
 import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.ClientConfig
+import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.XrayConfig
 import com.wireturn.app.data.XraySettings
 import com.wireturn.app.data.GlobalVpnSettings
@@ -216,10 +217,19 @@ class XrayService : Service() {
             
             val isXrayVless = rawXrayConfig.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS
 
-            val isConfigValid = if (isXrayVless) {
-                rawVlessConfig.isValid()
+            val isConfigValid = if (runningClientConfig.kernelVariant == KernelVariant.OLCRTC) {
+                // For OLCRTC, VLESS/WG config is optional, unless DualRoute is enabled
+                if (isXrayVless && rawVlessConfig.isDualRoute) {
+                    rawVlessConfig.isValid()
+                } else {
+                    true
+                }
             } else {
-                rawWgConfig.isValid()
+                if (isXrayVless) {
+                    rawVlessConfig.isValid()
+                } else {
+                    rawWgConfig.isValid()
+                }
             }
 
             if (!isConfigValid) {
@@ -267,23 +277,40 @@ class XrayService : Service() {
                 cmdArgs.add(xrayConfig.httpBindAddress)
             }
             
-            if (rawVlessConfig.vlessUseLocalAddress) {
+            if (runningClientConfig.kernelVariant == KernelVariant.OLCRTC) {
+                cmdArgs.add("-local-socks5")
+                val o = runningClientConfig.olcrtcConfig
+                cmdArgs.add("${o.socksHost}:${o.socksPort}")
+            } else {
+                // For other kernels, always use local proxy address
                 cmdArgs.add("-local-address")
                 cmdArgs.add(runningClientConfig.connectableAddress)
             }
 
             if (isXrayVless) {
-                prefs.addVlessLinkToHistory(rawVlessConfig.vlessLink)
-                cmdArgs.addAll(listOf("-link", rawVlessConfig.vlessLink))
+                if (rawVlessConfig.vlessLink.isNotBlank()) {
+                    prefs.addVlessLinkToHistory(rawVlessConfig.vlessLink)
+                }
+                
+                val shouldAddLink = if (runningClientConfig.kernelVariant == KernelVariant.OLCRTC) {
+                    rawVlessConfig.isDualRoute && rawVlessConfig.vlessLink.isNotBlank()
+                } else {
+                    true
+                }
+
+                if (shouldAddLink) {
+                    cmdArgs.addAll(listOf("-link", rawVlessConfig.vlessLink))
+                }
+
                 if (rawVlessConfig.isDualRoute && rawVlessConfig.directAddress.isNotBlank()) {
                     cmdArgs.add("-direct-address")
                     cmdArgs.add(rawVlessConfig.directAddress)
                 }
-            } else {
+            } else if (runningClientConfig.kernelVariant != KernelVariant.OLCRTC) {
                 cmdArgs.addAll(listOf(
                     "-wg-private-key", wgConfig.privateKey,
                     "-wg-public-key", wgConfig.publicKey,
-                    "-wg-endpoint", wgConfig.endpoint,
+                    "-wg-endpoint", runningClientConfig.connectableAddress,
                     "-wg-address", wgConfig.address,
                     "-wg-mtu", wgConfig.mtu,
                     "-wg-keepalive", wgConfig.persistentKeepalive)

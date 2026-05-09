@@ -74,8 +74,6 @@
     <string name="wg_qr_scan_desc">Наведите камеру на QR-код конфигурации WireGuard для импорта</string>
     <string name="wg_import_success">Конфигурация импортирована</string>
     <string name="wg_import_error">Ошибка импорта</string>
-    <string name="wg_endpoint_mismatch">Не равен локальному адресу\nпрослушивания!</string>
-    <string name="wg_endpoint_fix">Изменить?</string>
     <string name="wg_mtu_recommendation">Рекомендуемое значение — 1280</string>
 
     <!-- Настройка клиента (Backend/Proxy) -->
@@ -111,6 +109,36 @@
     <string name="kernel_label">Ядро</string>
     <string name="kernel_config_label">Формат параметров</string>
     <string name="kernel_config_desc">Выберите структуру аргументов для кастомного ядра</string>
+    <string name="kernel_turnable" translatable="false">Turnable</string>
+    <string name="kernel_olcrtc" translatable="false">olcrtc</string>
+    <string name="olcrtc_settings_title">Параметры olcrtc</string>
+    <string name="olcrtc_id_label">ID комнаты</string>
+    <string name="olcrtc_client_id_label">ID клиента</string>
+    <string name="olcrtc_key_label">Ключ авторизации</string>
+    <string name="olcrtc_dns_label">DNS-сервер</string>
+    <string name="olcrtc_carrier_label">Платформа (Carrier)</string>
+    <string name="olcrtc_transport_label">Транспорт</string>
+    <string name="olcrtc_transport_desc">Список отсортирован от самого быстрого к самому медленному каналу</string>
+    <string name="olcrtc_vp8_settings_title">Параметры VP8Channel</string>
+    <string name="olcrtc_sei_settings_title">Параметры SEIChannel</string>
+    <string name="olcrtc_video_settings_title">Параметры VideoChannel</string>
+    <string name="olcrtc_vp8_fps">VP8 FPS</string>
+    <string name="olcrtc_vp8_batch">VP8 Batch</string>
+    <string name="olcrtc_sei_fps">SEI FPS</string>
+    <string name="olcrtc_sei_batch">SEI Batch</string>
+    <string name="olcrtc_sei_frag">SEI Frag</string>
+    <string name="olcrtc_sei_ack_ms">SEI Ack (мс)</string>
+    <string name="olcrtc_video_codec">Кодек видео</string>
+    <string name="olcrtc_video_width">Ширина видео</string>
+    <string name="olcrtc_video_height">Высота видео</string>
+    <string name="olcrtc_video_fps">FPS видео</string>
+    <string name="olcrtc_video_bitrate">Битрейт видео</string>
+    <string name="olcrtc_video_hw">Видео HW</string>
+    <string name="olcrtc_video_qr_recovery">QR Recovery</string>
+    <string name="olcrtc_video_qr_size">Размер QR</string>
+    <string name="olcrtc_video_tile_module">Tile Module</string>
+    <string name="olcrtc_video_tile_rs">Tile RS</string>
+    <string name="olcrtc_socks_proxy_label">Локальный SOCKS5 прокси</string>
     <string name="local_listen_address">Локальный адрес прослушивания</string>
     <string name="local_listen_placeholder">127.0.0.1:9000</string>
     <string name="parameters_title">Параметры</string>
@@ -124,6 +152,8 @@
     <string name="finish_setup">Завершить настройку</string>
     <string name="local_port_help_text">Это сетевой адрес и порт, на которых приложение запустит локальный прокси-сервер.</string>
     <string name="local_port_help_secondary">К этому адресу должен подключаться либо встроенный в приложение Xray, либо ваши сторонние VPN-клиенты (WireGuard, v2raytun и др.), чтобы трафик шел через созданный туннель.</string>
+    <string name="olcrtc_socks_help_text">Ядро olcrtc не использует традиционные VPN-протоколы. Оно запускает локальный SOCKS5-прокси, который служит точкой входа для трафика.</string>
+    <string name="olcrtc_socks_help_secondary">Встроенный Xray использует этот адрес как апстрим для маршрутизации, что позволяет работать через VLESS в режиме Dual-route или направлять весь трафик устройства через VPN.</string>
 
     <!-- Экран логов (Logs) -->
     <string name="logs_title">Логи</string>
@@ -258,11 +288,9 @@
     <!-- Настройка VLESS -->
     <string name="vless_link_label">VLESS-ссылка</string>
     <string name="vless_link_placeholder">vless://…</string>
-    <string name="vless_link_config_desc">Конфигурация VLESS</string>
+    <string name="vless_link_config_desc">Конфигурация VLESS. IP и порт сервера автоматически заменяются на локальный адрес прослушивания.</string>
     <string name="vless_import_qr">Импорт VLESS</string>
     <string name="vless_qr_scan_desc">Наведите камеру на QR-код конфигурации VLESS для импорта</string>
-    <string name="use_local_listen_address">Использовать адрес прослушивания</string>
-    <string name="use_local_listen_desc">Вместо указанного сервера VLESS\nбудет использоваться локальный</string>
     <string name="vless_dual_route">Режим Dual-route</string>
     <string name="vless_dual_route_short">Dual-route</string>
     <string name="vless_dual_route_desc">Предпочитать прямое подключение к VLESS-серверу, используя локальный туннель только при ограничении прямого доступа</string>

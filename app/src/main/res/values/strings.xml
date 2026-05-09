@@ -90,8 +90,6 @@
     <string name="wg_public_key_placeholder" translatable="false">WG_PUBLIC_KEY</string>
     <string name="wg_endpoint" translatable="false">Endpoint (host:port)</string>
     <string name="wg_endpoint_placeholder" translatable="false">127.0.0.1:9000</string>
-    <string name="wg_endpoint_mismatch">Not equal to local\nlisten address!</string>
-    <string name="wg_endpoint_fix">Change?</string>
     <string name="wg_persistent_keepalive" translatable="false">Persistent Keepalive</string>
     <string name="wg_persistent_keepalive_placeholder" translatable="false">25</string>
     <string name="wg_mtu_recommendation">Recommended value is 1280</string>
@@ -141,6 +139,35 @@
     <string name="kernel_config_label">Parameter format</string>
     <string name="kernel_config_desc">Select argument structure for custom core</string>
     <string name="kernel_turnable" translatable="false">Turnable</string>
+    <string name="kernel_olcrtc" translatable="false">olcrtc</string>
+    <string name="olcrtc_settings_title">olcrtc Parameters</string>
+    <string name="olcrtc_id_label">Room ID</string>
+    <string name="olcrtc_client_id_label">Client ID</string>
+    <string name="olcrtc_key_label">Auth Key</string>
+    <string name="olcrtc_dns_label">DNS Server</string>
+    <string name="olcrtc_carrier_label">Carrier</string>
+    <string name="olcrtc_transport_label">Transport</string>
+    <string name="olcrtc_transport_desc">Listed from fastest to slowest channel</string>
+    <string name="olcrtc_vp8_settings_title">VP8Channel Parameters</string>
+    <string name="olcrtc_sei_settings_title">SEIChannel Parameters</string>
+    <string name="olcrtc_video_settings_title">VideoChannel Parameters</string>
+    <string name="olcrtc_vp8_fps">VP8 FPS</string>
+    <string name="olcrtc_vp8_batch">VP8 Batch</string>
+    <string name="olcrtc_sei_fps">SEI FPS</string>
+    <string name="olcrtc_sei_batch">SEI Batch</string>
+    <string name="olcrtc_sei_frag">SEI Frag</string>
+    <string name="olcrtc_sei_ack_ms">SEI Ack (ms)</string>
+    <string name="olcrtc_video_codec">Video Codec</string>
+    <string name="olcrtc_video_width">Video Width</string>
+    <string name="olcrtc_video_height">Video Height</string>
+    <string name="olcrtc_video_fps">Video FPS</string>
+    <string name="olcrtc_video_bitrate">Video Bitrate</string>
+    <string name="olcrtc_video_hw">Video HW</string>
+    <string name="olcrtc_video_qr_recovery">QR Recovery</string>
+    <string name="olcrtc_video_qr_size">QR Size</string>
+    <string name="olcrtc_video_tile_module">Tile Module</string>
+    <string name="olcrtc_video_tile_rs">Tile RS</string>
+    <string name="olcrtc_socks_proxy_label">Local SOCKS5 proxy</string>
     <string name="local_listen_address">Local listen address</string>
     <string name="local_listen_placeholder">127.0.0.1:9000</string>
     <string name="parameters_title">Parameters</string>
@@ -154,6 +181,8 @@
     <string name="finish_setup">Finish setup</string>
     <string name="local_port_help_text">This is the network address and port where the app will start the local proxy server.</string>
     <string name="local_port_help_secondary">Either the built-in Xray or your third-party VPN clients (WireGuard, v2raytun, etc.) must connect to this address for traffic to go through the created tunnel.</string>
+    <string name="olcrtc_socks_help_text">The olcrtc core does not use traditional VPN protocols. Instead, it starts a local SOCKS5 proxy that serves as an entry point for traffic.</string>
+    <string name="olcrtc_socks_help_secondary">The built-in Xray engine uses this address as an upstream for routing, enabling VLESS Dual-route mode or tunneling all device traffic via VPN.</string>
 
     <!-- Logs Screen (Logs) -->
     <string name="logs_title">Logs</string>
@@ -297,11 +326,9 @@
     <!-- VLESS Setup -->
     <string name="vless_link_label">VLESS link</string>
     <string name="vless_link_placeholder">vless://…</string>
-    <string name="vless_link_config_desc">VLESS configuration</string>
+    <string name="vless_link_config_desc">VLESS configuration. The server IP and port are automatically replaced with the local listen address.</string>
     <string name="vless_import_qr">VLESS Import</string>
     <string name="vless_qr_scan_desc">Point the camera at the VLESS configuration QR code to import</string>
-    <string name="use_local_listen_address">Use listen address</string>
-    <string name="use_local_listen_desc">Instead of the specified VLESS server,\nthe local one will be used</string>
     <string name="vless_dual_route">Dual-route mode</string>
     <string name="vless_dual_route_short">Dual-route</string>
     <string name="vless_dual_route_desc">Prefer direct connection to VLESS server, falling back to local tunnel if direct route is restricted</string>

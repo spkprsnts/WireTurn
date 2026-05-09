@@ -25,7 +25,7 @@ import androidx.core.net.toUri
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "app_prefs")
 
 enum class KernelVariant {
-    TURNABLE
+    TURNABLE, OLCRTC
 }
 
 enum class XrayConfiguration {
@@ -167,12 +167,50 @@ data class TurnableConfig(
     }
 }
 
+data class OlcrtcConfig(
+    @SerializedName("carrier") val carrier: String = "wbstream",
+    @SerializedName("transport") val transport: String = "datachannel",
+    @SerializedName("id") val id: String = "",
+    @SerializedName("client_id") val clientId: String = "wireturn",
+    @SerializedName("key") val key: String = "",
+    @SerializedName("dns") val dns: String = "1.1.1.1:53",
+    @SerializedName("socks_host") val socksHost: String = "127.0.0.1",
+    @SerializedName("socks_port") val socksPort: String = "9000",
+
+    // vp8channel
+    @SerializedName("vp8_fps") val vp8Fps: Int = 25,
+    @SerializedName("vp8_batch") val vp8Batch: Int = 1,
+
+    // seichannel
+    @SerializedName("sei_fps") val seiFps: Int = 60,
+    @SerializedName("sei_batch") val seiBatch: Int = 64,
+    @SerializedName("sei_frag") val seiFrag: Int = 900,
+    @SerializedName("sei_ack_ms") val seiAckMs: Int = 2000,
+
+    // videochannel
+    @SerializedName("video_codec") val videoCodec: String = "qrcode",
+    @SerializedName("video_w") val videoW: Int = 1920,
+    @SerializedName("video_h") val videoH: Int = 1080,
+    @SerializedName("video_fps") val videoFps: Int = 30,
+    @SerializedName("video_bitrate") val videoBitrate: String = "2M",
+    @SerializedName("video_hw") val videoHw: String = "none",
+    @SerializedName("video_qr_recovery") val videoQrRecovery: String = "low",
+    @SerializedName("video_qr_size") val videoQrSize: Int = 0,
+    @SerializedName("video_tile_module") val videoTileModule: Int = 4,
+    @SerializedName("video_tile_rs") val videoTileRs: Int = 20
+) {
+    fun isValid(): Boolean {
+        return id.isNotBlank() && clientId.isNotBlank() && key.isNotBlank() && dns.isNotBlank()
+    }
+}
+
 data class ClientConfig(
     @SerializedName("localPort") val localPort: String = DEFAULT_LOCAL_PORT,
     @SerializedName("isRawMode") val isRawMode: Boolean = false,
     @SerializedName("rawCommand") val rawCommand: String = "",
     @SerializedName("turnableUrl") val turnableUrl: String = "",
     @SerializedName("turnableConfig") val turnableConfig: TurnableConfig = TurnableConfig(),
+    @SerializedName("olcrtcConfig") val olcrtcConfig: OlcrtcConfig = OlcrtcConfig(),
     @SerializedName("kernelVariant") val kernelVariant: KernelVariant = KernelVariant.TURNABLE
 ) {
     /** GSON can leave fields null if they are missing/invalid in JSON. This ensures safety. */
@@ -182,6 +220,7 @@ data class ClientConfig(
             rawCommand = rawCommand ?: "",
             turnableUrl = turnableUrl ?: "",
             turnableConfig = turnableConfig ?: TurnableConfig(),
+            olcrtcConfig = olcrtcConfig ?: OlcrtcConfig(),
             kernelVariant = kernelVariant ?: KernelVariant.TURNABLE
         )
         
@@ -208,6 +247,9 @@ data class ClientConfig(
             KernelVariant.TURNABLE -> {
                 if (c.turnableUrl.isBlank() && !c.turnableConfig.isValid()) com.wireturn.app.R.string.error_settings_empty else null
             }
+            KernelVariant.OLCRTC -> {
+                if (!c.olcrtcConfig.isValid()) com.wireturn.app.R.string.error_settings_empty else null
+            }
         }
     }
 
@@ -231,6 +273,8 @@ data class ClientConfig(
 
     companion object {
         const val DEFAULT_LOCAL_PORT = "127.0.0.1:9000"
+        val DEFAULT_SOCKS_HOST: String get() = DEFAULT_LOCAL_PORT.substringBefore(':')
+        val DEFAULT_SOCKS_PORT: String get() = DEFAULT_LOCAL_PORT.substringAfter(':')
     }
 }
 
@@ -420,6 +464,7 @@ class AppPreferences(context: Context) {
         val CAPTCHA_FORCE_TINT = booleanPreferencesKey("captcha_force_tint")
         val APP_LANGUAGE = stringPreferencesKey("app_language")
         val CLIENT_TURNABLE_CONFIG = stringPreferencesKey("client_turnable_config")
+        val CLIENT_OLCRTC_CONFIG = stringPreferencesKey("client_olcrtc_config")
         val AUTO_LAUNCH_ENABLED = booleanPreferencesKey("auto_launch_enabled")
         val AUTO_LAUNCH_URL = stringPreferencesKey("auto_launch_url")
         val AUTO_LAUNCH_INTERVAL = intPreferencesKey("auto_launch_interval")
@@ -487,6 +532,9 @@ class AppPreferences(context: Context) {
                 turnableConfig = prefs[CLIENT_TURNABLE_CONFIG]?.let {
                     try { gson.fromJson(it, TurnableConfig::class.java) } catch (_: Exception) { null }
                 } ?: TurnableConfig(),
+                olcrtcConfig = prefs[CLIENT_OLCRTC_CONFIG]?.let {
+                    try { gson.fromJson(it, OlcrtcConfig::class.java) } catch (_: Exception) { null }
+                } ?: OlcrtcConfig(),
                 kernelVariant = try {
                     KernelVariant.valueOf(prefs[CLIENT_KERNEL_VARIANT] ?: KernelVariant.TURNABLE.name)
                 } catch (_: Exception) {
@@ -652,6 +700,52 @@ class AppPreferences(context: Context) {
         }
     }
 
+    suspend fun saveFullProfile(
+        id: String,
+        clientConfig: ClientConfig,
+        wgConfig: WgConfig,
+        vlessConfig: VlessConfig,
+        xraySettings: XraySettings,
+        xrayConfig: XrayConfig
+    ) {
+        context.dataStore.edit { prefs ->
+            // Current ID
+            prefs[CURRENT_PROFILE_ID] = id
+
+            // Client Config
+            prefs[CLIENT_LOCAL_PORT] = clientConfig.localPort
+            prefs[CLIENT_IS_RAW] = clientConfig.isRawMode
+            prefs[CLIENT_RAW_CMD] = clientConfig.rawCommand
+            prefs[CLIENT_TURNABLE_URL] = clientConfig.turnableUrl
+            prefs[CLIENT_TURNABLE_CONFIG] = gson.toJson(clientConfig.turnableConfig)
+            prefs[CLIENT_OLCRTC_CONFIG] = gson.toJson(clientConfig.olcrtcConfig)
+            prefs[CLIENT_KERNEL_VARIANT] = clientConfig.kernelVariant.name
+
+            // WG
+            prefs[WIRE_PRIV_KEY] = wgConfig.privateKey
+            prefs[WIRE_ADDRESS] = wgConfig.address
+            prefs[WIRE_MTU] = wgConfig.mtu
+            prefs[WIRE_PUB_KEY] = wgConfig.publicKey
+            prefs[WIRE_ENDPOINT] = wgConfig.endpoint
+            prefs[WIRE_KEEPALIVE] = wgConfig.persistentKeepalive
+
+            // VLESS
+            prefs[CLIENT_VLESS_LINK] = vlessConfig.vlessLink
+            prefs[CLIENT_VLESS_USE_LOCAL_ADDRESS] = vlessConfig.vlessUseLocalAddress
+            prefs[CLIENT_VLESS_IS_DUAL_ROUTE] = vlessConfig.isDualRoute
+            prefs[CLIENT_VLESS_DIRECT_ADDRESS] = vlessConfig.directAddress
+
+            // Xray Settings
+            prefs[XRAY_ENABLED] = xraySettings.xrayEnabled
+            prefs[XRAY_VPN_MODE] = xraySettings.xrayVpnMode
+
+            // Xray Config
+            prefs[SOCKS_BIND] = xrayConfig.socksBindAddress
+            prefs[HTTP_BIND] = xrayConfig.httpBindAddress
+            prefs[XRAY_CONFIGURATION] = xrayConfig.xrayConfiguration.name
+        }
+    }
+
     suspend fun saveClientConfig(config: ClientConfig) {
         val c = (config as ClientConfig?) ?: ClientConfig()
         context.dataStore.edit { prefs ->
@@ -660,6 +754,7 @@ class AppPreferences(context: Context) {
             prefs[CLIENT_RAW_CMD] = (c.rawCommand as String?) ?: ""
             prefs[CLIENT_TURNABLE_URL] = (c.turnableUrl as String?) ?: ""
             prefs[CLIENT_TURNABLE_CONFIG] = gson.toJson(c.turnableConfig)
+            prefs[CLIENT_OLCRTC_CONFIG] = gson.toJson(c.olcrtcConfig)
             prefs[CLIENT_KERNEL_VARIANT] = ((c.kernelVariant as KernelVariant?) ?: KernelVariant.TURNABLE).name
         }
     }

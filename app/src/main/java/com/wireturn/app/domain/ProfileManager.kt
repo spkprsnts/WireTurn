@@ -31,13 +31,27 @@ class ProfileManager(
     fun selectProfile(id: String, profile: Profile? = null, onConfigLoaded: (ClientConfig, XraySettings, XrayConfig, WgConfig, VlessConfig) -> Unit) {
         val targetProfile = profile ?: profiles.value.find { it.id == id } ?: return
         scope.launch {
-            prefs.setCurrentProfileId(id)
-            prefs.saveClientConfig(targetProfile.clientConfig)
-            prefs.saveWgConfig(targetProfile.wgConfig)
-            prefs.saveVlessConfig(targetProfile.vlessConfig)
-            prefs.saveXraySettings(targetProfile.xraySettings)
-            prefs.saveXrayConfig(targetProfile.xrayConfig)
-            onConfigLoaded(targetProfile.clientConfig, targetProfile.xraySettings, targetProfile.xrayConfig, targetProfile.wgConfig, targetProfile.vlessConfig)
+            com.wireturn.app.ProxyServiceState.setChangingProfile(true)
+            try {
+                prefs.saveFullProfile(
+                    id = id,
+                    clientConfig = targetProfile.clientConfig,
+                    wgConfig = targetProfile.wgConfig,
+                    vlessConfig = targetProfile.vlessConfig,
+                    xraySettings = targetProfile.xraySettings,
+                    xrayConfig = targetProfile.xrayConfig
+                )
+                onConfigLoaded(
+                    targetProfile.clientConfig,
+                    targetProfile.xraySettings,
+                    targetProfile.xrayConfig,
+                    targetProfile.wgConfig,
+                    targetProfile.vlessConfig
+                )
+            } finally {
+                kotlinx.coroutines.delay(150) // Fast enough but prevents blink
+                com.wireturn.app.ProxyServiceState.setChangingProfile(false)
+            }
         }
     }
 

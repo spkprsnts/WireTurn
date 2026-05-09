@@ -55,6 +55,9 @@ object ProxyServiceState {
     private val _isRestarting = MutableStateFlow(false)
     val isRestarting: StateFlow<Boolean> = _isRestarting.asStateFlow()
 
+    private val _isChangingProfile = MutableStateFlow(false)
+    val isChangingProfile: StateFlow<Boolean> = _isChangingProfile.asStateFlow()
+
     // Derived flows for backward compatibility and specialized logic
     val isRunning: StateFlow<Boolean> = _status.map { it !is ProxyStatus.Idle }
         .stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, false)
@@ -77,6 +80,10 @@ object ProxyServiceState {
 
     fun setRestarting(value: Boolean) {
         _isRestarting.value = value
+    }
+
+    fun setChangingProfile(value: Boolean) {
+        _isChangingProfile.value = value
     }
 
     fun setStatusText(text: String?) {
