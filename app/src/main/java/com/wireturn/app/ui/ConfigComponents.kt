@@ -35,7 +35,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -70,6 +72,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -382,6 +385,51 @@ fun SliderRow(
         )
     }
 ) {
+    var showDialog by remember { mutableStateOf(false) }
+
+    if (showDialog) {
+        var textValue by remember { mutableStateOf(value.roundToInt().toString()) }
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text(label) },
+            text = {
+                TextField(
+                    value = textValue,
+                    onValueChange = { newValue ->
+                        if (newValue.isEmpty() || newValue.all { it.isDigit() }) {
+                            textValue = newValue
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number
+                    ),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val parsed = textValue.toFloatOrNull()
+                    if (parsed != null) {
+                        onValueChange(parsed.coerceIn(valueRange))
+                    }
+                    showDialog = false
+                }) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            }
+        )
+    }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -392,7 +440,13 @@ fun SliderRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             ConfigRowLabel(text = label, isModified = isModified, modifier = Modifier.weight(1f))
-            valueDisplay(value)
+            Box(
+                modifier = Modifier
+                    .clickable { showDialog = true }
+                    .padding(8.dp)
+            ) {
+                valueDisplay(value)
+            }
         }
         Slider(
             value = value,
