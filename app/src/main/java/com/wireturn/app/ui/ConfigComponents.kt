@@ -385,12 +385,12 @@ fun SliderRow(
         )
     }
 ) {
-    var showDialog by remember { mutableStateOf(false) }
+    val showDialog = remember { mutableStateOf(false) }
 
-    if (showDialog) {
+    if (showDialog.value) {
         var textValue by remember { mutableStateOf(value.roundToInt().toString()) }
         AlertDialog(
-            onDismissRequest = { showDialog = false },
+            onDismissRequest = { showDialog.value = false },
             title = { Text(label) },
             text = {
                 TextField(
@@ -417,13 +417,13 @@ fun SliderRow(
                     if (parsed != null) {
                         onValueChange(parsed.coerceIn(valueRange))
                     }
-                    showDialog = false
+                    showDialog.value = false
                 }) {
                     Text(stringResource(android.R.string.ok))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDialog = false }) {
+                TextButton(onClick = { showDialog.value = false }) {
                     Text(stringResource(android.R.string.cancel))
                 }
             }
@@ -442,7 +442,7 @@ fun SliderRow(
             ConfigRowLabel(text = label, isModified = isModified, modifier = Modifier.weight(1f))
             Box(
                 modifier = Modifier
-                    .clickable { showDialog = true }
+                    .clickable { showDialog.value = true }
                     .padding(8.dp)
             ) {
                 valueDisplay(value)
