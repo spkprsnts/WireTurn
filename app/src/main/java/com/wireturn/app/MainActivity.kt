@@ -74,6 +74,10 @@ class MainActivity : AppCompatActivity() {
 
         HapticUtil.perform(this, HapticUtil.Pattern.LAUNCH)
         enableEdgeToEdge()
+        
+        // Синхронизируем состояние плитки при запуске приложения
+        ProxyTileService.requestUpdate(this)
+
         setContent {
             val isInitialized by viewModel.isInitialized.collectAsStateWithLifecycle()
             val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()

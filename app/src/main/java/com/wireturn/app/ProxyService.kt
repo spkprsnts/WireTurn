@@ -67,6 +67,7 @@ class ProxyService : Service() {
         super.onCreate()
         serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
         NotificationHelper.createChannel(this)
+        NotificationHelper.observeStates(this, serviceScope)
         observeCaptchaForNotification()
         observeErrorForNotification()
         startXraySupervisor()
@@ -166,8 +167,6 @@ class ProxyService : Service() {
             }
         }
 
-        ProxyTileService.requestUpdate(this)
-
         val powerManager = getSystemService(POWER_SERVICE) as PowerManager
         wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WireTurn::BgLock")
         wakeLock?.acquire(TimeUnit.HOURS.toMillis(24))
@@ -209,7 +208,6 @@ class ProxyService : Service() {
                                 ProxyServiceState.setStatus(ProxyStatus.Suppressed)
                             }
                             updateNotification(getString(R.string.vless_direct_active))
-                            ProxyTileService.requestUpdate(this@ProxyService)
                         }
                         XrayState.Running -> {
                             if (ProxyServiceState.status.value is ProxyStatus.Suppressed) {
@@ -288,7 +286,6 @@ class ProxyService : Service() {
             }
 
             ProxyServiceState.setStatus(ProxyStatus.Connecting)
-            ProxyTileService.requestUpdate(this@ProxyService)
             
             var baseDelay = if (duration > 30_000) 1000L else minOf(1000L * restartCount, 30_000L)
             if (isSlowConnection()) {
@@ -325,11 +322,9 @@ class ProxyService : Service() {
             if (useCustom) {
                 ProxyServiceState.setStatus(ProxyStatus.Connected)
                 state.startupEmitted = true
-                ProxyTileService.requestUpdate(this@ProxyService)
             } else if (cfg.kernelVariant == KernelVariant.OLCRTC) {
                 ProxyServiceState.setStatus(ProxyStatus.Connecting)
                 updateNotification(getString(R.string.connecting))
-                ProxyTileService.requestUpdate(this@ProxyService)
             }
 
             withContext(Dispatchers.IO) {
@@ -460,7 +455,6 @@ class ProxyService : Service() {
                 ProxyServiceState.setStatus(ProxyStatus.Connected)
                 updateNotification(getString(R.string.proxy_active))
                 state.startupEmitted = true
-                ProxyTileService.requestUpdate(this)
             }
         }
     }
@@ -487,7 +481,6 @@ class ProxyService : Service() {
                 }
                 ProxyServiceState.setStatus(ProxyStatus.Connecting)
                 updateNotification(getString(R.string.connecting))
-                ProxyTileService.requestUpdate(this)
             }
         }
 
@@ -513,7 +506,6 @@ class ProxyService : Service() {
                     }
                 } else {
                     ProxyServiceState.setStatus(ProxyStatus.Connecting)
-                    ProxyTileService.requestUpdate(this)
                 }
             }
         }
@@ -528,7 +520,6 @@ class ProxyService : Service() {
             if (ProxyServiceState.status.value is ProxyStatus.Connected) {
                 ProxyServiceState.setStatus(ProxyStatus.Connecting)
                 updateNotification(getString(R.string.connecting))
-                ProxyTileService.requestUpdate(this)
             }
         }
 
@@ -541,7 +532,6 @@ class ProxyService : Service() {
             if (ProxyServiceState.status.value is ProxyStatus.Connected) {
                 ProxyServiceState.setStatus(ProxyStatus.Connecting)
                 updateNotification(getString(R.string.connecting))
-                ProxyTileService.requestUpdate(this)
             }
         }
 
@@ -560,7 +550,6 @@ class ProxyService : Service() {
             ProxyServiceState.setCaptchaSession(CaptchaSession(captchaUrl, state.captchaSessionCounter))
             state.captchaActive = true
             updateNotification(getString(R.string.proxy_captcha_required))
-            ProxyTileService.requestUpdate(this)
             state.startupEmitted = true
         }
 
@@ -933,6 +922,7 @@ class ProxyService : Service() {
 
             stopBinaryProcessGracefully()
             withContext(Dispatchers.Main) {
+                NotificationHelper.updateNotification(this@ProxyService)
                 stopSelf()
             }
         }
@@ -975,8 +965,6 @@ class ProxyService : Service() {
 
     private fun updateNotification(text: String) {
         ProxyServiceState.setStatusText(text)
-        NotificationHelper.updateNotification(this)
-        ProxyTileService.requestUpdate(this)
     }
 
     private fun isQuotaError(lowerLine: String): Boolean {
@@ -989,8 +977,6 @@ class ProxyService : Service() {
         userStopped.set(true)
         
         ProxyServiceState.setStatus(ProxyStatus.Idle)
-        NotificationHelper.updateNotification(this)
-        ProxyTileService.requestUpdate(this)
         
         handler.removeCallbacksAndMessages(null)
         unregisterNetworkCallback()
@@ -998,6 +984,9 @@ class ProxyService : Service() {
 
         serviceScope.launch {
             stopBinaryProcessGracefully()
+            withContext(Dispatchers.Main) {
+                NotificationHelper.updateNotification(this@ProxyService)
+            }
             serviceScope.cancel()
         }
 

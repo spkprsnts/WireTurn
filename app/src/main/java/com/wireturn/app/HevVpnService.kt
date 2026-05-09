@@ -58,6 +58,7 @@ class HevVpnService : VpnService() {
     override fun onCreate() {
         super.onCreate()
         NotificationHelper.createChannel(this)
+        NotificationHelper.observeStates(this, serviceScope)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -148,6 +149,7 @@ class HevVpnService : VpnService() {
             if (established == null) {
                 AppLogsState.addLog("[hev-socks5-tunnel] Failed to establish TUN interface")
                 VpnServiceState.updateStatus(VpnState.Error(getString(R.string.error_connecting)))
+                NotificationHelper.updateNotification(this@HevVpnService)
                 disableVpnMode()
                 stopSelf()
                 return
@@ -238,7 +240,6 @@ misc:
                     VpnServiceState.updateStatus(VpnState.Idle)
                 }
                 NotificationHelper.updateNotification(this@HevVpnService)
-                stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
         }

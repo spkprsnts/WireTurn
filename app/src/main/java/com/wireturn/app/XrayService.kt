@@ -44,6 +44,7 @@ class XrayService : Service() {
     override fun onCreate() {
         super.onCreate()
         NotificationHelper.createChannel(this)
+        NotificationHelper.observeStates(this, serviceScope)
         startXraySupervisor()
     }
 
@@ -326,7 +327,6 @@ class XrayService : Service() {
             process.set(proc)
             XrayServiceState.updateMetricsPort(randomMetricsPort)
             XrayServiceState.updateStatus(XrayState.Starting)
-            NotificationHelper.updateNotification(this@XrayService)
 
             BufferedReader(InputStreamReader(proc.inputStream)).use { reader ->
                 var started = false
@@ -347,7 +347,6 @@ class XrayService : Service() {
                         } else {
                             XrayServiceState.updateStatus(XrayState.Connecting)
                         }
-                        NotificationHelper.updateNotification(this@XrayService)
                     }
 
                     if (isXrayVless && rawVlessConfig.isDualRoute) {
@@ -382,6 +381,7 @@ class XrayService : Service() {
             NotificationHelper.updateNotification(this@XrayService)
             if (userStopped.get()) {
                 AppLogsState.addLog("[Xray] stopped by user")
+                NotificationHelper.updateNotification(this@XrayService)
                 stopSelf()
             } else if (isJobActive) {
                 scheduleWatchdogRestart(snapshot)
@@ -393,8 +393,6 @@ class XrayService : Service() {
         when {
             line.contains("active route: direct") -> {
                 XrayServiceState.updateStatus(XrayState.DirectRoute)
-                NotificationHelper.updateNotification(this@XrayService)
-                ProxyTileService.requestUpdate(this@XrayService)
                 if (ProxyServiceState.isRunning.value && ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
                     AppLogsState.addLog("[DualRoute] Direct connection established, suppressing tunnel")
                     ProxyServiceState.setStatus(ProxyStatus.Suppressed)
@@ -402,8 +400,6 @@ class XrayService : Service() {
             }
             line.contains("active route: local") -> {
                 XrayServiceState.updateStatus(XrayState.Running)
-                NotificationHelper.updateNotification(this@XrayService)
-                ProxyTileService.requestUpdate(this@XrayService)
                 
                 val directUnreachable = line.contains("direct unreachable")
                 val bothUnreachable = line.contains("both unreachable")

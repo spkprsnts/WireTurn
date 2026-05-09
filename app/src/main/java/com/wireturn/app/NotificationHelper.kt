@@ -9,6 +9,11 @@ import android.content.Intent
 import androidx.core.app.NotificationCompat
 import com.wireturn.app.viewmodel.XrayState
 import com.wireturn.app.viewmodel.VpnState
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 
 object NotificationHelper {
     const val NOTIFICATION_ID = 1
@@ -88,7 +93,9 @@ object NotificationHelper {
         if (xrayState != XrayState.Idle && (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute || xrayState == XrayState.Connecting || xrayState == XrayState.Starting)) {
             statusParts.add(context.getString(R.string.vless))
         }
-        if (vpnState != VpnState.Idle && vpnState is VpnState.Running) statusParts.add(context.getString(R.string.vpn_short))
+        if (vpnState == VpnState.Running || vpnState == VpnState.Starting) {
+            statusParts.add(context.getString(R.string.vpn_short))
+        }
 
         val contentText = if (statusParts.isEmpty()) {
             context.getString(R.string.stopping)
@@ -226,6 +233,27 @@ object NotificationHelper {
             .cancel(ERROR_NOTIFICATION_ID)
     }
 
+    /**
+     * Запускает наблюдение за всеми состояниями, влияющими на уведомление.
+     * Достаточно вызвать в onCreate любого сервиса, который держит уведомление.
+     */
+    fun observeStates(context: Context, scope: CoroutineScope): Job {
+        return scope.launch {
+            combine(
+                listOf(
+                    ProxyServiceState.status,
+                    ProxyServiceState.statusText,
+                    ProxyServiceState.profileNameSnapshot,
+                    ProxyServiceState.clientConfigSnapshot,
+                    XrayServiceState.state,
+                    VpnServiceState.state
+                )
+            ) { _ ->
+                updateNotification(context)
+            }.collect()
+        }
+    }
+
     fun updateNotification(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java)
         val status = ProxyServiceState.status.value
@@ -236,5 +264,7 @@ object NotificationHelper {
         } else {
             nm.cancel(NOTIFICATION_ID)
         }
+        // Также запрашиваем обновление плитки в шторке, чтобы они всегда были синхронны
+        ProxyTileService.requestUpdate(context)
     }
 }
