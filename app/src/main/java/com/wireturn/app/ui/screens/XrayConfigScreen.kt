@@ -1,4 +1,7 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@file:OptIn(
+    androidx.compose.material3.ExperimentalMaterial3Api::class,
+    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class
+)
 
 package com.wireturn.app.ui.screens
 
@@ -246,8 +249,7 @@ fun XrayConfigScreen(
                     ) {
                         Icon(
                             painterResource(R.drawable.qr_code_24px),
-                            stringResource(R.string.qr_import),
-                            tint = MaterialTheme.colorScheme.onSurface
+                            stringResource(R.string.qr_import)
                         )
                     }
 
@@ -267,12 +269,7 @@ fun XrayConfigScreen(
                     ) {
                         Icon(
                             painterResource(if (isCopied) R.drawable.check_circle_24px else R.drawable.content_copy_24px),
-                            stringResource(R.string.copy),
-                            tint = when {
-                                isCopied -> MaterialTheme.colorScheme.primary
-                                !canCopy -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                else -> MaterialTheme.colorScheme.onSurface
-                            }
+                            stringResource(R.string.copy)
                         )
                     }
                 }
