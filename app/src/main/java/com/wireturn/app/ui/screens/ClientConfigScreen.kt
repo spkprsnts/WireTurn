@@ -2,6 +2,7 @@
 
 package com.wireturn.app.ui.screens
 
+import android.content.ClipData
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.basicMarquee
@@ -46,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLocale
@@ -119,6 +121,7 @@ fun ClientConfigScreen(
 
     val importSuccessMessage = stringResource(R.string.wg_import_success)
     val importErrorMessage = stringResource(R.string.wg_import_error)
+    val copySuccessMessage = stringResource(R.string.config_copied_success)
 
     // Sync local state with saved config when it changes externally (e.g. profile switch)
     LaunchedEffect(saved) {
@@ -175,7 +178,53 @@ fun ClientConfigScreen(
                     .padding(bottom = 64.dp)
             )
         },
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.client_title)) }) },
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.client_title)) },
+                actions = {
+                    IconButton(onClick = { showQrScanner.value = true }) {
+                        Icon(
+                            painter = painterResource(R.drawable.qr_code_24px),
+                            contentDescription = stringResource(R.string.qr_import)
+                        )
+                    }
+                    var isCopied by remember { mutableStateOf(false) }
+                    LaunchedEffect(isCopied) {
+                        if (isCopied) {
+                            delay(1500)
+                            isCopied = false
+                        }
+                    }
+                    val canCopy = remember(kernelVariant, turnableConfig, olcrtcConfig) {
+                        when (kernelVariant) {
+                            KernelVariant.TURNABLE -> turnableConfig.isValid()
+                            KernelVariant.OLCRTC -> olcrtcConfig.isValid()
+                        }
+                    }
+
+                    IconButton(
+                        onClick = {
+                            val uri = when (kernelVariant) {
+                                KernelVariant.TURNABLE -> turnableConfig.toUrl()
+                                KernelVariant.OLCRTC -> olcrtcConfig.toUri()
+                            }
+                            scope.launch {
+                                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("config", uri)))
+                                HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
+                                isCopied = true
+                                snackbarHostState.showSnackbar(copySuccessMessage)
+                            }
+                        },
+                        enabled = canCopy
+                    ) {
+                        Icon(
+                            painter = painterResource(if (isCopied) R.drawable.check_circle_24px else R.drawable.content_copy_24px),
+                            contentDescription = stringResource(R.string.copy)
+                        )
+                    }
+                }
+            )
+        },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = screenBackgroundColor
     ) { padding ->
@@ -312,6 +361,39 @@ fun ClientConfigScreen(
                                                     val parsed = TurnableConfig.parse(text)
                                                     if (parsed != null) {
                                                         turnableConfig = parsed
+                                                        snackbarHostState.showSnackbar(importSuccessMessage)
+                                                    } else {
+                                                        snackbarHostState.showSnackbar(importErrorMessage)
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        icon = R.drawable.content_paste_24px,
+                                        label = stringResource(R.string.wg_import_clipboard),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+                        }
+                    } else if (kernelVariant == KernelVariant.OLCRTC) {
+                        SettingsGroup(title = stringResource(R.string.import_olcrtc_title)) {
+                            SettingsGroupItem(isTop = true, isBottom = true, containerColor = blockContainerColor) {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    ImportButton(
+                                        onClick = { showQrScanner.value = true },
+                                        icon = R.drawable.qr_code_24px,
+                                        label = stringResource(R.string.qr_import),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    ImportButton(
+                                        onClick = {
+                                            scope.launch {
+                                                val clipEntry = clipboard.getClipEntry()
+                                                if (clipEntry != null) {
+                                                    val text = clipEntry.clipData.getItemAt(0).text?.toString() ?: ""
+                                                    val parsed = com.wireturn.app.data.OlcrtcConfig.parse(text)
+                                                    if (parsed != null) {
+                                                        olcrtcConfig = parsed
                                                         snackbarHostState.showSnackbar(importSuccessMessage)
                                                     } else {
                                                         snackbarHostState.showSnackbar(importErrorMessage)
@@ -1003,12 +1085,19 @@ fun ClientConfigScreen(
     if (showQrScanner.value) {
         QrScannerDialog(
             title = stringResource(R.string.qr_import),
-            message = stringResource(R.string.turnable_qr_scan_desc),
+            message = stringResource(R.string.qr_scan_desc),
             onDismiss = { showQrScanner.value = false },
             onResult = { result ->
-                val parsed = TurnableConfig.parse(result)
-                if (parsed != null) {
-                    turnableConfig = parsed
+                val turnableParsed = TurnableConfig.parse(result)
+                val olcrtcParsed = com.wireturn.app.data.OlcrtcConfig.parse(result)
+
+                if (turnableParsed != null) {
+                    kernelVariant = KernelVariant.TURNABLE
+                    turnableConfig = turnableParsed
+                    scope.launch { snackbarHostState.showSnackbar(importSuccessMessage) }
+                } else if (olcrtcParsed != null) {
+                    kernelVariant = KernelVariant.OLCRTC
+                    olcrtcConfig = olcrtcParsed
                     scope.launch { snackbarHostState.showSnackbar(importSuccessMessage) }
                 } else {
                     scope.launch { snackbarHostState.showSnackbar(importErrorMessage) }

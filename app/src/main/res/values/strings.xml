@@ -110,6 +110,8 @@
     <string name="raw_label" translatable="false">Raw</string>
     <string name="raw_placeholder" translatable="false">-listen 127.0.0.1:900 -peer 292.313.32.45:56000 …</string>
     <string name="import_turnable_title">Turnable config import</string>
+    <string name="import_olcrtc_title">olcrtc config import</string>
+    <string name="config_copied_success">Configuration copied</string>
     <string name="route_title">Route</string>
     <string name="user_uuid_label">User UUID</string>
     <string name="user_uuid_desc">Used for user authorization on the Turnable server</string>
@@ -134,6 +136,7 @@
     <string name="force_turn_label">Force TURN</string>
     <string name="force_turn_desc">Always use TURN server for connections (optional)</string>
     <string name="turnable_qr_scan_desc">Point the camera at the Turnable configuration QR code to import</string>
+    <string name="olcrtc_qr_scan_desc">Point the camera at the olcrtc configuration QR code to import</string>
     <string name="history_label">History</string>
     <string name="kernel_label">Core</string>
     <string name="kernel_config_label">Parameter format</string>
@@ -350,7 +353,7 @@
 
     <!-- QR Import and Advanced Parameters -->
     <string name="qr_import">QR Code</string>
-    <string name="qr_scan_desc">Point the camera at the configuration QR code (WireGuard or VLESS) to import</string>
+    <string name="qr_scan_desc">Point the camera at the configuration QR code to import</string>
     <string name="xray_local_addresses">Local addresses</string>
     <string name="xray_socks_desc">Address for SOCKS5 proxy</string>
     <string name="xray_http_desc">Address for HTTP proxy (optional)</string>
@@ -371,6 +374,7 @@
     <string name="profile_rename">Rename</string>
     <string name="profile_delete">Delete</string>
     <string name="profile_export">Export</string>
+    <string name="btn_export">Export</string>
     <string name="profile_export_all">Export all (zip)</string>
     <string name="profile_import">Import</string>
     <string name="profile_name_label">Profile name</string>

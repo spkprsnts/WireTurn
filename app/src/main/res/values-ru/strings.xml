@@ -81,6 +81,8 @@
     <string name="connection_title">Подключение</string>
     <string name="raw_mode_desc">Ввод аргументов вручную</string>
     <string name="import_turnable_title">Импорт конфига Turnable</string>
+    <string name="import_olcrtc_title">Импорт конфига olcrtc</string>
+    <string name="config_copied_success">Конфигурация скопирована</string>
     <string name="route_title">Маршрут</string>
     <string name="user_uuid_label">UUID пользователя</string>
     <string name="user_uuid_desc">Используется для авторизации пользователя на сервере Turnable</string>
@@ -105,6 +107,7 @@
     <string name="force_turn_label">Принудительный TURN</string>
     <string name="force_turn_desc">Всегда использовать TURN-сервер для соединений (опционально)</string>
     <string name="turnable_qr_scan_desc">Наведите камеру на QR-код конфигурации Turnable для импорта</string>
+    <string name="olcrtc_qr_scan_desc">Наведите камеру на QR-код конфигурации olcrtc для импорта</string>
     <string name="history_label">История</string>
     <string name="kernel_label">Ядро</string>
     <string name="kernel_config_label">Формат параметров</string>
@@ -309,7 +312,7 @@
 
     <!-- Импорт через QR и расширенные параметры -->
     <string name="qr_import">QR-код</string>
-    <string name="qr_scan_desc">Наведите камеру на QR-код конфигурации (WireGuard или VLESS) для импорта</string>
+    <string name="qr_scan_desc">Наведите камеру на QR-код конфигурации для импорта</string>
     <string name="xray_local_addresses">Локальные адреса</string>
     <string name="xray_socks_desc">Адрес для SOCKS5 прокси</string>
     <string name="xray_http_desc">Адрес для HTTP прокси (опционально)</string>
@@ -327,6 +330,7 @@
     <string name="profile_rename">Переименовать</string>
     <string name="profile_delete">Удалить</string>
     <string name="profile_export">Экспортировать</string>
+    <string name="btn_export">Экспорт</string>
     <string name="profile_export_all">Экспортировать всё (zip)</string>
     <string name="profile_import">Импортировать</string>
     <string name="profile_name_label">Название профиля</string>

@@ -62,7 +62,7 @@ data class TurnableConfig(
             callId = callId.take(200),
             type = type.take(100),
             encryption = encryption?.take(100),
-            pubKey = pubKey?.take(500),
+            pubKey = pubKey?.take(4096),
             gateway = gateway.take(500),
             proto = proto?.take(100),
             selectedRouteId = selectedRouteId.take(100),
@@ -197,6 +197,7 @@ data class OlcrtcConfig(
     @SerializedName("dns") val dns: String = "1.1.1.1:53",
     @SerializedName("socks_host") val socksHost: String = "127.0.0.1",
     @SerializedName("socks_port") val socksPort: String = "9000",
+    @SerializedName("mimo") val mimo: String = "",
 
     // vp8channel
     @SerializedName("vp8_fps") val vp8Fps: Int = 25,
@@ -230,6 +231,7 @@ data class OlcrtcConfig(
             dns = dns.take(200),
             socksHost = socksHost.take(200),
             socksPort = socksPort.take(10),
+            mimo = mimo.take(500),
             videoCodec = videoCodec.take(100),
             videoBitrate = videoBitrate.take(20),
             videoHw = videoHw.take(50),
@@ -240,6 +242,122 @@ data class OlcrtcConfig(
     fun isValid(): Boolean {
         return id.isNotBlank() && clientId.isNotBlank() && key.isNotBlank() && dns.isNotBlank()
     }
+
+    fun toUri(): String {
+        val sb = StringBuilder("olcrtc://")
+        sb.append(carrier)
+        sb.append("?").append(transport)
+
+        val params = mutableListOf<String>()
+        when (transport) {
+            "vp8channel" -> {
+                if (vp8Fps != 25) params.add("vp8-fps=$vp8Fps")
+                if (vp8Batch != 1) params.add("vp8-batch=$vp8Batch")
+            }
+            "seichannel" -> {
+                if (seiFps != 60) params.add("fps=$seiFps")
+                if (seiBatch != 64) params.add("batch=$seiBatch")
+                if (seiFrag != 900) params.add("frag=$seiFrag")
+                if (seiAckMs != 2000) params.add("ack-ms=$seiAckMs")
+            }
+            "videochannel" -> {
+                if (videoW != 1920) params.add("video-w=$videoW")
+                if (videoH != 1080) params.add("video-h=$videoH")
+                if (videoFps != 30) params.add("video-fps=$videoFps")
+                if (videoBitrate != "2M") params.add("video-bitrate=$videoBitrate")
+                if (videoHw != "none") params.add("video-hw=$videoHw")
+                if (videoCodec != "qrcode") params.add("video-codec=$videoCodec")
+                if (videoCodec == "qrcode") {
+                    if (videoQrSize != 0) params.add("video-qr-size=$videoQrSize")
+                    if (videoQrRecovery != "low") params.add("video-qr-recovery=$videoQrRecovery")
+                } else if (videoCodec == "tile") {
+                    if (videoTileModule != 4) params.add("video-tile-module=$videoTileModule")
+                    if (videoTileRs != 20) params.add("video-tile-rs=$videoTileRs")
+                }
+            }
+        }
+
+        if (params.isNotEmpty()) {
+            sb.append("<").append(params.joinToString("&")).append(">")
+        }
+
+        sb.append("@").append(id)
+        if (key.isNotBlank()) sb.append("#").append(key)
+        if (clientId.isNotBlank()) sb.append("%").append(clientId)
+        if (mimo.isNotBlank()) sb.append("$").append(mimo)
+
+        return sb.toString()
+    }
+
+    companion object {
+        fun parse(url: String): OlcrtcConfig? {
+            if (!url.startsWith("olcrtc://", ignoreCase = true)) return null
+            return try {
+                val carrier = url.substringAfter("olcrtc://").substringBefore("?")
+                val afterCarrier = url.substringAfter("?", "")
+                if (afterCarrier.isEmpty()) return null
+
+                val transportPart = afterCarrier.substringBefore("@")
+                val transport = transportPart.substringBefore("<")
+                val payload = if (transportPart.contains("<")) transportPart.substringAfter("<").substringBefore(">") else ""
+
+                val rest = afterCarrier.substringAfter("@", "")
+                val id = rest.substringBefore("#").substringBefore("%").substringBefore("$")
+
+                val afterId = if (rest.contains("#")) rest.substringAfter("#") else ""
+                val key = afterId.substringBefore("%").substringBefore("$")
+
+                val afterKey = if (rest.contains("%")) rest.substringAfter("%") else ""
+                val clientId = afterKey.substringBefore("$")
+
+                val mimo = if (rest.contains("$")) rest.substringAfter("$") else ""
+
+                var config = OlcrtcConfig(
+                    carrier = carrier,
+                    transport = transport,
+                    id = id,
+                    key = key,
+                    clientId = clientId.ifBlank { "wireturn" },
+                    mimo = mimo
+                )
+
+                if (payload.isNotBlank()) {
+                    val params = payload.split("&").associate {
+                        val parts = it.split("=", limit = 2)
+                        parts[0] to (parts.getOrNull(1) ?: "")
+                    }
+                    config = when (transport) {
+                        "vp8channel" -> config.copy(
+                            vp8Fps = params["vp8-fps"]?.toIntOrNull() ?: config.vp8Fps,
+                            vp8Batch = params["vp8-batch"]?.toIntOrNull() ?: config.vp8Batch
+                        )
+                        "seichannel" -> config.copy(
+                            seiFps = params["fps"]?.toIntOrNull() ?: config.seiFps,
+                            seiBatch = params["batch"]?.toIntOrNull() ?: config.seiBatch,
+                            seiFrag = params["frag"]?.toIntOrNull() ?: config.seiFrag,
+                            seiAckMs = params["ack-ms"]?.toIntOrNull() ?: config.seiAckMs
+                        )
+                        "videochannel" -> config.copy(
+                            videoW = params["video-w"]?.toIntOrNull() ?: config.videoW,
+                            videoH = params["video-h"]?.toIntOrNull() ?: config.videoH,
+                            videoFps = params["video-fps"]?.toIntOrNull() ?: config.videoFps,
+                            videoBitrate = params["video-bitrate"] ?: config.videoBitrate,
+                            videoHw = params["video-hw"] ?: config.videoHw,
+                            videoCodec = params["video-codec"] ?: config.videoCodec,
+                            videoQrSize = params["video-qr-size"]?.toIntOrNull() ?: config.videoQrSize,
+                            videoQrRecovery = params["video-qr-recovery"] ?: config.videoQrRecovery,
+                            videoTileModule = params["video-tile-module"]?.toIntOrNull() ?: config.videoTileModule,
+                            videoTileRs = params["video-tile-rs"]?.toIntOrNull() ?: config.videoTileRs
+                        )
+                        else -> config
+                    }
+                }
+                config
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
 }
 
 data class ClientConfig(
@@ -247,6 +365,7 @@ data class ClientConfig(
     @SerializedName("isRawMode") val isRawMode: Boolean = false,
     @SerializedName("rawCommand") val rawCommand: String = "",
     @SerializedName("turnableUrl") val turnableUrl: String = "",
+    @SerializedName("olcrtcUrl") val olcrtcUrl: String = "",
     @SerializedName("turnableConfig") val turnableConfig: TurnableConfig = TurnableConfig(),
     @SerializedName("olcrtcConfig") val olcrtcConfig: OlcrtcConfig = OlcrtcConfig(),
     @SerializedName("kernelVariant") val kernelVariant: KernelVariant = KernelVariant.TURNABLE
@@ -257,6 +376,7 @@ data class ClientConfig(
             localPort = (localPort ?: DEFAULT_LOCAL_PORT).take(100),
             rawCommand = (rawCommand ?: "").take(2000),
             turnableUrl = (turnableUrl ?: "").take(2000),
+            olcrtcUrl = (olcrtcUrl ?: "").take(2000),
             turnableConfig = (turnableConfig ?: TurnableConfig()).sanitize(),
             olcrtcConfig = (olcrtcConfig ?: OlcrtcConfig()).sanitize(),
             kernelVariant = kernelVariant ?: KernelVariant.TURNABLE
@@ -269,6 +389,16 @@ data class ClientConfig(
                 current = current.copy(
                     turnableConfig = parsed,
                     turnableUrl = "" // Clear the URL after successful migration
+                )
+            }
+        }
+
+        if (!current.olcrtcConfig.isValid() && current.olcrtcUrl.isNotBlank()) {
+            val parsed = OlcrtcConfig.parse(current.olcrtcUrl)
+            if (parsed != null) {
+                current = current.copy(
+                    olcrtcConfig = parsed,
+                    olcrtcUrl = "" // Clear the URL after successful migration
                 )
             }
         }
@@ -546,6 +676,7 @@ class AppPreferences(context: Context) {
         val HTTP_BIND = stringPreferencesKey("http_bind")
         val XRAY_CONFIGURATION = stringPreferencesKey("xray_configuration")
         val CLIENT_TURNABLE_URL = stringPreferencesKey("client_turnable_url")
+        val CLIENT_OLCRTC_URL = stringPreferencesKey("client_olcrtc_url")
         val CLIENT_KERNEL_VARIANT = stringPreferencesKey("client_kernel_variant")
         val BATTERY_NOTIFICATION_DISMISSED = booleanPreferencesKey("battery_notification_dismissed")
         val APPS_EXCLUSION_HINT_SHOWN = booleanPreferencesKey("apps_exclusion_hint_shown")
@@ -611,6 +742,7 @@ class AppPreferences(context: Context) {
                 isRawMode = prefs[CLIENT_IS_RAW] ?: false,
                 rawCommand = prefs[CLIENT_RAW_CMD] ?: "",
                 turnableUrl = prefs[CLIENT_TURNABLE_URL] ?: "",
+                olcrtcUrl = prefs[CLIENT_OLCRTC_URL] ?: "",
                 turnableConfig = prefs[CLIENT_TURNABLE_CONFIG]?.let {
                     try { gson.fromJson(it, TurnableConfig::class.java) } catch (_: Exception) { null }
                 } ?: TurnableConfig(),
@@ -799,6 +931,7 @@ class AppPreferences(context: Context) {
             prefs[CLIENT_IS_RAW] = clientConfig.isRawMode
             prefs[CLIENT_RAW_CMD] = clientConfig.rawCommand
             prefs[CLIENT_TURNABLE_URL] = clientConfig.turnableUrl
+            prefs[CLIENT_OLCRTC_URL] = clientConfig.olcrtcUrl
             prefs[CLIENT_TURNABLE_CONFIG] = gson.toJson(clientConfig.turnableConfig)
             prefs[CLIENT_OLCRTC_CONFIG] = gson.toJson(clientConfig.olcrtcConfig)
             prefs[CLIENT_KERNEL_VARIANT] = clientConfig.kernelVariant.name
@@ -835,6 +968,7 @@ class AppPreferences(context: Context) {
             prefs[CLIENT_IS_RAW] = (c.isRawMode as Boolean?) ?: false
             prefs[CLIENT_RAW_CMD] = (c.rawCommand as String?) ?: ""
             prefs[CLIENT_TURNABLE_URL] = (c.turnableUrl as String?) ?: ""
+            prefs[CLIENT_OLCRTC_URL] = (c.olcrtcUrl as String?) ?: ""
             prefs[CLIENT_TURNABLE_CONFIG] = gson.toJson(c.turnableConfig)
             prefs[CLIENT_OLCRTC_CONFIG] = gson.toJson(c.olcrtcConfig)
             prefs[CLIENT_KERNEL_VARIANT] = ((c.kernelVariant as KernelVariant?) ?: KernelVariant.TURNABLE).name
