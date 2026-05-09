@@ -371,9 +371,10 @@ data class ClientConfig(
     @SerializedName("kernelVariant") val kernelVariant: KernelVariant = KernelVariant.TURNABLE
 ) {
     /** GSON can leave fields null if they are missing/invalid in JSON. This ensures safety. */
+    @Suppress("UNNECESSARY_SAFE_CALL", "USELESS_ELVIS")
     fun migrateAndSanitize(): ClientConfig {
         var current = copy(
-            localPort = (localPort ?: DEFAULT_LOCAL_PORT).take(100),
+            localPort = (localPort?.ifBlank { DEFAULT_LOCAL_PORT } ?: DEFAULT_LOCAL_PORT).take(100),
             rawCommand = (rawCommand ?: "").take(2000),
             turnableUrl = (turnableUrl ?: "").take(2000),
             olcrtcUrl = (olcrtcUrl ?: "").take(2000),
@@ -432,12 +433,6 @@ data class ClientConfig(
                 port
             }
         }
-
-    fun fillDefaults(): ClientConfig {
-        return copy(
-            localPort = localPort.ifBlank { DEFAULT_LOCAL_PORT }
-        ).migrateAndSanitize()
-    }
 
     fun getKernelDescription(context: Context): String {
         return when (kernelVariant) {
@@ -629,14 +624,15 @@ data class Profile(
                 xrayConfig == XrayConfig()
     }
 
+    @Suppress("UNNECESSARY_SAFE_CALL", "USELESS_ELVIS")
     fun sanitize(): Profile {
         return copy(
-            id = id.ifBlank { java.util.UUID.randomUUID().toString() }.take(100),
-            name = name.ifBlank { "Unnamed" }.take(100),
-            clientConfig = clientConfig.migrateAndSanitize(),
-            wgConfig = wgConfig.fillDefaults(),
-            xrayConfig = xrayConfig.fillDefaults(),
-            vlessConfig = vlessConfig.sanitize()
+            id = (id ?: java.util.UUID.randomUUID().toString()).ifBlank { java.util.UUID.randomUUID().toString() }.take(100),
+            name = (name ?: "Unnamed").ifBlank { "Unnamed" }.take(100),
+            clientConfig = (clientConfig ?: ClientConfig()).migrateAndSanitize(),
+            wgConfig = (wgConfig ?: WgConfig()).fillDefaults(),
+            xrayConfig = (xrayConfig ?: XrayConfig()).fillDefaults(),
+            vlessConfig = (vlessConfig ?: VlessConfig()).sanitize()
         )
     }
 }
@@ -962,16 +958,15 @@ class AppPreferences(context: Context) {
     }
 
     suspend fun saveClientConfig(config: ClientConfig) {
-        val c = (config as ClientConfig?) ?: ClientConfig()
         context.dataStore.edit { prefs ->
-            prefs[CLIENT_LOCAL_PORT] = (c.localPort as String?) ?: ClientConfig.DEFAULT_LOCAL_PORT
-            prefs[CLIENT_IS_RAW] = (c.isRawMode as Boolean?) ?: false
-            prefs[CLIENT_RAW_CMD] = (c.rawCommand as String?) ?: ""
-            prefs[CLIENT_TURNABLE_URL] = (c.turnableUrl as String?) ?: ""
-            prefs[CLIENT_OLCRTC_URL] = (c.olcrtcUrl as String?) ?: ""
-            prefs[CLIENT_TURNABLE_CONFIG] = gson.toJson(c.turnableConfig)
-            prefs[CLIENT_OLCRTC_CONFIG] = gson.toJson(c.olcrtcConfig)
-            prefs[CLIENT_KERNEL_VARIANT] = ((c.kernelVariant as KernelVariant?) ?: KernelVariant.TURNABLE).name
+            prefs[CLIENT_LOCAL_PORT] = config.localPort
+            prefs[CLIENT_IS_RAW] = config.isRawMode
+            prefs[CLIENT_RAW_CMD] = config.rawCommand
+            prefs[CLIENT_TURNABLE_URL] = config.turnableUrl
+            prefs[CLIENT_OLCRTC_URL] = config.olcrtcUrl
+            prefs[CLIENT_TURNABLE_CONFIG] = gson.toJson(config.turnableConfig)
+            prefs[CLIENT_OLCRTC_CONFIG] = gson.toJson(config.olcrtcConfig)
+            prefs[CLIENT_KERNEL_VARIANT] = config.kernelVariant.name
         }
     }
 
@@ -1008,31 +1003,28 @@ class AppPreferences(context: Context) {
     }
 
     suspend fun saveWgConfig(config: WgConfig) {
-        val c = (config as WgConfig?) ?: WgConfig()
         context.dataStore.edit { prefs ->
-            prefs[WIRE_PRIV_KEY] = (c.privateKey as String?) ?: ""
-            prefs[WIRE_ADDRESS] = (c.address as String?) ?: ""
-            prefs[WIRE_MTU] = (c.mtu as String?) ?: ""
-            prefs[WIRE_PUB_KEY] = (c.publicKey as String?) ?: ""
-            prefs[WIRE_ENDPOINT] = (c.endpoint as String?) ?: ""
-            prefs[WIRE_KEEPALIVE] = (c.persistentKeepalive as String?) ?: ""
+            prefs[WIRE_PRIV_KEY] = config.privateKey
+            prefs[WIRE_ADDRESS] = config.address
+            prefs[WIRE_MTU] = config.mtu
+            prefs[WIRE_PUB_KEY] = config.publicKey
+            prefs[WIRE_ENDPOINT] = config.endpoint
+            prefs[WIRE_KEEPALIVE] = config.persistentKeepalive
         }
     }
 
     suspend fun saveXraySettings(settings: XraySettings) {
-        val s = (settings as XraySettings?) ?: XraySettings()
         context.dataStore.edit { prefs ->
-            prefs[XRAY_ENABLED] = (s.xrayEnabled as Boolean?) ?: false
-            prefs[XRAY_VPN_MODE] = (s.xrayVpnMode as Boolean?) ?: false
+            prefs[XRAY_ENABLED] = settings.xrayEnabled
+            prefs[XRAY_VPN_MODE] = settings.xrayVpnMode
         }
     }
 
     suspend fun saveGlobalVpnSettings(settings: GlobalVpnSettings) {
-        val s = (settings as GlobalVpnSettings?) ?: GlobalVpnSettings()
         context.dataStore.edit { prefs ->
-            prefs[VPN_HIDE_SYSTEM_APPS] = (s.hideSystemApps as Boolean?) ?: true
-            prefs[VPN_BYPASS_MODE] = (s.bypassMode as Boolean?) ?: true
-            prefs[VPN_FILTERING_ENABLED] = (s.filteringEnabled as Boolean?) ?: true
+            prefs[VPN_HIDE_SYSTEM_APPS] = settings.hideSystemApps
+            prefs[VPN_BYPASS_MODE] = settings.bypassMode
+            prefs[VPN_FILTERING_ENABLED] = settings.filteringEnabled
         }
     }
 
@@ -1043,21 +1035,19 @@ class AppPreferences(context: Context) {
     }
 
     suspend fun saveXrayConfig(config: XrayConfig) {
-        val c = (config as XrayConfig?) ?: XrayConfig()
         context.dataStore.edit { prefs ->
-            prefs[SOCKS_BIND] = (c.socksBindAddress as String?) ?: XrayConfig.DEFAULT_SOCKS_BIND_ADDRESS
-            prefs[HTTP_BIND] = (c.httpBindAddress as String?) ?: ""
-            prefs[XRAY_CONFIGURATION] = ((c.xrayConfiguration as XrayConfiguration?) ?: XrayConfiguration.WIREGUARD).name
+            prefs[SOCKS_BIND] = config.socksBindAddress
+            prefs[HTTP_BIND] = config.httpBindAddress
+            prefs[XRAY_CONFIGURATION] = config.xrayConfiguration.name
         }
     }
 
     suspend fun saveVlessConfig(config: VlessConfig) {
-        val c = (config as VlessConfig?) ?: VlessConfig()
         context.dataStore.edit { prefs ->
-            prefs[CLIENT_VLESS_LINK] = (c.vlessLink as String?) ?: ""
-            prefs[CLIENT_VLESS_USE_LOCAL_ADDRESS] = (c.vlessUseLocalAddress as Boolean?) ?: true
-            prefs[CLIENT_VLESS_IS_DUAL_ROUTE] = (c.isDualRoute as Boolean?) ?: false
-            prefs[CLIENT_VLESS_DIRECT_ADDRESS] = (c.directAddress as String?) ?: ""
+            prefs[CLIENT_VLESS_LINK] = config.vlessLink
+            prefs[CLIENT_VLESS_USE_LOCAL_ADDRESS] = config.vlessUseLocalAddress
+            prefs[CLIENT_VLESS_IS_DUAL_ROUTE] = config.isDualRoute
+            prefs[CLIENT_VLESS_DIRECT_ADDRESS] = config.directAddress
         }
     }
 
