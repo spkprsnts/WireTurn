@@ -36,6 +36,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -736,14 +737,15 @@ class ProxyService : Service() {
                 prefs.xraySettingsFlow,
                 ProxyServiceState.status,
                 XrayServiceState.state,
-                prefs.clientConfigFlow
+                ProxyServiceState.clientConfigSnapshot
             ) { settings, status, xrayState, clientConfig ->
+                if (clientConfig == null) return@combine null
+
                 val shouldBeRunning = settings.xrayEnabled && 
                         status !is ProxyStatus.Idle && 
                         status !is ProxyStatus.Error && 
                         status !is ProxyStatus.WaitingForNetwork
                 
-                // Track kernel and specific socks/port settings for restart
                 val connectionTarget = when (clientConfig.kernelVariant) {
                     KernelVariant.OLCRTC -> "${clientConfig.olcrtcConfig.socksHost}:${clientConfig.olcrtcConfig.socksPort}"
                     else -> clientConfig.localPort
@@ -755,15 +757,14 @@ class ProxyService : Service() {
                     kernelVariant = clientConfig.kernelVariant,
                     connectionTarget = connectionTarget
                 )
-            }.distinctUntilChanged { old, new ->
-                // Custom comparison to detect when we need to start/stop/restart
+            }.filterNotNull()
+            .distinctUntilChanged { old: XraySupervisorBundle, new: XraySupervisorBundle ->
                 old.shouldBeRunning == new.shouldBeRunning &&
                 old.kernelVariant == new.kernelVariant &&
                 old.connectionTarget == new.connectionTarget &&
-                // if it's already in the desired state (started or stopped), don't trigger again
                 (if (new.shouldBeRunning) new.xrayState != XrayState.Idle else new.xrayState == XrayState.Idle)
             }
-            .collectLatest { data ->
+            .collectLatest { data: XraySupervisorBundle ->
                 val needsStart = data.shouldBeRunning && data.xrayState == XrayState.Idle
                 val needsStop = !data.shouldBeRunning && data.xrayState != XrayState.Idle
                 val needsRestart = data.shouldBeRunning && data.xrayState != XrayState.Idle
