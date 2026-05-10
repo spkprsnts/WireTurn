@@ -118,9 +118,9 @@ class HevVpnService : VpnService() {
 
             val builder = this.Builder()
                 .setSession("wireturn VPN")
-                .addAddress("10.0.0.1", 32)
-                .addDnsServer("1.1.1.1")
-                .addDnsServer("8.8.8.8")
+                .setMtu(TUN_MTU)
+                .addAddress(TUN_IPV4_ADDRESS, 24)
+                .addDnsServer(MAPDNS_ADDRESS)
 
             if (!globalVpn.filteringEnabled) {
                 builder.addRoute("0.0.0.0", 0)
@@ -164,12 +164,24 @@ class HevVpnService : VpnService() {
             configFile.writeText(
                 """
 tunnel:
-  mtu: 8500
+  mtu: $TUN_MTU
 socks5:
   port: $socks5Port
   address: '$socks5Host'
   udp: 'udp'
+mapdns:
+  address: $MAPDNS_ADDRESS
+  port: 53
+  network: $MAPDNS_NETWORK
+  netmask: $MAPDNS_NETMASK
+  cache-size: 10000
 misc:
+  task-stack-size: 24576
+  tcp-buffer-size: 4096
+  max-session-count: 1200
+  connect-timeout: 10000
+  tcp-read-write-timeout: 300000
+  udp-read-write-timeout: 60000
   log-file: stderr
   log-level: warn
 """.trimIndent()
@@ -260,5 +272,11 @@ misc:
         const val ACTION_STOP = "STOP"
         const val ACTION_STOP_BY_USER = "STOP_BY_USER"
         const val EXTRA_SOCKS5_ADDR = "socks5_addr"
+
+        private const val TUN_MTU = 1280
+        private const val TUN_IPV4_ADDRESS = "10.0.88.88"
+        private const val MAPDNS_ADDRESS = "1.1.1.1"
+        private const val MAPDNS_NETWORK = "100.64.0.0"
+        private const val MAPDNS_NETMASK = "255.192.0.0"
     }
 }
