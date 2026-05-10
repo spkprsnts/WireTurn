@@ -43,6 +43,7 @@ android {
             keepDebugSymbols += "**/libturnable.so"
             keepDebugSymbols += "**/libolcrtc.so"
             keepDebugSymbols += "**/libxray.so"
+            keepDebugSymbols += "**/libffmpeg.so"
         }
     }
 
@@ -175,14 +176,34 @@ tasks.register<Exec>("buildCBinaries") {
     wslOrBash("./build.sh cmake")
 }
 
+// FFmpeg binaries
+tasks.register<Exec>("buildFfmpegBinaries") {
+    group = "build"
+    description = "Compiles FFmpeg for Android using ffmpeg-android-maker"
+    workingDir = rootDir
+    inputs.files(file("${rootDir}/external/ffmpeg-android-maker"))
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+        .optional()
+    inputs.file(file("${rootDir}/build.sh")).withPathSensitivity(PathSensitivity.RELATIVE)
+    outputs.dir(file("${projectDir}/src/main/jniLibs"))
+    configureNdk()
+    wslOrBash("./build.sh ffmpeg")
+}
+
 // Go binaries — proper incremental tracking (no symlinks in Go submodules)
 tasks.register<Exec>("buildGoBinaries") {
     group = "build"
     description = "Compiles Go binaries for Android"
     workingDir = rootDir
-    inputs.dir(file("${rootDir}/external/olcrtc")).withPathSensitivity(PathSensitivity.RELATIVE)
-    inputs.dir(file("${rootDir}/external/vless-client")).withPathSensitivity(PathSensitivity.RELATIVE)
-    inputs.dir(file("${rootDir}/external/turnable")).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.files(file("${rootDir}/external/olcrtc"))
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+        .optional()
+    inputs.files(file("${rootDir}/external/vless-client"))
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+        .optional()
+    inputs.files(file("${rootDir}/external/turnable"))
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+        .optional()
     inputs.file(file("${rootDir}/build.sh")).withPathSensitivity(PathSensitivity.RELATIVE)
     outputs.dir(file("${projectDir}/src/main/jniLibs"))
     configureNdk()
@@ -190,5 +211,5 @@ tasks.register<Exec>("buildGoBinaries") {
 }
 
 tasks.named("preBuild") {
-    dependsOn("buildCBinaries", "buildGoBinaries")
+    dependsOn("buildCBinaries", "buildFfmpegBinaries", "buildGoBinaries")
 }

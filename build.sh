@@ -94,18 +94,63 @@ build_hev_tunnel() {
     done
 }
 
-# 5. Select targets: go | cmake | all (default)
+build_ffmpeg() {
+    local dir=$1; local out_name=$2
+    echo "Checking $out_name..."
+    cd "$ROOT_DIR/$dir"
+
+    local needs_build=0
+    for abi in arm64-v8a x86_64; do
+        [ ! -f "$JNI_LIBS_DIR/$abi/$out_name" ] && needs_build=1 && break
+    done
+    [ "$needs_build" = "0" ] && return 0
+
+    echo "  → Building ffmpeg-android-maker..."
+    export ANDROID_NDK_HOME="$NDK_PATH"
+    if [ -z "$ANDROID_SDK_HOME" ]; then
+        export ANDROID_SDK_HOME="$(dirname "$(dirname "$(dirname "$NDK_PATH")")")"
+    fi
+
+    # Run in a single line to avoid argument parsing issues in WSL
+    # Use FFmpeg 6.1 for better stability on Android
+    ./ffmpeg-android-maker.sh --enable-libx264 --enable-libvpx --target-abis=arm64-v8a,x86_64 --source-tar=6.1
+
+    for abi in arm64-v8a x86_64; do
+        if [ -f "build/ffmpeg/$abi/bin/ffmpeg" ]; then
+            mkdir -p "$JNI_LIBS_DIR/$abi"
+            cp "build/ffmpeg/$abi/bin/ffmpeg" "$JNI_LIBS_DIR/$abi/$out_name"
+            # Also copy shared libraries if they exist, so the binary can find them
+            cp "build/ffmpeg/$abi/lib"/*.so "$JNI_LIBS_DIR/$abi/" 2>/dev/null || true
+        else
+            echo "ERROR: ffmpeg binary for $abi not found in build/ffmpeg/$abi/bin/"
+            exit 1
+        fi
+    done
+}
+
+# 5. Select targets: go | cmake | ffmpeg | all (default)
 TARGET="${1:-all}"
+
+git submodule sync || true
 
 if [ "$TARGET" = "all" ] || [ "$TARGET" = "cmake" ]; then
     [ ! -f "external/hev-socks5-tunnel/Android.mk" ] && git submodule update --init --recursive external/hev-socks5-tunnel
     build_hev_tunnel "external/hev-socks5-tunnel" "libhevsocks5.so"
 fi
 
+if [ "$TARGET" = "all" ] || [ "$TARGET" = "ffmpeg" ]; then
+    if [ ! -f "external/ffmpeg-android-maker/ffmpeg-android-maker.sh" ]; then
+        echo "  → Initializing ffmpeg-android-maker..."
+        git submodule update --init --recursive external/ffmpeg-android-maker 2>/dev/null || \
+        git clone https://github.com/Javernaut/ffmpeg-android-maker.git external/ffmpeg-android-maker
+    fi
+    build_ffmpeg "external/ffmpeg-android-maker" "libffmpeg.so"
+fi
+
 if [ "$TARGET" = "all" ] || [ "$TARGET" = "go" ]; then
-    [ ! -f "external/olcrtc/go.mod" ]         && git submodule update --init --recursive external/olcrtc
-    [ ! -f "external/vless-client/go.mod" ]   && git submodule update --init --recursive external/vless-client
-    [ ! -f "external/turnable/go.mod" ]        && git submodule update --init --recursive external/turnable
+    git submodule update --init --recursive --force external/olcrtc
+    git submodule update --init --recursive --force external/vless-client
+    git submodule update --init --recursive --force external/turnable
     build_go_project "external/olcrtc"       "libolcrtc.so"     "./cmd/olcrtc"
     build_go_project "external/vless-client"  "libxray.so"      "."
     build_go_project "external/turnable"      "libturnable.so"  "./cmd"

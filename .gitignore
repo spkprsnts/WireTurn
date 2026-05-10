@@ -26,3 +26,5 @@ Thumbs.db
 
 # Build outputs
 **/release/
+/external/ffmpeg-android-maker/build/
+/external/ffmpeg-android-maker/output/

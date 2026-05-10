@@ -314,7 +314,20 @@ class ProxyService : Service() {
             AppLogsState.addLog(getString(R.string.log_command, cmdArgs.joinToString(" ")))
 
             val proc = withContext(Dispatchers.IO) {
-                ProcessBuilder(cmdArgs).redirectErrorStream(true).start()
+                val builder = ProcessBuilder(cmdArgs).redirectErrorStream(true)
+                val env = builder.environment()
+                val nativeLibDir = applicationInfo.nativeLibraryDir
+                
+                // Essential for ffmpeg to find its shared libraries (libavcodec, etc.)
+                env["LD_LIBRARY_PATH"] = nativeLibDir
+                
+                // Add native libs to PATH just in case
+                val currentPath = env["PATH"] ?: ""
+                if (!currentPath.contains(nativeLibDir)) {
+                    env["PATH"] = "$nativeLibDir:$currentPath"
+                }
+                
+                builder.start()
             }
             process.set(proc)
 
@@ -623,7 +636,8 @@ class ProxyService : Service() {
                             "-data", "data",
                             "-dns", o.dns,
                             "-socks-host", o.socksHost.ifBlank { ClientConfig.DEFAULT_SOCKS_HOST },
-                            "-socks-port", o.socksPort.ifBlank { ClientConfig.DEFAULT_SOCKS_PORT }
+                            "-socks-port", o.socksPort.ifBlank { ClientConfig.DEFAULT_SOCKS_PORT },
+                            // "-ffmpeg", "${applicationInfo.nativeLibraryDir}/libffmpeg.so"
                         )
                     )
 

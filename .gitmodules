@@ -7,6 +7,9 @@
 [submodule "external/hev-socks5-tunnel"]
 	path = external/hev-socks5-tunnel
 	url = https://github.com/heiher/hev-socks5-tunnel.git
+[submodule "external/ffmpeg-android-maker"]
+	path = external/ffmpeg-android-maker
+	url = https://github.com/Javernaut/ffmpeg-android-maker.git
 [submodule "external/olcrtc"]
 	path = external/olcrtc
 	url = https://github.com/openlibrecommunity/olcrtc
