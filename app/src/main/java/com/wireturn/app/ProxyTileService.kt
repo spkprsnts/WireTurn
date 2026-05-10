@@ -112,33 +112,30 @@ class ProxyTileService : TileService() {
         val prefs = AppPreferences(this)
         val autoLaunch = runBlocking { prefs.autoLaunchSettingsFlow.first() }
 
+        // Если работает прокси ИЛИ включен автозапуск — мы нажимаем, чтобы ВЫКЛЮЧИТЬ
+        val turningOff = currentlyRunning || autoLaunch.enabled
+        
+        // Оптимистичное обновление: сразу ставим целевое состояние (если выключаем - гасим плитку мгновенно)
+        updateTileState(isRunning = !turningOff, isWorking = false, autoLaunchEnabled = false)
+
         if (autoLaunch.enabled) {
-            // Оптимистичное обновление: сразу гасим плитку
-            updateTileState(isRunning = false, isWorking = false, autoLaunchEnabled = false)
-            // Если включен автозапуск — выключаем его и останавливаем прокси
             runBlocking { prefs.updateAutoLaunchSettings(autoLaunch.copy(enabled = false)) }
-            ProxyService.stop(this)
-            return
         }
 
-        if (!currentlyRunning) {
+        if (turningOff) {
+            ProxyServiceState.setStatus(ProxyStatus.Idle)
+        } else {
             val cfg = runBlocking { prefs.clientConfigFlow.first() }
-
             cfg.getValidationErrorResId()?.let { errorRes ->
                 ProxyServiceState.setStatus(ProxyStatus.Error(getString(errorRes)))
+                // В случае ошибки конфига — откатываем плитку в выключенное состояние
+                updateTileState(isRunning = false, isWorking = false, autoLaunchEnabled = false)
                 return
             }
-            
-            // Оптимистичное обновление: сразу показываем состояние "запуска"
-            updateTileState(isRunning = true, isWorking = false, autoLaunchEnabled = false)
             ProxyServiceState.setStatus(ProxyStatus.Starting)
-        } else {
-            // Оптимистичное обновление: сразу выключаем плитку
-            updateTileState(isRunning = false, isWorking = false, autoLaunchEnabled = false)
-            ProxyServiceState.setStatus(ProxyStatus.Idle)
         }
 
-        val action = if (currentlyRunning) {
+        val action = if (turningOff) {
             "$packageName.STOP_PROXY"
         } else {
             "$packageName.START_PROXY"
