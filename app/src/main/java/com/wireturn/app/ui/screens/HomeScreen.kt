@@ -256,13 +256,11 @@ fun HomeScreen(
 
     // Logic to prevent flickering "Tap to start" during hot restart gap
     var wasActiveBeforeRestart by remember { mutableStateOf(false) }
-    LaunchedEffect(isBusy) {
-        if (isBusy && proxyState !is ProxyState.Idle) {
+    LaunchedEffect(isBusy, proxyState, xrayState) {
+        val isActive = proxyState !is ProxyState.Idle || xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
+        if (isBusy && isActive) {
             wasActiveBeforeRestart = true
-        }
-    }
-    LaunchedEffect(proxyState) {
-        if (proxyState !is ProxyState.Idle) {
+        } else if (!isBusy) {
             wasActiveBeforeRestart = false
         }
     }
@@ -665,9 +663,9 @@ fun HomeScreen(
                     }
                 )
 
+                val isActiveStatus = proxyState !is ProxyState.Idle || xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
                 val statusText = when {
-                    isBusy && proxyState !is ProxyState.Idle -> stringResource(R.string.proxy_restarting)
-                    wasActiveBeforeRestart && proxyState is ProxyState.Idle -> stringResource(R.string.proxy_restarting)
+                    (isBusy || wasActiveBeforeRestart) && (isActiveStatus || wasActiveBeforeRestart) -> stringResource(R.string.proxy_restarting)
                     proxyState is ProxyState.Connected -> {
                         if (xrayState == XrayState.DirectRoute) stringResource(R.string.vless_direct_active)
                         else stringResource(if (customKernelExists) R.string.proxy_running else R.string.proxy_active)
@@ -1435,7 +1433,8 @@ private fun ProxyToggleButton(
     }
 
     val toggleState = remember(proxyState, xrayState, isRestarting, showXraySpinner, wasActiveBeforeRestart) {
-        val actuallyRestarting = isRestarting && (proxyState !is ProxyState.Idle || wasActiveBeforeRestart)
+        val isActive = proxyState !is ProxyState.Idle || xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
+        val actuallyRestarting = isRestarting && (isActive || wasActiveBeforeRestart)
         val gapFilling = wasActiveBeforeRestart && proxyState is ProxyState.Idle
         when {
             actuallyRestarting || gapFilling || proxyState is ProxyState.Starting || proxyState is ProxyState.Connecting || proxyState is ProxyState.CaptchaRequired || proxyState is ProxyState.WaitingForNetwork -> "loading"
@@ -1450,7 +1449,12 @@ private fun ProxyToggleButton(
             "active" -> if (xrayState == XrayState.DirectRoute) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
             "loading" -> MaterialTheme.colorScheme.tertiary
             "error" -> MaterialTheme.colorScheme.errorContainer
-            else -> if ((isRestarting && (proxyState !is ProxyState.Idle || wasActiveBeforeRestart)) || proxyState is ProxyState.Starting) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceVariant
+            else -> {
+                val isActive = proxyState !is ProxyState.Idle || xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
+                if ((isRestarting && (isActive || wasActiveBeforeRestart)) || proxyState is ProxyState.Starting) 
+                    MaterialTheme.colorScheme.surfaceContainerHigh 
+                else MaterialTheme.colorScheme.surfaceVariant
+            }
         },
         animationSpec = tween(600),
         label = "btn_bg"
