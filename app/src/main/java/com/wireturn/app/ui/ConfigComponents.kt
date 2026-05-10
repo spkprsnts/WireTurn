@@ -209,6 +209,7 @@ fun VerticalAnimatedText(
     fontWeight: FontWeight? = null,
     textAlign: TextAlign? = null,
     overflow: TextOverflow = TextOverflow.Clip,
+    softWrap: Boolean = true,
     maxLines: Int = Int.MAX_VALUE,
     contentAlignment: Alignment = Alignment.CenterStart
 ) {
@@ -231,6 +232,7 @@ fun VerticalAnimatedText(
             fontWeight = fontWeight,
             textAlign = textAlign,
             overflow = overflow,
+            softWrap = softWrap,
             maxLines = maxLines
         )
     }

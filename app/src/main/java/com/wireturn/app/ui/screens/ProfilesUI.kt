@@ -131,6 +131,7 @@ fun ProfileSummary(
                 style = MaterialTheme.typography.bodyMedium,
                 color = color,
                 maxLines = 1,
+                softWrap = false,
                 modifier = modifier
             )
         } else {
@@ -175,6 +176,7 @@ fun ProfilesBlock(
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
+                    softWrap = false,
                     modifier = Modifier.basicMarquee()
                 )
                 ProfileSummary(
