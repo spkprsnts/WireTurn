@@ -716,7 +716,9 @@ fun TextFieldRow(
         TextField(
             value = value,
             onValueChange = onValueChange,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
             readOnly = readOnly,
             isError = isError,
             singleLine = singleLine,
@@ -729,17 +731,24 @@ fun TextFieldRow(
                 }
             },
             trailingIcon = trailingIcon,
+            shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomStart = 4.dp, bottomEnd = 4.dp),
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent,
-                disabledContainerColor = Color.Transparent,
-                errorContainerColor = Color.Transparent,
-                unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
-                focusedIndicatorColor = MaterialTheme.colorScheme.primary
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                errorContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
+                disabledIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                errorIndicatorColor = MaterialTheme.colorScheme.error,
+                unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
             )
         )
-        Spacer(Modifier.height(2.dp))
-        SupportingText(text = supportingText)
+        if (supportingText?.isNotEmpty() ?: false) {
+            Spacer(Modifier.height(2.dp))
+            SupportingText(text = supportingText)
+        }
     }
 }
 
