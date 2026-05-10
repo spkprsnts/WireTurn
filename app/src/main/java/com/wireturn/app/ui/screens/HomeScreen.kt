@@ -1070,6 +1070,7 @@ fun HomeScreen(
                                 else -> stringResource(R.string.idle)
                             }
                         },
+                        useLargeIcon = true,
                         leadingIcon = {
                             when (xrayState) {
                                 XrayState.Idle, XrayState.Running, XrayState.DirectRoute -> Icon(
@@ -1119,6 +1120,7 @@ fun HomeScreen(
                             is VpnState.Error -> (vpnServiceState as VpnState.Error).message
                             else -> stringResource(R.string.idle)
                         },
+                        useLargeIcon = true,
                         leadingIcon = {
                             when (vpnServiceState) {
                                 VpnState.Idle, VpnState.Running, is VpnState.Error -> Icon(
