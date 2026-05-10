@@ -31,8 +31,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -61,7 +59,8 @@ import com.wireturn.app.data.WgConfig
 import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.ui.FieldTrailingIcons
 import com.wireturn.app.ui.HapticUtil
-import com.wireturn.app.ui.LabeledSegmentedButton
+import com.wireturn.app.ui.LabeledButtonGroup
+import com.wireturn.app.ui.configButtonGroupItem
 import com.wireturn.app.ui.SettingsGroup
 import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.ui.SwitchRow
@@ -328,25 +327,26 @@ fun XrayConfigScreen(
                     isBottom = true,
                     containerColor = blockContainerColor
                 ) {
-                    LabeledSegmentedButton(
+                    LabeledButtonGroup(
                         label = stringResource(R.string.xray_protocol_label),
                         supportingText = stringResource(R.string.xray_protocol_desc),
                         isModified = xrayConfigSnapshot != null && (wgConfigSnapshot != null && xrayConfiguration != XrayConfiguration.WIREGUARD || vlessConfigSnapshot != null && xrayConfiguration != XrayConfiguration.VLESS)
                     ) {
-                        XrayConfiguration.entries.forEachIndexed { index, config ->
-                            SegmentedButton(
+                        val configurations = XrayConfiguration.entries
+                        configurations.forEachIndexed { index, config ->
+                            configButtonGroupItem(
                                 selected = xrayConfiguration == config,
-                                onClick = {
+                                onSelect = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
                                     xrayConfiguration = config
                                 },
-                                shape = SegmentedButtonDefaults.itemShape(index = index, count = XrayConfiguration.entries.size)
-                            ) {
-                                Text(when (config) {
-                                    XrayConfiguration.WIREGUARD -> stringResource(R.string.protocol_wireguard)
-                                    XrayConfiguration.VLESS -> stringResource(R.string.vless)
-                                })
-                            }
+                                label = when (config) {
+                                    XrayConfiguration.WIREGUARD -> context.getString(R.string.protocol_wireguard)
+                                    XrayConfiguration.VLESS -> context.getString(R.string.vless)
+                                },
+                                index = index,
+                                count = configurations.size
+                            )
                         }
                     }
                 }

@@ -27,9 +27,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -57,7 +54,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.data.ThemeMode
 import com.wireturn.app.ui.HapticUtil
-import com.wireturn.app.ui.LabeledSegmentedButton
+import com.wireturn.app.ui.LabeledButtonGroup
+import com.wireturn.app.ui.configButtonGroupItem
 import com.wireturn.app.ui.SettingsGroup
 import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.ui.SwitchRow
@@ -156,29 +154,21 @@ fun SettingsScreen(
 
             SettingsGroup(title = stringResource(R.string.theme_title)) {
                 SettingsGroupItem(isTop = true, isBottom = !supportsDynamicColor, containerColor = blockContainerColor) {
-                    SingleChoiceSegmentedButtonRow(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                    LabeledButtonGroup {
                         themeModes.forEachIndexed { index, mode ->
-                            SegmentedButton(
+                            configButtonGroupItem(
                                 selected = themeMode == mode,
-                                onClick = {
+                                onSelect = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                     viewModel.setThemeMode(mode)
                                 },
-                                shape = SegmentedButtonDefaults.itemShape(
-                                    index = index,
-                                    count = themeModes.size
-                                ),
-                                label = {
-                                    Text(
-                                        when (mode) {
-                                            ThemeMode.LIGHT -> stringResource(R.string.theme_light)
-                                            ThemeMode.DARK -> stringResource(R.string.theme_dark)
-                                            ThemeMode.SYSTEM -> stringResource(R.string.theme_system)
-                                        }
-                                    )
-                                }
+                                label = context.getString(when (mode) {
+                                    ThemeMode.LIGHT -> R.string.theme_light
+                                    ThemeMode.DARK -> R.string.theme_dark
+                                    ThemeMode.SYSTEM -> R.string.theme_system
+                                }),
+                                index = index,
+                                count = themeModes.size
                             )
                         }
                     }
@@ -379,27 +369,29 @@ fun SettingsScreen(
                         isBottom = true,
                         containerColor = blockContainerColor
                     ) {
-                        LabeledSegmentedButton(
+                        LabeledButtonGroup(
                             label = stringResource(R.string.captcha_force_tint_title),
                             supportingText = stringResource(R.string.captcha_force_tint_desc)
                         ) {
-                            SegmentedButton(
+                            configButtonGroupItem(
                                 selected = !captchaForceTint,
-                                onClick = {
+                                onSelect = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                     viewModel.setCaptchaForceTint(false)
                                 },
-                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                                label = { Text(stringResource(R.string.captcha_color_original)) }
+                                label = context.getString(R.string.captcha_color_original),
+                                index = 0,
+                                count = 2
                             )
-                            SegmentedButton(
+                            configButtonGroupItem(
                                 selected = captchaForceTint,
-                                onClick = {
+                                onSelect = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                     viewModel.setCaptchaForceTint(true)
                                 },
-                                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                                label = { Text(stringResource(R.string.captcha_color_primary)) }
+                                label = context.getString(R.string.captcha_color_primary),
+                                index = 1,
+                                count = 2
                             )
                         }
                     }
@@ -467,29 +459,21 @@ fun SettingsScreen(
 
             SettingsGroup(title = stringResource(R.string.lang_title)) {
                 SettingsGroupItem(isTop = true, isBottom = true, containerColor = blockContainerColor) {
-                    SingleChoiceSegmentedButtonRow(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                    LabeledButtonGroup {
                         languages.forEachIndexed { index, lang ->
-                            SegmentedButton(
+                            configButtonGroupItem(
                                 selected = appLanguage == lang,
-                                onClick = {
+                                onSelect = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                     viewModel.setAppLanguage(lang)
                                 },
-                                shape = SegmentedButtonDefaults.itemShape(
-                                    index = index,
-                                    count = languages.size
-                                ),
-                                label = {
-                                    Text(
-                                        when (lang) {
-                                            "en" -> stringResource(R.string.lang_en)
-                                            "ru" -> stringResource(R.string.lang_ru)
-                                            else -> stringResource(R.string.lang_system)
-                                        }
-                                    )
-                                }
+                                label = when (lang) {
+                                    "en" -> context.getString(R.string.lang_en)
+                                    "ru" -> context.getString(R.string.lang_ru)
+                                    else -> context.getString(R.string.lang_system)
+                                },
+                                index = index,
+                                count = languages.size
                             )
                         }
                     }

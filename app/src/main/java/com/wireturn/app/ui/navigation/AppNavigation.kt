@@ -1,3 +1,7 @@
+@file:OptIn(
+    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class
+)
+
 package com.wireturn.app.ui.navigation
 
 import androidx.compose.animation.AnimatedVisibility
@@ -21,12 +25,11 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ShortNavigationBar
+import androidx.compose.material3.ShortNavigationBarItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -268,6 +271,7 @@ private val navItems = listOf(
     NavItem(Routes.LOGS, R.string.logs_title, R.drawable.terminal_24px, R.drawable.terminal_24px)
 )
 
+
 @Composable
 private fun AppNavigationBar(
     currentRoute: String?,
@@ -284,12 +288,9 @@ private fun AppNavigationBar(
                 .windowInsetsPadding(WindowInsets.navigationBars),
             contentAlignment = Alignment.Center
         ) {
-            NavigationBar(
-                modifier = Modifier
-                    .height(64.dp)
-                    .widthIn(max = 600.dp),
+            ShortNavigationBar(
+                modifier = Modifier.widthIn(max = 600.dp),
                 containerColor = Color.Transparent,
-                tonalElevation = 0.dp,
                 windowInsets = WindowInsets(0, 0, 0, 0)
             ) {
                 navItems.forEach { item ->
@@ -298,7 +299,7 @@ private fun AppNavigationBar(
                     val currentBaseRoute = currentRoute?.split("?")[0]
                     val selected = currentBaseRoute == itemBaseRoute
 
-                    NavigationBarItem(
+                    ShortNavigationBarItem(
                         selected = selected,
                         label = {
                             Text(
@@ -306,14 +307,6 @@ private fun AppNavigationBar(
                                 style = MaterialTheme.typography.labelSmall
                             )
                         },
-                        colors = androidx.compose.material3.NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                            indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
-                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        ),
-                        alwaysShowLabel = true,
                         onClick = {
                             if (!selected) {
                                 HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)

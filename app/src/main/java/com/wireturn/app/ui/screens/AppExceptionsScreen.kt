@@ -1,7 +1,6 @@
 @file:OptIn(
     androidx.compose.material3.ExperimentalMaterial3Api::class,
-    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class,
-    androidx.compose.foundation.ExperimentalFoundationApi::class
+    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class
 )
 
 package com.wireturn.app.ui.screens
@@ -33,7 +32,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -414,7 +413,9 @@ fun AppExceptionsScreen(
                                     .padding(top = 64.dp),
                                 contentAlignment = Alignment.TopCenter
                             ) {
-                                CircularWavyProgressIndicator()
+                                LoadingIndicator(
+                                    modifier = Modifier.size(64.dp)
+                                )
                             }
                         }
                     } else if (sortedAppList.isEmpty()) {
@@ -531,7 +532,9 @@ fun AppExceptionsScreen(
                                             .padding(top = 64.dp),
                                         contentAlignment = Alignment.TopCenter
                                     ) {
-                                        CircularWavyProgressIndicator()
+                                        LoadingIndicator(
+                                            modifier = Modifier.size(64.dp)
+                                        )
                                     }
                                 }
                             } else if (searchDisplayList.isEmpty() && searchQuery.isNotBlank()) {

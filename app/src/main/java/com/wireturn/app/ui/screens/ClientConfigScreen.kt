@@ -33,8 +33,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -67,7 +65,8 @@ import com.wireturn.app.data.TurnableRoute
 import com.wireturn.app.ui.ConfigRowLabel
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ImportButton
-import com.wireturn.app.ui.LabeledSegmentedButton
+import com.wireturn.app.ui.LabeledButtonGroup
+import com.wireturn.app.ui.configButtonGroupItem
 import com.wireturn.app.ui.SelectionDialog
 import com.wireturn.app.ui.SettingsGroup
 import com.wireturn.app.ui.SettingsGroupItem
@@ -294,26 +293,27 @@ fun ClientConfigScreen(
                     // Выбор ядра в Raw Mode
                     if (!customKernelExists) {
                         SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
-                            LabeledSegmentedButton(
+                            LabeledButtonGroup(
                                 label = stringResource(R.string.kernel_label),
                                 supportingText = stringResource(R.string.client_variants_desc),
                                 isModified = clientConfigSnapshot != null && kernelVariant != clientConfigSnapshot?.kernelVariant,
                                 onHelpClick = { showKernelHelp.value = true }
                             ) {
-                                KernelVariant.entries.forEachIndexed { index, variant ->
-                                    SegmentedButton(
+                                val variants = KernelVariant.entries
+                                variants.forEachIndexed { index, variant ->
+                                    configButtonGroupItem(
                                         selected = kernelVariant == variant,
-                                        onClick = {
+                                        onSelect = {
                                             HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
                                             kernelVariant = variant
                                         },
-                                        shape = SegmentedButtonDefaults.itemShape(index = index, count = KernelVariant.entries.size)
-                                    ) {
-                                        Text(stringResource(when(variant) {
+                                        label = context.getString(when(variant) {
                                             KernelVariant.TURNABLE -> R.string.kernel_turnable
                                             KernelVariant.OLCRTC -> R.string.kernel_olcrtc
-                                        }))
-                                    }
+                                        }),
+                                        index = index,
+                                        count = variants.size
+                                    )
                                 }
                             }
                         }
@@ -321,26 +321,27 @@ fun ClientConfigScreen(
                 } else {
                     // Обычный режим: Выбор ядра
                     SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
-                        LabeledSegmentedButton(
+                        LabeledButtonGroup(
                             label = if (customKernelExists) stringResource(R.string.kernel_config_label) else stringResource(R.string.kernel_label),
                             supportingText = if (customKernelExists) stringResource(R.string.kernel_config_desc) else stringResource(R.string.client_variants_desc),
                             isModified = clientConfigSnapshot != null && kernelVariant != clientConfigSnapshot?.kernelVariant,
                             onHelpClick = { showKernelHelp.value = true }
                         ) {
-                            KernelVariant.entries.forEachIndexed { index, variant ->
-                                SegmentedButton(
+                            val variants = KernelVariant.entries
+                            variants.forEachIndexed { index, variant ->
+                                configButtonGroupItem(
                                     selected = kernelVariant == variant,
-                                    onClick = {
+                                    onSelect = {
                                         HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
                                         kernelVariant = variant
                                     },
-                                    shape = SegmentedButtonDefaults.itemShape(index = index, count = KernelVariant.entries.size)
-                                ) {
-                                    Text(stringResource(when(variant) {
+                                    label = context.getString(when(variant) {
                                         KernelVariant.TURNABLE -> R.string.kernel_turnable
                                         KernelVariant.OLCRTC -> R.string.kernel_olcrtc
-                                    }))
-                                }
+                                    }),
+                                    index = index,
+                                    count = variants.size
+                                )
                             }
                         }
                     }
@@ -583,26 +584,26 @@ fun ClientConfigScreen(
                                         isBottom = false,
                                         containerColor = blockContainerColor
                                     ) {
-                                        LabeledSegmentedButton(
+                                        LabeledButtonGroup(
                                             label = stringResource(R.string.connection_type_label),
                                             supportingText = stringResource(R.string.connection_type_desc),
                                             isModified = clientConfigSnapshot != null && turnableConfig.type != clientConfigSnapshot?.turnableConfig?.type
                                         ) {
-                                            listOf("relay", "direct").forEachIndexed { index, t ->
-                                                SegmentedButton(
+                                            val types = listOf("relay", "direct")
+                                            types.forEachIndexed { index, t ->
+                                                configButtonGroupItem(
                                                     selected = turnableConfig.type == t,
-                                                    onClick = {
+                                                    onSelect = {
                                                         HapticUtil.perform(
                                                             context,
                                                             HapticUtil.Pattern.TOGGLE_ON
                                                         )
                                                         turnableConfig = turnableConfig.copy(type = t)
                                                     },
-                                                    shape = SegmentedButtonDefaults.itemShape(
-                                                        index = index,
-                                                        count = 2
-                                                    )
-                                                ) { Text(t.replaceFirstChar { it.uppercase() }) }
+                                                    label = t.replaceFirstChar { it.uppercase() },
+                                                    index = index,
+                                                    count = types.size
+                                                )
                                             }
                                         }
                                     }
@@ -669,7 +670,7 @@ fun ClientConfigScreen(
                                         isBottom = false,
                                         containerColor = blockContainerColor
                                     ) {
-                                        LabeledSegmentedButton(
+                                        LabeledButtonGroup(
                                             label = stringResource(R.string.proto_label),
                                             supportingText = stringResource(R.string.proto_desc),
                                             isModified = clientConfigSnapshot != null && turnableConfig.proto != clientConfigSnapshot?.turnableConfig?.proto
@@ -677,19 +678,19 @@ fun ClientConfigScreen(
                                             val options = listOf("dtls", "srtp", "none")
                                             val currentProto = turnableConfig.proto ?: "none"
                                             options.forEachIndexed { index, p ->
-                                                SegmentedButton(
+                                                configButtonGroupItem(
                                                     selected = currentProto == p,
-                                                    onClick = {
+                                                    onSelect = {
                                                         if (!privacyMode) {
                                                             HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
                                                             turnableConfig = turnableConfig.copy(proto = if (p == "none") null else p)
                                                         }
                                                     },
-                                                    shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
-                                                    enabled = !privacyMode
-                                                ) {
-                                                    Text(p.uppercase())
-                                                }
+                                                    label = p.uppercase(),
+                                                    enabled = !privacyMode,
+                                                    index = index,
+                                                    count = options.size
+                                                )
                                             }
                                         }
                                     }
@@ -725,22 +726,22 @@ fun ClientConfigScreen(
                             SettingsGroup(title = stringResource(R.string.olcrtc_settings_title)) {
                                 // Carrier
                                 SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
-                                    LabeledSegmentedButton(
+                                    LabeledButtonGroup(
                                         label = stringResource(R.string.olcrtc_carrier_label),
                                         isModified = clientConfigSnapshot != null && olcrtcConfig.carrier != clientConfigSnapshot?.olcrtcConfig?.carrier
                                     ) {
                                         val carriers = listOf("wbstream" to "WB Stream", "telemost" to "Telemost", "jazz" to "Jazz")
                                         carriers.forEachIndexed { index, (value, label) ->
-                                            SegmentedButton(
+                                            configButtonGroupItem(
                                                 selected = olcrtcConfig.carrier == value,
-                                                onClick = {
+                                                onSelect = {
                                                     HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
                                                     olcrtcConfig = olcrtcConfig.copy(carrier = value)
                                                 },
-                                                shape = SegmentedButtonDefaults.itemShape(index = index, count = carriers.size)
-                                            ) {
-                                                Text(label)
-                                            }
+                                                label = label,
+                                                index = index,
+                                                count = carriers.size
+                                            )
                                         }
                                     }
                                 }

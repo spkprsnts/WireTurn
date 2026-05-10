@@ -1,3 +1,8 @@
+@file:OptIn(
+    androidx.compose.material3.ExperimentalMaterial3Api::class,
+    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class
+)
+
 package com.wireturn.app.ui
 
 import androidx.compose.animation.AnimatedContent
@@ -44,14 +49,16 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonShapes
+import androidx.compose.material3.ButtonGroup
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ButtonGroupScope
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.SingleChoiceSegmentedButtonRowScope
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -290,6 +297,8 @@ fun SettingsGroupItem(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit
 ) {
+    // LargeIncreased = 20.dp (for outer group boundaries)
+    // ExtraSmall = 4.dp (for internal joints)
     val cornerSize = 20.dp
     val smallCornerSize = 4.dp
 
@@ -478,47 +487,114 @@ fun SliderRow(
 }
 
 @Composable
-fun LabeledSegmentedButton(
-    label: String,
+fun LabeledButtonGroup(
     modifier: Modifier = Modifier,
+    label: String? = null,
     supportingText: String? = null,
     isModified: Boolean = false,
     onHelpClick: (() -> Unit)? = null,
-    content: @Composable SingleChoiceSegmentedButtonRowScope.() -> Unit
+    content: ButtonGroupScope.() -> Unit
 ) {
     val context = LocalContext.current
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            ConfigRowLabel(
-                text = label,
-                isModified = isModified,
-                modifier = Modifier.weight(1f, fill = false)
-            )
-
-            if (onHelpClick != null) {
-                IconButton(
-                    onClick = {
-                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                        onHelpClick()
-                    },
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.info_24px),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
+        if (!label.isNullOrBlank() || onHelpClick != null) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                if (!label.isNullOrBlank()) {
+                    ConfigRowLabel(
+                        text = label,
+                        isModified = isModified,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
+                }
+
+                if (onHelpClick != null) {
+                    IconButton(
+                        onClick = {
+                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                            onHelpClick()
+                        },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.info_24px),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
             }
         }
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth(), content = content)
+        ButtonGroup(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+            expandedRatio = 0f,
+            overflowIndicator = { menuState ->
+                ButtonGroupDefaults.OverflowIndicator(menuState)
+            },
+            content = content
+        )
         SupportingText(text = supportingText)
     }
+}
+
+/**
+ * A toggleable item for [LabeledButtonGroup] with expressive shapes and fixed text wrapping.
+ */
+fun ButtonGroupScope.configButtonGroupItem(
+    selected: Boolean,
+    onSelect: () -> Unit,
+    label: String,
+    index: Int,
+    count: Int,
+    enabled: Boolean = true
+) {
+    customItem(
+        buttonGroupContent = {
+            val interactionSource = remember { MutableInteractionSource() }
+
+            val shapes = when {
+                count == 1 -> ToggleButtonShapes(shape = CircleShape, pressedShape = CircleShape, checkedShape = CircleShape)
+                index == 0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                index == count - 1 -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+            }
+
+            ToggleButton(
+                checked = selected,
+                onCheckedChange = { if (!selected) onSelect() },
+                enabled = enabled,
+                modifier = Modifier
+                    .weight(1f),
+                interactionSource = interactionSource,
+                shapes = shapes
+            ) {
+                Text(
+                    text = label,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Clip,
+                    style = MaterialTheme.typography.labelLarge,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        menuContent = { state ->
+            DropdownMenuItem(
+                text = { Text(label) },
+                onClick = {
+                    onSelect()
+                    state.dismiss()
+                },
+                enabled = enabled
+            )
+        }
+    )
 }
 
 @Composable
@@ -974,7 +1050,6 @@ private fun truncateUrlParameters(url: String): String {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun <T> SelectionDialog(
     title: String,
