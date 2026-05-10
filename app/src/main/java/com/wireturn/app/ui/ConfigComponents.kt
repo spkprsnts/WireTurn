@@ -186,7 +186,7 @@ fun ConfigRowLabel(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
     ) {
-        Text(
+        VerticalAnimatedText(
             text = text,
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,

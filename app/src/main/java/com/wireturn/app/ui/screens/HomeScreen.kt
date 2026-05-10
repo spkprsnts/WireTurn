@@ -1014,7 +1014,6 @@ fun HomeScreen(
             val configValid = isSettingsValid || xrayState != XrayState.Idle || isBusy
 
             val xrayProtocol = when {
-                isBusy -> ""
                 activeConfig.kernelVariant == KernelVariant.OLCRTC -> {
                     when (xrayState) {
                         XrayState.DirectRoute -> stringResource(R.string.vless)
@@ -1206,9 +1205,11 @@ fun HomeScreen(
                     }
                 }
 
+                val showHttpBlock = displayHttpAddr.isNotBlank() || isHttpModified
+
                 SettingsGroupItem(
                     isTop = true,
-                    isBottom = displayHttpAddr.isBlank() && !isHttpModified,
+                    isBottom = !showHttpBlock,
                     containerColor = blockContainerColor,
                     enabled = showXray || isOlcrtc,
                     onClick = {
@@ -1235,7 +1236,11 @@ fun HomeScreen(
                     )
                 }
 
-                if (displayHttpAddr.isNotBlank() || isHttpModified) {
+                AnimatedVisibility(
+                    visible = showHttpBlock,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
+                ) {
                     var httpCopied by remember { mutableStateOf(false) }
                     LaunchedEffect(httpCopied) {
                         if (httpCopied) {

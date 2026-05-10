@@ -74,6 +74,7 @@ import com.wireturn.app.data.Profile
 import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.StandardLeadingIcon
+import com.wireturn.app.ui.VerticalAnimatedText
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -82,7 +83,8 @@ import kotlinx.coroutines.launch
 fun ProfileSummary(
     profile: Profile,
     modifier: Modifier = Modifier,
-    color: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurfaceVariant
+    color: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    useAnimation: Boolean = false
 ) {
     val clientConfig = profile.clientConfig
     if (clientConfig.getValidationErrorResId() != null) return
@@ -121,13 +123,24 @@ fun ProfileSummary(
     }
 
     if (parts.isNotEmpty()) {
-        Text(
-            text = parts.joinToString(" • "),
-            style = MaterialTheme.typography.labelSmall,
-            color = color,
-            maxLines = 1,
-            modifier = modifier
-        )
+        val text = parts.joinToString(" • ")
+        if (useAnimation) {
+            VerticalAnimatedText(
+                text = text,
+                style = MaterialTheme.typography.labelSmall,
+                color = color,
+                maxLines = 1,
+                modifier = modifier
+            )
+        } else {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelSmall,
+                color = color,
+                maxLines = 1,
+                modifier = modifier
+            )
+        }
     }
 }
 
@@ -156,7 +169,7 @@ fun ProfilesBlock(
             }
             Spacer(Modifier.width(20.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
+                VerticalAnimatedText(
                     text = currentProfile.name,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium,
@@ -166,7 +179,8 @@ fun ProfilesBlock(
                 )
                 ProfileSummary(
                     profile = currentProfile,
-                    modifier = Modifier.basicMarquee()
+                    modifier = Modifier.basicMarquee(),
+                    useAnimation = true
                 )
             }
         }
@@ -599,7 +613,6 @@ fun ProfilesDialog(
                                 optimisticSelectedId = profile.id
                                 viewModel.selectProfileAndRestart(profile.id)
                                 scope.launch {
-                                    delay(300)
                                     sheetState.hide()
                                     onDismiss()
                                 }

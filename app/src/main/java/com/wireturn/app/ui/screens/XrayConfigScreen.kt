@@ -8,6 +8,13 @@ package com.wireturn.app.ui.screens
 import android.content.ClipData
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -43,6 +50,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -96,6 +104,8 @@ fun XrayConfigScreen(
     val vlessSaved by viewModel.vlessConfig.collectAsStateWithLifecycle()
     val vlessLinkHistory by viewModel.vlessLinkHistory.collectAsStateWithLifecycle()
     
+    val scrollState = rememberScrollState()
+
     val wgConfigSnapshot by com.wireturn.app.XrayServiceState.wgConfigSnapshot.collectAsStateWithLifecycle()
     val vlessConfigSnapshot by com.wireturn.app.XrayServiceState.vlessConfigSnapshot.collectAsStateWithLifecycle()
     val xrayConfigSnapshot by com.wireturn.app.XrayServiceState.xrayConfigSnapshot.collectAsStateWithLifecycle()
@@ -294,7 +304,7 @@ fun XrayConfigScreen(
                 .consumeWindowInsets(padding)
                 .imePadding()
                 .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 .padding(bottom = 76.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
@@ -429,7 +439,8 @@ fun XrayConfigScreen(
                         vlessConfigSnapshot = vlessConfigSnapshot,
                         privacyMode = privacyMode,
                         onImportQr = { showVlessQrScanner.value = true },
-                        blockContainerColor = blockContainerColor
+                        blockContainerColor = blockContainerColor,
+                        scrollState = scrollState
                     )
                 }
             }
@@ -644,8 +655,23 @@ private fun VlessSettings(
     vlessConfigSnapshot: com.wireturn.app.data.VlessConfig?,
     privacyMode: Boolean,
     onImportQr: () -> Unit,
-    blockContainerColor: Color
+    blockContainerColor: Color,
+    scrollState: ScrollState
 ) {
+    var previousDualRoute by remember { mutableStateOf(vlessIsDualRoute) }
+    LaunchedEffect(vlessIsDualRoute) {
+        if (vlessIsDualRoute && !previousDualRoute) {
+            val scrollJob = launch {
+                snapshotFlow { scrollState.maxValue }.collect {
+                    scrollState.scrollTo(it)
+                }
+            }
+            delay(300)
+            scrollJob.cancel()
+        }
+        previousDualRoute = vlessIsDualRoute
+    }
+
     val vlessName = remember(vlessLink) {
         val fragment = vlessLink.substringAfterLast('#', "")
         if (fragment.isNotEmpty()) " #${android.net.Uri.decode(fragment)}" else ""
@@ -704,7 +730,11 @@ private fun VlessSettings(
             )
         }
 
-        if (vlessIsDualRoute) {
+        AnimatedVisibility(
+            visible = vlessIsDualRoute,
+            enter = fadeIn(tween(300)) + expandVertically(tween(300)),
+            exit = fadeOut(tween(300)) + shrinkVertically(tween(300))
+        ) {
             SettingsGroupItem(
                 isTop = false,
                 isBottom = true,
