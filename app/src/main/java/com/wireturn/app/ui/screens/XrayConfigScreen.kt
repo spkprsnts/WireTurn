@@ -327,12 +327,18 @@ fun XrayConfigScreen(
                     isBottom = true,
                     containerColor = blockContainerColor
                 ) {
+                    val configurations = XrayConfiguration.entries
+                    val protocolLabels = configurations.associateWith { config ->
+                        stringResource(when (config) {
+                            XrayConfiguration.WIREGUARD -> R.string.protocol_wireguard
+                            XrayConfiguration.VLESS -> R.string.vless
+                        })
+                    }
                     LabeledButtonGroup(
                         label = stringResource(R.string.xray_protocol_label),
                         supportingText = stringResource(R.string.xray_protocol_desc),
                         isModified = xrayConfigSnapshot != null && (wgConfigSnapshot != null && xrayConfiguration != XrayConfiguration.WIREGUARD || vlessConfigSnapshot != null && xrayConfiguration != XrayConfiguration.VLESS)
                     ) {
-                        val configurations = XrayConfiguration.entries
                         configurations.forEachIndexed { index, config ->
                             configButtonGroupItem(
                                 selected = xrayConfiguration == config,
@@ -340,10 +346,7 @@ fun XrayConfigScreen(
                                     HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
                                     xrayConfiguration = config
                                 },
-                                label = when (config) {
-                                    XrayConfiguration.WIREGUARD -> context.getString(R.string.protocol_wireguard)
-                                    XrayConfiguration.VLESS -> context.getString(R.string.vless)
-                                },
+                                label = protocolLabels[config] ?: "",
                                 index = index,
                                 count = configurations.size
                             )

@@ -151,6 +151,13 @@ fun SettingsScreen(
             val themeModes = remember(supportsSystemTheme) {
                 if (supportsSystemTheme) ThemeMode.entries else ThemeMode.entries.filter { it != ThemeMode.SYSTEM }
             }
+            val themeModeLabels = themeModes.associateWith { mode ->
+                stringResource(when (mode) {
+                    ThemeMode.LIGHT -> R.string.theme_light
+                    ThemeMode.DARK -> R.string.theme_dark
+                    ThemeMode.SYSTEM -> R.string.theme_system
+                })
+            }
 
             SettingsGroup(title = stringResource(R.string.theme_title)) {
                 SettingsGroupItem(isTop = true, isBottom = !supportsDynamicColor, containerColor = blockContainerColor) {
@@ -162,11 +169,7 @@ fun SettingsScreen(
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                     viewModel.setThemeMode(mode)
                                 },
-                                label = context.getString(when (mode) {
-                                    ThemeMode.LIGHT -> R.string.theme_light
-                                    ThemeMode.DARK -> R.string.theme_dark
-                                    ThemeMode.SYSTEM -> R.string.theme_system
-                                }),
+                                label = themeModeLabels[mode] ?: "",
                                 index = index,
                                 count = themeModes.size
                             )
@@ -364,6 +367,8 @@ fun SettingsScreen(
                 }
 
                 if (captchaStyleMod) {
+                    val originalLabel = stringResource(R.string.captcha_color_original)
+                    val primaryLabel = stringResource(R.string.captcha_color_primary)
                     SettingsGroupItem(
                         isTop = false,
                         isBottom = true,
@@ -379,7 +384,7 @@ fun SettingsScreen(
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                     viewModel.setCaptchaForceTint(false)
                                 },
-                                label = context.getString(R.string.captcha_color_original),
+                                label = originalLabel,
                                 index = 0,
                                 count = 2
                             )
@@ -389,7 +394,7 @@ fun SettingsScreen(
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                     viewModel.setCaptchaForceTint(true)
                                 },
-                                label = context.getString(R.string.captcha_color_primary),
+                                label = primaryLabel,
                                 index = 1,
                                 count = 2
                             )
@@ -456,6 +461,13 @@ fun SettingsScreen(
             // Язык
             val appLanguage by viewModel.appLanguage.collectAsStateWithLifecycle()
             val languages = listOf("system", "en", "ru")
+            val languageLabels = languages.associateWith { lang ->
+                stringResource(when (lang) {
+                    "en" -> R.string.lang_en
+                    "ru" -> R.string.lang_ru
+                    else -> R.string.lang_system
+                })
+            }
 
             SettingsGroup(title = stringResource(R.string.lang_title)) {
                 SettingsGroupItem(isTop = true, isBottom = true, containerColor = blockContainerColor) {
@@ -467,11 +479,7 @@ fun SettingsScreen(
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                     viewModel.setAppLanguage(lang)
                                 },
-                                label = when (lang) {
-                                    "en" -> context.getString(R.string.lang_en)
-                                    "ru" -> context.getString(R.string.lang_ru)
-                                    else -> context.getString(R.string.lang_system)
-                                },
+                                label = languageLabels[lang] ?: "",
                                 index = index,
                                 count = languages.size
                             )

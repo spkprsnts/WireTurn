@@ -292,6 +292,13 @@ fun ClientConfigScreen(
                     }
                     // Выбор ядра в Raw Mode
                     if (!customKernelExists) {
+                        val variants = KernelVariant.entries
+                        val variantLabels = variants.associateWith { variant ->
+                            stringResource(when(variant) {
+                                KernelVariant.TURNABLE -> R.string.kernel_turnable
+                                KernelVariant.OLCRTC -> R.string.kernel_olcrtc
+                            })
+                        }
                         SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
                             LabeledButtonGroup(
                                 label = stringResource(R.string.kernel_label),
@@ -299,7 +306,6 @@ fun ClientConfigScreen(
                                 isModified = clientConfigSnapshot != null && kernelVariant != clientConfigSnapshot?.kernelVariant,
                                 onHelpClick = { showKernelHelp.value = true }
                             ) {
-                                val variants = KernelVariant.entries
                                 variants.forEachIndexed { index, variant ->
                                     configButtonGroupItem(
                                         selected = kernelVariant == variant,
@@ -307,10 +313,7 @@ fun ClientConfigScreen(
                                             HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
                                             kernelVariant = variant
                                         },
-                                        label = context.getString(when(variant) {
-                                            KernelVariant.TURNABLE -> R.string.kernel_turnable
-                                            KernelVariant.OLCRTC -> R.string.kernel_olcrtc
-                                        }),
+                                        label = variantLabels[variant] ?: "",
                                         index = index,
                                         count = variants.size
                                     )
@@ -320,6 +323,13 @@ fun ClientConfigScreen(
                     }
                 } else {
                     // Обычный режим: Выбор ядра
+                    val variants = KernelVariant.entries
+                    val variantLabels = variants.associateWith { variant ->
+                        stringResource(when(variant) {
+                            KernelVariant.TURNABLE -> R.string.kernel_turnable
+                            KernelVariant.OLCRTC -> R.string.kernel_olcrtc
+                        })
+                    }
                     SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
                         LabeledButtonGroup(
                             label = if (customKernelExists) stringResource(R.string.kernel_config_label) else stringResource(R.string.kernel_label),
@@ -327,7 +337,6 @@ fun ClientConfigScreen(
                             isModified = clientConfigSnapshot != null && kernelVariant != clientConfigSnapshot?.kernelVariant,
                             onHelpClick = { showKernelHelp.value = true }
                         ) {
-                            val variants = KernelVariant.entries
                             variants.forEachIndexed { index, variant ->
                                 configButtonGroupItem(
                                     selected = kernelVariant == variant,
@@ -335,10 +344,7 @@ fun ClientConfigScreen(
                                         HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
                                         kernelVariant = variant
                                     },
-                                    label = context.getString(when(variant) {
-                                        KernelVariant.TURNABLE -> R.string.kernel_turnable
-                                        KernelVariant.OLCRTC -> R.string.kernel_olcrtc
-                                    }),
+                                    label = variantLabels[variant] ?: "",
                                     index = index,
                                     count = variants.size
                                 )
