@@ -67,7 +67,7 @@ import com.wireturn.app.ui.ConfigRowLabel
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ImportButton
 import com.wireturn.app.ui.LabeledSegmentedButton
-import com.wireturn.app.ui.SelectionBottomSheet
+import com.wireturn.app.ui.SelectionDialog
 import com.wireturn.app.ui.SettingsGroup
 import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.ui.StandardLeadingIcon
@@ -1231,7 +1231,7 @@ fun RoutesDialog(
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    SelectionBottomSheet(
+    SelectionDialog(
         title = stringResource(R.string.route_title),
         items = config.routes,
         isSelected = { it.routeId == config.selectedRouteId },
@@ -1281,7 +1281,7 @@ fun TransportDialog(
         "videochannel" to "VideoChannel"
     )
 
-    SelectionBottomSheet(
+    SelectionDialog(
         title = stringResource(R.string.olcrtc_transport_label),
         items = transports,
         isSelected = { it.first == currentTransport },

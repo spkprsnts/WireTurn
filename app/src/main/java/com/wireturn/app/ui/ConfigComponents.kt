@@ -29,7 +29,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -37,17 +36,20 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SingleChoiceSegmentedButtonRowScope
 import androidx.compose.material3.Slider
@@ -58,7 +60,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -925,9 +926,9 @@ private fun truncateUrlParameters(url: String): String {
     }
 }
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun <T> SelectionBottomSheet(
+fun <T> SelectionDialog(
     title: String,
     items: List<T>,
     onSelect: (T) -> Unit,
@@ -937,59 +938,58 @@ fun <T> SelectionBottomSheet(
     isSelected: (T) -> Boolean,
     itemContent: @Composable (T, Boolean) -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    ModalBottomSheet(
+    BasicAlertDialog(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        modifier = modifier
+        modifier = modifier.fillMaxWidth(0.9f)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(bottom = 24.dp)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 6.dp,
+            color = MaterialTheme.colorScheme.surface
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(bottom = if (description != null) 2.dp else 16.dp, start = 8.dp)
-            )
-            if (description != null) {
-                SupportingText(
-                    text = description,
-                    modifier = Modifier.padding(bottom = 16.dp, start = 8.dp)
+            Column(
+                modifier = Modifier
+                    .padding(vertical = 24.dp, horizontal = 12.dp)
+                    .heightIn(max = 600.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.padding(bottom = if (description != null) 4.dp else 16.dp, start = 12.dp)
                 )
-            }
-            items.forEachIndexed { index, item ->
-                val selected = isSelected(item)
-                val shape = when {
-                    items.size == 1 -> MaterialTheme.shapes.medium
-                    index == 0 -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
-                    index == items.size - 1 -> RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
-                    else -> RoundedCornerShape(4.dp)
+                if (description != null) {
+                    SupportingText(
+                        text = description,
+                        modifier = Modifier.padding(bottom = 16.dp, start = 12.dp)
+                    )
                 }
+                items.forEachIndexed { index, item ->
+                    val selected = isSelected(item)
+                    val shape = when {
+                        items.size == 1 -> MaterialTheme.shapes.medium
+                        index == 0 -> RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
+                        index == items.size - 1 -> RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
+                        else -> RoundedCornerShape(4.dp)
+                    }
 
-                Surface(
-                    onClick = {
-                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                        onSelect(item)
-                        scope.launch {
-                            sheetState.hide()
+                    Surface(
+                        onClick = {
+                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                            onSelect(item)
                             onDismiss()
-                        }
-                    },
-                    shape = shape,
-                    color = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                    modifier = modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 74.dp)
-                ) {
-                    itemContent(item, selected)
+                        },
+                        shape = shape,
+                        color = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 64.dp)
+                    ) {
+                        itemContent(item, selected)
+                    }
                 }
             }
         }
