@@ -637,7 +637,7 @@ class ProxyService : Service() {
                             "-dns", o.dns,
                             "-socks-host", o.socksHost.ifBlank { ClientConfig.DEFAULT_SOCKS_HOST },
                             "-socks-port", o.socksPort.ifBlank { ClientConfig.DEFAULT_SOCKS_PORT },
-                            // "-ffmpeg", "${applicationInfo.nativeLibraryDir}/libffmpeg.so"
+                            "-ffmpeg", "${applicationInfo.nativeLibraryDir}/libffmpeg.so"
                         )
                     )
 
