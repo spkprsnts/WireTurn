@@ -98,14 +98,14 @@ build_hev_tunnel() {
 TARGET="${1:-all}"
 
 if [ "$TARGET" = "all" ] || [ "$TARGET" = "cmake" ]; then
-    [ ! -f "external/hev-socks5-tunnel/Android.mk" ] && git submodule update --init external/hev-socks5-tunnel
+    [ ! -f "external/hev-socks5-tunnel/Android.mk" ] && git submodule update --init --recursive external/hev-socks5-tunnel
     build_hev_tunnel "external/hev-socks5-tunnel" "libhevsocks5.so"
 fi
 
 if [ "$TARGET" = "all" ] || [ "$TARGET" = "go" ]; then
-    [ ! -f "external/olcrtc/go.mod" ]         && git submodule update --init external/olcrtc
-    [ ! -f "external/vless-client/go.mod" ]   && git submodule update --init external/vless-client
-    [ ! -f "external/turnable/go.mod" ]        && git submodule update --init external/turnable
+    [ ! -f "external/olcrtc/go.mod" ]         && git submodule update --init --recursive external/olcrtc
+    [ ! -f "external/vless-client/go.mod" ]   && git submodule update --init --recursive external/vless-client
+    [ ! -f "external/turnable/go.mod" ]        && git submodule update --init --recursive external/turnable
     build_go_project "external/olcrtc"       "libolcrtc.so"     "./cmd/olcrtc"
     build_go_project "external/vless-client"  "libxray.so"      "."
     build_go_project "external/turnable"      "libturnable.so"  "./cmd"
