@@ -82,47 +82,50 @@ data class TurnableConfig(
             routes
         }
 
-        val builder = StringBuilder("turnable://")
-        if (!userUuid.isNullOrBlank()) {
-            builder.append(android.net.Uri.encode(userUuid)).append(":")
+        val uriBuilder = android.net.Uri.Builder()
+            .scheme("turnable")
+
+        val userInfo = if (!userUuid.isNullOrBlank()) {
+            "${android.net.Uri.encode(userUuid)}:${android.net.Uri.encode(callId)}"
+        } else {
+            android.net.Uri.encode(callId)
         }
-        builder.append(android.net.Uri.encode(callId)).append("@").append(platformId)
+        uriBuilder.encodedAuthority("$userInfo@$platformId")
 
         targetRoutes.forEach {
-            builder.append("/").append(android.net.Uri.encode(it.routeId))
+            uriBuilder.appendPath(it.routeId)
         }
 
-        val params = mutableListOf<String>()
-        params.add("username=${android.net.Uri.encode(username)}")
-        params.add("gateway=${android.net.Uri.encode(gateway)}")
-        params.add("type=${android.net.Uri.encode(type)}")
-        encryption?.let { params.add("encryption=${android.net.Uri.encode(it)}") }
-        pubKey?.let { params.add("pub_key=${android.net.Uri.encode(it)}") }
-        proto?.let { params.add("proto=${android.net.Uri.encode(it)}") }
-        if (peers != 1) params.add("peers=$peers")
-        if (forceTurn) params.add("forceturn=true")
+        uriBuilder.appendQueryParameter("username", username)
+        uriBuilder.appendQueryParameter("gateway", gateway)
+        uriBuilder.appendQueryParameter("type", type)
+        encryption?.let { uriBuilder.appendQueryParameter("encryption", it) }
+        pubKey?.let { uriBuilder.appendQueryParameter("pub_key", it) }
+        proto?.let { uriBuilder.appendQueryParameter("proto", it) }
+        if (peers != 1) uriBuilder.appendQueryParameter("peers", peers.toString())
+        if (forceTurn) uriBuilder.appendQueryParameter("forceturn", "true")
 
         if (targetRoutes.size == 1) {
             val r = targetRoutes[0]
-            if (r.socket != "udp") params.add("socket=${android.net.Uri.encode(r.socket)}")
-            r.transport?.let { params.add("transport=${android.net.Uri.encode(it)}") }
+            if (r.socket != "udp") uriBuilder.appendQueryParameter("socket", r.socket)
+            r.transport?.let { uriBuilder.appendQueryParameter("transport", it) }
         } else {
             targetRoutes.forEachIndexed { index, r ->
                 val idx = index + 1
-                if (r.socket != "udp") params.add("socket[$idx]=${android.net.Uri.encode(r.socket)}")
-                r.transport?.let { params.add("transport[$idx]=${android.net.Uri.encode(it)}") }
+                if (r.socket != "udp") uriBuilder.appendQueryParameter("socket[$idx]", r.socket)
+                r.transport?.let { uriBuilder.appendQueryParameter("transport[$idx]", it) }
             }
         }
 
-        if (params.isNotEmpty()) {
-            builder.append("?").append(params.joinToString("&"))
+        if (selectedRouteId.isNotBlank()) {
+            uriBuilder.appendQueryParameter("selected_route_id", selectedRouteId)
         }
 
         if (targetRoutes.isNotEmpty()) {
-            builder.append("#").append(targetRoutes.joinToString(",") { android.net.Uri.encode(it.name) })
+            uriBuilder.encodedFragment(targetRoutes.joinToString(",") { android.net.Uri.encode(it.name) })
         }
 
-        return builder.toString()
+        return uriBuilder.build().toString()
     }
 
     fun isValid(): Boolean {
@@ -144,12 +147,17 @@ data class TurnableConfig(
             if (!url.startsWith("turnable://", ignoreCase = true)) return null
             return try {
                 val uri = url.toUri()
-                val userInfo = uri.userInfo ?: ""
-                val userParts = userInfo.split(":")
+                
+                val encodedUserInfo = uri.encodedUserInfo ?: ""
+                val userParts = encodedUserInfo.split(":").map { android.net.Uri.decode(it) }
+                val userUuid = if (userParts.size > 1) userParts[0] else null
+                val callId = if (userParts.size > 1) userParts[1] else userParts.getOrNull(0) ?: ""
 
-                val pathParts = uri.path?.split("/")?.filter { it.isNotBlank() } ?: emptyList()
-                val fragment = uri.fragment ?: ""
-                val routeNames = fragment.split(",").map { it.trim() }.filter { it.isNotBlank() }
+                val encodedPath = uri.encodedPath ?: ""
+                val pathParts = encodedPath.split("/").filter { it.isNotBlank() }.map { android.net.Uri.decode(it) }
+                
+                val encodedFragment = uri.encodedFragment ?: ""
+                val routeNames = encodedFragment.split(",").map { android.net.Uri.decode(it) }
 
                 val type = uri.getQueryParameter("type") ?: "relay"
 
@@ -157,7 +165,7 @@ data class TurnableConfig(
                     val idx = index + 1
                     TurnableRoute(
                         routeId = routeId,
-                        name = routeNames.getOrNull(index) ?: routeId,
+                        name = routeNames.getOrNull(index)?.trim()?.takeIf { it.isNotBlank() } ?: routeId,
                         socket = uri.getQueryParameter("socket[$idx]")
                             ?: (if (index == 0) uri.getQueryParameter("socket") else null)
                             ?: "udp",
@@ -166,10 +174,14 @@ data class TurnableConfig(
                     )
                 }
 
+                val host = uri.host ?: ""
+                val port = uri.port
+                val platformId = if (port != -1) "$host:$port" else host
+
                 TurnableConfig(
-                    userUuid = userParts.getOrNull(0),
-                    callId = userParts.getOrNull(1) ?: "",
-                    platformId = uri.host ?: "",
+                    userUuid = userUuid,
+                    callId = callId,
+                    platformId = platformId,
                     username = uri.getQueryParameter("username") ?: "",
                     type = type,
                     encryption = uri.getQueryParameter("encryption"),
@@ -179,7 +191,7 @@ data class TurnableConfig(
                     gateway = uri.getQueryParameter("gateway") ?: "",
                     proto = uri.getQueryParameter("proto"),
                     routes = routes,
-                    selectedRouteId = routes.firstOrNull()?.routeId ?: ""
+                    selectedRouteId = uri.getQueryParameter("selected_route_id") ?: routes.firstOrNull()?.routeId ?: ""
                 )
             } catch (_: Exception) {
                 null
