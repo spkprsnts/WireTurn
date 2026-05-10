@@ -985,7 +985,9 @@ fun <T> SelectionBottomSheet(
                     },
                     shape = shape,
                     color = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 74.dp)
                 ) {
                     itemContent(item, selected)
                 }

@@ -148,7 +148,6 @@
     <string name="olcrtc_dns_label">DNS Server</string>
     <string name="olcrtc_carrier_label">Carrier</string>
     <string name="olcrtc_transport_label">Transport</string>
-    <string name="olcrtc_transport_desc">Listed from fastest to slowest channel</string>
     <string name="olcrtc_vp8_settings_title">VP8Channel Parameters</string>
     <string name="olcrtc_sei_settings_title">SEIChannel Parameters</string>
     <string name="olcrtc_video_settings_title">VideoChannel Parameters</string>
@@ -379,6 +378,5 @@
     <string name="profile_delete_desc">All settings for this profile will be deleted.</string>
     <string name="profile_select">Select</string>
     <string name="profile_selected_count">Selected: %1$d</string>
-    <string name="profile_delete_selected">Delete selected</string>
     <string name="profile_delete_selected_confirm">Delete %1$d selected profiles?</string>
 </resources>

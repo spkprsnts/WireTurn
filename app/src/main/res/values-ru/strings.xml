@@ -115,9 +115,8 @@
     <string name="olcrtc_client_id_label">ID клиента</string>
     <string name="olcrtc_key_label">Ключ авторизации</string>
     <string name="olcrtc_dns_label">DNS-сервер</string>
-    <string name="olcrtc_carrier_label">Платформа (Carrier)</string>
+    <string name="olcrtc_carrier_label">Платформа</string>
     <string name="olcrtc_transport_label">Транспорт</string>
-    <string name="olcrtc_transport_desc">Список отсортирован от самого быстрого к самому медленному каналу</string>
     <string name="olcrtc_vp8_settings_title">Параметры VP8Channel</string>
     <string name="olcrtc_sei_settings_title">Параметры SEIChannel</string>
     <string name="olcrtc_video_settings_title">Параметры VideoChannel</string>
@@ -335,6 +334,5 @@
     <string name="profile_delete_desc">Все настройки этого профиля будут удалены.</string>
     <string name="profile_select">Выбрать</string>
     <string name="profile_selected_count">Выбрано: %1$d</string>
-    <string name="profile_delete_selected">Удалить выбранные</string>
     <string name="profile_delete_selected_confirm">Удалить выбранные профили (%1$d)?</string>
 </resources>

@@ -1254,7 +1254,7 @@ fun RoutesDialog(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = route.name.ifBlank { route.routeId },
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
                     color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1
@@ -1283,7 +1283,6 @@ fun TransportDialog(
 
     SelectionBottomSheet(
         title = stringResource(R.string.olcrtc_transport_label),
-        description = stringResource(R.string.olcrtc_transport_desc),
         items = transports,
         isSelected = { it.first == currentTransport },
         onSelect = { onSelect(it.first) },
@@ -1293,9 +1292,18 @@ fun TransportDialog(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            StandardLeadingIcon {
+                Icon(
+                    painter = painterResource(R.drawable.route_24px),
+                    contentDescription = null,
+                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            Spacer(Modifier.width(20.dp))
             Text(
                 text = label,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
                 color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f)
