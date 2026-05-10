@@ -135,8 +135,6 @@
     <string name="proto_desc">Required for Relay type. SRTP is highly recommended</string>
     <string name="force_turn_label">Force TURN</string>
     <string name="force_turn_desc">Always use TURN server for connections (optional)</string>
-    <string name="turnable_qr_scan_desc">Point the camera at the Turnable configuration QR code to import</string>
-    <string name="olcrtc_qr_scan_desc">Point the camera at the olcrtc configuration QR code to import</string>
     <string name="history_label">History</string>
     <string name="kernel_label">Core</string>
     <string name="kernel_config_label">Parameter format</string>
@@ -278,7 +276,6 @@
     <string name="log_too_many_peer_failures">>>> TOO MANY PEER FAILURES — restarting</string>
     <string name="log_too_many_remote_not_ready">>>> TOO MANY \"REMOTE NOT READY\" — restarting</string>
     <string name="log_slow_network_watchdog">>>> SLOW NETWORK DETECTED — increasing watchdog delay</string>
-    <string name="error_too_many_peer_failures">Too many connection failures</string>
     <string name="error_invalid_turnable_url">Invalid Turnable link</string>
     <string name="error_turnable_failed">Turnable error: %1$s</string>
 
@@ -374,7 +371,6 @@
     <string name="profile_rename">Rename</string>
     <string name="profile_delete">Delete</string>
     <string name="profile_export">Export</string>
-    <string name="btn_export">Export</string>
     <string name="profile_export_all">Export all (zip)</string>
     <string name="profile_import">Import</string>
     <string name="profile_name_label">Profile name</string>

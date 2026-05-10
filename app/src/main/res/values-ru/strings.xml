@@ -106,8 +106,6 @@
     <string name="proto_desc">Необходим для типа Relay. Рекомендуется использовать SRTP</string>
     <string name="force_turn_label">Принудительный TURN</string>
     <string name="force_turn_desc">Всегда использовать TURN-сервер для соединений (опционально)</string>
-    <string name="turnable_qr_scan_desc">Наведите камеру на QR-код конфигурации Turnable для импорта</string>
-    <string name="olcrtc_qr_scan_desc">Наведите камеру на QR-код конфигурации olcrtc для импорта</string>
     <string name="history_label">История</string>
     <string name="kernel_label">Ядро</string>
     <string name="kernel_config_label">Формат параметров</string>
@@ -246,7 +244,6 @@
     <string name="log_too_many_peer_failures">>>> СЛИШКОМ МНОГО ОШИБОК ПОДКЛЮЧЕНИЯ — перезапуск</string>
     <string name="log_too_many_remote_not_ready">>>> СЛИШКОМ МНОГО "REMOTE NOT READY" — перезапуск</string>
     <string name="log_slow_network_watchdog">>>> МЕДЛЕННАЯ СЕТЬ — увеличение задержки перезапуска</string>
-    <string name="error_too_many_peer_failures">Слишком много ошибок подключения</string>
     <string name="error_invalid_turnable_url">Неверная ссылка Turnable</string>
     <string name="error_turnable_failed">Ошибка Turnable: %1$s</string>
 
@@ -330,7 +327,6 @@
     <string name="profile_rename">Переименовать</string>
     <string name="profile_delete">Удалить</string>
     <string name="profile_export">Экспортировать</string>
-    <string name="btn_export">Экспорт</string>
     <string name="profile_export_all">Экспортировать всё (zip)</string>
     <string name="profile_import">Импортировать</string>
     <string name="profile_name_label">Название профиля</string>
