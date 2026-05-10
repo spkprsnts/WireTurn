@@ -833,7 +833,13 @@ fun HistoryIconButton(
         }
         DropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false }
+            onDismissRequest = { expanded = false },
+            offset = androidx.compose.ui.unit.DpOffset(0.dp, (-12).dp),
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            shadowElevation = 4.dp,
+            tonalElevation = 4.dp,
+            shape = MaterialTheme.shapes.medium,
+            properties = androidx.compose.ui.window.PopupProperties(focusable = true)
         ) {
             history.forEach { historyItem ->
                 DropdownMenuItem(

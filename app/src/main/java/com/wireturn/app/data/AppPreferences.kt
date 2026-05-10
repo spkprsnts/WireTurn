@@ -675,6 +675,7 @@ class AppPreferences(context: Context) {
         val VPN_HIDE_SYSTEM_APPS = booleanPreferencesKey("vpn_hide_system_apps")
         val VPN_BYPASS_MODE = booleanPreferencesKey("vpn_bypass_mode")
         val VPN_FILTERING_ENABLED = booleanPreferencesKey("vpn_filtering_enabled")
+        val VPN_GROUP_APPS_BY_LETTER = booleanPreferencesKey("vpn_group_apps_by_letter")
         val XRAY_EXCLUDED_APPS = stringSetPreferencesKey("proxy_excluded_apps")
         val WIRE_PRIV_KEY = stringPreferencesKey("wire_priv_key")
         val WIRE_ADDRESS = stringPreferencesKey("wire_address")
@@ -798,7 +799,8 @@ class AppPreferences(context: Context) {
             GlobalVpnSettings(
                 hideSystemApps = prefs[VPN_HIDE_SYSTEM_APPS] ?: true,
                 bypassMode = prefs[VPN_BYPASS_MODE] ?: true,
-                filteringEnabled = prefs[VPN_FILTERING_ENABLED] ?: true
+                filteringEnabled = prefs[VPN_FILTERING_ENABLED] ?: true,
+                groupAppsByLetter = prefs[VPN_GROUP_APPS_BY_LETTER] ?: true
             )
         }
         .distinctUntilChanged()
@@ -1039,6 +1041,7 @@ class AppPreferences(context: Context) {
             prefs[VPN_HIDE_SYSTEM_APPS] = settings.hideSystemApps
             prefs[VPN_BYPASS_MODE] = settings.bypassMode
             prefs[VPN_FILTERING_ENABLED] = settings.filteringEnabled
+            prefs[VPN_GROUP_APPS_BY_LETTER] = settings.groupAppsByLetter
         }
     }
 

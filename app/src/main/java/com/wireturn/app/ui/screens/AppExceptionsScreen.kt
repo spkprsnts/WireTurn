@@ -18,9 +18,11 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
@@ -31,21 +33,20 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -60,9 +61,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -609,126 +610,132 @@ fun AppExceptionsScreen(
                             }
                             DropdownMenu(
                                 expanded = showMenu,
-                                onDismissRequest = { showMenu = false }
+                                onDismissRequest = { showMenu = false },
+                                modifier = Modifier.widthIn(min = 240.dp),
+                                offset = androidx.compose.ui.unit.DpOffset(12.dp, (-16).dp),
+                                containerColor = Color.Transparent,
+                                shadowElevation = 0.dp,
+                                tonalElevation = 0.dp,
+                                shape = RectangleShape,
+                                properties = androidx.compose.ui.window.PopupProperties(
+                                    focusable = true
+                                )
                             ) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.filtering_enabled)) },
-                                    trailingIcon = {
-                                        Switch(
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    DropdownMenuGroup(
+                                        shapes = MenuDefaults.groupShape(0, 3),
+                                        shadowElevation = 4.dp,
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                                    ) {
+                                        DropdownMenuItem(
                                             checked = globalVpn.filteringEnabled,
-                                            onCheckedChange = null,
-                                            modifier = Modifier.scale(0.8f)
+                                            onCheckedChange = {
+                                                viewModel.updateGlobalVpnSettings(
+                                                    globalVpn.copy(filteringEnabled = it)
+                                                )
+                                            },
+                                            text = { Text(stringResource(R.string.filtering_enabled)) },
+                                            shapes = MenuDefaults.itemShape(0, 2)
                                         )
-                                    },
-                                    onClick = {
-                                        viewModel.updateGlobalVpnSettings(
-                                            globalVpn.copy(
-                                                filteringEnabled = !globalVpn.filteringEnabled
-                                            )
-                                        )
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = {
-                                        Column {
-                                            Text(stringResource(R.string.bypass_mode))
-                                            Text(
-                                                text = if (globalVpn.bypassMode) "Выбранные идут напрямую"
-                                                else "Только выбранные через VPN",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                    },
-                                    trailingIcon = {
-                                        Switch(
+                                        DropdownMenuItem(
                                             checked = globalVpn.bypassMode,
-                                            onCheckedChange = null,
-                                            modifier = Modifier.scale(0.8f)
-                                        )
-                                    },
-                                    onClick = {
-                                        viewModel.updateGlobalVpnSettings(
-                                            globalVpn.copy(
-                                                bypassMode = !globalVpn.bypassMode
-                                            )
+                                            onCheckedChange = {
+                                                viewModel.updateGlobalVpnSettings(
+                                                    globalVpn.copy(bypassMode = it)
+                                                )
+                                            },
+                                            text = { Text(stringResource(R.string.bypass_mode)) },
+                                            supportingText = {
+                                                Text(
+                                                    text = if (globalVpn.bypassMode) "Выбранные идут напрямую"
+                                                    else "Только выбранные через VPN",
+                                                )
+                                            },
+                                            shapes = MenuDefaults.itemShape(1, 2)
                                         )
                                     }
-                                )
-                                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.clear_list)) },
-                                    leadingIcon = {
-                                        Icon(
-                                            painterResource(R.drawable.delete_24px),
-                                            contentDescription = null
+
+                                    Spacer(Modifier.height(MenuDefaults.GroupSpacing))
+
+                                    DropdownMenuGroup(
+                                        shapes = MenuDefaults.groupShape(1, 3),
+                                        shadowElevation = 4.dp,
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                                    ) {
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(R.string.clear_list)) },
+                                            leadingIcon = {
+                                                Icon(
+                                                    painterResource(R.drawable.delete_24px),
+                                                    contentDescription = null
+                                                )
+                                            },
+                                            onClick = {
+                                                showMenu = false
+                                                viewModel.saveExcludedApps(emptySet())
+                                                sortSnapshot = emptySet()
+                                            },
+                                            shape = MenuDefaults.itemShape(0, 3).shape
                                         )
-                                    },
-                                    onClick = {
-                                        showMenu = false
-                                        viewModel.saveExcludedApps(emptySet())
-                                        sortSnapshot = emptySet()
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.copy_list)) },
-                                    leadingIcon = {
-                                        Icon(
-                                            painterResource(R.drawable.content_copy_24px),
-                                            contentDescription = null
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(R.string.copy_list)) },
+                                            leadingIcon = {
+                                                Icon(
+                                                    painterResource(R.drawable.content_copy_24px),
+                                                    contentDescription = null
+                                                )
+                                            },
+                                            onClick = {
+                                                showMenu = false
+                                                onExportToClipboard()
+                                            },
+                                            shape = MenuDefaults.itemShape(1, 3).shape
                                         )
-                                    },
-                                    onClick = {
-                                        showMenu = false
-                                        onExportToClipboard()
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.import_from_clipboard)) },
-                                    leadingIcon = {
-                                        Icon(
-                                            painterResource(R.drawable.content_paste_24px),
-                                            contentDescription = null
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(R.string.import_from_clipboard)) },
+                                            leadingIcon = {
+                                                Icon(
+                                                    painterResource(R.drawable.content_paste_24px),
+                                                    contentDescription = null
+                                                )
+                                            },
+                                            onClick = {
+                                                showMenu = false
+                                                onImportFromClipboard()
+                                            },
+                                            shape = MenuDefaults.itemShape(2, 3).shape
                                         )
-                                    },
-                                    onClick = {
-                                        showMenu = false
-                                        onImportFromClipboard()
                                     }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.group_apps_by_letter)) },
-                                    trailingIcon = {
-                                        Checkbox(
+
+                                    Spacer(Modifier.height(MenuDefaults.GroupSpacing))
+
+                                    DropdownMenuGroup(
+                                        shapes = MenuDefaults.groupShape(2, 3),
+                                        shadowElevation = 4.dp,
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                                    ) {
+                                        DropdownMenuItem(
                                             checked = globalVpn.groupAppsByLetter,
-                                            onCheckedChange = null
+                                            onCheckedChange = {
+                                                viewModel.updateGlobalVpnSettings(
+                                                    globalVpn.copy(groupAppsByLetter = it)
+                                                )
+                                            },
+                                            text = { Text(stringResource(R.string.group_apps_by_letter)) },
+                                            shapes = MenuDefaults.itemShape(0, 2)
                                         )
-                                    },
-                                    onClick = {
-                                        viewModel.updateGlobalVpnSettings(
-                                            globalVpn.copy(
-                                                groupAppsByLetter = !globalVpn.groupAppsByLetter
-                                            )
-                                        )
-                                    }
-                                )
-                                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.hide_system_apps)) },
-                                    trailingIcon = {
-                                        Checkbox(
+                                        DropdownMenuItem(
                                             checked = globalVpn.hideSystemApps,
-                                            onCheckedChange = null
-                                        )
-                                    },
-                                    onClick = {
-                                        viewModel.updateGlobalVpnSettings(
-                                            globalVpn.copy(
-                                                hideSystemApps = !globalVpn.hideSystemApps
-                                            )
+                                            onCheckedChange = {
+                                                viewModel.updateGlobalVpnSettings(
+                                                    globalVpn.copy(hideSystemApps = it)
+                                                )
+                                            },
+                                            text = { Text(stringResource(R.string.hide_system_apps)) },
+                                            shapes = MenuDefaults.itemShape(1, 2)
                                         )
                                     }
-                                )
+                                }
                             }
                         }
                     },
