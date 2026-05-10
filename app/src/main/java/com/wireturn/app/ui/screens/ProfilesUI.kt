@@ -275,34 +275,34 @@ fun ProfilesDialog(
     val selectedIds = remember { mutableStateListOf<String>() }
     val isSelectionMode = selectedIds.isNotEmpty()
 
-    var jsonToExport by remember { mutableStateOf<String?>(null) }
+    val jsonToExport = remember { mutableStateOf<String?>(null) }
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
         uri?.let { destination ->
-            jsonToExport?.let { json ->
+            jsonToExport.value?.let { json ->
                 try {
                     context.contentResolver.openOutputStream(destination)?.use {
                         it.write(json.toByteArray())
                     }
                 } catch (_: Exception) { }
-                jsonToExport = null
+                jsonToExport.value = null
             }
         }
     }
 
-    var zipToExport by remember { mutableStateOf<ByteArray?>(null) }
+    val zipToExport = remember { mutableStateOf<ByteArray?>(null) }
     val zipExportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/zip")
     ) { uri ->
         uri?.let { destination ->
-            zipToExport?.let { bytes ->
+            zipToExport.value?.let { bytes ->
                 try {
                     context.contentResolver.openOutputStream(destination)?.use {
                         it.write(bytes)
                     }
                 } catch (_: Exception) { }
-                zipToExport = null
+                zipToExport.value = null
             }
         }
     }
@@ -460,7 +460,7 @@ fun ProfilesDialog(
                         if (isSelectionMode) {
                             IconButton(onClick = {
                                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                zipToExport = viewModel.exportProfilesToZip(selectedIds.toList())
+                                zipToExport.value = viewModel.exportProfilesToZip(selectedIds.toList())
                                 zipExportLauncher.launch("wt_profiles_selected.zip")
                             }) {
                                 Icon(
@@ -499,7 +499,7 @@ fun ProfilesDialog(
                         } else {
                             IconButton(onClick = {
                                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                zipToExport = viewModel.exportAllProfilesToZip()
+                                zipToExport.value = viewModel.exportAllProfilesToZip()
                                 zipExportLauncher.launch("wt_profiles_backup.zip")
                             }) {
                                 Icon(
@@ -755,7 +755,7 @@ fun ProfilesDialog(
                                                 menuExpanded = false
                                                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                                 viewModel.getProfileJson(profile.id)?.let { json ->
-                                                    jsonToExport = json
+                                                    jsonToExport.value = json
                                                     val safeName = profile.name.replace(Regex("[\\\\/:*?\"<>| ]"), "_")
                                                     exportLauncher.launch("wt_$safeName.json")
                                                 }
