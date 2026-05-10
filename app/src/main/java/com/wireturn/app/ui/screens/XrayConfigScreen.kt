@@ -67,6 +67,7 @@ import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.redact
+import com.wireturn.app.ui.showExclusiveSnackbar
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -200,14 +201,20 @@ fun XrayConfigScreen(
                         val parsed = WgConfig.parse(text)
                         if (parsed.isValid()) {
                             viewModel.updateWgConfigText(text)
-                            scope.launch { snackbarHostState.showSnackbar(importSuccessMessage) }
+                            scope.launch { 
+                                snackbarHostState.showExclusiveSnackbar(importSuccessMessage) 
+                            }
                         } else {
-                            scope.launch { snackbarHostState.showSnackbar(importErrorMessage) }
+                            scope.launch { 
+                                snackbarHostState.showExclusiveSnackbar(importErrorMessage) 
+                            }
                         }
                     }
                 } catch (e: Exception) {
                     val fullError = errorWithDetailsFormat.format(importErrorMessage, e.message ?: "")
-                    scope.launch { snackbarHostState.showSnackbar(fullError) }
+                    scope.launch { 
+                        snackbarHostState.showExclusiveSnackbar(fullError) 
+                    }
                 }
             }
         }
@@ -384,9 +391,9 @@ fun XrayConfigScreen(
                                     val parsed = WgConfig.parse(text)
                                     if (parsed.isValid()) {
                                         viewModel.updateWgConfigText(text)
-                                        snackbarHostState.showSnackbar(importSuccessMessage)
+                                        snackbarHostState.showExclusiveSnackbar(importSuccessMessage)
                                     } else {
-                                        snackbarHostState.showSnackbar(importErrorMessage)
+                                        snackbarHostState.showExclusiveSnackbar(importErrorMessage)
                                     }
                                 }
                             }
@@ -454,9 +461,13 @@ fun XrayConfigScreen(
                 val parsed = WgConfig.parse(result)
                 if (parsed.isValid()) {
                     viewModel.updateWgConfigText(result)
-                    scope.launch { snackbarHostState.showSnackbar(importSuccessMessage) }
+                    scope.launch { 
+                        snackbarHostState.showExclusiveSnackbar(importSuccessMessage) 
+                    }
                 } else {
-                    scope.launch { snackbarHostState.showSnackbar(importErrorMessage) }
+                    scope.launch { 
+                        snackbarHostState.showExclusiveSnackbar(importErrorMessage) 
+                    }
                 }
             }
         )
@@ -470,9 +481,13 @@ fun XrayConfigScreen(
             onResult = { result ->
                 if (ValidatorUtils.isValidVlessLink(result)) {
                     vlessLink = result
-                    scope.launch { snackbarHostState.showSnackbar(importSuccessMessage) }
+                    scope.launch { 
+                        snackbarHostState.showExclusiveSnackbar(importSuccessMessage) 
+                    }
                 } else {
-                    scope.launch { snackbarHostState.showSnackbar(importErrorMessage) }
+                    scope.launch { 
+                        snackbarHostState.showExclusiveSnackbar(importErrorMessage) 
+                    }
                 }
             }
         )
@@ -488,13 +503,19 @@ fun XrayConfigScreen(
                 if (wgParsed.isValid()) {
                     xrayConfiguration = XrayConfiguration.WIREGUARD
                     viewModel.updateWgConfigText(result)
-                    scope.launch { snackbarHostState.showSnackbar(importSuccessMessage) }
+                    scope.launch { 
+                        snackbarHostState.showExclusiveSnackbar(importSuccessMessage) 
+                    }
                 } else if (ValidatorUtils.isValidVlessLink(result)) {
                     xrayConfiguration = XrayConfiguration.VLESS
                     vlessLink = result
-                    scope.launch { snackbarHostState.showSnackbar(importSuccessMessage) }
+                    scope.launch { 
+                        snackbarHostState.showExclusiveSnackbar(importSuccessMessage) 
+                    }
                 } else {
-                    scope.launch { snackbarHostState.showSnackbar(importErrorMessage) }
+                    scope.launch { 
+                        snackbarHostState.showExclusiveSnackbar(importErrorMessage)
+                    }
                 }
             }
         )

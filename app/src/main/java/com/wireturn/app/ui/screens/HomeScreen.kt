@@ -123,6 +123,7 @@ import com.wireturn.app.ui.AppExclusionTooltip
 import com.wireturn.app.ui.VerticalAnimatedText
 import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.ui.StandardLeadingIcon
+import com.wireturn.app.ui.showExclusiveSnackbar
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.ProxyState
 import androidx.core.net.toUri
@@ -450,8 +451,7 @@ fun HomeScreen(
 
     val showVpnWarning = {
         scope.launch {
-            snackbarHostState.currentSnackbarData?.dismiss()
-            snackbarHostState.showSnackbar(warnVpnRequiresXray)
+            snackbarHostState.showExclusiveSnackbar(warnVpnRequiresXray)
         }
     }
 

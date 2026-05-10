@@ -86,6 +86,7 @@ import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.SectionHeader
 import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.ui.SwitchRow
+import com.wireturn.app.ui.showExclusiveSnackbar
 import com.wireturn.app.ui.theme.LocalIsDark
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.Dispatchers
@@ -292,11 +293,11 @@ fun AppExceptionsScreen(
                         
                         listState.animateScrollToItem(0)
                         isAppsLoading = false
-                        snackbarHostState.showSnackbar(
+                        snackbarHostState.showExclusiveSnackbar(
                             appsImportedFormat.format(newlyAdded.size)
                         )
                     } else {
-                        snackbarHostState.showSnackbar(noAppsMsg)
+                        snackbarHostState.showExclusiveSnackbar(noAppsMsg)
                     }
                 }
             }
@@ -310,7 +311,7 @@ fun AppExceptionsScreen(
             try {
                 val clipData = android.content.ClipData.newPlainText("WireTurn Apps", text)
                 clipboard.setClipEntry(ClipEntry(clipData))
-                snackbarHostState.showSnackbar(listCopiedMsg)
+                snackbarHostState.showExclusiveSnackbar(listCopiedMsg)
             } catch (_: Exception) { }
         }
     }

@@ -76,6 +76,7 @@ import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.redact
+import com.wireturn.app.ui.showExclusiveSnackbar
 import com.wireturn.app.viewmodel.MainViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -217,7 +218,7 @@ fun ClientConfigScreen(
                                 clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("config", uri)))
                                 HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
                                 isCopied = true
-                                snackbarHostState.showSnackbar(copySuccessMessage)
+                                snackbarHostState.showExclusiveSnackbar(copySuccessMessage)
                             }
                         },
                         enabled = canCopy
@@ -376,9 +377,9 @@ fun ClientConfigScreen(
                                                     val parsed = TurnableConfig.parse(text)
                                                     if (parsed != null) {
                                                         turnableConfig = parsed
-                                                        snackbarHostState.showSnackbar(importSuccessMessage)
+                                                        snackbarHostState.showExclusiveSnackbar(importSuccessMessage)
                                                     } else {
-                                                        snackbarHostState.showSnackbar(importErrorMessage)
+                                                        snackbarHostState.showExclusiveSnackbar(importErrorMessage)
                                                     }
                                                 }
                                             }
@@ -409,9 +410,9 @@ fun ClientConfigScreen(
                                                     val parsed = com.wireturn.app.data.OlcrtcConfig.parse(text)
                                                     if (parsed != null) {
                                                         olcrtcConfig = parsed
-                                                        snackbarHostState.showSnackbar(importSuccessMessage)
+                                                        snackbarHostState.showExclusiveSnackbar(importSuccessMessage)
                                                     } else {
-                                                        snackbarHostState.showSnackbar(importErrorMessage)
+                                                        snackbarHostState.showExclusiveSnackbar(importErrorMessage)
                                                     }
                                                 }
                                             }
@@ -1109,13 +1110,19 @@ fun ClientConfigScreen(
                 if (turnableParsed != null) {
                     kernelVariant = KernelVariant.TURNABLE
                     turnableConfig = turnableParsed
-                    scope.launch { snackbarHostState.showSnackbar(importSuccessMessage) }
+                    scope.launch { 
+                        snackbarHostState.showExclusiveSnackbar(importSuccessMessage) 
+                    }
                 } else if (olcrtcParsed != null) {
                     kernelVariant = KernelVariant.OLCRTC
                     olcrtcConfig = olcrtcParsed
-                    scope.launch { snackbarHostState.showSnackbar(importSuccessMessage) }
+                    scope.launch { 
+                        snackbarHostState.showExclusiveSnackbar(importSuccessMessage) 
+                    }
                 } else {
-                    scope.launch { snackbarHostState.showSnackbar(importErrorMessage) }
+                    scope.launch { 
+                        snackbarHostState.showExclusiveSnackbar(importErrorMessage)
+                    }
                 }
             }
         )
