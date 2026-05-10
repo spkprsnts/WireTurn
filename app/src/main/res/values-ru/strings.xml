@@ -36,6 +36,7 @@
     <string name="android_client">Android-клиент</string>
     <string name="android_client_original">Android-клиент (оригинал)</string>
     <string name="turnable_core">Ядро туннеля (Turnable)</string>
+    <string name="olcrtc_core">Ядро туннеля (olcrtc)</string>
     <!-- Кнопки и общие действия -->
     <string name="btn_open">Открыть</string>
     <string name="btn_start">Запустить</string>

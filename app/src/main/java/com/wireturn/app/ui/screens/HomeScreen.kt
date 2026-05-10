@@ -1663,6 +1663,17 @@ private fun RepoLinksContent(
 
             item {
                 RepoLinkItem(
+                    title = stringResource(R.string.olcrtc_core),
+                    subtitle = "openlibrecommunity/olcrtc",
+                    url = "https://github.com/openlibrecommunity/olcrtc",
+                    containerColor = containerColor,
+                    onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
+                    onOpen = { uriHandler.openUri(it) }
+                )
+            }
+
+            item {
+                RepoLinkItem(
                     title = stringResource(R.string.xray_core_name),
                     subtitle = "spkprsnts/vless-client",
                     url = "https://github.com/spkprsnts/vless-client",
