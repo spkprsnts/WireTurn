@@ -615,25 +615,6 @@ fun ClientConfigScreen(
                                             }
                                         }
                                     }
-                                    // Encryption
-                                    SettingsGroupItem(
-                                        isTop = false,
-                                        isBottom = false,
-                                        containerColor = blockContainerColor
-                                    ) {
-                                        TextFieldRow(
-                                            label = stringResource(R.string.encryption_label),
-                                            value = (turnableConfig.encryption ?: "").redact(privacyMode),
-                                            onValueChange = {
-                                                if (!privacyMode) turnableConfig =
-                                                    turnableConfig.copy(encryption = it)
-                                            },
-                                            isError = turnableConfig.type == "relay" && turnableConfig.encryption.isNullOrBlank(),
-                                            readOnly = privacyMode,
-                                            supportingText = stringResource(R.string.encryption_desc),
-                                            isModified = clientConfigSnapshot != null && turnableConfig.encryption != clientConfigSnapshot?.turnableConfig?.encryption
-                                        )
-                                    }
                                     // Public Key
                                     SettingsGroupItem(
                                         isTop = false,
@@ -652,6 +633,35 @@ fun ClientConfigScreen(
                                             supportingText = stringResource(R.string.pub_key_desc),
                                             isModified = clientConfigSnapshot != null && turnableConfig.pubKey != clientConfigSnapshot?.turnableConfig?.pubKey
                                         )
+                                    }
+                                    // Encryption
+                                    SettingsGroupItem(
+                                        isTop = false,
+                                        isBottom = false,
+                                        containerColor = blockContainerColor
+                                    ) {
+                                        LabeledButtonGroup(
+                                            label = stringResource(R.string.encryption_label),
+                                            supportingText = stringResource(R.string.encryption_desc),
+                                            isModified = clientConfigSnapshot != null && turnableConfig.encryption != clientConfigSnapshot?.turnableConfig?.encryption
+                                        ) {
+                                            val options = listOf("handshake", "full")
+                                            options.forEachIndexed { index, e ->
+                                                configButtonGroupItem(
+                                                    selected = turnableConfig.encryption == e,
+                                                    onSelect = {
+                                                        if (!privacyMode) {
+                                                            HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
+                                                            turnableConfig = turnableConfig.copy(encryption = e)
+                                                        }
+                                                    },
+                                                    label = e.replaceFirstChar { it.uppercase() },
+                                                    enabled = !privacyMode,
+                                                    index = index,
+                                                    count = options.size
+                                                )
+                                            }
+                                        }
                                     }
                                     // Gateway
                                     SettingsGroupItem(
