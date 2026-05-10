@@ -54,6 +54,7 @@ import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLocale
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -100,6 +101,7 @@ fun ClientConfigScreen(
 
     val context = LocalContext.current
     val clipboard = LocalClipboard.current
+    val uriHandler = LocalUriHandler.current
 
     val kernelPickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -115,6 +117,7 @@ fun ClientConfigScreen(
     
     val showPortHelp = remember { mutableStateOf(false) }
     val showOlcrtcHelp = remember { mutableStateOf(false) }
+    val showKernelHelp = remember { mutableStateOf(false) }
     val showRoutesDialog = remember { mutableStateOf(false) }
     val showQrScanner = remember { mutableStateOf(false) }
     val showTransportDialog = remember { mutableStateOf(false) }
@@ -294,7 +297,8 @@ fun ClientConfigScreen(
                             LabeledSegmentedButton(
                                 label = stringResource(R.string.kernel_label),
                                 supportingText = stringResource(R.string.client_variants_desc),
-                                isModified = clientConfigSnapshot != null && kernelVariant != clientConfigSnapshot?.kernelVariant
+                                isModified = clientConfigSnapshot != null && kernelVariant != clientConfigSnapshot?.kernelVariant,
+                                onHelpClick = { showKernelHelp.value = true }
                             ) {
                                 KernelVariant.entries.forEachIndexed { index, variant ->
                                     SegmentedButton(
@@ -320,7 +324,8 @@ fun ClientConfigScreen(
                         LabeledSegmentedButton(
                             label = if (customKernelExists) stringResource(R.string.kernel_config_label) else stringResource(R.string.kernel_label),
                             supportingText = if (customKernelExists) stringResource(R.string.kernel_config_desc) else stringResource(R.string.client_variants_desc),
-                            isModified = clientConfigSnapshot != null && kernelVariant != clientConfigSnapshot?.kernelVariant
+                            isModified = clientConfigSnapshot != null && kernelVariant != clientConfigSnapshot?.kernelVariant,
+                            onHelpClick = { showKernelHelp.value = true }
                         ) {
                             KernelVariant.entries.forEachIndexed { index, variant ->
                                 SegmentedButton(
@@ -1139,6 +1144,62 @@ fun ClientConfigScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showOlcrtcHelp.value = false }) {
+                    Text(stringResource(R.string.btn_close))
+                }
+            }
+        )
+    }
+
+    if (showKernelHelp.value) {
+        val appVersion = remember {
+            try {
+                val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                packageInfo.versionName ?: ""
+            } catch (_: Exception) {
+                ""
+            }
+        }
+        val branch = if (appVersion.contains("unstable", ignoreCase = true)) "unstable" else "main"
+        val turnableGuideUrl = "https://github.com/spkprsnts/WireTurn/blob/$branch/docs/guides/turnable.md"
+        val olcrtcGuideUrl = "https://github.com/spkprsnts/WireTurn/blob/$branch/docs/guides/olcrtc.md"
+
+        AlertDialog(
+            onDismissRequest = { showKernelHelp.value = false },
+            title = { Text(stringResource(R.string.kernel_help_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(
+                        onClick = { uriHandler.openUri(turnableGuideUrl) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Start
+                        ) {
+                            Icon(painterResource(R.drawable.open_in_new_24px), contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Text(stringResource(R.string.kernel_help_turnable_guide), style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
+                    TextButton(
+                        onClick = { uriHandler.openUri(olcrtcGuideUrl) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Start
+                        ) {
+                            Icon(painterResource(R.drawable.open_in_new_24px), contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Text(stringResource(R.string.kernel_help_olcrtc_guide), style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showKernelHelp.value = false }) {
                     Text(stringResource(R.string.btn_close))
                 }
             }

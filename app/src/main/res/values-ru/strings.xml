@@ -107,6 +107,9 @@
     <string name="force_turn_label">Принудительный TURN</string>
     <string name="force_turn_desc">Всегда использовать TURN-сервер для соединений (опционально)</string>
     <string name="history_label">История</string>
+    <string name="kernel_help_title">Гайды по ядрам</string>
+    <string name="kernel_help_turnable_guide">Гайд по созданию сервера Turnable</string>
+    <string name="kernel_help_olcrtc_guide">Гайд по созданию сервера olcrtc</string>
     <string name="kernel_label">Ядро</string>
     <string name="kernel_config_label">Формат параметров</string>
     <string name="kernel_config_desc">Выберите структуру аргументов для кастомного ядра</string>

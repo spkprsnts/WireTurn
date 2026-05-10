@@ -139,6 +139,9 @@
     <string name="kernel_label">Core</string>
     <string name="kernel_config_label">Parameter format</string>
     <string name="kernel_config_desc">Select argument structure for custom core</string>
+    <string name="kernel_help_title">Core guides</string>
+    <string name="kernel_help_turnable_guide">Turnable server setup guide</string>
+    <string name="kernel_help_olcrtc_guide">olcrtc server setup guide</string>
     <string name="kernel_turnable" translatable="false">Turnable</string>
     <string name="kernel_olcrtc" translatable="false">olcrtc</string>
     <string name="olcrtc_settings_title">olcrtc Parameters</string>

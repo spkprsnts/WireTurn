@@ -381,12 +381,12 @@ fun SliderRow(
         Text(
             text = it.roundToInt().toString(),
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
     }
 ) {
     val showDialog = remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     if (showDialog.value) {
         var textValue by remember { mutableStateOf(value.roundToInt().toString()) }
@@ -441,12 +441,27 @@ fun SliderRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             ConfigRowLabel(text = label, isModified = isModified, modifier = Modifier.weight(1f))
-            Box(
-                modifier = Modifier
-                    .clickable { showDialog.value = true }
-                    .padding(8.dp)
+            Surface(
+                onClick = {
+                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                    showDialog.value = true
+                },
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
-                valueDisplay(value)
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    valueDisplay(value)
+                    Icon(
+                        painter = painterResource(R.drawable.edit_24px),
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                    )
+                }
             }
         }
         Slider(
@@ -456,7 +471,7 @@ fun SliderRow(
             steps = steps,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 8.dp)
+                .padding(bottom = 8.dp)
         )
         SupportingText(text = supportingText)
     }
@@ -468,10 +483,39 @@ fun LabeledSegmentedButton(
     modifier: Modifier = Modifier,
     supportingText: String? = null,
     isModified: Boolean = false,
+    onHelpClick: (() -> Unit)? = null,
     content: @Composable SingleChoiceSegmentedButtonRowScope.() -> Unit
 ) {
+    val context = LocalContext.current
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        ConfigRowLabel(text = label, isModified = isModified)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            ConfigRowLabel(
+                text = label,
+                isModified = isModified,
+                modifier = Modifier.weight(1f, fill = false)
+            )
+
+            if (onHelpClick != null) {
+                IconButton(
+                    onClick = {
+                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                        onHelpClick()
+                    },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.info_24px),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+        }
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth(), content = content)
         SupportingText(text = supportingText)
     }
@@ -563,6 +607,7 @@ fun TextFieldRow(
     isModified: Boolean = false,
     onHelpClick: (() -> Unit)? = null
 ) {
+    val context = LocalContext.current
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -577,14 +622,17 @@ fun TextFieldRow(
 
             if (onHelpClick != null) {
                 IconButton(
-                    onClick = onHelpClick,
+                    onClick = {
+                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                        onHelpClick()
+                    },
                     modifier = Modifier.size(24.dp)
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.info_24px),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
