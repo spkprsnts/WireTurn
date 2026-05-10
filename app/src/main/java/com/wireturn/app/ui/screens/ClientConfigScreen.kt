@@ -66,6 +66,7 @@ import com.wireturn.app.ui.ConfigRowLabel
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ImportButton
 import com.wireturn.app.ui.LabeledButtonGroup
+import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.configButtonGroupItem
 import com.wireturn.app.ui.SelectionDialog
 import com.wireturn.app.ui.SettingsGroup
@@ -766,15 +767,14 @@ fun ClientConfigScreen(
                                         modifier = Modifier.fillMaxWidth(),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        StandardLeadingIcon {
+                                        LargeLeadingIcon {
                                             Icon(
                                                 painter = painterResource(R.drawable.route_24px),
                                                 contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(24.dp)
+                                                modifier = Modifier.size(32.dp),
+                                                tint = MaterialTheme.colorScheme.primary
                                             )
                                         }
-                                        Spacer(Modifier.width(20.dp))
                                         Column(modifier = Modifier.weight(1f)) {
                                             ConfigRowLabel(stringResource(R.string.olcrtc_transport_label))
                                             val currentLabel = when (olcrtcConfig.transport) {
@@ -1014,13 +1014,13 @@ fun ClientConfigScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp), modifier = Modifier.weight(1f)) {
-                            StandardLeadingIcon {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                            LargeLeadingIcon {
                                 Icon(
                                     painter = painterResource(if (customKernelExists) R.drawable.check_circle_24px else R.drawable.memory_24px),
                                     contentDescription = null,
-                                    tint = if (customKernelExists) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(32.dp),
+                                    tint = if (customKernelExists) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -1050,13 +1050,13 @@ fun ClientConfigScreen(
                 }
                 if (kernelError != null) {
                     SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                            StandardLeadingIcon {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            LargeLeadingIcon {
                                 Icon(
                                     painter = painterResource(R.drawable.error_24px),
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(32.dp),
+                                    tint = MaterialTheme.colorScheme.error
                                 )
                             }
                             SupportingText(kernelError!!, color = MaterialTheme.colorScheme.error)
@@ -1273,15 +1273,14 @@ fun RoutesBlock(
             modifier = modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            StandardLeadingIcon {
+            LargeLeadingIcon {
                 Icon(
                     painter = painterResource(R.drawable.route_24px),
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
-            Spacer(Modifier.width(20.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -1321,11 +1320,9 @@ fun RoutesDialog(
                 Icon(
                     painter = painterResource(R.drawable.route_24px),
                     contentDescription = null,
-                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier.size(24.dp)
+                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )
             }
-            Spacer(Modifier.width(20.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = route.name.ifBlank { route.routeId },
@@ -1371,11 +1368,9 @@ fun TransportDialog(
                 Icon(
                     painter = painterResource(R.drawable.route_24px),
                     contentDescription = null,
-                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier.size(24.dp)
+                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )
             }
-            Spacer(Modifier.width(20.dp))
             Text(
                 text = label,
                 style = MaterialTheme.typography.titleMedium,

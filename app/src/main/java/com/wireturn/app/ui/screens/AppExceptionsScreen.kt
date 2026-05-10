@@ -95,7 +95,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private object AppExceptionsDefaults {
-    val IconSize = 40.dp
+    val IconSize = 32.dp
 }
 
 data class AppInfo(
@@ -834,6 +834,7 @@ private fun AppListItem(
             checked = isExcluded,
             onCheckedChange = { }, // Обрабатывается родителем (SettingsGroupItem)
             supportingText = app.packageName,
+            useLargeIcon = true,
             leadingIcon = {
                 if (iconBitmap != null) {
                     Image(

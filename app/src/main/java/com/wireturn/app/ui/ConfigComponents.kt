@@ -274,16 +274,34 @@ fun SettingsGroup(
 
 @Composable
 fun StandardLeadingIcon(
+    modifier: Modifier = Modifier,
+    size: Dp = 24.dp,
+    paddingStart: Dp = 8.dp,
+    paddingEnd: Dp = 20.dp,
     content: @Composable () -> Unit
 ) {
     Box(
-        modifier = Modifier
-            .padding(start = 8.dp)
-            .size(24.dp),
+        modifier = modifier
+            .padding(start = paddingStart, end = paddingEnd)
+            .size(size),
         contentAlignment = Alignment.Center
     ) {
         content()
     }
+}
+
+@Composable
+fun LargeLeadingIcon(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    StandardLeadingIcon(
+        modifier = modifier,
+        size = 40.dp,
+        paddingStart = 0.dp,
+        paddingEnd = 12.dp,
+        content = content
+    )
 }
 
 @Composable
@@ -607,6 +625,8 @@ fun SwitchRow(
     isModified: Boolean = false,
     enabled: Boolean = true,
     leadingIcon: @Composable (() -> Unit)? = null,
+    leadingIconSize: Dp = 24.dp,
+    useLargeIcon: Boolean = false,
     trailingContent: @Composable (RowScope.() -> Unit)? = null,
     interactionSource: MutableInteractionSource? = null,
     clickable: Boolean = true
@@ -638,8 +658,11 @@ fun SwitchRow(
     ) {
         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
             if (leadingIcon != null) {
-                StandardLeadingIcon(content = leadingIcon)
-                Spacer(Modifier.width(20.dp))
+                if (useLargeIcon) {
+                    LargeLeadingIcon(content = leadingIcon)
+                } else {
+                    StandardLeadingIcon(size = leadingIconSize, content = leadingIcon)
+                }
             }
 
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
@@ -679,6 +702,8 @@ fun TextFieldRow(
     minLines: Int = 1,
     maxLines: Int = 1,
     leadingIcon: @Composable (() -> Unit)? = null,
+    leadingIconSize: Dp = 24.dp,
+    useLargeIcon: Boolean = false,
     trailingIcon: @Composable (() -> Unit)? = null,
     isModified: Boolean = false,
     onHelpClick: (() -> Unit)? = null
@@ -727,7 +752,11 @@ fun TextFieldRow(
             placeholder = { Text(placeholder) },
             leadingIcon = leadingIcon?.let {
                 {
-                    StandardLeadingIcon(content = it)
+                    if (useLargeIcon) {
+                        LargeLeadingIcon(content = it)
+                    } else {
+                        StandardLeadingIcon(size = leadingIconSize, content = it)
+                    }
                 }
             },
             trailingIcon = trailingIcon,
@@ -885,13 +914,13 @@ fun UpdateBlock(
             modifier = Modifier.heightIn(min = 48.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            StandardLeadingIcon {
+            LargeLeadingIcon {
                 val targetContentColor = MaterialTheme.colorScheme.onSurface
 
                 when (state) {
                     is UpdateState.Checking, is UpdateState.Downloading -> {
-                        androidx.compose.material3.CircularWavyProgressIndicator(
-                            modifier = Modifier.size(20.dp),
+                        androidx.compose.material3.LoadingIndicator(
+                            modifier = Modifier.size(40.dp),
                             color = targetContentColor
                         )
                     }
@@ -905,15 +934,13 @@ fun UpdateBlock(
                                 }
                             ),
                             contentDescription = null,
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(32.dp),
                             tint = if (state is UpdateState.Error) MaterialTheme.colorScheme.error
-                            else targetContentColor
+                                   else targetContentColor
                         )
                     }
                 }
             }
-
-            Spacer(Modifier.width(20.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 ConfigRowLabel(text = titleText)

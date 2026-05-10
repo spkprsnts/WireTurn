@@ -93,6 +93,7 @@ import android.content.ClipData
 import android.net.VpnService
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalClipboard
@@ -535,11 +536,9 @@ fun HomeScreen(
                                     Icon(
                                         painter = painterResource(R.drawable.error_24px),
                                         contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onErrorContainer,
-                                        modifier = Modifier.size(24.dp)
+                                        tint = MaterialTheme.colorScheme.onErrorContainer
                                     )
                                 }
-                                Spacer(Modifier.width(20.dp))
                                 Column {
                                     ConfigRowLabel(stringResource(R.string.permissions_title))
                                     Spacer(Modifier.height(2.dp))
@@ -924,14 +923,12 @@ fun HomeScreen(
                     ) {
                         Column {
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(20.dp)
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 StandardLeadingIcon {
                                     Icon(
                                         painter = painterResource(R.drawable.refresh_24px),
                                         contentDescription = null,
-                                        modifier = Modifier.size(24.dp),
                                         tint = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
@@ -1078,10 +1075,9 @@ fun HomeScreen(
                                 XrayState.Idle, XrayState.Running, XrayState.DirectRoute -> Icon(
                                     painter = painterResource(R.drawable.ic_xray_24px),
                                     contentDescription = null,
-                                    tint = if (xrayState == XrayState.Idle) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
+                                    tint = if (xrayState == XrayState.Idle) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary
                                 )
-                                XrayState.Starting, XrayState.Connecting -> CircularWavyProgressIndicator(modifier = Modifier.size(24.dp))
+                                XrayState.Starting, XrayState.Connecting -> LoadingIndicator()
                             }
                         },
                         enabled = configValid
@@ -1128,10 +1124,9 @@ fun HomeScreen(
                                 VpnState.Idle, VpnState.Running, is VpnState.Error -> Icon(
                                     painter = painterResource(R.drawable.vpn_key_24px),
                                     contentDescription = null,
-                                    tint = if (vpnServiceState == VpnState.Running) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(24.dp)
+                                    tint = if (vpnServiceState == VpnState.Running) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                VpnState.Starting -> CircularWavyProgressIndicator(modifier = Modifier.size(24.dp))
+                                VpnState.Starting -> LoadingIndicator()
                             }
                         },
                         trailingContent = {
@@ -1151,6 +1146,7 @@ fun HomeScreen(
                                     Icon(
                                         painter = painterResource(R.drawable.route_24px),
                                         contentDescription = stringResource(R.string.vpn_apps_exceptions),
+                                        modifier = Modifier.size(32.dp),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(
                                             alpha = if (globalVpnSettings.filteringEnabled) 1f else 0.38f
                                         )
@@ -1229,8 +1225,7 @@ fun HomeScreen(
                             Icon(
                                 painter = painterResource(R.drawable.lan_24px),
                                 contentDescription = null,
-                                tint = if (showXray || isOlcrtc) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
-                                modifier = Modifier.size(24.dp)
+                                tint = if (showXray || isOlcrtc) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
                             )
                         }
                     )
@@ -1271,8 +1266,7 @@ fun HomeScreen(
                                 Icon(
                                     painter = painterResource(R.drawable.lan_24px),
                                     contentDescription = null,
-                                    tint = if (showXray) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
-                                    modifier = Modifier.size(24.dp)
+                                    tint = if (showXray) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
                                 )
                             }
                         )
@@ -1380,7 +1374,7 @@ private fun UpdateBanner(
     onCheck: () -> Unit,
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHighest
 ) {
-    val isVisible = state is UpdateState.Available || state is UpdateState.ReadyToInstall || state is UpdateState.Downloading
+    val isVisible = state is UpdateState.Available || state is UpdateState.ReadyToInstall || state is UpdateState.Downloading || state is UpdateState.Error
 
     AnimatedVisibility(
         visible = isVisible,
@@ -1772,7 +1766,6 @@ private fun ProxyAddressRow(
     ) {
         if (leadingIcon != null) {
             StandardLeadingIcon(content = leadingIcon)
-            Spacer(Modifier.width(20.dp))
         }
 
         Column(modifier = Modifier.weight(1f)) {

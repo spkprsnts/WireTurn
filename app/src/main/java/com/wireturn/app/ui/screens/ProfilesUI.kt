@@ -73,6 +73,7 @@ import com.wireturn.app.R
 import com.wireturn.app.data.Profile
 import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.VerticalAnimatedText
 import com.wireturn.app.viewmodel.MainViewModel
@@ -127,7 +128,7 @@ fun ProfileSummary(
         if (useAnimation) {
             VerticalAnimatedText(
                 text = text,
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = color,
                 maxLines = 1,
                 modifier = modifier
@@ -159,15 +160,14 @@ fun ProfilesBlock(
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            StandardLeadingIcon {
+            LargeLeadingIcon {
                 Icon(
                     painter = painterResource(R.drawable.mobile_24px),
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
-            Spacer(Modifier.width(20.dp))
             Column(modifier = Modifier.weight(1f)) {
                 VerticalAnimatedText(
                     text = currentProfile.name,
@@ -216,7 +216,6 @@ fun ProfileListItem(
         ) {
             if (leadingContent != null) {
                 StandardLeadingIcon(content = leadingContent)
-                Spacer(Modifier.width(20.dp))
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -626,8 +625,7 @@ fun ProfilesDialog(
                                 ),
                                 contentDescription = null,
                                 tint = if (isSelected) MaterialTheme.colorScheme.primary
-                                       else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                modifier = Modifier.size(24.dp)
+                                       else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                             )
                         },
                         modifier = Modifier
