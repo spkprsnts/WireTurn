@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -191,7 +192,9 @@ fun ProfileListItem(
             isSelected -> MaterialTheme.colorScheme.secondaryContainer
             else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
         },
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 74.dp)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -252,7 +255,11 @@ fun ProfilesDialog(
     var addMenuExpanded by remember { mutableStateOf(false) }
     val showRenameDialog = remember { mutableStateOf<Profile?>(null) }
     val showDeleteConfirm = remember { mutableStateOf<Profile?>(null) }
+    val showBulkDeleteConfirm = remember { mutableStateOf<List<String>?>(null) }
     val showCloneDialog = remember { mutableStateOf<Profile?>(null) }
+
+    val selectedIds = remember { mutableStateListOf<String>() }
+    val isSelectionMode = selectedIds.isNotEmpty()
 
     var jsonToExport by remember { mutableStateOf<String?>(null) }
     val exportLauncher = rememberLauncherForActivityResult(
@@ -288,10 +295,21 @@ fun ProfilesDialog(
 
     // Sync local list with source of truth only when NOT dragging
     LaunchedEffect(profilesSource) {
+        val oldSize = profiles.size
         if (draggedItemId == null && (profiles.size != profilesSource.size || profiles.toList() != profilesSource)) {
             androidx.compose.runtime.snapshots.Snapshot.withMutableSnapshot {
                 profiles.clear()
                 profiles.addAll(profilesSource)
+            }
+
+            // Scroll to new items if added to an existing list (not on initial dialog open)
+            if (oldSize > 0 && profilesSource.size > oldSize) {
+                scope.launch {
+                    delay(100) // Wait for layout update
+                    if (oldSize < profiles.size) {
+                        lazyListState.animateScrollToItem(oldSize)
+                    }
+                }
             }
         }
     }
@@ -420,64 +438,106 @@ fun ProfilesDialog(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = stringResource(R.string.profiles_title),
+                        text = if (isSelectionMode) stringResource(R.string.profile_selected_count, selectedIds.size)
+                               else stringResource(R.string.profiles_title),
                         style = MaterialTheme.typography.titleLarge
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = {
-                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                            zipToExport = viewModel.exportAllProfilesToZip()
-                            zipExportLauncher.launch("wt_profiles_backup.zip")
-                        }) {
-                            Icon(
-                                painterResource(R.drawable.ios_share_24px),
-                                contentDescription = stringResource(R.string.profile_export_all)
-                            )
-                        }
-                        Box {
+                        if (isSelectionMode) {
                             IconButton(onClick = {
                                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                addMenuExpanded = true
+                                zipToExport = viewModel.exportProfilesToZip(selectedIds.toList())
+                                zipExportLauncher.launch("wt_profiles_selected.zip")
                             }) {
                                 Icon(
-                                    painterResource(R.drawable.add_24px),
-                                    contentDescription = stringResource(R.string.profile_create)
+                                    painterResource(R.drawable.ios_share_24px),
+                                    contentDescription = null
                                 )
                             }
-                            DropdownMenu(
-                                expanded = addMenuExpanded,
-                                onDismissRequest = { addMenuExpanded = false }
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.profile_create)) },
-                                    leadingIcon = {
-                                        Icon(
-                                            painterResource(R.drawable.add_24px),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    },
-                                    onClick = {
-                                        addMenuExpanded = false
-                                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                        showCreateDialog.value = true
-                                    }
+                            IconButton(onClick = {
+                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                showBulkDeleteConfirm.value = selectedIds.toList()
+                            }) {
+                                Icon(
+                                    painterResource(R.drawable.delete_24px),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error
                                 )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.profile_import)) },
-                                    leadingIcon = {
-                                        Icon(
-                                            painterResource(R.drawable.file_open_24px),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    },
-                                    onClick = {
-                                        addMenuExpanded = false
-                                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                        onImport()
-                                    }
+                            }
+                            IconButton(onClick = {
+                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                val isAllSelected = selectedIds.size == profiles.size
+                                if (isAllSelected) {
+                                    selectedIds.clear()
+                                } else {
+                                    selectedIds.clear()
+                                    selectedIds.addAll(profiles.map { it.id })
+                                }
+                            }) {
+                                Icon(
+                                    painterResource(
+                                        if (selectedIds.size == profiles.size) R.drawable.indeterminate_check_box_24px
+                                        else R.drawable.check_box_24px
+                                    ),
+                                    contentDescription = null
                                 )
+                            }
+                        } else {
+                            IconButton(onClick = {
+                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                zipToExport = viewModel.exportAllProfilesToZip()
+                                zipExportLauncher.launch("wt_profiles_backup.zip")
+                            }) {
+                                Icon(
+                                    painterResource(R.drawable.ios_share_24px),
+                                    contentDescription = stringResource(R.string.profile_export_all)
+                                )
+                            }
+                            Box {
+                                IconButton(onClick = {
+                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                    addMenuExpanded = true
+                                }) {
+                                    Icon(
+                                        painterResource(R.drawable.add_24px),
+                                        contentDescription = stringResource(R.string.profile_create)
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = addMenuExpanded,
+                                    onDismissRequest = { addMenuExpanded = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.profile_create)) },
+                                        leadingIcon = {
+                                            Icon(
+                                                painterResource(R.drawable.add_24px),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        },
+                                        onClick = {
+                                            addMenuExpanded = false
+                                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                            showCreateDialog.value = true
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.profile_import)) },
+                                        leadingIcon = {
+                                            Icon(
+                                                painterResource(R.drawable.file_open_24px),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        },
+                                        onClick = {
+                                            addMenuExpanded = false
+                                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                            onImport()
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -504,6 +564,7 @@ fun ProfilesDialog(
                 itemsIndexed(profiles, key = { _, it -> it.id }) { index, profile ->
                     val isDragged = draggedItemId == profile.id
                     val isSelected = profile.id == (optimisticSelectedId ?: currentId)
+                    val isSelectedInMode = selectedIds.contains(profile.id)
                     var menuExpanded by remember { mutableStateOf(false) }
                     
                     val itemShape = when {
@@ -529,7 +590,11 @@ fun ProfilesDialog(
                         shape = itemShape,
                         isDragged = isDragged,
                         onClick = {
-                            if (draggedItemId == null) {
+                            if (isSelectionMode) {
+                                if (isSelectedInMode) selectedIds.remove(profile.id)
+                                else selectedIds.add(profile.id)
+                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                            } else if (draggedItemId == null) {
                                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                 optimisticSelectedId = profile.id
                                 viewModel.selectProfileAndRestart(profile.id)
@@ -561,7 +626,8 @@ fun ProfilesDialog(
                                 )
                             )
                             .zIndex(if (isDragged) 10f else 0f)
-                            .pointerInput(Unit) {
+                            .pointerInput(isSelectionMode) {
+                                if (isSelectionMode) return@pointerInput
                                 detectDragGesturesAfterLongPress(
                                     onDragStart = {
                                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -596,78 +662,33 @@ fun ProfilesDialog(
                                 clip = isDragged
                             },
                         trailingContent = {
-                            Box {
-                                IconButton(onClick = {
-                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                    menuExpanded = true
-                                }) {
-                                    Icon(
-                                        painterResource(R.drawable.more_vert_24px),
-                                        contentDescription = null,
-                                        tint = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer
-                                               else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                DropdownMenu(
-                                    expanded = menuExpanded,
-                                    onDismissRequest = { menuExpanded = false }
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.profile_clone)) },
-                                        leadingIcon = {
-                                            Icon(
-                                                painterResource(R.drawable.content_copy_24px),
-                                                null,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                        },
-                                        onClick = {
-                                            menuExpanded = false
-                                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                            showCloneDialog.value = profile
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.profile_rename)) },
-                                        leadingIcon = {
-                                            Icon(
-                                                painterResource(R.drawable.edit_24px),
-                                                null,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                        },
-                                        onClick = {
-                                            menuExpanded = false
-                                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                            showRenameDialog.value = profile
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.profile_export)) },
-                                        leadingIcon = {
-                                            Icon(
-                                                painterResource(R.drawable.ios_share_24px),
-                                                null,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                        },
-                                        onClick = {
-                                            menuExpanded = false
-                                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                            viewModel.getProfileJson(profile.id)?.let { json ->
-                                                jsonToExport = json
-                                                val safeName = profile.name.replace(Regex("[\\\\/:*?\"<>| ]"), "_")
-                                                exportLauncher.launch("wt_$safeName.json")
-                                            }
-                                        }
-                                    )
-                                    if (profiles.size > 1) {
-                                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                            if (isSelectionMode) {
+                                Checkbox(
+                                    checked = isSelectedInMode,
+                                    onCheckedChange = null
+                                )
+                            } else {
+                                Box {
+                                    IconButton(onClick = {
+                                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                        menuExpanded = true
+                                    }) {
+                                        Icon(
+                                            painterResource(R.drawable.more_vert_24px),
+                                            contentDescription = null,
+                                            tint = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer
+                                                   else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    DropdownMenu(
+                                        expanded = menuExpanded,
+                                        onDismissRequest = { menuExpanded = false }
+                                    ) {
                                         DropdownMenuItem(
-                                            text = { Text(stringResource(R.string.profile_delete)) },
+                                            text = { Text(stringResource(R.string.profile_select)) },
                                             leadingIcon = {
                                                 Icon(
-                                                    painterResource(R.drawable.delete_24px),
+                                                    painterResource(R.drawable.check_circle_24px),
                                                     null,
                                                     modifier = Modifier.size(20.dp)
                                                 )
@@ -675,13 +696,80 @@ fun ProfilesDialog(
                                             onClick = {
                                                 menuExpanded = false
                                                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                                showDeleteConfirm.value = profile
-                                            },
-                                            colors = MenuDefaults.itemColors(
-                                                textColor = MaterialTheme.colorScheme.error,
-                                                leadingIconColor = MaterialTheme.colorScheme.error
-                                            )
+                                                selectedIds.add(profile.id)
+                                            }
                                         )
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(R.string.profile_clone)) },
+                                            leadingIcon = {
+                                                Icon(
+                                                    painterResource(R.drawable.content_copy_24px),
+                                                    null,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            },
+                                            onClick = {
+                                                menuExpanded = false
+                                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                                showCloneDialog.value = profile
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(R.string.profile_rename)) },
+                                            leadingIcon = {
+                                                Icon(
+                                                    painterResource(R.drawable.edit_24px),
+                                                    null,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            },
+                                            onClick = {
+                                                menuExpanded = false
+                                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                                showRenameDialog.value = profile
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(R.string.profile_export)) },
+                                            leadingIcon = {
+                                                Icon(
+                                                    painterResource(R.drawable.ios_share_24px),
+                                                    null,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            },
+                                            onClick = {
+                                                menuExpanded = false
+                                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                                viewModel.getProfileJson(profile.id)?.let { json ->
+                                                    jsonToExport = json
+                                                    val safeName = profile.name.replace(Regex("[\\\\/:*?\"<>| ]"), "_")
+                                                    exportLauncher.launch("wt_$safeName.json")
+                                                }
+                                            }
+                                        )
+                                        if (profiles.size > 1) {
+                                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                                            DropdownMenuItem(
+                                                text = { Text(stringResource(R.string.profile_delete)) },
+                                                leadingIcon = {
+                                                    Icon(
+                                                        painterResource(R.drawable.delete_24px),
+                                                        null,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                },
+                                                onClick = {
+                                                    menuExpanded = false
+                                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                                    showDeleteConfirm.value = profile
+                                                },
+                                                colors = MenuDefaults.itemColors(
+                                                    textColor = MaterialTheme.colorScheme.error,
+                                                    leadingIconColor = MaterialTheme.colorScheme.error
+                                                )
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -743,6 +831,27 @@ fun ProfilesDialog(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm.value = null }) { Text(stringResource(R.string.cancel)) }
+            }
+        )
+    }
+
+    showBulkDeleteConfirm.value?.let { ids ->
+        AlertDialog(
+            onDismissRequest = { showBulkDeleteConfirm.value = null },
+            title = { Text(stringResource(R.string.profile_delete_selected_confirm, ids.size)) },
+            text = { Text(stringResource(R.string.profile_delete_desc)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteProfiles(ids)
+                        selectedIds.clear()
+                        showBulkDeleteConfirm.value = null
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) { Text(stringResource(R.string.profile_delete)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBulkDeleteConfirm.value = null }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }

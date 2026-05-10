@@ -377,4 +377,8 @@
     <string name="profile_default_name">Primary profile</string>
     <string name="profile_delete_confirm">Delete profile %1$s?</string>
     <string name="profile_delete_desc">All settings for this profile will be deleted.</string>
+    <string name="profile_select">Select</string>
+    <string name="profile_selected_count">Selected: %1$d</string>
+    <string name="profile_delete_selected">Delete selected</string>
+    <string name="profile_delete_selected_confirm">Delete %1$d selected profiles?</string>
 </resources>

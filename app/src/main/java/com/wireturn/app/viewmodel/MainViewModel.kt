@@ -55,7 +55,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val prefs = AppPreferences(application)
     private val proxyManager = LocalProxyManager(application)
     private val appUpdater = AppUpdater(application)
-    private val profileManager = ProfileManager(prefs, ProcessLifecycleOwner.get().lifecycleScope)
+    private val profileManager = ProfileManager(
+        prefs = prefs,
+        scope = ProcessLifecycleOwner.get().lifecycleScope,
+        defaultProfileName = application.getString(R.string.profile_default_name)
+    )
 
     val proxyState: StateFlow<ProxyState> = proxyManager.proxyState
     val logs: StateFlow<List<AppLogsState.LogEntry>> = AppLogsState.logs
@@ -785,11 +789,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         profileManager.createProfile(name) { _, _ -> }
     }
     fun cloneProfile(id: String, newName: String) = profileManager.cloneProfile(id, newName)
-    fun deleteProfile(id: String) = profileManager.deleteProfile(id) { nextId -> selectProfile(nextId) }
+    fun deleteProfile(id: String) = deleteProfiles(listOf(id))
+    fun deleteProfiles(ids: List<String>) = profileManager.deleteProfiles(ids) { nextId, profile -> 
+        selectProfile(nextId, profile) 
+    }
     fun renameProfile(id: String, newName: String) = profileManager.renameProfile(id, newName)
     fun reorderProfiles(newList: List<Profile>) = profileManager.reorderProfiles(newList)
     fun getProfileJson(id: String): String? = profileManager.getProfileJson(id)
     fun exportAllProfilesToZip(): ByteArray = profileManager.exportAllProfilesToZip()
+    fun exportProfilesToZip(ids: List<String>): ByteArray = profileManager.exportProfilesToZip(ids)
     fun importProfilesFromZip(inputStream: java.io.InputStream) = profileManager.importProfilesFromZip(inputStream) { id ->
         selectProfileAndRestart(id)
     }

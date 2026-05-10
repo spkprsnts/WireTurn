@@ -629,11 +629,13 @@ data class Profile(
     @SerializedName("vlessConfig") val vlessConfig: VlessConfig = VlessConfig()
 ) {
     fun isEmpty(): Boolean {
-        return clientConfig == ClientConfig() &&
-                wgConfig == WgConfig() &&
-                vlessConfig == VlessConfig() &&
-                xraySettings == XraySettings() &&
-                xrayConfig == XrayConfig()
+        return clientConfig.turnableUrl.isBlank() &&
+                clientConfig.olcrtcUrl.isBlank() &&
+                clientConfig.rawCommand.isBlank() &&
+                !clientConfig.turnableConfig.isValid() &&
+                !clientConfig.olcrtcConfig.isValid() &&
+                !wgConfig.isValid() &&
+                !vlessConfig.isValid()
     }
 
     @Suppress("UNNECESSARY_SAFE_CALL", "USELESS_ELVIS")
