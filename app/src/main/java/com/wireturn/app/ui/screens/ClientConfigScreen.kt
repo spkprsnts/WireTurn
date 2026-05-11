@@ -26,6 +26,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
@@ -942,14 +944,16 @@ fun ClientConfigScreen(
                                                     value = videoW,
                                                     onValueChange = { videoW = it },
                                                     modifier = Modifier.weight(1f),
-                                                    isModified = clientConfigSnapshot != null && videoW != clientConfigSnapshot?.olcrtcConfig?.videoW?.let { if (it == 0) "" else it.toString() }
+                                                    isModified = clientConfigSnapshot != null && videoW != clientConfigSnapshot?.olcrtcConfig?.videoW?.let { if (it == 0) "" else it.toString() },
+                                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                                                 )
                                                 TextFieldRow(
                                                     label = stringResource(R.string.olcrtc_video_height),
                                                     value = videoH,
                                                     onValueChange = { videoH = it },
                                                     modifier = Modifier.weight(1f),
-                                                    isModified = clientConfigSnapshot != null && videoH != clientConfigSnapshot?.olcrtcConfig?.videoH?.let { if (it == 0) "" else it.toString() }
+                                                    isModified = clientConfigSnapshot != null && videoH != clientConfigSnapshot?.olcrtcConfig?.videoH?.let { if (it == 0) "" else it.toString() },
+                                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                                                 )
                                             }
                                         }

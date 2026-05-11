@@ -708,7 +708,8 @@ fun TextFieldRow(
     useLargeIcon: Boolean = false,
     trailingIcon: @Composable (() -> Unit)? = null,
     isModified: Boolean = false,
-    onHelpClick: (() -> Unit)? = null
+    onHelpClick: (() -> Unit)? = null,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default
 ) {
     val context = LocalContext.current
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -762,6 +763,7 @@ fun TextFieldRow(
                 }
             },
             trailingIcon = trailingIcon,
+            keyboardOptions = keyboardOptions,
             shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomStart = 4.dp, bottomEnd = 4.dp),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,

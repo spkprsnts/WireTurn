@@ -33,6 +33,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -603,7 +605,8 @@ private fun WireGuardSettings(
                     onValueChange = onMtuChange,
                     placeholder = stringResource(R.string.wg_mtu_placeholder),
                     isModified = wgConfigSnapshot != null && mtu != wgConfigSnapshot.mtu,
-                    supportingText = if (mtu != "1280") stringResource(R.string.wg_mtu_recommendation) else null
+                    supportingText = if (mtu != "1280") stringResource(R.string.wg_mtu_recommendation) else null,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
             }
         }
@@ -639,7 +642,8 @@ private fun WireGuardSettings(
                     value = persistentKeepalive,
                     onValueChange = onPersistentKeepaliveChange,
                     placeholder = stringResource(R.string.wg_persistent_keepalive_placeholder),
-                    isModified = wgConfigSnapshot != null && persistentKeepalive != wgConfigSnapshot.persistentKeepalive
+                    isModified = wgConfigSnapshot != null && persistentKeepalive != wgConfigSnapshot.persistentKeepalive,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
             }
         }
@@ -776,7 +780,8 @@ private fun VlessSettings(
                         onValueChange = onVlessHcIntervalChange,
                         placeholder = "30",
                         supportingText = stringResource(R.string.vless_hc_interval_desc),
-                        isModified = vlessConfigSnapshot != null && vlessHcInterval.toIntOrNull() != vlessConfigSnapshot.hcInterval
+                        isModified = vlessConfigSnapshot != null && vlessHcInterval.toIntOrNull() != vlessConfigSnapshot.hcInterval,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
                 }
             }

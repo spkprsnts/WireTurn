@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -339,7 +341,8 @@ fun SettingsScreen(
                         value = localInterval,
                         onValueChange = { localInterval = it },
                         isError = !isIntervalValid && localInterval.isNotBlank(),
-                        placeholder = defaultInterval.toString()
+                        placeholder = defaultInterval.toString(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
                 }
             }
