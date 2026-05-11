@@ -1,4 +1,4 @@
-name: Build and Release
+# Build and Release
 
 on:
   push:
@@ -8,28 +8,25 @@ on:
       - 'v*'
   workflow_dispatch:
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: 'stable'
           cache-dependency-path: "**/*.sum"
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: 'temurin'
@@ -50,7 +47,7 @@ jobs:
           echo "${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/tools/bin" >> $GITHUB_PATH
 
       - name: Cache NDK
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: ndk_cache
         with:
           path: ${{ env.ANDROID_HOME }}/ndk/${{ steps.vars.outputs.ndk_version }}
@@ -66,7 +63,7 @@ jobs:
           sudo apt-get install -y nasm yasm build-essential python3 pkg-config autoconf automake libtool
 
       - name: Cache FFmpeg Binaries
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: ffmpeg_cache
         with:
           path: |
@@ -77,7 +74,7 @@ jobs:
           key: ${{ runner.os }}-ffmpeg-${{ steps.vars.outputs.ndk_version }}-${{ hashFiles('build.sh', 'external/ffmpeg-android-maker/**') }}
 
       - name: Cache Native Binaries (Go/C)
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: native_cache
         with:
           path: |
@@ -123,13 +120,13 @@ jobs:
           fi
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wireturn-release-apk
           path: final_apks/*.apk
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: final_apks/*.apk
@@ -150,7 +147,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update Unstable Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         if: github.ref == 'refs/heads/unstable'
         with:
           tag_name: unstable-latest
