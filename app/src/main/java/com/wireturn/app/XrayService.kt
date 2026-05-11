@@ -241,12 +241,16 @@ class XrayService : Service() {
 
             val wgConfig = rawWgConfig.fillDefaults()
             val xrayConfig = rawXrayConfig.fillDefaults()
+            val vlessConfig = rawVlessConfig.fillDefaults()
 
             // Save filled defaults back to preferences if they changed,
             // so UI doesn't see a difference between "raw" and "running" configs.
             val prefs = AppPreferences(this@XrayService)
             if (!isXrayVless && wgConfig != rawWgConfig) {
                 prefs.saveWgConfig(wgConfig)
+            }
+            if (isXrayVless && vlessConfig != rawVlessConfig) {
+                prefs.saveVlessConfig(vlessConfig)
             }
             if (xrayConfig != rawXrayConfig) {
                 prefs.saveXrayConfig(xrayConfig)
@@ -256,7 +260,7 @@ class XrayService : Service() {
             XrayServiceState.setConfigsSnapshot(
                 wg = if (isXrayVless) null else wgConfig,
                 xray = xrayConfig,
-                vless = if (isXrayVless) rawVlessConfig else null
+                vless = if (isXrayVless) vlessConfig else null
             )
             
             val randomMetricsPort = withContext(Dispatchers.IO) {
@@ -303,11 +307,11 @@ class XrayService : Service() {
                     cmdArgs.addAll(listOf("-link", rawVlessConfig.vlessLink))
                 }
 
-                if (rawVlessConfig.isDualRoute && rawVlessConfig.directAddress.isNotBlank()) {
+                if (vlessConfig.isDualRoute && vlessConfig.directAddress.isNotBlank()) {
                     cmdArgs.add("-direct-address")
-                    cmdArgs.add(rawVlessConfig.directAddress)
+                    cmdArgs.add(vlessConfig.directAddress)
                     cmdArgs.add("-hc-interval")
-                    cmdArgs.add(rawVlessConfig.hcInterval.toString())
+                    cmdArgs.add(vlessConfig.hcInterval)
                 }
             } else if (runningClientConfig.kernelVariant != KernelVariant.OLCRTC) {
                 cmdArgs.addAll(listOf(

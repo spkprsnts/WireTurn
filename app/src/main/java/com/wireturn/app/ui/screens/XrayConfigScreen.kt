@@ -199,7 +199,7 @@ fun XrayConfigScreen(
             vlessUseLocalAddress = true,
             isDualRoute = vlessIsDualRoute,
             directAddress = vlessDirectAddress,
-            hcInterval = vlessHcInterval.toIntOrNull() ?: 30
+            hcInterval = vlessHcInterval
         )
         if (next != vlessSaved) {
             viewModel.updateVlessConfig(next)
@@ -780,7 +780,7 @@ private fun VlessSettings(
                         onValueChange = onVlessHcIntervalChange,
                         placeholder = "30",
                         supportingText = stringResource(R.string.vless_hc_interval_desc),
-                        isModified = vlessConfigSnapshot != null && vlessHcInterval.toIntOrNull() != vlessConfigSnapshot.hcInterval,
+                        isModified = vlessConfigSnapshot != null && vlessHcInterval != vlessConfigSnapshot.hcInterval,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
                 }

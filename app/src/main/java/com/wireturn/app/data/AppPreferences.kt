@@ -505,14 +505,21 @@ data class VlessConfig(
     @SerializedName("vlessUseLocalAddress") val vlessUseLocalAddress: Boolean = true,
     @SerializedName("isDualRoute") val isDualRoute: Boolean = false,
     @SerializedName("directAddress") val directAddress: String = "",
-    @SerializedName("hcInterval") val hcInterval: Int = 30
+    @SerializedName("hcInterval") val hcInterval: String = ""
 ) {
     fun isValid(): Boolean = vlessLink.isNotBlank() && com.wireturn.app.ui.ValidatorUtils.isValidVlessLink(vlessLink)
+
+    fun fillDefaults(): VlessConfig {
+        return copy(
+            hcInterval = hcInterval.ifBlank { "30" }
+        )
+    }
 
     fun sanitize(): VlessConfig {
         return copy(
             vlessLink = vlessLink.take(4096),
-            directAddress = directAddress.take(500)
+            directAddress = directAddress.take(500),
+            hcInterval = hcInterval.take(20)
         )
     }
 }
@@ -682,6 +689,7 @@ class AppPreferences(context: Context) {
         val CLIENT_VLESS_USE_LOCAL_ADDRESS = booleanPreferencesKey("client_vless_use_local_address")
         val CLIENT_VLESS_IS_DUAL_ROUTE = booleanPreferencesKey("client_vless_is_dual_route")
         val CLIENT_VLESS_DIRECT_ADDRESS = stringPreferencesKey("client_vless_direct_address")
+        val CLIENT_VLESS_HC_INTERVAL = stringPreferencesKey("client_vless_hc_interval")
         val VLESS_LINK_HISTORY = stringPreferencesKey("vless_link_history")
         val DYNAMIC_THEME = booleanPreferencesKey("dynamic_theme")
         val THEME_MODE = stringPreferencesKey("theme_mode")
@@ -843,7 +851,8 @@ class AppPreferences(context: Context) {
                 vlessLink = prefs[CLIENT_VLESS_LINK] ?: "",
                 vlessUseLocalAddress = prefs[CLIENT_VLESS_USE_LOCAL_ADDRESS] ?: true,
                 isDualRoute = prefs[CLIENT_VLESS_IS_DUAL_ROUTE] ?: false,
-                directAddress = prefs[CLIENT_VLESS_DIRECT_ADDRESS] ?: ""
+                directAddress = prefs[CLIENT_VLESS_DIRECT_ADDRESS] ?: "",
+                hcInterval = prefs[CLIENT_VLESS_HC_INTERVAL] ?: ""
             )
         }
         .distinctUntilChanged()
@@ -976,6 +985,7 @@ class AppPreferences(context: Context) {
             prefs[CLIENT_VLESS_USE_LOCAL_ADDRESS] = vlessConfig.vlessUseLocalAddress
             prefs[CLIENT_VLESS_IS_DUAL_ROUTE] = vlessConfig.isDualRoute
             prefs[CLIENT_VLESS_DIRECT_ADDRESS] = vlessConfig.directAddress
+            prefs[CLIENT_VLESS_HC_INTERVAL] = vlessConfig.hcInterval
 
             // Xray Settings
             prefs[XRAY_ENABLED] = xraySettings.xrayEnabled
@@ -1080,6 +1090,7 @@ class AppPreferences(context: Context) {
             prefs[CLIENT_VLESS_USE_LOCAL_ADDRESS] = config.vlessUseLocalAddress
             prefs[CLIENT_VLESS_IS_DUAL_ROUTE] = config.isDualRoute
             prefs[CLIENT_VLESS_DIRECT_ADDRESS] = config.directAddress
+            prefs[CLIENT_VLESS_HC_INTERVAL] = config.hcInterval
         }
     }
 
