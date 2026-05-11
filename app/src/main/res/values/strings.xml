@@ -37,7 +37,7 @@
     <string name="android_client">Android client</string>
     <string name="android_client_original">Android client (original)</string>
     <string name="turnable_core">Tunnel core (Turnable)</string>
-    <string name="olcrtc_core">Tunnel core (olcrtc)</string>
+    <string name="olcrtc_core">Tunnel core (olcRTC)</string>
     <string name="xray_core_name" translatable="false">vless-client</string>
     <string name="xray_core_original" translatable="false">Xray-core</string>
     <string name="hev_socks5_tunnel" translatable="false">hev-socks5-tunnel</string>
@@ -111,7 +111,7 @@
     <string name="raw_label" translatable="false">Raw</string>
     <string name="raw_placeholder" translatable="false">-listen 127.0.0.1:900 -peer 292.313.32.45:56000 …</string>
     <string name="import_turnable_title">Turnable config import</string>
-    <string name="import_olcrtc_title">olcrtc config import</string>
+    <string name="import_olcrtc_title">olcRTC config import</string>
     <string name="config_copied_success">Configuration copied</string>
     <string name="route_title">Route</string>
     <string name="user_uuid_label">User UUID</string>
@@ -142,10 +142,10 @@
     <string name="kernel_config_desc">Select argument structure for custom core</string>
     <string name="kernel_help_title">Core guides</string>
     <string name="kernel_help_turnable_guide">Turnable server setup guide</string>
-    <string name="kernel_help_olcrtc_guide">olcrtc server setup guide</string>
+    <string name="kernel_help_olcrtc_guide">olcRTC server setup guide</string>
     <string name="kernel_turnable" translatable="false">Turnable</string>
-    <string name="kernel_olcrtc" translatable="false">olcrtc</string>
-    <string name="olcrtc_settings_title">olcrtc Parameters</string>
+    <string name="kernel_olcrtc" translatable="false">olcRTC</string>
+    <string name="olcrtc_settings_title">olcRTC Parameters</string>
     <string name="olcrtc_id_label">Room ID</string>
     <string name="olcrtc_client_id_label">Client ID</string>
     <string name="olcrtc_key_label">Auth Key</string>
@@ -185,7 +185,7 @@
     <string name="finish_setup">Finish setup</string>
     <string name="local_port_help_text">This is the network address and port where the app will start the local proxy server.</string>
     <string name="local_port_help_secondary">Either the built-in Xray or your third-party VPN clients (WireGuard, v2RayTun, etc.) must connect to this address for traffic to go through the created tunnel.</string>
-    <string name="olcrtc_socks_help_text">The olcrtc core does not use traditional VPN protocols. Instead, it starts a local SOCKS5 proxy that serves as an entry point for traffic.</string>
+    <string name="olcrtc_socks_help_text">The olcRTC core does not use traditional VPN protocols. Instead, it starts a local SOCKS5 proxy that serves as an entry point for traffic.</string>
     <string name="olcrtc_socks_help_secondary">The built-in Xray engine routes traffic through this address, enabling VLESS Dual-route mode and/or tunneling all device traffic via VPN.</string>
 
     <!-- Logs Screen (Logs) -->

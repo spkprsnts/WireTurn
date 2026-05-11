@@ -1,6 +1,6 @@
 # WireTurn — Android WebRTC Tunnel
 
-Android-клиент для [olcrtc](https://github.com/openlibrecommunity/olcrtc) и [Turnable](https://github.com/TheAirBlow/Turnable) — проброс трафика через инфраструктуру WebRTC.
+Android-клиент для [olcRTC](https://github.com/openlibrecommunity/olcrtc) и [Turnable](https://github.com/TheAirBlow/Turnable) — проброс трафика через инфраструктуру WebRTC.
 
 > **Disclaimer:** Проект предназначен исключительно для образовательных и исследовательских целей.
 
@@ -9,10 +9,10 @@ Android-клиент для [olcrtc](https://github.com/openlibrecommunity/olcrt
 WireTurn маскирует ваш интернет-трафик под легитимные WebRTC-сессии, делая его неотличимым от обычных видеозвонков или конференций.
 
 1. **Маскировка трафика:** Пакеты (WireGuard или VLESS) упаковываются в протоколы **DTLS** или **SRTP**. Для сетевых фильтров и провайдеров это выглядит как стандартный зашифрованный медиапоток.
-2. **Использование посредников:** Трафик передается через TURN-серверы крупных платформ (для **Turnable**) или платформы видеоконференций (для **olcrtc**).
+2. **Использование посредников:** Трафик передается через TURN-серверы крупных платформ (для **Turnable**) или платформы видеоконференций (для **olcRTC**).
 3. **Механизмы туннелирования:**
     - **Turnable**: Имитирует видеозвонки и демонстрацию экрана. Трафик распределяется по нескольким параллельным потокам (Multi-Peer) для достижения максимальной скорости.
-    - **olcrtc**: Поддерживает широкий спектр транспортов для обхода самых строгих ограничений:
+    - **olcRTC**: Поддерживает широкий спектр транспортов для обхода самых строгих ограничений:
         - **DataChannel**: Максимальная скорость и минимальные задержки (рекомендуется).
         - **VP8Channel / SEIChannel**: Маскировка данных внутри видеопотоков (VP8 или H.264), что делает трафик полностью идентичным видеозвонку.
         - **VideoChannel**: Передача данных через визуальные образы (QR-коды или тайлы) внутри видеотрансляции — крайний случай.
@@ -25,7 +25,7 @@ WireTurn маскирует ваш интернет-трафик под леги
 - **Система профилей** — создание независимых конфигураций, поддержка массового импорта/экспорта (JSON, ZIP) и удобное управление.
 - **Два режима работы**:
     - **Turnable** — классический проброс через TURN-серверы (ядро **Turnable**).
-    - **olcrtc** — работа через платформы видеоконференций (ядро **olcrtc**).
+    - **olcRTC** — работа через платформы видеоконференций (ядро **olcRTC**).
 - **Быстрое управление** — смена профиля прямо из уведомления, управление через Quick Settings Tile или Broadcast Intent API.
 - **Метрики в реальном времени** — интерактивное отображение пинга и актуальной скорости передачи данных (RX/TX) на главном экране.
 - **Умное ожидание сети** — при потере связи приложение не выдает ошибку, а переходит в состояние `Ожидание сети`, автоматически восстанавливая соединение при появлении намёка на интернет.
@@ -61,14 +61,14 @@ WireTurn маскирует ваш интернет-трафик под леги
 Подробные инструкции по настройке серверной части и клиента WireTurn доступны в следующих руководствах:
 
 - **[Настройка сервера Turnable](docs/guides/turnable.md)**
-- **[Настройка сервера olcrtc](docs/guides/olcrtc.md)**
+- **[Настройка сервера olcRTC](docs/guides/olcrtc.md)**
 
 ## Стек технологий
 
 - **Kotlin** + **Jetpack Compose** (Material 3)
 - **Native Kernels (C/Go)** (автоматическая сборка из исходников через Git-субмодули):
     - `libturnable.so` — ядро Turnable ([TheAirBlow/Turnable](https://github.com/TheAirBlow/Turnable)).
-    - `libolcrtc.so` — ядро olcrtc ([openlibrecommunity/olcrtc](https://github.com/openlibrecommunity/olcrtc)).
+    - `libolcrtc.so` — ядро olcRTC ([openlibrecommunity/olcrtc](https://github.com/openlibrecommunity/olcrtc)).
     - `libxray.so` — движок Xray ([spkprsnts/vless-client](https://github.com/spkprsnts/vless-client)).
     - `libhevsocks5.so` — сетевой стек для VPN-режима ([heiher/hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel)).
 
@@ -84,7 +84,7 @@ git clone --recursive https://github.com/spkprsnts/WireTurn.git
 ## Упоминания
 
 - [TheAirBlow/Turnable](https://github.com/TheAirBlow/Turnable) — ядро Turnable.
-- [openlibrecommunity/olcrtc](https://github.com/openlibrecommunity/olcrtc) — ядро olcrtc.
+- [openlibrecommunity/olcrtc](https://github.com/openlibrecommunity/olcrtc) — ядро olcRTC.
 - [samosvalishe/turn-proxy-android](https://github.com/samosvalishe/turn-proxy-android) — база UI и логики.
 - [XTLS/Xray-core](https://github.com/XTLS/Xray-core) — база для ядра Xray.
 - [heiher/hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel) — реализация сетевого стека для VPN-режима.

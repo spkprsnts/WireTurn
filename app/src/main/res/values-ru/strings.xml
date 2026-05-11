@@ -36,7 +36,7 @@
     <string name="android_client">Android-клиент</string>
     <string name="android_client_original">Android-клиент (оригинал)</string>
     <string name="turnable_core">Ядро туннеля (Turnable)</string>
-    <string name="olcrtc_core">Ядро туннеля (olcrtc)</string>
+    <string name="olcrtc_core">Ядро туннеля (olcRTC)</string>
     <!-- Кнопки и общие действия -->
     <string name="btn_open">Открыть</string>
     <string name="btn_start">Запустить</string>
@@ -82,7 +82,7 @@
     <string name="connection_title">Подключение</string>
     <string name="raw_mode_desc">Ввод аргументов вручную</string>
     <string name="import_turnable_title">Импорт конфига Turnable</string>
-    <string name="import_olcrtc_title">Импорт конфига olcrtc</string>
+    <string name="import_olcrtc_title">Импорт конфига olcRTC</string>
     <string name="config_copied_success">Конфигурация скопирована</string>
     <string name="route_title">Маршрут</string>
     <string name="user_uuid_label">UUID пользователя</string>
@@ -110,11 +110,11 @@
     <string name="history_label">История</string>
     <string name="kernel_help_title">Гайды по ядрам</string>
     <string name="kernel_help_turnable_guide">Гайд по созданию сервера Turnable</string>
-    <string name="kernel_help_olcrtc_guide">Гайд по созданию сервера olcrtc</string>
+    <string name="kernel_help_olcrtc_guide">Гайд по созданию сервера olcRTC</string>
     <string name="kernel_label">Ядро</string>
     <string name="kernel_config_label">Формат параметров</string>
     <string name="kernel_config_desc">Выберите структуру аргументов для кастомного ядра</string>
-    <string name="olcrtc_settings_title">Параметры olcrtc</string>
+    <string name="olcrtc_settings_title">Параметры olcRTC</string>
     <string name="olcrtc_id_label">ID комнаты</string>
     <string name="olcrtc_client_id_label">ID клиента</string>
     <string name="olcrtc_key_label">Ключ авторизации</string>
@@ -154,7 +154,7 @@
     <string name="finish_setup">Завершить настройку</string>
     <string name="local_port_help_text">Это сетевой адрес и порт, на которых приложение запустит локальный прокси-сервер.</string>
     <string name="local_port_help_secondary">К этому адресу должен подключаться либо встроенный в приложение Xray, либо ваши сторонние VPN-клиенты (WireGuard, v2RayTun и др.), чтобы трафик шел через созданный туннель.</string>
-    <string name="olcrtc_socks_help_text">Ядро olcrtc не использует традиционные VPN-протоколы. Оно запускает локальный SOCKS5-прокси, который служит точкой входа для трафика.</string>
+    <string name="olcrtc_socks_help_text">Ядро olcRTC не использует традиционные VPN-протоколы. Оно запускает локальный SOCKS5-прокси, который служит точкой входа для трафика.</string>
     <string name="olcrtc_socks_help_secondary">Встроенный Xray направляет трафик через этот адрес, что позволяет работать через VLESS в режиме Dual-route и/или направлять весь трафик устройства через VPN.</string>
 
     <!-- Экран логов (Logs) -->
