@@ -139,7 +139,6 @@ fun ClientConfigScreen(
         isRawMode = saved.isRawMode
         rawCommand = saved.rawCommand
         turnableConfig = saved.turnableConfig
-        turnableConfig = saved.turnableConfig
         olcrtcConfig = saved.olcrtcConfig
         olcrtcSocksAddr = "${saved.olcrtcConfig.socksHost}:${saved.olcrtcConfig.socksPort}"
         videoW = saved.olcrtcConfig.videoW.let { if (it == 0) "" else it.toString() }

@@ -132,7 +132,7 @@ fun XrayConfigScreen(
     var vlessLink by rememberSaveable(currentProfileId, vlessSaved.vlessLink) { mutableStateOf(vlessSaved.vlessLink) }
     var vlessIsDualRoute by rememberSaveable(currentProfileId, vlessSaved.isDualRoute) { mutableStateOf(vlessSaved.isDualRoute) }
     var vlessDirectAddress by rememberSaveable(currentProfileId, vlessSaved.directAddress) { mutableStateOf(vlessSaved.directAddress) }
-    var vlessHcInterval by rememberSaveable(currentProfileId, vlessSaved.hcInterval.toString()) { mutableStateOf(vlessSaved.hcInterval.toString()) }
+    var vlessHcInterval by rememberSaveable(currentProfileId, vlessSaved.hcInterval) { mutableStateOf(vlessSaved.hcInterval) }
 
     val showQrScanner = remember { mutableStateOf(false) }
     val showVlessQrScanner = remember { mutableStateOf(false) }
@@ -161,7 +161,7 @@ fun XrayConfigScreen(
         vlessLink = vlessSaved.vlessLink
         vlessIsDualRoute = vlessSaved.isDualRoute
         vlessDirectAddress = vlessSaved.directAddress
-        vlessHcInterval = vlessSaved.hcInterval.toString()
+        vlessHcInterval = vlessSaved.hcInterval
     }
 
     // Auto-save debounced
