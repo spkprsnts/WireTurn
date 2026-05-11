@@ -35,6 +35,9 @@ declare -A ARCH_MAP=( ["arm64-v8a"]="arm64;aarch64-linux-android" ["x86_64"]="am
 
 needs_rebuild() {
     [ ! -f "$2" ] && return 0
+    # В CI среде (GitHub Actions) файлы всегда "новые" после checkout.
+    # Мы доверяем ключу кэша и не проверяем дату изменения.
+    [ "$CI" = "true" ] && return 1
     [ -n "$(find "$1" -maxdepth 5 -name "*.go" -newer "$2" -print -quit)" ] && return 0
     return 1
 }
@@ -75,7 +78,9 @@ build_hev_tunnel() {
     local needs_build=0
     for abi in arm64-v8a x86_64; do
         [ ! -f "$JNI_LIBS_DIR/$abi/$out_name" ] && needs_build=1 && break
-        [ -n "$(find src third-part -maxdepth 6 -name "*.c" -newer "$JNI_LIBS_DIR/$abi/$out_name" -print -quit 2>/dev/null)" ] && needs_build=1 && break
+        if [ "$CI" != "true" ]; then
+            [ -n "$(find src third-part -maxdepth 6 -name "*.c" -newer "$JNI_LIBS_DIR/$abi/$out_name" -print -quit 2>/dev/null)" ] && needs_build=1 && break
+        fi
     done
     [ "$needs_build" = "0" ] && return 0
 

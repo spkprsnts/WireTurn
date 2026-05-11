@@ -60,6 +60,33 @@ jobs:
         run: |
           yes | sdkmanager "ndk;${{ steps.vars.outputs.ndk_version }}" "build-tools;${{ steps.vars.outputs.build_tools }}"
 
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nasm yasm build-essential python3 pkg-config autoconf automake libtool
+
+      - name: Cache FFmpeg Binaries
+        uses: actions/cache@v4
+        id: ffmpeg_cache
+        with:
+          path: |
+            app/src/main/jniLibs/*/libffmpeg.so
+            app/src/main/jniLibs/*/libav*.so
+            app/src/main/jniLibs/*/libsw*.so
+            app/src/main/jniLibs/*/libpostproc.so
+          key: ${{ runner.os }}-ffmpeg-${{ steps.vars.outputs.ndk_version }}-${{ hashFiles('build.sh', 'external/ffmpeg-android-maker/**') }}
+
+      - name: Cache Native Binaries (Go/C)
+        uses: actions/cache@v4
+        id: native_cache
+        with:
+          path: |
+            app/src/main/jniLibs/*/libolcrtc.so
+            app/src/main/jniLibs/*/libxray.so
+            app/src/main/jniLibs/*/libturnable.so
+            app/src/main/jniLibs/*/libhevsocks5.so
+          key: ${{ runner.os }}-native-${{ steps.vars.outputs.ndk_version }}-${{ hashFiles('build.sh', 'external/olcrtc/**', 'external/vless-client/**', 'external/turnable/**', 'external/hev-socks5-tunnel/**') }}
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
