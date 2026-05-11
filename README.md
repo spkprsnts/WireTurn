@@ -71,13 +71,32 @@ WireTurn маскирует ваш интернет-трафик под леги
     - `libolcrtc.so` — ядро olcRTC ([openlibrecommunity/olcrtc](https://github.com/openlibrecommunity/olcrtc)).
     - `libxray.so` — движок Xray ([spkprsnts/vless-client](https://github.com/spkprsnts/vless-client)).
     - `libhevsocks5.so` — сетевой стек для VPN-режима ([heiher/hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel)).
+    - `libffmpeg.so` — библиотека FFmpeg ([Javernaut/ffmpeg-android-maker](https://github.com/Javernaut/ffmpeg-android-maker)).
 
 ## Для разработчиков
 
-Проект поддерживает автоматизированную сборку нативных компонентов.
+Проект поддерживает автоматизированную сборку нативных компонентов через Gradle-задачи.
+
+### Требования к окружению
+Для сборки нативных библиотек (`.so`) рекомендуется использовать **Linux** (Ubuntu/Debian) или **Windows + WSL2**.
+
+В системе должны быть установлены следующие зависимости:
+- **Инструменты сборки**: `build-essential`, `cmake`, `ninja-build`, `meson`, `pkg-config`.
+- **Ассемблеры**: `nasm`, `yasm` (необходимы для FFmpeg, x264, libvpx).
+- **Автоматизация**: `autoconf`, `automake`, `libtool`.
+- **Языки и окружение**: `golang` (1.23+), `openjdk-21-jdk`, `python3`, `git`, `curl`.
+
+Команда для установки всех зависимостей в Ubuntu/Debian:
+```bash
+sudo apt update && sudo apt install -y build-essential cmake ninja-build meson nasm yasm pkg-config git curl autoconf automake libtool golang-go openjdk-21-jdk python3
+```
+
+### Сборка
 ```bash
 git clone --recursive https://github.com/spkprsnts/WireTurn.git
-./gradlew buildCBinaries buildGoBinaries # Сборка всех .so через Docker/WSL
+# Сборка всех нативных компонентов (займет время)
+./gradlew buildCBinaries buildGoBinaries buildFfmpegBinaries
+# Сборка APK
 ./gradlew assembleDebug
 ```
 
