@@ -772,7 +772,7 @@ class AppPreferences(context: Context) {
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { prefs ->
             ClientConfig(
-                localPort = prefs[CLIENT_LOCAL_PORT] ?: ClientConfig.DEFAULT_LOCAL_PORT,
+                localPort = prefs.getStringSafe(CLIENT_LOCAL_PORT, ClientConfig.DEFAULT_LOCAL_PORT),
                 isRawMode = prefs[CLIENT_IS_RAW] ?: false,
                 rawCommand = prefs[CLIENT_RAW_CMD] ?: "",
                 turnableUrl = prefs[CLIENT_TURNABLE_URL] ?: "",
@@ -798,10 +798,10 @@ class AppPreferences(context: Context) {
             WgConfig(
                 privateKey = prefs[WIRE_PRIV_KEY] ?: "",
                 address = prefs[WIRE_ADDRESS] ?: "",
-                mtu = prefs[WIRE_MTU] ?: "",
+                mtu = prefs.getStringSafe(WIRE_MTU),
                 publicKey = prefs[WIRE_PUB_KEY] ?: "",
                 endpoint = prefs[WIRE_ENDPOINT] ?: "",
-                persistentKeepalive = prefs[WIRE_KEEPALIVE] ?: ""
+                persistentKeepalive = prefs.getStringSafe(WIRE_KEEPALIVE)
             )
         }
         .distinctUntilChanged()
@@ -837,8 +837,8 @@ class AppPreferences(context: Context) {
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { prefs ->
             XrayConfig(
-                socksBindAddress = prefs[SOCKS_BIND] ?: XrayConfig.DEFAULT_SOCKS_BIND_ADDRESS,
-                httpBindAddress = prefs[HTTP_BIND] ?: "",
+                socksBindAddress = prefs.getStringSafe(SOCKS_BIND, XrayConfig.DEFAULT_SOCKS_BIND_ADDRESS),
+                httpBindAddress = prefs.getStringSafe(HTTP_BIND),
                 xrayConfiguration = XrayConfiguration.valueOf(prefs[XRAY_CONFIGURATION] ?: XrayConfiguration.WIREGUARD.name)
             )
         }
@@ -852,7 +852,7 @@ class AppPreferences(context: Context) {
                 vlessUseLocalAddress = prefs[CLIENT_VLESS_USE_LOCAL_ADDRESS] ?: true,
                 isDualRoute = prefs[CLIENT_VLESS_IS_DUAL_ROUTE] ?: false,
                 directAddress = prefs[CLIENT_VLESS_DIRECT_ADDRESS] ?: "",
-                hcInterval = prefs[CLIENT_VLESS_HC_INTERVAL] ?: ""
+                hcInterval = prefs.getStringSafe(CLIENT_VLESS_HC_INTERVAL)
             )
         }
         .distinctUntilChanged()
@@ -1111,6 +1111,14 @@ class AppPreferences(context: Context) {
         context.dataStore.edit { it.clear() }
         withContext(Dispatchers.IO) {
             File(context.filesDir, "custom_core").delete()
+        }
+    }
+
+    private fun Preferences.getStringSafe(key: Preferences.Key<String>, default: String = ""): String {
+        return try {
+            this[key] ?: default
+        } catch (_: ClassCastException) {
+            this[intPreferencesKey(key.name)]?.toString() ?: default
         }
     }
 }
