@@ -85,19 +85,17 @@ fun LogsScreen(
 
     val isAtBottom by remember {
         derivedStateOf {
-            val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
-            lastVisibleItem == null || lastVisibleItem.index >= listState.layoutInfo.totalItemsCount - 2
+            !listState.canScrollForward
         }
     }
 
     LaunchedEffect(logs.size) {
         if (logs.size > lastLogsSize) {
-            val wasAtBottom = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.let {
-                it.index >= lastLogsSize - 2
-            } ?: true
+            val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
+            val wasAtBottom = lastVisibleItem == null || lastVisibleItem.index >= lastLogsSize - 2
 
             if (wasAtBottom) {
-                listState.animateScrollToItem(logs.lastIndex)
+                listState.scrollToItem(logs.lastIndex)
             } else {
                 showScrollButton = true
             }
