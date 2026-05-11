@@ -113,6 +113,8 @@ fun ClientConfigScreen(
     var turnableConfig by remember { mutableStateOf(saved.turnableConfig) }
     var olcrtcConfig by remember { mutableStateOf(saved.olcrtcConfig) }
     var olcrtcSocksAddr by remember { mutableStateOf("${saved.olcrtcConfig.socksHost}:${saved.olcrtcConfig.socksPort}") }
+    var videoW by remember { mutableStateOf(saved.olcrtcConfig.videoW.let { if (it == 0) "" else it.toString() }) }
+    var videoH by remember { mutableStateOf(saved.olcrtcConfig.videoH.let { if (it == 0) "" else it.toString() }) }
     var localPort    by remember { mutableStateOf(saved.localPort) }
     var kernelVariant by remember { mutableStateOf(saved.kernelVariant) }
     
@@ -138,6 +140,8 @@ fun ClientConfigScreen(
         turnableConfig = saved.turnableConfig
         olcrtcConfig = saved.olcrtcConfig
         olcrtcSocksAddr = "${saved.olcrtcConfig.socksHost}:${saved.olcrtcConfig.socksPort}"
+        videoW = saved.olcrtcConfig.videoW.let { if (it == 0) "" else it.toString() }
+        videoH = saved.olcrtcConfig.videoH.let { if (it == 0) "" else it.toString() }
         localPort = saved.localPort
         kernelVariant = saved.kernelVariant
     }
@@ -145,14 +149,17 @@ fun ClientConfigScreen(
     val isLocalPortValid = remember(localPort) { ValidatorUtils.isValidHostPort(localPort) }
     val isOlcrtcSocksValid = remember(olcrtcSocksAddr) { ValidatorUtils.isValidHostPort(olcrtcSocksAddr) }
 
-    LaunchedEffect(isRawMode, rawCommand, turnableConfig, olcrtcConfig, localPort, olcrtcSocksAddr, kernelVariant) {
+    LaunchedEffect(isRawMode, rawCommand, turnableConfig, olcrtcConfig, localPort, olcrtcSocksAddr, kernelVariant, videoW, videoH) {
         delay(200)
         val current = viewModel.clientConfig.value
         
-        var effectiveOlcrtcConfig = olcrtcConfig
+        var effectiveOlcrtcConfig = olcrtcConfig.copy(
+            videoW = videoW.toIntOrNull() ?: 0,
+            videoH = videoH.toIntOrNull() ?: 0
+        )
         if (isOlcrtcSocksValid) {
             val parts = olcrtcSocksAddr.split(":")
-            effectiveOlcrtcConfig = olcrtcConfig.copy(
+            effectiveOlcrtcConfig = effectiveOlcrtcConfig.copy(
                 socksHost = parts.getOrNull(0) ?: "127.0.0.1",
                 socksPort = parts.getOrNull(1) ?: "9000"
             )
@@ -411,6 +418,8 @@ fun ClientConfigScreen(
                                                     val parsed = com.wireturn.app.data.OlcrtcConfig.parse(text)
                                                     if (parsed != null) {
                                                         olcrtcConfig = parsed
+                                                        videoW = parsed.videoW.let { if (it == 0) "" else it.toString() }
+                                                        videoH = parsed.videoH.let { if (it == 0) "" else it.toString() }
                                                         snackbarHostState.showExclusiveSnackbar(importSuccessMessage)
                                                     } else {
                                                         snackbarHostState.showExclusiveSnackbar(importErrorMessage)
@@ -930,17 +939,17 @@ fun ClientConfigScreen(
                                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                                 TextFieldRow(
                                                     label = stringResource(R.string.olcrtc_video_width),
-                                                    value = olcrtcConfig.videoW.toString(),
-                                                    onValueChange = { olcrtcConfig = olcrtcConfig.copy(videoW = it.toIntOrNull() ?: 1920) },
+                                                    value = videoW,
+                                                    onValueChange = { videoW = it },
                                                     modifier = Modifier.weight(1f),
-                                                    isModified = clientConfigSnapshot != null && olcrtcConfig.videoW != clientConfigSnapshot?.olcrtcConfig?.videoW
+                                                    isModified = clientConfigSnapshot != null && videoW != clientConfigSnapshot?.olcrtcConfig?.videoW?.let { if (it == 0) "" else it.toString() }
                                                 )
                                                 TextFieldRow(
                                                     label = stringResource(R.string.olcrtc_video_height),
-                                                    value = olcrtcConfig.videoH.toString(),
-                                                    onValueChange = { olcrtcConfig = olcrtcConfig.copy(videoH = it.toIntOrNull() ?: 1080) },
+                                                    value = videoH,
+                                                    onValueChange = { videoH = it },
                                                     modifier = Modifier.weight(1f),
-                                                    isModified = clientConfigSnapshot != null && olcrtcConfig.videoH != clientConfigSnapshot?.olcrtcConfig?.videoH
+                                                    isModified = clientConfigSnapshot != null && videoH != clientConfigSnapshot?.olcrtcConfig?.videoH?.let { if (it == 0) "" else it.toString() }
                                                 )
                                             }
                                         }
@@ -1126,6 +1135,8 @@ fun ClientConfigScreen(
                 } else if (olcrtcParsed != null) {
                     kernelVariant = KernelVariant.OLCRTC
                     olcrtcConfig = olcrtcParsed
+                    videoW = olcrtcParsed.videoW.let { if (it == 0) "" else it.toString() }
+                    videoH = olcrtcParsed.videoH.let { if (it == 0) "" else it.toString() }
                     scope.launch { 
                         snackbarHostState.showExclusiveSnackbar(importSuccessMessage) 
                     }

@@ -212,8 +212,8 @@ data class OlcrtcConfig(
     @SerializedName("mimo") val mimo: String = "",
 
     // vp8channel
-    @SerializedName("vp8_fps") val vp8Fps: Int = 25,
-    @SerializedName("vp8_batch") val vp8Batch: Int = 1,
+    @SerializedName("vp8_fps") val vp8Fps: Int = 60,
+    @SerializedName("vp8_batch") val vp8Batch: Int = 64,
 
     // seichannel
     @SerializedName("sei_fps") val seiFps: Int = 60,
@@ -223,10 +223,10 @@ data class OlcrtcConfig(
 
     // videochannel
     @SerializedName("video_codec") val videoCodec: String = "qrcode",
-    @SerializedName("video_w") val videoW: Int = 1920,
-    @SerializedName("video_h") val videoH: Int = 1080,
-    @SerializedName("video_fps") val videoFps: Int = 30,
-    @SerializedName("video_bitrate") val videoBitrate: String = "2M",
+    @SerializedName("video_w") val videoW: Int = 0,
+    @SerializedName("video_h") val videoH: Int = 0,
+    @SerializedName("video_fps") val videoFps: Int = 60,
+    @SerializedName("video_bitrate") val videoBitrate: String = "5000k",
     @SerializedName("video_hw") val videoHw: String = "none",
     @SerializedName("video_qr_recovery") val videoQrRecovery: String = "low",
     @SerializedName("video_qr_size") val videoQrSize: Int = 0,
@@ -255,6 +255,13 @@ data class OlcrtcConfig(
         return id.isNotBlank() && clientId.isNotBlank() && key.isNotBlank() && dns.isNotBlank()
     }
 
+    fun fillDefaults(): OlcrtcConfig {
+        return copy(
+            videoW = if (videoW <= 0) 1080 else videoW,
+            videoH = if (videoH <= 0) 1080 else videoH
+        )
+    }
+
     fun toUri(): String {
         val sb = StringBuilder("olcrtc://")
         sb.append(carrier)
@@ -263,8 +270,8 @@ data class OlcrtcConfig(
         val params = mutableListOf<String>()
         when (transport) {
             "vp8channel" -> {
-                if (vp8Fps != 25) params.add("vp8-fps=$vp8Fps")
-                if (vp8Batch != 1) params.add("vp8-batch=$vp8Batch")
+                if (vp8Fps != 60) params.add("vp8-fps=$vp8Fps")
+                if (vp8Batch != 64) params.add("vp8-batch=$vp8Batch")
             }
             "seichannel" -> {
                 if (seiFps != 60) params.add("fps=$seiFps")
@@ -273,10 +280,10 @@ data class OlcrtcConfig(
                 if (seiAckMs != 2000) params.add("ack-ms=$seiAckMs")
             }
             "videochannel" -> {
-                if (videoW != 1920) params.add("video-w=$videoW")
-                if (videoH != 1080) params.add("video-h=$videoH")
-                if (videoFps != 30) params.add("video-fps=$videoFps")
-                if (videoBitrate != "2M") params.add("video-bitrate=$videoBitrate")
+                if (videoW != 0 && videoW != 1080) params.add("video-w=$videoW")
+                if (videoH != 0 && videoH != 1080) params.add("video-h=$videoH")
+                if (videoFps != 60) params.add("video-fps=$videoFps")
+                if (videoBitrate != "5000k") params.add("video-bitrate=$videoBitrate")
                 if (videoHw != "none") params.add("video-hw=$videoHw")
                 if (videoCodec != "qrcode") params.add("video-codec=$videoCodec")
                 if (videoCodec == "qrcode") {
@@ -373,7 +380,7 @@ data class OlcrtcConfig(
 }
 
 data class ClientConfig(
-    @SerializedName("localPort") val localPort: String = DEFAULT_LOCAL_PORT,
+    @SerializedName("localPort") val localPort: String = "",
     @SerializedName("isRawMode") val isRawMode: Boolean = false,
     @SerializedName("rawCommand") val rawCommand: String = "",
     @SerializedName("turnableUrl") val turnableUrl: String = "",
@@ -382,11 +389,18 @@ data class ClientConfig(
     @SerializedName("olcrtcConfig") val olcrtcConfig: OlcrtcConfig = OlcrtcConfig(),
     @SerializedName("kernelVariant") val kernelVariant: KernelVariant = KernelVariant.TURNABLE
 ) {
+    fun fillDefaults(): ClientConfig {
+        return copy(
+            localPort = localPort.ifBlank { DEFAULT_LOCAL_PORT },
+            olcrtcConfig = olcrtcConfig.fillDefaults()
+        )
+    }
+
     /** GSON can leave fields null if they are missing/invalid in JSON. This ensures safety. */
     @Suppress("UNNECESSARY_SAFE_CALL", "USELESS_ELVIS")
     fun migrateAndSanitize(): ClientConfig {
         var current = copy(
-            localPort = (localPort?.ifBlank { DEFAULT_LOCAL_PORT } ?: DEFAULT_LOCAL_PORT).take(100),
+            localPort = (localPort ?: "").take(100),
             rawCommand = (rawCommand ?: "").take(2000),
             turnableUrl = (turnableUrl ?: "").take(2000),
             olcrtcUrl = (olcrtcUrl ?: "").take(2000),

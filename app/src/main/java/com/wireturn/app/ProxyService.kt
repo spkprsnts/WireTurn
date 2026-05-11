@@ -94,8 +94,9 @@ class ProxyService : Service() {
             val vlessConfig = prefs.vlessConfigFlow.first()
             val xrayConfig = prefs.xrayConfigFlow.first()
 
-            // Сразу фиксируем работающий конфиг для UI
-            ProxyServiceState.setClientConfigSnapshot(cfg)
+            // Сразу фиксируем работающий конфиг для UI (с заполненными дефолтами)
+            val filledCfg = cfg.fillDefaults()
+            ProxyServiceState.setClientConfigSnapshot(filledCfg)
             ProxyServiceState.setProfileNameSnapshot(profileName)
 
             if (!cfg.isValid) {
@@ -302,7 +303,16 @@ class ProxyService : Service() {
     }
 
     private suspend fun runBinary(cfg: ClientConfig): Boolean = coroutineScope {
-        val cmdArgs = buildCommandArgs(cfg)
+        val prefs = AppPreferences(applicationContext)
+        val runningCfg = cfg.fillDefaults()
+        
+        // Если конфиг изменился после заполнения дефолтов (были пустые поля),
+        // сохраняем его, чтобы UI обновился и показал реальные значения.
+        if (runningCfg != cfg) {
+            prefs.saveClientConfig(runningCfg)
+        }
+
+        val cmdArgs = buildCommandArgs(runningCfg)
 
         if (ProxyServiceState.status.value is ProxyStatus.Error) {
             return@coroutineScope false

@@ -325,14 +325,14 @@ fun HomeScreen(
     val activeVlessConfig = vlessConfigSnapshot ?: vlessConfig
 
     val configChanged = remember(clientConfig, clientConfigSnapshot, wgConfig, wgConfigSnapshot, vlessConfig, vlessConfigSnapshot, xrayConfig, xrayConfigSnapshot, isBusy) {
-        !isBusy && ((clientConfigSnapshot != null && clientConfig != clientConfigSnapshot) ||
+        !isBusy && ((clientConfigSnapshot != null && clientConfig.fillDefaults() != clientConfigSnapshot) ||
                 (wgConfigSnapshot != null && wgConfig.fillDefaults() != wgConfigSnapshot) ||
                 (vlessConfigSnapshot != null && vlessConfig != vlessConfigSnapshot) ||
                 (xrayConfigSnapshot != null && xrayConfig.fillDefaults() != xrayConfigSnapshot))
     }
 
     val mainConfigChanged = remember(clientConfig, clientConfigSnapshot, isBusy) {
-        !isBusy && (clientConfigSnapshot != null && clientConfig != clientConfigSnapshot)
+        !isBusy && (clientConfigSnapshot != null && clientConfig.fillDefaults() != clientConfigSnapshot)
     }
     val xrayConfigChanged = remember(wgConfig, wgConfigSnapshot, vlessConfig, vlessConfigSnapshot, xrayConfig, xrayConfigSnapshot, clientConfig, clientConfigSnapshot, isBusy) {
         if (isBusy) return@remember false
