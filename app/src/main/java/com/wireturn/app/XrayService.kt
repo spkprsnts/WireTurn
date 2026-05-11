@@ -306,6 +306,8 @@ class XrayService : Service() {
                 if (rawVlessConfig.isDualRoute && rawVlessConfig.directAddress.isNotBlank()) {
                     cmdArgs.add("-direct-address")
                     cmdArgs.add(rawVlessConfig.directAddress)
+                    cmdArgs.add("-hc-interval")
+                    cmdArgs.add(rawVlessConfig.hcInterval.toString())
                 }
             } else if (runningClientConfig.kernelVariant != KernelVariant.OLCRTC) {
                 cmdArgs.addAll(listOf(

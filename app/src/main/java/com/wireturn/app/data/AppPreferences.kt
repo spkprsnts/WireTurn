@@ -504,7 +504,8 @@ data class VlessConfig(
     @SerializedName("vlessLink") val vlessLink: String = "",
     @SerializedName("vlessUseLocalAddress") val vlessUseLocalAddress: Boolean = true,
     @SerializedName("isDualRoute") val isDualRoute: Boolean = false,
-    @SerializedName("directAddress") val directAddress: String = ""
+    @SerializedName("directAddress") val directAddress: String = "",
+    @SerializedName("hcInterval") val hcInterval: Int = 30
 ) {
     fun isValid(): Boolean = vlessLink.isNotBlank() && com.wireturn.app.ui.ValidatorUtils.isValidVlessLink(vlessLink)
 

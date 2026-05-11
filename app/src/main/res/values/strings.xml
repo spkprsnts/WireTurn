@@ -340,6 +340,8 @@
     <string name="vless_direct_address">Direct server address (host:port)</string>
     <string name="vless_direct_address_placeholder" translatable="false">292.313.32.45:443</string>
     <string name="vless_direct_address_desc">External address of the VLESS server</string>
+    <string name="vless_hc_interval">Health check interval (sec)</string>
+    <string name="vless_hc_interval_desc">How often to check if direct connection is possible</string>
     <string name="vless_parse_from_link">Parse from link</string>
     <string name="vless_direct_active">Direct connection</string>
 

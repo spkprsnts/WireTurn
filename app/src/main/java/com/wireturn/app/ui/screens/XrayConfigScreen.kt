@@ -130,6 +130,7 @@ fun XrayConfigScreen(
     var vlessLink by rememberSaveable(currentProfileId, vlessSaved.vlessLink) { mutableStateOf(vlessSaved.vlessLink) }
     var vlessIsDualRoute by rememberSaveable(currentProfileId, vlessSaved.isDualRoute) { mutableStateOf(vlessSaved.isDualRoute) }
     var vlessDirectAddress by rememberSaveable(currentProfileId, vlessSaved.directAddress) { mutableStateOf(vlessSaved.directAddress) }
+    var vlessHcInterval by rememberSaveable(currentProfileId, vlessSaved.hcInterval.toString()) { mutableStateOf(vlessSaved.hcInterval.toString()) }
 
     val showQrScanner = remember { mutableStateOf(false) }
     val showVlessQrScanner = remember { mutableStateOf(false) }
@@ -158,6 +159,7 @@ fun XrayConfigScreen(
         vlessLink = vlessSaved.vlessLink
         vlessIsDualRoute = vlessSaved.isDualRoute
         vlessDirectAddress = vlessSaved.directAddress
+        vlessHcInterval = vlessSaved.hcInterval.toString()
     }
 
     // Auto-save debounced
@@ -188,13 +190,14 @@ fun XrayConfigScreen(
         }
     }
 
-    LaunchedEffect(vlessLink, vlessIsDualRoute, vlessDirectAddress) {
+    LaunchedEffect(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval) {
         delay(200)
         val next = com.wireturn.app.data.VlessConfig(
             vlessLink = vlessLink,
             vlessUseLocalAddress = true,
             isDualRoute = vlessIsDualRoute,
-            directAddress = vlessDirectAddress
+            directAddress = vlessDirectAddress,
+            hcInterval = vlessHcInterval.toIntOrNull() ?: 30
         )
         if (next != vlessSaved) {
             viewModel.updateVlessConfig(next)
@@ -429,6 +432,8 @@ fun XrayConfigScreen(
                         },
                         vlessDirectAddress = vlessDirectAddress,
                         onVlessDirectAddressChange = { if (!privacyMode) vlessDirectAddress = it },
+                        vlessHcInterval = vlessHcInterval,
+                        onVlessHcIntervalChange = { vlessHcInterval = it },
                         onParseDirectAddress = {
                             ValidatorUtils.parseVlessAddress(vlessLink)?.let { addr ->
                                 vlessDirectAddress = addr
@@ -649,6 +654,8 @@ private fun VlessSettings(
     onVlessIsDualRouteChange: (Boolean) -> Unit,
     vlessDirectAddress: String,
     onVlessDirectAddressChange: (String) -> Unit,
+    vlessHcInterval: String,
+    onVlessHcIntervalChange: (String) -> Unit,
     onParseDirectAddress: () -> Unit,
     vlessLinkHistory: List<String>,
     onRemoveHistory: (String) -> Unit,
@@ -735,26 +742,43 @@ private fun VlessSettings(
             enter = fadeIn(tween(300)) + expandVertically(tween(300)),
             exit = fadeOut(tween(300)) + shrinkVertically(tween(300))
         ) {
-            SettingsGroupItem(
-                isTop = false,
-                isBottom = true,
-                containerColor = blockContainerColor
-            ) {
-                TextFieldRow(
-                    label = stringResource(R.string.vless_direct_address),
-                    value = vlessDirectAddress.redact(privacyMode),
-                    onValueChange = onVlessDirectAddressChange,
-                    placeholder = stringResource(R.string.vless_direct_address_placeholder),
-                    isError = !ValidatorUtils.isValidHostPort(vlessDirectAddress),
-                    readOnly = privacyMode,
-                    supportingText = stringResource(R.string.vless_direct_address_desc),
-                    isModified = vlessConfigSnapshot != null && vlessDirectAddress != vlessConfigSnapshot.directAddress,
-                    trailingIcon = {
-                        IconButton(onClick = onParseDirectAddress) {
-                            Icon(painterResource(R.drawable.sync_24px), stringResource(R.string.vless_parse_from_link))
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                SettingsGroupItem(
+                    isTop = false,
+                    isBottom = false,
+                    containerColor = blockContainerColor
+                ) {
+                    TextFieldRow(
+                        label = stringResource(R.string.vless_direct_address),
+                        value = vlessDirectAddress.redact(privacyMode),
+                        onValueChange = onVlessDirectAddressChange,
+                        placeholder = stringResource(R.string.vless_direct_address_placeholder),
+                        isError = !ValidatorUtils.isValidHostPort(vlessDirectAddress),
+                        readOnly = privacyMode,
+                        supportingText = stringResource(R.string.vless_direct_address_desc),
+                        isModified = vlessConfigSnapshot != null && vlessDirectAddress != vlessConfigSnapshot.directAddress,
+                        trailingIcon = {
+                            IconButton(onClick = onParseDirectAddress) {
+                                Icon(painterResource(R.drawable.sync_24px), stringResource(R.string.vless_parse_from_link))
+                            }
                         }
-                    }
-                )
+                    )
+                }
+
+                SettingsGroupItem(
+                    isTop = false,
+                    isBottom = true,
+                    containerColor = blockContainerColor
+                ) {
+                    TextFieldRow(
+                        label = stringResource(R.string.vless_hc_interval),
+                        value = vlessHcInterval,
+                        onValueChange = onVlessHcIntervalChange,
+                        placeholder = "30",
+                        supportingText = stringResource(R.string.vless_hc_interval_desc),
+                        isModified = vlessConfigSnapshot != null && vlessHcInterval.toIntOrNull() != vlessConfigSnapshot.hcInterval
+                    )
+                }
             }
         }
     }
