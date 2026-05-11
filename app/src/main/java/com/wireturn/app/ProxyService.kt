@@ -443,6 +443,14 @@ class ProxyService : Service() {
 
         if (lower.contains("failed to start vpn client")) {
             val errorPart = line.substringAfterLast(":").trim()
+            val lowerError = errorPart.lowercase()
+
+            // Если ошибка временная (сетевая), не ставим Error, чтобы сработал ватчдог
+            if (lowerError.contains("read tcp") || lowerError.contains("timeout") || lowerError.contains("abort")) {
+                state.startupEmitted = true
+                return true
+            }
+
             if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
                 ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_turnable_failed, errorPart)))
             }
@@ -864,7 +872,7 @@ class ProxyService : Service() {
                 if (!capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) return
                 availablePhysicalNetworks.add(network)
 
-                val handle = network.getNetworkHandle()
+                val handle = network.networkHandle
                 if (handle == lastNetworkHandle) return
                 lastNetworkHandle = handle
 
@@ -973,18 +981,29 @@ class ProxyService : Service() {
         return availablePhysicalNetworks.isNotEmpty()
     }
 
-    private fun isSlowConnection(): Boolean {
+    private suspend fun isSlowConnection(): Boolean = withContext(Dispatchers.IO) {
         val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
-        val network = cm.activeNetwork ?: return false
-        val caps = cm.getNetworkCapabilities(network) ?: return false
+        val network = cm.activeNetwork ?: return@withContext false
+        val caps = cm.getNetworkCapabilities(network) ?: return@withContext false
         
-        // If it's cellular, we check the estimated bandwidth.
-        // Usually EDGE is < 500 kbps.
+        // 1. Сначала проверяем теоретическую скорость для сотовых сетей
         if (caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
             val speed = caps.linkDownstreamBandwidthKbps
-            return speed in 1..999 // Threshold: 1 Mbps
+            if (speed in 1..999) {
+                return@withContext true // Уже медленно по версии системы
+            }
         }
-        return false
+        
+        // 2. Если теория хорошая (или это Wi-Fi), проверяем реальную задержку
+        try {
+            // ping -c 1 (один пакет), -W 5 (тайм-аут ожидания ответа 5 секунд)
+            val process = Runtime.getRuntime().exec("ping -c 1 -W 5 max.ru")
+            val exitCode = process.waitFor()
+            // Если exitCode не 0, значит пинг не прошел или превысил 5 секунд
+            exitCode != 0
+        } catch (_: Exception) {
+            false // В случае ошибки самой команды ping не будем считать сеть медленной
+        }
     }
 
     private fun updateNotification(text: String) {
@@ -1020,7 +1039,7 @@ class ProxyService : Service() {
     companion object {
         const val ACTION_STOP = "ACTION_STOP"
         const val ACTION_STOP_BY_USER = "ACTION_STOP_BY_USER"
-        const val MAX_RESTARTS = 8
+        const val MAX_RESTARTS = 10
         private val CAPTCHA_URL_REGEX = Pattern.compile("""Open this URL in your browser:\s*(https?://\S+)""")
 
         fun start(context: Context, cfg: ClientConfig) {
