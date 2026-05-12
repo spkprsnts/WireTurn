@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.net.LocalSocket
+import android.net.LocalSocketAddress
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.AndroidViewModel
@@ -308,9 +310,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (_isHomeScreenActive.value) {
                     val state = XrayServiceState.state.value
                     if (state == XrayState.Running || state == XrayState.DirectRoute) {
-                        val port = XrayServiceState.metricsPort.value
-                        if (port != null) {
-                            updateMetrics(port)
+                        val socketName = XrayServiceState.statsSocketName.value
+                        if (socketName != null) {
+                            updateMetrics(socketName)
                         }
                     } else {
                         _proxyTransfer.value = null
@@ -330,29 +332,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         lastMetricsTime = 0L
     }
 
-    private suspend fun updateMetrics(port: Int) {
+    private suspend fun updateMetrics(socketName: String) {
         withContext(Dispatchers.IO) {
             try {
-                val url = java.net.URL("http://127.0.0.1:$port/metrics")
-                val connection = url.openConnection() as java.net.HttpURLConnection
-                connection.connectTimeout = 2000
-                connection.readTimeout = 2000
-                val content = connection.inputStream.bufferedReader().use { it.readText() }
+                val socket = LocalSocket()
+                socket.connect(LocalSocketAddress(socketName, LocalSocketAddress.Namespace.ABSTRACT))
+                socket.outputStream.write("stats\n".toByteArray())
+                val content = socket.inputStream.bufferedReader().readLine() ?: ""
+                socket.close()
 
-                var rx = 0L
-                var tx = 0L
+                if (content.isBlank()) return@withContext
 
-                content.lines().forEach { line ->
-                    val trimmed = line.trim()
-                    if (trimmed.startsWith("#") || trimmed.isBlank()) return@forEach
-
-                    val value = trimmed.split("=", " ").lastOrNull()?.toLongOrNull() ?: 0L
-                    if (trimmed.contains("rx_bytes")) {
-                        rx += value
-                    } else if (trimmed.contains("tx_bytes")) {
-                        tx += value
-                    }
-                }
+                val json = com.google.gson.JsonParser.parseString(content).asJsonObject
+                val rx = json.get("rx_bytes")?.asLong ?: 0L
+                val tx = json.get("tx_bytes")?.asLong ?: 0L
 
                 val now = System.currentTimeMillis()
                 var rxSpeed = 0L
@@ -570,14 +563,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val result = withContext(Dispatchers.IO) {
                     try {
                         val parts = socksAddr.split(":")
-                        val proxy = Proxy(Proxy.Type.SOCKS, InetSocketAddress(parts[0], parts[1].toInt()))
+                        val proxy = Proxy(Proxy.Type.SOCKS, InetSocketAddress.createUnresolved(parts[0], parts[1].toInt()))
                         var time = 0L
                         val isSuccess = try {
                             time = measureTimeMillis {
                                 val url = java.net.URL("https://1.1.1.1/")
                                 val conn = url.openConnection(proxy) as java.net.HttpURLConnection
-                                conn.connectTimeout = 2000
-                                conn.readTimeout = 2000
+                                conn.connectTimeout = 3000
+                                conn.readTimeout = 3000
                                 conn.instanceFollowRedirects = false
                                 conn.responseCode
                             }

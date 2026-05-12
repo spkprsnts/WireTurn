@@ -102,14 +102,16 @@ class HevVpnService : VpnService() {
 
         val defaultSocks = DEFAULT_SOCKS_BIND_ADDRESS
         val socks5Addr = intent?.getStringExtra(EXTRA_SOCKS5_ADDR)?.takeIf { it.isNotBlank() } ?: defaultSocks
+        val socks5User = intent?.getStringExtra(EXTRA_SOCKS5_USER)
+        val socks5Pass = intent?.getStringExtra(EXTRA_SOCKS5_PASS)
 
         startJob = serviceScope.launch {
-            startVpn(socks5Addr)
+            startVpn(socks5Addr, socks5User, socks5Pass)
         }
         return START_STICKY
     }
 
-    private suspend fun startVpn(socks5Addr: String) {
+    private suspend fun startVpn(socks5Addr: String, socks5User: String? = null, socks5Pass: String? = null) {
         try {
             AppLogsState.addLog("[hev-socks5-tunnel] Establishing tunnel")
             val prefs = AppPreferences(applicationContext)
@@ -161,6 +163,12 @@ class HevVpnService : VpnService() {
             val socks5Host = if (lastColon > 0) socks5Addr.substring(0, lastColon) else socks5Addr
             val socks5Port = if (lastColon > 0) socks5Addr.substring(lastColon + 1).toIntOrNull() ?: 1080 else 1080
 
+            val authConfig = if (!socks5User.isNullOrBlank() && !socks5Pass.isNullOrBlank()) {
+                "\n  username: '$socks5User'\n  password: '$socks5Pass'"
+            } else {
+                ""
+            }
+
             configFile.writeText(
                 """
 tunnel:
@@ -168,7 +176,7 @@ tunnel:
 socks5:
   port: $socks5Port
   address: '$socks5Host'
-  udp: 'udp'
+  udp: 'udp'$authConfig
 mapdns:
   address: $MAPDNS_ADDRESS
   port: 53
@@ -272,6 +280,8 @@ misc:
         const val ACTION_STOP = "STOP"
         const val ACTION_STOP_BY_USER = "STOP_BY_USER"
         const val EXTRA_SOCKS5_ADDR = "socks5_addr"
+        const val EXTRA_SOCKS5_USER = "socks5_user"
+        const val EXTRA_SOCKS5_PASS = "socks5_pass"
 
         private const val TUN_MTU = 1280
         private const val TUN_IPV4_ADDRESS = "10.0.88.88"

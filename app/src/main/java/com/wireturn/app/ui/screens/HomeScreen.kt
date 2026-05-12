@@ -61,6 +61,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import com.wireturn.app.data.XrayConfiguration
+import com.wireturn.app.data.XrayConfig
 import com.wireturn.app.data.KernelVariant
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -1163,27 +1164,49 @@ fun HomeScreen(
             val isOlcrtc = activeConfig.kernelVariant == KernelVariant.OLCRTC
             val showXray = xraySettings.xrayEnabled
 
-            val displaySocksAddr = if (showXray) {
-                activeXrayConfig.socksBindAddress
-            } else if (isOlcrtc) {
-                "${activeConfig.olcrtcConfig.socksHost}:${activeConfig.olcrtcConfig.socksPort}"
-            } else {
-                activeXrayConfig.socksBindAddress
+            fun formatProxyAddr(addr: String, config: XrayConfig): String {
+                if (addr.isBlank()) return ""
+                return if (config.isProxyAuthEnabled && config.proxyUser.isNotBlank()) {
+                    "${config.proxyUser}:${config.proxyPass}@$addr"
+                } else {
+                    addr
+                }
             }
 
-            val displayHttpAddr = if (showXray) activeXrayConfig.httpBindAddress else if (isOlcrtc) "" else activeXrayConfig.httpBindAddress
-
-            val isSocksModified = if (showXray) {
-                xrayConfigSnapshot != null && xrayConfig.socksBindAddress != xrayConfigSnapshot?.socksBindAddress
-            } else if (isOlcrtc) {
-                clientConfigSnapshot != null && (activeConfig.olcrtcConfig.socksHost != clientConfigSnapshot?.olcrtcConfig?.socksHost || activeConfig.olcrtcConfig.socksPort != clientConfigSnapshot?.olcrtcConfig?.socksPort)
-            } else {
-                xrayConfigSnapshot != null && xrayConfig.socksBindAddress != xrayConfigSnapshot?.socksBindAddress
+            val displaySocksAddr = when {
+                showXray -> activeXrayConfig.socksBindAddress
+                isOlcrtc -> "${activeConfig.olcrtcConfig.socksHost}:${activeConfig.olcrtcConfig.socksPort}"
+                else -> activeXrayConfig.socksBindAddress
             }
 
-            val isHttpModified = if (showXray) {
-                xrayConfigSnapshot != null && xrayConfig.httpBindAddress != xrayConfigSnapshot?.httpBindAddress
-            } else false
+            val copySocksAddr = when {
+                showXray -> formatProxyAddr(activeXrayConfig.socksBindAddress, activeXrayConfig)
+                isOlcrtc -> "${activeConfig.olcrtcConfig.socksHost}:${activeConfig.olcrtcConfig.socksPort}"
+                else -> formatProxyAddr(activeXrayConfig.socksBindAddress, activeXrayConfig)
+            }
+
+            val displayHttpAddr = when {
+                showXray -> activeXrayConfig.httpBindAddress
+                isOlcrtc -> ""
+                else -> activeXrayConfig.httpBindAddress
+            }
+
+            val copyHttpAddr = when {
+                showXray -> formatProxyAddr(activeXrayConfig.httpBindAddress, activeXrayConfig)
+                isOlcrtc -> ""
+                else -> formatProxyAddr(activeXrayConfig.httpBindAddress, activeXrayConfig)
+            }
+
+            val isSocksModified = when {
+                showXray -> xrayConfigSnapshot != null && xrayConfig.socksBindAddress != xrayConfigSnapshot?.socksBindAddress
+                isOlcrtc -> clientConfigSnapshot != null && (activeConfig.olcrtcConfig.socksHost != clientConfigSnapshot?.olcrtcConfig?.socksHost || activeConfig.olcrtcConfig.socksPort != clientConfigSnapshot?.olcrtcConfig?.socksPort)
+                else -> xrayConfigSnapshot != null && xrayConfig.socksBindAddress != xrayConfigSnapshot?.socksBindAddress
+            }
+
+            val isHttpModified = when {
+                showXray -> xrayConfigSnapshot != null && xrayConfig.httpBindAddress != xrayConfigSnapshot?.httpBindAddress
+                else -> false
+            }
 
             Column(
                 modifier = Modifier.graphicsLayer { alpha = if (showXray || isOlcrtc) 1f else 0.38f },
@@ -1211,7 +1234,7 @@ fun HomeScreen(
                     onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         scope.launch {
-                            clipboard.setClipEntry(ClipData.newPlainText(socks5Label, displaySocksAddr).toClipEntry())
+                            clipboard.setClipEntry(ClipData.newPlainText(socks5Label, copySocksAddr).toClipEntry())
                             socksCopied = true
                         }
                     }
@@ -1245,18 +1268,18 @@ fun HomeScreen(
                     }
 
                     SettingsGroupItem(
-                        isTop = false,
-                        isBottom = true,
-                        containerColor = blockContainerColor,
-                        enabled = showXray,
-                        onClick = {
-                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                            scope.launch {
-                                clipboard.setClipEntry(ClipData.newPlainText(httpLabel, displayHttpAddr).toClipEntry())
-                                httpCopied = true
-                            }
+                    isTop = false,
+                    isBottom = true,
+                    containerColor = blockContainerColor,
+                    enabled = showXray,
+                    onClick = {
+                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                        scope.launch {
+                            clipboard.setClipEntry(ClipData.newPlainText(httpLabel, copyHttpAddr).toClipEntry())
+                            httpCopied = true
                         }
-                    ) {
+                    }
+                ) {
                         ProxyAddressRow(
                             label = stringResource(R.string.xray_http),
                             address = displayHttpAddr,

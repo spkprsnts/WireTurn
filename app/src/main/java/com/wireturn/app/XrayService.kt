@@ -4,6 +4,8 @@ import android.app.Service
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.net.LocalSocket
+import android.net.LocalSocketAddress
 import com.wireturn.app.viewmodel.XrayState
 import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.data.AppPreferences
@@ -128,6 +130,10 @@ class XrayService : Service() {
                                 if (VpnServiceState.state.value != VpnState.Starting) {
                                     val vpnIntent = Intent(this@XrayService, HevVpnService::class.java).apply {
                                         putExtra(HevVpnService.EXTRA_SOCKS5_ADDR, runningXray.connectableAddress)
+                                        if (runningXray.isProxyAuthEnabled && runningXray.proxyUser.isNotBlank()) {
+                                            putExtra(HevVpnService.EXTRA_SOCKS5_USER, runningXray.proxyUser)
+                                            putExtra(HevVpnService.EXTRA_SOCKS5_PASS, runningXray.proxyPass)
+                                        }
                                     }
                                     startService(vpnIntent)
                                 }
@@ -263,18 +269,12 @@ class XrayService : Service() {
                 vless = if (isXrayVless) vlessConfig else null
             )
             
-            val randomMetricsPort = withContext(Dispatchers.IO) {
-                try {
-                    java.net.ServerSocket(0).use { it.localPort }
-                } catch (_: Exception) {
-                    (10000..60000).random()
-                }
-            }
+            val socketName = "sys.ipc.${java.util.UUID.randomUUID().toString().replace("-", "").take(12)}"
 
             val cmdArgs = mutableListOf(
                 executable,
                 "-listen", xrayConfig.socksBindAddress,
-                "-metrics", "127.0.0.1:$randomMetricsPort"
+                "-stats-socket", socketName
             )
 
             if (xrayConfig.httpBindAddress.isNotBlank()) {
@@ -338,7 +338,7 @@ class XrayService : Service() {
                     .start()
             }
             process.set(proc)
-            XrayServiceState.updateMetricsPort(randomMetricsPort)
+            XrayServiceState.updateStatsSocketName(socketName)
             XrayServiceState.updateStatus(XrayState.Starting)
 
             BufferedReader(InputStreamReader(proc.inputStream)).use { reader ->
@@ -363,7 +363,7 @@ class XrayService : Service() {
                     }
 
                     if (isXrayVless && rawVlessConfig.isDualRoute) {
-                        handleDualRouteLog(cleanLine, randomMetricsPort)
+                        handleDualRouteLog(cleanLine, socketName)
                     }
                 }
             }
@@ -379,7 +379,7 @@ class XrayService : Service() {
             AppLogsState.addLog("[Xray] Error: ${e.message}")
         } finally {
             process.set(null)
-            XrayServiceState.updateMetricsPort(null)
+            XrayServiceState.updateStatsSocketName(null)
             
             // Only set Idle if we are NOT being cancelled by a new start command
             val isJobActive = try {
@@ -402,7 +402,7 @@ class XrayService : Service() {
         }
     }
 
-    private fun handleDualRouteLog(line: String, metricsPort: Int) {
+    private fun handleDualRouteLog(line: String, socketName: String) {
         when {
             line.contains("active route: direct") -> {
                 XrayServiceState.updateStatus(XrayState.DirectRoute)
@@ -435,13 +435,11 @@ class XrayService : Service() {
                             delay(500)
                             try {
                                 withContext(Dispatchers.IO) {
-                                    val url = java.net.URL("http://127.0.0.1:$metricsPort/check?n=3")
-                                    val connection = url.openConnection() as java.net.HttpURLConnection
-                                    connection.requestMethod = "GET"
-                                    connection.connectTimeout = 1000
-                                    connection.readTimeout = 1000
-                                    connection.inputStream.use { it.readBytes() }
-                                    connection.disconnect()
+                                    val socket = LocalSocket()
+                                    socket.connect(LocalSocketAddress(socketName, LocalSocketAddress.Namespace.ABSTRACT))
+                                    socket.outputStream.write("check 3\n".toByteArray())
+                                    socket.inputStream.bufferedReader().readLine()
+                                    socket.close()
                                 }
                             } catch (e: Exception) {
                                 AppLogsState.addLog("[DualRoute] Failed to trigger check: ${e.message}")
