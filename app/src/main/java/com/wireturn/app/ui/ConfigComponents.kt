@@ -786,6 +786,36 @@ fun TextFieldRow(
 }
 
 @Composable
+fun ConfigDropdownMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    modifier: Modifier = Modifier,
+    title: String? = null,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest,
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        shadowElevation = 4.dp,
+        tonalElevation = 4.dp,
+        shape = MaterialTheme.shapes.medium,
+        properties = androidx.compose.ui.window.PopupProperties(focusable = true),
+        modifier = modifier
+    ) {
+        if (!title.isNullOrBlank()) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+            )
+        }
+        content()
+    }
+}
+
+@Composable
 fun FieldTrailingIcons(
     history: List<String>,
     onSelect: (String) -> Unit,
@@ -819,8 +849,6 @@ fun HistoryIconButton(
     if (history.isEmpty()) return
 
     var expanded by remember { mutableStateOf(false) }
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
 
     Box(modifier = modifier) {
         IconButton(
@@ -833,51 +861,71 @@ fun HistoryIconButton(
                 modifier = Modifier.size(iconSize)
             )
         }
-        DropdownMenu(
+        HistoryDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            offset = androidx.compose.ui.unit.DpOffset(0.dp, (-12).dp),
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-            shadowElevation = 4.dp,
-            tonalElevation = 4.dp,
-            shape = MaterialTheme.shapes.medium,
-            properties = androidx.compose.ui.window.PopupProperties(focusable = true)
-        ) {
-            history.forEach { historyItem ->
-                DropdownMenuItem(
-                    modifier = Modifier.pointerInput(historyItem) {
-                        awaitEachGesture {
-                            awaitFirstDown(requireUnconsumed = false)
-                            var isLongPress = false
-                            val job = scope.launch {
-                                delay(1500)
-                                HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
-                                isLongPress = true
-                                HapticUtil.perform(context, HapticUtil.Pattern.ERROR)
-                                onRemove(historyItem)
-                            }
-                            val up = waitForUpOrCancellation()
-                            job.cancel()
-                            if (isLongPress) {
-                                up?.consume()
-                            }
+            history = history,
+            onSelect = onSelect,
+            onRemove = onRemove,
+            privacyMode = privacyMode
+        )
+    }
+}
+
+@Composable
+fun HistoryDropdownMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    history: List<String>,
+    onSelect: (String) -> Unit,
+    onRemove: (String) -> Unit,
+    privacyMode: Boolean,
+    modifier: Modifier = Modifier,
+    title: String = stringResource(R.string.history_label)
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    ConfigDropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest,
+        title = title,
+        modifier = modifier
+    ) {
+        history.forEach { historyItem ->
+            DropdownMenuItem(
+                modifier = Modifier.pointerInput(historyItem) {
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false)
+                        var isLongPress = false
+                        val job = scope.launch {
+                            delay(1500)
+                            HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
+                            isLongPress = true
+                            HapticUtil.perform(context, HapticUtil.Pattern.ERROR)
+                            onRemove(historyItem)
                         }
-                    },
-                    text = {
-                        val displayText = if (!privacyMode) truncateUrlParameters(historyItem) else historyItem.redact(true)
-                        Text(
-                            text = displayText,
-                            maxLines = 1,
-                            modifier = Modifier.basicMarquee(velocity = 60.dp, initialDelayMillis = 2_500)
-                        )
-                    },
-                    onClick = {
-                        HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
-                        onSelect(historyItem)
-                        expanded = false
+                        val up = waitForUpOrCancellation()
+                        job.cancel()
+                        if (isLongPress) {
+                            up?.consume()
+                        }
                     }
-                )
-            }
+                },
+                text = {
+                    val displayText = if (!privacyMode) truncateUrlParameters(historyItem) else historyItem.redact(true)
+                    Text(
+                        text = displayText,
+                        maxLines = 1,
+                        modifier = Modifier.basicMarquee(velocity = 60.dp, initialDelayMillis = 2_500)
+                    )
+                },
+                onClick = {
+                    HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
+                    onSelect(historyItem)
+                    onDismissRequest()
+                }
+            )
         }
     }
 }
