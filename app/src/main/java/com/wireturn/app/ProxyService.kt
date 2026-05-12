@@ -524,6 +524,18 @@ class ProxyService : Service() {
             }
         }
 
+        if (lower.contains("failed to connect link")) {
+            if (getNetworkQuality() == NetworkQuality.FAST) {
+                // Быстрая сеть, но ошибка линка — платформа недоступна
+                ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_platform_unavailable)))
+                state.startupFailed = true
+            } else {
+                // Либо медленная, либо лежит совсем — на откуп watchdog
+                state.startupEmitted = true
+            }
+            return true
+        }
+
         if (lower.contains("remote not ready")) {
             val now = System.currentTimeMillis()
             if (now - state.lastRemoteNotReadyTime > 10_000) {
@@ -966,30 +978,35 @@ class ProxyService : Service() {
         return availablePhysicalNetworks.isNotEmpty()
     }
 
-    private suspend fun isSlowConnection(): Boolean = withContext(Dispatchers.IO) {
+    private enum class NetworkQuality { FAST, SLOW, OFFLINE }
+
+    private suspend fun getNetworkQuality(): NetworkQuality = withContext(Dispatchers.IO) {
         val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
-        val network = cm.activeNetwork ?: return@withContext false
-        val caps = cm.getNetworkCapabilities(network) ?: return@withContext false
+        val network = cm.activeNetwork ?: return@withContext NetworkQuality.OFFLINE
+        val caps = cm.getNetworkCapabilities(network) ?: return@withContext NetworkQuality.OFFLINE
         
-        // 1. Сначала проверяем теоретическую скорость для сотовых сетей
+        // 1. Порог скорости для сотовых сетей снижаем до минимума, так как система часто ошибается
         if (caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
             val speed = caps.linkDownstreamBandwidthKbps
-            if (speed in 1..999) {
-                return@withContext true // Уже медленно по версии системы
-            }
+            if (speed in 1..150) return@withContext NetworkQuality.SLOW
         }
         
-        // 2. Если теория хорошая (или это Wi-Fi), проверяем реальную задержку
+        // 2. Проверка реальной задержки через TCP-соединение с max.ru (гарантированно доступен в РФ)
         try {
-            // ping -c 1 (один пакет), -W 5 (тайм-аут ожидания ответа 5 секунд)
-            val process = Runtime.getRuntime().exec("ping -c 1 -W 5 max.ru")
-            val exitCode = process.waitFor()
-            // Если exitCode не 0, значит пинг не прошел или превысил 5 секунд
-            exitCode != 0
+            val start = System.currentTimeMillis()
+            java.net.Socket().use { socket ->
+                socket.connect(java.net.InetSocketAddress("max.ru", 80), 1500)
+            }
+            val rtt = System.currentTimeMillis() - start
+            // Если ответ шел дольше 800мс — считаем сеть медленной для watchdog
+            if (rtt > 800) NetworkQuality.SLOW else NetworkQuality.FAST
         } catch (_: Exception) {
-            false // В случае ошибки самой команды ping не будем считать сеть медленной
+            // Если max.ru недоступен совсем, это не "медленная сеть", а отсутствие интернета
+            NetworkQuality.OFFLINE
         }
     }
+
+    private suspend fun isSlowConnection(): Boolean = getNetworkQuality() == NetworkQuality.SLOW
 
     private fun updateNotification(text: String) {
         ProxyServiceState.setStatusText(text)

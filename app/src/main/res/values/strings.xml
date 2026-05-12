@@ -296,6 +296,7 @@
     <string name="error_kernel_permission_denied">CRITICAL ERROR: Core execution denied — your device blocks running files from internal storage (SELinux/noexec). Use the built-in core.</string>
     <string name="error_critical_format">CRITICAL ERROR: %1$s</string>
     <string name="error_connecting">Connection error</string>
+    <string name="error_platform_unavailable">Platform unavailable</string>
     <string name="error_kernel_or_settings">Problem with core or settings</string>
 
     <!-- Notifications -->
