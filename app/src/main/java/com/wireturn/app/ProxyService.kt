@@ -96,11 +96,14 @@ class ProxyService : Service() {
 
             // Сразу фиксируем работающий конфиг для UI (с заполненными дефолтами)
             val filledCfg = cfg.fillDefaults()
+            if (filledCfg != cfg) {
+                prefs.saveClientConfig(filledCfg)
+            }
             ProxyServiceState.setClientConfigSnapshot(filledCfg)
             ProxyServiceState.setProfileNameSnapshot(profileName)
 
-            if (!cfg.isValid) {
-                val errorRes = cfg.getValidationErrorResId() ?: R.string.error_settings_empty
+            if (!filledCfg.isValid) {
+                val errorRes = filledCfg.getValidationErrorResId() ?: R.string.error_settings_empty
                 ProxyServiceState.setStatus(ProxyStatus.Error(getString(errorRes)))
                 delay(500)
                 withContext(Dispatchers.Main) { stopSelf() }
@@ -109,7 +112,7 @@ class ProxyService : Service() {
 
             try {
                 initStartup(vlessConfig, xraySettings, xrayConfig, profileName)
-                mainSupervisor(cfg, profileName, xraySettings, vlessConfig, xrayConfig)
+                mainSupervisor(filledCfg, profileName, xraySettings, vlessConfig, xrayConfig)
             } finally {
                 if (!userStopped.get() && isActive) {
                     withContext(Dispatchers.Main) { stopSelf() }
@@ -303,16 +306,7 @@ class ProxyService : Service() {
     }
 
     private suspend fun runBinary(cfg: ClientConfig): Boolean = coroutineScope {
-        val prefs = AppPreferences(applicationContext)
-        val runningCfg = cfg.fillDefaults()
-        
-        // Если конфиг изменился после заполнения дефолтов (были пустые поля),
-        // сохраняем его, чтобы UI обновился и показал реальные значения.
-        if (runningCfg != cfg) {
-            prefs.saveClientConfig(runningCfg)
-        }
-
-        val cmdArgs = buildCommandArgs(runningCfg)
+        val cmdArgs = buildCommandArgs(cfg)
 
         if (ProxyServiceState.status.value is ProxyStatus.Error) {
             return@coroutineScope false
@@ -640,6 +634,15 @@ class ProxyService : Service() {
                             "-ffmpeg", "${applicationInfo.nativeLibraryDir}/libffmpeg.so"
                         )
                     )
+
+                    if (o.isSocksAuthEnabled) {
+                        cmdArgs.addAll(
+                            listOf(
+                                "-socks-user", o.socksUser,
+                                "-socks-pass", o.socksPass
+                            )
+                        )
+                    }
 
                     // Transport specific flags
                     when (o.transport) {

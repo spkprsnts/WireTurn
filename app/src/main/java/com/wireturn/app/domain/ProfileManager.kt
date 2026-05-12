@@ -60,7 +60,7 @@ class ProfileManager(
         val newProfile = Profile(
             id = UUID.randomUUID().toString(),
             name = name
-        )
+        ).fillDefaults()
         val newList = profiles.value + newProfile
         scope.launch {
             prefs.saveProfiles(newList)

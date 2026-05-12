@@ -8,6 +8,12 @@ package com.wireturn.app.ui.screens
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -127,7 +133,7 @@ fun ClientConfigScreen(
     var videoH by remember(saved) { mutableStateOf(saved.olcrtcConfig.videoH.let { if (it == 0) "" else it.toString() }) }
     var localPort by remember(saved) { mutableStateOf(saved.localPort) }
     var kernelVariant by remember(saved) { mutableStateOf(saved.kernelVariant) }
-    
+
     val showPortHelp = remember { mutableStateOf(false) }
     val showOlcrtcHelp = remember { mutableStateOf(false) }
     val showKernelHelp = remember { mutableStateOf(false) }
@@ -188,8 +194,8 @@ fun ClientConfigScreen(
         if (isOlcrtcSocksValid) {
             val parts = olcrtcSocksAddr.split(":")
             effectiveOlcrtcConfig = effectiveOlcrtcConfig.copy(
-                socksHost = parts.getOrNull(0) ?: "127.0.0.1",
-                socksPort = parts.getOrNull(1) ?: "9000"
+                socksHost = (parts.getOrNull(0) ?: "").ifBlank { ClientConfig.DEFAULT_SOCKS_HOST },
+                socksPort = (parts.getOrNull(1) ?: "").ifBlank { ClientConfig.DEFAULT_SOCKS_PORT }
             )
         }
 
@@ -1096,7 +1102,7 @@ private fun OlcrtcSettings(
     val context = LocalContext.current
     SettingsGroup(title = stringResource(R.string.connection_details)) {
         // SOCKS Proxy
-        SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
+        SettingsGroupItem(isTop = true, isBottom = true, containerColor = blockContainerColor) {
             TextFieldRow(
                 label = stringResource(R.string.olcrtc_socks_proxy_label),
                 value = olcrtcSocksAddr.redact(privacyMode),
@@ -1108,8 +1114,74 @@ private fun OlcrtcSettings(
                 onHelpClick = onShowOlcrtcHelp
             )
         }
+
+        Spacer(Modifier.height(12.dp))
+
+        SettingsGroupItem(
+            isTop = true,
+            isBottom = !config.isSocksAuthEnabled,
+            containerColor = blockContainerColor,
+            onClick = {
+                val newValue = !config.isSocksAuthEnabled
+                HapticUtil.perform(context, if (newValue) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                onConfigChange(config.copy(isSocksAuthEnabled = newValue))
+            }
+        ) {
+            SwitchRow(
+                label = stringResource(R.string.xray_proxy_auth),
+                supportingText = stringResource(R.string.xray_proxy_auth_desc),
+                checked = config.isSocksAuthEnabled,
+                onCheckedChange = {
+                    HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                    onConfigChange(config.copy(isSocksAuthEnabled = it))
+                },
+                isModified = clientConfigSnapshot != null && config.isSocksAuthEnabled != clientConfigSnapshot.olcrtcConfig.isSocksAuthEnabled
+            )
+        }
+
+        AnimatedVisibility(
+            visible = config.isSocksAuthEnabled,
+            enter = fadeIn(tween(300)) + expandVertically(tween(300)),
+            exit = fadeOut(tween(300)) + shrinkVertically(tween(300))
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                SettingsGroupItem(
+                    isTop = false,
+                    isBottom = false,
+                    containerColor = blockContainerColor
+                ) {
+                    TextFieldRow(
+                        label = stringResource(R.string.xray_proxy_user),
+                        value = config.socksUser.redact(privacyMode),
+                        onValueChange = { onConfigChange(config.copy(socksUser = it)) },
+                        placeholder = "admin",
+                        isError = config.isSocksAuthEnabled && !ValidatorUtils.isValidProxyUser(config.socksUser),
+                        readOnly = privacyMode,
+                        isModified = clientConfigSnapshot != null && config.socksUser != clientConfigSnapshot.olcrtcConfig.socksUser
+                    )
+                }
+                SettingsGroupItem(
+                    isTop = false,
+                    isBottom = true,
+                    containerColor = blockContainerColor
+                ) {
+                    TextFieldRow(
+                        label = stringResource(R.string.xray_proxy_pass),
+                        value = config.socksPass.redact(privacyMode),
+                        onValueChange = { onConfigChange(config.copy(socksPass = it)) },
+                        placeholder = "password",
+                        isError = config.isSocksAuthEnabled && !ValidatorUtils.isValidProxyPass(config.socksPass),
+                        readOnly = privacyMode,
+                        isModified = clientConfigSnapshot != null && config.socksPass != clientConfigSnapshot.olcrtcConfig.socksPass
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
         // Carrier
-        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+        SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
             LabeledButtonGroup(
                 label = stringResource(R.string.olcrtc_carrier_label),
                 isModified = clientConfigSnapshot != null && config.carrier != clientConfigSnapshot.olcrtcConfig.carrier

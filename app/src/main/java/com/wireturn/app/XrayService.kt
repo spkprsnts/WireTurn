@@ -194,11 +194,27 @@ class XrayService : Service() {
 
         xrayJob = serviceScope.launch {
             val prefs = AppPreferences(this@XrayService)
+            val rawWg = prefs.wgConfigFlow.first()
+            val rawXray = prefs.xrayConfigFlow.first()
+            val rawVless = prefs.vlessConfigFlow.first()
+            val rawClient = ProxyServiceState.clientConfigSnapshot.value ?: prefs.clientConfigFlow.first()
+
+            val wgConfig = rawWg.fillDefaults()
+            val xrayConfig = rawXray.fillDefaults()
+            val vlessConfig = rawVless.fillDefaults()
+            val clientConfig = rawClient.fillDefaults()
+
+            // Проверяем, нужно ли сохранить исцеленные дефолты
+            if (wgConfig != rawWg) prefs.saveWgConfig(wgConfig)
+            if (xrayConfig != rawXray) prefs.saveXrayConfig(xrayConfig)
+            if (vlessConfig != rawVless) prefs.saveVlessConfig(vlessConfig)
+            if (clientConfig != rawClient) prefs.saveClientConfig(clientConfig)
+
             val snapshot = XrayConfigsSnapshot(
-                wg = prefs.wgConfigFlow.first(),
-                xray = prefs.xrayConfigFlow.first(),
-                vless = prefs.vlessConfigFlow.first(),
-                client = ProxyServiceState.clientConfigSnapshot.value ?: prefs.clientConfigFlow.first()
+                wg = wgConfig,
+                xray = xrayConfig,
+                vless = vlessConfig,
+                client = clientConfig
             )
             startXray(snapshot)
         }
@@ -217,25 +233,25 @@ class XrayService : Service() {
         val executable = "${applicationInfo.nativeLibraryDir}/libxray.so"
 
         try {
-            val rawWgConfig = snapshot.wg
-            val rawXrayConfig = snapshot.xray
-            val rawVlessConfig = snapshot.vless
+            val wgConfig = snapshot.wg
+            val xrayConfig = snapshot.xray
+            val vlessConfig = snapshot.vless
             val runningClientConfig = snapshot.client
             
-            val isXrayVless = rawXrayConfig.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS
+            val isXrayVless = xrayConfig.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS
 
             val isConfigValid = if (runningClientConfig.kernelVariant == KernelVariant.OLCRTC) {
                 // For OLCRTC, VLESS/WG config is optional, unless DualRoute is enabled
-                if (isXrayVless && rawVlessConfig.isDualRoute) {
-                    rawVlessConfig.isValid()
+                if (isXrayVless && vlessConfig.isDualRoute) {
+                    vlessConfig.isValid()
                 } else {
                     true
                 }
             } else {
                 if (isXrayVless) {
-                    rawVlessConfig.isValid()
+                    vlessConfig.isValid()
                 } else {
-                    rawWgConfig.isValid()
+                    wgConfig.isValid()
                 }
             }
 
@@ -245,23 +261,6 @@ class XrayService : Service() {
                 return
             }
 
-            val wgConfig = rawWgConfig.fillDefaults()
-            val xrayConfig = rawXrayConfig.fillDefaults()
-            val vlessConfig = rawVlessConfig.fillDefaults()
-
-            // Save filled defaults back to preferences if they changed,
-            // so UI doesn't see a difference between "raw" and "running" configs.
-            val prefs = AppPreferences(this@XrayService)
-            if (!isXrayVless && wgConfig != rawWgConfig) {
-                prefs.saveWgConfig(wgConfig)
-            }
-            if (isXrayVless && vlessConfig != rawVlessConfig) {
-                prefs.saveVlessConfig(vlessConfig)
-            }
-            if (xrayConfig != rawXrayConfig) {
-                prefs.saveXrayConfig(xrayConfig)
-            }
-            
             // Фиксируем только тот конфиг, который реально запускаем
             XrayServiceState.setConfigsSnapshot(
                 wg = if (isXrayVless) null else wgConfig,
@@ -269,6 +268,7 @@ class XrayService : Service() {
                 vless = if (isXrayVless) vlessConfig else null
             )
             
+            val prefs = AppPreferences(this@XrayService)
             val socketName = "sys.ipc.${java.util.UUID.randomUUID().toString().replace("-", "").take(12)}"
 
             val cmdArgs = mutableListOf(
@@ -292,7 +292,12 @@ class XrayService : Service() {
             if (runningClientConfig.kernelVariant == KernelVariant.OLCRTC) {
                 cmdArgs.add("-local-socks5")
                 val o = runningClientConfig.olcrtcConfig
-                cmdArgs.add("${o.socksHost}:${o.socksPort}")
+                val socksAddr = if (o.isSocksAuthEnabled && o.socksUser.isNotBlank()) {
+                    "${o.socksUser}:${o.socksPass}@${o.socksHost}:${o.socksPort}"
+                } else {
+                    "${o.socksHost}:${o.socksPort}"
+                }
+                cmdArgs.add(socksAddr)
             } else {
                 // For other kernels, always use local proxy address
                 cmdArgs.add("-local-address")
@@ -300,18 +305,18 @@ class XrayService : Service() {
             }
 
             if (isXrayVless) {
-                if (rawVlessConfig.vlessLink.isNotBlank()) {
-                    prefs.addVlessLinkToHistory(rawVlessConfig.vlessLink)
+                if (vlessConfig.vlessLink.isNotBlank()) {
+                    prefs.addVlessLinkToHistory(vlessConfig.vlessLink)
                 }
                 
                 val shouldAddLink = if (runningClientConfig.kernelVariant == KernelVariant.OLCRTC) {
-                    rawVlessConfig.isDualRoute && rawVlessConfig.vlessLink.isNotBlank()
+                    vlessConfig.isDualRoute && vlessConfig.vlessLink.isNotBlank()
                 } else {
                     true
                 }
 
                 if (shouldAddLink) {
-                    cmdArgs.addAll(listOf("-link", rawVlessConfig.vlessLink))
+                    cmdArgs.addAll(listOf("-link", vlessConfig.vlessLink))
                 }
 
                 if (vlessConfig.isDualRoute && vlessConfig.directAddress.isNotBlank()) {
@@ -355,14 +360,14 @@ class XrayService : Service() {
                         cleanLine.contains("Listening"))) {
                         started = true
                         
-                        if (!(isXrayVless && rawVlessConfig.isDualRoute)) {
+                        if (!(isXrayVless && vlessConfig.isDualRoute)) {
                             XrayServiceState.updateStatus(XrayState.Running)
                         } else {
                             XrayServiceState.updateStatus(XrayState.Connecting)
                         }
                     }
 
-                    if (isXrayVless && rawVlessConfig.isDualRoute) {
+                    if (isXrayVless && vlessConfig.isDualRoute) {
                         handleDualRouteLog(cleanLine, socketName)
                     }
                 }

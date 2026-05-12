@@ -209,6 +209,9 @@ data class OlcrtcConfig(
     @SerializedName("dns") val dns: String = "1.1.1.1:53",
     @SerializedName("socks_host") val socksHost: String = "127.0.0.1",
     @SerializedName("socks_port") val socksPort: String = "9000",
+    @SerializedName("socks_auth_enabled") val isSocksAuthEnabled: Boolean = true,
+    @SerializedName("socks_user") val socksUser: String = "",
+    @SerializedName("socks_pass") val socksPass: String = "",
     @SerializedName("mimo") val mimo: String = "",
 
     // vp8channel
@@ -223,8 +226,8 @@ data class OlcrtcConfig(
 
     // videochannel
     @SerializedName("video_codec") val videoCodec: String = "qrcode",
-    @SerializedName("video_w") val videoW: Int = 0,
-    @SerializedName("video_h") val videoH: Int = 0,
+    @SerializedName("video_w") val videoW: Int = 1080,
+    @SerializedName("video_h") val videoH: Int = 1080,
     @SerializedName("video_fps") val videoFps: Int = 60,
     @SerializedName("video_bitrate") val videoBitrate: String = "5000k",
     @SerializedName("video_hw") val videoHw: String = "none",
@@ -243,6 +246,8 @@ data class OlcrtcConfig(
             dns = dns.take(200),
             socksHost = socksHost.take(200),
             socksPort = socksPort.take(10),
+            socksUser = socksUser.take(100),
+            socksPass = socksPass.take(100),
             mimo = mimo.take(500),
             videoCodec = videoCodec.take(100),
             videoBitrate = videoBitrate.take(20),
@@ -256,10 +261,26 @@ data class OlcrtcConfig(
     }
 
     fun fillDefaults(): OlcrtcConfig {
-        return copy(
+        var current = copy(
             videoW = if (videoW <= 0) 1080 else videoW,
-            videoH = if (videoH <= 0) 1080 else videoH
+            videoH = if (videoH <= 0) 1080 else videoH,
+            socksHost = socksHost.ifBlank { ClientConfig.DEFAULT_SOCKS_HOST },
+            socksPort = socksPort.ifBlank { ClientConfig.DEFAULT_SOCKS_PORT }
         )
+
+        if (current.isSocksAuthEnabled) {
+            val isUserValid = com.wireturn.app.ui.ValidatorUtils.isValidProxyUser(current.socksUser)
+            val isPassValid = com.wireturn.app.ui.ValidatorUtils.isValidProxyPass(current.socksPass)
+
+            if (!isUserValid || !isPassValid) {
+                val allowedChars = ('A'..'Z') + ('a'..'z') + ('0'..'9')
+                val newUser = if (!isUserValid) (1..8).map { allowedChars.random() }.joinToString("") else current.socksUser
+                val newPass = if (!isPassValid) (1..12).map { allowedChars.random() }.joinToString("") else current.socksPass
+                current = current.copy(socksUser = newUser, socksPass = newPass)
+            }
+        }
+
+        return current
     }
 
     fun toUri(): String {
@@ -380,7 +401,7 @@ data class OlcrtcConfig(
 }
 
 data class ClientConfig(
-    @SerializedName("localPort") val localPort: String = "",
+    @SerializedName("localPort") val localPort: String = DEFAULT_LOCAL_PORT,
     @SerializedName("isRawMode") val isRawMode: Boolean = false,
     @SerializedName("rawCommand") val rawCommand: String = "",
     @SerializedName("turnableUrl") val turnableUrl: String = "",
@@ -505,7 +526,7 @@ data class VlessConfig(
     @SerializedName("vlessUseLocalAddress") val vlessUseLocalAddress: Boolean = true,
     @SerializedName("isDualRoute") val isDualRoute: Boolean = false,
     @SerializedName("directAddress") val directAddress: String = "",
-    @SerializedName("hcInterval") val hcInterval: String = ""
+    @SerializedName("hcInterval") val hcInterval: String = "30"
 ) {
     fun isValid(): Boolean = vlessLink.isNotBlank() && com.wireturn.app.ui.ValidatorUtils.isValidVlessLink(vlessLink)
 
@@ -587,10 +608,10 @@ data class XrayConfig(
 data class WgConfig(
     @SerializedName("privateKey") val privateKey: String = "",
     @SerializedName("address") val address: String = "",
-    @SerializedName("mtu") val mtu: String = "",
+    @SerializedName("mtu") val mtu: String = DEFAULT_MTU,
     @SerializedName("publicKey") val publicKey: String = "",
-    @SerializedName("endpoint") val endpoint: String = "",
-    @SerializedName("persistentKeepalive") val persistentKeepalive: String = ""
+    @SerializedName("endpoint") val endpoint: String = DEFAULT_ENDPOINT,
+    @SerializedName("persistentKeepalive") val persistentKeepalive: String = DEFAULT_PERSISTENT_KEEPALIVE
 ) {
     fun isValid(): Boolean {
         return privateKey.isNotBlank() && address.isNotBlank() && publicKey.isNotBlank()
@@ -622,7 +643,7 @@ data class WgConfig(
 
     companion object {
         const val DEFAULT_MTU = "1280"
-        const val DEFAULT_ENDPOINT = "127.0.0.1:9000"
+        const val DEFAULT_ENDPOINT = ClientConfig.DEFAULT_LOCAL_PORT
         const val DEFAULT_PERSISTENT_KEEPALIVE = "25"
 
         fun parse(text: String): WgConfig {
@@ -678,6 +699,15 @@ data class Profile(
                 !clientConfig.olcrtcConfig.isValid() &&
                 !wgConfig.isValid() &&
                 !vlessConfig.isValid()
+    }
+
+    fun fillDefaults(): Profile {
+        return copy(
+            clientConfig = clientConfig.fillDefaults(),
+            wgConfig = wgConfig.fillDefaults(),
+            xrayConfig = xrayConfig.fillDefaults(),
+            vlessConfig = vlessConfig.fillDefaults()
+        )
     }
 
     @Suppress("UNNECESSARY_SAFE_CALL", "USELESS_ELVIS")

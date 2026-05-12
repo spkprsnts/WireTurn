@@ -139,15 +139,6 @@ fun XrayConfigScreen(
 
     val showUniversalQrScanner = remember { mutableStateOf(false) }
 
-    // Initial check for proxy auth credentials on fresh install
-    LaunchedEffect(Unit) {
-        if (isProxyAuthEnabled && (proxyUser.isBlank() || proxyPass.isBlank())) {
-            val allowedChars = ('A'..'Z') + ('a'..'z') + ('0'..'9')
-            if (proxyUser.isBlank()) proxyUser = (1..8).map { allowedChars.random() }.joinToString("")
-            if (proxyPass.isBlank()) proxyPass = (1..12).map { allowedChars.random() }.joinToString("")
-        }
-    }
-
     // Auto-save debounced
     LaunchedEffect(xrayConfiguration, socksBindAddress, httpBindAddress, isProxyAuthEnabled, proxyUser, proxyPass) {
         delay(200)

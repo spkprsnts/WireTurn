@@ -233,7 +233,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     xrayConfig = xrayConfig,
                     wgConfig = wgConfig,
                     vlessConfig = vlessConfig
-                )
+                ).fillDefaults()
                 prefs.saveProfiles(listOf(defaultProfile))
                 prefs.setCurrentProfileId("default")
             }
