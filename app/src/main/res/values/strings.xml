@@ -78,8 +78,6 @@
 
     <!-- WireGuard Setup -->
     <string name="xray_import_config">Xray configuration import</string>
-    <string name="wg_import_qr">Import WireGuard</string>
-    <string name="wg_qr_scan_desc">Point the camera at the WireGuard configuration QR code to import</string>
     <string name="wg_interface" translatable="false">Interface</string>
     <string name="wg_private_key" translatable="false">Private Key</string>
     <string name="wg_private_key_placeholder" translatable="false">WG_PRIVATE_KEY</string>
@@ -113,12 +111,9 @@
     <string name="raw_label" translatable="false">Raw</string>
     <string name="raw_placeholder" translatable="false">-listen 127.0.0.1:900 -peer 292.313.32.45:56000 …</string>
     <string name="client_import_config">Client configuration import</string>
-    <string name="import_turnable_title">Turnable config import</string>
-    <string name="import_olcrtc_title">olcRTC config import</string>
     <string name="config_missing">Missing configuration</string>
     <string name="config_import_hint_start">Paste turnable:// link </string>
     <string name="config_import_hint_end" />
-    <string name="config_copied_success">Configuration copied</string>
     <string name="route_title">Route</string>
     <string name="user_uuid_label">User UUID</string>
     <string name="user_uuid_desc">User authorization on the Turnable server</string>
@@ -151,7 +146,6 @@
     <string name="kernel_help_olcrtc_guide">olcRTC server setup guide</string>
     <string name="kernel_turnable" translatable="false">Turnable</string>
     <string name="kernel_olcrtc" translatable="false">olcRTC</string>
-    <string name="olcrtc_settings_title">olcRTC Parameters</string>
     <string name="olcrtc_id_label">Room ID</string>
     <string name="olcrtc_client_id_label">Client ID</string>
     <string name="olcrtc_key_label">Auth Key</string>
@@ -180,7 +174,6 @@
     <string name="olcrtc_socks_proxy_label">Local SOCKS5 proxy</string>
     <string name="local_listen_address">Local listen address</string>
     <string name="local_listen_placeholder">127.0.0.1:9000</string>
-    <string name="parameters_title">Parameters</string>
     <string name="core_title">Core download</string>
     <string name="custom_core">Custom core</string>
     <string name="builtin_core">Built-in core</string>
@@ -343,8 +336,6 @@
     <string name="vless_link_label">VLESS link</string>
     <string name="vless_link_placeholder">vless://…</string>
     <string name="vless_link_config_desc">VLESS configuration. The server IP and port are automatically replaced with the local listen address.</string>
-    <string name="vless_import_qr">VLESS Import</string>
-    <string name="vless_qr_scan_desc">Point the camera at the VLESS configuration QR code to import</string>
     <string name="vless_dual_route">Dual-route mode</string>
     <string name="vless_dual_route_short">Dual-route</string>
     <string name="vless_dual_route_desc">Prefer direct connection to VLESS server, falling back to local tunnel if direct route is restricted</string>

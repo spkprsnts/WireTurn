@@ -74,8 +74,6 @@
 
     <!-- Настройка WireGuard -->
     <string name="xray_import_config">Импорт конфигурации Xray</string>
-    <string name="wg_import_qr">Импорт WireGuard</string>
-    <string name="wg_qr_scan_desc">Наведите камеру на QR-код конфигурации WireGuard для импорта</string>
     <string name="wg_mtu_recommendation">Рекомендуемое значение — 1280</string>
     <string name="wg_endpoint">Эндпоинт (локальный)</string>
     <string name="wg_not_used_with_olcrtc">WireGuard не используется с olcRTC</string>
@@ -85,12 +83,9 @@
     <string name="connection_title">Подключение</string>
     <string name="raw_mode_desc">Ввод аргументов вручную</string>
     <string name="client_import_config">Импорт конфигурации клиента</string>
-    <string name="import_turnable_title">Импорт конфига Turnable</string>
-    <string name="import_olcrtc_title">Импорт конфига olcRTC</string>
     <string name="config_missing">Отсутствует конфигурация</string>
     <string name="config_import_hint_start">Вставьте turnable:// ссылку </string>
     <string name="config_import_hint_end" />
-    <string name="config_copied_success">Конфигурация скопирована</string>
     <string name="route_title">Маршрут</string>
     <string name="user_uuid_label">UUID пользователя</string>
     <string name="user_uuid_desc">Авторизация пользователя на сервере Turnable</string>
@@ -121,7 +116,6 @@
     <string name="kernel_label">Ядро</string>
     <string name="kernel_config_label">Формат параметров</string>
     <string name="kernel_config_desc">Выберите структуру аргументов для кастомного ядра</string>
-    <string name="olcrtc_settings_title">Параметры olcRTC</string>
     <string name="olcrtc_id_label">ID комнаты</string>
     <string name="olcrtc_client_id_label">ID клиента</string>
     <string name="olcrtc_key_label">Ключ авторизации</string>
@@ -150,7 +144,6 @@
     <string name="olcrtc_socks_proxy_label">Локальный SOCKS5 прокси</string>
     <string name="local_listen_address">Локальный адрес прослушивания</string>
     <string name="local_listen_placeholder">127.0.0.1:9000</string>
-    <string name="parameters_title">Параметры</string>
     <string name="core_title">Загрузка ядра</string>
     <string name="custom_core">Кастомное ядро</string>
     <string name="builtin_core">Встроенное ядро</string>
@@ -304,8 +297,6 @@
     <string name="vless_link_label">VLESS-ссылка</string>
     <string name="vless_link_placeholder">vless://…</string>
     <string name="vless_link_config_desc">Конфигурация VLESS. IP и порт сервера автоматически заменяются на локальный адрес прослушивания.</string>
-    <string name="vless_import_qr">Импорт VLESS</string>
-    <string name="vless_qr_scan_desc">Наведите камеру на QR-код конфигурации VLESS для импорта</string>
     <string name="vless_dual_route">Режим Dual-route</string>
     <string name="vless_dual_route_short">Dual-route</string>
     <string name="vless_dual_route_desc">Предпочитать прямое подключение к VLESS-серверу, используя локальный туннель только при ограничении прямого доступа</string>
