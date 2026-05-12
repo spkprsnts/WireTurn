@@ -1043,7 +1043,9 @@ private fun TurnableMissingConfig(blockContainerColor: Color) {
                 val inlineContentId = "inline_icon"
                 val annotatedString = buildAnnotatedString {
                     append(stringResource(R.string.config_import_hint_start))
+                    append(" ")
                     appendInlineContent(inlineContentId, "[icon]")
+                    append(" ")
                     append(stringResource(R.string.config_import_hint_end))
                 }
                 val inlineContent = mapOf(
@@ -1051,7 +1053,7 @@ private fun TurnableMissingConfig(blockContainerColor: Color) {
                         Placeholder(
                             width = 24.sp,
                             height = 18.sp,
-                            placeholderVerticalAlign = PlaceholderVerticalAlign.Center
+                            placeholderVerticalAlign = PlaceholderVerticalAlign.Bottom
                         )
                     ) {
                         Icon(

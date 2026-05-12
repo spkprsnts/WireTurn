@@ -112,8 +112,8 @@
     <string name="raw_placeholder" translatable="false">-listen 127.0.0.1:900 -peer 292.313.32.45:56000 …</string>
     <string name="client_import_config">Client configuration import</string>
     <string name="config_missing">Missing configuration</string>
-    <string name="config_import_hint_start">Paste turnable:// link </string>
-    <string name="config_import_hint_end" />
+    <string name="config_import_hint_start">Import</string>
+    <string name="config_import_hint_end">turnable:// link</string>
     <string name="route_title">Route</string>
     <string name="user_uuid_label">User UUID</string>
     <string name="user_uuid_desc">User authorization on the Turnable server</string>

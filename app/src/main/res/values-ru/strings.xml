@@ -84,8 +84,8 @@
     <string name="raw_mode_desc">Ввод аргументов вручную</string>
     <string name="client_import_config">Импорт конфигурации клиента</string>
     <string name="config_missing">Отсутствует конфигурация</string>
-    <string name="config_import_hint_start">Вставьте turnable:// ссылку </string>
-    <string name="config_import_hint_end" />
+    <string name="config_import_hint_start">Импортируйте</string>
+    <string name="config_import_hint_end">turnable:// ссылку</string>
     <string name="route_title">Маршрут</string>
     <string name="user_uuid_label">UUID пользователя</string>
     <string name="user_uuid_desc">Авторизация пользователя на сервере Turnable</string>
