@@ -315,8 +315,8 @@ fun XrayConfigScreen(
         ) {
             Spacer(Modifier.height(8.dp))
 
-            // 1. Локальные адреса
-            SettingsGroup(title = stringResource(R.string.xray_local_addresses)) {
+            // 1. Настройки прокси
+            SettingsGroup(title = stringResource(R.string.xray_proxy_settings)) {
                 SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
                     TextFieldRow(
                         label = stringResource(R.string.xray_socks5),

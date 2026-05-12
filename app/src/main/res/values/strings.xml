@@ -115,19 +115,19 @@
     <string name="config_copied_success">Configuration copied</string>
     <string name="route_title">Route</string>
     <string name="user_uuid_label">User UUID</string>
-    <string name="user_uuid_desc">Used for user authorization on the Turnable server</string>
+    <string name="user_uuid_desc">User authorization on the Turnable server</string>
     <string name="username_label">Call participant name</string>
-    <string name="username_desc">Used for anonymous authorization to obtain TURN server data</string>
+    <string name="username_desc">Join the call on the platform</string>
     <string name="platform_id_label">Call platform ID</string>
     <string name="platform_id_desc">Only vk.com is supported at the moment</string>
     <string name="call_id_label">Call ID</string>
     <string name="call_id_desc">Extracted from the call link.\nVK: «https://vk.com/call/join/[ID]»</string>
     <string name="connection_type_label">Connection type</string>
-    <string name="connection_type_desc">Using Direct mode is highly discouraged for most cases</string>
+    <string name="connection_type_desc">Direct mode is highly discouraged</string>
     <string name="encryption_label">Encryption mode</string>
-    <string name="encryption_desc">Traffic encryption algorithm</string>
+    <string name="encryption_desc">Encryption scope</string>
     <string name="pub_key_label">Public key</string>
-    <string name="pub_key_desc">Key for traffic encryption</string>
+    <string name="pub_key_desc">Key for a secure connection with the server</string>
     <string name="peers_label">Parallel connections</string>
     <string name="peers_desc">Number of parallel sessions for better performance</string>
     <string name="gateway_label">Turnable server address</string>
@@ -135,7 +135,7 @@
     <string name="proto_label">Transport protocol</string>
     <string name="proto_desc">Required for Relay type. SRTP is highly recommended</string>
     <string name="force_turn_label">Force TURN</string>
-    <string name="force_turn_desc">Always use TURN server for connections (optional)</string>
+    <string name="force_turn_desc">TURN server for all connections</string>
     <string name="history_label">History</string>
     <string name="kernel_label">Core</string>
     <string name="kernel_config_label">Parameter format</string>
@@ -183,8 +183,8 @@
     <string name="from_apk">From APK</string>
     <string name="btn_load">Load</string>
     <string name="finish_setup">Finish setup</string>
-    <string name="local_port_help_text">This is the network address and port where the app will start the local proxy server.</string>
-    <string name="local_port_help_secondary">Either the built-in Xray or your third-party VPN clients (WireGuard, v2RayTun, etc.) must connect to this address for traffic to go through the created tunnel.</string>
+    <string name="local_port_help_text">This is the network address and port where the app will start a local tunnel entry point.</string>
+    <string name="local_port_help_secondary">The built-in Xray or third-party VPN clients (WireGuard, v2RayTun, etc.) must connect to this address to route traffic through the created tunnel.</string>
     <string name="olcrtc_socks_help_text">The olcRTC core does not use traditional VPN protocols. Instead, it starts a local SOCKS5 proxy that serves as an entry point for traffic.</string>
     <string name="olcrtc_socks_help_secondary">The built-in Xray engine routes traffic through this address, enabling VLESS Dual-route mode and/or tunneling all device traffic via VPN.</string>
 
@@ -197,7 +197,7 @@
 
     <!-- Onboarding Screen (Onboarding) -->
     <string name="onboarding_title" translatable="false">WireTurn</string>
-    <string name="onboarding_subtitle">Tunneling traffic through WebRTC to bypass network restrictions</string>
+    <string name="onboarding_subtitle">Free internet via video call protocols</string>
     <string name="start">Start</string>
 
     <!-- OTA Update -->
@@ -214,7 +214,7 @@
 
     <!-- UI and Privacy -->
     <string name="dynamic_theme_title">System colors</string>
-    <string name="dynamic_theme_desc">Use Material You</string>
+    <string name="dynamic_theme_desc">Material You</string>
     <string name="theme_title">Theme</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
@@ -337,7 +337,7 @@
     <string name="vless_dual_route">Dual-route mode</string>
     <string name="vless_dual_route_short">Dual-route</string>
     <string name="vless_dual_route_desc">Prefer direct connection to VLESS server, falling back to local tunnel if direct route is restricted</string>
-    <string name="vless_direct_address">Direct server address (host:port)</string>
+    <string name="vless_direct_address">Direct server address</string>
     <string name="vless_direct_address_placeholder" translatable="false">292.313.32.45:443</string>
     <string name="vless_direct_address_desc">External address of the VLESS server</string>
     <string name="vless_hc_interval">Health check interval (sec)</string>
@@ -356,9 +356,9 @@
     <!-- QR Import and Advanced Parameters -->
     <string name="qr_import">QR Code</string>
     <string name="qr_scan_desc">Point the camera at the configuration QR code to import</string>
-    <string name="xray_local_addresses">Local addresses</string>
+    <string name="xray_proxy_settings">Proxy settings</string>
     <string name="xray_socks_desc">Address for SOCKS5 proxy</string>
-    <string name="xray_http_desc">Address for HTTP proxy (optional)</string>
+    <string name="xray_http_desc">Address for HTTP proxy</string>
     <string name="xray_protocol_desc">Choose protocol for Xray-core</string>
     <string name="vless_settings">VLESS Settings</string>
     <string name="protocol_wireguard" translatable="false">WireGuard</string>
