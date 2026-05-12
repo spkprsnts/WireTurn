@@ -161,9 +161,13 @@ fun SettingsScreen(
                 })
             }
 
-            SettingsGroup(title = stringResource(R.string.theme_title)) {
-                SettingsGroupItem(isTop = true, isBottom = !supportsDynamicColor, containerColor = blockContainerColor) {
-                    LabeledButtonGroup {
+            SettingsGroup(title = stringResource(R.string.app_appearance)) {
+                SettingsGroupItem(
+                    isTop = true, 
+                    isBottom = !supportsDynamicColor, 
+                    containerColor = blockContainerColor
+                ) {
+                    LabeledButtonGroup(label = stringResource(R.string.theme_title)) {
                         themeModes.forEachIndexed { index, mode ->
                             configButtonGroupItem(
                                 selected = themeMode == mode,
@@ -197,13 +201,12 @@ fun SettingsScreen(
                         )
                     }
                 }
-            }
 
-            // 2. Приватность
-            SettingsGroup(title = stringResource(R.string.privacy_mode_title)) {
+                Spacer(Modifier.height(12.dp))
+
                 SettingsGroupItem(
-                    isTop = true, 
-                    isBottom = true, 
+                    isTop = true,
+                    isBottom = true,
                     containerColor = blockContainerColor,
                     onClick = {
                         HapticUtil.perform(context, if (privacyMode) HapticUtil.Pattern.TOGGLE_OFF else HapticUtil.Pattern.TOGGLE_ON)
@@ -224,7 +227,7 @@ fun SettingsScreen(
             val restartOnNetworkChange by viewModel.restartOnNetworkChange.collectAsStateWithLifecycle()
             val autoLaunchSettings by viewModel.autoLaunchSettings.collectAsStateWithLifecycle()
 
-            SettingsGroup(title = stringResource(R.string.connection_title)) {
+            SettingsGroup(title = stringResource(R.string.network_settings_title)) {
                 SettingsGroupItem(
                     isTop = true,
                     isBottom = false,
@@ -472,9 +475,9 @@ fun SettingsScreen(
                 })
             }
 
-            SettingsGroup(title = stringResource(R.string.lang_title)) {
+            SettingsGroup(title = stringResource(R.string.localization_title)) {
                 SettingsGroupItem(isTop = true, isBottom = true, containerColor = blockContainerColor) {
-                    LabeledButtonGroup {
+                    LabeledButtonGroup(label = stringResource(R.string.lang_title)) {
                         languages.forEachIndexed { index, lang ->
                             configButtonGroupItem(
                                 selected = appLanguage == lang,

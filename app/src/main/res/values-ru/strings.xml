@@ -191,11 +191,13 @@
     <!-- Оформление и Приватность -->
     <string name="dynamic_theme_title">Системные цвета</string>
     <string name="dynamic_theme_desc">Material You</string>
+    <string name="app_appearance">Оформление приложения</string>
     <string name="theme_title">Тема</string>
     <string name="theme_light">Светлая</string>
     <string name="theme_dark">Тёмная</string>
     <string name="theme_system">Системная</string>
-    <string name="lang_title">Язык</string>
+    <string name="localization_title">Локализация</string>
+    <string name="lang_title">Язык интерфейса</string>
     <string name="lang_system">Системный</string>
     <string name="lang_en">English</string>
     <string name="lang_ru">Русский</string>
@@ -207,6 +209,8 @@
     <string name="wait_for_network_desc">При потере связи туннель будет ждать подключения к Wi-Fi или мобильной сети</string>
     <string name="restart_on_network_change_title">Перезапуск при смене сети</string>
     <string name="restart_on_network_change_desc">Автоматически перезапускать туннель при переключении между Wi-Fi и мобильной сетью</string>
+
+    <string name="network_settings_title">Сеть</string>
 
     <!-- Настройка Капчи -->
     <string name="captcha_settings_title">Оформление капчи</string>

@@ -222,11 +222,13 @@
     <!-- UI and Privacy -->
     <string name="dynamic_theme_title">System colors</string>
     <string name="dynamic_theme_desc">Material You</string>
+    <string name="app_appearance">App Appearance</string>
     <string name="theme_title">Theme</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
     <string name="theme_system">System</string>
-    <string name="lang_title">Language</string>
+    <string name="localization_title">Localization</string>
+    <string name="lang_title">Interface Language</string>
     <string name="lang_system">System</string>
     <string name="lang_en">English</string>
     <string name="lang_ru">Russian</string>
@@ -238,6 +240,8 @@
     <string name="wait_for_network_desc">When connection is lost, the tunnel will wait for Wi-Fi or mobile network availability</string>
     <string name="restart_on_network_change_title">Restart on network change</string>
     <string name="restart_on_network_change_desc">Automatically restart tunnel when switching between Wi-Fi and mobile network</string>
+
+    <string name="network_settings_title">Network</string>
 
     <!-- Captcha Setup -->
     <string name="captcha_settings_title">Captcha appearance</string>
