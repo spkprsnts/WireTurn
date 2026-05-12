@@ -1102,7 +1102,7 @@ private fun OlcrtcSettings(
     val context = LocalContext.current
     SettingsGroup(title = stringResource(R.string.connection_details)) {
         // SOCKS Proxy
-        SettingsGroupItem(isTop = true, isBottom = true, containerColor = blockContainerColor) {
+        SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
             TextFieldRow(
                 label = stringResource(R.string.olcrtc_socks_proxy_label),
                 value = olcrtcSocksAddr.redact(privacyMode),
@@ -1115,10 +1115,8 @@ private fun OlcrtcSettings(
             )
         }
 
-        Spacer(Modifier.height(12.dp))
-
         SettingsGroupItem(
-            isTop = true,
+            isTop = false,
             isBottom = !config.isSocksAuthEnabled,
             containerColor = blockContainerColor,
             onClick = {
