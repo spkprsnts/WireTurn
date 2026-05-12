@@ -220,7 +220,7 @@ fun XrayConfigScreen(
         }
     )
 
-    val isSocksValid = remember(socksBindAddress) { ValidatorUtils.isValidHostPort(socksBindAddress) }
+    val isSocksValid = remember(socksBindAddress) { socksBindAddress.isNotBlank() && ValidatorUtils.isValidHostPort(socksBindAddress) }
     val isHttpValid = remember(httpBindAddress) { httpBindAddress.isEmpty() || ValidatorUtils.isValidHostPort(httpBindAddress) }
 
     Scaffold(
@@ -644,6 +644,7 @@ private fun WireGuardSettings(
                     value = mtu,
                     onValueChange = onMtuChange,
                     placeholder = stringResource(R.string.wg_mtu_placeholder),
+                    isError = mtu.isNotEmpty() && mtu.toIntOrNull() == null,
                     isModified = wgConfigSnapshot != null && mtu != wgConfigSnapshot.mtu,
                     supportingText = if (mtu != "1280") stringResource(R.string.wg_mtu_recommendation) else null,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
@@ -681,6 +682,7 @@ private fun WireGuardSettings(
                     value = persistentKeepalive,
                     onValueChange = onPersistentKeepaliveChange,
                     placeholder = stringResource(R.string.wg_persistent_keepalive_placeholder),
+                    isError = persistentKeepalive.isNotEmpty() && persistentKeepalive.toIntOrNull() == null,
                     isModified = wgConfigSnapshot != null && persistentKeepalive != wgConfigSnapshot.persistentKeepalive,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
@@ -787,7 +789,7 @@ private fun VlessSettings(
                         value = vlessDirectAddress.redact(privacyMode),
                         onValueChange = onVlessDirectAddressChange,
                         placeholder = stringResource(R.string.vless_direct_address_placeholder),
-                        isError = !ValidatorUtils.isValidHostPort(vlessDirectAddress),
+                        isError = vlessDirectAddress.isBlank() || !ValidatorUtils.isValidHostPort(vlessDirectAddress),
                         readOnly = privacyMode,
                         supportingText = stringResource(R.string.vless_direct_address_desc),
                         isModified = vlessConfigSnapshot != null && vlessDirectAddress != vlessConfigSnapshot.directAddress,
@@ -809,6 +811,7 @@ private fun VlessSettings(
                         value = vlessHcInterval,
                         onValueChange = onVlessHcIntervalChange,
                         placeholder = "30",
+                        isError = vlessHcInterval.isNotEmpty() && vlessHcInterval.toIntOrNull() == null,
                         supportingText = stringResource(R.string.vless_hc_interval_desc),
                         isModified = vlessConfigSnapshot != null && vlessHcInterval != vlessConfigSnapshot.hcInterval,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)

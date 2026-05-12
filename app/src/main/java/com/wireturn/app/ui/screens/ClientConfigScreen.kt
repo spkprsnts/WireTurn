@@ -1364,6 +1364,7 @@ private fun OlcrtcSettings(
                         label = stringResource(R.string.olcrtc_video_codec),
                         value = config.videoCodec,
                         onValueChange = { onConfigChange(config.copy(videoCodec = it)) },
+                        isError = config.videoCodec.isBlank(),
                         isModified = clientConfigSnapshot != null && config.videoCodec != clientConfigSnapshot.olcrtcConfig.videoCodec
                     )
                 }
@@ -1374,6 +1375,7 @@ private fun OlcrtcSettings(
                             value = videoW,
                             onValueChange = onVideoWChange,
                             modifier = Modifier.weight(1f),
+                            isError = videoW.isNotEmpty() && videoW.toIntOrNull() == null,
                             isModified = clientConfigSnapshot != null && videoW != clientConfigSnapshot.olcrtcConfig.videoW.let { if (it == 0) "" else it.toString() },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                         )
@@ -1382,6 +1384,7 @@ private fun OlcrtcSettings(
                             value = videoH,
                             onValueChange = onVideoHChange,
                             modifier = Modifier.weight(1f),
+                            isError = videoH.isNotEmpty() && videoH.toIntOrNull() == null,
                             isModified = clientConfigSnapshot != null && videoH != clientConfigSnapshot.olcrtcConfig.videoH.let { if (it == 0) "" else it.toString() },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                         )
@@ -1402,6 +1405,7 @@ private fun OlcrtcSettings(
                         label = stringResource(R.string.olcrtc_video_bitrate),
                         value = config.videoBitrate,
                         onValueChange = { onConfigChange(config.copy(videoBitrate = it)) },
+                        isError = config.videoBitrate.isBlank(),
                         isModified = clientConfigSnapshot != null && config.videoBitrate != clientConfigSnapshot.olcrtcConfig.videoBitrate
                     )
                 }
@@ -1410,6 +1414,7 @@ private fun OlcrtcSettings(
                         label = stringResource(R.string.olcrtc_video_hw),
                         value = config.videoHw,
                         onValueChange = { onConfigChange(config.copy(videoHw = it)) },
+                        isError = config.videoHw.isBlank(),
                         isModified = clientConfigSnapshot != null && config.videoHw != clientConfigSnapshot.olcrtcConfig.videoHw
                     )
                 }
@@ -1418,6 +1423,7 @@ private fun OlcrtcSettings(
                         label = stringResource(R.string.olcrtc_video_qr_recovery),
                         value = config.videoQrRecovery,
                         onValueChange = { onConfigChange(config.copy(videoQrRecovery = it)) },
+                        isError = config.videoQrRecovery.isBlank(),
                         isModified = clientConfigSnapshot != null && config.videoQrRecovery != clientConfigSnapshot.olcrtcConfig.videoQrRecovery
                     )
                 }
