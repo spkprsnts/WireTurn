@@ -1,41 +1,40 @@
-# Гайд по запуску и настройке сервера Turnable
+# Установка сервера Turnable
 
-В этом руководстве описан процесс установки сервера Turnable на Ubuntu.
+Данное руководство поможет установить сервер Turnable на VPS с Ubuntu Server 24.04.
 
-> **Обратите внимание:** Это упрощенная версия руководства. Оригинальную и подробную документацию со всеми техническими деталями вы можете найти в [репозитории Turnable](https://github.com/TheAirBlow/Turnable/blob/main/README_RU.md).
+> Полная документация: [репозиторий Turnable](https://github.com/TheAirBlow/Turnable/blob/main/README_RU.md).
+> Все команды выполняются в терминале после подключения к серверу по SSH.
 
 ---
 
 ## 1. Требования
 
-*   **ОС:** Ubuntu Server 24.04 (рекомендовано).
-*   **VPS:** Наличие установленных протоколов WireGuard или VLESS. Для удобного управления ими можно использовать панель 3x-ui.
-*   **Важно:** Сервер Turnable должен быть установлен на том же VPS, где запущены ваши WireGuard или VLESS.
-*   **Доступ:** SSH-доступ к серверу с правами `sudo`.
+- **ОС:** Ubuntu Server 24.04 LTS.
+- **На VPS уже должен быть настроен** WireGuard и/или VLESS (рекомендуем панель **3x-ui**).
+- **Важно:** Turnable устанавливается на **тот же VPS**, где работают WireGuard или VLESS.
 
 ---
 
-## 2. Установка сервера
+## 2. Подготовка системы
 
-Обновите список пакетов и установите `wget`:
 ```bash
 sudo apt update && sudo apt install wget -y
 ```
 
-### Подготовка системы
-Создадим специального пользователя и папку для сервера:
+Создаём пользователя и рабочую папку:
 
 ```bash
 sudo adduser --system --group --no-create-home --shell /usr/sbin/nologin turnable
 sudo mkdir -p /opt/turnable
 sudo chown turnable:turnable /opt/turnable
-cd /opt/turnable
 ```
 
-### Скачивание программы
-Скачиваем версию 0.4.1 (совместима с клиентом):
+---
+
+## 3. Загрузка сервера
 
 ```bash
+cd /opt/turnable
 sudo -u turnable wget https://github.com/TheAirBlow/Turnable/releases/download/0.4.1/turnable-linux-amd64
 sudo -u turnable chmod +x turnable-linux-amd64
 sudo -u turnable mv turnable-linux-amd64 turnable
@@ -43,21 +42,32 @@ sudo -u turnable mv turnable-linux-amd64 turnable
 
 ---
 
-## 3. Настройка конфигурации
-
-### Генерация ключей
-Turnable шифрует трафик. Сгенерируйте свои уникальные ключи:
+## 4. Генерация ключей шифрования
 
 ```bash
-./turnable config keygen
+sudo -u turnable /opt/turnable/turnable config keygen
 ```
-Вы увидите строки `priv_key` и `pub_key`. **Скопируйте их в блокнот на компьютере**, они сейчас понадобятся.
 
-### Создание файла config.json
-Скопируйте этот блок текста целиком, **замените значения (начинающиеся с ВСТАВЬТЕ_)** на свои и вставьте в терминал (нажмите Enter):
+В выводе появятся `priv_key` и `pub_key`. **Сохраните оба значения** — они нужны в следующем шаге.
+
+---
+
+## 5. Получение Call ID ВКонтакте
+
+> **Совет:** Можно попробовать найти уже существующую публичную комнату через Google по запросу `"https://vk.com/call/join/"`. Если найдёте рабочую ссылку — используйте её Call ID.
+
+1. Перейдите на [vk.com/calls](https://vk.com/calls) и создайте звонок.
+2. В адресной строке будет ссылка вида `https://vk.com/call/join/ABC123xyz...`
+3. Скопируйте всё после `/join/` — это ваш **Call ID**.
+
+---
+
+## 6. Создание config.json
+
+Замените плейсхолдеры на свои значения. Публичный IP сервера можно узнать командой `curl ifconfig.me`.
 
 ```bash
-sudo -u turnable cat <<EOF > /opt/turnable/config.json
+sudo -u turnable tee /opt/turnable/config.json > /dev/null <<EOF
 {
     "platform_id": "vk.com",
     "call_id": "ВСТАВЬТЕ_ID_ЗВОНКА_VK",
@@ -67,7 +77,7 @@ sudo -u turnable cat <<EOF > /opt/turnable/config.json
         "enabled": true,
         "proto": "srtp",
         "cloak": "none",
-        "public_ip": "ВСТАВЬТЕ_IP_СЕРВЕРА",
+        "public_ip": "ВСТАВЬТЕ_ПУБЛИЧНЫЙ_IP_СЕРВЕРА",
         "port": 56000
     },
     "p2p": {
@@ -83,14 +93,16 @@ sudo -u turnable cat <<EOF > /opt/turnable/config.json
 EOF
 ```
 
-> **Где взять Call ID?**
-> Зайдите на [vk.com/calls](https://vk.com/calls) с компьютера. Создайте звонок. Ссылка будет вида `https://vk.com/call/join/ABC123xyz...`. Вам нужно только то, что после `/join/` (например: `ABC123xyz...`).
+---
 
-### Создание файла store.json
-Здесь мы указываем настройки ваших VPN. Скопируйте и вставьте в терминал (не забудьте поменять порты на свои):
+## 7. Создание store.json
+
+Перед выполнением команды сгенерируйте UUID на сайте [uuidgenerator.net](https://www.uuidgenerator.net/version4) и замените `ВСТАВЬТЕ_СГЕНЕРИРОВАННЫЙ_UUID`.
+
+Порты WireGuard и VLESS нужно уточнить в панели **3x-ui** — они могут быть любыми. Откройте панель, найдите свои inbound-записи и посмотрите указанный там порт для каждого протокола. Подставьте эти значения в команду ниже.
 
 ```bash
-sudo -u turnable cat <<EOF > /opt/turnable/store.json
+sudo -u turnable tee /opt/turnable/store.json > /dev/null <<EOF
 {
     "routes": [
         {
@@ -116,7 +128,7 @@ sudo -u turnable cat <<EOF > /opt/turnable/store.json
         {
             "uuid": "ВСТАВЬТЕ_СГЕНЕРИРОВАННЫЙ_UUID",
             "allowed_routes": ["wireguard", "vless"],
-            "username": "Валерий Жмышенко",
+            "username": "Влад Урбан",
             "type": "relay",
             "peers": 10
         }
@@ -124,30 +136,29 @@ sudo -u turnable cat <<EOF > /opt/turnable/store.json
 }
 EOF
 ```
-*   **UUID:** Это уникальный идентификатор пользователя. Его **обязательно** нужно сгенерировать на сайте [uuidgenerator.net](https://www.uuidgenerator.net/version4) и вставить в конфиг. Не пишите туда случайные буквы!
 
 ---
 
-## 4. Ссылка для приложения
+## 8. Генерация ссылки для приложения
 
-Теперь создадим ссылку, которую нужно будет вставить в WireTurn:
+Замените `ВАШ_UUID` на UUID из предыдущего шага:
 
 ```bash
-./turnable config generate "ВАШ_UUID_ИЗ_ШАГА_ВЫШЕ" wireguard vless
+sudo -u turnable /opt/turnable/turnable config generate "ВАШ_UUID" wireguard vless
 ```
-Скопируйте полученную ссылку `turnable://...`.
+
+Сохраните полученную ссылку `turnable://...` — она нужна при настройке WireTurn.
 
 ---
 
-## 5. Автозапуск (чтобы сервер работал всегда)
-
-Создаем файл службы одной командой:
+## 9. Настройка автозапуска
 
 ```bash
-sudo cat <<EOF > /etc/systemd/system/turnable.service
+sudo tee /etc/systemd/system/turnable.service > /dev/null <<EOF
 [Unit]
 Description=Turnable Server
-After=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
@@ -155,38 +166,42 @@ User=turnable
 Group=turnable
 WorkingDirectory=/opt/turnable
 ExecStart=/opt/turnable/turnable server
-Restart=always
-RestartSec=3
+Restart=on-failure
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
 EOF
-```
 
-Запускаем сервер:
-```bash
 sudo systemctl daemon-reload
-sudo systemctl enable turnable
-sudo systemctl start turnable
+sudo systemctl enable --now turnable
 ```
 
-Проверить, что всё работает, можно командой:
+Проверьте статус — должно быть `active (running)`:
 ```bash
 sudo systemctl status turnable
 ```
-Если в выводе написано `active (running)`, значит сервер успешно запущен. Для выхода из режима просмотра нажмите клавишу **q** (убедитесь, что включена английская раскладка).
+
+Для выхода нажмите `q`. Если статус `failed` — проверьте правильность данных в config.json и store.json, логи: `sudo journalctl -u turnable -n 50`
 
 ---
 
-## 6. Настройка в WireTurn
+## 10. Настройка в WireTurn
 
-1.  **Профиль:** В приложении нажмите на блок профиля -> `+` -> `Создать профиль`. После сохранения **нажмите на созданный профиль** в списке, чтобы выбрать его.
-2.  **Клиент:** Выберите ядро **Turnable**. Скопируйте вашу ссылку `turnable://` (из шага 4). В приложении в верхней панели нажмите на иконку импорта (лист с плюсом) и выберите **«Из буфера»** или **«Из файла»**.
-3.  **Маршрут:** После импорта внизу появится блок с настройками — выберите нужный маршрут (WireGuard или VLESS).
-4.  **Xray:** Импортируйте основной конфиг вашего VPN. В приложении в верхней панели нажмите на иконку импорта (лист с плюсом) и выберите **«Из буфера»**, **«Из файла»** или отсканируйте QR-код. Приложение само определит тип конфигурации (WireGuard или VLESS).
-5.  **Запуск:** На главном экране включите **Xray**. Если планируете использовать системный VPN, включите и его (режим VPN зависит от Xray). Нажмите центральную кнопку.
+1. **Профиль:** Блок профиля → `+` → «Создать профиль». Нажмите на профиль, чтобы выбрать его.
 
-### Совет по использованию
-Вы можете создать второй профиль для другого протокола (например, если первый был для VLESS, а второй нужен для WireGuard), просто **склонировав** текущий профиль. Для этого нажмите на блок профилей, нажмите на три точки у нужного профиля и выберите «Клонировать». Затем в новом профиле просто выберите другой «Маршрут» и импортируйте соответствующий конфиг во вкладке Xray.
+2. **Клиент:** Выберите ядро **Turnable**. Скопируйте ссылку `turnable://` из шага 8, затем нажмите иконку импорта в верхней панели (лист с плюсом) и выберите «Из буфера».
+
+3. **Маршрут:** После импорта выберите нужный маршрут — **WireGuard** или **VLESS**.
+
+4. **Xray:** Импортируйте основной VPN-конфиг (WireGuard или VLESS). Используйте кнопку QR-кода или иконку импорта (лист с плюсом, стоит правее) — «Из буфера» или «Из файла». Тип конфига определяется автоматически.
+
+5. **Запуск:** Включите **Xray**, при необходимости включите **VPN** (весь трафик устройства через туннель). Нажмите центральную кнопку.
+
+### Несколько профилей
+
+Для использования нескольких протоколов клонируйте профиль: три точки у профиля → «Клонировать». В копии выберите другой маршрут и замените конфиг во вкладке Xray.
+
+---
 
 **Готово!**
