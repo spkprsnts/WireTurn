@@ -250,10 +250,8 @@
     <string name="log_connection_timeout">=== ТАЙМАУТ ПОДКЛЮЧЕНИЯ (2м) — ПЕРЕЗАПУСК ===</string>
     <string name="log_no_network_waiting">=== НЕТ СЕТИ — ОЖИДАНИЕ ===</string>
     <string name="log_stop_ui">=== ОСТАНОВКА ИЗ ИНТЕРФЕЙСА ===</string>
-    <string name="log_too_many_peer_failures">>>> СЛИШКОМ МНОГО ОШИБОК ПОДКЛЮЧЕНИЯ — перезапуск</string>
     <string name="log_too_many_remote_not_ready">>>> СЛИШКОМ МНОГО "REMOTE NOT READY" — перезапуск</string>
     <string name="log_slow_network_watchdog">>>> МЕДЛЕННАЯ СЕТЬ — увеличение задержки перезапуска</string>
-    <string name="error_invalid_turnable_url">Неверная ссылка Turnable</string>
     <string name="error_turnable_failed">Ошибка Turnable: %1$s</string>
 
     <string name="error_release_info_failed">Не удалось получить информацию о релизе</string>
