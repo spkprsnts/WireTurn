@@ -112,36 +112,41 @@ fun XrayConfigScreen(
     val vlessConfigSnapshot by com.wireturn.app.XrayServiceState.vlessConfigSnapshot.collectAsStateWithLifecycle()
     val xrayConfigSnapshot by com.wireturn.app.XrayServiceState.xrayConfigSnapshot.collectAsStateWithLifecycle()
 
-    val initialXrayConfig = remember(xrayConfig) { xrayConfig.fillDefaults() }
-    val initialWgConfig = remember(savedWgConfig) { savedWgConfig.fillDefaults() }
-    val initialVlessConfig = remember(vlessSaved) { vlessSaved.fillDefaults() }
-
     val isDark = com.wireturn.app.ui.theme.LocalIsDark.current
     val screenBackgroundColor = if (isDark) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerLow
     val blockContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
 
-    var xrayConfiguration by remember(initialXrayConfig) { mutableStateOf(initialXrayConfig.xrayConfiguration) }
-    var socksBindAddress by remember(initialXrayConfig) { mutableStateOf(initialXrayConfig.socksBindAddress) }
-    var httpBindAddress by remember(initialXrayConfig) { mutableStateOf(initialXrayConfig.httpBindAddress) }
-    var isProxyAuthEnabled by remember(initialXrayConfig) { mutableStateOf(initialXrayConfig.isProxyAuthEnabled) }
-    var proxyUser by remember(initialXrayConfig) { mutableStateOf(initialXrayConfig.proxyUser) }
-    var proxyPass by remember(initialXrayConfig) { mutableStateOf(initialXrayConfig.proxyPass) }
+    var xrayConfiguration by remember(xrayConfig) { mutableStateOf(xrayConfig.xrayConfiguration) }
+    var socksBindAddress by remember(xrayConfig) { mutableStateOf(xrayConfig.socksBindAddress) }
+    var httpBindAddress by remember(xrayConfig) { mutableStateOf(xrayConfig.httpBindAddress) }
+    var isProxyAuthEnabled by remember(xrayConfig) { mutableStateOf(xrayConfig.isProxyAuthEnabled) }
+    var proxyUser by remember(xrayConfig) { mutableStateOf(xrayConfig.proxyUser) }
+    var proxyPass by remember(xrayConfig) { mutableStateOf(xrayConfig.proxyPass) }
 
     // WireGuard states
-    var privateKey by remember(initialWgConfig) { mutableStateOf(initialWgConfig.privateKey) }
-    var address by remember(initialWgConfig) { mutableStateOf(initialWgConfig.address) }
-    var mtu by remember(initialWgConfig) { mutableStateOf(initialWgConfig.mtu) }
-    var publicKey by remember(initialWgConfig) { mutableStateOf(initialWgConfig.publicKey) }
+    var privateKey by remember(savedWgConfig) { mutableStateOf(savedWgConfig.privateKey) }
+    var address by remember(savedWgConfig) { mutableStateOf(savedWgConfig.address) }
+    var mtu by remember(savedWgConfig) { mutableStateOf(savedWgConfig.mtu) }
+    var publicKey by remember(savedWgConfig) { mutableStateOf(savedWgConfig.publicKey) }
     var endpoint by remember(currentProfileId, clientConfig.connectableAddress) { mutableStateOf(clientConfig.connectableAddress) }
-    var persistentKeepalive by remember(initialWgConfig) { mutableStateOf(initialWgConfig.persistentKeepalive) }
+    var persistentKeepalive by remember(savedWgConfig) { mutableStateOf(savedWgConfig.persistentKeepalive) }
 
     // VLESS states
-    var vlessLink by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.vlessLink) }
-    var vlessIsDualRoute by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.isDualRoute) }
-    var vlessDirectAddress by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.directAddress) }
-    var vlessHcInterval by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.hcInterval) }
+    var vlessLink by remember(vlessSaved) { mutableStateOf(vlessSaved.vlessLink) }
+    var vlessIsDualRoute by remember(vlessSaved) { mutableStateOf(vlessSaved.isDualRoute) }
+    var vlessDirectAddress by remember(vlessSaved) { mutableStateOf(vlessSaved.directAddress) }
+    var vlessHcInterval by remember(vlessSaved) { mutableStateOf(vlessSaved.hcInterval) }
 
     val showUniversalQrScanner = remember { mutableStateOf(false) }
+
+    // Initial check for proxy auth credentials on fresh install
+    LaunchedEffect(Unit) {
+        if (isProxyAuthEnabled && (proxyUser.isBlank() || proxyPass.isBlank())) {
+            val allowedChars = ('A'..'Z') + ('a'..'z') + ('0'..'9')
+            if (proxyUser.isBlank()) proxyUser = (1..8).map { allowedChars.random() }.joinToString("")
+            if (proxyPass.isBlank()) proxyPass = (1..12).map { allowedChars.random() }.joinToString("")
+        }
+    }
 
     // Auto-save debounced
     LaunchedEffect(xrayConfiguration, socksBindAddress, httpBindAddress, isProxyAuthEnabled, proxyUser, proxyPass) {

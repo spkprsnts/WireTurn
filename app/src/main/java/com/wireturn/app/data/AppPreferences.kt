@@ -686,8 +686,8 @@ data class Profile(
             id = (id ?: java.util.UUID.randomUUID().toString()).ifBlank { java.util.UUID.randomUUID().toString() }.take(100),
             name = (name ?: "Unnamed").ifBlank { "Unnamed" }.take(100),
             clientConfig = (clientConfig ?: ClientConfig()).migrateAndSanitize(),
-            wgConfig = (wgConfig ?: WgConfig()).fillDefaults(),
-            xrayConfig = (xrayConfig ?: XrayConfig()).fillDefaults(),
+            wgConfig = (wgConfig ?: WgConfig()),
+            xrayConfig = (xrayConfig ?: XrayConfig()),
             vlessConfig = (vlessConfig ?: VlessConfig()).sanitize()
         )
     }
@@ -821,10 +821,10 @@ class AppPreferences(context: Context) {
             WgConfig(
                 privateKey = prefs[WIRE_PRIV_KEY] ?: "",
                 address = prefs[WIRE_ADDRESS] ?: "",
-                mtu = prefs.getStringSafe(WIRE_MTU),
+                mtu = prefs.getStringSafe(WIRE_MTU, WgConfig.DEFAULT_MTU),
                 publicKey = prefs[WIRE_PUB_KEY] ?: "",
-                endpoint = prefs[WIRE_ENDPOINT] ?: "",
-                persistentKeepalive = prefs.getStringSafe(WIRE_KEEPALIVE)
+                endpoint = prefs.getStringSafe(WIRE_ENDPOINT, WgConfig.DEFAULT_ENDPOINT),
+                persistentKeepalive = prefs.getStringSafe(WIRE_KEEPALIVE, WgConfig.DEFAULT_PERSISTENT_KEEPALIVE)
             )
         }
         .distinctUntilChanged()
@@ -866,7 +866,7 @@ class AppPreferences(context: Context) {
                 isProxyAuthEnabled = prefs[XRAY_PROXY_AUTH_ENABLED] ?: true,
                 proxyUser = prefs[XRAY_PROXY_USER] ?: "",
                 proxyPass = prefs[XRAY_PROXY_PASS] ?: ""
-            ).fillDefaults()
+            )
         }
         .distinctUntilChanged()
 
@@ -878,7 +878,7 @@ class AppPreferences(context: Context) {
                 vlessUseLocalAddress = prefs[CLIENT_VLESS_USE_LOCAL_ADDRESS] ?: true,
                 isDualRoute = prefs[CLIENT_VLESS_IS_DUAL_ROUTE] ?: false,
                 directAddress = prefs[CLIENT_VLESS_DIRECT_ADDRESS] ?: "",
-                hcInterval = prefs.getStringSafe(CLIENT_VLESS_HC_INTERVAL)
+                hcInterval = prefs.getStringSafe(CLIENT_VLESS_HC_INTERVAL, "30")
             )
         }
         .distinctUntilChanged()

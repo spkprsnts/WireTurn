@@ -118,17 +118,15 @@ fun ClientConfigScreen(
         ActivityResultContracts.OpenDocument()
     ) { uri -> uri?.let { viewModel.setCustomKernel(it) } }
 
-    val initialConfig = remember(saved) { saved.fillDefaults() }
-
-    var isRawMode by remember(initialConfig) { mutableStateOf(initialConfig.isRawMode) }
-    var rawCommand by remember(initialConfig) { mutableStateOf(initialConfig.rawCommand) }
-    var turnableConfig by remember(initialConfig) { mutableStateOf(initialConfig.turnableConfig) }
-    var olcrtcConfig by remember(initialConfig) { mutableStateOf(initialConfig.olcrtcConfig) }
-    var olcrtcSocksAddr by remember(initialConfig) { mutableStateOf("${initialConfig.olcrtcConfig.socksHost}:${initialConfig.olcrtcConfig.socksPort}") }
-    var videoW by remember(initialConfig) { mutableStateOf(initialConfig.olcrtcConfig.videoW.let { if (it == 0) "" else it.toString() }) }
-    var videoH by remember(initialConfig) { mutableStateOf(initialConfig.olcrtcConfig.videoH.let { if (it == 0) "" else it.toString() }) }
-    var localPort by remember(initialConfig) { mutableStateOf(initialConfig.localPort) }
-    var kernelVariant by remember(initialConfig) { mutableStateOf(initialConfig.kernelVariant) }
+    var isRawMode by remember(saved) { mutableStateOf(saved.isRawMode) }
+    var rawCommand by remember(saved) { mutableStateOf(saved.rawCommand) }
+    var turnableConfig by remember(saved) { mutableStateOf(saved.turnableConfig) }
+    var olcrtcConfig by remember(saved) { mutableStateOf(saved.olcrtcConfig) }
+    var olcrtcSocksAddr by remember(saved) { mutableStateOf("${saved.olcrtcConfig.socksHost}:${saved.olcrtcConfig.socksPort}") }
+    var videoW by remember(saved) { mutableStateOf(saved.olcrtcConfig.videoW.let { if (it == 0) "" else it.toString() }) }
+    var videoH by remember(saved) { mutableStateOf(saved.olcrtcConfig.videoH.let { if (it == 0) "" else it.toString() }) }
+    var localPort by remember(saved) { mutableStateOf(saved.localPort) }
+    var kernelVariant by remember(saved) { mutableStateOf(saved.kernelVariant) }
     
     val showPortHelp = remember { mutableStateOf(false) }
     val showOlcrtcHelp = remember { mutableStateOf(false) }
