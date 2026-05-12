@@ -1106,24 +1106,6 @@ fun UpdateBlock(
     }
 }
 
-@Composable
-fun ImportButton(
-    onClick: () -> Unit,
-    icon: Int,
-    label: String,
-    modifier: Modifier = Modifier
-) {
-    androidx.compose.material3.Button(
-        onClick = onClick,
-        modifier = modifier,
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp)
-    ) {
-        Icon(painterResource(icon), null, Modifier.size(18.dp))
-        Spacer(Modifier.width(4.dp))
-        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelSmall)
-    }
-}
-
 private fun truncateUrlParameters(url: String): String {
     return try {
         val limit = 50

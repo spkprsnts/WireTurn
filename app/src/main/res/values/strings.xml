@@ -71,14 +71,15 @@
     <string name="vpn_start">On VPN</string>
     <string name="vpn_stop">Off VPN</string>
 
+    <string name="import_file">From file</string>
+    <string name="import_clipboard">From clipboard</string>
+    <string name="import_success">Configuration imported</string>
+    <string name="import_error">Import error</string>
+
     <!-- WireGuard Setup -->
-    <string name="wg_import_config">WireGuard Import</string>
-    <string name="wg_import_file">From file</string>
+    <string name="xray_import_config">Xray configuration import</string>
     <string name="wg_import_qr">Import WireGuard</string>
-    <string name="wg_import_clipboard">From clipboard</string>
     <string name="wg_qr_scan_desc">Point the camera at the WireGuard configuration QR code to import</string>
-    <string name="wg_import_success">Configuration imported</string>
-    <string name="wg_import_error">Import error</string>
     <string name="wg_interface" translatable="false">Interface</string>
     <string name="wg_private_key" translatable="false">Private Key</string>
     <string name="wg_private_key_placeholder" translatable="false">WG_PRIVATE_KEY</string>
@@ -89,11 +90,12 @@
     <string name="wg_peer" translatable="false">Peer</string>
     <string name="wg_public_key" translatable="false">Public Key</string>
     <string name="wg_public_key_placeholder" translatable="false">WG_PUBLIC_KEY</string>
-    <string name="wg_endpoint" translatable="false">Endpoint (host:port)</string>
+    <string name="wg_endpoint">Endpoint (local)</string>
     <string name="wg_endpoint_placeholder" translatable="false">127.0.0.1:9000</string>
     <string name="wg_persistent_keepalive" translatable="false">Persistent Keepalive</string>
     <string name="wg_persistent_keepalive_placeholder" translatable="false">25</string>
     <string name="wg_mtu_recommendation">Recommended value is 1280</string>
+    <string name="wg_not_used_with_olcrtc">WireGuard is not used with olcRTC</string>
 
     <!-- Xray Setup (SOCKS/HTTP) -->
     <string name="xray_title" translatable="false">Xray</string>
@@ -110,6 +112,7 @@
     <string name="raw_mode_desc">Manual argument input</string>
     <string name="raw_label" translatable="false">Raw</string>
     <string name="raw_placeholder" translatable="false">-listen 127.0.0.1:900 -peer 292.313.32.45:56000 …</string>
+    <string name="client_import_config">Client configuration import</string>
     <string name="import_turnable_title">Turnable config import</string>
     <string name="import_olcrtc_title">olcRTC config import</string>
     <string name="config_missing">Missing configuration</string>

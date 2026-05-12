@@ -67,20 +67,24 @@
     <string name="vpn_start">Вкл. VPN</string>
     <string name="vpn_stop">Выкл. VPN</string>
 
+    <string name="import_file">Из файла</string>
+    <string name="import_clipboard">Из буфера</string>
+    <string name="import_success">Конфигурация импортирована</string>
+    <string name="import_error">Ошибка импорта</string>
+
     <!-- Настройка WireGuard -->
-    <string name="wg_import_config">Импорт WireGuard</string>
-    <string name="wg_import_file">Из файла</string>
+    <string name="xray_import_config">Импорт конфигурации Xray</string>
     <string name="wg_import_qr">Импорт WireGuard</string>
-    <string name="wg_import_clipboard">Из буфера</string>
     <string name="wg_qr_scan_desc">Наведите камеру на QR-код конфигурации WireGuard для импорта</string>
-    <string name="wg_import_success">Конфигурация импортирована</string>
-    <string name="wg_import_error">Ошибка импорта</string>
     <string name="wg_mtu_recommendation">Рекомендуемое значение — 1280</string>
+    <string name="wg_endpoint">Эндпоинт (локальный)</string>
+    <string name="wg_not_used_with_olcrtc">WireGuard не используется с olcRTC</string>
 
     <!-- Настройка клиента (Backend/Proxy) -->
     <string name="client_title">Клиент</string>
     <string name="connection_title">Подключение</string>
     <string name="raw_mode_desc">Ввод аргументов вручную</string>
+    <string name="client_import_config">Импорт конфигурации клиента</string>
     <string name="import_turnable_title">Импорт конфига Turnable</string>
     <string name="import_olcrtc_title">Импорт конфига olcRTC</string>
     <string name="config_missing">Отсутствует конфигурация</string>

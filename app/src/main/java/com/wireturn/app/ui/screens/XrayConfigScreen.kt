@@ -5,7 +5,7 @@
 
 package com.wireturn.app.ui.screens
 
-import android.content.ClipData
+import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -17,7 +17,6 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -28,7 +27,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
@@ -36,6 +34,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -50,7 +49,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -58,18 +56,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
+import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.WgConfig
 import com.wireturn.app.data.XrayConfiguration
+import com.wireturn.app.ui.ConfigDropdownMenu
+import com.wireturn.app.ui.ConfigRowLabel
 import com.wireturn.app.ui.FieldTrailingIcons
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.LabeledButtonGroup
+import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.configButtonGroupItem
 import com.wireturn.app.ui.SettingsGroup
 import com.wireturn.app.ui.SettingsGroupItem
@@ -94,8 +94,8 @@ fun XrayConfigScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val importSuccessMessage = stringResource(R.string.wg_import_success)
-    val importErrorMessage = stringResource(R.string.wg_import_error)
+    val importSuccessMessage = stringResource(R.string.import_success)
+    val importErrorMessage = stringResource(R.string.import_error)
     val errorWithDetailsFormat = stringResource(R.string.error_with_details)
 
     val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
@@ -112,57 +112,33 @@ fun XrayConfigScreen(
     val vlessConfigSnapshot by com.wireturn.app.XrayServiceState.vlessConfigSnapshot.collectAsStateWithLifecycle()
     val xrayConfigSnapshot by com.wireturn.app.XrayServiceState.xrayConfigSnapshot.collectAsStateWithLifecycle()
 
+    val initialXrayConfig = remember(xrayConfig) { xrayConfig.fillDefaults() }
+    val initialWgConfig = remember(savedWgConfig) { savedWgConfig.fillDefaults() }
+    val initialVlessConfig = remember(vlessSaved) { vlessSaved.fillDefaults() }
+
     val isDark = com.wireturn.app.ui.theme.LocalIsDark.current
     val screenBackgroundColor = if (isDark) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerLow
     val blockContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
 
-    var xrayConfiguration by rememberSaveable(currentProfileId, xrayConfig.xrayConfiguration) { mutableStateOf(xrayConfig.xrayConfiguration) }
-    var socksBindAddress by rememberSaveable(currentProfileId, xrayConfig.socksBindAddress) { mutableStateOf(xrayConfig.socksBindAddress) }
-    var httpBindAddress by rememberSaveable(currentProfileId, xrayConfig.httpBindAddress) { mutableStateOf(xrayConfig.httpBindAddress) }
+    var xrayConfiguration by remember(initialXrayConfig) { mutableStateOf(initialXrayConfig.xrayConfiguration) }
+    var socksBindAddress by remember(initialXrayConfig) { mutableStateOf(initialXrayConfig.socksBindAddress) }
+    var httpBindAddress by remember(initialXrayConfig) { mutableStateOf(initialXrayConfig.httpBindAddress) }
 
     // WireGuard states
-    var privateKey by rememberSaveable(currentProfileId, savedWgConfig.privateKey) { mutableStateOf(savedWgConfig.privateKey) }
-    var address by rememberSaveable(currentProfileId, savedWgConfig.address) { mutableStateOf(savedWgConfig.address) }
-    var mtu by rememberSaveable(currentProfileId, savedWgConfig.mtu) { mutableStateOf(savedWgConfig.mtu) }
-    var publicKey by rememberSaveable(currentProfileId, savedWgConfig.publicKey) { mutableStateOf(savedWgConfig.publicKey) }
-    var endpoint by rememberSaveable(currentProfileId, clientConfig.connectableAddress) { mutableStateOf(clientConfig.connectableAddress) }
-    var persistentKeepalive by rememberSaveable(currentProfileId, savedWgConfig.persistentKeepalive) { mutableStateOf(savedWgConfig.persistentKeepalive) }
+    var privateKey by remember(initialWgConfig) { mutableStateOf(initialWgConfig.privateKey) }
+    var address by remember(initialWgConfig) { mutableStateOf(initialWgConfig.address) }
+    var mtu by remember(initialWgConfig) { mutableStateOf(initialWgConfig.mtu) }
+    var publicKey by remember(initialWgConfig) { mutableStateOf(initialWgConfig.publicKey) }
+    var endpoint by remember(currentProfileId, clientConfig.connectableAddress) { mutableStateOf(clientConfig.connectableAddress) }
+    var persistentKeepalive by remember(initialWgConfig) { mutableStateOf(initialWgConfig.persistentKeepalive) }
 
     // VLESS states
-    var vlessLink by rememberSaveable(currentProfileId, vlessSaved.vlessLink) { mutableStateOf(vlessSaved.vlessLink) }
-    var vlessIsDualRoute by rememberSaveable(currentProfileId, vlessSaved.isDualRoute) { mutableStateOf(vlessSaved.isDualRoute) }
-    var vlessDirectAddress by rememberSaveable(currentProfileId, vlessSaved.directAddress) { mutableStateOf(vlessSaved.directAddress) }
-    var vlessHcInterval by rememberSaveable(currentProfileId, vlessSaved.hcInterval) { mutableStateOf(vlessSaved.hcInterval) }
+    var vlessLink by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.vlessLink) }
+    var vlessIsDualRoute by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.isDualRoute) }
+    var vlessDirectAddress by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.directAddress) }
+    var vlessHcInterval by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.hcInterval) }
 
-    val showQrScanner = remember { mutableStateOf(false) }
-    val showVlessQrScanner = remember { mutableStateOf(false) }
     val showUniversalQrScanner = remember { mutableStateOf(false) }
-
-    // Sync local state with saved config when it changes externally
-    LaunchedEffect(savedWgConfig) {
-        privateKey = savedWgConfig.privateKey
-        address = savedWgConfig.address
-        mtu = savedWgConfig.mtu
-        publicKey = savedWgConfig.publicKey
-        persistentKeepalive = savedWgConfig.persistentKeepalive
-    }
-
-    LaunchedEffect(clientConfig.connectableAddress) {
-        endpoint = clientConfig.connectableAddress
-    }
-
-    LaunchedEffect(xrayConfig) {
-        xrayConfiguration = xrayConfig.xrayConfiguration
-        socksBindAddress = xrayConfig.socksBindAddress
-        httpBindAddress = xrayConfig.httpBindAddress
-    }
-
-    LaunchedEffect(vlessSaved) {
-        vlessLink = vlessSaved.vlessLink
-        vlessIsDualRoute = vlessSaved.isDualRoute
-        vlessDirectAddress = vlessSaved.directAddress
-        vlessHcInterval = vlessSaved.hcInterval
-    }
 
     // Auto-save debounced
     LaunchedEffect(xrayConfiguration, socksBindAddress, httpBindAddress) {
@@ -212,10 +188,17 @@ fun XrayConfigScreen(
             uri?.let {
                 try {
                     context.contentResolver.openInputStream(uri)?.use { input ->
-                        val text = input.bufferedReader().use { r -> r.readText() }
-                        val parsed = WgConfig.parse(text)
-                        if (parsed.isValid()) {
+                        val text = input.bufferedReader().use { r -> r.readText() }.trim()
+                        val wgParsed = WgConfig.parse(text)
+                        if (wgParsed.isValid()) {
+                            xrayConfiguration = XrayConfiguration.WIREGUARD
                             viewModel.updateWgConfigText(text)
+                            scope.launch { 
+                                snackbarHostState.showExclusiveSnackbar(importSuccessMessage) 
+                            }
+                        } else if (ValidatorUtils.isValidVlessLink(text)) {
+                            xrayConfiguration = XrayConfiguration.VLESS
+                            vlessLink = text
                             scope.launch { 
                                 snackbarHostState.showExclusiveSnackbar(importSuccessMessage) 
                             }
@@ -235,7 +218,6 @@ fun XrayConfigScreen(
         }
     )
 
-    val isEndpointValid = remember(endpoint) { ValidatorUtils.isValidHostPort(endpoint) }
     val isSocksValid = remember(socksBindAddress) { ValidatorUtils.isValidHostPort(socksBindAddress) }
     val isHttpValid = remember(httpBindAddress) { httpBindAddress.isEmpty() || ValidatorUtils.isValidHostPort(httpBindAddress) }
 
@@ -252,19 +234,6 @@ fun XrayConfigScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.xray_title)) },
                 actions = {
-                    var isCopied by remember { mutableStateOf(false) }
-                    LaunchedEffect(isCopied) {
-                        if (isCopied) {
-                            delay(1500)
-                            isCopied = false
-                        }
-                    }
-
-                    val canCopy = when (xrayConfiguration) {
-                        XrayConfiguration.WIREGUARD -> savedWgConfig.isValid()
-                        XrayConfiguration.VLESS -> vlessSaved.isValid()
-                    }
-
                     IconButton(
                         onClick = { showUniversalQrScanner.value = true }
                     ) {
@@ -274,23 +243,75 @@ fun XrayConfigScreen(
                         )
                     }
 
+                    var showImportMenu by remember { mutableStateOf(false) }
+                    IconButton(onClick = { showImportMenu = true }) {
+                        Icon(
+                            painterResource(R.drawable.note_add_24px),
+                            stringResource(R.string.xray_import_config)
+                        )
+                        ConfigDropdownMenu(
+                            expanded = showImportMenu,
+                            onDismissRequest = { showImportMenu = false },
+                            title = stringResource(R.string.xray_import_config)
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.import_clipboard)) },
+                                leadingIcon = { Icon(painterResource(R.drawable.content_paste_24px), null) },
+                                onClick = {
+                                    showImportMenu = false
+                                    scope.launch {
+                                        val clipEntry = clipboard.getClipEntry()
+                                        if (clipEntry != null) {
+                                            val text = clipEntry.clipData.getItemAt(0).text?.toString() ?: ""
+                                            val wgParsed = WgConfig.parse(text)
+                                            if (wgParsed.isValid()) {
+                                                xrayConfiguration = XrayConfiguration.WIREGUARD
+                                                viewModel.updateWgConfigText(text)
+                                                snackbarHostState.showExclusiveSnackbar(importSuccessMessage)
+                                            } else if (ValidatorUtils.isValidVlessLink(text)) {
+                                                xrayConfiguration = XrayConfiguration.VLESS
+                                                vlessLink = text
+                                                snackbarHostState.showExclusiveSnackbar(importSuccessMessage)
+                                            } else {
+                                                snackbarHostState.showExclusiveSnackbar(importErrorMessage)
+                                            }
+                                        }
+                                    }
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.import_file)) },
+                                leadingIcon = { Icon(painterResource(R.drawable.file_open_24px), null) },
+                                onClick = {
+                                    showImportMenu = false
+                                    filePickerLauncher.launch("*/*")
+                                }
+                            )
+                        }
+                    }
+
+                    val canShare = when (xrayConfiguration) {
+                        XrayConfiguration.WIREGUARD -> savedWgConfig.isValid()
+                        XrayConfiguration.VLESS -> vlessSaved.isValid()
+                    }
+
                     IconButton(
                         onClick = {
-                            isCopied = true
-                            scope.launch {
-                                val textToCopy = when (xrayConfiguration) {
-                                    XrayConfiguration.WIREGUARD -> savedWgConfig.toWgString()
-                                    XrayConfiguration.VLESS -> vlessSaved.vlessLink
-                                }
-                                clipboard.setClipEntry(ClipData.newPlainText("config", textToCopy).toClipEntry())
-                                HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
+                            val textToShare = when (xrayConfiguration) {
+                                XrayConfiguration.WIREGUARD -> savedWgConfig.toWgString()
+                                XrayConfiguration.VLESS -> vlessSaved.vlessLink
                             }
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, textToShare)
+                            }
+                            context.startActivity(Intent.createChooser(intent, null))
                         },
-                        enabled = canCopy
+                        enabled = canShare
                     ) {
                         Icon(
-                            painterResource(if (isCopied) R.drawable.check_circle_24px else R.drawable.content_copy_24px),
-                            stringResource(R.string.copy)
+                            painterResource(R.drawable.share_24px),
+                            stringResource(R.string.share)
                         )
                     }
                 }
@@ -393,26 +414,9 @@ fun XrayConfigScreen(
                         onEndpointChange = { },
                         persistentKeepalive = persistentKeepalive,
                         onPersistentKeepaliveChange = { persistentKeepalive = it },
-                        isEndpointValid = isEndpointValid,
                         wgConfigSnapshot = wgConfigSnapshot,
                         privacyMode = privacyMode,
-                        onImportFile = { filePickerLauncher.launch("*/*") },
-                        onImportQr = { showQrScanner.value = true },
-                        onImportClipboard = {
-                            scope.launch {
-                                val clipEntry = clipboard.getClipEntry()
-                                if (clipEntry != null) {
-                                    val text = clipEntry.clipData.getItemAt(0).text?.toString() ?: ""
-                                    val parsed = WgConfig.parse(text)
-                                    if (parsed.isValid()) {
-                                        viewModel.updateWgConfigText(text)
-                                        snackbarHostState.showExclusiveSnackbar(importSuccessMessage)
-                                    } else {
-                                        snackbarHostState.showExclusiveSnackbar(importErrorMessage)
-                                    }
-                                }
-                            }
-                        },
+                        kernelVariant = clientConfig.kernelVariant,
                         blockContainerColor = blockContainerColor
                     )
                 }
@@ -445,7 +449,6 @@ fun XrayConfigScreen(
                         onRemoveHistory = { viewModel.removeVlessLinkFromHistory(it) },
                         vlessConfigSnapshot = vlessConfigSnapshot,
                         privacyMode = privacyMode,
-                        onImportQr = { showVlessQrScanner.value = true },
                         blockContainerColor = blockContainerColor,
                         scrollState = scrollState
                     )
@@ -470,46 +473,6 @@ fun XrayConfigScreen(
         }
     }
 
-    if (showQrScanner.value) {
-        QrScannerDialog(
-            title = stringResource(R.string.wg_import_qr),
-            message = stringResource(R.string.wg_qr_scan_desc),
-            onDismiss = { showQrScanner.value = false },
-            onResult = { result ->
-                val parsed = WgConfig.parse(result)
-                if (parsed.isValid()) {
-                    viewModel.updateWgConfigText(result)
-                    scope.launch { 
-                        snackbarHostState.showExclusiveSnackbar(importSuccessMessage) 
-                    }
-                } else {
-                    scope.launch { 
-                        snackbarHostState.showExclusiveSnackbar(importErrorMessage) 
-                    }
-                }
-            }
-        )
-    }
-
-    if (showVlessQrScanner.value) {
-        QrScannerDialog(
-            title = stringResource(R.string.vless_import_qr),
-            message = stringResource(R.string.vless_qr_scan_desc),
-            onDismiss = { showVlessQrScanner.value = false },
-            onResult = { result ->
-                if (ValidatorUtils.isValidVlessLink(result)) {
-                    vlessLink = result
-                    scope.launch { 
-                        snackbarHostState.showExclusiveSnackbar(importSuccessMessage) 
-                    }
-                } else {
-                    scope.launch { 
-                        snackbarHostState.showExclusiveSnackbar(importErrorMessage) 
-                    }
-                }
-            }
-        )
-    }
 
     if (showUniversalQrScanner.value) {
         QrScannerDialog(
@@ -554,21 +517,33 @@ private fun WireGuardSettings(
     onEndpointChange: (String) -> Unit,
     persistentKeepalive: String,
     onPersistentKeepaliveChange: (String) -> Unit,
-    isEndpointValid: Boolean,
     wgConfigSnapshot: WgConfig?,
     privacyMode: Boolean,
-    onImportFile: () -> Unit,
-    onImportQr: () -> Unit,
-    onImportClipboard: () -> Unit,
+    kernelVariant: KernelVariant,
     blockContainerColor: Color
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
-        SettingsGroup(title = stringResource(R.string.wg_import_config)) {
-            SettingsGroupItem(isTop = true, isBottom = true, containerColor = blockContainerColor) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ImportButton(onClick = onImportFile, icon = R.drawable.file_open_24px, label = stringResource(R.string.wg_import_file), modifier = Modifier.weight(1f))
-                    ImportButton(onClick = onImportQr, icon = R.drawable.qr_code_24px, label = stringResource(R.string.qr_import), modifier = Modifier.weight(1f))
-                    ImportButton(onClick = onImportClipboard, icon = R.drawable.content_paste_24px, label = stringResource(R.string.wg_import_clipboard), modifier = Modifier.weight(1f))
+        if (kernelVariant == KernelVariant.OLCRTC) {
+            SettingsGroupItem(
+                isTop = true,
+                isBottom = true,
+                containerColor = blockContainerColor
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    LargeLeadingIcon {
+                        Icon(
+                            painter = painterResource(R.drawable.info_24px),
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        ConfigRowLabel(stringResource(R.string.wg_not_used_with_olcrtc))
+                    }
                 }
             }
         }
@@ -630,7 +605,6 @@ private fun WireGuardSettings(
                     value = endpoint.redact(privacyMode),
                     onValueChange = onEndpointChange,
                     placeholder = stringResource(R.string.wg_endpoint_placeholder),
-                    isError = !isEndpointValid,
                     readOnly = true,
                     isModified = wgConfigSnapshot != null && endpoint != wgConfigSnapshot.endpoint
                 )
@@ -665,7 +639,6 @@ private fun VlessSettings(
     onRemoveHistory: (String) -> Unit,
     vlessConfigSnapshot: com.wireturn.app.data.VlessConfig?,
     privacyMode: Boolean,
-    onImportQr: () -> Unit,
     blockContainerColor: Color,
     scrollState: ScrollState
 ) {
@@ -704,20 +677,12 @@ private fun VlessSettings(
                 supportingText = stringResource(R.string.vless_link_config_desc),
                 isModified = vlessConfigSnapshot != null && vlessLink.trim() != vlessConfigSnapshot.vlessLink,
                 trailingIcon = {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        IconButton(
-                            onClick = onImportQr,
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Icon(painter = painterResource(R.drawable.qr_code_24px), contentDescription = null, modifier = Modifier.size(20.dp))
-                        }
-                        FieldTrailingIcons(
-                            history = vlessLinkHistory,
-                            onSelect = onVlessLinkChange,
-                            onRemove = onRemoveHistory,
-                            privacyMode = privacyMode
-                        )
-                    }
+                    FieldTrailingIcons(
+                        history = vlessLinkHistory,
+                        onSelect = onVlessLinkChange,
+                        onRemove = onRemoveHistory,
+                        privacyMode = privacyMode
+                    )
                 }
             )
         }
@@ -789,20 +754,3 @@ private fun VlessSettings(
     }
 }
 
-@Composable
-private fun ImportButton(
-    onClick: () -> Unit,
-    icon: Int,
-    label: String,
-    modifier: Modifier = Modifier
-) {
-    Button(
-        onClick = onClick,
-        modifier = modifier,
-        contentPadding = PaddingValues(horizontal = 4.dp)
-    ) {
-        Icon(painterResource(icon), null, Modifier.size(18.dp))
-        Spacer(Modifier.width(4.dp))
-        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelSmall)
-    }
-}
