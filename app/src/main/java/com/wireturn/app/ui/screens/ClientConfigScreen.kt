@@ -37,7 +37,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -104,9 +103,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ClientConfigScreen(
     viewModel: MainViewModel,
-    modifier: Modifier = Modifier,
-    showFinishButton: Boolean = false,
-    onFinish: (() -> Unit)? = null
+    modifier: Modifier = Modifier
 ) {
     val saved by viewModel.clientConfig.collectAsStateWithLifecycle()
     val customKernelExists by viewModel.customKernelExists.collectAsStateWithLifecycle()
@@ -545,25 +542,6 @@ fun ClientConfigScreen(
                 }
             }
 
-            if (showFinishButton && onFinish != null) {
-                val isValid = remember(isRawMode, rawCommand, turnableConfig, olcrtcConfig, kernelVariant) {
-                    ClientConfig(
-                        isRawMode = isRawMode,
-                        rawCommand = rawCommand,
-                        turnableConfig = turnableConfig,
-                        olcrtcConfig = olcrtcConfig,
-                        kernelVariant = kernelVariant
-                    ).isValid
-                }
-                Button(
-                    onClick = onFinish,
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                    enabled = isValid,
-                    shape = MaterialTheme.shapes.large
-                ) {
-                    Text(stringResource(R.string.finish_setup), style = MaterialTheme.typography.labelLarge)
-                }
-            }
         }
     }
 

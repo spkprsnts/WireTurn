@@ -155,8 +155,7 @@ fun AppNavigation(
                     key(currentProfileId) {
                         XrayConfigScreen(
                             modifier = Modifier.statusBarsPadding(),
-                            viewModel = viewModel,
-                            showFinishButton = false
+                            viewModel = viewModel
                         )
                     }
                 }
@@ -165,8 +164,7 @@ fun AppNavigation(
                     key(currentProfileId) {
                         ClientConfigScreen(
                             modifier = Modifier.statusBarsPadding(),
-                            viewModel = viewModel,
-                            showFinishButton = false
+                            viewModel = viewModel
                         )
                     }
                 }

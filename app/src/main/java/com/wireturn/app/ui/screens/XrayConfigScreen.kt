@@ -33,7 +33,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -85,9 +84,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun XrayConfigScreen(
     viewModel: MainViewModel,
-    modifier: Modifier = Modifier,
-    showFinishButton: Boolean = false,
-    onFinish: (() -> Unit)? = null
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboard.current
@@ -522,21 +519,6 @@ fun XrayConfigScreen(
                 }
             }
 
-            if (showFinishButton && onFinish != null) {
-                val isValid = (when (xrayConfiguration) {
-                    XrayConfiguration.WIREGUARD -> savedWgConfig.isValid()
-                    XrayConfiguration.VLESS -> vlessSaved.isValid()
-                } && isSocksValid && isHttpValid) && (!isProxyAuthEnabled || ((proxyUser.isEmpty() || ValidatorUtils.isValidProxyUser(proxyUser)) && (proxyPass.isEmpty() || ValidatorUtils.isValidProxyPass(proxyPass))))
-                
-                Button(
-                    onClick = onFinish,
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                    enabled = isValid,
-                    shape = MaterialTheme.shapes.large
-                ) {
-                    Text(stringResource(R.string.finish_setup), style = MaterialTheme.typography.labelLarge)
-                }
-            }
         }
     }
 
