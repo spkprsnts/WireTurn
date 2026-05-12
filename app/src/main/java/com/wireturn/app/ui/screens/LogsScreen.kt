@@ -75,6 +75,7 @@ fun LogsScreen(
     val listState = rememberLazyListState()
 
     var lastLogsSize by remember { mutableIntStateOf(logs.size) }
+    var lastLogId by remember { mutableStateOf(logs.lastOrNull()?.id) }
     var showScrollButton by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -89,8 +90,9 @@ fun LogsScreen(
         }
     }
 
-    LaunchedEffect(logs.size) {
-        if (logs.size > lastLogsSize) {
+    LaunchedEffect(logs) {
+        val currentLastId = logs.lastOrNull()?.id
+        if (currentLastId != null && currentLastId != lastLogId) {
             val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
             val wasAtBottom = lastVisibleItem == null || lastVisibleItem.index >= lastLogsSize - 2
 
@@ -99,6 +101,7 @@ fun LogsScreen(
             } else {
                 showScrollButton = true
             }
+            lastLogId = currentLastId
         }
         lastLogsSize = logs.size
     }
