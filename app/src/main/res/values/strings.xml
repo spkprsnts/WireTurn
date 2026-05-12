@@ -112,6 +112,9 @@
     <string name="raw_placeholder" translatable="false">-listen 127.0.0.1:900 -peer 292.313.32.45:56000 …</string>
     <string name="import_turnable_title">Turnable config import</string>
     <string name="import_olcrtc_title">olcRTC config import</string>
+    <string name="config_missing">Missing configuration</string>
+    <string name="config_import_hint_start">Paste turnable:// link </string>
+    <string name="config_import_hint_end" />
     <string name="config_copied_success">Configuration copied</string>
     <string name="route_title">Route</string>
     <string name="user_uuid_label">User UUID</string>
@@ -191,6 +194,7 @@
     <!-- Logs Screen (Logs) -->
     <string name="logs_title">Logs</string>
     <string name="copy">Copy</string>
+    <string name="share">Share</string>
     <string name="clear">Clear</string>
     <string name="no_logs">No logs</string>
     <string name="new_logs">New logs</string>

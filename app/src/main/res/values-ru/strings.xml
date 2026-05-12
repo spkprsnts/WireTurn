@@ -83,6 +83,9 @@
     <string name="raw_mode_desc">Ввод аргументов вручную</string>
     <string name="import_turnable_title">Импорт конфига Turnable</string>
     <string name="import_olcrtc_title">Импорт конфига olcRTC</string>
+    <string name="config_missing">Отсутствует конфигурация</string>
+    <string name="config_import_hint_start">Вставьте turnable:// ссылку </string>
+    <string name="config_import_hint_end" />
     <string name="config_copied_success">Конфигурация скопирована</string>
     <string name="route_title">Маршрут</string>
     <string name="user_uuid_label">UUID пользователя</string>
@@ -160,6 +163,7 @@
     <!-- Экран логов (Logs) -->
     <string name="logs_title">Логи</string>
     <string name="copy">Копировать</string>
+    <string name="share">Поделиться</string>
     <string name="clear">Очистить</string>
     <string name="no_logs">Нет логов</string>
     <string name="new_logs">Новые логи</string>

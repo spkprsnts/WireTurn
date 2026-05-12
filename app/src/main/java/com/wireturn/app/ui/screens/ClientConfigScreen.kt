@@ -6,6 +6,7 @@
 package com.wireturn.app.ui.screens
 
 import android.content.ClipData
+import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.basicMarquee
@@ -26,7 +27,9 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -57,8 +60,12 @@ import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.data.KernelVariant
@@ -66,7 +73,6 @@ import com.wireturn.app.data.TurnableConfig
 import com.wireturn.app.data.TurnableRoute
 import com.wireturn.app.ui.ConfigRowLabel
 import com.wireturn.app.ui.HapticUtil
-import com.wireturn.app.ui.ImportButton
 import com.wireturn.app.ui.LabeledButtonGroup
 import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.configButtonGroupItem
@@ -132,7 +138,6 @@ fun ClientConfigScreen(
 
     val importSuccessMessage = stringResource(R.string.wg_import_success)
     val importErrorMessage = stringResource(R.string.wg_import_error)
-    val copySuccessMessage = stringResource(R.string.config_copied_success)
 
     // Sync local state with saved config when it changes externally (e.g. profile switch)
     LaunchedEffect(saved) {
@@ -197,45 +202,71 @@ fun ClientConfigScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.client_title)) },
                 actions = {
-                    IconButton(onClick = { showQrScanner.value = true }) {
-                        Icon(
-                            painter = painterResource(R.drawable.qr_code_24px),
-                            contentDescription = stringResource(R.string.qr_import)
-                        )
-                    }
-                    var isCopied by remember { mutableStateOf(false) }
-                    LaunchedEffect(isCopied) {
-                        if (isCopied) {
-                            delay(1500)
-                            isCopied = false
+                    if (!isRawMode) {
+                        IconButton(onClick = { showQrScanner.value = true }) {
+                            Icon(
+                                painter = painterResource(R.drawable.qr_code_24px),
+                                contentDescription = stringResource(R.string.qr_import)
+                            )
                         }
-                    }
-                    val canCopy = remember(kernelVariant, turnableConfig, olcrtcConfig) {
-                        when (kernelVariant) {
-                            KernelVariant.TURNABLE -> turnableConfig.isValid()
-                            KernelVariant.OLCRTC -> olcrtcConfig.isValid()
-                        }
-                    }
+                        IconButton(
+                            onClick = {
+                                scope.launch {
+                                    val clipEntry = clipboard.getClipEntry()
+                                    val text = clipEntry?.clipData?.getItemAt(0)?.text?.toString() ?: ""
+                                    val turnableParsed = TurnableConfig.parse(text)
+                                    val olcrtcParsed = com.wireturn.app.data.OlcrtcConfig.parse(text)
 
-                    IconButton(
-                        onClick = {
-                            val uri = when (kernelVariant) {
-                                KernelVariant.TURNABLE -> turnableConfig.toUrl()
-                                KernelVariant.OLCRTC -> olcrtcConfig.toUri()
+                                    if (turnableParsed != null) {
+                                        HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
+                                        kernelVariant = KernelVariant.TURNABLE
+                                        turnableConfig = turnableParsed
+                                        snackbarHostState.showExclusiveSnackbar(importSuccessMessage)
+                                    } else if (olcrtcParsed != null) {
+                                        HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
+                                        kernelVariant = KernelVariant.OLCRTC
+                                        olcrtcConfig = olcrtcParsed
+                                        videoW = olcrtcParsed.videoW.let { if (it == 0) "" else it.toString() }
+                                        videoH = olcrtcParsed.videoH.let { if (it == 0) "" else it.toString() }
+                                        snackbarHostState.showExclusiveSnackbar(importSuccessMessage)
+                                    } else if (text.isNotBlank()) {
+                                        HapticUtil.perform(context, HapticUtil.Pattern.ERROR)
+                                        snackbarHostState.showExclusiveSnackbar(importErrorMessage)
+                                    }
+                                }
                             }
-                            scope.launch {
-                                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("config", uri)))
-                                HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
-                                isCopied = true
-                                snackbarHostState.showExclusiveSnackbar(copySuccessMessage)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.note_add_24px),
+                                contentDescription = stringResource(R.string.wg_import_clipboard)
+                            )
+                        }
+                        val canShare = remember(kernelVariant, turnableConfig, olcrtcConfig) {
+                            when (kernelVariant) {
+                                KernelVariant.TURNABLE -> turnableConfig.isValid()
+                                KernelVariant.OLCRTC -> olcrtcConfig.isValid()
                             }
-                        },
-                        enabled = canCopy
-                    ) {
-                        Icon(
-                            painter = painterResource(if (isCopied) R.drawable.check_circle_24px else R.drawable.content_copy_24px),
-                            contentDescription = stringResource(R.string.copy)
-                        )
+                        }
+
+                        IconButton(
+                            onClick = {
+                                val uri = when (kernelVariant) {
+                                    KernelVariant.TURNABLE -> turnableConfig.toUrl()
+                                    KernelVariant.OLCRTC -> olcrtcConfig.toUri()
+                                }
+                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, uri)
+                                }
+                                context.startActivity(Intent.createChooser(intent, null))
+                            },
+                            enabled = canShare
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.share_24px),
+                                contentDescription = stringResource(R.string.share)
+                            )
+                        }
                     }
                 }
             )
@@ -366,116 +397,6 @@ fun ClientConfigScreen(
 
             if (!isRawMode) {
                 Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                    if (kernelVariant == KernelVariant.TURNABLE) {
-                        // 1.5 Импорт
-                        SettingsGroup(title = stringResource(R.string.import_turnable_title)) {
-                            SettingsGroupItem(isTop = true, isBottom = true, containerColor = blockContainerColor) {
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    ImportButton(
-                                        onClick = { showQrScanner.value = true },
-                                        icon = R.drawable.qr_code_24px,
-                                        label = stringResource(R.string.qr_import),
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    ImportButton(
-                                        onClick = {
-                                            scope.launch {
-                                                val clipEntry = clipboard.getClipEntry()
-                                                if (clipEntry != null) {
-                                                    val text = clipEntry.clipData.getItemAt(0).text?.toString() ?: ""
-                                                    val parsed = TurnableConfig.parse(text)
-                                                    if (parsed != null) {
-                                                        turnableConfig = parsed
-                                                        snackbarHostState.showExclusiveSnackbar(importSuccessMessage)
-                                                    } else {
-                                                        snackbarHostState.showExclusiveSnackbar(importErrorMessage)
-                                                    }
-                                                }
-                                            }
-                                        },
-                                        icon = R.drawable.content_paste_24px,
-                                        label = stringResource(R.string.wg_import_clipboard),
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
-                            }
-                        }
-                    } else if (kernelVariant == KernelVariant.OLCRTC) {
-                        SettingsGroup(title = stringResource(R.string.import_olcrtc_title)) {
-                            SettingsGroupItem(isTop = true, isBottom = true, containerColor = blockContainerColor) {
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    ImportButton(
-                                        onClick = { showQrScanner.value = true },
-                                        icon = R.drawable.qr_code_24px,
-                                        label = stringResource(R.string.qr_import),
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    ImportButton(
-                                        onClick = {
-                                            scope.launch {
-                                                val clipEntry = clipboard.getClipEntry()
-                                                if (clipEntry != null) {
-                                                    val text = clipEntry.clipData.getItemAt(0).text?.toString() ?: ""
-                                                    val parsed = com.wireturn.app.data.OlcrtcConfig.parse(text)
-                                                    if (parsed != null) {
-                                                        olcrtcConfig = parsed
-                                                        videoW = parsed.videoW.let { if (it == 0) "" else it.toString() }
-                                                        videoH = parsed.videoH.let { if (it == 0) "" else it.toString() }
-                                                        snackbarHostState.showExclusiveSnackbar(importSuccessMessage)
-                                                    } else {
-                                                        snackbarHostState.showExclusiveSnackbar(importErrorMessage)
-                                                    }
-                                                }
-                                            }
-                                        },
-                                        icon = R.drawable.content_paste_24px,
-                                        label = stringResource(R.string.wg_import_clipboard),
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    
-                    SettingsGroup(title = stringResource(R.string.parameters_title)) {
-                        if (kernelVariant == KernelVariant.OLCRTC) {
-                            SettingsGroupItem(
-                                isTop = true,
-                                isBottom = true,
-                                containerColor = blockContainerColor
-                            ) {
-                                TextFieldRow(
-                                    label = stringResource(R.string.olcrtc_socks_proxy_label),
-                                    value = olcrtcSocksAddr.redact(privacyMode),
-                                    onValueChange = { if (!privacyMode) olcrtcSocksAddr = it },
-                                    placeholder = stringResource(R.string.local_listen_placeholder),
-                                    isError = !isOlcrtcSocksValid || olcrtcSocksAddr.isBlank(),
-                                    readOnly = privacyMode,
-                                    isModified = clientConfigSnapshot != null && olcrtcSocksAddr.trim() != "${clientConfigSnapshot?.olcrtcConfig?.socksHost}:${clientConfigSnapshot?.olcrtcConfig?.socksPort}",
-                                    onHelpClick = { showOlcrtcHelp.value = true }
-                                )
-                            }
-                        } else {
-                            // 3.1 Local Port
-                            SettingsGroupItem(
-                                isTop = true,
-                                isBottom = true,
-                                containerColor = blockContainerColor
-                            ) {
-                                TextFieldRow(
-                                    label = stringResource(R.string.local_listen_address),
-                                    value = localPort.redact(privacyMode),
-                                    onValueChange = { if (!privacyMode) localPort = it },
-                                    placeholder = stringResource(R.string.local_listen_placeholder),
-                                    isError = !isLocalPortValid || localPort.isBlank(),
-                                    readOnly = privacyMode,
-                                    isModified = clientConfigSnapshot != null && localPort.trim() != clientConfigSnapshot?.localPort,
-                                    onHelpClick = { showPortHelp.value = true }
-                                )
-                            }
-                        }
-                    }
-
                     when (kernelVariant) {
                         KernelVariant.TURNABLE -> {
                             if (turnableConfig.routes.isNotEmpty()) {
@@ -498,9 +419,26 @@ fun ClientConfigScreen(
 
                                 // 2. Детали подключения
                                 SettingsGroup(title = stringResource(R.string.connection_details)) {
-                                    // Peers
+                                    // Local Port
                                     SettingsGroupItem(
                                         isTop = true,
+                                        isBottom = false,
+                                        containerColor = blockContainerColor
+                                    ) {
+                                        TextFieldRow(
+                                            label = stringResource(R.string.local_listen_address),
+                                            value = localPort.redact(privacyMode),
+                                            onValueChange = { if (!privacyMode) localPort = it },
+                                            placeholder = stringResource(R.string.local_listen_placeholder),
+                                            isError = !isLocalPortValid || localPort.isBlank(),
+                                            readOnly = privacyMode,
+                                            isModified = clientConfigSnapshot != null && localPort.trim() != clientConfigSnapshot?.localPort,
+                                            onHelpClick = { showPortHelp.value = true }
+                                        )
+                                    }
+                                    // Peers
+                                    SettingsGroupItem(
+                                        isTop = false,
                                         isBottom = false,
                                         containerColor = blockContainerColor
                                     ) {
@@ -747,13 +685,87 @@ fun ClientConfigScreen(
                                         )
                                     }
                                 }
+                            } else {
+                                SettingsGroupItem(
+                                    isTop = true,
+                                    isBottom = true,
+                                    containerColor = blockContainerColor
+                                ) {
+                                    Row(
+                                        modifier = modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        LargeLeadingIcon {
+                                            Icon(
+                                                painter = painterResource(R.drawable.info_24px),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(32.dp),
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = stringResource(R.string.config_missing),
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Medium,
+                                                color = MaterialTheme.colorScheme.error,
+                                                maxLines = 1,
+                                                modifier = Modifier.basicMarquee()
+                                            )
+                                            val inlineContentId = "inline_icon"
+                                            val annotatedString = buildAnnotatedString {
+                                                append(stringResource(R.string.config_import_hint_start))
+                                                appendInlineContent(inlineContentId, "[icon]")
+                                                append(stringResource(R.string.config_import_hint_end))
+                                            }
+                                            val inlineContent = mapOf(
+                                                inlineContentId to InlineTextContent(
+                                                    Placeholder(
+                                                        width = 24.sp,
+                                                        height = 18.sp,
+                                                        placeholderVerticalAlign = PlaceholderVerticalAlign.Center
+                                                    )
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.note_add_24px),
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        modifier = Modifier
+                                                            .padding(horizontal = 3.dp)
+                                                            .size(18.dp)
+                                                    )
+                                                }
+                                            )
+                                            Spacer(Modifier.height(2.dp))
+                                            Text(
+                                                text = annotatedString,
+                                                inlineContent = inlineContent,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                         
                         KernelVariant.OLCRTC -> {
-                            SettingsGroup(title = stringResource(R.string.olcrtc_settings_title)) {
-                                // Carrier
+                            SettingsGroup(title = stringResource(R.string.connection_details)) {
+                                // SOCKS Proxy
                                 SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
+                                    TextFieldRow(
+                                        label = stringResource(R.string.olcrtc_socks_proxy_label),
+                                        value = olcrtcSocksAddr.redact(privacyMode),
+                                        onValueChange = { if (!privacyMode) olcrtcSocksAddr = it },
+                                        placeholder = stringResource(R.string.local_listen_placeholder),
+                                        isError = !isOlcrtcSocksValid || olcrtcSocksAddr.isBlank(),
+                                        readOnly = privacyMode,
+                                        isModified = clientConfigSnapshot != null && olcrtcSocksAddr.trim() != "${clientConfigSnapshot?.olcrtcConfig?.socksHost}:${clientConfigSnapshot?.olcrtcConfig?.socksPort}",
+                                        onHelpClick = { showOlcrtcHelp.value = true }
+                                    )
+                                }
+                                // Carrier
+                                SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
                                     LabeledButtonGroup(
                                         label = stringResource(R.string.olcrtc_carrier_label),
                                         isModified = clientConfigSnapshot != null && olcrtcConfig.carrier != clientConfigSnapshot?.olcrtcConfig?.carrier
@@ -823,8 +835,21 @@ fun ClientConfigScreen(
                                         isModified = clientConfigSnapshot != null && olcrtcConfig.id != clientConfigSnapshot?.olcrtcConfig?.id
                                     )
                                 }
+                                // DNS
+                                SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+                                    TextFieldRow(
+                                        label = stringResource(R.string.olcrtc_dns_label),
+                                        value = olcrtcConfig.dns,
+                                        onValueChange = { olcrtcConfig = olcrtcConfig.copy(dns = it) },
+                                        isError = olcrtcConfig.dns.isBlank(),
+                                        isModified = clientConfigSnapshot != null && olcrtcConfig.dns != clientConfigSnapshot?.olcrtcConfig?.dns
+                                    )
+                                }
+                            }
+
+                            SettingsGroup(title = stringResource(R.string.server_settings_title)) {
                                 // Client ID
-                                SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                                SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
                                     TextFieldRow(
                                         label = stringResource(R.string.olcrtc_client_id_label),
                                         value = olcrtcConfig.clientId.redact(privacyMode),
@@ -835,7 +860,7 @@ fun ClientConfigScreen(
                                     )
                                 }
                                 // Key
-                                SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                                SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
                                     TextFieldRow(
                                         label = stringResource(R.string.olcrtc_key_label),
                                         value = olcrtcConfig.key.redact(privacyMode),
@@ -843,16 +868,6 @@ fun ClientConfigScreen(
                                         isError = olcrtcConfig.key.isBlank(),
                                         readOnly = privacyMode,
                                         isModified = clientConfigSnapshot != null && olcrtcConfig.key != clientConfigSnapshot?.olcrtcConfig?.key
-                                    )
-                                }
-                                // DNS
-                                SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
-                                    TextFieldRow(
-                                        label = stringResource(R.string.olcrtc_dns_label),
-                                        value = olcrtcConfig.dns,
-                                        onValueChange = { olcrtcConfig = olcrtcConfig.copy(dns = it) },
-                                        isError = olcrtcConfig.dns.isBlank(),
-                                        isModified = clientConfigSnapshot != null && olcrtcConfig.dns != clientConfigSnapshot?.olcrtcConfig?.dns
                                     )
                                 }
                             }
