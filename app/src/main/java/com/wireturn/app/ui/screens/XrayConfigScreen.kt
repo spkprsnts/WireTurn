@@ -404,7 +404,8 @@ fun XrayConfigScreen(
                                 value = proxyUser.redact(privacyMode),
                                 onValueChange = { proxyUser = it },
                                 placeholder = "admin",
-                                isError = isProxyAuthEnabled && !ValidatorUtils.isValidProxyUser(proxyUser),
+                                supportingText = stringResource(R.string.xray_proxy_auth_hint),
+                                isError = isProxyAuthEnabled && proxyUser.isNotEmpty() && !ValidatorUtils.isValidProxyUser(proxyUser),
                                 readOnly = privacyMode,
                                 isModified = xrayConfigSnapshot != null && proxyUser != xrayConfigSnapshot?.proxyUser
                             )
@@ -419,7 +420,8 @@ fun XrayConfigScreen(
                                 value = proxyPass.redact(privacyMode),
                                 onValueChange = { proxyPass = it },
                                 placeholder = "password",
-                                isError = isProxyAuthEnabled && !ValidatorUtils.isValidProxyPass(proxyPass),
+                                supportingText = stringResource(R.string.xray_proxy_auth_hint),
+                                isError = isProxyAuthEnabled && proxyPass.isNotEmpty() && !ValidatorUtils.isValidProxyPass(proxyPass),
                                 readOnly = privacyMode,
                                 isModified = xrayConfigSnapshot != null && proxyPass != xrayConfigSnapshot?.proxyPass
                             )
@@ -524,7 +526,7 @@ fun XrayConfigScreen(
                 val isValid = (when (xrayConfiguration) {
                     XrayConfiguration.WIREGUARD -> savedWgConfig.isValid()
                     XrayConfiguration.VLESS -> vlessSaved.isValid()
-                } && isSocksValid && isHttpValid) && (!isProxyAuthEnabled || (ValidatorUtils.isValidProxyUser(proxyUser) && ValidatorUtils.isValidProxyPass(proxyPass)))
+                } && isSocksValid && isHttpValid) && (!isProxyAuthEnabled || ((proxyUser.isEmpty() || ValidatorUtils.isValidProxyUser(proxyUser)) && (proxyPass.isEmpty() || ValidatorUtils.isValidProxyPass(proxyPass))))
                 
                 Button(
                     onClick = onFinish,

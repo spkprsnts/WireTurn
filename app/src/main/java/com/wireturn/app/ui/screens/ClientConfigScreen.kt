@@ -1153,7 +1153,8 @@ private fun OlcrtcSettings(
                         value = config.socksUser.redact(privacyMode),
                         onValueChange = { onConfigChange(config.copy(socksUser = it)) },
                         placeholder = "admin",
-                        isError = config.isSocksAuthEnabled && !ValidatorUtils.isValidProxyUser(config.socksUser),
+                        supportingText = stringResource(R.string.xray_proxy_auth_hint),
+                        isError = config.isSocksAuthEnabled && config.socksUser.isNotEmpty() && !ValidatorUtils.isValidProxyUser(config.socksUser),
                         readOnly = privacyMode,
                         isModified = clientConfigSnapshot != null && config.socksUser != clientConfigSnapshot.olcrtcConfig.socksUser
                     )
@@ -1168,7 +1169,8 @@ private fun OlcrtcSettings(
                         value = config.socksPass.redact(privacyMode),
                         onValueChange = { onConfigChange(config.copy(socksPass = it)) },
                         placeholder = "password",
-                        isError = config.isSocksAuthEnabled && !ValidatorUtils.isValidProxyPass(config.socksPass),
+                        supportingText = stringResource(R.string.xray_proxy_auth_hint),
+                        isError = config.isSocksAuthEnabled && config.socksPass.isNotEmpty() && !ValidatorUtils.isValidProxyPass(config.socksPass),
                         readOnly = privacyMode,
                         isModified = clientConfigSnapshot != null && config.socksPass != clientConfigSnapshot.olcrtcConfig.socksPass
                     )

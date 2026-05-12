@@ -105,6 +105,7 @@
     <string name="xray_proxy_auth_desc">Protect local proxy with login and password</string>
     <string name="xray_proxy_user">Username</string>
     <string name="xray_proxy_pass">Password</string>
+    <string name="xray_proxy_auth_hint">Can be left empty for random generation</string>
 
 
     <!-- Client Setup (Backend/Proxy) -->

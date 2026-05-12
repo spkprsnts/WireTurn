@@ -325,6 +325,7 @@
     <string name="xray_proxy_auth_desc">Защитить локальный прокси логином и паролем</string>
     <string name="xray_proxy_user">Логин</string>
     <string name="xray_proxy_pass">Пароль</string>
+    <string name="xray_proxy_auth_hint">Можно оставить пустым, сгенерируется случайный</string>
     <string name="xray_protocol_desc">Выберите протокол для Xray-core</string>
     <string name="vless_settings">Настройки VLESS</string>
     <string name="client_variants_desc">Варианты клиента</string>
