@@ -350,15 +350,39 @@ class ProxyService : Service() {
                 updateNotification(getString(R.string.connecting))
             }
 
-            withContext(Dispatchers.IO) {
-                BufferedReader(InputStreamReader(proc.inputStream)).use { reader ->
-                    for (rawLine in reader.lineSequence()) {
-                        if (!isActive) break
-                        val line = AppLogsState.stripAnsi(rawLine)
-                        AppLogsState.addLog(line)
-                        if (processOutputLine(line, state)) break
+            // Watchdog for connection timeout
+            val connectionWatchdog = launch {
+                while (isActive) {
+                    val status = ProxyServiceState.status.value
+                    if (status is ProxyStatus.Connecting) {
+                        if (state.connectingSince == 0L) {
+                            state.connectingSince = System.currentTimeMillis()
+                        } else if (System.currentTimeMillis() - state.connectingSince > 120_000) {
+                            AppLogsState.addLog(getString(R.string.log_connection_timeout))
+                            state.startupEmitted = true
+                            proc.destroy()
+                            break
+                        }
+                    } else {
+                        state.connectingSince = 0L
+                    }
+                    delay(1000)
+                }
+            }
+
+            try {
+                withContext(Dispatchers.IO) {
+                    BufferedReader(InputStreamReader(proc.inputStream)).use { reader ->
+                        for (rawLine in reader.lineSequence()) {
+                            if (!isActive) break
+                            val line = AppLogsState.stripAnsi(rawLine)
+                            AppLogsState.addLog(line)
+                            if (processOutputLine(line, state, cfg.kernelVariant)) break
+                        }
                     }
                 }
+            } finally {
+                connectionWatchdog.cancel()
             }
 
             val exitCode = withContext(Dispatchers.IO) {
@@ -385,80 +409,23 @@ class ProxyService : Service() {
         }
     }
 
-    private suspend fun processOutputLine(line: String, state: BinaryOutputState): Boolean {
+    private suspend fun processOutputLine(line: String, state: BinaryOutputState, kernel: KernelVariant): Boolean {
         val lower = line.lowercase()
 
-        // 1. Critical Errors & Network Fatalities
-        if (handleFatalEvents(line, lower, state)) return true
-
-        // 2. Success / Connectivity Events
-        handleConnectivityEvents(lower, state)
-
-        // 3. Status/Progress Triggers
-        handleProgressEvents(lower, state)
-
-        // 4. Soft Errors & Quota
-        if (handleSoftErrors(lower, state)) return true
-
-        // 5. Captcha
-        handleCaptchaEvents(line, lower, state)
-
-        return false
+        return if (kernel == KernelVariant.TURNABLE) {
+            handleTurnableLog(line, lower, state)
+        } else {
+            handleOlcrtcLog(line, lower, state)
+        }
     }
 
-    private suspend fun handleFatalEvents(line: String, lower: String, state: BinaryOutputState): Boolean {
-        if (lower.contains("peer reconnected") && isNetworkMissingAndHandled()) {
-            state.startupFailed = true
-            return true
-        }
-
-        val isUnreachable = lower.contains("network is unreachable")
-        val isSmuxError = lower.contains("smux open stream error")
-        val isPublishDataError = lower.contains("publish data error")
-
-        if (isUnreachable || isSmuxError || isPublishDataError) {
-            if (isUnreachable) state.unreachableNetworkCount++
-            if (isSmuxError) state.smuxErrorCount++
-            if (isPublishDataError) state.publishDataErrorCount++
-
-            if (state.unreachableNetworkCount >= 5 || state.smuxErrorCount >= 20 || state.publishDataErrorCount >= 5) {
-                if (isNetworkMissingAndHandled()) {
-                    state.startupFailed = true
-                    return true
-                } else {
-                    state.unreachableNetworkCount = 0
-                    state.smuxErrorCount = 0
-                    state.publishDataErrorCount = 0
-                }
-            }
-        }
-
-        if (lower.contains("failed to validate connection url")) {
-            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
-                ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_invalid_turnable_url)))
-            }
-            state.startupFailed = true
-            return true
-        }
-
-        if (lower.contains("failed to start vpn client")) {
-            val errorPart = line.substringAfterLast(":").trim()
-            val lowerError = errorPart.lowercase()
-
-            // Если ошибка временная (сетевая), не ставим Error, чтобы сработал ватчдог
-            if (lowerError.contains("read tcp") || lowerError.contains("timeout") || lowerError.contains("abort")) {
-                state.startupEmitted = true
-                return true
-            }
-
-            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
-                ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_turnable_failed, errorPart)))
-            }
-            state.startupFailed = true
-            return true
-        }
-
-        if (lower.contains("panic") || lower.contains("fatal") || lower.contains("rate limit")) {
+    private suspend fun handleTurnableLog(line: String, lower: String, state: BinaryOutputState): Boolean {
+        // 1. Hard Errors (Watchdog won't help, needs manual fix)
+        if (lower.contains("vk signaling connect rejected: not authorized") ||
+            lower.contains("failed to validate connection url") ||
+            lower.contains("second shutdown signal received") ||
+            lower.contains("panic") || lower.contains("fatal")
+        ) {
             if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
                 ProxyServiceState.setStatus(ProxyStatus.Error(line))
                 updateNotification(getString(R.string.error_connecting))
@@ -467,106 +434,123 @@ class ProxyService : Service() {
             return true
         }
 
-        return false
-    }
+        // 2. Soft Errors (Transient network issues, watchdog will restart)
+        val isSignalingLoopTerminated = lower.contains("vk signaling loop terminated")
+        val isNormalClose = lower.contains("close 1000 (normal)")
 
-    private fun handleConnectivityEvents(lower: String, state: BinaryOutputState) {
-        if (lower.contains("established") ||
-            lower.contains("first data frame received") ||
-            lower.contains("datachannel connected") ||
-            lower.contains("peer online") ||
-            lower.contains("vp8 track receiving") ||
-            lower.contains("socks5 server listening on")
+        if (lower.contains("vk authorize anonymous flow failed") ||
+            lower.contains("vk calls login failed") ||
+            lower.contains("vk join conversation failed") ||
+            (isSignalingLoopTerminated && !isNormalClose)
+        ) {
+            // Break reading and let watchdog restart the process
+            state.startupEmitted = true
+            return true
+        }
+
+        if (lower.contains("failed to start vpn client")) {
+            val errorPart = line.substringAfterLast(":").trim()
+            val lowerError = errorPart.lowercase()
+            if (lowerError.contains("read tcp") || lowerError.contains("timeout") || lowerError.contains("abort")) {
+                state.startupEmitted = true
+                return true
+            }
+            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_turnable_failed, errorPart)))
+            }
+            state.startupFailed = true
+            return true
+        }
+
+        // 2. Connected
+        val onlineCount = getOnlineCount(lower)
+        if (lower.contains("turnable client started") ||
+            lower.contains("relay client session connected") ||
+            lower.contains("direct session connected") ||
+            (onlineCount != null && onlineCount >= 1 && lower.contains("peer online"))
         ) {
             state.peerConnectFailedCount = 0
-            state.unreachableNetworkCount = 0
-            state.smuxErrorCount = 0
-            state.publishDataErrorCount = 0
             if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
                 ProxyServiceState.setStatus(ProxyStatus.Connected)
                 updateNotification(getString(R.string.proxy_active))
                 state.startupEmitted = true
             }
         }
-    }
 
-    private fun handleProgressEvents(lower: String, state: BinaryOutputState) {
-        if (lower.contains("[vk auth]") || lower.contains("joining room") ||
-            lower.contains("starting turnable client") || lower.contains("publisher") ||
-            lower.contains("subscriber")
+        // 3. Connecting / Progress / Retries
+        if (lower.contains("starting turnable client") ||
+            lower.contains("starting full reconnect") ||
+            lower.contains("direct: starting full reconnect") ||
+            lower.contains("vk captcha challenge received") ||
+            lower.contains("vk captcha solved") ||
+            lower.contains("all auto captcha attempts exhausted") ||
+            lower.contains("manual captcha solve required") ||
+            lower.contains("vk signaling websocket dial failed") ||
+            lower.contains("turn candidate failed") ||
+            lower.contains("dtls direct connect failed") ||
+            lower.contains("srtp direct connect failed") ||
+            lower.contains("dtls client handshake started") ||
+            lower.contains("srtp client handshake started") ||
+            lower.contains("peer connect failed") ||
+            lower.contains("peer quota reached") ||
+            lower.contains("full reconnect failed") ||
+            lower.contains("direct: full reconnect failed") ||
+            lower.contains("primary handshake failed") ||
+            lower.contains("secondary handshake failed") ||
+            lower.contains("peer reconnect failed") ||
+            lower.contains("scheduling peer retry") ||
+            lower.contains("tinymux client received disconnect") ||
+            lower.contains("tinymux client cut off unexpectedly") ||
+            lower.contains("quota") ||
+            (onlineCount != null && onlineCount == 0 && lower.contains("peer offline"))
         ) {
-            if (!state.startupEmitted && ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                if (isNetworkMissingAndHandled()) {
+                    state.startupFailed = true
+                    return true
+                }
                 ProxyServiceState.setStatus(ProxyStatus.Connecting)
                 updateNotification(getString(R.string.connecting))
                 state.startupEmitted = true
             }
         }
+
+        // 4. Captcha
+        handleCaptchaEvents(line, lower, state)
+
+        return false
     }
 
-    private suspend fun handleSoftErrors(lower: String, state: BinaryOutputState): Boolean {
-        if (lower.contains("client link reconnect") || lower.contains("starting full reconnect")) {
+    private suspend fun handleOlcrtcLog(line: String, lower: String, state: BinaryOutputState): Boolean {
+        if (lower.contains("socks5 server listening on")) {
             if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
-                if (isNetworkMissingAndHandled()) {
-                    state.startupFailed = true
-                    return true
-                }
-                ProxyServiceState.setStatus(ProxyStatus.Connecting)
-                updateNotification(getString(R.string.connecting))
-            }
-        }
-
-        if (lower.contains("datachannel closed") || lower.contains("remote not ready")) {
-            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
-                if (isNetworkMissingAndHandled()) {
-                    state.startupFailed = true
-                    return true
-                }
-
-                if (lower.contains("remote not ready")) {
-                    val now = System.currentTimeMillis()
-                    if (now - state.lastRemoteNotReadyTime > 10_000) {
-                        state.remoteNotReadyCount = 1
-                        state.lastRemoteNotReadyTime = now
-                    } else {
-                        state.remoteNotReadyCount++
-                        if (state.remoteNotReadyCount >= 10) {
-                            AppLogsState.addLog(getString(R.string.log_too_many_remote_not_ready))
-                            state.startupEmitted = true // To ensure watchdog triggers
-                            return true
-                        }
-                    }
-                } else {
-                    ProxyServiceState.setStatus(ProxyStatus.Connecting)
-                }
-            }
-        }
-
-        if (lower.contains("peer connect failed")) {
-            state.peerConnectFailedCount++
-            if (state.peerConnectFailedCount >= 20) {
-                AppLogsState.addLog(getString(R.string.log_too_many_peer_failures))
+                ProxyServiceState.setStatus(ProxyStatus.Connected)
+                updateNotification(getString(R.string.proxy_active))
                 state.startupEmitted = true
-                return true
-            }
-            if (ProxyServiceState.status.value is ProxyStatus.Connected) {
-                ProxyServiceState.setStatus(ProxyStatus.Connecting)
-                updateNotification(getString(R.string.connecting))
             }
         }
 
-        if (lower.contains("failed to connect link")) {
-            state.startupEmitted = true
-            return true
-        }
-
-        if (isQuotaError(lower)) {
-            if (ProxyServiceState.status.value is ProxyStatus.Connected) {
-                ProxyServiceState.setStatus(ProxyStatus.Connecting)
-                updateNotification(getString(R.string.connecting))
+        if (lower.contains("remote not ready")) {
+            val now = System.currentTimeMillis()
+            if (now - state.lastRemoteNotReadyTime > 10_000) {
+                state.remoteNotReadyCount = 1
+                state.lastRemoteNotReadyTime = now
+            } else {
+                state.remoteNotReadyCount++
+                if (state.remoteNotReadyCount >= 5) {
+                    AppLogsState.addLog(getString(R.string.log_too_many_remote_not_ready))
+                    state.startupEmitted = true // Trigger watchdog
+                    return true
+                }
             }
         }
 
         return false
+    }
+
+    private fun getOnlineCount(lower: String): Int? {
+        val matcher = ONLINE_COUNT_REGEX.matcher(lower)
+        return if (matcher.find()) matcher.group(1)?.toIntOrNull() else null
     }
 
     private fun handleCaptchaEvents(line: String, lower: String, state: BinaryOutputState) {
@@ -601,9 +585,7 @@ class ProxyService : Service() {
         var captchaActive = false
         var captchaSessionCounter = 0L
         var peerConnectFailedCount = 0
-        var unreachableNetworkCount = 0
-        var smuxErrorCount = 0
-        var publishDataErrorCount = 0
+        var connectingSince = 0L
         var remoteNotReadyCount = 0
         var lastRemoteNotReadyTime = 0L
     }
@@ -1010,10 +992,6 @@ class ProxyService : Service() {
         ProxyServiceState.setStatusText(text)
     }
 
-    private fun isQuotaError(lowerLine: String): Boolean {
-        return lowerLine.contains("quota") || lowerLine.contains("allocation quota")
-    }
-
     override fun onDestroy() {
         super.onDestroy()
         isStarted.set(false)
@@ -1041,6 +1019,7 @@ class ProxyService : Service() {
         const val ACTION_STOP_BY_USER = "ACTION_STOP_BY_USER"
         const val MAX_RESTARTS = 10
         private val CAPTCHA_URL_REGEX = Pattern.compile("""Open this URL in your browser:\s*(https?://\S+)""")
+        private val ONLINE_COUNT_REGEX = Pattern.compile("""online=(\d+)""")
 
         fun start(context: Context, cfg: ClientConfig) {
             cfg.getValidationErrorResId()?.let { errorRes ->

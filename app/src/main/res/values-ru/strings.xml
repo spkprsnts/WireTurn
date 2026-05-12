@@ -247,6 +247,7 @@
     <string name="log_watchdog_limit">=== WATCHDOG: превышен лимит попыток (%1$d), остановка ===</string>
     <string name="log_watchdog_restart">=== WATCHDOG: перезапуск через %1$dмс (попытка %2$d/%3$d) ===</string>
     <string name="log_network_change">=== СМЕНА СЕТИ — ПЕРЕЗАПУСК ===</string>
+    <string name="log_connection_timeout">=== ТАЙМАУТ ПОДКЛЮЧЕНИЯ (2м) — ПЕРЕЗАПУСК ===</string>
     <string name="log_no_network_waiting">=== НЕТ СЕТИ — ОЖИДАНИЕ ===</string>
     <string name="log_stop_ui">=== ОСТАНОВКА ИЗ ИНТЕРФЕЙСА ===</string>
     <string name="log_too_many_peer_failures">>>> СЛИШКОМ МНОГО ОШИБОК ПОДКЛЮЧЕНИЯ — перезапуск</string>
