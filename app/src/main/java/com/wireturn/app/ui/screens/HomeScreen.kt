@@ -61,7 +61,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import com.wireturn.app.data.XrayConfiguration
-import com.wireturn.app.data.XrayConfig
 import com.wireturn.app.data.KernelVariant
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -1164,10 +1163,10 @@ fun HomeScreen(
             val isOlcrtc = activeConfig.kernelVariant == KernelVariant.OLCRTC
             val showXray = xraySettings.xrayEnabled
 
-            fun formatProxyAddr(addr: String, config: XrayConfig): String {
+            fun formatProxyAddr(addr: String, user: String, pass: String, authEnabled: Boolean): String {
                 if (addr.isBlank()) return ""
-                return if (config.isProxyAuthEnabled && config.proxyUser.isNotBlank()) {
-                    "${config.proxyUser}:${config.proxyPass}@$addr"
+                return if (authEnabled && user.isNotBlank()) {
+                    "$user:$pass@$addr"
                 } else {
                     addr
                 }
@@ -1180,9 +1179,9 @@ fun HomeScreen(
             }
 
             val copySocksAddr = when {
-                showXray -> formatProxyAddr(activeXrayConfig.socksBindAddress, activeXrayConfig)
-                isOlcrtc -> "${activeConfig.olcrtcConfig.socksHost}:${activeConfig.olcrtcConfig.socksPort}"
-                else -> formatProxyAddr(activeXrayConfig.socksBindAddress, activeXrayConfig)
+                showXray -> formatProxyAddr(activeXrayConfig.socksBindAddress, activeXrayConfig.proxyUser, activeXrayConfig.proxyPass, activeXrayConfig.isProxyAuthEnabled)
+                isOlcrtc -> formatProxyAddr("${activeConfig.olcrtcConfig.socksHost}:${activeConfig.olcrtcConfig.socksPort}", activeConfig.olcrtcConfig.socksUser, activeConfig.olcrtcConfig.socksPass, activeConfig.olcrtcConfig.isSocksAuthEnabled)
+                else -> formatProxyAddr(activeXrayConfig.socksBindAddress, activeXrayConfig.proxyUser, activeXrayConfig.proxyPass, activeXrayConfig.isProxyAuthEnabled)
             }
 
             val displayHttpAddr = when {
@@ -1192,9 +1191,9 @@ fun HomeScreen(
             }
 
             val copyHttpAddr = when {
-                showXray -> formatProxyAddr(activeXrayConfig.httpBindAddress, activeXrayConfig)
+                showXray -> formatProxyAddr(activeXrayConfig.httpBindAddress, activeXrayConfig.proxyUser, activeXrayConfig.proxyPass, activeXrayConfig.isProxyAuthEnabled)
                 isOlcrtc -> ""
-                else -> formatProxyAddr(activeXrayConfig.httpBindAddress, activeXrayConfig)
+                else -> formatProxyAddr(activeXrayConfig.httpBindAddress, activeXrayConfig.proxyUser, activeXrayConfig.proxyPass, activeXrayConfig.isProxyAuthEnabled)
             }
 
             val isSocksModified = when {

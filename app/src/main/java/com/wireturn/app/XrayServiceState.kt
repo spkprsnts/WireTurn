@@ -54,7 +54,6 @@ object XrayServiceState {
 
             Authenticator.setDefault(object : Authenticator() {
                 override fun getPasswordAuthentication(): PasswordAuthentication {
-                    AppLogsState.addLog("[Auth] Requested for $requestingHost:$requestingPort ($requestingProtocol)")
                     return PasswordAuthentication(u, p.toCharArray())
                 }
             })
