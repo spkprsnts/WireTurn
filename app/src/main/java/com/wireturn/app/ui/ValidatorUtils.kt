@@ -44,4 +44,8 @@ object ValidatorUtils {
             null
         }
     }
+
+    fun isValidProxyUser(input: String): Boolean = input.trim().length >= 3
+
+    fun isValidProxyPass(input: String): Boolean = input.trim().length >= 3
 }

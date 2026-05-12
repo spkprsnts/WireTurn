@@ -281,6 +281,13 @@ class XrayService : Service() {
                 cmdArgs.add("-http")
                 cmdArgs.add(xrayConfig.httpBindAddress)
             }
+
+            if (xrayConfig.isProxyAuthEnabled && xrayConfig.proxyUser.isNotBlank()) {
+                cmdArgs.add("-proxy-user")
+                cmdArgs.add(xrayConfig.proxyUser)
+                cmdArgs.add("-proxy-pass")
+                cmdArgs.add(xrayConfig.proxyPass)
+            }
             
             if (runningClientConfig.kernelVariant == KernelVariant.OLCRTC) {
                 cmdArgs.add("-local-socks5")

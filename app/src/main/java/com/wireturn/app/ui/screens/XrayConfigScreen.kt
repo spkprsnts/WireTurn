@@ -123,6 +123,9 @@ fun XrayConfigScreen(
     var xrayConfiguration by remember(initialXrayConfig) { mutableStateOf(initialXrayConfig.xrayConfiguration) }
     var socksBindAddress by remember(initialXrayConfig) { mutableStateOf(initialXrayConfig.socksBindAddress) }
     var httpBindAddress by remember(initialXrayConfig) { mutableStateOf(initialXrayConfig.httpBindAddress) }
+    var isProxyAuthEnabled by remember(initialXrayConfig) { mutableStateOf(initialXrayConfig.isProxyAuthEnabled) }
+    var proxyUser by remember(initialXrayConfig) { mutableStateOf(initialXrayConfig.proxyUser) }
+    var proxyPass by remember(initialXrayConfig) { mutableStateOf(initialXrayConfig.proxyPass) }
 
     // WireGuard states
     var privateKey by remember(initialWgConfig) { mutableStateOf(initialWgConfig.privateKey) }
@@ -141,12 +144,15 @@ fun XrayConfigScreen(
     val showUniversalQrScanner = remember { mutableStateOf(false) }
 
     // Auto-save debounced
-    LaunchedEffect(xrayConfiguration, socksBindAddress, httpBindAddress) {
+    LaunchedEffect(xrayConfiguration, socksBindAddress, httpBindAddress, isProxyAuthEnabled, proxyUser, proxyPass) {
         delay(200)
         val next = xrayConfig.copy(
             xrayConfiguration = xrayConfiguration,
             socksBindAddress = socksBindAddress,
-            httpBindAddress = httpBindAddress
+            httpBindAddress = httpBindAddress,
+            isProxyAuthEnabled = isProxyAuthEnabled,
+            proxyUser = proxyUser,
+            proxyPass = proxyPass
         )
         if (next != xrayConfig) {
             viewModel.updateXrayConfig(next)
@@ -361,6 +367,69 @@ fun XrayConfigScreen(
                         isModified = xrayConfigSnapshot != null && httpBindAddress != xrayConfigSnapshot?.httpBindAddress
                     )
                 }
+
+                Spacer(Modifier.height(12.dp))
+
+                SettingsGroupItem(
+                    isTop = true,
+                    isBottom = !isProxyAuthEnabled,
+                    containerColor = blockContainerColor,
+                    onClick = {
+                        val newValue = !isProxyAuthEnabled
+                        HapticUtil.perform(context, if (newValue) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                        isProxyAuthEnabled = newValue
+                    }
+                ) {
+                    SwitchRow(
+                        label = stringResource(R.string.xray_proxy_auth),
+                        supportingText = stringResource(R.string.xray_proxy_auth_desc),
+                        checked = isProxyAuthEnabled,
+                        onCheckedChange = {
+                            HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                            isProxyAuthEnabled = it
+                        },
+                        isModified = xrayConfigSnapshot != null && isProxyAuthEnabled != xrayConfigSnapshot?.isProxyAuthEnabled
+                    )
+                }
+
+                AnimatedVisibility(
+                    visible = isProxyAuthEnabled,
+                    enter = fadeIn(tween(300)) + expandVertically(tween(300)),
+                    exit = fadeOut(tween(300)) + shrinkVertically(tween(300))
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        SettingsGroupItem(
+                            isTop = false,
+                            isBottom = false,
+                            containerColor = blockContainerColor
+                        ) {
+                            TextFieldRow(
+                                label = stringResource(R.string.xray_proxy_user),
+                                value = proxyUser.redact(privacyMode),
+                                onValueChange = { proxyUser = it },
+                                placeholder = "admin",
+                                isError = isProxyAuthEnabled && !ValidatorUtils.isValidProxyUser(proxyUser),
+                                readOnly = privacyMode,
+                                isModified = xrayConfigSnapshot != null && proxyUser != xrayConfigSnapshot?.proxyUser
+                            )
+                        }
+                        SettingsGroupItem(
+                            isTop = false,
+                            isBottom = true,
+                            containerColor = blockContainerColor
+                        ) {
+                            TextFieldRow(
+                                label = stringResource(R.string.xray_proxy_pass),
+                                value = proxyPass.redact(privacyMode),
+                                onValueChange = { proxyPass = it },
+                                placeholder = "password",
+                                isError = isProxyAuthEnabled && !ValidatorUtils.isValidProxyPass(proxyPass),
+                                readOnly = privacyMode,
+                                isModified = xrayConfigSnapshot != null && proxyPass != xrayConfigSnapshot?.proxyPass
+                            )
+                        }
+                    }
+                }
             }
 
             // 2. Выбор протокола
@@ -456,10 +525,10 @@ fun XrayConfigScreen(
             }
 
             if (showFinishButton && onFinish != null) {
-                val isValid = when (xrayConfiguration) {
+                val isValid = (when (xrayConfiguration) {
                     XrayConfiguration.WIREGUARD -> savedWgConfig.isValid()
                     XrayConfiguration.VLESS -> vlessSaved.isValid()
-                } && isSocksValid && isHttpValid
+                } && isSocksValid && isHttpValid) && (!isProxyAuthEnabled || (ValidatorUtils.isValidProxyUser(proxyUser) && ValidatorUtils.isValidProxyPass(proxyPass)))
                 
                 Button(
                     onClick = onFinish,

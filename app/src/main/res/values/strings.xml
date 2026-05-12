@@ -101,6 +101,10 @@
     <string name="xray_http_placeholder" translatable="false">127.0.0.1:8080</string>
     <string name="xray_socks5" translatable="false">SOCKS5</string>
     <string name="xray_socks5_placeholder" translatable="false">127.0.0.1:2080</string>
+    <string name="xray_proxy_auth">Proxy authentication</string>
+    <string name="xray_proxy_auth_desc">Protect local proxy with login and password</string>
+    <string name="xray_proxy_user">Username</string>
+    <string name="xray_proxy_pass">Password</string>
 
 
     <!-- Client Setup (Backend/Proxy) -->

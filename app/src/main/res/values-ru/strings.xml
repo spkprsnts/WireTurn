@@ -322,6 +322,10 @@
     <string name="xray_proxy_settings">Настройки прокси</string>
     <string name="xray_socks_desc">Адрес для SOCKS5 прокси</string>
     <string name="xray_http_desc">Адрес для HTTP прокси</string>
+    <string name="xray_proxy_auth">Авторизация прокси</string>
+    <string name="xray_proxy_auth_desc">Защитить локальный прокси логином и паролем</string>
+    <string name="xray_proxy_user">Логин</string>
+    <string name="xray_proxy_pass">Пароль</string>
     <string name="xray_protocol_desc">Выберите протокол для Xray-core</string>
     <string name="vless_settings">Настройки VLESS</string>
     <string name="client_variants_desc">Варианты клиента</string>

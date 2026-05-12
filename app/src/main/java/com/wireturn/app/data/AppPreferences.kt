@@ -545,11 +545,31 @@ data class AutoLaunchSettings(
 data class XrayConfig(
     @SerializedName("socksBindAddress") val socksBindAddress: String = DEFAULT_SOCKS_BIND_ADDRESS,
     @SerializedName("httpBindAddress") val httpBindAddress: String = "",
-    @SerializedName("xrayConfiguration") val xrayConfiguration: XrayConfiguration = XrayConfiguration.WIREGUARD
+    @SerializedName("xrayConfiguration") val xrayConfiguration: XrayConfiguration = XrayConfiguration.WIREGUARD,
+    @SerializedName("isProxyAuthEnabled") val isProxyAuthEnabled: Boolean = true,
+    @SerializedName("proxyUser") val proxyUser: String = "",
+    @SerializedName("proxyPass") val proxyPass: String = ""
 ) {
     fun fillDefaults(): XrayConfig {
-        val isValid = socksBindAddress.isNotBlank() && com.wireturn.app.ui.ValidatorUtils.isValidHostPort(socksBindAddress)
-        return if (isValid) this else copy(socksBindAddress = DEFAULT_SOCKS_BIND_ADDRESS)
+        var current = this
+        val isSocksValid = socksBindAddress.isNotBlank() && com.wireturn.app.ui.ValidatorUtils.isValidHostPort(socksBindAddress)
+        if (!isSocksValid) {
+            current = current.copy(socksBindAddress = DEFAULT_SOCKS_BIND_ADDRESS)
+        }
+
+        if (current.isProxyAuthEnabled) {
+            val isUserValid = com.wireturn.app.ui.ValidatorUtils.isValidProxyUser(current.proxyUser)
+            val isPassValid = com.wireturn.app.ui.ValidatorUtils.isValidProxyPass(current.proxyPass)
+
+            if (!isUserValid || !isPassValid) {
+                val allowedChars = ('A'..'Z') + ('a'..'z') + ('0'..'9')
+                val newUser = if (!isUserValid) (1..8).map { allowedChars.random() }.joinToString("") else current.proxyUser
+                val newPass = if (!isPassValid) (1..12).map { allowedChars.random() }.joinToString("") else current.proxyPass
+                current = current.copy(proxyUser = newUser, proxyPass = newPass)
+            }
+        }
+
+        return current
     }
 
     val connectableAddress: String
@@ -714,6 +734,9 @@ class AppPreferences(context: Context) {
         val CLIENT_KERNEL_VARIANT = stringPreferencesKey("client_kernel_variant")
         val BATTERY_NOTIFICATION_DISMISSED = booleanPreferencesKey("battery_notification_dismissed")
         val APPS_EXCLUSION_HINT_SHOWN = booleanPreferencesKey("apps_exclusion_hint_shown")
+        val XRAY_PROXY_AUTH_ENABLED = booleanPreferencesKey("xray_proxy_auth_enabled")
+        val XRAY_PROXY_USER = stringPreferencesKey("xray_proxy_user")
+        val XRAY_PROXY_PASS = stringPreferencesKey("xray_proxy_pass")
         val ALLOW_UNSTABLE_UPDATES = booleanPreferencesKey("allow_unstable_updates")
         val WAIT_FOR_NETWORK = booleanPreferencesKey("wait_for_network")
         val RESTART_ON_NETWORK_CHANGE = booleanPreferencesKey("restart_on_network_change")
@@ -839,8 +862,11 @@ class AppPreferences(context: Context) {
             XrayConfig(
                 socksBindAddress = prefs.getStringSafe(SOCKS_BIND, XrayConfig.DEFAULT_SOCKS_BIND_ADDRESS),
                 httpBindAddress = prefs.getStringSafe(HTTP_BIND),
-                xrayConfiguration = XrayConfiguration.valueOf(prefs[XRAY_CONFIGURATION] ?: XrayConfiguration.WIREGUARD.name)
-            )
+                xrayConfiguration = XrayConfiguration.valueOf(prefs[XRAY_CONFIGURATION] ?: XrayConfiguration.WIREGUARD.name),
+                isProxyAuthEnabled = prefs[XRAY_PROXY_AUTH_ENABLED] ?: true,
+                proxyUser = prefs[XRAY_PROXY_USER] ?: "",
+                proxyPass = prefs[XRAY_PROXY_PASS] ?: ""
+            ).fillDefaults()
         }
         .distinctUntilChanged()
 
@@ -995,6 +1021,9 @@ class AppPreferences(context: Context) {
             prefs[SOCKS_BIND] = xrayConfig.socksBindAddress
             prefs[HTTP_BIND] = xrayConfig.httpBindAddress
             prefs[XRAY_CONFIGURATION] = xrayConfig.xrayConfiguration.name
+            prefs[XRAY_PROXY_AUTH_ENABLED] = xrayConfig.isProxyAuthEnabled
+            prefs[XRAY_PROXY_USER] = xrayConfig.proxyUser
+            prefs[XRAY_PROXY_PASS] = xrayConfig.proxyPass
         }
     }
 
@@ -1081,6 +1110,9 @@ class AppPreferences(context: Context) {
             prefs[SOCKS_BIND] = config.socksBindAddress
             prefs[HTTP_BIND] = config.httpBindAddress
             prefs[XRAY_CONFIGURATION] = config.xrayConfiguration.name
+            prefs[XRAY_PROXY_AUTH_ENABLED] = config.isProxyAuthEnabled
+            prefs[XRAY_PROXY_USER] = config.proxyUser
+            prefs[XRAY_PROXY_PASS] = config.proxyPass
         }
     }
 
