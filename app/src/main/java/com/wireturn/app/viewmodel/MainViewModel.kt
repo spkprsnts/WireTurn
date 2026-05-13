@@ -160,21 +160,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _bottomBarOffset = MutableStateFlow(0f)
     val bottomBarOffset: StateFlow<Float> = _bottomBarOffset.asStateFlow()
 
-    private var bottomBarHeight = 0f
+    private val _bottomBarHeight = MutableStateFlow(0f)
+    val bottomBarHeight: StateFlow<Float> = _bottomBarHeight.asStateFlow()
+
     private var settleJob: Job? = null
 
     fun setBottomBarHeight(height: Float) {
-        if (height > 0 && bottomBarHeight != height) {
+        if (height > 0 && _bottomBarHeight.value != height) {
             // Если панель была скрыта, корректируем её положение под новую высоту (например, при повороте)
             if (_bottomBarOffset.value > height) {
                 _bottomBarOffset.value = height
             }
         }
-        bottomBarHeight = height
+        _bottomBarHeight.value = height
     }
 
     fun onBottomBarScroll(delta: Float) {
-        if (bottomBarHeight <= 0f) return
+        val height = _bottomBarHeight.value
+        if (height <= 0f) return
         settleJob?.cancel()
 
         val adjustedDelta = delta / 3f
@@ -185,12 +188,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _bottomBarOffset.value = (currentOffset - adjustedDelta).coerceAtLeast(0f)
         } else {
             // Скролл вниз: панель скрывается
-            _bottomBarOffset.value = (currentOffset - adjustedDelta).coerceAtMost(bottomBarHeight)
+            _bottomBarOffset.value = (currentOffset - adjustedDelta).coerceAtMost(height)
         }
     }
 
     fun settleBottomBar(velocity: Float) {
-        if (bottomBarHeight <= 0f) return
+        val height = _bottomBarHeight.value
+        if (height <= 0f) return
         settleJob?.cancel()
         
         val currentOffset = _bottomBarOffset.value
@@ -198,11 +202,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // Логика "ленивого" скрытия и "оперативного" появления:
         val target = when {
             velocity > 300f -> 0f              // Свайп вверх (положительная скорость) -> Показать сразу
-            velocity < -1500f -> bottomBarHeight // Только очень сильный свайп вниз прячет панель
+            velocity < -1500f -> height        // Только очень сильный свайп вниз прячет панель
             
             // Если палец отпущен:
             // Чтобы спрятать панель, нужно чтобы она была уже почти скрыта (> 80%)
-            currentOffset > bottomBarHeight * 0.8f -> bottomBarHeight
+            currentOffset > height * 0.8f -> height
             // В остальных случаях — возвращаем (показываем)
             else -> 0f
         }

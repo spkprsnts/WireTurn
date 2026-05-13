@@ -48,6 +48,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.toClipEntry
@@ -73,6 +74,8 @@ fun LogsScreen(
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val logs by viewModel.logs.collectAsStateWithLifecycle()
+    val bottomBarOffset by viewModel.bottomBarOffset.collectAsStateWithLifecycle()
+    val bottomBarHeight by viewModel.bottomBarHeight.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
 
     var lastLogsSize by remember { mutableIntStateOf(logs.size) }
@@ -204,10 +207,17 @@ fun LogsScreen(
                     exit = fadeOut() + scaleOut(),
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
+                        .graphicsLayer {
+                            val extraRise = if (bottomBarHeight > 0) {
+                                (bottomBarOffset / bottomBarHeight) * 32.dp.toPx()
+                            } else 0f
+                            translationY = bottomBarOffset - extraRise
+                        }
                         .padding(bottom = 76.dp)
                 ) {
                     ElevatedButton(
                         onClick = {
+                            viewModel.settleBottomBar(10000f)
                             scope.launch {
                                 if (logs.isNotEmpty()) {
                                     listState.animateScrollToItem(logs.lastIndex)
