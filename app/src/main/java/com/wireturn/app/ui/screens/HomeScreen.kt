@@ -307,8 +307,10 @@ fun HomeScreen(
                     viewModel.checkProxyPing()
                 }
             } else if (proxyPing == null) {
-                viewModel.checkProxyPing()
+                viewModel.checkProxyPing(delayFirst = true)
             }
+        } else {
+            isControlPingScheduled = false
         }
     }
 

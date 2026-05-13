@@ -289,7 +289,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             XrayServiceState.state.collect { state ->
                 val isRunning = state == XrayState.Running || state == XrayState.DirectRoute
                 if (isRunning) {
-                    checkProxyPing()
+                    checkProxyPing(delayFirst = true)
                     startMetricsPoller()
                 } else {
                     stopMetricsPoller()
@@ -547,19 +547,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         AppCompatDelegate.setApplicationLocales(appLocale)
     }
 
-    fun checkProxyPing() {
+    fun checkProxyPing(delayFirst: Boolean = false) {
         val socksAddr = XrayServiceState.xrayConfigSnapshot.value?.connectableAddress ?: return
         if (socksAddr.isBlank() || !isValidHostPort(socksAddr)) return
 
         pingJob?.cancel()
         pingJob = viewModelScope.launch {
             _proxyPing.value = PingResult.Loading
-            repeat(5) { attempt ->
+            repeat(10) { attempt ->
                 val state = XrayServiceState.state.value
                 if (state != XrayState.Running && state != XrayState.DirectRoute) {
                     _proxyPing.value = null
                     return@launch
                 }
+
+                if (delayFirst && attempt == 0) delay(1000)
+
                 val result = withContext(Dispatchers.IO) {
                     try {
                         val parts = socksAddr.split(":")
@@ -588,7 +591,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     _proxyPing.value = result
                     return@launch
                 }
-                if (attempt < 2) delay(500)
+                delay(1000)
             }
             _proxyPing.value = PingResult.Error
         }
