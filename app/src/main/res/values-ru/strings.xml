@@ -191,6 +191,8 @@
     <string name="theme_light">Светлая</string>
     <string name="theme_dark">Тёмная</string>
     <string name="theme_system">Системная</string>
+    <string name="settings_show_fab_title">Плавающая кнопка</string>
+    <string name="settings_show_fab_desc">Показывать кнопку управления туннелем на всех экранах</string>
     <string name="localization_title">Локализация</string>
     <string name="lang_title">Язык интерфейса</string>
     <string name="lang_system">Системный</string>

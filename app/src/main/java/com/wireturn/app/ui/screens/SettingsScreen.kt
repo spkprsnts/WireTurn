@@ -168,9 +168,11 @@ fun SettingsScreen(
             }
 
             SettingsGroup(title = stringResource(R.string.app_appearance)) {
+                val showFloatingActionButton by viewModel.showFloatingActionButton.collectAsStateWithLifecycle()
+
                 SettingsGroupItem(
                     isTop = true, 
-                    isBottom = !supportsDynamicColor, 
+                    isBottom = false, 
                     containerColor = blockContainerColor
                 ) {
                     LabeledButtonGroup(label = stringResource(R.string.theme_title)) {
@@ -192,7 +194,7 @@ fun SettingsScreen(
                 if (supportsDynamicColor) {
                     SettingsGroupItem(
                         isTop = false, 
-                        isBottom = true, 
+                        isBottom = false, 
                         containerColor = blockContainerColor,
                         onClick = {
                             HapticUtil.perform(context, if (dynamicTheme) HapticUtil.Pattern.TOGGLE_OFF else HapticUtil.Pattern.TOGGLE_ON)
@@ -206,6 +208,23 @@ fun SettingsScreen(
                             onCheckedChange = { viewModel.setDynamicTheme(it) }
                         )
                     }
+                }
+
+                SettingsGroupItem(
+                    isTop = false,
+                    isBottom = true,
+                    containerColor = blockContainerColor,
+                    onClick = {
+                        HapticUtil.perform(context, if (showFloatingActionButton) HapticUtil.Pattern.TOGGLE_OFF else HapticUtil.Pattern.TOGGLE_ON)
+                        viewModel.setShowFloatingActionButton(!showFloatingActionButton)
+                    }
+                ) {
+                    SwitchRow(
+                        label = stringResource(R.string.settings_show_fab_title),
+                        supportingText = stringResource(R.string.settings_show_fab_desc),
+                        checked = showFloatingActionButton,
+                        onCheckedChange = { viewModel.setShowFloatingActionButton(it) }
+                    )
                 }
 
                 Spacer(Modifier.height(12.dp))

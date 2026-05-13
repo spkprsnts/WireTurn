@@ -774,6 +774,7 @@ class AppPreferences(context: Context) {
         val CAPTCHA_STYLE_MOD = booleanPreferencesKey("captcha_style_mod")
         val CAPTCHA_FORCE_TINT = booleanPreferencesKey("captcha_force_tint")
         val APP_LANGUAGE = stringPreferencesKey("app_language")
+        val SHOW_FLOATING_ACTION_BUTTON = booleanPreferencesKey("show_floating_action_button")
         val CLIENT_TURNABLE_CONFIG = stringPreferencesKey("client_turnable_config")
         val CLIENT_OLCRTC_CONFIG = stringPreferencesKey("client_olcrtc_config")
         val AUTO_LAUNCH_ENABLED = booleanPreferencesKey("auto_launch_enabled")
@@ -966,6 +967,11 @@ class AppPreferences(context: Context) {
         .map { prefs -> prefs[CAPTCHA_FORCE_TINT] ?: true }
         .distinctUntilChanged()
 
+    val showFloatingActionButtonFlow: Flow<Boolean> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { prefs -> prefs[SHOW_FLOATING_ACTION_BUTTON] ?: true }
+        .distinctUntilChanged()
+
     val appLanguageFlow: Flow<String> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { it[APP_LANGUAGE] ?: "system" }
@@ -1097,6 +1103,10 @@ class AppPreferences(context: Context) {
 
     suspend fun setCaptchaForceTint(enabled: Boolean) {
         context.dataStore.edit { prefs -> prefs[CAPTCHA_FORCE_TINT] = enabled }
+    }
+
+    suspend fun setShowFloatingActionButton(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[SHOW_FLOATING_ACTION_BUTTON] = enabled }
     }
 
     suspend fun setAppLanguage(lang: String) {

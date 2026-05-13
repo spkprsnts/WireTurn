@@ -7,19 +7,15 @@ package com.wireturn.app.ui.screens
 
 import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -47,7 +43,6 @@ import androidx.compose.ui.res.stringResource
 import com.wireturn.app.R
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -69,11 +64,8 @@ import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -87,8 +79,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import android.content.ClipData
 import android.net.VpnService
 import androidx.compose.foundation.layout.Arrangement
@@ -101,7 +91,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -133,6 +122,7 @@ import com.wireturn.app.ProxyServiceState
 import com.wireturn.app.VpnServiceState
 import com.wireturn.app.XrayServiceState
 import com.wireturn.app.ui.CompactSettingsItem
+import com.wireturn.app.ui.components.ProxyToggleButton
 import com.wireturn.app.ui.ConfigRowLabel
 import com.wireturn.app.ui.SupportingText
 import com.wireturn.app.ui.UpdateBlock
@@ -147,6 +137,8 @@ import kotlin.math.pow
 fun HomeScreen(
     viewModel: MainViewModel,
     onNavigateToExclusions: () -> Unit,
+    onToggleProxy: () -> Unit,
+    onCheckMismatch: (Boolean, () -> Unit) -> Unit,
     modifier: Modifier = Modifier
 ) {
     // --- State & Data ---
@@ -161,7 +153,6 @@ fun HomeScreen(
     val xrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
     val batteryNotificationDismissed by viewModel.batteryNotificationDismissed.collectAsStateWithLifecycle()
     val appsExclusionHintShown by viewModel.appsExclusionHintShown.collectAsStateWithLifecycle()
-    val customKernelExists by viewModel.customKernelExists.collectAsStateWithLifecycle()
     val vlessConfig by viewModel.vlessConfig.collectAsStateWithLifecycle()
     val clientConfigSnapshot by ProxyServiceState.clientConfigSnapshot.collectAsStateWithLifecycle()
     val wgConfigSnapshot by XrayServiceState.wgConfigSnapshot.collectAsStateWithLifecycle()
@@ -195,98 +186,9 @@ fun HomeScreen(
     val proxyPing by viewModel.proxyPing.collectAsStateWithLifecycle()
     var lastSuccessPing by remember { mutableStateOf<MainViewModel.PingResult.Success?>(null) }
     var isControlPingScheduled by rememberSaveable { mutableStateOf(value = false) }
-    
-    val showAutoLaunchOverride = rememberSaveable { mutableStateOf(false) }
-    val showMismatchDialog = rememberSaveable { mutableStateOf(false) }
-    var mismatchMessage by rememberSaveable { mutableStateOf("") }
-    var pendingProxyAction by remember { mutableStateOf<(() -> Unit)?>(null) }
-
-    if (showMismatchDialog.value) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { showMismatchDialog.value = false },
-            title = { Text(stringResource(R.string.mismatch_title)) },
-            text = { Text(mismatchMessage) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showMismatchDialog.value = false
-                    pendingProxyAction?.invoke()
-                    pendingProxyAction = null
-                }) {
-                    Text(stringResource(R.string.btn_start))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { 
-                    showMismatchDialog.value = false
-                    pendingProxyAction = null
-                }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
-        )
-    }
-
-    if (showAutoLaunchOverride.value) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { showAutoLaunchOverride.value = false },
-            title = { Text(stringResource(R.string.auto_launch_override_title)) },
-            text = { Text(stringResource(R.string.auto_launch_override_desc)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showAutoLaunchOverride.value = false
-                    viewModel.updateAutoLaunchSettings(autoLaunchSettings.copy(enabled = false))
-                    pendingProxyAction?.invoke()
-                    pendingProxyAction = null
-                }) {
-                    Text(stringResource(R.string.auto_launch_disable_and_continue))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { 
-                    showAutoLaunchOverride.value = false
-                }) {
-                    Text(stringResource(R.string.btn_close))
-                }
-            }
-        )
-    }
 
     val lifecycleOwner = LocalLifecycleOwner.current
-
     val isBusy = isRestarting || isChangingProfile
-
-    // Logic to prevent flickering "Tap to start" during hot restart gap
-    var wasActiveBeforeRestart by remember { mutableStateOf(false) }
-    LaunchedEffect(isBusy, proxyState, xrayState) {
-        val isActive = proxyState !is ProxyState.Idle || xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
-        if (isBusy && isActive) {
-            wasActiveBeforeRestart = true
-        } else if (!isBusy) {
-            wasActiveBeforeRestart = false
-        }
-    }
-
-    val vlessMismatch = stringResource(R.string.warn_proxy_vless_mismatch)
-    val wgMismatch = stringResource(R.string.warn_proxy_wg_mismatch)
-
-    val checkMismatch = { targetXrayEnabled: Boolean, onConfirmed: () -> Unit ->
-        val selectedRoute = clientConfig.turnableConfig.routes.find { it.routeId == clientConfig.turnableConfig.selectedRouteId }
-        val isTunnelVless = selectedRoute?.transport?.contains("KCP", ignoreCase = true) == true
-
-        val isTurnable = clientConfig.kernelVariant == KernelVariant.TURNABLE
-        val mismatch = isTurnable && targetXrayEnabled && (
-                (isTunnelVless && xrayConfig.xrayConfiguration == XrayConfiguration.WIREGUARD) ||
-                        (!isTunnelVless && xrayConfig.xrayConfiguration == XrayConfiguration.VLESS)
-                )
-
-        if (mismatch) {
-            mismatchMessage = if (isTunnelVless) vlessMismatch else wgMismatch
-            pendingProxyAction = onConfirmed
-            showMismatchDialog.value = true
-        } else {
-            onConfirmed()
-        }
-    }
 
     // --- Effects & Lifecycle ---
     LaunchedEffect(proxyPing, proxyState) {
@@ -327,32 +229,9 @@ fun HomeScreen(
     val activeWgConfig = wgConfigSnapshot ?: wgConfig
     val activeVlessConfig = vlessConfigSnapshot ?: vlessConfig
 
-    val configChanged = remember(clientConfig, clientConfigSnapshot, wgConfig, wgConfigSnapshot, vlessConfig, vlessConfigSnapshot, xrayConfig, xrayConfigSnapshot, isBusy) {
-        !isBusy && ((clientConfigSnapshot != null && clientConfig.fillDefaults() != clientConfigSnapshot) ||
-                (wgConfigSnapshot != null && wgConfig.fillDefaults() != wgConfigSnapshot) ||
-                (vlessConfigSnapshot != null && vlessConfig != vlessConfigSnapshot) ||
-                (xrayConfigSnapshot != null && xrayConfig.fillDefaults() != xrayConfigSnapshot))
-    }
-
-    val mainConfigChanged = remember(clientConfig, clientConfigSnapshot, isBusy) {
-        !isBusy && (clientConfigSnapshot != null && clientConfig.fillDefaults() != clientConfigSnapshot)
-    }
-    val xrayConfigChanged = remember(wgConfig, wgConfigSnapshot, vlessConfig, vlessConfigSnapshot, xrayConfig, xrayConfigSnapshot, clientConfig, clientConfigSnapshot, isBusy) {
-        if (isBusy) return@remember false
-        
-        val baseChanged = (wgConfigSnapshot != null && wgConfig.fillDefaults() != wgConfigSnapshot) ||
-                (vlessConfigSnapshot != null && vlessConfig != vlessConfigSnapshot) ||
-                (xrayConfigSnapshot != null && xrayConfig.fillDefaults() != xrayConfigSnapshot)
-        
-        val connectionToProxyChanged = clientConfigSnapshot != null && (
-                clientConfig.kernelVariant != clientConfigSnapshot?.kernelVariant ||
-                clientConfig.localPort != clientConfigSnapshot?.localPort ||
-                clientConfig.olcrtcConfig.socksHost != clientConfigSnapshot?.olcrtcConfig?.socksHost ||
-                clientConfig.olcrtcConfig.socksPort != clientConfigSnapshot?.olcrtcConfig?.socksPort
-        )
-        
-        baseChanged || connectionToProxyChanged
-    }
+    val configChanged by viewModel.isConfigChanged.collectAsStateWithLifecycle()
+    val mainConfigChanged by viewModel.isMainConfigChanged.collectAsStateWithLifecycle()
+    val xrayConfigChanged by viewModel.isXrayConfigChanged.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val homeScrollState = rememberScrollState()
@@ -631,87 +510,8 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 ProxyToggleButton(
-                    proxyState = proxyState,
-                    xrayState = xrayState,
-                    xrayEnabled = xraySettings.xrayEnabled,
-                    isRestarting = isBusy,
-                    wasActiveBeforeRestart = wasActiveBeforeRestart,
-                    isLocked = autoLaunchSettings.enabled,
-                    onClick = {
-                        val action = {
-                            when (proxyState) {
-                                is ProxyState.Idle, is ProxyState.Error -> {
-                                    checkMismatch(xraySettings.xrayEnabled) {
-                                        HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                                        if (xraySettings.xrayVpnMode) {
-                                            val intent = VpnService.prepare(context)
-                                            if (intent != null) {
-                                                vpnLauncher.launch(intent)
-                                            } else {
-                                                viewModel.startProxy()
-                                            }
-                                        } else {
-                                            viewModel.startProxy()
-                                        }
-                                    }
-                                }
-                                else -> {
-                                    HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_OFF)
-                                    viewModel.stopProxy()
-                                }
-                            }
-                        }
-
-                        if (autoLaunchSettings.enabled) {
-                            pendingProxyAction = action
-                            showAutoLaunchOverride.value = true
-                        } else {
-                            action()
-                        }
-                    }
-                )
-
-                val isActiveStatus = proxyState !is ProxyState.Idle || xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
-                val statusText = when {
-                    (isBusy || wasActiveBeforeRestart) && (isActiveStatus || wasActiveBeforeRestart) -> stringResource(R.string.proxy_restarting)
-                    proxyState is ProxyState.Connected -> {
-                        if (xrayState == XrayState.DirectRoute) stringResource(R.string.vless_direct_active)
-                        else stringResource(if (customKernelExists) R.string.proxy_running else R.string.proxy_active)
-                    }
-                    proxyState is ProxyState.Starting -> stringResource(R.string.starting)
-                    proxyState is ProxyState.Connecting -> stringResource(R.string.connecting)
-                    proxyState is ProxyState.Suppressed -> {
-                        if (xrayState == XrayState.DirectRoute) stringResource(R.string.vless_direct_active)
-                        else stringResource(R.string.connecting)
-                    }
-                    proxyState is ProxyState.CaptchaRequired -> stringResource(R.string.proxy_captcha_required)
-                    proxyState is ProxyState.WaitingForNetwork -> stringResource(R.string.status_waiting_for_network)
-                    proxyState is ProxyState.Error -> (proxyState as ProxyState.Error).message
-                    else -> when {
-                        autoLaunchSettings.enabled -> stringResource(R.string.proxy_auto_launch_active)
-                        else -> stringResource(R.string.proxy_press_to_start)
-                    }
-                }
-
-                val statusColor by animateColorAsState(
-                    targetValue = when {
-                        wasActiveBeforeRestart && proxyState is ProxyState.Idle -> MaterialTheme.colorScheme.tertiary
-                        proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed -> MaterialTheme.colorScheme.primary
-                        proxyState is ProxyState.Starting || proxyState is ProxyState.Connecting || proxyState is ProxyState.CaptchaRequired || proxyState is ProxyState.WaitingForNetwork -> MaterialTheme.colorScheme.tertiary
-                        proxyState is ProxyState.Error -> MaterialTheme.colorScheme.error
-                        isBusy && proxyState !is ProxyState.Idle -> MaterialTheme.colorScheme.tertiary
-                        autoLaunchSettings.enabled -> MaterialTheme.colorScheme.primary
-                        else -> MaterialTheme.colorScheme.onBackground.copy(alpha = 0.65f)
-                    },
-                    label = "status_color"
-                )
-
-                VerticalAnimatedText(
-                    text = statusText,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = statusColor,
-                    textAlign = TextAlign.Center,
-                    contentAlignment = Alignment.Center
+                    viewModel = viewModel,
+                    onClick = onToggleProxy
                 )
             }
 
@@ -1050,7 +850,7 @@ fun HomeScreen(
                         }
 
                         if (next) {
-                            checkMismatch(true, action)
+                            onCheckMismatch(true, action)
                         } else {
                             action()
                         }
@@ -1429,192 +1229,6 @@ private fun UpdateBanner(
     }
 }
 
-// --- Proxy Toggle Component ---
-@Composable
-private fun ProxyToggleButton(
-    proxyState: ProxyState,
-    xrayState: XrayState = XrayState.Idle,
-    xrayEnabled: Boolean = true,
-    isRestarting: Boolean = false,
-    wasActiveBeforeRestart: Boolean = false,
-    isLocked: Boolean = false,
-    onClick: () -> Unit
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    val isXrayWorking = xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
-    
-    var xrayWasResetted by rememberSaveable(proxyState is ProxyState.Idle) { mutableStateOf(true) }
-    if (!isXrayWorking || xrayState == XrayState.Idle) {
-        xrayWasResetted = true
-    }
-    val xrayActuallyReady = isXrayWorking && xrayWasResetted
-
-    var showXraySpinner by remember { mutableStateOf(false) }
-    LaunchedEffect(xrayActuallyReady, proxyState) {
-        val isProxyActive = proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed
-        if (!xrayActuallyReady && isProxyActive && xrayEnabled) {
-            delay(300)
-            showXraySpinner = true
-        } else {
-            showXraySpinner = !xrayActuallyReady && xrayEnabled
-        }
-    }
-
-    val toggleState = remember(proxyState, xrayState, isRestarting, showXraySpinner, wasActiveBeforeRestart) {
-        val isActive = proxyState !is ProxyState.Idle || xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
-        val actuallyRestarting = isRestarting && (isActive || wasActiveBeforeRestart)
-        val gapFilling = wasActiveBeforeRestart && proxyState is ProxyState.Idle
-        when {
-            actuallyRestarting || gapFilling || proxyState is ProxyState.Starting || proxyState is ProxyState.Connecting || proxyState is ProxyState.CaptchaRequired || proxyState is ProxyState.WaitingForNetwork -> "loading"
-            proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed -> if (showXraySpinner) "loading" else "active"
-            proxyState is ProxyState.Error -> "error"
-            else -> "idle"
-        }
-    }
-
-    val containerColor by animateColorAsState(
-        targetValue = when (toggleState) {
-            "active" -> if (xrayState == XrayState.DirectRoute) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
-            "loading" -> MaterialTheme.colorScheme.tertiary
-            "error" -> MaterialTheme.colorScheme.errorContainer
-            else -> {
-                val isActive = proxyState !is ProxyState.Idle || xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
-                if ((isRestarting && (isActive || wasActiveBeforeRestart)) || proxyState is ProxyState.Starting) 
-                    MaterialTheme.colorScheme.surfaceContainerHigh 
-                else MaterialTheme.colorScheme.surfaceVariant
-            }
-        },
-        animationSpec = tween(600),
-        label = "btn_bg"
-    )
-
-    val contentColor by animateColorAsState(
-        targetValue = when (toggleState) {
-            "active" -> if (xrayState == XrayState.DirectRoute) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onPrimary
-            "loading" -> MaterialTheme.colorScheme.onTertiary
-            "error" -> MaterialTheme.colorScheme.onErrorContainer
-            else -> MaterialTheme.colorScheme.onSurfaceVariant
-        },
-        animationSpec = tween(600),
-        label = "btn_fg"
-    )
-
-    val scale by animateFloatAsState(
-        targetValue = when {
-            isPressed -> 0.84f
-            toggleState == "loading" -> 0.90f
-            toggleState == "active" || toggleState == "error" -> 0.95f
-            else -> 1f
-        },
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "btn_scale"
-    )
-
-    val elevation by animateDpAsState(
-        targetValue = when {
-            isPressed -> 0.dp
-            toggleState == "loading" -> 2.dp
-            toggleState == "active" || toggleState == "error" -> 8.dp
-            else -> 20.dp
-        },
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "elevation"
-    )
-
-    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(160.dp)) {
-        Surface(
-            onClick = onClick,
-            interactionSource = interactionSource,
-            modifier = Modifier
-                .size(148.dp)
-                .scale(scale)
-                .shadow(
-                    elevation = elevation,
-                    shape = CircleShape,
-                    ambientColor = Color.Black.copy(alpha = 0.8f),
-                    spotColor = Color.Black.copy(alpha = 0.2f)
-                )
-                .clip(CircleShape),
-            shape = CircleShape,
-            color = containerColor,
-            shadowElevation = 0.dp,
-            tonalElevation = elevation
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    when (toggleState) {
-                        "loading" -> {
-                            CircularWavyProgressIndicator(
-                                modifier = Modifier.size(54.dp),
-                                color = contentColor
-                            )
-                        }
-
-                        "active" -> {
-                            val icon = if (xrayState == XrayState.DirectRoute) R.drawable.ethernet_24px else R.drawable.check_circle_24px
-                            Icon(
-                                painterResource(icon),
-                                stringResource(R.string.proxy_active_stop),
-                                Modifier.size(66.dp),
-                                tint = contentColor
-                            )
-                        }
-
-                        "error" -> Icon(
-                            painterResource(R.drawable.error_24px),
-                            stringResource(R.string.proxy_error_restart),
-                            Modifier.size(66.dp),
-                            tint = contentColor
-                        )
-
-                        else -> Icon(
-                            painterResource(R.drawable.power_24px),
-                            stringResource(R.string.start_proxy),
-                            Modifier.size(66.dp),
-                            tint = contentColor
-                        )
-                    }
-                }
-            }
-        }
-
-        if (isLocked) {
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .offset(x = (-12).dp, y = 12.dp)
-                    .size(36.dp)
-                    .shadow(elevation = 3.dp, shape = CircleShape),
-                tonalElevation = 3.dp
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        painter = painterResource(R.drawable.lock_24px),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-        }
-    }
-
-
-}
 
 // --- Repo Links Sheet Content ---
 @Composable

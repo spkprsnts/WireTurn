@@ -227,6 +227,8 @@
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
     <string name="theme_system">System</string>
+    <string name="settings_show_fab_title">Floating button</string>
+    <string name="settings_show_fab_desc">Show tunnel control button on all screens</string>
     <string name="localization_title">Localization</string>
     <string name="lang_title">Interface Language</string>
     <string name="lang_system">System</string>

@@ -38,6 +38,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
@@ -106,6 +109,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _captchaForceTint = MutableStateFlow(true)
     val captchaForceTint: StateFlow<Boolean> = _captchaForceTint.asStateFlow()
 
+    private val _showFloatingActionButton = MutableStateFlow(true)
+    val showFloatingActionButton: StateFlow<Boolean> = _showFloatingActionButton.asStateFlow()
+
     private val _appLanguage = MutableStateFlow("system")
     val appLanguage: StateFlow<String> = _appLanguage.asStateFlow()
 
@@ -162,6 +168,42 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _bottomBarHeight = MutableStateFlow(0f)
     val bottomBarHeight: StateFlow<Float> = _bottomBarHeight.asStateFlow()
+
+    val isMainConfigChanged: StateFlow<Boolean> = combine(
+        clientConfig, ProxyServiceState.clientConfigSnapshot
+    ) { client, clientSnap ->
+        clientSnap != null && client.fillDefaults() != clientSnap
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val isXrayConfigChanged: StateFlow<Boolean> = combine(
+        wgConfig, XrayServiceState.wgConfigSnapshot,
+        vlessConfig, XrayServiceState.vlessConfigSnapshot,
+        xrayConfig, XrayServiceState.xrayConfigSnapshot,
+        clientConfig, ProxyServiceState.clientConfigSnapshot
+    ) { args: Array<Any?> ->
+        val wg = args[0] as WgConfig; val wgSnap = args[1] as WgConfig?
+        val vless = args[2] as VlessConfig; val vlessSnap = args[3] as VlessConfig?
+        val xray = args[4] as XrayConfig; val xraySnap = args[5] as XrayConfig?
+        val client = args[6] as ClientConfig; val clientSnap = args[7] as ClientConfig?
+
+        val baseChanged = (wgSnap != null && wg.fillDefaults() != wgSnap) ||
+                (vlessSnap != null && vless != vlessSnap) ||
+                (xraySnap != null && xray.fillDefaults() != xraySnap)
+        
+        val connectionChanged = clientSnap != null && (
+                client.kernelVariant != clientSnap.kernelVariant ||
+                client.localPort != clientSnap.localPort ||
+                client.olcrtcConfig.socksHost != clientSnap.olcrtcConfig.socksHost ||
+                client.olcrtcConfig.socksPort != clientSnap.olcrtcConfig.socksPort
+        )
+        
+        baseChanged || connectionChanged
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val isConfigChanged: StateFlow<Boolean> = combine(
+        isMainConfigChanged, isXrayConfigChanged, ProxyServiceState.isRestarting
+    ) { main, xray, isRestarting -> !isRestarting && (main || xray) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private var settleJob: Job? = null
 
@@ -278,6 +320,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val restartOnNetworkChange = prefs.restartOnNetworkChangeFlow.first()
             val captchaStyleMod = prefs.captchaStyleModFlow.first()
             val captchaForceTint = prefs.captchaForceTintFlow.first()
+            val showFloatingActionButton = prefs.showFloatingActionButtonFlow.first()
             val appLanguage = prefs.appLanguageFlow.first()
             val autoLaunchSettings = prefs.autoLaunchSettingsFlow.first()
 
@@ -301,6 +344,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _restartOnNetworkChange.value = restartOnNetworkChange
             _captchaStyleMod.value = captchaStyleMod
             _captchaForceTint.value = captchaForceTint
+            _showFloatingActionButton.value = showFloatingActionButton
             _appLanguage.value = appLanguage
             _autoLaunchSettings.value = autoLaunchSettings
             updateAutoLaunchJob(autoLaunchSettings)
@@ -347,6 +391,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.restartOnNetworkChangeFlow.collect { _restartOnNetworkChange.value = it } }
             launch { prefs.captchaStyleModFlow.collect { _captchaStyleMod.value = it } }
             launch { prefs.captchaForceTintFlow.collect { _captchaForceTint.value = it } }
+            launch { prefs.showFloatingActionButtonFlow.collect { _showFloatingActionButton.value = it } }
             launch { prefs.appLanguageFlow.collect { _appLanguage.value = it } }
             launch { 
                 prefs.autoLaunchSettingsFlow.collect { settings ->
@@ -620,6 +665,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setCaptchaStyleMod(enabled: Boolean) { viewModelScope.launch { prefs.setCaptchaStyleMod(enabled) } }
     fun setCaptchaForceTint(enabled: Boolean) { viewModelScope.launch { prefs.setCaptchaForceTint(enabled) } }
+
+    fun setShowFloatingActionButton(enabled: Boolean) { viewModelScope.launch { prefs.setShowFloatingActionButton(enabled) } }
 
     fun setAppLanguage(lang: String) {
         _appLanguage.value = lang
