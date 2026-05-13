@@ -6,6 +6,8 @@ on:
       - 'unstable'
     tags:
       - 'v*'
+    paths:
+      - 'gradle.properties'
   workflow_dispatch:
 
 jobs:
