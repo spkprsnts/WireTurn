@@ -53,16 +53,18 @@
     <string name="cancel">Cancel</string>
     <!-- VPN Mode (VpnService) -->
     <string name="vpn_mode">VPN Mode</string>
-    <string name="vpn_apps_exceptions">Apps excluding VPN</string>
+    <string name="vpn_apps_exceptions">Apps **excluding** VPN</string>
     <string name="vpn_apps_hint">App routing</string>
-    <string name="vpn_apps_inclusions">Apps via VPN</string>
+    <string name="vpn_apps_inclusions">Apps **via** VPN</string>
     <string name="search_apps">Search apps</string>
     <string name="no_apps_found">No apps found</string>
     <string name="hide_system_apps">Hide system apps</string>
-    <string name="bypass_mode">All traffic via VPN</string>
-    <string name="filtering_enabled">App filtering</string>
+    <string name="bypass_mode">Routing mode</string>
+    <string name="vpn_mode_bypass_desc">Selected — bypass</string>
+    <string name="vpn_mode_include_desc">Selected — via VPN</string>
+    <string name="filtering_enabled">Selective routing</string>
     <string name="group_apps_by_letter">Group by letter</string>
-    <string name="clear_list">Clear list</string>
+    <string name="clear_list">Deselect all apps</string>
     <string name="copy_list">Copy list</string>
     <string name="list_copied">List copied</string>
     <string name="import_from_clipboard">Import from clipboard</string>
@@ -377,8 +379,10 @@
 
     <!-- Profile Management -->
     <string name="profiles_title">Profiles</string>
+    <string name="profile_actions">Profile actions</string>
     <string name="notification_btn_change_profile">Profile</string>
     <string name="profile_create">Create profile</string>
+    <string name="profile_new">New profile</string>
     <string name="profile_clone">Clone</string>
     <string name="profile_rename">Rename</string>
     <string name="profile_delete">Delete</string>

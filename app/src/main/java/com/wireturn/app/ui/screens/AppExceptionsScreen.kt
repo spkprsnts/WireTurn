@@ -76,7 +76,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.zIndex
@@ -573,9 +576,22 @@ fun AppExceptionsScreen(
                 LargeTopAppBar(
                     title = {
                         Column {
+                            val fullText = if (globalVpn.bypassMode) stringResource(R.string.vpn_apps_exceptions)
+                            else stringResource(R.string.vpn_apps_inclusions)
+
                             Text(
-                                if (globalVpn.bypassMode) stringResource(R.string.vpn_apps_exceptions)
-                                else stringResource(R.string.vpn_apps_inclusions)
+                                text = buildAnnotatedString {
+                                    val parts = fullText.split("**")
+                                    if (parts.size == 3) {
+                                        append(parts[0])
+                                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                                            append(parts[1])
+                                        }
+                                        append(parts[2])
+                                    } else {
+                                        append(fullText)
+                                    }
+                                }
                             )
                             Text(
                                 text = stringResource(R.string.vpn_apps_hint),
@@ -611,7 +627,6 @@ fun AppExceptionsScreen(
                             DropdownMenu(
                                 expanded = showMenu,
                                 onDismissRequest = { showMenu = false },
-                                modifier = Modifier.widthIn(min = 240.dp),
                                 offset = androidx.compose.ui.unit.DpOffset(12.dp, (-16).dp),
                                 containerColor = Color.Transparent,
                                 shadowElevation = 0.dp,
@@ -621,7 +636,11 @@ fun AppExceptionsScreen(
                                     focusable = true
                                 )
                             ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
+                                Column(
+                                    modifier = Modifier
+                                        .padding(16.dp)
+                                        .widthIn(min = 240.dp)
+                                ) {
                                     DropdownMenuGroup(
                                         shapes = MenuDefaults.groupShape(0, 3),
                                         shadowElevation = 4.dp,
@@ -647,8 +666,8 @@ fun AppExceptionsScreen(
                                             text = { Text(stringResource(R.string.bypass_mode)) },
                                             supportingText = {
                                                 Text(
-                                                    text = if (globalVpn.bypassMode) "Выбранные идут напрямую"
-                                                    else "Только выбранные через VPN",
+                                                    text = if (globalVpn.bypassMode) stringResource(R.string.vpn_mode_bypass_desc)
+                                                    else stringResource(R.string.vpn_mode_include_desc)
                                                 )
                                             },
                                             shapes = MenuDefaults.itemShape(1, 2)
@@ -666,7 +685,7 @@ fun AppExceptionsScreen(
                                             text = { Text(stringResource(R.string.clear_list)) },
                                             leadingIcon = {
                                                 Icon(
-                                                    painterResource(R.drawable.delete_24px),
+                                                    painterResource(R.drawable.indeterminate_check_box_24px),
                                                     contentDescription = null
                                                 )
                                             },

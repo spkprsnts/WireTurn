@@ -30,7 +30,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -73,6 +72,7 @@ import com.wireturn.app.R
 import com.wireturn.app.data.Profile
 import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.ConfigDropdownMenu
 import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.VerticalAnimatedText
@@ -518,9 +518,10 @@ fun ProfilesDialog(
                                         contentDescription = stringResource(R.string.profile_create)
                                     )
                                 }
-                                DropdownMenu(
+                                ConfigDropdownMenu(
                                     expanded = addMenuExpanded,
-                                    onDismissRequest = { addMenuExpanded = false }
+                                    onDismissRequest = { addMenuExpanded = false },
+                                    title = stringResource(R.string.profile_new)
                                 ) {
                                     DropdownMenuItem(
                                         text = { Text(stringResource(R.string.profile_create)) },
@@ -693,9 +694,10 @@ fun ProfilesDialog(
                                                    else MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
-                                    DropdownMenu(
+                                    ConfigDropdownMenu(
                                         expanded = menuExpanded,
-                                        onDismissRequest = { menuExpanded = false }
+                                        onDismissRequest = { menuExpanded = false },
+                                        title = stringResource(R.string.profile_actions)
                                     ) {
                                         DropdownMenuItem(
                                             text = { Text(stringResource(R.string.profile_select)) },

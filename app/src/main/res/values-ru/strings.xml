@@ -49,16 +49,18 @@
     <string name="cancel">Отмена</string>
     <!-- Режим VPN (VpnService) -->
     <string name="vpn_mode">Режим VPN</string>
-    <string name="vpn_apps_exceptions">Приложения без VPN</string>
+    <string name="vpn_apps_exceptions">Приложения **без** VPN</string>
     <string name="vpn_apps_hint">Маршрутизация приложений</string>
-    <string name="vpn_apps_inclusions">Приложения через VPN</string>
+    <string name="vpn_apps_inclusions">Приложения **через** VPN</string>
     <string name="search_apps">Поиск приложений</string>
     <string name="no_apps_found">Приложения не найдены</string>
     <string name="hide_system_apps">Скрывать системные</string>
-    <string name="bypass_mode">Весь трафик через VPN</string>
-    <string name="filtering_enabled">Фильтрация приложений</string>
+    <string name="bypass_mode">Режим маршрутизации</string>
+    <string name="vpn_mode_bypass_desc">Выбранные — в обход</string>
+    <string name="vpn_mode_include_desc">Выбранные — через VPN</string>
+    <string name="filtering_enabled">Выборочная маршрутизация</string>
     <string name="group_apps_by_letter">Группировать по буквам</string>
-    <string name="clear_list">Очистить список</string>
+    <string name="clear_list">Снять выделение со всех</string>
     <string name="copy_list">Копировать список</string>
     <string name="list_copied">Список скопирован</string>
     <string name="import_from_clipboard">Вставить из буфера</string>
@@ -334,8 +336,10 @@
 
     <!-- Управление профилями -->
     <string name="profiles_title">Профили</string>
+    <string name="profile_actions">Действия с профилем</string>
     <string name="notification_btn_change_profile">Профиль</string>
     <string name="profile_create">Создать профиль</string>
+    <string name="profile_new">Новый профиль</string>
     <string name="profile_clone">Клонировать</string>
     <string name="profile_rename">Переименовать</string>
     <string name="profile_delete">Удалить</string>
