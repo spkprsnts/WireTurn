@@ -143,7 +143,7 @@ data class TurnableConfig(
     }
 
     companion object {
-        fun parse(url: String): TurnableConfig? {
+        fun parse(url: String, base: TurnableConfig = TurnableConfig()): TurnableConfig? {
             if (!url.startsWith("turnable://", ignoreCase = true)) return null
             return try {
                 val uri = url.toUri()
@@ -178,20 +178,21 @@ data class TurnableConfig(
                 val port = uri.port
                 val platformId = if (port != -1) "$host:$port" else host
 
-                TurnableConfig(
-                    userUuid = userUuid,
-                    callId = callId,
-                    platformId = platformId,
-                    username = uri.getQueryParameter("username") ?: "",
+                base.copy(
+                    userUuid = userUuid ?: base.userUuid,
+                    callId = callId.ifBlank { base.callId },
+                    platformId = platformId.ifBlank { base.platformId },
+                    username = uri.getQueryParameter("username") ?: base.username,
                     type = type,
-                    encryption = uri.getQueryParameter("encryption"),
-                    pubKey = uri.getQueryParameter("pub_key"),
-                    peers = uri.getQueryParameter("peers")?.toIntOrNull() ?: 1,
-                    forceTurn = uri.getQueryParameter("forceturn")?.toBoolean() ?: false,
-                    gateway = uri.getQueryParameter("gateway") ?: "",
-                    proto = uri.getQueryParameter("proto"),
-                    routes = routes,
-                    selectedRouteId = uri.getQueryParameter("selected_route_id") ?: routes.firstOrNull()?.routeId ?: ""
+                    encryption = uri.getQueryParameter("encryption") ?: base.encryption,
+                    pubKey = uri.getQueryParameter("pub_key") ?: base.pubKey,
+                    peers = uri.getQueryParameter("peers")?.toIntOrNull() ?: base.peers,
+                    forceTurn = uri.getQueryParameter("forceturn")?.toBoolean() ?: base.forceTurn,
+                    gateway = uri.getQueryParameter("gateway") ?: base.gateway,
+                    proto = uri.getQueryParameter("proto") ?: base.proto,
+                    routes = if (routes.isNotEmpty()) routes else base.routes,
+                    selectedRouteId = uri.getQueryParameter("selected_route_id") 
+                        ?: (if (routes.isNotEmpty()) routes.firstOrNull()?.routeId ?: "" else base.selectedRouteId)
                 )
             } catch (_: Exception) {
                 null
@@ -330,7 +331,7 @@ data class OlcrtcConfig(
     }
 
     companion object {
-        fun parse(url: String): OlcrtcConfig? {
+        fun parse(url: String, base: OlcrtcConfig = OlcrtcConfig()): OlcrtcConfig? {
             if (!url.startsWith("olcrtc://", ignoreCase = true)) return null
             return try {
                 val carrier = url.substringAfter("olcrtc://").substringBefore("?")
@@ -352,13 +353,13 @@ data class OlcrtcConfig(
 
                 val mimo = if (rest.contains("$")) rest.substringAfter("$") else ""
 
-                var config = OlcrtcConfig(
-                    carrier = carrier,
-                    transport = transport,
-                    id = id,
-                    key = key,
-                    clientId = clientId.ifBlank { "wireturn" },
-                    mimo = mimo
+                var config = base.copy(
+                    carrier = carrier.ifBlank { base.carrier },
+                    transport = transport.ifBlank { base.transport },
+                    id = id.ifBlank { base.id },
+                    key = key.ifBlank { base.key },
+                    clientId = clientId.ifBlank { base.clientId }.ifBlank { "wireturn" },
+                    mimo = mimo.ifBlank { base.mimo }
                 )
 
                 if (payload.isNotBlank()) {
@@ -432,7 +433,7 @@ data class ClientConfig(
         
         // Migration logic: if we have a URL but no valid config, parse it once
         if (!current.turnableConfig.isValid() && current.turnableUrl.isNotBlank()) {
-            val parsed = TurnableConfig.parse(current.turnableUrl)
+            val parsed = TurnableConfig.parse(current.turnableUrl, current.turnableConfig)
             if (parsed != null) {
                 current = current.copy(
                     turnableConfig = parsed,
@@ -442,7 +443,7 @@ data class ClientConfig(
         }
 
         if (!current.olcrtcConfig.isValid() && current.olcrtcUrl.isNotBlank()) {
-            val parsed = OlcrtcConfig.parse(current.olcrtcUrl)
+            val parsed = OlcrtcConfig.parse(current.olcrtcUrl, current.olcrtcConfig)
             if (parsed != null) {
                 current = current.copy(
                     olcrtcConfig = parsed,

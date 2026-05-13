@@ -151,8 +151,8 @@ fun ClientConfigScreen(
                 try {
                     context.contentResolver.openInputStream(uri)?.use { input ->
                         val text = input.bufferedReader().use { r -> r.readText() }.trim()
-                        val turnableParsed = TurnableConfig.parse(text)
-                        val olcrtcParsed = OlcrtcConfig.parse(text)
+                        val turnableParsed = TurnableConfig.parse(text, turnableConfig)
+                        val olcrtcParsed = OlcrtcConfig.parse(text, olcrtcConfig)
 
                         if (turnableParsed != null) {
                             HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
@@ -253,8 +253,8 @@ fun ClientConfigScreen(
                                         scope.launch {
                                             val clipEntry = clipboard.getClipEntry()
                                             val text = clipEntry?.clipData?.getItemAt(0)?.text?.toString() ?: ""
-                                            val turnableParsed = TurnableConfig.parse(text)
-                                            val olcrtcParsed = OlcrtcConfig.parse(text)
+                                            val turnableParsed = TurnableConfig.parse(text, turnableConfig)
+                                            val olcrtcParsed = OlcrtcConfig.parse(text, olcrtcConfig)
 
                                             if (turnableParsed != null) {
                                                 HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
@@ -562,8 +562,8 @@ fun ClientConfigScreen(
             message = stringResource(R.string.qr_scan_desc),
             onDismiss = { showQrScanner.value = false },
             onResult = { result ->
-                val turnableParsed = TurnableConfig.parse(result)
-                val olcrtcParsed = OlcrtcConfig.parse(result)
+                val turnableParsed = TurnableConfig.parse(result, turnableConfig)
+                val olcrtcParsed = OlcrtcConfig.parse(result, olcrtcConfig)
 
                 if (turnableParsed != null) {
                     kernelVariant = KernelVariant.TURNABLE
