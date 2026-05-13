@@ -154,6 +154,93 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _isHomeScreenActive = MutableStateFlow(false)
 
+    private val _isBottomBarVisible = MutableStateFlow(true)
+    val isBottomBarVisible: StateFlow<Boolean> = _isBottomBarVisible.asStateFlow()
+
+    private val _bottomBarOffset = MutableStateFlow(0f)
+    val bottomBarOffset: StateFlow<Float> = _bottomBarOffset.asStateFlow()
+
+    private var bottomBarHeight = 0f
+    private var settleJob: Job? = null
+
+    fun setBottomBarHeight(height: Float) {
+        if (height > 0 && bottomBarHeight != height) {
+            // Если панель была скрыта, корректируем её положение под новую высоту (например, при повороте)
+            if (_bottomBarOffset.value > height) {
+                _bottomBarOffset.value = height
+            }
+        }
+        bottomBarHeight = height
+    }
+
+    fun onBottomBarScroll(delta: Float) {
+        if (bottomBarHeight <= 0f) return
+        settleJob?.cancel()
+
+        val adjustedDelta = delta / 3f
+        
+        val currentOffset = _bottomBarOffset.value
+        if (adjustedDelta > 0) {
+            // Скролл вверх: панель выезжает
+            _bottomBarOffset.value = (currentOffset - adjustedDelta).coerceAtLeast(0f)
+        } else {
+            // Скролл вниз: панель скрывается
+            _bottomBarOffset.value = (currentOffset - adjustedDelta).coerceAtMost(bottomBarHeight)
+        }
+    }
+
+    fun settleBottomBar(velocity: Float) {
+        if (bottomBarHeight <= 0f) return
+        settleJob?.cancel()
+        
+        val currentOffset = _bottomBarOffset.value
+        
+        // Логика "ленивого" скрытия и "оперативного" появления:
+        val target = when {
+            velocity > 300f -> 0f              // Свайп вверх (положительная скорость) -> Показать сразу
+            velocity < -1500f -> bottomBarHeight // Только очень сильный свайп вниз прячет панель
+            
+            // Если палец отпущен:
+            // Чтобы спрятать панель, нужно чтобы она была уже почти скрыта (> 80%)
+            currentOffset > bottomBarHeight * 0.8f -> bottomBarHeight
+            // В остальных случаях — возвращаем (показываем)
+            else -> 0f
+        }
+
+        if (currentOffset == target) return
+
+        settleJob = viewModelScope.launch {
+            val start = currentOffset
+            val end = target
+            // Для появления используем более быструю анимацию
+            val duration = if (end == 0f) 150L else 250L
+            val startTime = System.currentTimeMillis()
+            
+            while (true) {
+                val elapsed = System.currentTimeMillis() - startTime
+                if (elapsed >= duration) break
+                
+                val progress = elapsed.toFloat() / duration
+                // Более "упругая" анимация для появления
+                val easedProgress = if (end == 0f) {
+                    1f - (1f - progress) * (1f - progress) // Decelerate
+                } else {
+                    progress * progress // Accelerate
+                }
+                
+                _bottomBarOffset.value = start + (end - start) * easedProgress
+                delay(16)
+            }
+            _bottomBarOffset.value = end
+        }
+    }
+
+    fun setBottomBarVisible(visible: Boolean) {
+        settleJob?.cancel()
+        _isBottomBarVisible.value = visible
+        if (visible) _bottomBarOffset.value = 0f
+    }
+
     private var pingJob: Job? = null
     private var metricsJob: Job? = null
 

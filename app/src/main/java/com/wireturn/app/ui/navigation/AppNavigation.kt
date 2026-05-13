@@ -33,6 +33,7 @@ import androidx.compose.material3.ShortNavigationBarItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -42,6 +43,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -91,6 +94,8 @@ fun AppNavigation(
 
     val proxyState by viewModel.proxyState.collectAsStateWithLifecycle()
     val currentProfileId by viewModel.currentProfileId.collectAsStateWithLifecycle()
+    val isBottomBarVisibleByScroll by viewModel.isBottomBarVisible.collectAsStateWithLifecycle()
+    val bottomBarOffset by viewModel.bottomBarOffset.collectAsStateWithLifecycle()
     val finalStartDestination = remember {
         startDestination ?: if (viewModel.onboardingDone.value) Routes.HOME else Routes.ONBOARDING
     }
@@ -98,12 +103,23 @@ fun AppNavigation(
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
 
+    // Сбрасываем видимость бара при смене экрана
+    LaunchedEffect(currentRoute) {
+        viewModel.setBottomBarVisible(true)
+    }
+
     // Определяем, видна ли клавиатура
     val isKeyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     
-    // Проверяем, относится ли текущий маршрут к тем, где нужно показывать BottomBar
+    // Сбрасываем смещение при закрытии клавиатуры, чтобы панель вернулась
+    LaunchedEffect(isKeyboardVisible) {
+        if (!isKeyboardVisible) {
+            viewModel.setBottomBarVisible(true)
+        }
+    }
     // Используем startsWith, так как в маршрутах могут быть параметры (например, в настройках)
     val showBottomBar = !isKeyboardVisible && currentRoute != null && 
+        isBottomBarVisibleByScroll &&
         BOTTOM_NAV_ROUTES.any { currentRoute.startsWith(it.split("?")[0]) }
 
     Scaffold(
@@ -213,15 +229,20 @@ fun AppNavigation(
                 enter = slideInVertically(
                     initialOffsetY = { it }, 
                     animationSpec = tween(durationMillis = 300, easing = LinearOutSlowInEasing)
-                ) + fadeIn(animationSpec = tween(durationMillis = 300)),
+                ),
                 exit = slideOutVertically(
                     targetOffsetY = { it },
                     animationSpec = tween(durationMillis = 250, easing = FastOutLinearInEasing)
-                ) + fadeOut(animationSpec = tween(durationMillis = 250)),
-                modifier = Modifier.align(Alignment.BottomCenter)
+                ),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .graphicsLayer { translationY = bottomBarOffset }
             ) {
                 AppNavigationBar(
                     currentRoute = currentRoute,
+                    modifier = Modifier.onGloballyPositioned { 
+                        viewModel.setBottomBarHeight(it.size.height.toFloat()) 
+                    },
                     onNavigate = { route ->
                         navController.navigate(route) {
                             popUpTo(Routes.HOME) { saveState = true; inclusive = false }
@@ -273,12 +294,13 @@ private val navItems = listOf(
 @Composable
 private fun AppNavigationBar(
     currentRoute: String?,
+    modifier: Modifier = Modifier,
     onNavigate: (String) -> Unit
 ) {
     val context = LocalContext.current
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = Modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth()
     ) {
         Box(
             modifier = Modifier

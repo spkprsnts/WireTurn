@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.trackScrollDelta
 import com.wireturn.app.ui.theme.extendedColorScheme
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
@@ -185,7 +186,11 @@ fun LogsScreen(
                         .fillMaxSize()
                         .fillMaxWidth()
                         .wrapContentWidth(Alignment.CenterHorizontally)
-                        .widthIn(max = 840.dp),
+                        .widthIn(max = 840.dp)
+                        .trackScrollDelta(
+                            onScrollDelta = { viewModel.onBottomBarScroll(it) },
+                            onSettle = { viewModel.settleBottomBar(it) }
+                        ),
                     contentPadding = PaddingValues(bottom = 76.dp)
                 ) {
                     items(logs, key = { it.id }) { entry ->

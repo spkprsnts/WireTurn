@@ -67,6 +67,7 @@ import com.wireturn.app.ui.ConfigDropdownMenu
 import com.wireturn.app.ui.ConfigRowLabel
 import com.wireturn.app.ui.FieldTrailingIcons
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.trackScrollDelta
 import com.wireturn.app.ui.LabeledButtonGroup
 import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.configButtonGroupItem
@@ -329,6 +330,10 @@ fun XrayConfigScreen(
                 .consumeWindowInsets(padding)
                 .imePadding()
                 .padding(horizontal = 16.dp)
+                .trackScrollDelta(
+                    onScrollDelta = { viewModel.onBottomBarScroll(it) },
+                    onSettle = { viewModel.settleBottomBar(it) }
+                )
                 .verticalScroll(scrollState)
                 .padding(bottom = 76.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)

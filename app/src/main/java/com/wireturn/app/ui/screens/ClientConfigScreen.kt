@@ -80,6 +80,7 @@ import com.wireturn.app.data.TurnableRoute
 import com.wireturn.app.ui.ConfigDropdownMenu
 import com.wireturn.app.ui.ConfigRowLabel
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.trackScrollDelta
 import com.wireturn.app.ui.LabeledButtonGroup
 import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.configButtonGroupItem
@@ -140,6 +141,8 @@ fun ClientConfigScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    val configScrollState = rememberScrollState()
 
     val importSuccessMessage = stringResource(R.string.import_success)
     val importErrorMessage = stringResource(R.string.import_error)
@@ -328,7 +331,11 @@ fun ClientConfigScreen(
                 .consumeWindowInsets(padding)
                 .imePadding()
                 .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState())
+                .trackScrollDelta(
+                    onScrollDelta = { viewModel.onBottomBarScroll(it) },
+                    onSettle = { viewModel.settleBottomBar(it) }
+                )
+                .verticalScroll(configScrollState)
                 .padding(bottom = 76.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {

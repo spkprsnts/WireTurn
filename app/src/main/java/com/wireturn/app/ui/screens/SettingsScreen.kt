@@ -56,6 +56,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.data.ThemeMode
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.trackScrollDelta
 import com.wireturn.app.ui.LabeledButtonGroup
 import com.wireturn.app.ui.configButtonGroupItem
 import com.wireturn.app.ui.SettingsGroup
@@ -82,6 +83,7 @@ fun SettingsScreen(
     val showResetDialog = rememberSaveable { mutableStateOf(false) }
 
     val scrollState = rememberScrollState()
+
     var updateBlockOffset by remember { mutableFloatStateOf(0f) }
     var hasScrolled by remember(scrollToUpdate) { mutableStateOf(false) }
 
@@ -143,6 +145,10 @@ fun SettingsScreen(
                 .consumeWindowInsets(padding)
                 .imePadding()
                 .padding(horizontal = 16.dp)
+                .trackScrollDelta(
+                    onScrollDelta = { viewModel.onBottomBarScroll(it) },
+                    onSettle = { viewModel.settleBottomBar(it) }
+                )
                 .verticalScroll(scrollState)
                 .padding(bottom = 76.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)

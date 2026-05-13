@@ -120,6 +120,7 @@ import kotlinx.coroutines.delay
 import com.wireturn.app.ui.InlineConfigIndicator
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.trackScrollDelta
 import com.wireturn.app.ui.AppExclusionTooltip
 import com.wireturn.app.ui.VerticalAnimatedText
 import com.wireturn.app.ui.SettingsGroupItem
@@ -354,6 +355,7 @@ fun HomeScreen(
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val homeScrollState = rememberScrollState()
 
     // --- Launchers ---
     val batteryOptLauncher = rememberLauncherForActivityResult(
@@ -493,7 +495,11 @@ fun HomeScreen(
                 .fillMaxWidth()
                 .wrapContentWidth(Alignment.CenterHorizontally)
                 .widthIn(max = 600.dp)
-                .verticalScroll(rememberScrollState())
+                .trackScrollDelta(
+                    onScrollDelta = { viewModel.onBottomBarScroll(it) },
+                    onSettle = { viewModel.settleBottomBar(it) }
+                )
+                .verticalScroll(homeScrollState)
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 76.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
