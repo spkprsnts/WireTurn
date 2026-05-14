@@ -310,20 +310,23 @@ data class OlcrtcConfig(
         var current = copy(
             videoW = if (videoW <= 0) 1080 else videoW,
             videoH = if (videoH <= 0) 1080 else videoH,
-            socksHost = socksHost.ifBlank { ClientConfig.DEFAULT_SOCKS_HOST },
-            socksPort = socksPort.ifBlank { ClientConfig.DEFAULT_SOCKS_PORT }
+            socksHost = if (ValidatorUtils.isValidHost(socksHost)) socksHost else ClientConfig.DEFAULT_SOCKS_HOST,
+            socksPort = if (ValidatorUtils.isValidPort(socksPort)) socksPort else ClientConfig.DEFAULT_SOCKS_PORT
         )
 
         if (current.isSocksAuthEnabled) {
-            val isUserValid = ValidatorUtils.isValidProxyUser(current.socksUser)
-            val isPassValid = ValidatorUtils.isValidProxyPass(current.socksPass)
+            var nextUser = ValidatorUtils.cleanProxyString(current.socksUser)
+            var nextPass = ValidatorUtils.cleanProxyString(current.socksPass)
 
-            if (!isUserValid || !isPassValid) {
+            if (!ValidatorUtils.isValidProxyUser(nextUser)) {
                 val allowedChars = ('A'..'Z') + ('a'..'z') + ('0'..'9')
-                val newUser = if (!isUserValid) (1..8).map { allowedChars.random() }.joinToString("") else current.socksUser
-                val newPass = if (!isPassValid) (1..12).map { allowedChars.random() }.joinToString("") else current.socksPass
-                current = current.copy(socksUser = newUser, socksPass = newPass)
+                nextUser = (1..8).map { allowedChars.random() }.joinToString("")
             }
+            if (!ValidatorUtils.isValidProxyPass(nextPass)) {
+                val allowedChars = ('A'..'Z') + ('a'..'z') + ('0'..'9')
+                nextPass = (1..12).map { allowedChars.random() }.joinToString("")
+            }
+            current = current.copy(socksUser = nextUser, socksPass = nextPass)
         }
 
         return current
@@ -625,15 +628,18 @@ data class XrayConfig(
         }
 
         if (current.isProxyAuthEnabled) {
-            val isUserValid = ValidatorUtils.isValidProxyUser(current.proxyUser)
-            val isPassValid = ValidatorUtils.isValidProxyPass(current.proxyPass)
+            var nextUser = ValidatorUtils.cleanProxyString(current.proxyUser)
+            var nextPass = ValidatorUtils.cleanProxyString(current.proxyPass)
 
-            if (!isUserValid || !isPassValid) {
+            if (!ValidatorUtils.isValidProxyUser(nextUser)) {
                 val allowedChars = ('A'..'Z') + ('a'..'z') + ('0'..'9')
-                val newUser = if (!isUserValid) (1..8).map { allowedChars.random() }.joinToString("") else current.proxyUser
-                val newPass = if (!isPassValid) (1..12).map { allowedChars.random() }.joinToString("") else current.proxyPass
-                current = current.copy(proxyUser = newUser, proxyPass = newPass)
+                nextUser = (1..8).map { allowedChars.random() }.joinToString("")
             }
+            if (!ValidatorUtils.isValidProxyPass(nextPass)) {
+                val allowedChars = ('A'..'Z') + ('a'..'z') + ('0'..'9')
+                nextPass = (1..12).map { allowedChars.random() }.joinToString("")
+            }
+            current = current.copy(proxyUser = nextUser, proxyPass = nextPass)
         }
 
         return current
