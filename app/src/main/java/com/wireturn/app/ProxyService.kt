@@ -524,7 +524,13 @@ class ProxyService : Service() {
             }
         }
 
-        if (lower.contains("failed to connect link")) {
+        if (lower.contains("setupcipher failed")) {
+            ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_invalid_auth_key)))
+            state.startupFailed = true
+            return true
+        }
+
+        if (lower.contains("failed to connect link") || lower.contains("failed to create link")) {
             if (getNetworkQuality() == NetworkQuality.FAST) {
                 // Быстрая сеть, но ошибка линка — платформа недоступна
                 ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_platform_unavailable)))
@@ -536,14 +542,14 @@ class ProxyService : Service() {
             return true
         }
 
-        if (lower.contains("remote not ready")) {
+        if (lower.contains("remote not ready") || lower.contains("openstream failed")) {
             val now = System.currentTimeMillis()
             if (now - state.lastRemoteNotReadyTime > 10_000) {
                 state.remoteNotReadyCount = 1
                 state.lastRemoteNotReadyTime = now
             } else {
                 state.remoteNotReadyCount++
-                if (state.remoteNotReadyCount >= 5) {
+                if (state.remoteNotReadyCount >= 7) {
                     AppLogsState.addLog(getString(R.string.log_too_many_remote_not_ready))
                     state.startupEmitted = true // Trigger watchdog
                     return true

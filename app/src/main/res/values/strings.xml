@@ -290,7 +290,8 @@
     <string name="log_connection_timeout">=== CONNECTION TIMEOUT (2m) — RESTARTING ===</string>
     <string name="log_no_network_waiting">=== NO NETWORK — WAITING ===</string>
     <string name="log_stop_ui">=== STOPPED FROM UI ===</string>
-    <string name="log_too_many_remote_not_ready">>>> TOO MANY \"REMOTE NOT READY\" — restarting</string>
+    <string name="log_too_many_remote_not_ready">>>> TOO MANY \"REMOTE NOT READY\" / \"OPENSTREAM FAILED\" — restarting</string>
+    <string name="error_invalid_auth_key">Invalid authorization key</string>
     <string name="log_slow_network_watchdog">>>> SLOW NETWORK DETECTED — increasing watchdog delay</string>
     <string name="error_turnable_failed">Turnable error: %1$s</string>
 
