@@ -126,7 +126,11 @@ fun ClientConfigScreen(
     var rawCommand by remember(saved) { mutableStateOf(saved.rawCommand) }
     var turnableConfig by remember(saved) { mutableStateOf(saved.turnableConfig) }
     var olcrtcConfig by remember(saved) { mutableStateOf(saved.olcrtcConfig) }
-    var olcrtcSocksAddr by remember(saved) { mutableStateOf("${saved.olcrtcConfig.socksHost}:${saved.olcrtcConfig.socksPort}") }
+    var olcrtcSocksAddr by remember(saved) {
+        val config = saved.olcrtcConfig
+        val addr = if (config.socksPort.isBlank()) config.socksHost else "${config.socksHost}:${config.socksPort}"
+        mutableStateOf(addr)
+    }
     var videoW by remember(saved) { mutableStateOf(saved.olcrtcConfig.videoW.let { if (it == 0) "" else it.toString() }) }
     var videoH by remember(saved) { mutableStateOf(saved.olcrtcConfig.videoH.let { if (it == 0) "" else it.toString() }) }
     var localPort by remember(saved) { mutableStateOf(saved.localPort) }
@@ -166,6 +170,7 @@ fun ClientConfigScreen(
                             HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
                             kernelVariant = KernelVariant.OLCRTC
                             olcrtcConfig = olcrtcParsed
+                            olcrtcSocksAddr = if (olcrtcParsed.socksPort.isBlank()) olcrtcParsed.socksHost else "${olcrtcParsed.socksHost}:${olcrtcParsed.socksPort}"
                             videoW = olcrtcParsed.videoW.let { if (it == 0) "" else it.toString() }
                             videoH = olcrtcParsed.videoH.let { if (it == 0) "" else it.toString() }
                             scope.launch { snackbarHostState.showExclusiveSnackbar(importSuccessMessage) }
@@ -187,17 +192,13 @@ fun ClientConfigScreen(
         delay(200)
         val current = viewModel.clientConfig.value
         
-        var effectiveOlcrtcConfig = olcrtcConfig.copy(
+        val parts = olcrtcSocksAddr.split(":")
+        val effectiveOlcrtcConfig = olcrtcConfig.copy(
             videoW = videoW.toIntOrNull() ?: 0,
-            videoH = videoH.toIntOrNull() ?: 0
+            videoH = videoH.toIntOrNull() ?: 0,
+            socksHost = parts.getOrNull(0) ?: "",
+            socksPort = parts.getOrNull(1) ?: ""
         )
-        if (isOlcrtcSocksValid && olcrtcSocksAddr.contains(":")) {
-            val parts = olcrtcSocksAddr.split(":")
-            effectiveOlcrtcConfig = effectiveOlcrtcConfig.copy(
-                socksHost = parts[0].ifBlank { ClientConfig.DEFAULT_SOCKS_HOST },
-                socksPort = parts[1].ifBlank { ClientConfig.DEFAULT_SOCKS_PORT }
-            )
-        }
 
         val next = current.copy(
             isRawMode        = isRawMode,
@@ -268,6 +269,7 @@ fun ClientConfigScreen(
                                                 HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
                                                 kernelVariant = KernelVariant.OLCRTC
                                                 olcrtcConfig = olcrtcParsed
+                                                olcrtcSocksAddr = if (olcrtcParsed.socksPort.isBlank()) olcrtcParsed.socksHost else "${olcrtcParsed.socksHost}:${olcrtcParsed.socksPort}"
                                                 videoW = olcrtcParsed.videoW.let { if (it == 0) "" else it.toString() }
                                                 videoH = olcrtcParsed.videoH.let { if (it == 0) "" else it.toString() }
                                                 snackbarHostState.showExclusiveSnackbar(importSuccessMessage)
@@ -581,6 +583,7 @@ fun ClientConfigScreen(
                 } else if (olcrtcParsed != null) {
                     kernelVariant = KernelVariant.OLCRTC
                     olcrtcConfig = olcrtcParsed
+                    olcrtcSocksAddr = if (olcrtcParsed.socksPort.isBlank()) olcrtcParsed.socksHost else "${olcrtcParsed.socksHost}:${olcrtcParsed.socksPort}"
                     videoW = olcrtcParsed.videoW.let { if (it == 0) "" else it.toString() }
                     videoH = olcrtcParsed.videoH.let { if (it == 0) "" else it.toString() }
                     scope.launch { 
@@ -757,7 +760,7 @@ private fun TurnableSettings(
                 value = localPort.redact(privacyMode),
                 onValueChange = onLocalPortChange,
                 placeholder = stringResource(R.string.local_listen_placeholder),
-                isError = !isLocalPortValid || localPort.isBlank(),
+                isError = !isLocalPortValid,
                 readOnly = privacyMode,
                 isModified = clientConfigSnapshot != null && localPort.trim() != clientConfigSnapshot.localPort,
                 onHelpClick = onShowPortHelp
@@ -1093,9 +1096,13 @@ private fun OlcrtcSettings(
                 value = olcrtcSocksAddr.redact(privacyMode),
                 onValueChange = onSocksAddrChange,
                 placeholder = stringResource(R.string.local_listen_placeholder),
-                isError = !isOlcrtcSocksValid || olcrtcSocksAddr.isBlank(),
+                isError = !isOlcrtcSocksValid,
                 readOnly = privacyMode,
-                isModified = clientConfigSnapshot != null && olcrtcSocksAddr.trim() != "${clientConfigSnapshot.olcrtcConfig.socksHost}:${clientConfigSnapshot.olcrtcConfig.socksPort}",
+                isModified = clientConfigSnapshot != null && run {
+                    val snap = clientConfigSnapshot.olcrtcConfig
+                    val snapAddr = if (snap.socksPort.isBlank()) snap.socksHost else "${snap.socksHost}:${snap.socksPort}"
+                    olcrtcSocksAddr.trim() != snapAddr
+                },
                 onHelpClick = onShowOlcrtcHelp
             )
         }

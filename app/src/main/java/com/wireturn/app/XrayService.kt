@@ -204,11 +204,10 @@ class XrayService : Service() {
             val vlessConfig = rawVless.fillDefaults()
             val clientConfig = rawClient.fillDefaults()
 
-            // Проверяем, нужно ли сохранить исцеленные дефолты при старте
-            if (wgConfig != rawWg) prefs.saveWgConfig(wgConfig)
-            if (xrayConfig != rawXray) prefs.saveXrayConfig(xrayConfig)
-            if (vlessConfig != rawVless) prefs.saveVlessConfig(vlessConfig)
-            if (clientConfig != rawClient) prefs.saveClientConfig(clientConfig)
+            prefs.saveWgConfig(wgConfig)
+            prefs.saveXrayConfig(xrayConfig)
+            prefs.saveVlessConfig(vlessConfig)
+            prefs.saveClientConfig(clientConfig)
 
             val snapshot = XrayConfigsSnapshot(
                 wg = wgConfig,

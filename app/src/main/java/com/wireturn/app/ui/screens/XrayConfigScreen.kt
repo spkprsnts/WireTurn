@@ -218,8 +218,8 @@ fun XrayConfigScreen(
         }
     )
 
-    val isSocksValid = remember(socksBindAddress) { socksBindAddress.isNotBlank() && ValidatorUtils.isValidHostPort(socksBindAddress) }
-    val isHttpValid = remember(httpBindAddress) { httpBindAddress.isEmpty() || ValidatorUtils.isValidHostPort(httpBindAddress) }
+    val isSocksValid = remember(socksBindAddress) { ValidatorUtils.isValidHostPort(socksBindAddress) }
+    val isHttpValid = remember(httpBindAddress) { httpBindAddress.isBlank() || ValidatorUtils.isValidHostPort(httpBindAddress) }
 
     Scaffold(
         modifier = modifier,
@@ -724,7 +724,7 @@ private fun VlessSettings(
                 value = vlessLink.redact(privacyMode),
                 onValueChange = onVlessLinkChange,
                 placeholder = stringResource(R.string.vless_link_placeholder),
-                isError = !ValidatorUtils.isValidVlessLink(vlessLink) || vlessLink.isBlank(),
+                isError = !ValidatorUtils.isValidVlessLink(vlessLink),
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 4,
                 maxLines = 4,
@@ -778,7 +778,7 @@ private fun VlessSettings(
                         value = vlessDirectAddress.redact(privacyMode),
                         onValueChange = onVlessDirectAddressChange,
                         placeholder = stringResource(R.string.vless_direct_address_placeholder),
-                        isError = vlessDirectAddress.isBlank() || !ValidatorUtils.isValidHostPort(vlessDirectAddress),
+                        isError = !ValidatorUtils.isValidHostPort(vlessDirectAddress),
                         readOnly = privacyMode,
                         supportingText = stringResource(R.string.vless_direct_address_desc),
                         isModified = vlessConfigSnapshot != null && vlessDirectAddress != vlessConfigSnapshot.directAddress,

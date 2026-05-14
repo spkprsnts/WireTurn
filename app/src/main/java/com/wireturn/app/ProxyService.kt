@@ -98,9 +98,7 @@ class ProxyService : Service() {
 
             // Сразу фиксируем работающий конфиг для UI (с заполненными дефолтами)
             val filledCfg = cfg.fillDefaults()
-            if (filledCfg != cfg) {
-                prefs.saveClientConfig(filledCfg)
-            }
+            prefs.saveClientConfig(filledCfg)
             ProxyServiceState.setClientConfigSnapshot(filledCfg)
             ProxyServiceState.setProfileNameSnapshot(profileName)
 

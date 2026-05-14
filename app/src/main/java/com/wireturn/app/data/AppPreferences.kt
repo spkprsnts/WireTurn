@@ -460,8 +460,9 @@ data class ClientConfig(
     @SerializedName("kernelVariant") val kernelVariant: KernelVariant = KernelVariant.TURNABLE
 ) {
     fun fillDefaults(): ClientConfig {
+        val validLocalPort = if (ValidatorUtils.isValidHostPort(localPort)) localPort else DEFAULT_LOCAL_PORT
         return copy(
-            localPort = localPort.ifBlank { DEFAULT_LOCAL_PORT },
+            localPort = validLocalPort,
             olcrtcConfig = olcrtcConfig.fillDefaults(),
             turnableConfig = turnableConfig
         )
@@ -577,7 +578,7 @@ data class VlessConfig(
     @SerializedName("directAddress") val directAddress: String = "",
     @SerializedName("hcInterval") val hcInterval: String = "30"
 ) {
-    fun isValid(): Boolean = vlessLink.isNotBlank() && ValidatorUtils.isValidVlessLink(vlessLink)
+    fun isValid(): Boolean = ValidatorUtils.isValidVlessLink(vlessLink)
 
     fun fillDefaults(): VlessConfig {
         return copy(
@@ -622,8 +623,7 @@ data class XrayConfig(
 ) {
     fun fillDefaults(): XrayConfig {
         var current = this
-        val isSocksValid = socksBindAddress.isNotBlank() && ValidatorUtils.isValidHostPort(socksBindAddress)
-        if (!isSocksValid) {
+        if (!ValidatorUtils.isValidHostPort(socksBindAddress)) {
             current = current.copy(socksBindAddress = DEFAULT_SOCKS_BIND_ADDRESS)
         }
 
@@ -670,12 +670,13 @@ data class WgConfig(
     }
 
     fun fillDefaults(): WgConfig {
+        val validEndpoint = if (ValidatorUtils.isValidHostPort(endpoint)) endpoint else DEFAULT_ENDPOINT
         return copy(
             privateKey = privateKey.take(500),
             address = address.take(500),
             mtu = mtu.ifBlank { DEFAULT_MTU }.take(20),
             publicKey = publicKey.take(500),
-            endpoint = endpoint.ifBlank { DEFAULT_ENDPOINT }.take(500),
+            endpoint = validEndpoint.take(500),
             persistentKeepalive = persistentKeepalive.ifBlank { DEFAULT_PERSISTENT_KEEPALIVE }.take(20)
         )
     }
