@@ -80,6 +80,8 @@ class ProxyService : Service() {
             return START_NOT_STICKY
         }
 
+        moveToForeground()
+
         // При каждом явном вызове Start — перезапускаем цикл, чтобы подхватить возможные изменения в конфиге
         userStopped.set(false)
         proxyJob?.cancel()
@@ -123,7 +125,7 @@ class ProxyService : Service() {
         return START_STICKY
     }
 
-    private suspend fun initStartup(
+    private fun initStartup(
         vlessConfig: com.wireturn.app.data.VlessConfig,
         @Suppress("UNUSED_PARAMETER") xraySettings: com.wireturn.app.data.XraySettings,
         xrayConfig: com.wireturn.app.data.XrayConfig,
@@ -154,28 +156,28 @@ class ProxyService : Service() {
         
         ProxyTileService.requestUpdate(this)
 
-        withContext(Dispatchers.Main) {
-            try {
-                val notification = NotificationHelper.buildNotification(this@ProxyService)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                    startForeground(
-                        NotificationHelper.NOTIFICATION_ID,
-                        notification,
-                        android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-                    )
-                } else {
-                    startForeground(NotificationHelper.NOTIFICATION_ID, notification)
-                }
-            } catch (e: Exception) {
-                AppLogsState.addLog("[Proxy] Failed to start foreground: ${e.message}")
-            }
-        }
-
         val powerManager = getSystemService(POWER_SERVICE) as PowerManager
         wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WireTurn::BgLock")
         wakeLock?.acquire(TimeUnit.HOURS.toMillis(24))
 
         registerNetworkCallback()
+    }
+
+    private fun moveToForeground() {
+        try {
+            val notification = NotificationHelper.buildNotification(this)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(
+                    NotificationHelper.NOTIFICATION_ID,
+                    notification,
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                )
+            } else {
+                startForeground(NotificationHelper.NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            AppLogsState.addLog("[Proxy] Failed to start foreground: ${e.message}")
+        }
     }
 
     private suspend fun mainSupervisor(
