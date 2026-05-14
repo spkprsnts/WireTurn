@@ -256,10 +256,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (currentOffset == target) return
 
         settleJob = viewModelScope.launch {
-            val start = currentOffset
-            val end = target
             // Для появления используем более быструю анимацию
-            val duration = if (end == 0f) 150L else 250L
+            val duration = if (target == 0f) 150L else 250L
             val startTime = System.currentTimeMillis()
             
             while (true) {
@@ -268,16 +266,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 
                 val progress = elapsed.toFloat() / duration
                 // Более "упругая" анимация для появления
-                val easedProgress = if (end == 0f) {
+                val easedProgress = if (target == 0f) {
                     1f - (1f - progress) * (1f - progress) // Decelerate
                 } else {
                     progress * progress // Accelerate
                 }
                 
-                _bottomBarOffset.value = start + (end - start) * easedProgress
+                _bottomBarOffset.value = currentOffset + (target - currentOffset) * easedProgress
                 delay(16)
             }
-            _bottomBarOffset.value = end
+            _bottomBarOffset.value = target
         }
     }
 
