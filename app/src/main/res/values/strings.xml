@@ -116,7 +116,7 @@
     <string name="raw_mode" translatable="false">Raw Mode</string>
     <string name="raw_mode_desc">Manual argument input</string>
     <string name="raw_label" translatable="false">Raw</string>
-    <string name="raw_placeholder" translatable="false">-listen 127.0.0.1:900 -peer 292.313.32.45:56000 …</string>
+    <string name="raw_placeholder" translatable="false">-listen 127.0.0.1:9000 -peer 292.313.32.45:56000 …</string>
     <string name="client_import_config">Client configuration import</string>
     <string name="config_missing">Missing configuration</string>
     <string name="config_import_hint_start">Import</string>
