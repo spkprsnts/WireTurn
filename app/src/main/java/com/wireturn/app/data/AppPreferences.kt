@@ -21,8 +21,52 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 import androidx.core.net.toUri
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+import com.google.gson.TypeAdapter
+import com.google.gson.TypeAdapterFactory
+import com.google.gson.reflect.TypeToken
+import com.google.gson.stream.JsonReader
+import com.google.gson.stream.JsonToken
+import com.google.gson.stream.JsonWriter
+import com.wireturn.app.ui.ValidatorUtils
+import java.io.StringReader
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "app_prefs")
+
+/**
+ * GSON Adapter Factory that prevents crashes when an enum value is removed or renamed.
+ * It will fallback to the first enum constant if the value in JSON is unknown.
+ */
+class SafeEnumTypeAdapterFactory : TypeAdapterFactory {
+    override fun <T> create(gson: Gson, type: TypeToken<T>): TypeAdapter<T>? {
+        val rawType = type.rawType
+        if (!rawType.isEnum) return null
+
+        val constants = rawType.enumConstants as Array<T>
+        val delegate = gson.getDelegateAdapter(this, type)
+
+        return object : TypeAdapter<T>() {
+            override fun write(out: JsonWriter, value: T) {
+                delegate.write(out, value)
+            }
+
+            override fun read(reader: JsonReader): T? {
+                if (reader.peek() == JsonToken.NULL) {
+                    reader.nextNull()
+                    return null
+                }
+                val name = reader.nextString()
+                return try {
+                    val tempReader = JsonReader(StringReader("\"$name\""))
+                    delegate.read(tempReader)
+                } catch (_: Exception) {
+                    constants.firstOrNull()
+                }
+            }
+        }.nullSafe()
+    }
+}
 
 enum class KernelVariant {
     TURNABLE, OLCRTC
@@ -55,6 +99,7 @@ data class TurnableConfig(
     @SerializedName("selected_route_id") val selectedRouteId: String = ""
 ) {
     fun sanitize(): TurnableConfig {
+        val rts = routes
         return copy(
             userUuid = userUuid?.take(200),
             username = username.take(200),
@@ -66,7 +111,7 @@ data class TurnableConfig(
             gateway = gateway.take(500),
             proto = proto?.take(100),
             selectedRouteId = selectedRouteId.take(100),
-            routes = routes.map { it.copy(
+            routes = rts.map { it.copy(
                 routeId = it.routeId.take(100),
                 name = it.name.take(100),
                 socket = it.socket.take(100),
@@ -190,7 +235,7 @@ data class TurnableConfig(
                     forceTurn = uri.getQueryParameter("forceturn")?.toBoolean() ?: base.forceTurn,
                     gateway = uri.getQueryParameter("gateway") ?: base.gateway,
                     proto = uri.getQueryParameter("proto") ?: base.proto,
-                    routes = if (routes.isNotEmpty()) routes else base.routes,
+                    routes = routes.ifEmpty { base.routes },
                     selectedRouteId = uri.getQueryParameter("selected_route_id") 
                         ?: (if (routes.isNotEmpty()) routes.firstOrNull()?.routeId ?: "" else base.selectedRouteId)
                 )
@@ -270,8 +315,8 @@ data class OlcrtcConfig(
         )
 
         if (current.isSocksAuthEnabled) {
-            val isUserValid = com.wireturn.app.ui.ValidatorUtils.isValidProxyUser(current.socksUser)
-            val isPassValid = com.wireturn.app.ui.ValidatorUtils.isValidProxyPass(current.socksPass)
+            val isUserValid = ValidatorUtils.isValidProxyUser(current.socksUser)
+            val isPassValid = ValidatorUtils.isValidProxyPass(current.socksPass)
 
             if (!isUserValid || !isPassValid) {
                 val allowedChars = ('A'..'Z') + ('a'..'z') + ('0'..'9')
@@ -414,21 +459,21 @@ data class ClientConfig(
     fun fillDefaults(): ClientConfig {
         return copy(
             localPort = localPort.ifBlank { DEFAULT_LOCAL_PORT },
-            olcrtcConfig = olcrtcConfig.fillDefaults()
+            olcrtcConfig = olcrtcConfig.fillDefaults(),
+            turnableConfig = turnableConfig
         )
     }
 
     /** GSON can leave fields null if they are missing/invalid in JSON. This ensures safety. */
-    @Suppress("UNNECESSARY_SAFE_CALL", "USELESS_ELVIS")
     fun migrateAndSanitize(): ClientConfig {
         var current = copy(
-            localPort = (localPort ?: "").take(100),
-            rawCommand = (rawCommand ?: "").take(2000),
-            turnableUrl = (turnableUrl ?: "").take(2000),
-            olcrtcUrl = (olcrtcUrl ?: "").take(2000),
-            turnableConfig = (turnableConfig ?: TurnableConfig()).sanitize(),
-            olcrtcConfig = (olcrtcConfig ?: OlcrtcConfig()).sanitize(),
-            kernelVariant = kernelVariant ?: KernelVariant.TURNABLE
+            localPort = localPort.take(100),
+            rawCommand = rawCommand.take(2000),
+            turnableUrl = turnableUrl.take(2000),
+            olcrtcUrl = olcrtcUrl.take(2000),
+            turnableConfig = turnableConfig.sanitize(),
+            olcrtcConfig = olcrtcConfig.sanitize(),
+            kernelVariant = kernelVariant
         )
         
         // Migration logic: if we have a URL but no valid config, parse it once
@@ -529,7 +574,7 @@ data class VlessConfig(
     @SerializedName("directAddress") val directAddress: String = "",
     @SerializedName("hcInterval") val hcInterval: String = "30"
 ) {
-    fun isValid(): Boolean = vlessLink.isNotBlank() && com.wireturn.app.ui.ValidatorUtils.isValidVlessLink(vlessLink)
+    fun isValid(): Boolean = vlessLink.isNotBlank() && ValidatorUtils.isValidVlessLink(vlessLink)
 
     fun fillDefaults(): VlessConfig {
         return copy(
@@ -574,14 +619,14 @@ data class XrayConfig(
 ) {
     fun fillDefaults(): XrayConfig {
         var current = this
-        val isSocksValid = socksBindAddress.isNotBlank() && com.wireturn.app.ui.ValidatorUtils.isValidHostPort(socksBindAddress)
+        val isSocksValid = socksBindAddress.isNotBlank() && ValidatorUtils.isValidHostPort(socksBindAddress)
         if (!isSocksValid) {
             current = current.copy(socksBindAddress = DEFAULT_SOCKS_BIND_ADDRESS)
         }
 
         if (current.isProxyAuthEnabled) {
-            val isUserValid = com.wireturn.app.ui.ValidatorUtils.isValidProxyUser(current.proxyUser)
-            val isPassValid = com.wireturn.app.ui.ValidatorUtils.isValidProxyPass(current.proxyPass)
+            val isUserValid = ValidatorUtils.isValidProxyUser(current.proxyUser)
+            val isPassValid = ValidatorUtils.isValidProxyPass(current.proxyPass)
 
             if (!isUserValid || !isPassValid) {
                 val allowedChars = ('A'..'Z') + ('a'..'z') + ('0'..'9')
@@ -711,15 +756,14 @@ data class Profile(
         )
     }
 
-    @Suppress("UNNECESSARY_SAFE_CALL", "USELESS_ELVIS")
     fun sanitize(): Profile {
         return copy(
-            id = (id ?: java.util.UUID.randomUUID().toString()).ifBlank { java.util.UUID.randomUUID().toString() }.take(100),
-            name = (name ?: "Unnamed").ifBlank { "Unnamed" }.take(100),
-            clientConfig = (clientConfig ?: ClientConfig()).migrateAndSanitize(),
-            wgConfig = (wgConfig ?: WgConfig()),
-            xrayConfig = (xrayConfig ?: XrayConfig()),
-            vlessConfig = (vlessConfig ?: VlessConfig()).sanitize()
+            id = id.ifBlank { java.util.UUID.randomUUID().toString() }.take(100),
+            name = name.ifBlank { "Unnamed" }.take(100),
+            clientConfig = clientConfig.migrateAndSanitize(),
+            wgConfig = wgConfig.fillDefaults(),
+            xrayConfig = xrayConfig.fillDefaults(),
+            vlessConfig = vlessConfig.sanitize()
         )
     }
 }
@@ -727,7 +771,9 @@ data class Profile(
 // P2-3 / P3-6: всегда используем applicationContext, чтобы lazy-init encryptedPrefs
 class AppPreferences(context: Context) {
     private val context = context.applicationContext
-    private val gson = com.google.gson.Gson()
+    private val gson = GsonBuilder()
+        .registerTypeAdapterFactory(SafeEnumTypeAdapterFactory())
+        .create()
 
     companion object {
         val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
@@ -786,12 +832,27 @@ class AppPreferences(context: Context) {
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { prefs ->
             val json = prefs[PROFILES_JSON] ?: ""
-            if (json.isBlank()) emptyList()
-            else try {
-                val type = object : com.google.gson.reflect.TypeToken<List<Profile>>() {}.type
+            if (json.isBlank()) return@map emptyList()
+            
+            try {
+                val type = object : TypeToken<List<Profile>>() {}.type
                 val rawList = gson.fromJson<List<Profile>>(json, type) ?: emptyList()
                 rawList.map { it.sanitize() }
-            } catch (_: Exception) { emptyList() }
+            } catch (_: Exception) {
+                // If parsing the whole list fails, try to rescue profiles one by one
+                try {
+                    val jsonArray = com.google.gson.JsonParser.parseString(json).asJsonArray
+                    val rescued = mutableListOf<Profile>()
+                    jsonArray.forEach { 
+                        try {
+                            rescued.add(gson.fromJson(it, Profile::class.java).sanitize())
+                        } catch (_: Exception) {}
+                    }
+                    rescued
+                } catch (_: Exception) {
+                    emptyList()
+                }
+            }
         }
 
     val currentProfileIdFlow: Flow<String> = context.dataStore.data
