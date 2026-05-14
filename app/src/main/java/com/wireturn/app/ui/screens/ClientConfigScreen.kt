@@ -191,11 +191,11 @@ fun ClientConfigScreen(
             videoW = videoW.toIntOrNull() ?: 0,
             videoH = videoH.toIntOrNull() ?: 0
         )
-        if (isOlcrtcSocksValid) {
+        if (isOlcrtcSocksValid && olcrtcSocksAddr.contains(":")) {
             val parts = olcrtcSocksAddr.split(":")
             effectiveOlcrtcConfig = effectiveOlcrtcConfig.copy(
-                socksHost = (parts.getOrNull(0) ?: "").ifBlank { ClientConfig.DEFAULT_SOCKS_HOST },
-                socksPort = (parts.getOrNull(1) ?: "").ifBlank { ClientConfig.DEFAULT_SOCKS_PORT }
+                socksHost = parts[0].ifBlank { ClientConfig.DEFAULT_SOCKS_HOST },
+                socksPort = parts[1].ifBlank { ClientConfig.DEFAULT_SOCKS_PORT }
             )
         }
 
