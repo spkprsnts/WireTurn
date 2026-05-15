@@ -355,7 +355,7 @@
     <string name="vless_hc_interval">Health check interval (sec)</string>
     <string name="vless_hc_interval_desc">How often to check if direct connection is possible</string>
     <string name="vless_parse_from_link">Parse from link</string>
-    <string name="vless_direct_active">Direct connection</string>
+    <string name="vless_direct_active">Direct VLESS</string>
 
     <!-- Warnings -->
     <string name="warn_unsupported_arch_title">Architecture not supported</string>

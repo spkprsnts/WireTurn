@@ -310,7 +310,7 @@
     <string name="vless_hc_interval">Интервал проверки (сек)</string>
     <string name="vless_hc_interval_desc">Как часто проверять возможность прямого подключения</string>
     <string name="vless_parse_from_link">Взять из ссылки</string>
-    <string name="vless_direct_active">Прямое подключение</string>
+    <string name="vless_direct_active">Прямой VLESS</string>
 
     <!-- Предупреждения -->
     <string name="warn_unsupported_arch_title">Архитектура не поддерживается</string>
