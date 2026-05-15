@@ -571,7 +571,9 @@ fun ButtonGroupScope.configButtonGroupItem(
     label: String,
     index: Int,
     count: Int,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    iconRes: Int? = null,
+    weight: Float = 1f
 ) {
     customItem(
         buttonGroupContent = {
@@ -589,19 +591,32 @@ fun ButtonGroupScope.configButtonGroupItem(
                 onCheckedChange = { if (!selected) onSelect() },
                 enabled = enabled,
                 modifier = Modifier
-                    .weight(1f),
+                    .weight(weight),
                 interactionSource = interactionSource,
                 shapes = shapes
             ) {
-                Text(
-                    text = label,
-                    maxLines = 1,
-                    softWrap = false,
-                    overflow = TextOverflow.Clip,
-                    style = MaterialTheme.typography.labelLarge,
-                    textAlign = TextAlign.Center,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
                     modifier = Modifier.fillMaxWidth()
-                )
+                ) {
+                    if (iconRes != null) {
+                        Icon(
+                            painter = painterResource(iconRes),
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                    }
+                    Text(
+                        text = label,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Clip,
+                        style = MaterialTheme.typography.labelLarge,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
         },
         menuContent = { state ->

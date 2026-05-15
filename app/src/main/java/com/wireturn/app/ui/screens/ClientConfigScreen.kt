@@ -1203,6 +1203,12 @@ private fun OlcrtcSettings(
             ) {
                 val carriers = listOf("wbstream" to "WB Stream", "telemost" to "Telemost", "jazz" to "Jazz")
                 carriers.forEachIndexed { index, (value, label) ->
+                    val iconRes = when (value) {
+                        "wbstream" -> R.drawable.ic_wbstream
+                        "telemost" -> R.drawable.ic_telemost
+                        "jazz" -> R.drawable.ic_jazz
+                        else -> null
+                    }
                     configButtonGroupItem(
                         selected = config.carrier == value,
                         onSelect = {
@@ -1211,7 +1217,9 @@ private fun OlcrtcSettings(
                         },
                         label = label,
                         index = index,
-                        count = carriers.size
+                        count = carriers.size,
+                        iconRes = iconRes,
+                        weight = label.length.toFloat() + (if (iconRes != null) 5f else 0f)
                     )
                 }
             }
@@ -1231,8 +1239,15 @@ private fun OlcrtcSettings(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 LargeLeadingIcon {
+                    val iconRes = when (config.transport) {
+                        "datachannel" -> R.drawable.data_array_24px
+                        "vp8channel" -> R.drawable.movie_24px
+                        "seichannel" -> R.drawable.video_settings_24px
+                        "videochannel" -> R.drawable.grid_view_24px
+                        else -> R.drawable.route_24px
+                    }
                     Icon(
-                        painter = painterResource(R.drawable.route_24px),
+                        painter = painterResource(iconRes),
                         contentDescription = null,
                         modifier = Modifier.size(32.dp),
                         tint = MaterialTheme.colorScheme.primary
@@ -1500,13 +1515,18 @@ fun RoutesBlock(
 ) {
     val selectedRoute = config.routes.find { it.routeId == config.selectedRouteId } ?: config.routes.firstOrNull()
     if (selectedRoute != null) {
+        val iconRes = when (selectedRoute.socket.lowercase()) {
+            "tcp" -> R.drawable.compare_arrows_24px
+            "udp" -> R.drawable.arrow_forward_24px
+            else -> R.drawable.route_24px
+        }
         Row(
             modifier = modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             LargeLeadingIcon {
                 Icon(
-                    painter = painterResource(R.drawable.route_24px),
+                    painter = painterResource(iconRes),
                     contentDescription = null,
                     modifier = Modifier.size(32.dp),
                     tint = MaterialTheme.colorScheme.primary
@@ -1543,13 +1563,18 @@ fun RoutesDialog(
         onSelect = { onSelect(it.routeId) },
         onDismiss = onDismiss
     ) { route, isSelected ->
+        val iconRes = when (route.socket.lowercase()) {
+            "tcp" -> R.drawable.compare_arrows_24px
+            "udp" -> R.drawable.arrow_forward_24px
+            else -> R.drawable.route_24px
+        }
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             StandardLeadingIcon {
                 Icon(
-                    painter = painterResource(R.drawable.route_24px),
+                    painter = painterResource(iconRes),
                     contentDescription = null,
                     tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )
@@ -1590,14 +1615,21 @@ fun TransportDialog(
         isSelected = { it.first == currentTransport },
         onSelect = { onSelect(it.first) },
         onDismiss = onDismiss
-    ) { (_, label), isSelected ->
+    ) { (value, label), isSelected ->
+        val iconRes = when (value) {
+            "datachannel" -> R.drawable.data_array_24px
+            "vp8channel" -> R.drawable.movie_24px
+            "seichannel" -> R.drawable.video_settings_24px
+            "videochannel" -> R.drawable.grid_view_24px
+            else -> R.drawable.route_24px
+        }
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             StandardLeadingIcon {
                 Icon(
-                    painter = painterResource(R.drawable.route_24px),
+                    painter = painterResource(iconRes),
                     contentDescription = null,
                     tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )
