@@ -7,6 +7,8 @@ package com.wireturn.app.ui.navigation
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
@@ -14,11 +16,8 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -51,12 +50,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -86,8 +88,6 @@ import com.wireturn.app.viewmodel.MainViewModel
 import android.net.VpnService
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import kotlinx.coroutines.launch
-import androidx.compose.runtime.rememberCoroutineScope
 import com.wireturn.app.data.KernelVariant
 
 object Routes {
@@ -129,21 +129,24 @@ fun AppNavigation(
     var mismatchMessage by rememberSaveable { mutableStateOf("") }
     var pendingProxyAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     
-    // Состояние для свободного перемещения FAB
-    val fabOffsetX = remember { Animatable(0f) }
-    val fabOffsetY = remember { Animatable(0f) }
+    // Состояние для скрытия FAB при скролле
+    var isFabVisibleByScroll by remember { mutableStateOf(true) }
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                // Прячем при любом свайпе вниз, показываем при свайпе вверх
+                if (available.y < -1f) {
+                    isFabVisibleByScroll = false
+                } else if (available.y > 1f) {
+                    isFabVisibleByScroll = true
+                }
+                return Offset.Zero
+            }
+        }
+    }
 
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val windowInfo = LocalWindowInfo.current
     val density = LocalDensity.current
-
-    // Параметры для расчетов (в пикселях)
-    val screenWidthPx = windowInfo.containerSize.width.toFloat()
-    val screenHeightPx = windowInfo.containerSize.height.toFloat()
-    val fabSizePx = with(density) { 72.dp.toPx() }
-    val marginPx = with(density) { 16.dp.toPx() }
-    val bottomNavPaddingPx = with(density) { 100.dp.toPx() } // Отступ снизу в Scaffold для FAB
 
     val vlessMismatch = stringResource(R.string.warn_proxy_vless_mismatch)
     val wgMismatch = stringResource(R.string.warn_proxy_wg_mismatch)
@@ -290,9 +293,10 @@ fun AppNavigation(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .nestedScroll(nestedScrollConnection)
         ) {
             val navBarsPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-            
+
             // Анимируем отступ контента, чтобы он не прыгал при появлении клавиатуры
             val bottomPadding by animateDpAsState(
                 targetValue = if (!isKeyboardVisible) navBarsPadding else 0.dp,
@@ -427,24 +431,25 @@ fun AppNavigation(
                 currentRoute != Routes.HOME && 
                 currentRoute != Routes.ONBOARDING &&
                 currentRoute != Routes.APP_EXCLUSIONS &&
-                showFloatingActionButton
+                showFloatingActionButton &&
+                isFabVisibleByScroll
 
-            // Определяем положение для анимаций (слева или справа)
-            val leftEdgeX = -(screenWidthPx - fabSizePx - marginPx * 2)
-            val isFabOnLeft = fabOffsetX.value < leftEdgeX / 2
-            val statusAlignment = if (isFabOnLeft) Alignment.Start else Alignment.End
+            // Определяем положение для анимаций (всегда справа по M3)
+            val statusAlignment = Alignment.End
+            
+            val navBarHeightPx = with(density) { WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding().toPx() }
 
             AnimatedVisibility(
                 visible = showFab,
                 enter = slideInHorizontally(
-                    initialOffsetX = { if (isFabOnLeft) -it else it },
+                    initialOffsetX = { it },
                     animationSpec = spring(
                         dampingRatio = Spring.DampingRatioLowBouncy,
                         stiffness = Spring.StiffnessMediumLow
                     )
                 ),
                 exit = slideOutHorizontally(
-                    targetOffsetX = { if (isFabOnLeft) -it else it },
+                    targetOffsetX = { it },
                     animationSpec = spring(
                         dampingRatio = Spring.DampingRatioNoBouncy,
                         stiffness = Spring.StiffnessMedium
@@ -452,132 +457,104 @@ fun AppNavigation(
                 ),
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
+                    .windowInsetsPadding(WindowInsets.navigationBars)
                     .graphicsLayer {
-                        // Коэффициент влияния панели: 1.0 если кнопка внизу, 0.0 если поднята выше 150dp
-                        val influenceThreshold = with(density) { 150.dp.toPx() }
-                        val influence = (1f + (fabOffsetY.value / influenceThreshold)).coerceIn(0f, 1f)
-
-                        val extraRise = if (bottomBarHeight > 0) {
-                            (bottomBarOffset / bottomBarHeight) * 32.dp.toPx()
-                        } else 0f
-
-                        // Учитываем смещение от панели только если кнопка находится в её зоне (influence > 0)
-                        translationX = fabOffsetX.value
-                        translationY = (bottomBarOffset - extraRise) * influence + fabOffsetY.value
+                        // Если нижняя панель навигации (меню) видима, FAB должен быть над ней.
+                        // bottomBarOffset вьюмодели = 0 когда панель полностью видна,
+                        // и = bottomBarHeight когда панель полностью скрыта.
+                        
+                        // Высота контента панели без учета системных инсетов
+                        val bottomBarContentHeight = (bottomBarHeight - navBarHeightPx).coerceAtLeast(0f)
+                        
+                        // На сколько панель сейчас "выглядывает" над системным баром
+                        val currentVisibleContent = (bottomBarContentHeight - bottomBarOffset).coerceAtLeast(0f)
+                        
+                        translationY = -currentVisibleContent
+                        clip = false // Позволяем теням выходить за границы анимации
                     }
             ) {
                 Box(
-                    modifier = Modifier
-                        .padding(end = 16.dp, bottom = 100.dp)
-                        .pointerInput(Unit) {
-                            detectDragGestures(
-                                onDrag = { change, dragAmount ->
-                                    change.consume()
-                                    scope.launch {
-                                        fabOffsetX.snapTo(fabOffsetX.value + dragAmount.x)
-                                        fabOffsetY.snapTo(fabOffsetY.value + dragAmount.y)
-                                    }
-                                },
-                                onDragEnd = {
-                                    scope.launch {
-                                        // 1. Горизонтальное прилипание к ближайшему краю
-                                        // Alignment.BottomEnd означает что x=0 это правый край.
-                                        // Левый край это -(screenWidth - fabSize - margins)
-                                        val targetX = if (fabOffsetX.value < leftEdgeX / 2) leftEdgeX else 0f
-                                        
-                                        // 2. Вертикальные ограничения
-                                        // fabOffsetY.value = 0 это исходная позиция (над баром)
-                                        // Ограничиваем сверху так, чтобы даже с кнопкой перезапуска (140dp) 
-                                        // группа не заходила на TopBar (~160dp от верха экрана)
-                                        val safeTopMarginPx = with(density) { 160.dp.toPx() }
-                                        val maxGroupHeightPx = with(density) { (72 + 12 + 56).dp.toPx() }
-                                        val topLimitY = -(screenHeightPx - bottomNavPaddingPx - safeTopMarginPx - maxGroupHeightPx)
-
-                                        val targetY = fabOffsetY.value.coerceIn(topLimitY, 0f)
-
-                                        // Запускаем анимации возврата к краям с более мягкими параметрами
-                                        val snapSpec = spring<Float>(
-                                            stiffness = Spring.StiffnessLow, 
-                                            dampingRatio = Spring.DampingRatioLowBouncy
-                                        )
-                                        
-                                        launch {
-                                            fabOffsetX.animateTo(targetX, snapSpec)
-                                        }
-                                        launch {
-                                            fabOffsetY.animateTo(targetY, snapSpec)
-                                        }
-                                    }
-                                }
-                            )
-                        }
+                    modifier = Modifier.graphicsLayer(clip = false)
                 ) {
                     val isConfigChanged by viewModel.isConfigChanged.collectAsStateWithLifecycle()
                     val isMainConfigChanged by viewModel.isMainConfigChanged.collectAsStateWithLifecycle()
                     val isXrayConfigChanged by viewModel.isXrayConfigChanged.collectAsStateWithLifecycle()
 
                     Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalAlignment = Alignment.End,
+                        modifier = Modifier.graphicsLayer(clip = false)
                     ) {
                         // Кнопка применения настроек (над основной кнопкой)
-                        AnimatedVisibility(
+                        // Используем прямое указание на топовую функцию, чтобы избежать конфликта с ColumnScope
+                        androidx.compose.animation.AnimatedVisibility(
                             visible = isConfigChanged && showFab,
-                            enter = slideInHorizontally(
-                                initialOffsetX = { 
-                                    val totalOffset = (it + marginPx + (fabSizePx - it) / 2).toInt()
-                                    if (isFabOnLeft) -totalOffset else totalOffset 
-                                },
+                            enter = scaleIn(
+                                initialScale = 0.66f,
                                 animationSpec = spring(
                                     dampingRatio = Spring.DampingRatioLowBouncy,
                                     stiffness = Spring.StiffnessMediumLow
                                 )
-                            ),
-                            exit = slideOutHorizontally(
-                                targetOffsetX = { 
-                                    val totalOffset = (it + marginPx + (fabSizePx - it) / 2).toInt()
-                                    if (isFabOnLeft) -totalOffset else totalOffset 
-                                },
+                            ) + fadeIn(animationSpec = tween(200)),
+                            exit = scaleOut(
+                                targetScale = 0.66f,
                                 animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                    stiffness = Spring.StiffnessMedium
+                                    dampingRatio = Spring.DampingRatioLowBouncy,
+                                    stiffness = Spring.StiffnessMediumLow
                                 )
-                            )
+                            ) + fadeOut(animationSpec = tween(200)),
+                            modifier = Modifier.graphicsLayer(clip = false)
                         ) {
-                            Surface(
-                                onClick = {
-                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                    if (isMainConfigChanged) {
-                                        viewModel.restartProxy()
-                                    } else if (isXrayConfigChanged) {
-                                        viewModel.restartXray()
-                                    }
-                                },
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.tertiaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                            // padding(start = 16.dp, end = 16.dp) дает место для тени и заменяет внешний паддинг.
+                            // padding(bottom = 12.dp) заменяет spacedBy.
+                            Box(
                                 modifier = Modifier
-                                    .size(56.dp)
-                                    .shadow(elevation = 8.dp, shape = CircleShape),
-                                tonalElevation = 8.dp
+                                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 12.dp)
+                                    .graphicsLayer(clip = false)
                             ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.refresh_24px),
-                                        contentDescription = stringResource(R.string.btn_restart),
-                                        modifier = Modifier.size(24.dp)
-                                    )
+                                Surface(
+                                    onClick = {
+                                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                        if (isMainConfigChanged) {
+                                            viewModel.restartProxy()
+                                        } else if (isXrayConfigChanged) {
+                                            viewModel.restartXray()
+                                        }
+                                    },
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .shadow(
+                                            elevation = 4.dp,
+                                            shape = CircleShape, 
+                                            clip = false
+                                        ),
+                                    shadowElevation = 0.dp,
+                                    tonalElevation = 8.dp
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.refresh_24px),
+                                            contentDescription = stringResource(R.string.btn_restart),
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
 
                         ProxyToggleButton(
                             viewModel = viewModel,
-                            size = 72.dp,
+                            size = 86.dp,
+                            shape = RoundedCornerShape(20.dp),
                             onClick = { triggerProxyAction() },
                             isFloat = true,
                             isVisible = showFab,
-                            statusAlignment = statusAlignment
+                            statusAlignment = statusAlignment,
+                            modifier = Modifier
+                                .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+                                .graphicsLayer(clip = false)
                         )
                     }
                 }

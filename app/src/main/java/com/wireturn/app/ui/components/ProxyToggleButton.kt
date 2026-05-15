@@ -39,7 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -61,6 +61,7 @@ fun ProxyToggleButton(
     viewModel: MainViewModel,
     modifier: Modifier = Modifier,
     size: Dp = 160.dp,
+    shape: androidx.compose.ui.graphics.Shape = CircleShape,
     isFloat: Boolean = false,
     isVisible: Boolean = true,
     statusAlignment: Alignment.Horizontal = Alignment.End,
@@ -162,7 +163,9 @@ fun ProxyToggleButton(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Bottom,
-            modifier = modifier.width(size) // Фиксируем ширину по кнопке
+            modifier = modifier
+                .width(size) // Фиксируем ширину по кнопке
+                .graphicsLayer(clip = false)
         ) {
             val targetBias = if (statusAlignment == Alignment.Start) -1f else 1f
             val animatedBias by animateFloatAsState(
@@ -175,11 +178,13 @@ fun ProxyToggleButton(
                 modifier = Modifier
                     .fillMaxWidth()
                     .wrapContentSize(unbounded = true, align = BiasAlignment(animatedBias, 0f))
+                    .graphicsLayer(clip = false)
             ) {
                 androidx.compose.animation.AnimatedVisibility(
                     visible = showTooltip && isVisible,
                     enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
-                    exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom)
+                    exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom),
+                    modifier = Modifier.graphicsLayer(clip = false)
                 ) {
                     Surface(
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -187,12 +192,12 @@ fun ProxyToggleButton(
                         modifier = Modifier
                             .padding(bottom = 8.dp)
                             .shadow(
-                                elevation = 8.dp, // Увеличено для лучшей читаемости
+                                elevation = 4.dp, // Увеличено для лучшей читаемости
                                 shape = CircleShape,
-                                ambientColor = Color.Black.copy(alpha = 0.3f),
-                                spotColor = Color.Black.copy(alpha = 0.2f)
+                                clip = false
                             ),
-                        tonalElevation = 12.dp // Больше акцента
+                        shadowElevation = 0.dp,
+                        tonalElevation = 8.dp // Больше акцента
                     ) {
                         VerticalAnimatedText(
                             text = if (showTooltip) statusText else lastActiveStatusText,
@@ -213,6 +218,7 @@ fun ProxyToggleButton(
                 wasActiveBeforeRestart = wasActiveBeforeRestart,
                 isLocked = autoLaunchSettings.enabled,
                 size = size,
+                shape = shape,
                 onClick = onClick
             )
         }
@@ -230,6 +236,7 @@ fun ProxyToggleButton(
                 wasActiveBeforeRestart = wasActiveBeforeRestart,
                 isLocked = autoLaunchSettings.enabled,
                 size = size,
+                shape = shape,
                 onClick = onClick
             )
 
@@ -254,6 +261,7 @@ fun ProxyToggleButton(
     wasActiveBeforeRestart: Boolean = false,
     isLocked: Boolean = false,
     size: Dp = 160.dp,
+    shape: androidx.compose.ui.graphics.Shape = CircleShape,
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -347,12 +355,10 @@ fun ProxyToggleButton(
                 .scale(scale)
                 .shadow(
                     elevation = elevation,
-                    shape = CircleShape,
-                    ambientColor = Color.Black.copy(alpha = 0.5f), // Более густая тень
-                    spotColor = Color.Black.copy(alpha = 0.25f)
+                    shape = shape
                 )
-                .clip(CircleShape),
-            shape = CircleShape,
+                .clip(shape),
+            shape = shape,
             color = containerColor,
             shadowElevation = 0.dp,
             tonalElevation = elevation * 0.6f // Добавляем тональный высветляющий эффект
