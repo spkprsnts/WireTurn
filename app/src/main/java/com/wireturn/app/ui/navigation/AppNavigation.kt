@@ -389,42 +389,6 @@ fun AppNavigation(
                 }
             }
 
-            // Навигационная панель как оверлей с анимацией по гайдлайнам M3
-            AnimatedVisibility(
-                visible = showBottomBar,
-                enter = slideInVertically(
-                    initialOffsetY = { it }, 
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    )
-                ),
-                exit = slideOutVertically(
-                    targetOffsetY = { it },
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    )
-                ),
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .graphicsLayer { translationY = bottomBarOffset }
-            ) {
-                AppNavigationBar(
-                    currentRoute = currentRoute,
-                    modifier = Modifier.onGloballyPositioned { 
-                        viewModel.setBottomBarHeight(it.size.height.toFloat()) 
-                    },
-                    onNavigate = { route ->
-                        navController.navigate(route) {
-                            popUpTo(Routes.HOME) { saveState = true; inclusive = false }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
-                )
-            }
-
             // Плавающая кнопка (FAB) которая просто выкатывается справа
             val showFloatingActionButton by viewModel.showFloatingActionButton.collectAsStateWithLifecycle()
             val showFab = !isKeyboardVisible && currentRoute != null && 
@@ -508,7 +472,7 @@ fun AppNavigation(
                             // padding(bottom = 12.dp) заменяет spacedBy.
                             Box(
                                 modifier = Modifier
-                                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 12.dp)
+                                    .padding(start = 16.dp, end = 12.dp, top = 8.dp, bottom = 12.dp)
                                     .graphicsLayer(clip = false)
                             ) {
                                 Surface(
@@ -553,11 +517,47 @@ fun AppNavigation(
                             isVisible = showFab,
                             statusAlignment = statusAlignment,
                             modifier = Modifier
-                                .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+                                .padding(start = 16.dp, end = 12.dp, bottom = 12.dp)
                                 .graphicsLayer(clip = false)
                         )
                     }
                 }
+            }
+
+            // Навигационная панель как оверлей с анимацией по гайдлайнам M3
+            AnimatedVisibility(
+                visible = showBottomBar,
+                enter = slideInVertically(
+                    initialOffsetY = { it },
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    )
+                ),
+                exit = slideOutVertically(
+                    targetOffsetY = { it },
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    )
+                ),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .graphicsLayer { translationY = bottomBarOffset }
+            ) {
+                AppNavigationBar(
+                    currentRoute = currentRoute,
+                    modifier = Modifier.onGloballyPositioned {
+                        viewModel.setBottomBarHeight(it.size.height.toFloat())
+                    },
+                    onNavigate = { route ->
+                        navController.navigate(route) {
+                            popUpTo(Routes.HOME) { saveState = true; inclusive = false }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                )
             }
         }
     }
