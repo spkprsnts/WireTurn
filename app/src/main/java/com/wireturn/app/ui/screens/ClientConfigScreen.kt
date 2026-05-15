@@ -47,7 +47,9 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.MediumTopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -60,6 +62,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
@@ -215,11 +218,21 @@ fun ClientConfigScreen(
     }
 
     val isDark = com.wireturn.app.ui.theme.LocalIsDark.current
-    val screenBackgroundColor = if (isDark) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerLow
     val blockContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
 
+    val initialOffset = with(LocalDensity.current) { -48.dp.toPx() }
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
+        remember {
+            androidx.compose.material3.TopAppBarState(
+                initialHeightOffsetLimit = initialOffset,
+                initialHeightOffset = initialOffset,
+                initialContentOffset = 0f
+            )
+        }
+    )
+
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         snackbarHost = {
             SnackbarHost(
                 hostState = snackbarHostState,
@@ -228,8 +241,21 @@ fun ClientConfigScreen(
             )
         },
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.client_title)) },
+            MediumTopAppBar(
+                title = {
+                    val collapsedFraction = scrollBehavior.state.collapsedFraction
+                    Text(
+                        text = stringResource(R.string.client_title),
+                        modifier = Modifier.padding(
+                            bottom = 24.dp * (1f - collapsedFraction)
+                        )
+                    )
+                },
+                scrollBehavior = scrollBehavior,
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent
+                ),
                 actions = {
                     if (!isRawMode) {
                         IconButton(onClick = { showQrScanner.value = true }) {
@@ -320,8 +346,7 @@ fun ClientConfigScreen(
                 }
             )
         },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        containerColor = screenBackgroundColor
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { padding ->
         Column(
             modifier = Modifier
@@ -338,11 +363,9 @@ fun ClientConfigScreen(
                     onSettle = { viewModel.settleBottomBar(it) }
                 )
                 .verticalScroll(configScrollState)
-                .padding(bottom = 76.dp),
+                .padding(bottom = 76.dp), //156
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            Spacer(Modifier.height(8.dp))
-
             // 1. Конфигурация режима и способа подключения
             SettingsGroup(title = stringResource(R.string.connection_title)) {
                 // Переключатель Raw Mode

@@ -115,24 +115,34 @@ fun WireturnTheme(
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            val baseScheme = if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            baseScheme.copy(
+                background = if (darkTheme) baseScheme.surface else baseScheme.surfaceContainerLow,
+                surface = if (darkTheme) baseScheme.surface else baseScheme.surface
+            )
         }
-        darkTheme -> darkScheme
-        else -> lightScheme
+        darkTheme -> darkScheme.copy(
+            background = surfaceDark,
+            surface = surfaceDark
+        )
+        else -> lightScheme.copy(
+            background = surfaceContainerLowLight,
+            surface = surfaceLight
+        )
     }
 
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            
-            // Комбинированный подход для API 29-34: принудительно убираем любые системные 
-            // слои и устанавливаем полную прозрачность, чтобы фон Compose был виден под кнопками.
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 @Suppress("DEPRECATION")
                 window.navigationBarColor = android.graphics.Color.TRANSPARENT
                 @Suppress("DEPRECATION")
                 window.isNavigationBarContrastEnforced = false
+                @Suppress("DEPRECATION")
+                window.isStatusBarContrastEnforced = false
             }
 
             val controller = WindowCompat.getInsetsController(window, view)

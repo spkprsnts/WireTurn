@@ -41,7 +41,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.MediumTopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -54,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -111,7 +114,6 @@ fun XrayConfigScreen(
     val xrayConfigSnapshot by com.wireturn.app.XrayServiceState.xrayConfigSnapshot.collectAsStateWithLifecycle()
 
     val isDark = com.wireturn.app.ui.theme.LocalIsDark.current
-    val screenBackgroundColor = if (isDark) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerLow
     val blockContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
 
     var xrayConfiguration by remember(xrayConfig) { mutableStateOf(xrayConfig.xrayConfiguration) }
@@ -221,8 +223,19 @@ fun XrayConfigScreen(
     val isSocksValid = remember(socksBindAddress) { ValidatorUtils.isValidHostPort(socksBindAddress) }
     val isHttpValid = remember(httpBindAddress) { httpBindAddress.isBlank() || ValidatorUtils.isValidHostPort(httpBindAddress) }
 
+    val initialOffset = with(LocalDensity.current) { -48.dp.toPx() }
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
+        remember {
+            androidx.compose.material3.TopAppBarState(
+                initialHeightOffsetLimit = initialOffset,
+                initialHeightOffset = initialOffset,
+                initialContentOffset = 0f
+            )
+        }
+    )
+
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         snackbarHost = {
             SnackbarHost(
                 hostState = snackbarHostState,
@@ -231,8 +244,21 @@ fun XrayConfigScreen(
             )
         },
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.xray_title)) },
+            MediumTopAppBar(
+                title = {
+                    val collapsedFraction = scrollBehavior.state.collapsedFraction
+                    Text(
+                        text = stringResource(R.string.xray_title),
+                        modifier = Modifier.padding(
+                            bottom = 24.dp * (1f - collapsedFraction)
+                        )
+                    )
+                },
+                scrollBehavior = scrollBehavior,
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent
+                ),
                 actions = {
                     IconButton(
                         onClick = { showUniversalQrScanner.value = true }
@@ -317,8 +343,7 @@ fun XrayConfigScreen(
                 }
             )
         },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        containerColor = screenBackgroundColor
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { padding ->
         Column(
             modifier = Modifier
@@ -338,8 +363,6 @@ fun XrayConfigScreen(
                 .padding(bottom = 76.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            Spacer(Modifier.height(8.dp))
-
             // 1. Настройки прокси
             SettingsGroup(title = stringResource(R.string.xray_proxy_settings)) {
                 SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {

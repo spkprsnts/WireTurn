@@ -16,10 +16,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
@@ -27,12 +29,17 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.MediumTopAppBar
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,10 +51,15 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -115,6 +127,17 @@ fun SettingsScreen(
         }
     }
 
+    val initialOffset = with(LocalDensity.current) { -48.dp.toPx() }
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
+        remember {
+            androidx.compose.material3.TopAppBarState(
+                initialHeightOffsetLimit = initialOffset,
+                initialHeightOffset = initialOffset,
+                initialContentOffset = 0f
+            )
+        }
+    )
+
     val dash = stringResource(R.string.dash)
     val appVersion = remember {
         try {
@@ -126,14 +149,40 @@ fun SettingsScreen(
     }
 
     val isDark = com.wireturn.app.ui.theme.LocalIsDark.current
-    val screenBackgroundColor = if (isDark) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerLow
     val blockContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
 
+    val showBottomSheet = rememberSaveable { mutableStateOf(false) }
+    val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
     Scaffold(
-        modifier = modifier,
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.app_settings_title)) }) },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        containerColor = screenBackgroundColor
+        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        topBar = {
+            MediumTopAppBar(
+                title = {
+                    val collapsedFraction = scrollBehavior.state.collapsedFraction
+                    Text(
+                        text = stringResource(R.string.app_settings_title),
+                        modifier = Modifier.padding(
+                            bottom = 24.dp * (1f - collapsedFraction)
+                        )
+                    )
+                },
+                scrollBehavior = scrollBehavior,
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent
+                ),
+                actions = {
+                    IconButton(onClick = {
+                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                        showBottomSheet.value = true
+                    }) {
+                        Icon(painterResource(R.drawable.info_24px), contentDescription = stringResource(R.string.info_desc))
+                    }
+                }
+            )
+        },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { padding ->
         Column(
             modifier = Modifier
@@ -153,8 +202,6 @@ fun SettingsScreen(
                 .padding(bottom = 76.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            Spacer(Modifier.height(8.dp))
-
             // 1. Оформление
             val themeModes = remember(supportsSystemTheme) {
                 if (supportsSystemTheme) ThemeMode.entries else ThemeMode.entries.filter { it != ThemeMode.SYSTEM }
@@ -582,5 +629,209 @@ fun SettingsScreen(
                 TextButton(onClick = { showResetDialog.value = false }) { Text(stringResource(R.string.cancel)) }
             }
         )
+    }
+
+    if (showBottomSheet.value) {
+        val sheetColor = MaterialTheme.colorScheme.surfaceContainer
+
+        ModalBottomSheet(
+            onDismissRequest = {
+                showBottomSheet.value = false
+            },
+            sheetState = bottomSheetState,
+            containerColor = sheetColor,
+            dragHandle = {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                ) {
+                    androidx.compose.material3.BottomSheetDefaults.DragHandle()
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 24.dp, end = 24.dp, bottom = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(R.string.repo_links),
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                    }
+                }
+            }
+        ) {
+            RepoLinksContent(
+                containerColor = sheetColor
+            )
+        }
+    }
+}
+
+// --- Repo Links Sheet Content ---
+@Composable
+private fun RepoLinksContent(
+    containerColor: Color
+) {
+    // --- State & Data ---
+    val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
+
+    val smartDismissNestedScroll = remember {
+        object : NestedScrollConnection {
+            private var hasScrolledDownInGesture = false
+
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                if (source == NestedScrollSource.UserInput) {
+                    if (consumed.y > 0) {
+                        hasScrolledDownInGesture = true
+                    }
+                    if (available.y > 0 && hasScrolledDownInGesture) {
+                        return available
+                    }
+                }
+                return Offset.Zero
+            }
+
+            override suspend fun onPostFling(consumed: androidx.compose.ui.unit.Velocity, available: androidx.compose.ui.unit.Velocity): androidx.compose.ui.unit.Velocity {
+                hasScrolledDownInGesture = false
+                return super.onPostFling(consumed, available)
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+    ) {
+        LazyColumn(modifier = Modifier.nestedScroll(smartDismissNestedScroll)) {
+            item {
+                RepoLinkItem(
+                    title = stringResource(R.string.android_client),
+                    subtitle = "spkprsnts/WireTurn",
+                    url = "https://github.com/spkprsnts/WireTurn",
+                    containerColor = containerColor,
+                    onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
+                    onOpen = { uriHandler.openUri(it) }
+                )
+            }
+
+            item {
+                RepoLinkItem(
+                    title = stringResource(R.string.android_client_original),
+                    subtitle = "samosvalishe/turn-proxy-android",
+                    url = "https://github.com/samosvalishe/turn-proxy-android",
+                    containerColor = containerColor,
+                    onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
+                    onOpen = { uriHandler.openUri(it) }
+                )
+            }
+
+            item {
+                RepoLinkItem(
+                    title = stringResource(R.string.turnable_core),
+                    subtitle = "TheAirBlow/Turnable",
+                    url = "https://github.com/TheAirBlow/Turnable",
+                    containerColor = containerColor,
+                    onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
+                    onOpen = { uriHandler.openUri(it) }
+                )
+            }
+
+            item {
+                RepoLinkItem(
+                    title = stringResource(R.string.olcrtc_core),
+                    subtitle = "openlibrecommunity/olcrtc",
+                    url = "https://github.com/openlibrecommunity/olcrtc",
+                    containerColor = containerColor,
+                    onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
+                    onOpen = { uriHandler.openUri(it) }
+                )
+            }
+
+            item {
+                RepoLinkItem(
+                    title = stringResource(R.string.xray_core_name),
+                    subtitle = "spkprsnts/vless-client",
+                    url = "https://github.com/spkprsnts/vless-client",
+                    containerColor = containerColor,
+                    onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
+                    onOpen = { uriHandler.openUri(it) }
+                )
+            }
+
+            item {
+                RepoLinkItem(
+                    title = stringResource(R.string.xray_core_original),
+                    subtitle = "XTLS/Xray-core",
+                    url = "https://github.com/XTLS/Xray-core",
+                    containerColor = containerColor,
+                    onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
+                    onOpen = { uriHandler.openUri(it) }
+                )
+            }
+
+            item {
+                RepoLinkItem(
+                    title = stringResource(R.string.hev_socks5_tunnel),
+                    subtitle = "heiher/hev-socks5-tunnel",
+                    url = "https://github.com/heiher/hev-socks5-tunnel",
+                    containerColor = containerColor,
+                    onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
+                    onOpen = { uriHandler.openUri(it) }
+                )
+            }
+
+            item { Spacer(Modifier.height(16.dp)) }
+        }
+    }
+}
+
+// --- Repo Link Item Component ---
+@Composable
+private fun RepoLinkItem(
+    title: String,
+    subtitle: String,
+    url: String,
+    containerColor: Color = MaterialTheme.colorScheme.surface,
+    onHaptic: () -> Unit,
+    onOpen: (String) -> Unit
+) {
+    Surface(
+        color = containerColor,
+        onClick = {
+            onHaptic()
+            onOpen(url)
+        },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
+            Icon(
+                painter = painterResource(R.drawable.open_in_new_24px),
+                contentDescription = stringResource(R.string.btn_open),
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
     }
 }
