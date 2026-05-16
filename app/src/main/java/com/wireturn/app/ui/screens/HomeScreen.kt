@@ -340,24 +340,7 @@ fun HomeScreen(
             ),
         topBar = {
             TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_notification_small),
-                            contentDescription = null,
-                            modifier = Modifier.size(28.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(Modifier.width(10.dp))
-                        Text(
-                            text = stringResource(R.string.turn_proxy_title),
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                },
+                title = { Text(text = stringResource(R.string.turn_proxy_title)) },
                 scrollBehavior = if (canScroll) scrollBehavior else null,
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent,
