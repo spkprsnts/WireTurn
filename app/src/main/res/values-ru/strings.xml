@@ -153,7 +153,6 @@
     <string name="kernel_date_format">Изменён: %1$s</string>
     <string name="from_apk">Из APK</string>
     <string name="btn_load">Загрузить</string>
-    <string name="finish_setup">Завершить настройку</string>
     <string name="local_port_help_text">Это сетевой адрес и порт, на которых приложение запустит локальную точку входа для туннеля.</string>
     <string name="local_port_help_secondary">К этому адресу должен подключаться встроенный Xray или сторонние VPN-клиенты (WireGuard, v2RayTun и др.), чтобы трафик шел через созданный туннель.</string>
     <string name="olcrtc_socks_help_text">Ядро olcRTC не использует традиционные VPN-протоколы. Оно запускает локальный SOCKS5-прокси, который служит точкой входа для трафика.</string>

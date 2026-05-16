@@ -188,7 +188,6 @@
     <string name="kernel_date_format">Modified: %1$s</string>
     <string name="from_apk">From APK</string>
     <string name="btn_load">Load</string>
-    <string name="finish_setup">Finish setup</string>
     <string name="local_port_help_text">This is the network address and port where the app will start a local tunnel entry point.</string>
     <string name="local_port_help_secondary">The built-in Xray or third-party VPN clients (WireGuard, v2RayTun, etc.) must connect to this address to route traffic through the created tunnel.</string>
     <string name="olcrtc_socks_help_text">The olcRTC core does not use traditional VPN protocols. Instead, it starts a local SOCKS5 proxy that serves as an entry point for traffic.</string>
