@@ -78,9 +78,9 @@ import android.content.ClipData
 import android.net.VpnService
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
@@ -339,8 +339,25 @@ fun HomeScreen(
                 if (canScroll) Modifier.nestedScroll(scrollBehavior.nestedScrollConnection) else Modifier
             ),
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.turn_proxy_title)) },
+            TopAppBar(
+                title = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_notification_small),
+                            contentDescription = null,
+                            modifier = Modifier.size(28.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            text = stringResource(R.string.turn_proxy_title),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                },
                 scrollBehavior = if (canScroll) scrollBehavior else null,
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent,
