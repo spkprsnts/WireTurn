@@ -93,7 +93,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.Dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -227,8 +226,6 @@ fun HomeScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val homeScrollState = rememberScrollState()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    val canScroll = homeScrollState.maxValue > 0
 
     // --- Launchers ---
     val batteryOptLauncher = rememberLauncherForActivityResult(
@@ -333,15 +330,10 @@ fun HomeScreen(
 
     // --- UI Layout ---
     Scaffold(
-        modifier = modifier
-            .fillMaxSize()
-            .then(
-                if (canScroll) Modifier.nestedScroll(scrollBehavior.nestedScrollConnection) else Modifier
-            ),
+        modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
                 title = { Text(text = stringResource(R.string.turn_proxy_title)) },
-                scrollBehavior = if (canScroll) scrollBehavior else null,
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent,
                     scrolledContainerColor = Color.Transparent
