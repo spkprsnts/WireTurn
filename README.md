@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.webp" width="192" alt="WireTurn Logo" />
+</p>
+
 # WireTurn — Android WebRTC Tunnel
 
 Android-клиент для [Turnable](https://github.com/TheAirBlow/Turnable) и [olcRTC](https://github.com/openlibrecommunity/olcrtc) — туннелирование трафика через WebRTC-транспорт.
