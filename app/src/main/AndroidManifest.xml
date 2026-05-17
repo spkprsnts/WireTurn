@@ -17,9 +17,10 @@
         android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
         tools:ignore="BatteryLife" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"
+        tools:ignore="RequestInstallPackagesPolicy" />
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
-        tools:ignore="QueryAllPackagesPermission" />
+        tools:ignore="PackageVisibilityPolicy,QueryAllPackagesPermission" />
 
     <application
         android:allowBackup="true"
@@ -73,7 +74,8 @@
             android:exported="false"
             android:permission="android.permission.BIND_VPN_SERVICE"
             android:foregroundServiceType="specialUse"
-            tools:targetApi="34">
+            tools:targetApi="34"
+            tools:ignore="VpnServicePolicy">
             <intent-filter>
                 <action android:name="android.net.VpnService" />
             </intent-filter>
@@ -108,7 +110,8 @@
 
         <receiver
             android:name=".ProxyReceiver"
-            android:exported="true">
+            android:exported="true"
+            tools:ignore="ExportedReceiver">
             <intent-filter>
                 <action android:name="${applicationId}.START_PROXY" />
                 <action android:name="${applicationId}.STOP_PROXY" />
