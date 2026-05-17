@@ -459,7 +459,7 @@ fun HomeScreen(
                                             contentPadding = PaddingValues(horizontal = 12.dp),
                                             modifier = Modifier.height(32.dp)
                                         ) {
-                                            Icon(painterResource(R.drawable.power_24px), null, Modifier.size(16.dp))
+                                            Icon(painterResource(R.drawable.battery_android_frame_5_24px), null, Modifier.size(16.dp))
                                             Spacer(Modifier.width(6.dp))
                                             Text(stringResource(R.string.permission_battery), style = MaterialTheme.typography.labelMedium)
                                         }

@@ -378,7 +378,7 @@ fun ProxyToggleButton(
                         }
 
                         "active" -> {
-                            val icon = if (xrayState == XrayState.DirectRoute) R.drawable.ethernet_24px else R.drawable.check_circle_24px
+                            val icon = if (xrayState == XrayState.DirectRoute) R.drawable.ethernet_24px else R.drawable.check_24px
                             Icon(
                                 painterResource(icon),
                                 stringResource(R.string.proxy_active_stop),

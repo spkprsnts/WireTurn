@@ -120,7 +120,7 @@
             android:name=".ProxyTileService"
             android:exported="true"
             android:label="${appName}"
-            android:icon="@drawable/ic_notification_small"
+            android:icon="@drawable/ic_launcher_small"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
