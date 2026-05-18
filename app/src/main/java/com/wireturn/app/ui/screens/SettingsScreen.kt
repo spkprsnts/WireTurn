@@ -68,7 +68,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
+import com.wireturn.app.ProxyServiceState
+import com.wireturn.app.XrayServiceState
 import com.wireturn.app.data.ThemeMode
+import com.wireturn.app.data.ClientConfig
+import com.wireturn.app.data.XrayConfig
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.LabeledButtonGroup
 import com.wireturn.app.ui.SettingsGroup
@@ -97,6 +101,10 @@ fun SettingsScreen(
     val allowUnstableUpdates by viewModel.allowUnstableUpdates.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
     val updateProgress by viewModel.updateProgress.collectAsStateWithLifecycle()
+
+    val clientSnapshot by ProxyServiceState.clientConfigSnapshot.collectAsStateWithLifecycle()
+    val xraySnapshot by XrayServiceState.xrayConfigSnapshot.collectAsStateWithLifecycle()
+
     val showResetDialog = rememberSaveable { mutableStateOf(false) }
     val showListenHelp = remember { mutableStateOf(false) }
     val showSocksHelp = remember { mutableStateOf(false) }
@@ -236,9 +244,10 @@ fun SettingsScreen(
                         label = stringResource(R.string.local_listen_address),
                         value = listenAddr.redact(privacyMode),
                         onValueChange = { listenAddr = it },
-                        placeholder = com.wireturn.app.data.ClientConfig.DEFAULT_LISTEN_ADDR,
+                        placeholder = ClientConfig.DEFAULT_LISTEN_ADDR,
                         isError = !ValidatorUtils.isValidHostPort(listenAddr),
                         readOnly = privacyMode,
+                        isModified = clientSnapshot?.let { it.listenAddr != listenAddr } ?: false,
                         onHelpClick = { showListenHelp.value = true }
                     )
                 }
@@ -275,6 +284,7 @@ fun SettingsScreen(
                         placeholder = "127.0.0.1:9001",
                         isError = olSocks.isNotEmpty() && !ValidatorUtils.isValidHostPort(olSocks),
                         readOnly = privacyMode,
+                        isModified = clientSnapshot?.let { it.socksAddr != olSocks } ?: false,
                         onHelpClick = { showSocksHelp.value = true }
                     )
                 }
@@ -295,7 +305,8 @@ fun SettingsScreen(
                         label = stringResource(R.string.xray_proxy_auth),
                         supportingText = stringResource(R.string.xray_proxy_auth_desc),
                         checked = olAuth,
-                        onCheckedChange = { olAuth = it }
+                        onCheckedChange = { olAuth = it },
+                        isModified = clientSnapshot?.let { it.isSocksAuthEnabled != olAuth } ?: false
                     )
                 }
                 
@@ -307,7 +318,8 @@ fun SettingsScreen(
                                 value = olUser.redact(privacyMode),
                                 onValueChange = { olUser = it },
                                 placeholder = "admin",
-                                readOnly = privacyMode
+                                readOnly = privacyMode,
+                                isModified = clientSnapshot?.let { it.socksUser != olUser } ?: false
                             )
                         }
                         SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
@@ -317,6 +329,7 @@ fun SettingsScreen(
                                 onValueChange = { olPass = it },
                                 placeholder = "password",
                                 readOnly = privacyMode,
+                                isModified = clientSnapshot?.let { it.socksPass != olPass } ?: false,
                                 trailingIcon = {
                                     IconButton(onClick = { olPassVisible = !olPassVisible }) {
                                         Icon(
@@ -356,9 +369,10 @@ fun SettingsScreen(
                         label = stringResource(R.string.socks5),
                         value = xraySocks.redact(privacyMode),
                         onValueChange = { xraySocks = it },
-                        placeholder = com.wireturn.app.data.XrayConfig.DEFAULT_SOCKS_BIND_ADDRESS,
+                        placeholder = XrayConfig.DEFAULT_SOCKS_BIND_ADDRESS,
                         isError = !ValidatorUtils.isValidHostPort(xraySocks),
-                        readOnly = privacyMode
+                        readOnly = privacyMode,
+                        isModified = xraySnapshot?.let { it.socksBindAddress != xraySocks } ?: false
                     )
                 }
                 
@@ -369,7 +383,8 @@ fun SettingsScreen(
                         onValueChange = { xrayHttp = it },
                         placeholder = "127.0.0.1:1081",
                         isError = xrayHttp.isNotEmpty() && !ValidatorUtils.isValidHostPort(xrayHttp),
-                        readOnly = privacyMode
+                        readOnly = privacyMode,
+                        isModified = xraySnapshot?.let { it.httpBindAddress != xrayHttp } ?: false
                     )
                 }
 
@@ -399,7 +414,8 @@ fun SettingsScreen(
                         label = stringResource(R.string.xray_proxy_auth),
                         supportingText = stringResource(R.string.xray_proxy_auth_desc),
                         checked = xrayAuth,
-                        onCheckedChange = { xrayAuth = it }
+                        onCheckedChange = { xrayAuth = it },
+                        isModified = xraySnapshot?.let { it.isProxyAuthEnabled != xrayAuth } ?: false
                     )
                 }
                 
@@ -411,7 +427,8 @@ fun SettingsScreen(
                                 value = xrayUser.redact(privacyMode),
                                 onValueChange = { xrayUser = it },
                                 placeholder = "admin",
-                                readOnly = privacyMode
+                                readOnly = privacyMode,
+                                isModified = xraySnapshot?.let { it.proxyUser != xrayUser } ?: false
                             )
                         }
                         SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
@@ -421,6 +438,7 @@ fun SettingsScreen(
                                 onValueChange = { xrayPass = it },
                                 placeholder = "password",
                                 readOnly = privacyMode,
+                                isModified = xraySnapshot?.let { it.proxyPass != xrayPass } ?: false,
                                 trailingIcon = {
                                     IconButton(onClick = { xrayPassVisible = !xrayPassVisible }) {
                                         Icon(
