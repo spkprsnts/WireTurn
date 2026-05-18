@@ -1,4 +1,4 @@
-package com.wireturn.app
+package com.wireturn.app.ui.activities
 
 import android.content.Intent
 import android.os.Bundle
@@ -17,6 +17,8 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.wireturn.app.ProxyTileService
+import com.wireturn.app.NotificationHelper
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.navigation.AppNavigation
 import com.wireturn.app.ui.navigation.Routes
@@ -74,7 +76,7 @@ class MainActivity : AppCompatActivity() {
 
         HapticUtil.perform(this, HapticUtil.Pattern.LAUNCH)
         enableEdgeToEdge()
-        
+
         // Синхронизируем состояние плитки при запуске приложения
         ProxyTileService.requestUpdate(this)
 
@@ -122,4 +124,3 @@ class MainActivity : AppCompatActivity() {
         NotificationHelper.cancelCaptchaNotification(this)
     }
 }
-

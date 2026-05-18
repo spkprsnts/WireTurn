@@ -33,10 +33,11 @@
         android:networkSecurityConfig="@xml/network_security_config"
         android:localeConfig="@xml/locales_config"
         android:theme="@style/Theme.wireturn"
+        android:enableOnBackInvokedCallback="true"
         tools:targetApi="33">
 
         <activity
-            android:name=".MainActivity"
+            android:name=".ui.activities.MainActivity"
             android:exported="true"
             android:theme="@style/Theme.wireturn.Splash"
             android:windowSoftInputMode="adjustResize">
@@ -85,14 +86,20 @@
         </service>
 
         <activity
-            android:name=".CaptchaActivity"
+            android:name=".ui.activities.AppExceptionsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.wireturn"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".ui.activities.CaptchaActivity"
             android:theme="@style/Theme.AppCompat.Dialog"
             android:excludeFromRecents="true"
             android:launchMode="singleInstance"
             android:taskAffinity="" />
 
         <activity
-            android:name=".ProfileDialogActivity"
+            android:name=".ui.activities.ProfileDialogActivity"
             android:theme="@style/Theme.wireturn.Transparent"
             android:excludeFromRecents="true"
             android:launchMode="singleInstance"

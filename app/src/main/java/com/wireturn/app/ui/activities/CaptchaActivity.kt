@@ -1,4 +1,4 @@
-package com.wireturn.app
+package com.wireturn.app.ui.activities
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity

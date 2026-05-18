@@ -79,7 +79,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _onboardingDone = MutableStateFlow(false)
     val onboardingDone: StateFlow<Boolean> = _onboardingDone.asStateFlow()
 
-    private val _themeMode = MutableStateFlow(ThemeMode.DARK)
+    private val _themeMode = MutableStateFlow(ThemeMode.SYSTEM)
     val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
 
     private val _dynamicTheme = MutableStateFlow(true)
@@ -953,7 +953,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _wgConfig.value = WgConfig()
             _xrayConfig.value = XrayConfig()
             val intent = (context as? android.app.Activity)?.intent
-                ?: Intent(context, com.wireturn.app.MainActivity::class.java)
+                ?: Intent(context, com.wireturn.app.ui.activities.MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
             context.startActivity(intent)
         }

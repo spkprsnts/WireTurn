@@ -72,9 +72,10 @@ import androidx.navigation.navArgument
 import androidx.navigation.NavType
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.saveable.rememberSaveable
+import android.content.Intent
+import com.wireturn.app.ui.activities.AppExceptionsActivity
 import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.ui.HapticUtil
-import com.wireturn.app.ui.screens.AppExceptionsScreen
 import com.wireturn.app.ui.screens.CaptchaWebViewDialog
 import com.wireturn.app.ui.screens.ClientConfigScreen
 import com.wireturn.app.ui.screens.HomeScreen
@@ -97,7 +98,6 @@ object Routes {
     const val HOME = "home"
     const val APP_SETTINGS = "app_settings"
     const val LOGS = "logs"
-    const val APP_EXCLUSIONS = "app_exclusions"
 }
 
 // Нижнее меню видно только в основном потоке, не во время онбординга
@@ -353,7 +353,9 @@ fun AppNavigation(
                     HomeScreen(
                         modifier = Modifier.statusBarsPadding(),
                         viewModel = viewModel,
-                        onNavigateToExclusions = { navController.navigate(Routes.APP_EXCLUSIONS) },
+                        onNavigateToExclusions = { 
+                            context.startActivity(Intent(context, AppExceptionsActivity::class.java))
+                        },
                         onToggleProxy = { triggerProxyAction() },
                         onCheckMismatch = { target: Boolean, action: () -> Unit -> checkMismatch(target, action) }
                     )
@@ -380,13 +382,6 @@ fun AppNavigation(
                         viewModel = viewModel
                     )
                 }
-
-                composable(Routes.APP_EXCLUSIONS) {
-                    AppExceptionsScreen(
-                        viewModel = viewModel,
-                        onBack = { navController.popBackStack() }
-                    )
-                }
             }
 
             // Плавающая кнопка (FAB) которая просто выкатывается справа
@@ -394,7 +389,6 @@ fun AppNavigation(
             val showFab = !isKeyboardVisible && currentRoute != null && 
                 currentRoute != Routes.HOME && 
                 currentRoute != Routes.ONBOARDING &&
-                currentRoute != Routes.APP_EXCLUSIONS &&
                 showFloatingActionButton &&
                 isFabVisibleByScroll
 
