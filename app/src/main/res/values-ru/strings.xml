@@ -322,6 +322,9 @@
     <!-- Импорт через QR и расширенные параметры -->
     <string name="qr_import">QR-код</string>
     <string name="qr_scan_desc">Наведите камеру на QR-код конфигурации для импорта</string>
+    <string name="settings_group_turnable">Настройки Turnable</string>
+    <string name="settings_group_olcrtc">Настройки olcRTC</string>
+    <string name="settings_group_xray">Настройки Xray</string>
     <string name="xray_proxy_settings">Настройки прокси</string>
     <string name="xray_socks_desc">Адрес для SOCKS5 прокси</string>
     <string name="xray_http_desc">Адрес для HTTP прокси</string>

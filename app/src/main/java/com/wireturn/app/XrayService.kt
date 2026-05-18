@@ -12,7 +12,6 @@ import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.XrayConfig
-import com.wireturn.app.data.XraySettings
 import com.wireturn.app.data.GlobalVpnSettings
 import com.wireturn.app.data.VlessConfig
 import com.wireturn.app.data.WgConfig
@@ -64,7 +63,7 @@ class XrayService : Service() {
             combine(
                 listOf(
                     XrayServiceState.state,
-                    prefs.xraySettingsFlow,
+                    prefs.vpnEnabledFlow,
                     prefs.globalVpnSettingsFlow,
                     prefs.excludedAppsFlow,
                     XrayServiceState.xrayConfigSnapshot,
@@ -74,7 +73,7 @@ class XrayService : Service() {
                 @Suppress("UNCHECKED_CAST")
                 val state = args[0] as XrayState
                 @Suppress("UNCHECKED_CAST")
-                val xraySettings = args[1] as XraySettings
+                val vpnEnabled = args[1] as Boolean
                 @Suppress("UNCHECKED_CAST")
                 val globalVpn = args[2] as GlobalVpnSettings
                 @Suppress("UNCHECKED_CAST")
@@ -86,7 +85,7 @@ class XrayService : Service() {
 
                 DataBundle(
                     xrayState = state,
-                    vpnEnabled = xraySettings.xrayVpnMode,
+                    vpnEnabled = vpnEnabled,
                     bypassMode = globalVpn.bypassMode,
                     filteringEnabled = globalVpn.filteringEnabled,
                     excludedApps = excludedApps,
@@ -290,11 +289,10 @@ class XrayService : Service() {
             
             if (runningClientConfig.kernelVariant == KernelVariant.OLCRTC) {
                 cmdArgs.add("-local-socks5")
-                val o = runningClientConfig.olcrtcConfig
-                val socksAddr = if (o.isSocksAuthEnabled && o.socksUser.isNotBlank()) {
-                    "${o.socksUser}:${o.socksPass}@${o.socksHost}:${o.socksPort}"
+                val socksAddr = if (runningClientConfig.isSocksAuthEnabled && runningClientConfig.socksUser.isNotBlank()) {
+                    "${runningClientConfig.socksUser}:${runningClientConfig.socksPass}@${runningClientConfig.socksAddr}"
                 } else {
-                    "${o.socksHost}:${o.socksPort}"
+                    runningClientConfig.socksAddr
                 }
                 cmdArgs.add(socksAddr)
             } else {

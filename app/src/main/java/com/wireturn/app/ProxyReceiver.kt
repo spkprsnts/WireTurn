@@ -25,15 +25,13 @@ class ProxyReceiver : BroadcastReceiver() {
             "$pkg.START_VPN" -> {
                 val prefs = AppPreferences(context)
                 runBlocking {
-                    val settings = prefs.xraySettingsFlow.first()
-                    prefs.saveXraySettings(settings.copy(xrayVpnMode = true))
+                    prefs.setVpnEnabled(true)
                 }
             }
             "$pkg.STOP_VPN" -> {
                 val prefs = AppPreferences(context)
                 runBlocking {
-                    val settings = prefs.xraySettingsFlow.first()
-                    prefs.saveXraySettings(settings.copy(xrayVpnMode = false))
+                    prefs.setVpnEnabled(false)
                 }
             }
         }

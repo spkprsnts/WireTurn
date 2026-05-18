@@ -47,9 +47,8 @@ class HevVpnService : VpnService() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val prefs = AppPreferences(context)
-                val settings = prefs.xraySettingsFlow.first()
-                if (settings.xrayVpnMode) {
-                    prefs.saveXraySettings(settings.copy(xrayVpnMode = false))
+                if (prefs.vpnEnabledFlow.first()) {
+                    prefs.setVpnEnabled(false)
                 }
             } catch (_: Exception) {}
         }

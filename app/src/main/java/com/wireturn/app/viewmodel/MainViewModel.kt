@@ -18,43 +18,25 @@ import com.wireturn.app.R
 import com.wireturn.app.ProxyService
 import com.wireturn.app.XrayService
 import com.wireturn.app.ProxyTileService
-import com.wireturn.app.NotificationHelper
 import com.wireturn.app.ProxyServiceState
 import com.wireturn.app.ProxyStatus
 import com.wireturn.app.XrayServiceState
-import com.wireturn.app.data.AppPreferences
-import com.wireturn.app.data.ClientConfig
-import com.wireturn.app.data.GlobalVpnSettings
-import com.wireturn.app.data.Profile
-import com.wireturn.app.data.ThemeMode
-import com.wireturn.app.data.VlessConfig
-import com.wireturn.app.data.WgConfig
-import com.wireturn.app.data.XrayConfig
-import com.wireturn.app.data.XraySettings
+import com.wireturn.app.data.*
 import com.wireturn.app.domain.AppUpdater
 import com.wireturn.app.domain.LocalProxyManager
 import com.wireturn.app.domain.ProfileManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.FlowPreview
 import java.net.InetSocketAddress
 import java.net.Proxy
 import kotlin.system.measureTimeMillis
 
-@OptIn(FlowPreview::class)
+@OptIn(kotlinx.coroutines.FlowPreview::class)
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val prefs = AppPreferences(application)
@@ -136,19 +118,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _vlessLinkHistory = MutableStateFlow<List<String>>(emptyList())
     val vlessLinkHistory: StateFlow<List<String>> = _vlessLinkHistory.asStateFlow()
 
-    private val _autoLaunchSettings = MutableStateFlow(com.wireturn.app.data.AutoLaunchSettings())
-    val autoLaunchSettings: StateFlow<com.wireturn.app.data.AutoLaunchSettings> = _autoLaunchSettings.asStateFlow()
+    private val _autoLaunchSettings = MutableStateFlow(AutoLaunchSettings())
+    val autoLaunchSettings: StateFlow<AutoLaunchSettings> = _autoLaunchSettings.asStateFlow()
 
     private var autoLaunchJob: Job? = null
 
     val profiles: StateFlow<List<Profile>> = profileManager.profiles
     val currentProfileId: StateFlow<String> = profileManager.currentProfileId
 
-    // Architecture support
     val isArchitectureSupported: Boolean = Build.SUPPORTED_ABIS.any { it == "arm64-v8a" || it == "x86_64" }
     val deviceArchitecture: String = Build.SUPPORTED_ABIS.firstOrNull() ?: "unknown"
 
-    // Custom kernel
     private val _kernelError = MutableStateFlow<String?>(null)
     val kernelError: StateFlow<String?> = _kernelError.asStateFlow()
 
@@ -192,9 +172,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         
         val connectionChanged = clientSnap != null && (
                 client.kernelVariant != clientSnap.kernelVariant ||
-                client.localPort != clientSnap.localPort ||
-                client.olcrtcConfig.socksHost != clientSnap.olcrtcConfig.socksHost ||
-                client.olcrtcConfig.socksPort != clientSnap.olcrtcConfig.socksPort
+                client.listenAddr != clientSnap.listenAddr ||
+                client.olcrtcConfig.carrier != clientSnap.olcrtcConfig.carrier ||
+                client.olcrtcConfig.transport != clientSnap.olcrtcConfig.transport ||
+                client.socksAddr != clientSnap.socksAddr ||
+                client.isSocksAuthEnabled != clientSnap.isSocksAuthEnabled ||
+                client.socksUser != clientSnap.socksUser ||
+                client.socksPass != clientSnap.socksPass
         )
         
         baseChanged || connectionChanged
@@ -209,10 +193,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setBottomBarHeight(height: Float) {
         if (height > 0 && _bottomBarHeight.value != height) {
-            // Если панель была скрыта, корректируем её положение под новую высоту (например, при повороте)
-            if (_bottomBarOffset.value > height) {
-                _bottomBarOffset.value = height
-            }
+            if (_bottomBarOffset.value > height) _bottomBarOffset.value = height
         }
         _bottomBarHeight.value = height
     }
@@ -221,57 +202,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val height = _bottomBarHeight.value
         if (height <= 0f) return
         settleJob?.cancel()
-
         val adjustedDelta = delta / 3f
-        
         val currentOffset = _bottomBarOffset.value
-        if (adjustedDelta > 0) {
-            // Скролл вверх: панель выезжает
-            _bottomBarOffset.value = (currentOffset - adjustedDelta).coerceAtLeast(0f)
-        } else {
-            // Скролл вниз: панель скрывается
-            _bottomBarOffset.value = (currentOffset - adjustedDelta).coerceAtMost(height)
-        }
+        if (adjustedDelta > 0) _bottomBarOffset.value = (currentOffset - adjustedDelta).coerceAtLeast(0f)
+        else _bottomBarOffset.value = (currentOffset - adjustedDelta).coerceAtMost(height)
     }
 
     fun settleBottomBar(velocity: Float) {
         val height = _bottomBarHeight.value
         if (height <= 0f) return
         settleJob?.cancel()
-        
         val currentOffset = _bottomBarOffset.value
-        
-        // Логика "ленивого" скрытия и "оперативного" появления:
         val target = when {
-            velocity > 300f -> 0f              // Свайп вверх (положительная скорость) -> Показать сразу
-            velocity < -1500f -> height        // Только очень сильный свайп вниз прячет панель
-            
-            // Если палец отпущен:
-            // Чтобы спрятать панель, нужно чтобы она была уже почти скрыта (> 80%)
+            velocity > 300f -> 0f
+            velocity < -1500f -> height
             currentOffset > height * 0.8f -> height
-            // В остальных случаях — возвращаем (показываем)
             else -> 0f
         }
-
         if (currentOffset == target) return
-
         settleJob = viewModelScope.launch {
-            // Для появления используем более быструю анимацию
             val duration = if (target == 0f) 150L else 250L
             val startTime = System.currentTimeMillis()
-            
             while (true) {
                 val elapsed = System.currentTimeMillis() - startTime
                 if (elapsed >= duration) break
-                
                 val progress = elapsed.toFloat() / duration
-                // Более "упругая" анимация для появления
-                val easedProgress = if (target == 0f) {
-                    1f - (1f - progress) * (1f - progress) // Decelerate
-                } else {
-                    progress * progress // Accelerate
-                }
-                
+                val easedProgress = if (target == 0f) 1f - (1f - progress) * (1f - progress) else progress * progress
                 _bottomBarOffset.value = currentOffset + (target - currentOffset) * easedProgress
                 delay(16)
             }
@@ -294,94 +250,71 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         object Error : PingResult()
     }
 
-    data class TransferResult(
-        val rx: Long,
-        val tx: Long,
-        val rxSpeed: Long = 0,
-        val txSpeed: Long = 0
-    )
+    data class TransferResult(val rx: Long, val tx: Long, val rxSpeed: Long = 0, val txSpeed: Long = 0)
 
-    private var lastRx = 0L
-    private var lastTx = 0L
-    private var lastMetricsTime = 0L
+    private var lastRx = 0L; private var lastTx = 0L; private var lastMetricsTime = 0L
+
+    private val _vpnEnabled = MutableStateFlow(false)
+    val vpnEnabled: StateFlow<Boolean> = _vpnEnabled.asStateFlow()
+
+    private val _olcrtcSocksAddr = MutableStateFlow("")
+    val olcrtcSocksAddr: StateFlow<String> = _olcrtcSocksAddr.asStateFlow()
+    private val _olcrtcSocksAuthEnabled = MutableStateFlow(true)
+    val olcrtcSocksAuthEnabled: StateFlow<Boolean> = _olcrtcSocksAuthEnabled.asStateFlow()
+    private val _olcrtcSocksUser = MutableStateFlow("")
+    val olcrtcSocksUser: StateFlow<String> = _olcrtcSocksUser.asStateFlow()
+    private val _olcrtcSocksPass = MutableStateFlow("")
+    val olcrtcSocksPass: StateFlow<String> = _olcrtcSocksPass.asStateFlow()
 
     init {
         viewModelScope.launch {
-            val done = prefs.onboardingDoneFlow.first()
-            val theme = prefs.themeModeFlow.first()
-            val dynamic = prefs.dynamicThemeFlow.first()
-            val config = prefs.clientConfigFlow.first()
-            val batteryDismissed = prefs.batteryNotificationDismissedFlow.first()
-            val appsExclusionHintShown = prefs.appsExclusionHintShownFlow.first()
-            val allowUnstableUpdates = prefs.allowUnstableUpdatesFlow.first()
-            val waitForNetwork = prefs.waitForNetworkFlow.first()
-            val restartOnNetworkChange = prefs.restartOnNetworkChangeFlow.first()
-            val captchaStyleMod = prefs.captchaStyleModFlow.first()
-            val captchaForceTint = prefs.captchaForceTintFlow.first()
-            val showFloatingActionButton = prefs.showFloatingActionButtonFlow.first()
-            val appLanguage = prefs.appLanguageFlow.first()
-            val autoLaunchSettings = prefs.autoLaunchSettingsFlow.first()
+            _onboardingDone.value = prefs.onboardingDoneFlow.first()
+            _themeMode.value = prefs.themeModeFlow.first()
+            _dynamicTheme.value = prefs.dynamicThemeFlow.first()
+            _clientConfig.value = prefs.clientConfigFlow.first()
+            _xrayConfig.value = prefs.xrayConfigFlow.first()
+            _wgConfig.value = prefs.wgConfigFlow.first()
+            _vlessConfig.value = prefs.vlessConfigFlow.first()
+            _xraySettings.value = prefs.xraySettingsFlow.first()
+            _vpnEnabled.value = prefs.vpnEnabledFlow.first()
+            _batteryNotificationDismissed.value = prefs.batteryNotificationDismissedFlow.first()
+            _appsExclusionHintShown.value = prefs.appsExclusionHintShownFlow.first()
+            _allowUnstableUpdates.value = prefs.allowUnstableUpdatesFlow.first()
+            _waitForNetwork.value = prefs.waitForNetworkFlow.first()
+            _restartOnNetworkChange.value = prefs.restartOnNetworkChangeFlow.first()
+            _captchaStyleMod.value = prefs.captchaStyleModFlow.first()
+            _captchaForceTint.value = prefs.captchaForceTintFlow.first()
+            _showFloatingActionButton.value = prefs.showFloatingActionButtonFlow.first()
+            _appLanguage.value = prefs.appLanguageFlow.first()
+            _globalVpnSettings.value = prefs.globalVpnSettingsFlow.first()
+            _excludedApps.value = prefs.excludedAppsFlow.first()
+            _vlessLinkHistory.value = prefs.vlessLinkHistoryFlow.first()
+            _autoLaunchSettings.value = prefs.autoLaunchSettingsFlow.first()
 
-            val wgConfig = prefs.wgConfigFlow.first()
-            val xraySettings = prefs.xraySettingsFlow.first()
-            val globalVpnSettings = prefs.globalVpnSettingsFlow.first()
-            val xrayConfig = prefs.xrayConfigFlow.first()
-            val vlessConfig = prefs.vlessConfigFlow.first()
-            val excludedApps = prefs.excludedAppsFlow.first()
-
-            val vlessLinkHistory = prefs.vlessLinkHistoryFlow.first()
-
-            _onboardingDone.value = done
-            _themeMode.value = theme
-            _dynamicTheme.value = dynamic
-            _clientConfig.value = config
-            _batteryNotificationDismissed.value = batteryDismissed
-            _appsExclusionHintShown.value = appsExclusionHintShown
-            _allowUnstableUpdates.value = allowUnstableUpdates
-            _waitForNetwork.value = waitForNetwork
-            _restartOnNetworkChange.value = restartOnNetworkChange
-            _captchaStyleMod.value = captchaStyleMod
-            _captchaForceTint.value = captchaForceTint
-            _showFloatingActionButton.value = showFloatingActionButton
-            _appLanguage.value = appLanguage
-            _autoLaunchSettings.value = autoLaunchSettings
-            updateAutoLaunchJob(autoLaunchSettings)
-            applyLanguage(appLanguage)
-            _wgConfig.value = wgConfig
-            _xraySettings.value = xraySettings
-            _globalVpnSettings.value = globalVpnSettings
-            _xrayConfig.value = xrayConfig
-            _vlessConfig.value = vlessConfig
-            _excludedApps.value = excludedApps
-
-            _vlessLinkHistory.value = vlessLinkHistory
-
-            val currentProfiles = prefs.profilesFlow.first()
-            if (currentProfiles.isEmpty()) {
-                val defaultProfile = Profile(
-                    id = "default",
-                    name = getApplication<Application>().getString(R.string.profile_default_name),
-                    clientConfig = config,
-                    xraySettings = xraySettings,
-                    xrayConfig = xrayConfig,
-                    wgConfig = wgConfig,
-                    vlessConfig = vlessConfig
-                ).fillDefaults()
-                prefs.saveProfiles(listOf(defaultProfile))
-                prefs.setCurrentProfileId("default")
-            }
+            updateAutoLaunchJob(_autoLaunchSettings.value)
+            applyLanguage(_appLanguage.value)
 
             _isInitialized.value = true
 
-            viewModelScope.launch {
-                delay(2000)
-                appUpdater.checkForUpdate(silent = true, allowUnstable = _allowUnstableUpdates.value)
+            // Migration: if ACTIVE keys are empty but we have profiles, activate current
+            val currentProfiles = prefs.profilesFlow.first()
+            if (currentProfiles.isNotEmpty()) {
+                if (!prefs.hasActiveProfile()) {
+                    val currentId = currentProfileId.value
+                    val toActivate = currentProfiles.find { it.id == currentId } ?: currentProfiles.first()
+                    prefs.saveFullProfile(toActivate.id, toActivate)
+                }
             }
 
             launch { prefs.onboardingDoneFlow.collect { _onboardingDone.value = it } }
             launch { prefs.themeModeFlow.collect { _themeMode.value = it } }
+            launch { prefs.vpnEnabledFlow.collect { _vpnEnabled.value = it } }
             launch { prefs.dynamicThemeFlow.collect { _dynamicTheme.value = it } }
             launch { prefs.clientConfigFlow.collect { _clientConfig.value = it } }
+            launch { prefs.xrayConfigFlow.collect { _xrayConfig.value = it } }
+            launch { prefs.wgConfigFlow.collect { _wgConfig.value = it } }
+            launch { prefs.vlessConfigFlow.collect { _vlessConfig.value = it } }
+            launch { prefs.xraySettingsFlow.collect { _xraySettings.value = it } }
             launch { prefs.batteryNotificationDismissedFlow.collect { _batteryNotificationDismissed.value = it } }
             launch { prefs.appsExclusionHintShownFlow.collect { _appsExclusionHintShown.value = it } }
             launch { prefs.allowUnstableUpdatesFlow.collect { _allowUnstableUpdates.value = it } }
@@ -391,28 +324,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.captchaForceTintFlow.collect { _captchaForceTint.value = it } }
             launch { prefs.showFloatingActionButtonFlow.collect { _showFloatingActionButton.value = it } }
             launch { prefs.appLanguageFlow.collect { _appLanguage.value = it } }
-            launch { 
-                prefs.autoLaunchSettingsFlow.collect { settings ->
-                    _autoLaunchSettings.value = settings
-                    updateAutoLaunchJob(settings)
-                } 
-            }
-            launch {
-                prefs.allowUnstableUpdatesFlow
-                    .drop(1)
-                    .debounce(1000)
-                    .collect { allow ->
-                        appUpdater.checkForUpdate(silent = true, allowUnstable = allow)
-                    }
-            }
-            launch { prefs.wgConfigFlow.collect { _wgConfig.value = it } }
-            launch { prefs.xraySettingsFlow.collect { _xraySettings.value = it } }
-            launch { prefs.xrayConfigFlow.collect { _xrayConfig.value = it } }
-            launch { prefs.vlessConfigFlow.collect { _vlessConfig.value = it } }
+            launch { prefs.autoLaunchSettingsFlow.collect { _autoLaunchSettings.value = it; updateAutoLaunchJob(it) } }
             launch { prefs.globalVpnSettingsFlow.collect { _globalVpnSettings.value = it } }
             launch { prefs.excludedAppsFlow.collect { _excludedApps.value = it } }
-
             launch { prefs.vlessLinkHistoryFlow.collect { _vlessLinkHistory.value = it } }
+
+            launch { prefs.olcrtcSocksAddrFlow.collect { _olcrtcSocksAddr.value = it } }
+            launch { prefs.olcrtcSocksAuthEnabledFlow.collect { _olcrtcSocksAuthEnabled.value = it } }
+            launch { prefs.olcrtcSocksUserFlow.collect { _olcrtcSocksUser.value = it } }
+            launch { prefs.olcrtcSocksPassFlow.collect { _olcrtcSocksPass.value = it } }
         }
 
         viewModelScope.launch { proxyManager.observeProxyLifecycle() }
@@ -421,21 +341,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             delay(1500)
             XrayServiceState.state.collect { state ->
-                val isRunning = state == XrayState.Running || state == XrayState.DirectRoute
-                if (isRunning) {
+                if (state == XrayState.Running || state == XrayState.DirectRoute) {
                     checkProxyPing(delayFirst = true)
                     startMetricsPoller()
-                } else {
-                    stopMetricsPoller()
-                }
+                } else stopMetricsPoller()
             }
         }
         proxyManager.syncInitialState()
     }
 
-    fun setHomeScreenActive(active: Boolean) {
-        _isHomeScreenActive.value = active
-    }
+    fun setHomeScreenActive(active: Boolean) { _isHomeScreenActive.value = active }
 
     private fun startMetricsPoller() {
         metricsJob?.cancel()
@@ -444,13 +359,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (_isHomeScreenActive.value) {
                     val state = XrayServiceState.state.value
                     if (state == XrayState.Running || state == XrayState.DirectRoute) {
-                        val socketName = XrayServiceState.statsSocketName.value
-                        if (socketName != null) {
-                            updateMetrics(socketName)
-                        }
-                    } else {
-                        _proxyTransfer.value = null
-                    }
+                        XrayServiceState.statsSocketName.value?.let { updateMetrics(it) }
+                    } else _proxyTransfer.value = null
                 }
                 delay(1000)
             }
@@ -458,166 +368,97 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun stopMetricsPoller() {
-        metricsJob?.cancel()
-        metricsJob = null
-        _proxyTransfer.value = null
-        lastRx = 0L
-        lastTx = 0L
-        lastMetricsTime = 0L
+        metricsJob?.cancel(); metricsJob = null; _proxyTransfer.value = null
+        lastRx = 0L; lastTx = 0L; lastMetricsTime = 0L
     }
 
-    private suspend fun updateMetrics(socketName: String) {
-        withContext(Dispatchers.IO) {
-            try {
-                val socket = LocalSocket()
-                socket.connect(LocalSocketAddress(socketName, LocalSocketAddress.Namespace.ABSTRACT))
-                socket.outputStream.write("stats\n".toByteArray())
-                val content = socket.inputStream.bufferedReader().readLine() ?: ""
-                socket.close()
-
-                if (content.isBlank()) return@withContext
-
-                val json = com.google.gson.JsonParser.parseString(content).asJsonObject
-                val rx = json.get("rx_bytes")?.asLong ?: 0L
-                val tx = json.get("tx_bytes")?.asLong ?: 0L
-
-                val now = System.currentTimeMillis()
-                var rxSpeed = 0L
-                var txSpeed = 0L
-
-                if (lastMetricsTime in 1..<now) {
-                    val dt = (now - lastMetricsTime) / 1000.0
-                    if (dt > 0) {
-                        rxSpeed = ((rx - lastRx).coerceAtLeast(0) / dt).toLong()
-                        txSpeed = ((tx - lastTx).coerceAtLeast(0) / dt).toLong()
-                    }
+    private suspend fun updateMetrics(socketName: String) = withContext(Dispatchers.IO) {
+        try {
+            val socket = LocalSocket()
+            socket.connect(LocalSocketAddress(socketName, LocalSocketAddress.Namespace.ABSTRACT))
+            socket.outputStream.write("stats\n".toByteArray())
+            val content = socket.inputStream.bufferedReader().readLine() ?: ""
+            socket.close()
+            if (content.isBlank()) return@withContext
+            val json = com.google.gson.JsonParser.parseString(content).asJsonObject
+            val rx = json.get("rx_bytes")?.asLong ?: 0L
+            val tx = json.get("tx_bytes")?.asLong ?: 0L
+            val now = System.currentTimeMillis()
+            var rxSpeed = 0L; var txSpeed = 0L
+            if (lastMetricsTime in 1..<now) {
+                val dt = (now - lastMetricsTime) / 1000.0
+                if (dt > 0) {
+                    rxSpeed = ((rx - lastRx).coerceAtLeast(0) / dt).toLong()
+                    txSpeed = ((tx - lastTx).coerceAtLeast(0) / dt).toLong()
                 }
-
-                lastRx = rx
-                lastTx = tx
-                lastMetricsTime = now
-
-                _proxyTransfer.value = TransferResult(rx, tx, rxSpeed, txSpeed)
-            } catch (_: Exception) {
-                // pass
             }
-        }
+            lastRx = rx; lastTx = tx; lastMetricsTime = now
+            _proxyTransfer.value = TransferResult(rx, tx, rxSpeed, txSpeed)
+        } catch (_: Exception) {}
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        proxyManager.destroy()
-    }
+    override fun onCleared() { super.onCleared(); proxyManager.destroy() }
 
-    fun setDynamicTheme(enabled: Boolean) {
-        viewModelScope.launch { prefs.setDynamicTheme(enabled) }
-    }
-    fun setThemeMode(mode: ThemeMode) {
-        viewModelScope.launch { prefs.setThemeMode(mode) }
-    }
+    fun setDynamicTheme(enabled: Boolean) { viewModelScope.launch { prefs.setDynamicTheme(enabled) } }
+    fun setThemeMode(mode: ThemeMode) { viewModelScope.launch { prefs.setThemeMode(mode) } }
 
     private val _privacyMode = MutableStateFlow(false)
     val privacyMode: StateFlow<Boolean> = _privacyMode.asStateFlow()
-
     fun setPrivacyMode(enabled: Boolean) { _privacyMode.value = enabled }
 
-    fun updateAutoLaunchSettings(settings: com.wireturn.app.data.AutoLaunchSettings) {
-        viewModelScope.launch { 
-            prefs.updateAutoLaunchSettings(settings)
-            ProxyTileService.requestUpdate(getApplication())
-        }
+    fun updateAutoLaunchSettings(settings: AutoLaunchSettings) {
+        viewModelScope.launch { prefs.updateAutoLaunchSettings(settings); ProxyTileService.requestUpdate(getApplication()) }
     }
 
     private fun isNetworkAvailable(): Boolean {
         val cm = getApplication<Application>().getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
-        val network = cm?.activeNetwork ?: return false
-        val capabilities = cm.getNetworkCapabilities(network) ?: return false
-        return capabilities.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        val caps = cm?.getNetworkCapabilities(cm.activeNetwork) ?: return false
+        return caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
     private suspend fun isUrlReachable(url: String): Boolean {
-        if (!isNetworkAvailable()) return true // No connection at all, don't trigger proxy
-
+        if (!isNetworkAvailable()) return true
         repeat(3) {
             try {
-                val connection = withContext(Dispatchers.IO) {
+                val code = withContext(Dispatchers.IO) {
                     val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
-                    conn.connectTimeout = 2500
-                    conn.readTimeout = 2500
-                    conn.requestMethod = "HEAD"
-                    conn.useCaches = false
-                    conn
+                    conn.connectTimeout = 2500; conn.readTimeout = 2500; conn.requestMethod = "HEAD"; conn.useCaches = false
+                    conn.responseCode
                 }
-                val responseCode = withContext(Dispatchers.IO) { connection.responseCode }
-                if (responseCode in 200..399) return true
-            } catch (_: Exception) {
-            }
-            if (it < 2) delay(500) // Async delay between retries
+                if (code in 200..399) return true
+            } catch (_: Exception) {}
+            if (it < 2) delay(500)
         }
         return false
     }
 
-    private fun updateAutoLaunchJob(settings: com.wireturn.app.data.AutoLaunchSettings) {
+    private fun updateAutoLaunchJob(settings: AutoLaunchSettings) {
         autoLaunchJob?.cancel()
         if (settings.enabled) {
             autoLaunchJob = viewModelScope.launch(Dispatchers.IO) {
                 while (true) {
                     val isReachable = isUrlReachable(settings.checkUrl)
-                    val isProxyRunning = ProxyServiceState.isRunning.value
-
-                    if (!isReachable && !isProxyRunning) {
-                        withContext(Dispatchers.Main) {
-                            startProxy()
-                        }
-                    } else if (isReachable && isProxyRunning) {
-                        withContext(Dispatchers.Main) {
-                            // Автоматическая остановка (интернет появился сам)
-                            ProxyService.stop(getApplication(), byUser = false)
-                        }
-                    }
-
+                    val isRunning = ProxyServiceState.isRunning.value
+                    if (!isReachable && !isRunning) withContext(Dispatchers.Main) { startProxy() }
+                    else if (isReachable && isRunning) withContext(Dispatchers.Main) { ProxyService.stop(getApplication(), byUser = false) }
                     delay(settings.intervalMinutes * 60 * 1000L)
                 }
             }
         }
     }
 
-    fun startProxy() {
-        ProcessLifecycleOwner.get().lifecycleScope.launch {
-            startProxyInternal()
-        }
-    }
-
-    private suspend fun startProxyInternal(forceRestart: Boolean = false) {
-        val cfg = clientConfig.value
-        proxyManager.startProxy(cfg, forceRestart)
-    }
-
+    fun startProxy() { ProcessLifecycleOwner.get().lifecycleScope.launch { startProxyInternal() } }
+    private suspend fun startProxyInternal(forceRestart: Boolean = false) { proxyManager.startProxy(clientConfig.value, forceRestart) }
     private suspend fun restartProxyInternal() {
         proxyManager.stopProxy()
-        withTimeoutOrNull(5000) {
-            ProxyServiceState.isRunning.first { !it }
-        }
-        delay(600)
-        startProxyInternal()
+        withTimeoutOrNull(5000) { ProxyServiceState.isRunning.first { !it } }
+        delay(600); startProxyInternal()
     }
 
     fun restartProxy() {
         ProcessLifecycleOwner.get().lifecycleScope.launch {
             ProxyServiceState.setRestarting(true)
-            try {
-                restartProxyInternal()
-            } finally {
-                delay(100)
-                ProxyServiceState.setRestarting(false)
-            }
-        }
-    }
-
-    private suspend fun restartXrayInternal() {
-        getApplication<Application>().stopService(Intent(getApplication(), XrayService::class.java))
-        withTimeoutOrNull(5000) {
-            XrayServiceState.state.first { it == XrayState.Idle }
+            try { restartProxyInternal() } finally { delay(100); ProxyServiceState.setRestarting(false) }
         }
     }
 
@@ -625,17 +466,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         ProcessLifecycleOwner.get().lifecycleScope.launch {
             ProxyServiceState.setRestarting(true)
             try {
-                restartXrayInternal()
-            } finally {
-                delay(100)
-                ProxyServiceState.setRestarting(false)
-            }
+                getApplication<Application>().stopService(Intent(getApplication(), XrayService::class.java))
+                withTimeoutOrNull(5000) { XrayServiceState.state.first { it == XrayState.Idle } }
+            } finally { delay(100); ProxyServiceState.setRestarting(false) }
         }
     }
 
-    fun stopProxy() {
-        proxyManager.stopProxy()
-    }
+    fun stopProxy() { proxyManager.stopProxy() }
 
     fun revertToSnapshotConfigs() {
         ProxyServiceState.clientConfigSnapshot.value?.let { saveClientConfig(it) }
@@ -647,86 +484,53 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun dismissCaptcha() { proxyManager.dismissCaptcha() }
     fun clearLogs() { AppLogsState.clearLogs() }
     fun saveClientConfig(config: ClientConfig) {
-        _clientConfig.value = config
         viewModelScope.launch {
-            prefs.saveClientConfig(config)
+            prefs.saveClientListenAddr(config.listenAddr)
+            prefs.saveActiveProfilePart(profiles.value.find { it.id == currentProfileId.value }?.copy(
+                isRawMode = config.isRawMode,
+                rawCommand = config.rawCommand,
+                kernelVariant = config.kernelVariant,
+                turnableConfig = config.turnableConfig,
+                olcrtcConfig = config.olcrtcConfig
+            ) ?: return@launch)
             updateCurrentProfileInList()
         }
     }
     fun removeVlessLinkFromHistory(link: String) { viewModelScope.launch { prefs.removeVlessLinkFromHistory(link) } }
     fun setOnboardingDone() { viewModelScope.launch { prefs.setOnboardingDone(true) } }
-    fun setBatteryNotificationDismissed(dismissed: Boolean) { viewModelScope.launch { prefs.setBatteryNotificationDismissed(dismissed) } }
-    fun setAppsExclusionHintShown(shown: Boolean) { viewModelScope.launch { prefs.setAppsExclusionHintShown(shown) } }
-    fun setAllowUnstableUpdates(allow: Boolean) { viewModelScope.launch { prefs.setAllowUnstableUpdates(allow) } }
-    fun setWaitForNetwork(enabled: Boolean) { viewModelScope.launch { prefs.setWaitForNetwork(enabled) } }
-    fun setRestartOnNetworkChange(enabled: Boolean) { viewModelScope.launch { prefs.setRestartOnNetworkChange(enabled) } }
-
-    fun setCaptchaStyleMod(enabled: Boolean) { viewModelScope.launch { prefs.setCaptchaStyleMod(enabled) } }
-    fun setCaptchaForceTint(enabled: Boolean) { viewModelScope.launch { prefs.setCaptchaForceTint(enabled) } }
-
-    fun setShowFloatingActionButton(enabled: Boolean) { viewModelScope.launch { prefs.setShowFloatingActionButton(enabled) } }
-
-    fun setAppLanguage(lang: String) {
-        _appLanguage.value = lang
-        viewModelScope.launch {
-            prefs.setAppLanguage(lang)
-            applyLanguage(lang)
-        }
-    }
+    fun setBatteryNotificationDismissed(v: Boolean) { viewModelScope.launch { prefs.setBatteryNotificationDismissed(v) } }
+    fun setAppsExclusionHintShown(v: Boolean) { viewModelScope.launch { prefs.setAppsExclusionHintShown(v) } }
+    fun setAllowUnstableUpdates(v: Boolean) { viewModelScope.launch { prefs.setAllowUnstableUpdates(v) } }
+    fun setWaitForNetwork(v: Boolean) { viewModelScope.launch { prefs.setWaitForNetwork(v) } }
+    fun setRestartOnNetworkChange(v: Boolean) { viewModelScope.launch { prefs.setRestartOnNetworkChange(v) } }
+    fun setVpnEnabled(v: Boolean) { viewModelScope.launch { prefs.setVpnEnabled(v) } }
+    fun saveOlcrtcSocks(addr: String, auth: Boolean, user: String, pass: String) { viewModelScope.launch { prefs.saveOlcrtcSocks(addr, auth, user, pass) } }
+    fun setCaptchaStyleMod(v: Boolean) { viewModelScope.launch { prefs.setCaptchaStyleMod(v) } }
+    fun setCaptchaForceTint(v: Boolean) { viewModelScope.launch { prefs.setCaptchaForceTint(v) } }
+    fun setShowFloatingActionButton(v: Boolean) { viewModelScope.launch { prefs.setShowFloatingActionButton(v) } }
+    fun setAppLanguage(l: String) { _appLanguage.value = l; viewModelScope.launch { prefs.setAppLanguage(l); applyLanguage(l) } }
 
     private fun applyLanguage(lang: String) {
-        val appLocale: LocaleListCompat = if (lang == "system") {
-            LocaleListCompat.getEmptyLocaleList()
-        } else {
-            LocaleListCompat.forLanguageTags(lang)
-        }
-        AppCompatDelegate.setApplicationLocales(appLocale)
+        val loc = if (lang == "system") LocaleListCompat.getEmptyLocaleList() else LocaleListCompat.forLanguageTags(lang)
+        AppCompatDelegate.setApplicationLocales(loc)
     }
 
     fun checkProxyPing(delayFirst: Boolean = false) {
-        val socksAddr = XrayServiceState.xrayConfigSnapshot.value?.connectableAddress ?: return
-        if (socksAddr.isBlank() || !isValidHostPort(socksAddr)) return
-
+        val addr = XrayServiceState.xrayConfigSnapshot.value?.connectableAddress ?: return
+        if (addr.isBlank() || !com.wireturn.app.ui.ValidatorUtils.isValidHostPort(addr)) return
         pingJob?.cancel()
         pingJob = viewModelScope.launch {
             _proxyPing.value = PingResult.Loading
             repeat(10) { attempt ->
-                val state = XrayServiceState.state.value
-                if (state != XrayState.Running && state != XrayState.DirectRoute) {
-                    _proxyPing.value = null
-                    return@launch
-                }
-
+                if (XrayServiceState.state.value !in listOf(XrayState.Running, XrayState.DirectRoute)) { _proxyPing.value = null; return@launch }
                 if (delayFirst && attempt == 0) delay(1000)
-
-                val result = withContext(Dispatchers.IO) {
+                val res = withContext(Dispatchers.IO) {
                     try {
-                        val parts = socksAddr.split(":")
-                        val proxy = Proxy(Proxy.Type.SOCKS, InetSocketAddress.createUnresolved(parts[0], parts[1].toInt()))
-                        var time = 0L
-                        val isSuccess = try {
-                            time = measureTimeMillis {
-                                val url = java.net.URL("https://1.1.1.1/")
-                                val conn = url.openConnection(proxy) as java.net.HttpURLConnection
-                                conn.connectTimeout = 3000
-                                conn.readTimeout = 3000
-                                conn.instanceFollowRedirects = false
-                                conn.responseCode
-                            }
-                            true
-                        } catch (_: Exception) {
-                            false
-                        }
-                        if (isSuccess) PingResult.Success(time) else null
-                    } catch (e: Exception) {
-                        AppLogsState.addLog("[Ping] Error: ${e.message}")
-                        null
-                    }
+                        val parts = addr.split(":"); val p = Proxy(Proxy.Type.SOCKS, InetSocketAddress.createUnresolved(parts[0], parts[1].toInt()))
+                        PingResult.Success(measureTimeMillis { (java.net.URL("https://1.1.1.1/").openConnection(p) as java.net.HttpURLConnection).apply { connectTimeout = 3000; readTimeout = 3000; instanceFollowRedirects = false }.responseCode })
+                    } catch (e: Exception) { AppLogsState.addLog("[Ping] Error: ${e.message}"); null }
                 }
-                if (result is PingResult.Success) {
-                    _proxyPing.value = result
-                    return@launch
-                }
+                if (res is PingResult.Success) { _proxyPing.value = res; return@launch }
                 delay(1000)
             }
             _proxyPing.value = PingResult.Error
@@ -740,178 +544,68 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun downloadUpdate() { viewModelScope.launch { appUpdater.downloadUpdate() } }
     fun installUpdate() { appUpdater.installUpdate() }
 
-    fun updateWgConfig(config: WgConfig) {
-        _wgConfig.value = config
+    fun updateWgConfig(c: WgConfig) { viewModelScope.launch { prefs.saveWgConfig(c); updateCurrentProfileInList() } }
+    fun updateXraySettings(s: XraySettings) { viewModelScope.launch { prefs.saveXraySettings(s); updateCurrentProfileInList() } }
+    fun updateGlobalVpnSettings(s: GlobalVpnSettings) { viewModelScope.launch { prefs.saveGlobalVpnSettings(s) } }
+    fun toggleAppExclusion(p: String) { val cur = _excludedApps.value; viewModelScope.launch { prefs.saveExcludedApps(if (cur.contains(p)) cur - p else cur + p) } }
+    fun saveExcludedApps(s: Set<String>) { viewModelScope.launch { prefs.saveExcludedApps(s) } }
+    fun updateXrayConfig(c: XrayConfig) {
         viewModelScope.launch {
-            prefs.saveWgConfig(config)
+            prefs.saveXrayGlobal(c.socksBindAddress, c.httpBindAddress, c.isProxyAuthEnabled, c.proxyUser, c.proxyPass)
+            prefs.saveActiveProfilePart(profiles.value.find { it.id == currentProfileId.value }?.copy(xrayConfiguration = c.xrayConfiguration) ?: return@launch)
             updateCurrentProfileInList()
         }
     }
+    fun updateVlessConfig(c: VlessConfig) { viewModelScope.launch { prefs.saveVlessConfig(c); updateCurrentProfileInList() } }
+    fun updateWgConfigText(t: String) { val p = WgConfig.parse(t); if (_wgConfig.value != p) viewModelScope.launch { prefs.saveWgConfig(p); updateCurrentProfileInList() } }
 
-    fun updateXraySettings(settings: XraySettings) {
-        _xraySettings.value = settings
-        viewModelScope.launch {
-            prefs.saveXraySettings(settings)
-            updateCurrentProfileInList()
-        }
+    private fun updateCurrentProfileInList() {
+        val curId = currentProfileId.value
+        val profile = profiles.value.find { it.id == curId } ?: return
+        val updated = profile.copy(
+            kernelVariant = _clientConfig.value.kernelVariant,
+            isRawMode = _clientConfig.value.isRawMode,
+            rawCommand = _clientConfig.value.rawCommand,
+            turnableConfig = _clientConfig.value.turnableConfig,
+            olcrtcConfig = _clientConfig.value.olcrtcConfig,
+            xrayConfiguration = _xrayConfig.value.xrayConfiguration,
+            xrayEnabled = _xraySettings.value.xrayEnabled,
+            wgConfig = _wgConfig.value,
+            vlessConfig = _vlessConfig.value
+        )
+        profileManager.updateCurrentProfile(updated)
     }
 
-    fun updateGlobalVpnSettings(settings: GlobalVpnSettings) {
-        _globalVpnSettings.value = settings
-        viewModelScope.launch {
-            prefs.saveGlobalVpnSettings(settings)
-        }
-    }
-
-    fun toggleAppExclusion(packageName: String) {
-        val currentExcluded = _excludedApps.value
-        val newExcludedApps = if (currentExcluded.contains(packageName)) {
-            currentExcluded - packageName
-        } else {
-            currentExcluded + packageName
-        }
-        viewModelScope.launch {
-            prefs.saveExcludedApps(newExcludedApps)
-        }
-    }
-
-    fun saveExcludedApps(excludedApps: Set<String>) {
-        _excludedApps.value = excludedApps
-        viewModelScope.launch {
-            prefs.saveExcludedApps(excludedApps)
-        }
-    }
-
-    fun updateXrayConfig(config: XrayConfig) {
-        _xrayConfig.value = config
-        viewModelScope.launch {
-            prefs.saveXrayConfig(config)
-            updateCurrentProfileInList()
-        }
-    }
-
-    fun updateVlessConfig(config: VlessConfig) {
-        _vlessConfig.value = config
-        viewModelScope.launch {
-            prefs.saveVlessConfig(config)
-            updateCurrentProfileInList()
-        }
-    }
-
-    fun updateWgConfigText(text: String) {
-        val parsed = WgConfig.parse(text)
-        if (_wgConfig.value != parsed) {
-            _wgConfig.value = parsed
+    fun selectProfile(id: String, profile: Profile? = null) {
+        profileManager.selectProfile(id, profile) { target ->
             viewModelScope.launch {
-                prefs.saveWgConfig(parsed)
-                updateCurrentProfileInList()
+                prefs.saveFullProfile(target.id, target)
             }
         }
     }
 
-    private fun updateCurrentProfileInList() {
-        profileManager.updateCurrentProfile(
-            _clientConfig.value,
-            _xraySettings.value,
-            _xrayConfig.value,
-            _wgConfig.value,
-            _vlessConfig.value
-        )
-    }
-
-    fun selectProfile(id: String, profile: Profile? = null) {
-        profileManager.selectProfile(id, profile) { client, settings, xray, wg, vless ->
-            _clientConfig.value = client
-            _wgConfig.value = wg
-            _vlessConfig.value = vless
-            _xraySettings.value = settings
-            _xrayConfig.value = xray
-        }
-    }
-
     fun selectProfileAndRestart(id: String, onCompletion: (() -> Unit)? = null) {
-        val profile = profiles.value.find { it.id == id } ?: return
-        val profileName = profile.name
-
-        // Determine if restart is actually needed to avoid UI flicker for identical profiles
-        val client = profile.clientConfig
-        val wg = profile.wgConfig
-        val vless = profile.vlessConfig
-        val xray = profile.xrayConfig
-
-        val clientSnapshot = ProxyServiceState.clientConfigSnapshot.value
-        val vlessSnapshot = XrayServiceState.vlessConfigSnapshot.value
-        val wgSnapshot = XrayServiceState.wgConfigSnapshot.value
-        val xraySnapshot = XrayServiceState.xrayConfigSnapshot.value
-
-        val mainConfigChanged = (clientSnapshot != null && client != clientSnapshot)
-        val xrayDataChanged = (wgSnapshot != null && wg.fillDefaults() != wgSnapshot) ||
-                (vlessSnapshot != null && vless != vlessSnapshot) ||
-                (xraySnapshot != null && xray.fillDefaults() != xraySnapshot)
-
-        // Set restarting true EARLY only if configuration changes
-        if (ProxyServiceState.isRunning.value && (mainConfigChanged || xrayDataChanged || clientSnapshot == null)) {
-            ProxyServiceState.setRestarting(true)
-        }
-
-        profileManager.selectProfile(id, profile) { client, settings, xray, wg, vless ->
-            ProcessLifecycleOwner.get().lifecycleScope.launch {
+        val target = profiles.value.find { it.id == id } ?: return
+        if (ProxyServiceState.isRunning.value) ProxyServiceState.setRestarting(true)
+        profileManager.selectProfile(id, target) { p ->
+            viewModelScope.launch {
                 try {
-                    // Use passed values to avoid redundant reads and delays
-                    _clientConfig.value = client
-                    _wgConfig.value = wg
-                    _vlessConfig.value = vless
-                    _xraySettings.value = settings
-                    _xrayConfig.value = xray
-
+                    prefs.saveFullProfile(p.id, p)
                     val isRunning = ProxyServiceState.isRunning.value
                     if (!isRunning) return@launch
-
-                    val profileNameSnapshot = ProxyServiceState.profileNameSnapshot.value
-                    val profileChanged = profileNameSnapshot != profileName
-                    val clientSnapshot = ProxyServiceState.clientConfigSnapshot.value
-                    val vlessSnapshot = XrayServiceState.vlessConfigSnapshot.value
-                    val wgSnapshot = XrayServiceState.wgConfigSnapshot.value
-                    val xraySnapshot = XrayServiceState.xrayConfigSnapshot.value
-
-                    val mainConfigChanged = (clientSnapshot != null && client != clientSnapshot)
+                    val clientSnap = ProxyServiceState.clientConfigSnapshot.value
                     
-                    val xrayDataChanged = (wgSnapshot != null && wg.fillDefaults() != wgSnapshot) ||
-                            (vlessSnapshot != null && vless != vlessSnapshot) ||
-                            (xraySnapshot != null && xray.fillDefaults() != xraySnapshot)
+                    val mainChanged = clientSnap != null && (
+                        p.kernelVariant != clientSnap.kernelVariant ||
+                        p.isRawMode != clientSnap.isRawMode ||
+                        p.rawCommand != clientSnap.rawCommand ||
+                        (p.kernelVariant == KernelVariant.TURNABLE && p.turnableConfig.sanitize() != clientSnap.turnableConfig) ||
+                        (p.kernelVariant == KernelVariant.OLCRTC && p.olcrtcConfig.fillDefaults() != clientSnap.olcrtcConfig)
+                    )
 
-                    if (mainConfigChanged || clientSnapshot == null) {
-                        if (!xrayDataChanged && clientSnapshot != null) {
-                            // Soft restart: only restart tunnel binary, keep Xray alive
-                            ProxyServiceState.setProfileNameSnapshot(profileName)
-                            startProxyInternal(forceRestart = true)
-                        } else {
-                            // Hard restart: everything stops and starts again
-                            restartProxyInternal()
-                        }
-                    } else if (xrayDataChanged || xraySnapshot == null) {
-                        ProxyServiceState.setProfileNameSnapshot(profileName)
-                        ProxyServiceState.setStatusText(getApplication<Application>().getString(R.string.connecting))
-                        ProxyTileService.requestUpdate(getApplication())
-                        // Just stop Xray, ProxyService supervisor will start it with new settings
-                        getApplication<Application>().stopService(Intent(getApplication(), XrayService::class.java))
-                    } else {
-                        // Settings match exactly, but update snapshots anyway to ensure UI/Notification consistency
-                        ProxyServiceState.setProfileNameSnapshot(profileName)
-                        ProxyServiceState.setClientConfigSnapshot(client)
-                        
-                        // If only profile name changed and service is running, update notification to show new name
-                        if (profileChanged && ProxyServiceState.isRunning.value) {
-                            NotificationHelper.updateNotification(getApplication())
-                        }
-                    }
-                } catch (e: Exception) {
-                    ProxyServiceState.setRestarting(false)
-                    throw e
-                } finally {
-                    delay(500) // Give more time for snapshots to settle
-                    ProxyServiceState.setRestarting(false)
-                }
+                    if (mainChanged) restartProxyInternal()
+                    else getApplication<Application>().stopService(Intent(getApplication(), XrayService::class.java))
+                } finally { delay(500); ProxyServiceState.setRestarting(false) }
             }
             onCompletion?.invoke()
         }
@@ -927,55 +621,38 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val newProfile = Profile(
             id = java.util.UUID.randomUUID().toString(),
             name = name,
-            clientConfig = clientConfig,
-            xrayConfig = xrayConfig,
+            kernelVariant = clientConfig.kernelVariant,
+            isRawMode = clientConfig.isRawMode,
+            rawCommand = clientConfig.rawCommand,
+            turnableConfig = clientConfig.turnableConfig,
+            olcrtcConfig = clientConfig.olcrtcConfig,
+            xrayConfiguration = xrayConfig.xrayConfiguration,
+            xrayEnabled = true,
             wgConfig = wgConfig,
             vlessConfig = vlessConfig
         ).sanitize()
-        
         viewModelScope.launch {
-            val newList = profileManager.profiles.value + newProfile
-            prefs.saveProfiles(newList)
-            // Optionally select it
-            // selectProfile(newProfile.id, newProfile)
+            prefs.saveProfiles(profiles.value + newProfile)
         }
     }
-    fun cloneProfile(id: String, newName: String) = profileManager.cloneProfile(id, newName)
+
+    fun cloneProfile(id: String, name: String) = profileManager.cloneProfile(id, name)
     fun deleteProfile(id: String) = deleteProfiles(listOf(id))
-    fun deleteProfiles(ids: List<String>) = profileManager.deleteProfiles(ids) { nextId, profile -> 
-        selectProfile(nextId, profile) 
-    }
-    fun renameProfile(id: String, newName: String) = profileManager.renameProfile(id, newName)
-    fun reorderProfiles(newList: List<Profile>) = profileManager.reorderProfiles(newList)
-    fun getProfileJson(id: String): String? = profileManager.getProfileJson(id)
-    fun exportAllProfilesToZip(): ByteArray = profileManager.exportAllProfilesToZip()
-    fun exportProfilesToZip(ids: List<String>): ByteArray = profileManager.exportProfilesToZip(ids)
-    fun importProfilesFromZip(inputStream: java.io.InputStream) = profileManager.importProfilesFromZip(inputStream) { id ->
-        selectProfileAndRestart(id)
-    }
-    fun importProfiles(data: List<Pair<String?, String>>) = profileManager.importProfiles(data) { id ->
-        selectProfileAndRestart(id)
-    }
-
-    private fun isValidHostPort(address: String): Boolean {
-        return com.wireturn.app.ui.ValidatorUtils.isValidHostPort(address)
-    }
-
-    fun resetAllSettings(context: Context) {
+    fun deleteProfiles(ids: List<String>) = profileManager.deleteProfiles(ids) { nextId, p -> selectProfile(nextId, p) }
+    fun renameProfile(id: String, name: String) = profileManager.renameProfile(id, name)
+    fun reorderProfiles(list: List<Profile>) = profileManager.reorderProfiles(list)
+    fun getProfileJson(id: String) = profileManager.getProfileJson(id)
+    fun exportAllProfilesToZip() = profileManager.exportAllProfilesToZip()
+    fun exportProfilesToZip(ids: List<String>) = profileManager.exportProfilesToZip(ids)
+    fun importProfilesFromZip(s: java.io.InputStream) = profileManager.importProfilesFromZip(s) { selectProfileAndRestart(it) }
+    fun importProfiles(data: List<Pair<String?, String>>) = profileManager.importProfiles(data) { selectProfileAndRestart(it) }
+    fun resetAllSettings(c: Context) {
         viewModelScope.launch {
-            context.stopService(Intent(context, ProxyService::class.java))
-            context.stopService(Intent(context, XrayService::class.java))
-            ProxyServiceState.setStatus(ProxyStatus.Idle)
-            XrayServiceState.updateStatus(XrayState.Idle)
-            prefs.resetAll()
-            proxyManager.clearState()
-            AppLogsState.clearLogs()
-            _wgConfig.value = WgConfig()
-            _xrayConfig.value = XrayConfig()
-            val intent = (context as? android.app.Activity)?.intent
-                ?: Intent(context, com.wireturn.app.ui.activities.MainActivity::class.java)
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-            context.startActivity(intent)
+            c.stopService(Intent(c, ProxyService::class.java)); c.stopService(Intent(c, XrayService::class.java))
+            ProxyServiceState.setStatus(ProxyStatus.Idle); XrayServiceState.updateStatus(XrayState.Idle)
+            prefs.resetAll(); proxyManager.clearState(); AppLogsState.clearLogs()
+            val intent = (c as? android.app.Activity)?.intent ?: Intent(c, com.wireturn.app.ui.activities.MainActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK); c.startActivity(intent)
         }
     }
 }

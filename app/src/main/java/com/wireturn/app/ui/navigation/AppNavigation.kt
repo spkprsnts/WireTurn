@@ -116,6 +116,7 @@ fun AppNavigation(
 
     val proxyState by viewModel.proxyState.collectAsStateWithLifecycle()
     val xraySettings by viewModel.xraySettings.collectAsStateWithLifecycle()
+    val vpnEnabled by viewModel.vpnEnabled.collectAsStateWithLifecycle()
     val currentProfileId by viewModel.currentProfileId.collectAsStateWithLifecycle()
     val isBottomBarVisibleByScroll by viewModel.isBottomBarVisible.collectAsStateWithLifecycle()
     val bottomBarOffset by viewModel.bottomBarOffset.collectAsStateWithLifecycle()
@@ -223,7 +224,7 @@ fun AppNavigation(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
-            viewModel.updateXraySettings(xraySettings.copy(xrayVpnMode = true))
+            viewModel.setVpnEnabled(true)
         }
     }
     val finalStartDestination = remember {
@@ -258,7 +259,7 @@ fun AppNavigation(
                 is ProxyState.Idle, is ProxyState.Error -> {
                     checkMismatch(xraySettings.xrayEnabled) {
                         HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                        if (xraySettings.xrayVpnMode) {
+                        if (vpnEnabled) {
                             val intent = VpnService.prepare(context)
                             if (intent != null) {
                                 vpnLauncher.launch(intent)

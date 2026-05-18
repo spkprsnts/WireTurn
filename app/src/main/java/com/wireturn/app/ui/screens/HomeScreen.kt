@@ -143,6 +143,7 @@ fun HomeScreen(
     val globalVpnSettings by viewModel.globalVpnSettings.collectAsStateWithLifecycle()
     val xrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
     val batteryNotificationDismissed by viewModel.batteryNotificationDismissed.collectAsStateWithLifecycle()
+    val vpnEnabled by viewModel.vpnEnabled.collectAsStateWithLifecycle()
     val appsExclusionHintShown by viewModel.appsExclusionHintShown.collectAsStateWithLifecycle()
     val vlessConfig by viewModel.vlessConfig.collectAsStateWithLifecycle()
     val clientConfigSnapshot by ProxyServiceState.clientConfigSnapshot.collectAsStateWithLifecycle()
@@ -308,14 +309,6 @@ fun HomeScreen(
         }
     }
 
-    val vpnLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == android.app.Activity.RESULT_OK) {
-            viewModel.updateXraySettings(viewModel.xraySettings.value.copy(xrayVpnMode = true))
-        }
-    }
-
     // --- Business Logic Logic (Mismatches & Alerts) ---
     val warnVpnRequiresXray = stringResource(R.string.warn_vpn_requires_xray)
 
@@ -327,6 +320,14 @@ fun HomeScreen(
 
     val isDark = com.wireturn.app.ui.theme.LocalIsDark.current
     val blockContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
+
+    val vpnLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            viewModel.setVpnEnabled(true)
+        }
+    }
 
     // --- UI Layout ---
     Scaffold(
@@ -804,10 +805,10 @@ fun HomeScreen(
                 activeConfig.kernelVariant == KernelVariant.OLCRTC -> {
                     when (xrayState) {
                         XrayState.DirectRoute -> stringResource(R.string.vless)
-                        XrayState.Running -> stringResource(R.string.xray_socks5)
+                        XrayState.Running -> stringResource(R.string.socks5)
                         else -> {
-                            if (activeVlessConfig.isDualRoute) "${stringResource(R.string.xray_socks5)} / ${stringResource(R.string.vless)}"
-                            else stringResource(R.string.xray_socks5)
+                            if (activeVlessConfig.isDualRoute) "${stringResource(R.string.socks5)} / ${stringResource(R.string.vless)}"
+                            else stringResource(R.string.socks5)
                         }
                     }
                 }
@@ -826,7 +827,7 @@ fun HomeScreen(
                         val action = {
                             HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
 
-                            if (!next && xraySettings.xrayVpnMode) {
+                            if (!next && vpnEnabled) {
                                 showVpnWarning()
                             }
 
@@ -880,7 +881,7 @@ fun HomeScreen(
                     isBottom = true,
                     containerColor = blockContainerColor,
                     onClick = {
-                        val next = !xraySettings.xrayVpnMode
+                        val next = !vpnEnabled
                         HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
                         
                         if (next && !xraySettings.xrayEnabled) {
@@ -892,18 +893,18 @@ fun HomeScreen(
                             if (intent != null) {
                                 vpnLauncher.launch(intent)
                             } else {
-                                viewModel.updateXraySettings(xraySettings.copy(xrayVpnMode = true))
+                                viewModel.setVpnEnabled(true)
                             }
                         } else {
-                            viewModel.updateXraySettings(xraySettings.copy(xrayVpnMode = false))
+                            viewModel.setVpnEnabled(false)
                         }
                     }
                 ) {
                     SwitchRow(
                         label = stringResource(R.string.vpn_mode),
-                        checked = xraySettings.xrayVpnMode,
+                        checked = vpnEnabled,
                         onCheckedChange = {}, // Обрабатывается родителем
-                        isModified = wgConfigSnapshot != null && xraySettings.xrayVpnMode != (vpnServiceState == VpnState.Running),
+                        isModified = wgConfigSnapshot != null && vpnEnabled != (vpnServiceState == VpnState.Running),
                         supportingText = when (vpnServiceState) {
                             VpnState.Starting -> stringResource(R.string.starting)
                             VpnState.Running -> stringResource(R.string.running)
@@ -966,13 +967,13 @@ fun HomeScreen(
 
             val displaySocksAddr = when {
                 showXray -> activeXrayConfig.socksBindAddress
-                isOlcrtc -> "${activeConfig.olcrtcConfig.socksHost}:${activeConfig.olcrtcConfig.socksPort}"
+                isOlcrtc -> activeConfig.socksAddr
                 else -> activeXrayConfig.socksBindAddress
             }
 
             val copySocksAddr = when {
                 showXray -> formatProxyAddr(activeXrayConfig.socksBindAddress, activeXrayConfig.proxyUser, activeXrayConfig.proxyPass, activeXrayConfig.isProxyAuthEnabled)
-                isOlcrtc -> formatProxyAddr("${activeConfig.olcrtcConfig.socksHost}:${activeConfig.olcrtcConfig.socksPort}", activeConfig.olcrtcConfig.socksUser, activeConfig.olcrtcConfig.socksPass, activeConfig.olcrtcConfig.isSocksAuthEnabled)
+                isOlcrtc -> formatProxyAddr(activeConfig.socksAddr, activeConfig.socksUser, activeConfig.socksPass, activeConfig.isSocksAuthEnabled)
                 else -> formatProxyAddr(activeXrayConfig.socksBindAddress, activeXrayConfig.proxyUser, activeXrayConfig.proxyPass, activeXrayConfig.isProxyAuthEnabled)
             }
 
@@ -990,7 +991,7 @@ fun HomeScreen(
 
             val isSocksModified = when {
                 showXray -> xrayConfigSnapshot != null && xrayConfig.socksBindAddress != xrayConfigSnapshot?.socksBindAddress
-                isOlcrtc -> clientConfigSnapshot != null && (activeConfig.olcrtcConfig.socksHost != clientConfigSnapshot?.olcrtcConfig?.socksHost || activeConfig.olcrtcConfig.socksPort != clientConfigSnapshot?.olcrtcConfig?.socksPort)
+                isOlcrtc -> clientConfigSnapshot != null && activeConfig.socksAddr != clientConfigSnapshot?.socksAddr
                 else -> xrayConfigSnapshot != null && xrayConfig.socksBindAddress != xrayConfigSnapshot?.socksBindAddress
             }
 
@@ -1031,7 +1032,7 @@ fun HomeScreen(
                     }
                 ) {
                     ProxyAddressRow(
-                        label = stringResource(R.string.xray_socks5),
+                        label = stringResource(R.string.socks5),
                         address = displaySocksAddr,
                         isModified = isSocksModified,
                         isCopied = socksCopied,

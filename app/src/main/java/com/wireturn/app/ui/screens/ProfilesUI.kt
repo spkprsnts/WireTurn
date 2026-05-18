@@ -87,38 +87,34 @@ fun ProfileSummary(
     color: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurfaceVariant,
     useAnimation: Boolean = false
 ) {
-    val clientConfig = profile.clientConfig
-    if (clientConfig.getValidationErrorResId() != null) return
-
     val parts = mutableListOf<String>()
 
     // Core mode
-    val kernelPart = clientConfig.getKernelDescription(LocalContext.current)
+    val kernelPart = when (profile.kernelVariant) {
+        com.wireturn.app.data.KernelVariant.TURNABLE -> stringResource(R.string.kernel_turnable) + " " + profile.turnableConfig.selectedRouteId
+        com.wireturn.app.data.KernelVariant.OLCRTC -> stringResource(R.string.kernel_olcrtc) + " " + profile.olcrtcConfig.carrier
+    }
     parts.add(kernelPart)
 
-    if (clientConfig.isRawMode) {
+    if (profile.isRawMode) {
         parts.add(stringResource(R.string.raw_label))
     }
 
-    if (profile.xraySettings.xrayEnabled) {
-        val config = profile.xrayConfig
-        val isValid = when (config.xrayConfiguration) {
+    if (profile.xrayEnabled) {
+        val isValid = when (profile.xrayConfiguration) {
             XrayConfiguration.VLESS -> profile.vlessConfig.isValid()
             XrayConfiguration.WIREGUARD -> profile.wgConfig.isValid()
         }
 
         if (isValid) {
             parts.add(
-                when (config.xrayConfiguration) {
+                when (profile.xrayConfiguration) {
                     XrayConfiguration.VLESS -> stringResource(R.string.vless)
                     XrayConfiguration.WIREGUARD -> stringResource(R.string.wg_short)
                 }
             )
-            if (config.xrayConfiguration == XrayConfiguration.VLESS && profile.vlessConfig.isDualRoute) {
+            if (profile.xrayConfiguration == XrayConfiguration.VLESS && profile.vlessConfig.isDualRoute) {
                 parts.add(stringResource(R.string.vless_dual_route_short))
-            }
-            if (profile.xraySettings.xrayVpnMode) {
-                parts.add(stringResource(R.string.vpn_short))
             }
         }
     }

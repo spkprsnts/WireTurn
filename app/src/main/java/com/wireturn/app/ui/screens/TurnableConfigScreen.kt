@@ -44,7 +44,6 @@ fun TurnableConfigScreen(
     onSave: (TurnableConfig) -> Unit
 ) {
     var config by remember { mutableStateOf(initialConfig) }
-    var localPort by remember { mutableStateOf("127.0.0.1:9000") }
     val showRoutesDialog = remember { mutableStateOf(false) }
     
     val scrollState = rememberScrollState()
@@ -98,21 +97,8 @@ fun TurnableConfigScreen(
                         RoutesBlock(config = config)
                     }
                 }
-
                 SettingsGroupItem(
                     isTop = config.routes.isEmpty(),
-                    isBottom = false,
-                    containerColor = blockContainerColor
-                ) {
-                    TextFieldRow(
-                        label = stringResource(R.string.local_listen_address),
-                        value = localPort,
-                        onValueChange = { localPort = it },
-                        placeholder = stringResource(R.string.local_listen_placeholder)
-                    )
-                }
-                SettingsGroupItem(
-                    isTop = false,
                     isBottom = false,
                     containerColor = blockContainerColor
                 ) {

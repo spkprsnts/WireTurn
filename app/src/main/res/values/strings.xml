@@ -101,8 +101,8 @@
     <string name="xray_title" translatable="false">Xray</string>
     <string name="xray_http" translatable="false">HTTP</string>
     <string name="xray_http_placeholder" translatable="false">127.0.0.1:8080</string>
-    <string name="xray_socks5" translatable="false">SOCKS5</string>
-    <string name="xray_socks5_placeholder" translatable="false">127.0.0.1:2080</string>
+    <string name="socks5" translatable="false">SOCKS5</string>
+    <string name="socks5_placeholder" translatable="false">127.0.0.1:2080</string>
     <string name="xray_proxy_auth">Proxy authentication</string>
     <string name="xray_proxy_auth_desc">Protect local proxy with login and password</string>
     <string name="xray_proxy_user">Username</string>
@@ -367,6 +367,9 @@
     <!-- QR Import and Advanced Parameters -->
     <string name="qr_import">QR Code</string>
     <string name="qr_scan_desc">Point the camera at the configuration QR code to import</string>
+    <string name="settings_group_turnable">Turnable settings</string>
+    <string name="settings_group_olcrtc">olcRTC settings</string>
+    <string name="settings_group_xray">Xray settings</string>
     <string name="xray_proxy_settings">Proxy settings</string>
     <string name="xray_socks_desc">Address for SOCKS5 proxy</string>
     <string name="xray_http_desc">Address for HTTP proxy</string>

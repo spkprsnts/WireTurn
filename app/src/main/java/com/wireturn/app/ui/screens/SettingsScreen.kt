@@ -26,6 +26,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -77,7 +79,9 @@ import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.UpdateBlock
 import com.wireturn.app.viewmodel.MainViewModel
+import androidx.compose.animation.AnimatedVisibility
 import com.wireturn.app.viewmodel.UpdateState
+import com.wireturn.app.ui.redact
 
 @Composable
 fun SettingsScreen(
@@ -93,6 +97,8 @@ fun SettingsScreen(
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
     val updateProgress by viewModel.updateProgress.collectAsStateWithLifecycle()
     val showResetDialog = rememberSaveable { mutableStateOf(false) }
+    val showListenHelp = remember { mutableStateOf(false) }
+    val showSocksHelp = remember { mutableStateOf(false) }
 
     val scrollState = rememberScrollState()
 
@@ -202,6 +208,208 @@ fun SettingsScreen(
                 .padding(bottom = 76.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
+            // 0. Proxy
+            val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
+            val xrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
+
+            // Turnable
+            SettingsGroup(title = stringResource(R.string.settings_group_turnable)) {
+                var listenAddr by remember(clientConfig.listenAddr) { mutableStateOf(clientConfig.listenAddr) }
+                LaunchedEffect(listenAddr) {
+                    delay(500)
+                    if (listenAddr != clientConfig.listenAddr && com.wireturn.app.ui.ValidatorUtils.isValidHostPort(listenAddr)) {
+                        viewModel.saveClientConfig(clientConfig.copy(listenAddr = listenAddr))
+                    }
+                }
+                SettingsGroupItem(isTop = true, isBottom = true, containerColor = blockContainerColor) {
+                    TextFieldRow(
+                        label = stringResource(R.string.local_listen_address),
+                        value = listenAddr.redact(privacyMode),
+                        onValueChange = { listenAddr = it },
+                        placeholder = com.wireturn.app.data.ClientConfig.DEFAULT_LISTEN_ADDR,
+                        isError = !com.wireturn.app.ui.ValidatorUtils.isValidHostPort(listenAddr),
+                        readOnly = privacyMode,
+                        onHelpClick = { showListenHelp.value = true }
+                    )
+                }
+            }
+
+            // olcRTC
+            SettingsGroup(title = stringResource(R.string.settings_group_olcrtc)) {
+                var olSocks by remember(clientConfig.socksAddr) { mutableStateOf(clientConfig.socksAddr) }
+                var olAuth by remember(clientConfig.isSocksAuthEnabled) { mutableStateOf(clientConfig.isSocksAuthEnabled) }
+                var olUser by remember(clientConfig.socksUser) { mutableStateOf(clientConfig.socksUser) }
+                var olPass by remember(clientConfig.socksPass) { mutableStateOf(clientConfig.socksPass) }
+                var olPassVisible by rememberSaveable { mutableStateOf(false) }
+
+                LaunchedEffect(olSocks, olAuth, olUser, olPass) {
+                    delay(500)
+                    if (olSocks != clientConfig.socksAddr || olAuth != clientConfig.isSocksAuthEnabled || olUser != clientConfig.socksUser || olPass != clientConfig.socksPass) {
+                        viewModel.saveClientConfig(clientConfig.copy(
+                            socksAddr = olSocks,
+                            isSocksAuthEnabled = olAuth,
+                            socksUser = olUser,
+                            socksPass = olPass
+                        ))
+                    }
+                }
+
+                SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
+                    TextFieldRow(
+                        label = stringResource(R.string.socks5),
+                        value = olSocks.redact(privacyMode),
+                        onValueChange = { olSocks = it },
+                        placeholder = "127.0.0.1:9001",
+                        isError = olSocks.isNotEmpty() && !com.wireturn.app.ui.ValidatorUtils.isValidHostPort(olSocks),
+                        readOnly = privacyMode,
+                        onHelpClick = { showSocksHelp.value = true }
+                    )
+                }
+                SettingsGroupItem(
+                    isTop = false,
+                    isBottom = !olAuth,
+                    containerColor = blockContainerColor,
+                    onClick = {
+                        olAuth = !olAuth
+                        HapticUtil.perform(context, if (olAuth) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                    }
+                ) {
+                    SwitchRow(
+                        label = stringResource(R.string.xray_proxy_auth),
+                        supportingText = stringResource(R.string.xray_proxy_auth_desc),
+                        checked = olAuth,
+                        onCheckedChange = { olAuth = it }
+                    )
+                }
+                AnimatedVisibility(visible = olAuth) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                            TextFieldRow(
+                                label = stringResource(R.string.xray_proxy_user),
+                                value = olUser.redact(privacyMode),
+                                onValueChange = { olUser = it },
+                                placeholder = "admin",
+                                readOnly = privacyMode
+                            )
+                        }
+                        SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+                            TextFieldRow(
+                                label = stringResource(R.string.xray_proxy_pass),
+                                value = olPass.redact(privacyMode),
+                                onValueChange = { olPass = it },
+                                placeholder = "password",
+                                readOnly = privacyMode,
+                                trailingIcon = {
+                                    IconButton(onClick = { olPassVisible = !olPassVisible }) {
+                                        Icon(
+                                            painter = painterResource(
+                                                if (olPassVisible) R.drawable.visibility_24px
+                                                else R.drawable.visibility_off_24px
+                                            ),
+                                            contentDescription = null
+                                        )
+                                    }
+                                },
+                                visualTransformation = if (olPassVisible) VisualTransformation.None else PasswordVisualTransformation()
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Xray
+            SettingsGroup(title = stringResource(R.string.settings_group_xray)) {
+                var xraySocks by remember(xrayConfig.socksBindAddress) { mutableStateOf(xrayConfig.socksBindAddress) }
+                var xrayHttp by remember(xrayConfig.httpBindAddress) { mutableStateOf(xrayConfig.httpBindAddress) }
+                var xrayPassVisible by rememberSaveable { mutableStateOf(false) }
+                LaunchedEffect(xraySocks, xrayHttp) {
+                    delay(500)
+                    val next = xrayConfig.copy(socksBindAddress = xraySocks, httpBindAddress = xrayHttp)
+                    if (next != xrayConfig) viewModel.updateXrayConfig(next)
+                }
+                SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
+                    TextFieldRow(
+                        label = stringResource(R.string.socks5),
+                        value = xraySocks.redact(privacyMode),
+                        onValueChange = { xraySocks = it },
+                        placeholder = com.wireturn.app.data.XrayConfig.DEFAULT_SOCKS_BIND_ADDRESS,
+                        isError = !com.wireturn.app.ui.ValidatorUtils.isValidHostPort(xraySocks),
+                        readOnly = privacyMode
+                    )
+                }
+                SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                    TextFieldRow(
+                        label = stringResource(R.string.xray_http),
+                        value = xrayHttp.redact(privacyMode),
+                        onValueChange = { xrayHttp = it },
+                        placeholder = "127.0.0.1:1081",
+                        isError = xrayHttp.isNotEmpty() && !com.wireturn.app.ui.ValidatorUtils.isValidHostPort(xrayHttp),
+                        readOnly = privacyMode
+                    )
+                }
+
+                var xrayAuth by remember(xrayConfig.isProxyAuthEnabled) { mutableStateOf(xrayConfig.isProxyAuthEnabled) }
+                var xrayUser by remember(xrayConfig.proxyUser) { mutableStateOf(xrayConfig.proxyUser) }
+                var xrayPass by remember(xrayConfig.proxyPass) { mutableStateOf(xrayConfig.proxyPass) }
+                LaunchedEffect(xrayAuth, xrayUser, xrayPass) {
+                    delay(500)
+                    val next = xrayConfig.copy(isProxyAuthEnabled = xrayAuth, proxyUser = xrayUser, proxyPass = xrayPass)
+                    if (next != xrayConfig) viewModel.updateXrayConfig(next)
+                }
+
+                SettingsGroupItem(
+                    isTop = false,
+                    isBottom = !xrayAuth,
+                    containerColor = blockContainerColor,
+                    onClick = {
+                        xrayAuth = !xrayAuth
+                        HapticUtil.perform(context, if (xrayAuth) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                    }
+                ) {
+                    SwitchRow(
+                        label = stringResource(R.string.xray_proxy_auth),
+                        supportingText = stringResource(R.string.xray_proxy_auth_desc),
+                        checked = xrayAuth,
+                        onCheckedChange = { xrayAuth = it }
+                    )
+                }
+                AnimatedVisibility(visible = xrayAuth) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                            TextFieldRow(
+                                label = stringResource(R.string.xray_proxy_user),
+                                value = xrayUser.redact(privacyMode),
+                                onValueChange = { xrayUser = it },
+                                placeholder = "admin",
+                                readOnly = privacyMode
+                            )
+                        }
+                        SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+                            TextFieldRow(
+                                label = stringResource(R.string.xray_proxy_pass),
+                                value = xrayPass.redact(privacyMode),
+                                onValueChange = { xrayPass = it },
+                                placeholder = "password",
+                                readOnly = privacyMode,
+                                trailingIcon = {
+                                    IconButton(onClick = { xrayPassVisible = !xrayPassVisible }) {
+                                        Icon(
+                                            painter = painterResource(
+                                                if (xrayPassVisible) R.drawable.visibility_24px
+                                                else R.drawable.visibility_off_24px
+                                            ),
+                                            contentDescription = null
+                                        )
+                                    }
+                                },
+                                visualTransformation = if (xrayPassVisible) VisualTransformation.None else PasswordVisualTransformation()
+                            )
+                        }
+                    }
+                }
+            }
+
+
             // 1. Оформление
             val themeModes = remember(supportsSystemTheme) {
                 if (supportsSystemTheme) ThemeMode.entries else ThemeMode.entries.filter { it != ThemeMode.SYSTEM }
@@ -627,6 +835,56 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showResetDialog.value = false }) { Text(stringResource(R.string.cancel)) }
+            }
+        )
+    }
+
+    if (showListenHelp.value) {
+        AlertDialog(
+            onDismissRequest = { showListenHelp.value = false },
+            title = { Text(stringResource(R.string.local_listen_address)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = stringResource(R.string.local_port_help_text),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = stringResource(R.string.local_port_help_secondary),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showListenHelp.value = false }) {
+                    Text(stringResource(R.string.btn_close))
+                }
+            }
+        )
+    }
+
+    if (showSocksHelp.value) {
+        AlertDialog(
+            onDismissRequest = { showSocksHelp.value = false },
+            title = { Text(stringResource(R.string.socks5)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = stringResource(R.string.olcrtc_socks_help_text),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = stringResource(R.string.olcrtc_socks_help_secondary),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSocksHelp.value = false }) {
+                    Text(stringResource(R.string.btn_close))
+                }
             }
         )
     }

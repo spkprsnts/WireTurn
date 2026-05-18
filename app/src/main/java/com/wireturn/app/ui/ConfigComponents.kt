@@ -81,6 +81,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -722,6 +723,7 @@ fun TextFieldRow(
     leadingIconSize: Dp = 24.dp,
     useLargeIcon: Boolean = false,
     trailingIcon: @Composable (() -> Unit)? = null,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
     isModified: Boolean = false,
     onHelpClick: (() -> Unit)? = null,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default
@@ -778,6 +780,7 @@ fun TextFieldRow(
                 }
             },
             trailingIcon = trailingIcon,
+            visualTransformation = visualTransformation,
             keyboardOptions = keyboardOptions,
             shape = RoundedCornerShape(8.dp),
             colors = TextFieldDefaults.colors(

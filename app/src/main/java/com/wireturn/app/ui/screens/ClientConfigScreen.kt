@@ -8,12 +8,6 @@ package com.wireturn.app.ui.screens
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -94,7 +88,6 @@ import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SupportingText
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
-import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.redact
 import com.wireturn.app.ui.showExclusiveSnackbar
 import com.wireturn.app.viewmodel.MainViewModel
@@ -129,17 +122,10 @@ fun ClientConfigScreen(
     var rawCommand by remember(saved) { mutableStateOf(saved.rawCommand) }
     var turnableConfig by remember(saved) { mutableStateOf(saved.turnableConfig) }
     var olcrtcConfig by remember(saved) { mutableStateOf(saved.olcrtcConfig) }
-    var olcrtcSocksAddr by remember(saved) {
-        val config = saved.olcrtcConfig
-        val addr = if (config.socksPort.isBlank()) config.socksHost else "${config.socksHost}:${config.socksPort}"
-        mutableStateOf(addr)
-    }
     var videoW by remember(saved) { mutableStateOf(saved.olcrtcConfig.videoW.let { if (it == 0) "" else it.toString() }) }
     var videoH by remember(saved) { mutableStateOf(saved.olcrtcConfig.videoH.let { if (it == 0) "" else it.toString() }) }
-    var localPort by remember(saved) { mutableStateOf(saved.localPort) }
     var kernelVariant by remember(saved) { mutableStateOf(saved.kernelVariant) }
 
-    val showPortHelp = remember { mutableStateOf(false) }
     val showOlcrtcHelp = remember { mutableStateOf(false) }
     val showKernelHelp = remember { mutableStateOf(false) }
     val showRoutesDialog = remember { mutableStateOf(false) }
@@ -173,7 +159,6 @@ fun ClientConfigScreen(
                             HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
                             kernelVariant = KernelVariant.OLCRTC
                             olcrtcConfig = olcrtcParsed
-                            olcrtcSocksAddr = if (olcrtcParsed.socksPort.isBlank()) olcrtcParsed.socksHost else "${olcrtcParsed.socksHost}:${olcrtcParsed.socksPort}"
                             videoW = olcrtcParsed.videoW.let { if (it == 0) "" else it.toString() }
                             videoH = olcrtcParsed.videoH.let { if (it == 0) "" else it.toString() }
                             scope.launch { snackbarHostState.showExclusiveSnackbar(importSuccessMessage) }
@@ -188,19 +173,13 @@ fun ClientConfigScreen(
         }
     )
 
-    val isLocalPortValid = remember(localPort) { ValidatorUtils.isValidHostPort(localPort) }
-    val isOlcrtcSocksValid = remember(olcrtcSocksAddr) { ValidatorUtils.isValidHostPort(olcrtcSocksAddr) }
-
-    LaunchedEffect(isRawMode, rawCommand, turnableConfig, olcrtcConfig, localPort, olcrtcSocksAddr, kernelVariant, videoW, videoH) {
+    LaunchedEffect(isRawMode, rawCommand, turnableConfig, olcrtcConfig, kernelVariant, videoW, videoH) {
         delay(200)
         val current = viewModel.clientConfig.value
         
-        val parts = olcrtcSocksAddr.split(":")
         val effectiveOlcrtcConfig = olcrtcConfig.copy(
             videoW = videoW.toIntOrNull() ?: 0,
-            videoH = videoH.toIntOrNull() ?: 0,
-            socksHost = parts.getOrNull(0) ?: "",
-            socksPort = parts.getOrNull(1) ?: ""
+            videoH = videoH.toIntOrNull() ?: 0
         )
 
         val next = current.copy(
@@ -208,7 +187,6 @@ fun ClientConfigScreen(
             rawCommand       = rawCommand,
             turnableConfig   = turnableConfig,
             olcrtcConfig     = effectiveOlcrtcConfig,
-            localPort        = localPort.trim(),
             kernelVariant    = kernelVariant
         )
 
@@ -295,7 +273,6 @@ fun ClientConfigScreen(
                                                 HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
                                                 kernelVariant = KernelVariant.OLCRTC
                                                 olcrtcConfig = olcrtcParsed
-                                                olcrtcSocksAddr = if (olcrtcParsed.socksPort.isBlank()) olcrtcParsed.socksHost else "${olcrtcParsed.socksHost}:${olcrtcParsed.socksPort}"
                                                 videoW = olcrtcParsed.videoW.let { if (it == 0) "" else it.toString() }
                                                 videoH = olcrtcParsed.videoH.let { if (it == 0) "" else it.toString() }
                                                 snackbarHostState.showExclusiveSnackbar(importSuccessMessage)
@@ -479,14 +456,10 @@ fun ClientConfigScreen(
                                 TurnableSettings(
                                     config = turnableConfig,
                                     onConfigChange = { turnableConfig = it },
-                                    localPort = localPort,
-                                    onLocalPortChange = { localPort = it },
-                                    isLocalPortValid = isLocalPortValid,
                                     privacyMode = privacyMode,
                                     clientConfigSnapshot = clientConfigSnapshot,
                                     blockContainerColor = blockContainerColor,
-                                    onShowRoutesDialog = { showRoutesDialog.value = true },
-                                    onShowPortHelp = { showPortHelp.value = true }
+                                    onShowRoutesDialog = { showRoutesDialog.value = true }
                                 )
                             } else {
                                 TurnableMissingConfig(blockContainerColor)
@@ -497,9 +470,6 @@ fun ClientConfigScreen(
                             OlcrtcSettings(
                                 config = olcrtcConfig,
                                 onConfigChange = { olcrtcConfig = it },
-                                olcrtcSocksAddr = olcrtcSocksAddr,
-                                onSocksAddrChange = { olcrtcSocksAddr = it },
-                                isOlcrtcSocksValid = isOlcrtcSocksValid,
                                 videoW = videoW,
                                 onVideoWChange = { videoW = it },
                                 videoH = videoH,
@@ -507,7 +477,6 @@ fun ClientConfigScreen(
                                 privacyMode = privacyMode,
                                 clientConfigSnapshot = clientConfigSnapshot,
                                 blockContainerColor = blockContainerColor,
-                                onShowOlcrtcHelp = { showOlcrtcHelp.value = true },
                                 onShowTransportDialog = { showTransportDialog.value = true }
                             )
                         }
@@ -606,7 +575,6 @@ fun ClientConfigScreen(
                 } else if (olcrtcParsed != null) {
                     kernelVariant = KernelVariant.OLCRTC
                     olcrtcConfig = olcrtcParsed
-                    olcrtcSocksAddr = if (olcrtcParsed.socksPort.isBlank()) olcrtcParsed.socksHost else "${olcrtcParsed.socksHost}:${olcrtcParsed.socksPort}"
                     videoW = olcrtcParsed.videoW.let { if (it == 0) "" else it.toString() }
                     videoH = olcrtcParsed.videoH.let { if (it == 0) "" else it.toString() }
                     scope.launch { 
@@ -713,44 +681,16 @@ fun ClientConfigScreen(
         )
     }
 
-    if (showPortHelp.value) {
-        AlertDialog(
-            onDismissRequest = { showPortHelp.value = false },
-            title = { Text(stringResource(R.string.local_listen_address)) },
-            text = { 
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = stringResource(R.string.local_port_help_text),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Text(
-                        text = stringResource(R.string.local_port_help_secondary),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showPortHelp.value = false }) {
-                    Text(stringResource(R.string.btn_close))
-                }
-            }
-        )
-    }
 }
 
 @Composable
 private fun TurnableSettings(
     config: TurnableConfig,
     onConfigChange: (TurnableConfig) -> Unit,
-    localPort: String,
-    onLocalPortChange: (String) -> Unit,
-    isLocalPortValid: Boolean,
     privacyMode: Boolean,
     clientConfigSnapshot: ClientConfig?,
     blockContainerColor: Color,
-    onShowRoutesDialog: () -> Unit,
-    onShowPortHelp: () -> Unit
+    onShowRoutesDialog: () -> Unit
 ) {
     val context = LocalContext.current
     SettingsGroup(title = stringResource(R.string.route_title)) {
@@ -772,26 +712,9 @@ private fun TurnableSettings(
 
     // 2. Детали подключения
     SettingsGroup(title = stringResource(R.string.connection_details)) {
-        // Local Port
-        SettingsGroupItem(
-            isTop = true,
-            isBottom = false,
-            containerColor = blockContainerColor
-        ) {
-            TextFieldRow(
-                label = stringResource(R.string.local_listen_address),
-                value = localPort.redact(privacyMode),
-                onValueChange = onLocalPortChange,
-                placeholder = stringResource(R.string.local_listen_placeholder),
-                isError = !isLocalPortValid,
-                readOnly = privacyMode,
-                isModified = clientConfigSnapshot != null && localPort.trim() != clientConfigSnapshot.localPort,
-                onHelpClick = onShowPortHelp
-            )
-        }
         // Peers
         SettingsGroupItem(
-            isTop = false,
+            isTop = true,
             isBottom = false,
             containerColor = blockContainerColor
         ) {
@@ -1097,9 +1020,6 @@ private fun TurnableMissingConfig(blockContainerColor: Color) {
 private fun OlcrtcSettings(
     config: OlcrtcConfig,
     onConfigChange: (OlcrtcConfig) -> Unit,
-    olcrtcSocksAddr: String,
-    onSocksAddrChange: (String) -> Unit,
-    isOlcrtcSocksValid: Boolean,
     videoW: String,
     onVideoWChange: (String) -> Unit,
     videoH: String,
@@ -1107,94 +1027,10 @@ private fun OlcrtcSettings(
     privacyMode: Boolean,
     clientConfigSnapshot: ClientConfig?,
     blockContainerColor: Color,
-    onShowOlcrtcHelp: () -> Unit,
     onShowTransportDialog: () -> Unit
 ) {
     val context = LocalContext.current
     SettingsGroup(title = stringResource(R.string.connection_details)) {
-        // SOCKS Proxy
-        SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
-            TextFieldRow(
-                label = stringResource(R.string.olcrtc_socks_proxy_label),
-                value = olcrtcSocksAddr.redact(privacyMode),
-                onValueChange = onSocksAddrChange,
-                placeholder = stringResource(R.string.local_listen_placeholder),
-                isError = !isOlcrtcSocksValid,
-                readOnly = privacyMode,
-                isModified = clientConfigSnapshot != null && run {
-                    val snap = clientConfigSnapshot.olcrtcConfig
-                    val snapAddr = if (snap.socksPort.isBlank()) snap.socksHost else "${snap.socksHost}:${snap.socksPort}"
-                    olcrtcSocksAddr.trim() != snapAddr
-                },
-                onHelpClick = onShowOlcrtcHelp
-            )
-        }
-
-        SettingsGroupItem(
-            isTop = false,
-            isBottom = !config.isSocksAuthEnabled,
-            containerColor = blockContainerColor,
-            onClick = {
-                val newValue = !config.isSocksAuthEnabled
-                HapticUtil.perform(context, if (newValue) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
-                onConfigChange(config.copy(isSocksAuthEnabled = newValue))
-            }
-        ) {
-            SwitchRow(
-                label = stringResource(R.string.xray_proxy_auth),
-                supportingText = stringResource(R.string.xray_proxy_auth_desc),
-                checked = config.isSocksAuthEnabled,
-                onCheckedChange = {
-                    HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
-                    onConfigChange(config.copy(isSocksAuthEnabled = it))
-                },
-                isModified = clientConfigSnapshot != null && config.isSocksAuthEnabled != clientConfigSnapshot.olcrtcConfig.isSocksAuthEnabled
-            )
-        }
-
-        AnimatedVisibility(
-            visible = config.isSocksAuthEnabled,
-            enter = fadeIn(tween(300)) + expandVertically(tween(300)),
-            exit = fadeOut(tween(300)) + shrinkVertically(tween(300))
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                SettingsGroupItem(
-                    isTop = false,
-                    isBottom = false,
-                    containerColor = blockContainerColor
-                ) {
-                    TextFieldRow(
-                        label = stringResource(R.string.xray_proxy_user),
-                        value = config.socksUser.redact(privacyMode),
-                        onValueChange = { onConfigChange(config.copy(socksUser = it)) },
-                        placeholder = "admin",
-                        supportingText = stringResource(R.string.xray_proxy_auth_hint),
-                        isError = config.isSocksAuthEnabled && config.socksUser.isNotEmpty() && !ValidatorUtils.isValidProxyUser(config.socksUser),
-                        readOnly = privacyMode,
-                        isModified = clientConfigSnapshot != null && config.socksUser != clientConfigSnapshot.olcrtcConfig.socksUser
-                    )
-                }
-                SettingsGroupItem(
-                    isTop = false,
-                    isBottom = true,
-                    containerColor = blockContainerColor
-                ) {
-                    TextFieldRow(
-                        label = stringResource(R.string.xray_proxy_pass),
-                        value = config.socksPass.redact(privacyMode),
-                        onValueChange = { onConfigChange(config.copy(socksPass = it)) },
-                        placeholder = "password",
-                        supportingText = stringResource(R.string.xray_proxy_auth_hint),
-                        isError = config.isSocksAuthEnabled && config.socksPass.isNotEmpty() && !ValidatorUtils.isValidProxyPass(config.socksPass),
-                        readOnly = privacyMode,
-                        isModified = clientConfigSnapshot != null && config.socksPass != clientConfigSnapshot.olcrtcConfig.socksPass
-                    )
-                }
-            }
-        }
-
-        Spacer(Modifier.height(12.dp))
-
         // Carrier
         SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
             LabeledButtonGroup(

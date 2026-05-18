@@ -117,11 +117,6 @@ fun XrayConfigScreen(
     val blockContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
 
     var xrayConfiguration by remember(xrayConfig) { mutableStateOf(xrayConfig.xrayConfiguration) }
-    var socksBindAddress by remember(xrayConfig) { mutableStateOf(xrayConfig.socksBindAddress) }
-    var httpBindAddress by remember(xrayConfig) { mutableStateOf(xrayConfig.httpBindAddress) }
-    var isProxyAuthEnabled by remember(xrayConfig) { mutableStateOf(xrayConfig.isProxyAuthEnabled) }
-    var proxyUser by remember(xrayConfig) { mutableStateOf(xrayConfig.proxyUser) }
-    var proxyPass by remember(xrayConfig) { mutableStateOf(xrayConfig.proxyPass) }
 
     // WireGuard states
     var privateKey by remember(savedWgConfig) { mutableStateOf(savedWgConfig.privateKey) }
@@ -140,15 +135,10 @@ fun XrayConfigScreen(
     val showUniversalQrScanner = remember { mutableStateOf(false) }
 
     // Auto-save debounced
-    LaunchedEffect(xrayConfiguration, socksBindAddress, httpBindAddress, isProxyAuthEnabled, proxyUser, proxyPass) {
+    LaunchedEffect(xrayConfiguration) {
         delay(200)
         val next = xrayConfig.copy(
-            xrayConfiguration = xrayConfiguration,
-            socksBindAddress = socksBindAddress,
-            httpBindAddress = httpBindAddress,
-            isProxyAuthEnabled = isProxyAuthEnabled,
-            proxyUser = proxyUser,
-            proxyPass = proxyPass
+            xrayConfiguration = xrayConfiguration
         )
         if (next != xrayConfig) {
             viewModel.updateXrayConfig(next)
@@ -220,8 +210,6 @@ fun XrayConfigScreen(
         }
     )
 
-    val isSocksValid = remember(socksBindAddress) { ValidatorUtils.isValidHostPort(socksBindAddress) }
-    val isHttpValid = remember(httpBindAddress) { httpBindAddress.isBlank() || ValidatorUtils.isValidHostPort(httpBindAddress) }
 
     val initialOffset = with(LocalDensity.current) { -48.dp.toPx() }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
@@ -363,98 +351,6 @@ fun XrayConfigScreen(
                 .padding(bottom = 76.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // 1. Настройки прокси
-            SettingsGroup(title = stringResource(R.string.xray_proxy_settings)) {
-                SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
-                    TextFieldRow(
-                        label = stringResource(R.string.xray_socks5),
-                        value = socksBindAddress,
-                        onValueChange = { socksBindAddress = it },
-                        placeholder = stringResource(R.string.xray_socks5_placeholder),
-                        isError = !isSocksValid || (socksBindAddress.isNotEmpty() && socksBindAddress == httpBindAddress),
-                        supportingText = stringResource(R.string.xray_socks_desc),
-                        isModified = xrayConfigSnapshot != null && socksBindAddress != xrayConfigSnapshot?.socksBindAddress
-                    )
-                }
-
-                SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
-                    TextFieldRow(
-                        label = stringResource(R.string.xray_http),
-                        value = httpBindAddress,
-                        onValueChange = { httpBindAddress = it },
-                        placeholder = stringResource(R.string.xray_http_placeholder),
-                        isError = !isHttpValid || (httpBindAddress.isNotEmpty() && socksBindAddress == httpBindAddress),
-                        supportingText = stringResource(R.string.xray_http_desc),
-                        isModified = xrayConfigSnapshot != null && httpBindAddress != xrayConfigSnapshot?.httpBindAddress
-                    )
-                }
-
-                Spacer(Modifier.height(12.dp))
-
-                SettingsGroupItem(
-                    isTop = true,
-                    isBottom = !isProxyAuthEnabled,
-                    containerColor = blockContainerColor,
-                    onClick = {
-                        val newValue = !isProxyAuthEnabled
-                        HapticUtil.perform(context, if (newValue) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
-                        isProxyAuthEnabled = newValue
-                    }
-                ) {
-                    SwitchRow(
-                        label = stringResource(R.string.xray_proxy_auth),
-                        supportingText = stringResource(R.string.xray_proxy_auth_desc),
-                        checked = isProxyAuthEnabled,
-                        onCheckedChange = {
-                            HapticUtil.perform(context, if (it) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
-                            isProxyAuthEnabled = it
-                        },
-                        isModified = xrayConfigSnapshot != null && isProxyAuthEnabled != xrayConfigSnapshot?.isProxyAuthEnabled
-                    )
-                }
-
-                AnimatedVisibility(
-                    visible = isProxyAuthEnabled,
-                    enter = fadeIn(tween(300)) + expandVertically(tween(300)),
-                    exit = fadeOut(tween(300)) + shrinkVertically(tween(300))
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        SettingsGroupItem(
-                            isTop = false,
-                            isBottom = false,
-                            containerColor = blockContainerColor
-                        ) {
-                            TextFieldRow(
-                                label = stringResource(R.string.xray_proxy_user),
-                                value = proxyUser.redact(privacyMode),
-                                onValueChange = { proxyUser = it },
-                                placeholder = "admin",
-                                supportingText = stringResource(R.string.xray_proxy_auth_hint),
-                                isError = isProxyAuthEnabled && proxyUser.isNotEmpty() && !ValidatorUtils.isValidProxyUser(proxyUser),
-                                readOnly = privacyMode,
-                                isModified = xrayConfigSnapshot != null && proxyUser != xrayConfigSnapshot?.proxyUser
-                            )
-                        }
-                        SettingsGroupItem(
-                            isTop = false,
-                            isBottom = true,
-                            containerColor = blockContainerColor
-                        ) {
-                            TextFieldRow(
-                                label = stringResource(R.string.xray_proxy_pass),
-                                value = proxyPass.redact(privacyMode),
-                                onValueChange = { proxyPass = it },
-                                placeholder = "password",
-                                supportingText = stringResource(R.string.xray_proxy_auth_hint),
-                                isError = isProxyAuthEnabled && proxyPass.isNotEmpty() && !ValidatorUtils.isValidProxyPass(proxyPass),
-                                readOnly = privacyMode,
-                                isModified = xrayConfigSnapshot != null && proxyPass != xrayConfigSnapshot?.proxyPass
-                            )
-                        }
-                    }
-                }
-            }
-
             // 2. Выбор протокола
             SettingsGroup(title = stringResource(R.string.xray_protocol_label)) {
                 SettingsGroupItem(

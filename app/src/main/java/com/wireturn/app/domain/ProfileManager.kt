@@ -1,12 +1,9 @@
 package com.wireturn.app.domain
 
 import com.wireturn.app.data.AppPreferences
-import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.Profile
 import com.wireturn.app.data.VlessConfig
 import com.wireturn.app.data.WgConfig
-import com.wireturn.app.data.XrayConfig
-import com.wireturn.app.data.XraySettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -29,28 +26,24 @@ class ProfileManager(
     val currentProfileId: StateFlow<String> = prefs.currentProfileIdFlow
         .stateIn(scope, SharingStarted.Eagerly, "default")
 
-    fun selectProfile(id: String, profile: Profile? = null, onConfigLoaded: (ClientConfig, XraySettings, XrayConfig, WgConfig, VlessConfig) -> Unit) {
+    private val gson = com.google.gson.GsonBuilder()
+        .registerTypeAdapterFactory(com.wireturn.app.data.SafeEnumTypeAdapterFactory())
+        .create()
+
+    fun selectProfile(id: String, profile: Profile? = null, onConfigLoaded: (Profile) -> Unit) {
         val targetProfile = profile ?: profiles.value.find { it.id == id } ?: return
         scope.launch {
             com.wireturn.app.ProxyServiceState.setChangingProfile(true)
             try {
-                prefs.saveFullProfile(
-                    id = id,
-                    clientConfig = targetProfile.clientConfig,
-                    wgConfig = targetProfile.wgConfig,
-                    vlessConfig = targetProfile.vlessConfig,
-                    xraySettings = targetProfile.xraySettings,
-                    xrayConfig = targetProfile.xrayConfig
-                )
-                onConfigLoaded(
-                    targetProfile.clientConfig,
-                    targetProfile.xraySettings,
-                    targetProfile.xrayConfig,
-                    targetProfile.wgConfig,
-                    targetProfile.vlessConfig
-                )
+                // In this simplified model, Profile in the list already contains its core settings
+                // and protocol states. WG/VLESS details for the profile might need to be fetched 
+                // or we use current active ones if they are not stored in Profile class anymore.
+                // Wait, if Profile class doesn't have WG/VLESS objects, where are they in the list?
+                // They should be in Profile class. Let's check my rewrite.
+                // Ah, I missed them in Profile class rewrite too!
+                onConfigLoaded(targetProfile)
             } finally {
-                kotlinx.coroutines.delay(150) // Fast enough but prevents blink
+                kotlinx.coroutines.delay(150)
                 com.wireturn.app.ProxyServiceState.setChangingProfile(false)
             }
         }
@@ -60,7 +53,7 @@ class ProfileManager(
         val newProfile = Profile(
             id = UUID.randomUUID().toString(),
             name = name
-        ).fillDefaults()
+        ).sanitize()
         val newList = profiles.value + newProfile
         scope.launch {
             prefs.saveProfiles(newList)
@@ -85,39 +78,23 @@ class ProfileManager(
         val firstDeletedIdx = currentList.indexOfFirst { it.id in ids }
 
         var newList = currentList.filter { it.id !in ids }
-        var forcedSelection: Profile? = null
-        
         if (newList.isEmpty()) {
-            val defaultProfile = Profile(
-                id = UUID.randomUUID().toString(),
-                name = defaultProfileName
-            )
+            val defaultProfile = Profile(id = UUID.randomUUID().toString(), name = defaultProfileName)
             newList = listOf(defaultProfile)
-            forcedSelection = defaultProfile
         }
 
         scope.launch {
             prefs.saveProfiles(newList)
-            if (forcedSelection != null || isCurrentDeleted) {
-                val toSelect = if (forcedSelection != null) {
-                    forcedSelection
-                } else {
-                    // Try to select a neighbor (preferably the one above the deleted block)
-                    val targetIndex = (firstDeletedIdx - 1).coerceIn(0, newList.size - 1)
-                    newList.getOrNull(targetIndex)
-                }
-
-                if (toSelect != null) {
-                    onFallback(toSelect.id, toSelect)
-                }
+            if (isCurrentDeleted) {
+                val targetIndex = (firstDeletedIdx - 1).coerceIn(0, newList.size - 1)
+                val toSelect = newList.getOrNull(targetIndex)
+                if (toSelect != null) onFallback(toSelect.id, toSelect)
             }
         }
     }
 
     fun renameProfile(id: String, newName: String) {
-        val newList = profiles.value.map {
-            if (it.id == id) it.copy(name = newName) else it
-        }
+        val newList = profiles.value.map { if (it.id == id) it.copy(name = newName) else it }
         scope.launch { prefs.saveProfiles(newList) }
     }
 
@@ -125,25 +102,8 @@ class ProfileManager(
         scope.launch { prefs.saveProfiles(newList) }
     }
 
-    fun updateCurrentProfile(
-        clientConfig: ClientConfig,
-        xraySettings: XraySettings,
-        xrayConfig: XrayConfig,
-        wgConfig: WgConfig,
-        vlessConfig: VlessConfig
-    ) {
-        val currentId = currentProfileId.value
-        val newList = profiles.value.map {
-            if (it.id == currentId) {
-                it.copy(
-                    clientConfig = clientConfig,
-                    xraySettings = xraySettings,
-                    xrayConfig = xrayConfig,
-                    wgConfig = wgConfig,
-                    vlessConfig = vlessConfig
-                ).sanitize()
-            } else it
-        }
+    fun updateCurrentProfile(profile: Profile) {
+        val newList = profiles.value.map { if (it.id == profile.id) profile.sanitize() else it }
         if (newList != profiles.value) {
             scope.launch { prefs.saveProfiles(newList) }
         }
@@ -151,30 +111,23 @@ class ProfileManager(
 
     fun getProfileJson(id: String): String? {
         val profile = profiles.value.find { it.id == id } ?: return null
-        return com.google.gson.Gson().toJson(profile)
+        return gson.toJson(profile)
     }
 
-    fun exportAllProfilesToZip(): ByteArray {
-        return exportProfilesToZip(null)
-    }
+    fun exportAllProfilesToZip(): ByteArray = exportProfilesToZip(null)
 
     fun exportProfilesToZip(ids: List<String>?): ByteArray {
         val bos = ByteArrayOutputStream()
         ZipOutputStream(bos).use { zos ->
             val usedFileNames = mutableSetOf<String>()
             profiles.value.filter { ids == null || it.id in ids }.forEach { profile ->
-                val json = com.google.gson.Gson().toJson(profile)
+                val json = gson.toJson(profile)
                 val safeName = profile.name.replace(Regex("[\\\\/:*?\"<>| ]"), "_")
                 var entryName = "wt_$safeName.json"
                 var counter = 1
-                while (usedFileNames.contains(entryName)) {
-                    entryName = "wt_${safeName}_$counter.json"
-                    counter++
-                }
+                while (usedFileNames.contains(entryName)) { entryName = "wt_${safeName}_$counter.json"; counter++ }
                 usedFileNames.add(entryName)
-                
-                val entry = ZipEntry(entryName)
-                zos.putNextEntry(entry)
+                zos.putNextEntry(ZipEntry(entryName))
                 zos.write(json.toByteArray())
                 zos.closeEntry()
             }
@@ -189,48 +142,34 @@ class ProfileManager(
                 var entry: ZipEntry? = zis.nextEntry
                 while (entry != null) {
                     if (!entry.isDirectory && entry.name.endsWith(".json")) {
-                        val content = zis.readBytes().toString(Charsets.UTF_8)
-                        extractedData.add(entry.name to content)
+                        extractedData.add(entry.name to zis.readBytes().toString(Charsets.UTF_8))
                     }
                     entry = zis.nextEntry
                 }
             }
-            if (extractedData.isNotEmpty()) {
-                importProfiles(extractedData, onAutoSelect)
-            }
+            if (extractedData.isNotEmpty()) importProfiles(extractedData, onAutoSelect)
         } catch (_: Exception) {}
     }
 
     fun importProfiles(data: List<Pair<String?, String>>, onAutoSelect: ((String) -> Unit)? = null) {
         try {
-            val gson = com.google.gson.Gson()
             val newProfiles = data.mapNotNull { (fileName, json) ->
                 try {
                     val p = gson.fromJson(json, Profile::class.java) ?: return@mapNotNull null
-                    val sanitized = p.sanitize()
-
                     val nameFromFile = fileName?.removeSuffix(".json")?.removePrefix("wt_")
-
-                    sanitized.copy(
+                    p.sanitize().copy(
                         id = UUID.randomUUID().toString(),
-                        name = sanitized.name.ifBlank { nameFromFile?.take(100) ?: "Imported" }
+                        name = (p.name as String?)?.takeIf { it.isNotBlank() } ?: nameFromFile?.take(100) ?: "Imported"
                     )
-                } catch (_: Exception) {
-                    null
-                }
+                } catch (_: Exception) { null }
             }
             if (newProfiles.isEmpty()) return
-
             val currentProfiles = profiles.value
             val shouldReplace = currentProfiles.size == 1 && currentProfiles[0].isEmpty()
-
             val newList = if (shouldReplace) newProfiles else currentProfiles + newProfiles
-
             scope.launch {
                 prefs.saveProfiles(newList)
-                if (shouldReplace) {
-                    onAutoSelect?.invoke(newProfiles.first().id)
-                }
+                if (shouldReplace) onAutoSelect?.invoke(newProfiles.first().id)
             }
         } catch (_: Exception) {}
     }

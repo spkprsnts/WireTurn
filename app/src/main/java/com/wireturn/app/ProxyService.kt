@@ -628,7 +628,7 @@ class ProxyService : Service() {
                     cmdArgs.addAll(
                         listOf(
                             "client",
-                            "-l", cfg.localPort.ifBlank { ClientConfig.DEFAULT_LOCAL_PORT },
+                            "-l", cfg.listenAddr.ifBlank { ClientConfig.DEFAULT_LISTEN_ADDR },
                             cfg.turnableConfig.toUrl(true)
                         )
                     )
@@ -647,17 +647,17 @@ class ProxyService : Service() {
                             "-link", "direct",
                             "-data", "data",
                             "-dns", o.dns,
-                            "-socks-host", o.socksHost.ifBlank { ClientConfig.DEFAULT_SOCKS_HOST },
-                            "-socks-port", o.socksPort.ifBlank { ClientConfig.DEFAULT_SOCKS_PORT },
+                            "-socks-host", cfg.socksAddr.substringBefore(':').ifBlank { "127.0.0.1" },
+                            "-socks-port", cfg.socksAddr.substringAfter(':', "9001").ifBlank { "9001" },
                             "-ffmpeg", "${applicationInfo.nativeLibraryDir}/libffmpeg.so"
                         )
                     )
 
-                    if (o.isSocksAuthEnabled) {
+                    if (cfg.isSocksAuthEnabled) {
                         cmdArgs.addAll(
                             listOf(
-                                "-socks-user", o.socksUser,
-                                "-socks-pass", o.socksPass
+                                "-socks-user", cfg.socksUser,
+                                "-socks-pass", cfg.socksPass
                             )
                         )
                     }
@@ -771,8 +771,8 @@ class ProxyService : Service() {
                         status !is ProxyStatus.WaitingForNetwork
                 
                 val connectionTarget = when (clientConfig.kernelVariant) {
-                    KernelVariant.OLCRTC -> "${clientConfig.olcrtcConfig.socksHost}:${clientConfig.olcrtcConfig.socksPort}"
-                    else -> clientConfig.localPort
+                    KernelVariant.OLCRTC -> clientConfig.socksAddr
+                    else -> clientConfig.listenAddr
                 }
 
                 XraySupervisorBundle(
