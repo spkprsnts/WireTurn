@@ -2,8 +2,6 @@ package com.wireturn.app.domain
 
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.Profile
-import com.wireturn.app.data.VlessConfig
-import com.wireturn.app.data.WgConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -46,18 +44,6 @@ class ProfileManager(
                 kotlinx.coroutines.delay(150)
                 com.wireturn.app.ProxyServiceState.setChangingProfile(false)
             }
-        }
-    }
-
-    fun createProfile(name: String, onSelected: (String, Profile) -> Unit) {
-        val newProfile = Profile(
-            id = UUID.randomUUID().toString(),
-            name = name
-        ).sanitize()
-        val newList = profiles.value + newProfile
-        scope.launch {
-            prefs.saveProfiles(newList)
-            onSelected(newProfile.id, newProfile)
         }
     }
 
