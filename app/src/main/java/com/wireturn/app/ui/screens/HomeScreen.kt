@@ -842,7 +842,7 @@ fun HomeScreen(
                     }
                 ) {
                     LaunchedEffect(configValid, xraySettings.xrayEnabled, currentProfileId, autoLaunchSettings.enabled) {
-                        delay(500)
+                        delay(300)
                         if (!configValid && xraySettings.xrayEnabled && !autoLaunchSettings.enabled) {
                             viewModel.updateXraySettings(viewModel.xraySettings.value.copy(xrayEnabled = false))
                         }

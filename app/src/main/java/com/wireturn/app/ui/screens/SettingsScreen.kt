@@ -6,6 +6,7 @@
 package com.wireturn.app.ui.screens
 
 import android.os.Build
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,25 +24,21 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumTopAppBar
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.MediumTopAppBar
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -50,38 +47,42 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.data.ThemeMode
 import com.wireturn.app.ui.HapticUtil
-import com.wireturn.app.ui.trackScrollDelta
 import com.wireturn.app.ui.LabeledButtonGroup
-import com.wireturn.app.ui.configButtonGroupItem
 import com.wireturn.app.ui.SettingsGroup
 import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.UpdateBlock
-import com.wireturn.app.viewmodel.MainViewModel
-import androidx.compose.animation.AnimatedVisibility
-import com.wireturn.app.viewmodel.UpdateState
+import com.wireturn.app.ui.ValidatorUtils
+import com.wireturn.app.ui.configButtonGroupItem
 import com.wireturn.app.ui.redact
+import com.wireturn.app.ui.trackScrollDelta
+import com.wireturn.app.viewmodel.MainViewModel
+import com.wireturn.app.viewmodel.UpdateState
+import kotlinx.coroutines.delay
 
 @Composable
 fun SettingsScreen(
@@ -155,7 +156,11 @@ fun SettingsScreen(
     }
 
     val isDark = com.wireturn.app.ui.theme.LocalIsDark.current
-    val blockContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
+    val blockContainerColor = if (isDark) {
+        MaterialTheme.colorScheme.surfaceContainerHighest
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
 
     val showBottomSheet = rememberSaveable { mutableStateOf(false) }
     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -183,7 +188,10 @@ fun SettingsScreen(
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         showBottomSheet.value = true
                     }) {
-                        Icon(painterResource(R.drawable.info_24px), contentDescription = stringResource(R.string.info_desc))
+                        Icon(
+                            painter = painterResource(R.drawable.info_24px), 
+                            contentDescription = stringResource(R.string.info_desc)
+                        )
                     }
                 }
             )
@@ -215,19 +223,21 @@ fun SettingsScreen(
             // Turnable
             SettingsGroup(title = stringResource(R.string.settings_group_turnable)) {
                 var listenAddr by remember(clientConfig.listenAddr) { mutableStateOf(clientConfig.listenAddr) }
+                
                 LaunchedEffect(listenAddr) {
-                    delay(500)
-                    if (listenAddr != clientConfig.listenAddr && com.wireturn.app.ui.ValidatorUtils.isValidHostPort(listenAddr)) {
+                    delay(300)
+                    if (listenAddr != clientConfig.listenAddr && ValidatorUtils.isValidHostPort(listenAddr)) {
                         viewModel.saveClientConfig(clientConfig.copy(listenAddr = listenAddr))
                     }
                 }
+                
                 SettingsGroupItem(isTop = true, isBottom = true, containerColor = blockContainerColor) {
                     TextFieldRow(
                         label = stringResource(R.string.local_listen_address),
                         value = listenAddr.redact(privacyMode),
                         onValueChange = { listenAddr = it },
                         placeholder = com.wireturn.app.data.ClientConfig.DEFAULT_LISTEN_ADDR,
-                        isError = !com.wireturn.app.ui.ValidatorUtils.isValidHostPort(listenAddr),
+                        isError = !ValidatorUtils.isValidHostPort(listenAddr),
                         readOnly = privacyMode,
                         onHelpClick = { showListenHelp.value = true }
                     )
@@ -235,22 +245,25 @@ fun SettingsScreen(
             }
 
             // olcRTC
+            val olcrtcSocksAddr by viewModel.olcrtcSocksAddr.collectAsStateWithLifecycle()
+            val olcrtcSocksAuthEnabled by viewModel.olcrtcSocksAuthEnabled.collectAsStateWithLifecycle()
+            val olcrtcSocksUser by viewModel.olcrtcSocksUser.collectAsStateWithLifecycle()
+            val olcrtcSocksPass by viewModel.olcrtcSocksPass.collectAsStateWithLifecycle()
+
             SettingsGroup(title = stringResource(R.string.settings_group_olcrtc)) {
-                var olSocks by remember(clientConfig.socksAddr) { mutableStateOf(clientConfig.socksAddr) }
-                var olAuth by remember(clientConfig.isSocksAuthEnabled) { mutableStateOf(clientConfig.isSocksAuthEnabled) }
-                var olUser by remember(clientConfig.socksUser) { mutableStateOf(clientConfig.socksUser) }
-                var olPass by remember(clientConfig.socksPass) { mutableStateOf(clientConfig.socksPass) }
+                var olSocks by remember(olcrtcSocksAddr) { mutableStateOf(olcrtcSocksAddr) }
+                var olAuth by remember(olcrtcSocksAuthEnabled) { mutableStateOf(olcrtcSocksAuthEnabled) }
+                var olUser by remember(olcrtcSocksUser) { mutableStateOf(olcrtcSocksUser) }
+                var olPass by remember(olcrtcSocksPass) { mutableStateOf(olcrtcSocksPass) }
                 var olPassVisible by rememberSaveable { mutableStateOf(false) }
 
                 LaunchedEffect(olSocks, olAuth, olUser, olPass) {
-                    delay(500)
-                    if (olSocks != clientConfig.socksAddr || olAuth != clientConfig.isSocksAuthEnabled || olUser != clientConfig.socksUser || olPass != clientConfig.socksPass) {
-                        viewModel.saveClientConfig(clientConfig.copy(
-                            socksAddr = olSocks,
-                            isSocksAuthEnabled = olAuth,
-                            socksUser = olUser,
-                            socksPass = olPass
-                        ))
+                    delay(300)
+                    if (olSocks != olcrtcSocksAddr || 
+                        olAuth != olcrtcSocksAuthEnabled || 
+                        olUser != olcrtcSocksUser || 
+                        olPass != olcrtcSocksPass) {
+                        viewModel.saveOlcrtcSocks(olSocks, olAuth, olUser, olPass)
                     }
                 }
 
@@ -260,18 +273,22 @@ fun SettingsScreen(
                         value = olSocks.redact(privacyMode),
                         onValueChange = { olSocks = it },
                         placeholder = "127.0.0.1:9001",
-                        isError = olSocks.isNotEmpty() && !com.wireturn.app.ui.ValidatorUtils.isValidHostPort(olSocks),
+                        isError = olSocks.isNotEmpty() && !ValidatorUtils.isValidHostPort(olSocks),
                         readOnly = privacyMode,
                         onHelpClick = { showSocksHelp.value = true }
                     )
                 }
+                
                 SettingsGroupItem(
                     isTop = false,
                     isBottom = !olAuth,
                     containerColor = blockContainerColor,
                     onClick = {
                         olAuth = !olAuth
-                        HapticUtil.perform(context, if (olAuth) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                        HapticUtil.perform(
+                            context, 
+                            if (olAuth) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                        )
                     }
                 ) {
                     SwitchRow(
@@ -281,6 +298,7 @@ fun SettingsScreen(
                         onCheckedChange = { olAuth = it }
                     )
                 }
+                
                 AnimatedVisibility(visible = olAuth) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
@@ -310,7 +328,11 @@ fun SettingsScreen(
                                         )
                                     }
                                 },
-                                visualTransformation = if (olPassVisible) VisualTransformation.None else PasswordVisualTransformation()
+                                visualTransformation = if (olPassVisible) {
+                                    VisualTransformation.None
+                                } else {
+                                    PasswordVisualTransformation()
+                                }
                             )
                         }
                     }
@@ -322,28 +344,31 @@ fun SettingsScreen(
                 var xraySocks by remember(xrayConfig.socksBindAddress) { mutableStateOf(xrayConfig.socksBindAddress) }
                 var xrayHttp by remember(xrayConfig.httpBindAddress) { mutableStateOf(xrayConfig.httpBindAddress) }
                 var xrayPassVisible by rememberSaveable { mutableStateOf(false) }
+                
                 LaunchedEffect(xraySocks, xrayHttp) {
-                    delay(500)
+                    delay(300)
                     val next = xrayConfig.copy(socksBindAddress = xraySocks, httpBindAddress = xrayHttp)
                     if (next != xrayConfig) viewModel.updateXrayConfig(next)
                 }
+                
                 SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
                     TextFieldRow(
                         label = stringResource(R.string.socks5),
                         value = xraySocks.redact(privacyMode),
                         onValueChange = { xraySocks = it },
                         placeholder = com.wireturn.app.data.XrayConfig.DEFAULT_SOCKS_BIND_ADDRESS,
-                        isError = !com.wireturn.app.ui.ValidatorUtils.isValidHostPort(xraySocks),
+                        isError = !ValidatorUtils.isValidHostPort(xraySocks),
                         readOnly = privacyMode
                     )
                 }
+                
                 SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
                     TextFieldRow(
                         label = stringResource(R.string.xray_http),
                         value = xrayHttp.redact(privacyMode),
                         onValueChange = { xrayHttp = it },
                         placeholder = "127.0.0.1:1081",
-                        isError = xrayHttp.isNotEmpty() && !com.wireturn.app.ui.ValidatorUtils.isValidHostPort(xrayHttp),
+                        isError = xrayHttp.isNotEmpty() && !ValidatorUtils.isValidHostPort(xrayHttp),
                         readOnly = privacyMode
                     )
                 }
@@ -351,8 +376,9 @@ fun SettingsScreen(
                 var xrayAuth by remember(xrayConfig.isProxyAuthEnabled) { mutableStateOf(xrayConfig.isProxyAuthEnabled) }
                 var xrayUser by remember(xrayConfig.proxyUser) { mutableStateOf(xrayConfig.proxyUser) }
                 var xrayPass by remember(xrayConfig.proxyPass) { mutableStateOf(xrayConfig.proxyPass) }
+                
                 LaunchedEffect(xrayAuth, xrayUser, xrayPass) {
-                    delay(500)
+                    delay(300)
                     val next = xrayConfig.copy(isProxyAuthEnabled = xrayAuth, proxyUser = xrayUser, proxyPass = xrayPass)
                     if (next != xrayConfig) viewModel.updateXrayConfig(next)
                 }
@@ -363,7 +389,10 @@ fun SettingsScreen(
                     containerColor = blockContainerColor,
                     onClick = {
                         xrayAuth = !xrayAuth
-                        HapticUtil.perform(context, if (xrayAuth) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                        HapticUtil.perform(
+                            context, 
+                            if (xrayAuth) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                        )
                     }
                 ) {
                     SwitchRow(
@@ -373,6 +402,7 @@ fun SettingsScreen(
                         onCheckedChange = { xrayAuth = it }
                     )
                 }
+                
                 AnimatedVisibility(visible = xrayAuth) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
@@ -402,7 +432,11 @@ fun SettingsScreen(
                                         )
                                     }
                                 },
-                                visualTransformation = if (xrayPassVisible) VisualTransformation.None else PasswordVisualTransformation()
+                                visualTransformation = if (xrayPassVisible) {
+                                    VisualTransformation.None
+                                } else {
+                                    PasswordVisualTransformation()
+                                }
                             )
                         }
                     }
@@ -412,7 +446,11 @@ fun SettingsScreen(
 
             // 1. Оформление
             val themeModes = remember(supportsSystemTheme) {
-                if (supportsSystemTheme) ThemeMode.entries else ThemeMode.entries.filter { it != ThemeMode.SYSTEM }
+                if (supportsSystemTheme) {
+                    ThemeMode.entries
+                } else {
+                    ThemeMode.entries.filter { it != ThemeMode.SYSTEM }
+                }
             }
             val themeModeLabels = themeModes.associateWith { mode ->
                 stringResource(when (mode) {
@@ -452,8 +490,12 @@ fun SettingsScreen(
                         isBottom = false, 
                         containerColor = blockContainerColor,
                         onClick = {
-                            HapticUtil.perform(context, if (dynamicTheme) HapticUtil.Pattern.TOGGLE_OFF else HapticUtil.Pattern.TOGGLE_ON)
-                            viewModel.setDynamicTheme(!dynamicTheme)
+                            val next = !dynamicTheme
+                            HapticUtil.perform(
+                                context, 
+                                if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                            )
+                            viewModel.setDynamicTheme(next)
                         }
                     ) {
                         SwitchRow(
@@ -470,8 +512,12 @@ fun SettingsScreen(
                     isBottom = true,
                     containerColor = blockContainerColor,
                     onClick = {
-                        HapticUtil.perform(context, if (showFloatingActionButton) HapticUtil.Pattern.TOGGLE_OFF else HapticUtil.Pattern.TOGGLE_ON)
-                        viewModel.setShowFloatingActionButton(!showFloatingActionButton)
+                        val next = !showFloatingActionButton
+                        HapticUtil.perform(
+                            context, 
+                            if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                        )
+                        viewModel.setShowFloatingActionButton(next)
                     }
                 ) {
                     SwitchRow(
@@ -489,8 +535,12 @@ fun SettingsScreen(
                     isBottom = true,
                     containerColor = blockContainerColor,
                     onClick = {
-                        HapticUtil.perform(context, if (privacyMode) HapticUtil.Pattern.TOGGLE_OFF else HapticUtil.Pattern.TOGGLE_ON)
-                        viewModel.setPrivacyMode(!privacyMode)
+                        val next = !privacyMode
+                        HapticUtil.perform(
+                            context, 
+                            if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                        )
+                        viewModel.setPrivacyMode(next)
                     }
                 ) {
                     SwitchRow(
@@ -513,8 +563,12 @@ fun SettingsScreen(
                     isBottom = false,
                     containerColor = blockContainerColor,
                     onClick = {
-                        HapticUtil.perform(context, if (waitForNetwork) HapticUtil.Pattern.TOGGLE_OFF else HapticUtil.Pattern.TOGGLE_ON)
-                        viewModel.setWaitForNetwork(!waitForNetwork)
+                        val next = !waitForNetwork
+                        HapticUtil.perform(
+                            context, 
+                            if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                        )
+                        viewModel.setWaitForNetwork(next)
                     }
                 ) {
                     SwitchRow(
@@ -530,8 +584,12 @@ fun SettingsScreen(
                     isBottom = true,
                     containerColor = blockContainerColor,
                     onClick = {
-                        HapticUtil.perform(context, if (restartOnNetworkChange) HapticUtil.Pattern.TOGGLE_OFF else HapticUtil.Pattern.TOGGLE_ON)
-                        viewModel.setRestartOnNetworkChange(!restartOnNetworkChange)
+                        val next = !restartOnNetworkChange
+                        HapticUtil.perform(
+                            context, 
+                            if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                        )
+                        viewModel.setRestartOnNetworkChange(next)
                     }
                 ) {
                     SwitchRow(
@@ -558,7 +616,7 @@ fun SettingsScreen(
                 val canEnable = isUrlValid && isIntervalValid
 
                 LaunchedEffect(localUrl) {
-                    delay(500)
+                    delay(300)
                     val valueToSave = if (isUrlValid) localUrl else defaultUrl
                     if (valueToSave != autoLaunchSettings.checkUrl) {
                         viewModel.updateAutoLaunchSettings(autoLaunchSettings.copy(checkUrl = valueToSave))
@@ -566,7 +624,7 @@ fun SettingsScreen(
                 }
 
                 LaunchedEffect(localInterval) {
-                    delay(500)
+                    delay(300)
                     val valueToSave = if (isIntervalValid) minutesInt else defaultInterval
                     if (valueToSave != autoLaunchSettings.intervalMinutes) {
                         viewModel.updateAutoLaunchSettings(autoLaunchSettings.copy(intervalMinutes = valueToSave))
@@ -587,7 +645,10 @@ fun SettingsScreen(
                     onClick = {
                         if (!canEnable) return@SettingsGroupItem
                         val next = !autoLaunchSettings.enabled
-                        HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                        HapticUtil.perform(
+                            context, 
+                            if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                        )
                         viewModel.updateAutoLaunchSettings(autoLaunchSettings.copy(enabled = next))
                     }
                 ) {
@@ -596,7 +657,9 @@ fun SettingsScreen(
                         supportingText = stringResource(R.string.settings_auto_launch_desc),
                         checked = autoLaunchSettings.enabled,
                         enabled = canEnable,
-                        onCheckedChange = { viewModel.updateAutoLaunchSettings(autoLaunchSettings.copy(enabled = it)) }
+                        onCheckedChange = { 
+                            viewModel.updateAutoLaunchSettings(autoLaunchSettings.copy(enabled = it)) 
+                        }
                     )
                 }
 
@@ -640,8 +703,12 @@ fun SettingsScreen(
                     isBottom = !captchaStyleMod,
                     containerColor = blockContainerColor,
                     onClick = {
-                        HapticUtil.perform(context, if (captchaStyleMod) HapticUtil.Pattern.TOGGLE_OFF else HapticUtil.Pattern.TOGGLE_ON)
-                        viewModel.setCaptchaStyleMod(!captchaStyleMod)
+                        val next = !captchaStyleMod
+                        HapticUtil.perform(
+                            context, 
+                            if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                        )
+                        viewModel.setCaptchaStyleMod(next)
                     }
                 ) {
                     SwitchRow(
@@ -690,10 +757,19 @@ fun SettingsScreen(
             }
 
             // 3. Обновление
-            val isImportantState = updateState is UpdateState.Available || updateState is UpdateState.Downloading || updateState is UpdateState.ReadyToInstall
+            val isImportantState = updateState is UpdateState.Available || 
+                    updateState is UpdateState.Downloading || 
+                    updateState is UpdateState.ReadyToInstall
+            
             val updateContainerColor = if (isImportantState) {
-                if (isDark) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surfaceContainerHigh
-            } else blockContainerColor
+                if (isDark) {
+                    MaterialTheme.colorScheme.surfaceVariant 
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHigh
+                }
+            } else {
+                blockContainerColor
+            }
 
             SettingsGroup(
                 title = stringResource(R.string.update_title),
@@ -731,7 +807,10 @@ fun SettingsScreen(
                     containerColor = blockContainerColor,
                     onClick = {
                         val next = !allowUnstableUpdates
-                        HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                        HapticUtil.perform(
+                            context, 
+                            if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                        )
                         viewModel.setAllowUnstableUpdates(next)
                     }
                 ) {
@@ -831,10 +910,14 @@ fun SettingsScreen(
                     colors = ButtonDefaults.textButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
                     )
-                ) { Text(stringResource(R.string.reset)) }
+                ) { 
+                    Text(stringResource(R.string.reset)) 
+                }
             },
             dismissButton = {
-                TextButton(onClick = { showResetDialog.value = false }) { Text(stringResource(R.string.cancel)) }
+                TextButton(onClick = { showResetDialog.value = false }) { 
+                    Text(stringResource(R.string.cancel)) 
+                }
             }
         )
     }
@@ -954,7 +1037,10 @@ private fun RepoLinksContent(
                 return Offset.Zero
             }
 
-            override suspend fun onPostFling(consumed: androidx.compose.ui.unit.Velocity, available: androidx.compose.ui.unit.Velocity): androidx.compose.ui.unit.Velocity {
+            override suspend fun onPostFling(
+                consumed: androidx.compose.ui.unit.Velocity, 
+                available: androidx.compose.ui.unit.Velocity
+            ): androidx.compose.ui.unit.Velocity {
                 hasScrolledDownInGesture = false
                 return super.onPostFling(consumed, available)
             }
