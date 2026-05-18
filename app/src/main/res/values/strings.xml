@@ -398,4 +398,13 @@
     <string name="profile_select">Select</string>
     <string name="profile_selected_count">Selected: %1$d</string>
     <string name="profile_delete_selected_confirm">Delete %1$d selected profiles?</string>
+
+    <string name="profile_select_type">Select configuration type</string>
+    <string name="profile_turnable_desc">Create a profile using Turnable core</string>
+    <string name="profile_olcrtc_desc">Create a profile using olcRTC core</string>
+    <string name="profile_import_group">Import configuration</string>
+    <string name="profile_manual_setup">Manual setup</string>
+    <string name="profile_import_qr">QR Code</string>
+    <string name="profile_import_clipboard">Clipboard</string>
+    <string name="profile_import_file">File</string>
 </resources>

@@ -355,4 +355,13 @@
     <string name="profile_select">Выбрать</string>
     <string name="profile_selected_count">Выбрано: %1$d</string>
     <string name="profile_delete_selected_confirm">Удалить выбранные профили (%1$d)?</string>
+
+    <string name="profile_select_type">Выберите тип конфигурации</string>
+    <string name="profile_turnable_desc">Создать профиль с использованием ядра Turnable</string>
+    <string name="profile_olcrtc_desc">Создать профиль с использованием ядра olcRTC</string>
+    <string name="profile_import_group">Импорт конфигурации</string>
+    <string name="profile_manual_setup">Ручная настройка</string>
+    <string name="profile_import_qr">QR-код</string>
+    <string name="profile_import_clipboard">Буфер обмена</string>
+    <string name="profile_import_file">Файл</string>
 </resources>

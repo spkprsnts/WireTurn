@@ -266,7 +266,6 @@ fun ProfilesDialog(
     var autoScrollSpeed by remember { mutableFloatStateOf(0f) }
     var optimisticSelectedId by remember { mutableStateOf<String?>(null) }
 
-    val showCreateDialog = remember { mutableStateOf(false) }
     var addMenuExpanded by remember { mutableStateOf(false) }
     val showRenameDialog = remember { mutableStateOf<Profile?>(null) }
     val showDeleteConfirm = remember { mutableStateOf<Profile?>(null) }
@@ -535,7 +534,7 @@ fun ProfilesDialog(
                                         onClick = {
                                             addMenuExpanded = false
                                             HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                            showCreateDialog.value = true
+                                            context.startActivity(android.content.Intent(context, com.wireturn.app.ui.activities.CreateProfileActivity::class.java))
                                         }
                                     )
                                     DropdownMenuItem(
@@ -793,17 +792,6 @@ fun ProfilesDialog(
                 }
             }
         }
-    }
-
-    if (showCreateDialog.value) {
-        ProfileNameDialog(
-            title = stringResource(R.string.profile_create),
-            onDismiss = { showCreateDialog.value = false },
-            onConfirm = { name ->
-                viewModel.createProfile(name)
-                showCreateDialog.value = false
-            }
-        )
     }
 
     showRenameDialog.value?.let { profile ->

@@ -920,6 +920,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun createProfile(name: String) {
         profileManager.createProfile(name) { _, _ -> }
     }
+
+    fun addFullProfile(
+        name: String,
+        clientConfig: com.wireturn.app.data.ClientConfig,
+        xrayConfig: com.wireturn.app.data.XrayConfig,
+        wgConfig: com.wireturn.app.data.WgConfig,
+        vlessConfig: com.wireturn.app.data.VlessConfig
+    ) {
+        val newProfile = com.wireturn.app.data.Profile(
+            id = java.util.UUID.randomUUID().toString(),
+            name = name,
+            clientConfig = clientConfig,
+            xrayConfig = xrayConfig,
+            wgConfig = wgConfig,
+            vlessConfig = vlessConfig
+        ).sanitize()
+        
+        viewModelScope.launch {
+            val newList = profileManager.profiles.value + newProfile
+            prefs.saveProfiles(newList)
+            // Optionally select it
+            selectProfile(newProfile.id, newProfile)
+        }
+    }
     fun cloneProfile(id: String, newName: String) = profileManager.cloneProfile(id, newName)
     fun deleteProfile(id: String) = deleteProfiles(listOf(id))
     fun deleteProfiles(ids: List<String>) = profileManager.deleteProfiles(ids) { nextId, profile -> 

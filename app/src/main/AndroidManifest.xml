@@ -105,6 +105,26 @@
             android:launchMode="singleInstance"
             android:taskAffinity="" />
 
+        <activity
+            android:name=".ui.activities.CreateProfileActivity"
+            android:theme="@style/Theme.wireturn"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".ui.activities.TurnableConfigActivity"
+            android:theme="@style/Theme.wireturn"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".ui.activities.OlcRtcConfigActivity"
+            android:theme="@style/Theme.wireturn"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".ui.activities.XraySetupActivity"
+            android:theme="@style/Theme.wireturn"
+            android:windowSoftInputMode="adjustResize" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

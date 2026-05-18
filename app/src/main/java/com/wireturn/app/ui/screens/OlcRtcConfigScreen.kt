@@ -1,0 +1,504 @@
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+
+package com.wireturn.app.ui.screens
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import com.wireturn.app.R
+import com.wireturn.app.data.OlcrtcConfig
+import com.wireturn.app.ui.ConfigRowLabel
+import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.LabeledButtonGroup
+import com.wireturn.app.ui.LargeLeadingIcon
+import com.wireturn.app.ui.SelectionDialog
+import com.wireturn.app.ui.SettingsGroup
+import com.wireturn.app.ui.SettingsGroupItem
+import com.wireturn.app.ui.StandardLeadingIcon
+import com.wireturn.app.ui.SupportingText
+import com.wireturn.app.ui.SwitchRow
+import com.wireturn.app.ui.TextFieldRow
+import com.wireturn.app.ui.configButtonGroupItem
+import kotlin.math.roundToInt
+
+@Composable
+fun OlcRtcConfigScreen(
+    initialConfig: OlcrtcConfig = OlcrtcConfig(),
+    onBack: () -> Unit,
+    onSave: (OlcrtcConfig) -> Unit
+) {
+    var config by remember { mutableStateOf(initialConfig) }
+    var videoW by remember { mutableStateOf(initialConfig.videoW.let { if (it == 0) "1080" else it.toString() }) }
+    var videoH by remember { mutableStateOf(initialConfig.videoH.let { if (it == 0) "1080" else it.toString() }) }
+
+    val showCarrierDialog = remember { mutableStateOf(false) }
+    val showTransportDialog = remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
+    val isDark = com.wireturn.app.ui.theme.LocalIsDark.current
+    val blockContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
+    val context = LocalContext.current
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.kernel_olcrtc)) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            painter = painterResource(R.drawable.arrow_back_24px),
+                            contentDescription = null
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { 
+                        onSave(config.copy(
+                            videoW = videoW.toIntOrNull() ?: 1080,
+                            videoH = videoH.toIntOrNull() ?: 1080
+                        )) 
+                    }) {
+                        Icon(
+                            painter = painterResource(R.drawable.check_24px),
+                            contentDescription = stringResource(R.string.btn_save)
+                        )
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(scrollState)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            // Connection Details
+            SettingsGroup(title = stringResource(R.string.connection_details)) {
+                SettingsGroupItem(
+                    isTop = true,
+                    isBottom = false,
+                    containerColor = blockContainerColor,
+                    onClick = {
+                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                        showCarrierDialog.value = true
+                    }
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        LargeLeadingIcon {
+                            val iconRes = when (config.carrier) {
+                                "wbstream" -> R.drawable.ic_wbstream
+                                "telemost" -> R.drawable.ic_telemost
+                                "jazz" -> R.drawable.ic_jazz
+                                else -> R.drawable.mobile_24px
+                            }
+                            Icon(
+                                painter = painterResource(iconRes),
+                                contentDescription = null,
+                                modifier = Modifier.size(32.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            ConfigRowLabel(stringResource(R.string.olcrtc_carrier_label))
+                            val currentLabel = when (config.carrier) {
+                                "wbstream" -> "WB Stream"
+                                "telemost" -> "Telemost"
+                                "jazz" -> "Jazz"
+                                else -> config.carrier
+                            }
+                            Spacer(Modifier.height(2.dp))
+                            SupportingText(currentLabel)
+                        }
+                    }
+                }
+
+                SettingsGroupItem(
+                    isTop = false,
+                    isBottom = false,
+                    containerColor = blockContainerColor,
+                    onClick = {
+                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                        showTransportDialog.value = true
+                    }
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        LargeLeadingIcon {
+                            val iconRes = when (config.transport) {
+                                "datachannel" -> R.drawable.data_array_24px
+                                "vp8channel" -> R.drawable.movie_24px
+                                "seichannel" -> R.drawable.video_settings_24px
+                                "videochannel" -> R.drawable.grid_view_24px
+                                else -> R.drawable.route_24px
+                            }
+                            Icon(
+                                painter = painterResource(iconRes),
+                                contentDescription = null,
+                                modifier = Modifier.size(32.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            ConfigRowLabel(stringResource(R.string.olcrtc_transport_label))
+                            val currentLabel = when (config.transport) {
+                                "datachannel" -> "DataChannel"
+                                "vp8channel" -> "VP8Channel"
+                                "seichannel" -> "SEIChannel"
+                                "videochannel" -> "VideoChannel"
+                                else -> config.transport
+                            }
+                            Spacer(Modifier.height(2.dp))
+                            SupportingText(currentLabel)
+                        }
+                    }
+                }
+
+                SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                    TextFieldRow(
+                        label = stringResource(R.string.olcrtc_id_label),
+                        value = config.id,
+                        onValueChange = { config = config.copy(id = it) }
+                    )
+                }
+                SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+                    TextFieldRow(
+                        label = stringResource(R.string.olcrtc_dns_label),
+                        value = config.dns,
+                        onValueChange = { config = config.copy(dns = it) }
+                    )
+                }
+            }
+
+            // Server Settings
+            SettingsGroup(title = stringResource(R.string.server_settings_title)) {
+                SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
+                    TextFieldRow(
+                        label = stringResource(R.string.olcrtc_client_id_label),
+                        value = config.clientId,
+                        onValueChange = { config = config.copy(clientId = it) }
+                    )
+                }
+                SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+                    TextFieldRow(
+                        label = stringResource(R.string.olcrtc_key_label),
+                        value = config.key,
+                        onValueChange = { config = config.copy(key = it) }
+                    )
+                }
+            }
+
+            // Additional transport settings
+            when (config.transport) {
+                "vp8channel" -> {
+                    SettingsGroup(title = stringResource(R.string.olcrtc_vp8_settings_title)) {
+                        SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
+                            com.wireturn.app.ui.SliderRow(
+                                label = stringResource(R.string.olcrtc_vp8_fps),
+                                value = config.vp8Fps.toFloat(),
+                                onValueChange = { config = config.copy(vp8Fps = it.roundToInt()) },
+                                valueRange = 1f..60f,
+                                steps = 59
+                            )
+                        }
+                        SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+                            com.wireturn.app.ui.SliderRow(
+                                label = stringResource(R.string.olcrtc_vp8_batch),
+                                value = config.vp8Batch.toFloat(),
+                                onValueChange = { config = config.copy(vp8Batch = it.roundToInt()) },
+                                valueRange = 1f..100f,
+                                steps = 99
+                            )
+                        }
+                    }
+                }
+                "seichannel" -> {
+                    SettingsGroup(title = stringResource(R.string.olcrtc_sei_settings_title)) {
+                        SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
+                            com.wireturn.app.ui.SliderRow(
+                                label = stringResource(R.string.olcrtc_sei_fps),
+                                value = config.seiFps.toFloat(),
+                                onValueChange = { config = config.copy(seiFps = it.roundToInt()) },
+                                valueRange = 1f..120f,
+                                steps = 119
+                            )
+                        }
+                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                            com.wireturn.app.ui.SliderRow(
+                                label = stringResource(R.string.olcrtc_sei_batch),
+                                value = config.seiBatch.toFloat(),
+                                onValueChange = { config = config.copy(seiBatch = it.roundToInt()) },
+                                valueRange = 1f..256f,
+                                steps = 255
+                            )
+                        }
+                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                            com.wireturn.app.ui.SliderRow(
+                                label = stringResource(R.string.olcrtc_sei_frag),
+                                value = config.seiFrag.toFloat(),
+                                onValueChange = { config = config.copy(seiFrag = it.roundToInt()) },
+                                valueRange = 100f..1500f,
+                                steps = 140
+                            )
+                        }
+                        SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+                            com.wireturn.app.ui.SliderRow(
+                                label = stringResource(R.string.olcrtc_sei_ack_ms),
+                                value = config.seiAckMs.toFloat(),
+                                onValueChange = { config = config.copy(seiAckMs = it.roundToInt()) },
+                                valueRange = 100f..5000f,
+                                steps = 49
+                            )
+                        }
+                    }
+                }
+                "videochannel" -> {
+                    SettingsGroup(title = stringResource(R.string.olcrtc_video_settings_title)) {
+                        SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
+                            TextFieldRow(
+                                label = stringResource(R.string.olcrtc_video_codec),
+                                value = config.videoCodec,
+                                onValueChange = { config = config.copy(videoCodec = it) }
+                            )
+                        }
+                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                TextFieldRow(
+                                    label = stringResource(R.string.olcrtc_video_width),
+                                    value = videoW,
+                                    onValueChange = { videoW = it },
+                                    modifier = Modifier.weight(1f),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                )
+                                TextFieldRow(
+                                    label = stringResource(R.string.olcrtc_video_height),
+                                    value = videoH,
+                                    onValueChange = { videoH = it },
+                                    modifier = Modifier.weight(1f),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                )
+                            }
+                        }
+                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                            com.wireturn.app.ui.SliderRow(
+                                label = stringResource(R.string.olcrtc_video_fps),
+                                value = config.videoFps.toFloat(),
+                                onValueChange = { config = config.copy(videoFps = it.roundToInt()) },
+                                valueRange = 1f..60f,
+                                steps = 59
+                            )
+                        }
+                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                            TextFieldRow(
+                                label = stringResource(R.string.olcrtc_video_bitrate),
+                                value = config.videoBitrate,
+                                onValueChange = { config = config.copy(videoBitrate = it) }
+                            )
+                        }
+                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                            TextFieldRow(
+                                label = stringResource(R.string.olcrtc_video_hw),
+                                value = config.videoHw,
+                                onValueChange = { config = config.copy(videoHw = it) }
+                            )
+                        }
+                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                            TextFieldRow(
+                                label = stringResource(R.string.olcrtc_video_qr_recovery),
+                                value = config.videoQrRecovery,
+                                onValueChange = { config = config.copy(videoQrRecovery = it) }
+                            )
+                        }
+                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                            com.wireturn.app.ui.SliderRow(
+                                label = stringResource(R.string.olcrtc_video_qr_size),
+                                value = config.videoQrSize.toFloat(),
+                                onValueChange = { config = config.copy(videoQrSize = it.roundToInt()) },
+                                valueRange = 0f..1000f,
+                                steps = 100
+                            )
+                        }
+                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                            com.wireturn.app.ui.SliderRow(
+                                label = stringResource(R.string.olcrtc_video_tile_module),
+                                value = config.videoTileModule.toFloat(),
+                                onValueChange = { config = config.copy(videoTileModule = it.roundToInt()) },
+                                valueRange = 1f..32f,
+                                steps = 31
+                            )
+                        }
+                        SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+                            com.wireturn.app.ui.SliderRow(
+                                label = stringResource(R.string.olcrtc_video_tile_rs),
+                                value = config.videoTileRs.toFloat(),
+                                onValueChange = { config = config.copy(videoTileRs = it.roundToInt()) },
+                                valueRange = 0f..100f,
+                                steps = 100
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showCarrierDialog.value) {
+        OlcrtcCarrierDialog(
+            currentCarrier = config.carrier,
+            onSelect = {
+                config = config.copy(carrier = it)
+                showCarrierDialog.value = false
+            },
+            onDismiss = { showCarrierDialog.value = false }
+        )
+    }
+
+    if (showTransportDialog.value) {
+        OlcrtcTransportDialog(
+            currentTransport = config.transport,
+            onSelect = {
+                config = config.copy(transport = it)
+                showTransportDialog.value = false
+            },
+            onDismiss = { showTransportDialog.value = false }
+        )
+    }
+}
+
+@Composable
+fun OlcrtcCarrierDialog(
+    currentCarrier: String,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val carriers = listOf(
+        "wbstream" to "WB Stream",
+        "telemost" to "Telemost",
+        "jazz" to "Jazz"
+    )
+
+    SelectionDialog(
+        title = stringResource(R.string.olcrtc_carrier_label),
+        items = carriers,
+        isSelected = { it.first == currentCarrier },
+        onSelect = { onSelect(it.first) },
+        onDismiss = onDismiss
+    ) { (value, label), isSelected ->
+        val iconRes = when (value) {
+            "wbstream" -> R.drawable.ic_wbstream
+            "telemost" -> R.drawable.ic_telemost
+            "jazz" -> R.drawable.ic_jazz
+            else -> R.drawable.mobile_24px
+        }
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            StandardLeadingIcon {
+                Icon(
+                    painter = painterResource(iconRes),
+                    contentDescription = null,
+                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+fun OlcrtcTransportDialog(
+    currentTransport: String,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val transports = listOf(
+        "datachannel" to "DataChannel",
+        "vp8channel" to "VP8Channel",
+        "seichannel" to "SEIChannel",
+        "videochannel" to "VideoChannel"
+    )
+
+    SelectionDialog(
+        title = stringResource(R.string.olcrtc_transport_label),
+        items = transports,
+        isSelected = { it.first == currentTransport },
+        onSelect = { onSelect(it.first) },
+        onDismiss = onDismiss
+    ) { (value, label), isSelected ->
+        val iconRes = when (value) {
+            "datachannel" -> R.drawable.data_array_24px
+            "vp8channel" -> R.drawable.movie_24px
+            "seichannel" -> R.drawable.video_settings_24px
+            "videochannel" -> R.drawable.grid_view_24px
+            else -> R.drawable.route_24px
+        }
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            StandardLeadingIcon {
+                Icon(
+                    painter = painterResource(iconRes),
+                    contentDescription = null,
+                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
