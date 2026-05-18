@@ -917,18 +917,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun createProfile(name: String) {
-        profileManager.createProfile(name) { _, _ -> }
-    }
-
     fun addFullProfile(
         name: String,
-        clientConfig: com.wireturn.app.data.ClientConfig,
-        xrayConfig: com.wireturn.app.data.XrayConfig,
-        wgConfig: com.wireturn.app.data.WgConfig,
-        vlessConfig: com.wireturn.app.data.VlessConfig
+        clientConfig: ClientConfig,
+        xrayConfig: XrayConfig,
+        wgConfig: WgConfig,
+        vlessConfig: VlessConfig
     ) {
-        val newProfile = com.wireturn.app.data.Profile(
+        val newProfile = Profile(
             id = java.util.UUID.randomUUID().toString(),
             name = name,
             clientConfig = clientConfig,
@@ -941,7 +937,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val newList = profileManager.profiles.value + newProfile
             prefs.saveProfiles(newList)
             // Optionally select it
-            selectProfile(newProfile.id, newProfile)
+            // selectProfile(newProfile.id, newProfile)
         }
     }
     fun cloneProfile(id: String, newName: String) = profileManager.cloneProfile(id, newName)

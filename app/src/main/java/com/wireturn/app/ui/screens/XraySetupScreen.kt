@@ -12,13 +12,10 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -38,7 +35,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
@@ -51,10 +47,8 @@ import com.wireturn.app.data.WgConfig
 import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.data.VlessConfig
 import com.wireturn.app.ui.ConfigDropdownMenu
-import com.wireturn.app.ui.ConfigRowLabel
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.LabeledButtonGroup
-import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.SettingsGroup
 import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.ui.SwitchRow

@@ -2,12 +2,6 @@
 
 package com.wireturn.app.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -45,16 +39,13 @@ import com.wireturn.app.R
 import com.wireturn.app.data.OlcrtcConfig
 import com.wireturn.app.ui.ConfigRowLabel
 import com.wireturn.app.ui.HapticUtil
-import com.wireturn.app.ui.LabeledButtonGroup
 import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.SelectionDialog
 import com.wireturn.app.ui.SettingsGroup
 import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SupportingText
-import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
-import com.wireturn.app.ui.configButtonGroupItem
 import kotlin.math.roundToInt
 
 @Composable
