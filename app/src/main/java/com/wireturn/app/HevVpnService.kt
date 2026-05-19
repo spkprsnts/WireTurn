@@ -6,7 +6,7 @@ import android.os.Build
 import android.os.ParcelFileDescriptor
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.viewmodel.VpnState
-import com.wireturn.app.data.XrayConfig.Companion.DEFAULT_SOCKS_BIND_ADDRESS
+import com.wireturn.app.data.XraySettings.Companion.DEFAULT_SOCKS_BIND_ADDRESS
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

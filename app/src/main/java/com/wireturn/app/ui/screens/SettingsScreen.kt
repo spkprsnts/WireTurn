@@ -72,7 +72,7 @@ import com.wireturn.app.ProxyServiceState
 import com.wireturn.app.XrayServiceState
 import com.wireturn.app.data.ThemeMode
 import com.wireturn.app.data.ClientConfig
-import com.wireturn.app.data.XrayConfig
+import com.wireturn.app.data.XraySettings
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.LabeledButtonGroup
 import com.wireturn.app.ui.SettingsGroup
@@ -103,7 +103,7 @@ fun SettingsScreen(
     val updateProgress by viewModel.updateProgress.collectAsStateWithLifecycle()
 
     val clientSnapshot by ProxyServiceState.clientConfigSnapshot.collectAsStateWithLifecycle()
-    val xraySnapshot by XrayServiceState.xrayConfigSnapshot.collectAsStateWithLifecycle()
+    val xraySettingsSnapshot by XrayServiceState.xraySettingsSnapshot.collectAsStateWithLifecycle()
 
     val showResetDialog = rememberSaveable { mutableStateOf(false) }
     val showListenHelp = remember { mutableStateOf(false) }
@@ -226,7 +226,7 @@ fun SettingsScreen(
         ) {
             // 0. Proxy
             val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
-            val xrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
+            val xraySettings by viewModel.xraySettings.collectAsStateWithLifecycle()
 
             // Turnable
             SettingsGroup(title = stringResource(R.string.settings_group_turnable)) {
@@ -354,14 +354,14 @@ fun SettingsScreen(
 
             // Xray
             SettingsGroup(title = stringResource(R.string.settings_group_xray)) {
-                var xraySocks by remember(xrayConfig.socksBindAddress) { mutableStateOf(xrayConfig.socksBindAddress) }
-                var xrayHttp by remember(xrayConfig.httpBindAddress) { mutableStateOf(xrayConfig.httpBindAddress) }
+                var xraySocks by remember(xraySettings.socksBindAddress) { mutableStateOf(xraySettings.socksBindAddress) }
+                var xrayHttp by remember(xraySettings.httpBindAddress) { mutableStateOf(xraySettings.httpBindAddress) }
                 var xrayPassVisible by rememberSaveable { mutableStateOf(false) }
                 
                 LaunchedEffect(xraySocks, xrayHttp) {
                     delay(300)
-                    val next = xrayConfig.copy(socksBindAddress = xraySocks, httpBindAddress = xrayHttp)
-                    if (next != xrayConfig) viewModel.updateXrayConfig(next)
+                    val next = xraySettings.copy(socksBindAddress = xraySocks, httpBindAddress = xrayHttp)
+                    if (next != xraySettings) viewModel.updateXraySettings(next)
                 }
                 
                 SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
@@ -369,10 +369,10 @@ fun SettingsScreen(
                         label = stringResource(R.string.socks5),
                         value = xraySocks.redact(privacyMode),
                         onValueChange = { xraySocks = it },
-                        placeholder = XrayConfig.DEFAULT_SOCKS_BIND_ADDRESS,
+                        placeholder = XraySettings.DEFAULT_SOCKS_BIND_ADDRESS,
                         isError = !ValidatorUtils.isValidHostPort(xraySocks),
                         readOnly = privacyMode,
-                        isModified = xraySnapshot?.let { it.socksBindAddress != xraySocks } ?: false
+                        isModified = xraySettingsSnapshot?.let { it.socksBindAddress != xraySocks } ?: false
                     )
                 }
                 
@@ -384,18 +384,18 @@ fun SettingsScreen(
                         placeholder = "127.0.0.1:1081",
                         isError = xrayHttp.isNotEmpty() && !ValidatorUtils.isValidHostPort(xrayHttp),
                         readOnly = privacyMode,
-                        isModified = xraySnapshot?.let { it.httpBindAddress != xrayHttp } ?: false
+                        isModified = xraySettingsSnapshot?.let { it.httpBindAddress != xrayHttp } ?: false
                     )
                 }
 
-                var xrayAuth by remember(xrayConfig.isProxyAuthEnabled) { mutableStateOf(xrayConfig.isProxyAuthEnabled) }
-                var xrayUser by remember(xrayConfig.proxyUser) { mutableStateOf(xrayConfig.proxyUser) }
-                var xrayPass by remember(xrayConfig.proxyPass) { mutableStateOf(xrayConfig.proxyPass) }
+                var xrayAuth by remember(xraySettings.isProxyAuthEnabled) { mutableStateOf(xraySettings.isProxyAuthEnabled) }
+                var xrayUser by remember(xraySettings.proxyUser) { mutableStateOf(xraySettings.proxyUser) }
+                var xrayPass by remember(xraySettings.proxyPass) { mutableStateOf(xraySettings.proxyPass) }
                 
                 LaunchedEffect(xrayAuth, xrayUser, xrayPass) {
                     delay(300)
-                    val next = xrayConfig.copy(isProxyAuthEnabled = xrayAuth, proxyUser = xrayUser, proxyPass = xrayPass)
-                    if (next != xrayConfig) viewModel.updateXrayConfig(next)
+                    val next = xraySettings.copy(isProxyAuthEnabled = xrayAuth, proxyUser = xrayUser, proxyPass = xrayPass)
+                    if (next != xraySettings) viewModel.updateXraySettings(next)
                 }
 
                 SettingsGroupItem(
@@ -415,7 +415,7 @@ fun SettingsScreen(
                         supportingText = stringResource(R.string.xray_proxy_auth_desc),
                         checked = xrayAuth,
                         onCheckedChange = { xrayAuth = it },
-                        isModified = xraySnapshot?.let { it.isProxyAuthEnabled != xrayAuth } ?: false
+                        isModified = xraySettingsSnapshot?.let { it.isProxyAuthEnabled != xrayAuth } ?: false
                     )
                 }
                 
@@ -428,7 +428,7 @@ fun SettingsScreen(
                                 onValueChange = { xrayUser = it },
                                 placeholder = "admin",
                                 readOnly = privacyMode,
-                                isModified = xraySnapshot?.let { it.proxyUser != xrayUser } ?: false
+                                isModified = xraySettingsSnapshot?.let { it.proxyUser != xrayUser } ?: false
                             )
                         }
                         SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
@@ -438,7 +438,7 @@ fun SettingsScreen(
                                 onValueChange = { xrayPass = it },
                                 placeholder = "password",
                                 readOnly = privacyMode,
-                                isModified = xraySnapshot?.let { it.proxyPass != xrayPass } ?: false,
+                                isModified = xraySettingsSnapshot?.let { it.proxyPass != xrayPass } ?: false,
                                 trailingIcon = {
                                     IconButton(onClick = { xrayPassVisible = !xrayPassVisible }) {
                                         Icon(

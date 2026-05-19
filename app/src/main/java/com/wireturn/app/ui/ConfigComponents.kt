@@ -647,61 +647,95 @@ fun SwitchRow(
     useLargeIcon: Boolean = false,
     trailingContent: @Composable (RowScope.() -> Unit)? = null,
     interactionSource: MutableInteractionSource? = null,
-    clickable: Boolean = true
+    clickable: Boolean = true,
+    onRowClick: (() -> Unit)? = null,
+    isSplit: Boolean = false
 ) {
     val parentInteractionSource = LocalSettingsInteractionSource.current
     val internalInteractionSource = interactionSource ?: parentInteractionSource ?: remember { MutableInteractionSource() }
     
-    // Auto-disable internal clickable if we are inside a SettingsGroupItem that handles the interaction source,
-    // unless clickable is explicitly set to true and we want nested clicks (rare).
-    // If the user passed interactionSource explicitly, they likely want to coordinate.
-    val actualClickable = if (parentInteractionSource != null && interactionSource == null) false else clickable
+    // Decouple switch interaction from parent if in split mode to avoid whole block ripple on toggle
+    val switchInteractionSource = if (onRowClick != null || isSplit) remember { MutableInteractionSource() } else internalInteractionSource
 
-    val rowModifier = if (actualClickable) {
-        modifier
-            .fillMaxWidth()
-            .clickable(
-                interactionSource = internalInteractionSource,
-                indication = null,
-                enabled = enabled,
-                onClick = { onCheckedChange(!checked) }
-            )
-    } else {
-        modifier.fillMaxWidth()
-    }
+    // Auto-disable internal clickable if we are inside a SettingsGroupItem that handles the interaction source,
+    // or if we have an explicit onRowClick.
+    val actualClickable = if (onRowClick != null || isSplit) false else if (parentInteractionSource != null && interactionSource == null) false else clickable
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = rowModifier
+        modifier = modifier.fillMaxWidth()
     ) {
-        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
-            if (leadingIcon != null) {
-                if (useLargeIcon) {
-                    LargeLeadingIcon(content = leadingIcon)
-                } else {
-                    StandardLeadingIcon(size = leadingIconSize, content = leadingIcon)
+        val leftPartModifier = Modifier
+            .weight(1f)
+            .let { m ->
+                if (onRowClick != null) {
+                    m.clickable(
+                        enabled = enabled,
+                        onClick = onRowClick
+                    )
+                } else if (actualClickable) {
+                    m.clickable(
+                        interactionSource = internalInteractionSource,
+                        indication = null,
+                        enabled = enabled,
+                        onClick = { onCheckedChange(!checked) }
+                    )
+                } else m
+            }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = leftPartModifier
+        ) {
+            CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
+                if (leadingIcon != null) {
+                    if (useLargeIcon) {
+                        LargeLeadingIcon(content = leadingIcon)
+                    } else {
+                        StandardLeadingIcon(size = leadingIconSize, content = leadingIcon)
+                    }
                 }
-            }
 
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
-                ConfigRowLabel(text = label, isModified = isModified)
-                Spacer(Modifier.height(2.dp))
-                SupportingText(text = supportingText)
-            }
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
+                    ConfigRowLabel(text = label, isModified = isModified)
+                    Spacer(Modifier.height(2.dp))
+                    SupportingText(text = supportingText)
+                }
 
-            if (trailingContent != null) {
-                Spacer(Modifier.width(16.dp))
-                trailingContent()
+                if (trailingContent != null) {
+                    Spacer(Modifier.width(16.dp))
+                    trailingContent()
+                }
             }
         }
 
-        Spacer(Modifier.width(16.dp))
+        if (onRowClick != null || isSplit) {
+            Spacer(Modifier.width(12.dp))
+            // Forward Arrow
+            Icon(
+                painter = painterResource(R.drawable.arrow_forward_ios_24px),
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            )
+            Spacer(Modifier.width(12.dp))
+            // Vertical Divider
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .height(36.dp)
+                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            )
+            Spacer(Modifier.width(8.dp))
+        } else {
+            Spacer(Modifier.width(16.dp))
+        }
 
         ConfigSwitch(
             checked = checked,
-            onCheckedChange = null,
+            onCheckedChange = onCheckedChange,
             enabled = enabled,
-            interactionSource = internalInteractionSource
+            interactionSource = switchInteractionSource
         )
     }
 }

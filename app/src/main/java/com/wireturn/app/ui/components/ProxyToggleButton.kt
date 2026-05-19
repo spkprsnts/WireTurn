@@ -74,7 +74,7 @@ fun ProxyToggleButton(
 ) {
     val proxyState by viewModel.proxyState.collectAsStateWithLifecycle()
     val xrayState by XrayServiceState.state.collectAsStateWithLifecycle()
-    val xraySettings by viewModel.xraySettings.collectAsStateWithLifecycle()
+    val xrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
     val autoLaunchSettings by viewModel.autoLaunchSettings.collectAsStateWithLifecycle()
     val customKernelExists by viewModel.customKernelExists.collectAsStateWithLifecycle()
 
@@ -93,7 +93,7 @@ fun ProxyToggleButton(
     }
 
     val isXrayWorking = xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
-    val toggleState = remember(proxyState, xrayState, isRestarting, wasActiveBeforeRestart, xraySettings.xrayEnabled) {
+    val toggleState = remember(proxyState, xrayState, isRestarting, wasActiveBeforeRestart, xrayConfig.enabled) {
         val isActive = proxyState !is ProxyState.Idle || isXrayWorking
         val actuallyRestarting = isRestarting && (isActive || wasActiveBeforeRestart)
         val gapFilling = wasActiveBeforeRestart && proxyState is ProxyState.Idle
@@ -104,7 +104,7 @@ fun ProxyToggleButton(
             proxyState is ProxyState.Connecting || 
             proxyState is ProxyState.CaptchaRequired || 
             proxyState is ProxyState.WaitingForNetwork ||
-            (xraySettings.xrayEnabled && !isXrayWorking && proxyState !is ProxyState.Idle) -> "loading"
+            (xrayConfig.enabled && !isXrayWorking && proxyState !is ProxyState.Idle) -> "loading"
             
             proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed -> "active"
             proxyState is ProxyState.Error -> "error"

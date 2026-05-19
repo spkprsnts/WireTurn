@@ -128,6 +128,7 @@ import kotlin.math.pow
 fun HomeScreen(
     viewModel: MainViewModel,
     onNavigateToExclusions: () -> Unit,
+    onNavigateToXrayConfig: () -> Unit,
     onToggleProxy: () -> Unit,
     onCheckMismatch: (Boolean, () -> Unit) -> Unit,
     modifier: Modifier = Modifier
@@ -138,18 +139,23 @@ fun HomeScreen(
     val proxyState by viewModel.proxyState.collectAsStateWithLifecycle()
     val xrayState by XrayServiceState.state.collectAsStateWithLifecycle()
     val vpnServiceState by VpnServiceState.state.collectAsStateWithLifecycle()
+    
     val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
-    val xraySettings by viewModel.xraySettings.collectAsStateWithLifecycle()
-    val globalVpnSettings by viewModel.globalVpnSettings.collectAsStateWithLifecycle()
     val xrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
+    val xraySettings by viewModel.xraySettings.collectAsStateWithLifecycle()
+    val vlessConfig by viewModel.vlessConfig.collectAsStateWithLifecycle()
+    val wgConfig by viewModel.wgConfig.collectAsStateWithLifecycle()
+    val globalVpnSettings by viewModel.globalVpnSettings.collectAsStateWithLifecycle()
+    
+    val clientConfigSnapshot by ProxyServiceState.clientConfigSnapshot.collectAsStateWithLifecycle()
+    val xrayConfigSnapshot by XrayServiceState.xrayConfigSnapshot.collectAsStateWithLifecycle()
+    val xraySettingsSnapshot by XrayServiceState.xraySettingsSnapshot.collectAsStateWithLifecycle()
+    val wgConfigSnapshot by XrayServiceState.wgConfigSnapshot.collectAsStateWithLifecycle()
+    val vlessConfigSnapshot by XrayServiceState.vlessConfigSnapshot.collectAsStateWithLifecycle()
+    
     val batteryNotificationDismissed by viewModel.batteryNotificationDismissed.collectAsStateWithLifecycle()
     val vpnEnabled by viewModel.vpnEnabled.collectAsStateWithLifecycle()
     val appsExclusionHintShown by viewModel.appsExclusionHintShown.collectAsStateWithLifecycle()
-    val vlessConfig by viewModel.vlessConfig.collectAsStateWithLifecycle()
-    val clientConfigSnapshot by ProxyServiceState.clientConfigSnapshot.collectAsStateWithLifecycle()
-    val wgConfigSnapshot by XrayServiceState.wgConfigSnapshot.collectAsStateWithLifecycle()
-    val vlessConfigSnapshot by XrayServiceState.vlessConfigSnapshot.collectAsStateWithLifecycle()
-    val xrayConfigSnapshot by XrayServiceState.xrayConfigSnapshot.collectAsStateWithLifecycle()
     val isRestarting by ProxyServiceState.isRestarting.collectAsStateWithLifecycle()
     val isChangingProfile by ProxyServiceState.isChangingProfile.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
@@ -157,6 +163,12 @@ fun HomeScreen(
 
     val currentProfileId by viewModel.currentProfileId.collectAsStateWithLifecycle()
     val autoLaunchSettings by viewModel.autoLaunchSettings.collectAsStateWithLifecycle()
+
+    val activeConfig = clientConfigSnapshot ?: clientConfig
+    val activeXrayConfig = xrayConfigSnapshot ?: xrayConfig
+    val activeXraySettings = xraySettingsSnapshot ?: xraySettings
+    val activeWgConfig = wgConfigSnapshot ?: wgConfig
+    val activeVlessConfig = vlessConfigSnapshot ?: vlessConfig
 
     val isArchitectureSupported = viewModel.isArchitectureSupported
     val deviceArchitecture = viewModel.deviceArchitecture
@@ -214,12 +226,6 @@ fun HomeScreen(
     }
 
     val proxyTransfer by viewModel.proxyTransfer.collectAsStateWithLifecycle()
-    val wgConfig by viewModel.wgConfig.collectAsStateWithLifecycle()
-
-    val activeConfig = clientConfigSnapshot ?: clientConfig
-    val activeXrayConfig = xrayConfigSnapshot ?: xrayConfig
-    val activeWgConfig = wgConfigSnapshot ?: wgConfig
-    val activeVlessConfig = vlessConfigSnapshot ?: vlessConfig
 
     val configChanged by viewModel.isConfigChanged.collectAsStateWithLifecycle()
     val mainConfigChanged by viewModel.isMainConfigChanged.collectAsStateWithLifecycle()
@@ -791,13 +797,13 @@ fun HomeScreen(
             // --- Xray & VPN Settings ---
             val isSettingsValid = if (activeConfig.kernelVariant == KernelVariant.OLCRTC) {
                 // For OLCRTC, link is only required if DualRoute is enabled
-                if (activeXrayConfig.xrayConfiguration == XrayConfiguration.VLESS && activeVlessConfig.isDualRoute) {
+                if (activeXrayConfig.protocol == XrayConfiguration.VLESS && activeVlessConfig.isDualRoute) {
                     activeVlessConfig.isValid()
                 } else {
                     true // WG or VLESS solo mode just uses olcrtc SOCKS5
                 }
             } else {
-                if (activeXrayConfig.xrayConfiguration == XrayConfiguration.VLESS) activeVlessConfig.isValid() else activeWgConfig.isValid()
+                if (activeXrayConfig.protocol == XrayConfiguration.VLESS) activeVlessConfig.isValid() else activeWgConfig.isValid()
             }
             val configValid = isSettingsValid || xrayState != XrayState.Idle || isBusy
 
@@ -813,7 +819,7 @@ fun HomeScreen(
                     }
                 }
                 xrayState == XrayState.Running || xrayState == XrayState.DirectRoute -> if (vlessConfigSnapshot != null) stringResource(R.string.vless) else stringResource(R.string.wg_short)
-                else -> if (activeXrayConfig.xrayConfiguration == XrayConfiguration.VLESS) stringResource(R.string.vless) else stringResource(R.string.wg_short)
+                else -> if (activeXrayConfig.protocol == XrayConfiguration.VLESS) stringResource(R.string.vless) else stringResource(R.string.wg_short)
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -823,35 +829,38 @@ fun HomeScreen(
                     containerColor = blockContainerColor,
                     enabled = configValid,
                     onClick = {
-                        val next = !xraySettings.xrayEnabled
-                        val action = {
-                            HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
-
-                            if (!next && vpnEnabled) {
-                                showVpnWarning()
-                            }
-
-                            viewModel.updateXraySettings(xraySettings.copy(xrayEnabled = next))
-                        }
-
-                        if (next) {
-                            onCheckMismatch(true, action)
-                        } else {
-                            action()
-                        }
+                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                        onNavigateToXrayConfig()
                     }
                 ) {
-                    LaunchedEffect(configValid, xraySettings.xrayEnabled, currentProfileId, autoLaunchSettings.enabled) {
+                    LaunchedEffect(configValid, xrayConfig.enabled, currentProfileId, autoLaunchSettings.enabled) {
                         delay(300)
-                        if (!configValid && xraySettings.xrayEnabled && !autoLaunchSettings.enabled) {
-                            viewModel.updateXraySettings(viewModel.xraySettings.value.copy(xrayEnabled = false))
+                        if (!configValid && xrayConfig.enabled && !autoLaunchSettings.enabled) {
+                            viewModel.updateXrayConfig(viewModel.xrayConfig.value.copy(enabled = false))
                         }
                     }
 
                     SwitchRow(
                         label = stringResource(R.string.xray_title) + " " + xrayProtocol,
-                        checked = xraySettings.xrayEnabled,
-                        onCheckedChange = {}, // Обрабатывается родителем (SettingsGroupItem)
+                        checked = xrayConfig.enabled,
+                        onCheckedChange = { next ->
+                            val action = {
+                                HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+
+                                if (!next && vpnEnabled) {
+                                    showVpnWarning()
+                                }
+
+                                viewModel.updateXrayConfig(xrayConfig.copy(enabled = next))
+                            }
+
+                            if (next) {
+                                onCheckMismatch(true, action)
+                            } else {
+                                action()
+                            }
+                        },
+                        isSplit = true,
                         supportingText = if (!configValid) stringResource(R.string.xray_config_invalid) else {
                             when (xrayState) {
                                 XrayState.Starting -> stringResource(R.string.starting)
@@ -884,7 +893,7 @@ fun HomeScreen(
                         val next = !vpnEnabled
                         HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
                         
-                        if (next && !xraySettings.xrayEnabled) {
+                        if (next && !xrayConfig.enabled) {
                             showVpnWarning()
                         }
 
@@ -954,7 +963,7 @@ fun HomeScreen(
             Spacer(Modifier.height(12.dp))
 
             val isOlcrtc = activeConfig.kernelVariant == KernelVariant.OLCRTC
-            val showXray = xraySettings.xrayEnabled
+            val showXray = xrayConfig.enabled
 
             fun formatProxyAddr(addr: String, user: String, pass: String, authEnabled: Boolean): String {
                 if (addr.isBlank()) return ""
@@ -966,37 +975,37 @@ fun HomeScreen(
             }
 
             val displaySocksAddr = when {
-                showXray -> activeXrayConfig.socksBindAddress
+                showXray -> activeXraySettings.socksBindAddress
                 isOlcrtc -> activeConfig.socksAddr
-                else -> activeXrayConfig.socksBindAddress
+                else -> activeXraySettings.socksBindAddress
             }
 
             val copySocksAddr = when {
-                showXray -> formatProxyAddr(activeXrayConfig.socksBindAddress, activeXrayConfig.proxyUser, activeXrayConfig.proxyPass, activeXrayConfig.isProxyAuthEnabled)
+                showXray -> formatProxyAddr(activeXraySettings.socksBindAddress, activeXraySettings.proxyUser, activeXraySettings.proxyPass, activeXraySettings.isProxyAuthEnabled)
                 isOlcrtc -> formatProxyAddr(activeConfig.socksAddr, activeConfig.socksUser, activeConfig.socksPass, activeConfig.isSocksAuthEnabled)
-                else -> formatProxyAddr(activeXrayConfig.socksBindAddress, activeXrayConfig.proxyUser, activeXrayConfig.proxyPass, activeXrayConfig.isProxyAuthEnabled)
+                else -> formatProxyAddr(activeXraySettings.socksBindAddress, activeXraySettings.proxyUser, activeXraySettings.proxyPass, activeXraySettings.isProxyAuthEnabled)
             }
 
             val displayHttpAddr = when {
-                showXray -> activeXrayConfig.httpBindAddress
+                showXray -> activeXraySettings.httpBindAddress
                 isOlcrtc -> ""
-                else -> activeXrayConfig.httpBindAddress
+                else -> activeXraySettings.httpBindAddress
             }
 
             val copyHttpAddr = when {
-                showXray -> formatProxyAddr(activeXrayConfig.httpBindAddress, activeXrayConfig.proxyUser, activeXrayConfig.proxyPass, activeXrayConfig.isProxyAuthEnabled)
+                showXray -> formatProxyAddr(activeXraySettings.httpBindAddress, activeXraySettings.proxyUser, activeXraySettings.proxyPass, activeXraySettings.isProxyAuthEnabled)
                 isOlcrtc -> ""
-                else -> formatProxyAddr(activeXrayConfig.httpBindAddress, activeXrayConfig.proxyUser, activeXrayConfig.proxyPass, activeXrayConfig.isProxyAuthEnabled)
+                else -> formatProxyAddr(activeXraySettings.httpBindAddress, activeXraySettings.proxyUser, activeXraySettings.proxyPass, activeXraySettings.isProxyAuthEnabled)
             }
 
             val isSocksModified = when {
-                showXray -> xrayConfigSnapshot != null && xrayConfig.socksBindAddress != xrayConfigSnapshot?.socksBindAddress
+                showXray -> xraySettingsSnapshot != null && activeXraySettings.socksBindAddress != xraySettingsSnapshot?.socksBindAddress
                 isOlcrtc -> clientConfigSnapshot != null && activeConfig.socksAddr != clientConfigSnapshot?.socksAddr
-                else -> xrayConfigSnapshot != null && xrayConfig.socksBindAddress != xrayConfigSnapshot?.socksBindAddress
+                else -> xraySettingsSnapshot != null && activeXraySettings.socksBindAddress != xraySettingsSnapshot?.socksBindAddress
             }
 
             val isHttpModified = when {
-                showXray -> xrayConfigSnapshot != null && xrayConfig.httpBindAddress != xrayConfigSnapshot?.httpBindAddress
+                showXray -> xraySettingsSnapshot != null && activeXraySettings.httpBindAddress != xraySettingsSnapshot?.httpBindAddress
                 else -> false
             }
 
@@ -1236,5 +1245,3 @@ private fun ProxyAddressRow(
         )
     }
 }
-
-

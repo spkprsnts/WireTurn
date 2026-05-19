@@ -364,6 +364,11 @@
     <string name="warn_proxy_wg_mismatch">Tunnel expects a WireGuard connection, but Xray is configured for VLESS</string>
     <string name="warn_vpn_requires_xray">VPN mode requires Xray to be enabled!</string>
 
+    <string name="unsaved_changes_title">Unsaved changes</string>
+    <string name="unsaved_changes_desc">You have unsaved changes. Do you want to save them before leaving?</string>
+    <string name="btn_discard">Discard</string>
+    <string name="xray_setup_title">Xray setup</string>
+
     <!-- QR Import and Advanced Parameters -->
     <string name="qr_import">QR Code</string>
     <string name="qr_scan_desc">Point the camera at the configuration QR code to import</string>

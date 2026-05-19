@@ -373,15 +373,14 @@ data class ClientConfig(
     }
 }
 
-data class XrayConfig(
+data class XraySettings(
     val socksBindAddress: String = DEFAULT_SOCKS_BIND_ADDRESS,
     val httpBindAddress: String = "",
-    val xrayConfiguration: XrayConfiguration = XrayConfiguration.WIREGUARD,
     val isProxyAuthEnabled: Boolean = true,
     val proxyUser: String = "",
     val proxyPass: String = ""
 ) {
-    fun fillDefaults(): XrayConfig {
+    fun fillDefaults(): XraySettings {
         var current = this
         if (current.isProxyAuthEnabled && (proxyUser.isBlank() || proxyPass.isBlank())) {
             val allowed = ('A'..'Z') + ('a'..'z') + ('0'..'9')
@@ -400,7 +399,10 @@ data class XrayConfig(
     }
 }
 
-data class XraySettings(val xrayEnabled: Boolean = false)
+data class XrayConfig(
+    val enabled: Boolean = false,
+    val protocol: XrayConfiguration = XrayConfiguration.WIREGUARD
+)
 
 data class VlessConfig(
     @SerializedName("vlessLink") val vlessLink: String = "",
@@ -480,13 +482,18 @@ data class Profile(
     @SerializedName("rawCommand") val rawCommand: String = "",
     @SerializedName("turnableConfig") val turnableConfig: TurnableConfig = TurnableConfig(),
     @SerializedName("olcrtcConfig") val olcrtcConfig: OlcrtcConfig = OlcrtcConfig(),
-    @SerializedName("xrayConfiguration") val xrayConfiguration: XrayConfiguration = XrayConfiguration.WIREGUARD,
+    @SerializedName("xrayProtocol") val xrayProtocol: XrayConfiguration = XrayConfiguration.WIREGUARD,
     @SerializedName("xrayEnabled") val xrayEnabled: Boolean = false,
     @SerializedName("wgConfig") val wgConfig: WgConfig = WgConfig(),
     @SerializedName("vlessConfig") val vlessConfig: VlessConfig = VlessConfig(),
+
+    // Migration fields
+    @SerializedName("protocol") private val shortProtocol: XrayConfiguration? = null,
+    @SerializedName("enabled") private val shortEnabled: Boolean? = null,
+    @SerializedName("xrayConfiguration") private val oldProtocol: XrayConfiguration? = null,
     @SerializedName("clientConfig") private val oldClientConfig: ClientConfig? = null,
-    @SerializedName("xraySettings") private val oldXraySettings: XraySettings? = null,
-    @SerializedName("xrayConfig") private val oldXrayConfig: XrayConfig? = null
+    @SerializedName("xraySettings") private val oldXraySettings: Any? = null,
+    @SerializedName("xrayConfig") private val oldXrayConfig: Any? = null
 ) {
     fun isEmpty(): Boolean = (rawCommand as Any?)?.toString().isNullOrBlank() &&
             !turnableConfig.isValid() &&
@@ -503,8 +510,13 @@ data class Profile(
         var oc = (olcrtcConfig ?: OlcrtcConfig())
 
         @Suppress("SENSELESS_COMPARISON")
-        var xc = if ((xrayConfiguration as Any?) == null) XrayConfiguration.WIREGUARD else xrayConfiguration
-        var xe = xrayEnabled ?: false
+        var prot = if ((xrayProtocol as Any?) == null) {
+            (shortProtocol ?: oldProtocol ?: XrayConfiguration.WIREGUARD)
+        } else xrayProtocol
+        
+        var en = if ((xrayEnabled as Any?) == null) {
+            (shortEnabled ?: false)
+        } else xrayEnabled
 
         // Migration from old nested ClientConfig format
         if (oldClientConfig != null && ((tc.routes as List<*>?)?.isEmpty() != false) && !oc.isValid()) {
@@ -515,12 +527,13 @@ data class Profile(
             oc = oldClientConfig.olcrtcConfig
         }
 
-        // Migration from old nested Xray format
-        if (oldXraySettings != null && (xe as Any?) == false) {
-            xe = oldXraySettings.xrayEnabled
+        // Migration from old nested Xray format (objects)
+        if (oldXraySettings != null && !en) {
+            en = (oldXraySettings as? Map<*, *>)?.get("xrayEnabled") as? Boolean ?: en
         }
-        if (oldXrayConfig != null && (xc as Any?) == XrayConfiguration.WIREGUARD && (xrayConfiguration as Any?) == null) {
-            xc = oldXrayConfig.xrayConfiguration
+        if (oldXrayConfig != null && prot == XrayConfiguration.WIREGUARD) {
+            val oldType = (oldXrayConfig as? Map<*, *>)?.get("xrayConfiguration")?.toString()
+            if (oldType != null) try { prot = XrayConfiguration.valueOf(oldType) } catch(_: Exception) {}
         }
 
         // Deep safety for WG and VLESS
@@ -535,8 +548,8 @@ data class Profile(
             rawCommand = cmd,
             turnableConfig = tc.sanitize(),
             olcrtcConfig = oc.sanitize(),
-            xrayConfiguration = xc,
-            xrayEnabled = xe,
+            xrayProtocol = prot,
+            xrayEnabled = en,
             vlessConfig = vc,
             wgConfig = wc
         )
@@ -701,25 +714,28 @@ class AppPreferences(val context: Context) {
             ).fillDefaults()
         }.distinctUntilChanged()
 
-    val xrayConfigFlow: Flow<XrayConfig> = appCtx.internalDataStore.data
+    val xraySettingsFlow: Flow<XraySettings> = appCtx.internalDataStore.data
         .map { p ->
-            XrayConfig(
-                socksBindAddress = p[XRAY_SOCKS_BIND] ?: XrayConfig.DEFAULT_SOCKS_BIND_ADDRESS,
+            XraySettings(
+                socksBindAddress = p[XRAY_SOCKS_BIND] ?: XraySettings.DEFAULT_SOCKS_BIND_ADDRESS,
                 httpBindAddress = p[XRAY_HTTP_BIND] ?: "",
                 isProxyAuthEnabled = p[XRAY_AUTH_ENABLED] ?: true,
                 proxyUser = p[XRAY_USER] ?: "",
-                proxyPass = p[XRAY_PASS] ?: "",
-                xrayConfiguration = try {
+                proxyPass = p[XRAY_PASS] ?: ""
+            ).fillDefaults()
+        }.distinctUntilChanged()
+
+    val xrayConfigFlow: Flow<XrayConfig> = appCtx.internalDataStore.data
+        .map { p ->
+            XrayConfig(
+                enabled = p[ACTIVE_XRAY_ENABLED] ?: false,
+                protocol = try {
                     XrayConfiguration.valueOf(p[ACTIVE_XRAY_CONFIG_TYPE] ?: XrayConfiguration.WIREGUARD.name)
                 } catch (_: Exception) {
                     XrayConfiguration.WIREGUARD
                 }
-            ).fillDefaults()
+            )
         }.distinctUntilChanged()
-
-    val xraySettingsFlow: Flow<XraySettings> = appCtx.internalDataStore.data
-        .map { XraySettings(it[ACTIVE_XRAY_ENABLED] ?: false) }
-        .distinctUntilChanged()
 
     val wgConfigFlow: Flow<WgConfig> = appCtx.internalDataStore.data
         .map { (gson.fromJson(it[ACTIVE_WG_JSON] ?: "{}", WgConfig::class.java) ?: WgConfig()).fillDefaults() }
@@ -737,7 +753,7 @@ class AppPreferences(val context: Context) {
             p[ACTIVE_RAW_CMD] = profile.rawCommand
             p[ACTIVE_TURNABLE_JSON] = gson.toJson(profile.turnableConfig)
             p[ACTIVE_OLCRTC_JSON] = gson.toJson(profile.olcrtcConfig)
-            p[ACTIVE_XRAY_CONFIG_TYPE] = profile.xrayConfiguration.name
+            p[ACTIVE_XRAY_CONFIG_TYPE] = profile.xrayProtocol.name
             p[ACTIVE_XRAY_ENABLED] = profile.xrayEnabled
             p[ACTIVE_WG_JSON] = gson.toJson(profile.wgConfig)
             p[ACTIVE_VLESS_JSON] = gson.toJson(profile.vlessConfig)
@@ -750,16 +766,6 @@ class AppPreferences(val context: Context) {
             p[OLCRTC_SOCKS_AUTH_ENABLED] = auth
             p[OLCRTC_SOCKS_USER] = user
             p[OLCRTC_SOCKS_PASS] = pass
-        }
-    }
-
-    suspend fun saveXrayGlobal(socks: String, http: String, auth: Boolean, user: String, pass: String) {
-        appCtx.internalDataStore.edit { p ->
-            p[XRAY_SOCKS_BIND] = socks
-            p[XRAY_HTTP_BIND] = http
-            p[XRAY_AUTH_ENABLED] = auth
-            p[XRAY_USER] = user
-            p[XRAY_PASS] = pass
         }
     }
 
@@ -862,22 +868,24 @@ class AppPreferences(val context: Context) {
         appCtx.internalDataStore.edit { it[ACTIVE_WG_JSON] = gson.toJson(c) }
     }
 
-    suspend fun saveXraySettings(s: XraySettings) {
-        appCtx.internalDataStore.edit { it[ACTIVE_XRAY_ENABLED] = s.xrayEnabled }
+    suspend fun saveXrayConfig(c: XrayConfig) {
+        appCtx.internalDataStore.edit {
+            it[ACTIVE_XRAY_ENABLED] = c.enabled
+            it[ACTIVE_XRAY_CONFIG_TYPE] = c.protocol.name
+        }
     }
 
     suspend fun saveVlessConfig(c: VlessConfig) {
         appCtx.internalDataStore.edit { it[ACTIVE_VLESS_JSON] = gson.toJson(c) }
     }
 
-    suspend fun saveXrayConfig(c: XrayConfig) {
+    suspend fun saveXraySettings(s: XraySettings) {
         appCtx.internalDataStore.edit {
-            it[XRAY_SOCKS_BIND] = c.socksBindAddress
-            it[XRAY_HTTP_BIND] = c.httpBindAddress
-            it[XRAY_AUTH_ENABLED] = c.isProxyAuthEnabled
-            it[XRAY_USER] = c.proxyUser
-            it[XRAY_PASS] = c.proxyPass
-            it[ACTIVE_XRAY_CONFIG_TYPE] = c.xrayConfiguration.name
+            it[XRAY_SOCKS_BIND] = s.socksBindAddress
+            it[XRAY_HTTP_BIND] = s.httpBindAddress
+            it[XRAY_AUTH_ENABLED] = s.isProxyAuthEnabled
+            it[XRAY_USER] = s.proxyUser
+            it[XRAY_PASS] = s.proxyPass
         }
     }
 
@@ -910,7 +918,7 @@ class AppPreferences(val context: Context) {
             p[ACTIVE_RAW_CMD] = profile.rawCommand
             p[ACTIVE_TURNABLE_JSON] = gson.toJson(profile.turnableConfig)
             p[ACTIVE_OLCRTC_JSON] = gson.toJson(profile.olcrtcConfig)
-            p[ACTIVE_XRAY_CONFIG_TYPE] = profile.xrayConfiguration.name
+            p[ACTIVE_XRAY_CONFIG_TYPE] = profile.xrayProtocol.name
             p[ACTIVE_XRAY_ENABLED] = profile.xrayEnabled
             p[ACTIVE_WG_JSON] = gson.toJson(profile.wgConfig)
             p[ACTIVE_VLESS_JSON] = gson.toJson(profile.vlessConfig)

@@ -12,6 +12,7 @@ import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.XrayConfig
+import com.wireturn.app.data.XraySettings
 import com.wireturn.app.data.GlobalVpnSettings
 import com.wireturn.app.data.VlessConfig
 import com.wireturn.app.data.WgConfig
@@ -66,7 +67,7 @@ class XrayService : Service() {
                     prefs.vpnEnabledFlow,
                     prefs.globalVpnSettingsFlow,
                     prefs.excludedAppsFlow,
-                    XrayServiceState.xrayConfigSnapshot,
+                    XrayServiceState.xraySettingsSnapshot,
                     VpnServiceState.state
                 )
             ) { args ->
@@ -79,7 +80,7 @@ class XrayService : Service() {
                 @Suppress("UNCHECKED_CAST")
                 val excludedApps = args[3] as Set<String>
                 @Suppress("UNCHECKED_CAST")
-                val runningXray = args[4] as XrayConfig?
+                val runningSettings = args[4] as XraySettings?
                 @Suppress("UNCHECKED_CAST")
                 val vpnState = args[5] as VpnState
 
@@ -89,7 +90,7 @@ class XrayService : Service() {
                     bypassMode = globalVpn.bypassMode,
                     filteringEnabled = globalVpn.filteringEnabled,
                     excludedApps = excludedApps,
-                    runningXray = runningXray,
+                    runningSettings = runningSettings,
                     vpnState = vpnState
                 )
             }.collect { bundle ->
@@ -107,12 +108,12 @@ class XrayService : Service() {
                     val shouldVpnBeActive = bundle.vpnEnabled && bundle.xrayState != XrayState.Idle
 
                     if (shouldVpnBeActive) {
-                        val runningXray = bundle.runningXray
+                        val runningSettings = bundle.runningSettings
                         val vpnRunning = bundle.vpnState == VpnState.Running
                         val vpnError = bundle.vpnState is VpnState.Error
                         val anySettingChanged = excludedChanged || bypassModeChanged || filteringChanged || vpnEnabledChanged
 
-                        if (runningXray != null) {
+                        if (runningSettings != null) {
                             // Запускаем если Idle ИЛИ если что-то изменилось (перезапуск)
                             // Если состояние Error — перезапускаем только при изменении настроек
                             val needsStart = bundle.vpnState == VpnState.Idle || (anySettingChanged && (vpnRunning || vpnError))
@@ -128,10 +129,10 @@ class XrayService : Service() {
                                 
                                 if (VpnServiceState.state.value != VpnState.Starting) {
                                     val vpnIntent = Intent(this@XrayService, HevVpnService::class.java).apply {
-                                        putExtra(HevVpnService.EXTRA_SOCKS5_ADDR, runningXray.connectableAddress)
-                                        if (runningXray.isProxyAuthEnabled && runningXray.proxyUser.isNotBlank()) {
-                                            putExtra(HevVpnService.EXTRA_SOCKS5_USER, runningXray.proxyUser)
-                                            putExtra(HevVpnService.EXTRA_SOCKS5_PASS, runningXray.proxyPass)
+                                        putExtra(HevVpnService.EXTRA_SOCKS5_ADDR, runningSettings.connectableAddress)
+                                        if (runningSettings.isProxyAuthEnabled && runningSettings.proxyUser.isNotBlank()) {
+                                            putExtra(HevVpnService.EXTRA_SOCKS5_USER, runningSettings.proxyUser)
+                                            putExtra(HevVpnService.EXTRA_SOCKS5_PASS, runningSettings.proxyPass)
                                         }
                                     }
                                     startService(vpnIntent)
@@ -157,7 +158,7 @@ class XrayService : Service() {
         val bypassMode: Boolean,
         val filteringEnabled: Boolean,
         val excludedApps: Set<String>,
-        val runningXray: XrayConfig?,
+        val runningSettings: XraySettings?,
         val vpnState: VpnState
     )
 
@@ -197,22 +198,23 @@ class XrayService : Service() {
             val rawXray = prefs.xrayConfigFlow.first()
             val rawVless = prefs.vlessConfigFlow.first()
             val rawClient = ProxyServiceState.clientConfigSnapshot.value ?: prefs.clientConfigFlow.first()
+            val xraySettings = prefs.xraySettingsFlow.first()
 
             val wgConfig = rawWg.fillDefaults()
-            val xrayConfig = rawXray.fillDefaults()
             val vlessConfig = rawVless.fillDefaults()
             val clientConfig = rawClient.fillDefaults()
 
             prefs.saveWgConfig(wgConfig)
-            prefs.saveXrayConfig(xrayConfig)
+            prefs.saveXrayConfig(rawXray)
             prefs.saveVlessConfig(vlessConfig)
             prefs.saveClientConfig(clientConfig)
 
             val snapshot = XrayConfigsSnapshot(
                 wg = wgConfig,
-                xray = xrayConfig,
+                xray = rawXray,
                 vless = vlessConfig,
-                client = clientConfig
+                client = clientConfig,
+                settings = xraySettings
             )
             startXray(snapshot)
         }
@@ -224,7 +226,8 @@ class XrayService : Service() {
         val wg: WgConfig,
         val xray: XrayConfig,
         val vless: VlessConfig,
-        val client: ClientConfig
+        val client: ClientConfig,
+        val settings: XraySettings
     )
 
     private suspend fun startXray(snapshot: XrayConfigsSnapshot) {
@@ -235,8 +238,9 @@ class XrayService : Service() {
             val xrayConfig = snapshot.xray
             val vlessConfig = snapshot.vless
             val runningClientConfig = snapshot.client
+            val xraySettings = snapshot.settings
             
-            val isXrayVless = xrayConfig.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS
+            val isXrayVless = xrayConfig.protocol == com.wireturn.app.data.XrayConfiguration.VLESS
 
             val isConfigValid = if (runningClientConfig.kernelVariant == KernelVariant.OLCRTC) {
                 // For OLCRTC, VLESS/WG config is optional, unless DualRoute is enabled
@@ -263,7 +267,8 @@ class XrayService : Service() {
             XrayServiceState.setConfigsSnapshot(
                 wg = if (isXrayVless) null else wgConfig,
                 xray = xrayConfig,
-                vless = if (isXrayVless) vlessConfig else null
+                vless = if (isXrayVless) vlessConfig else null,
+                settings = xraySettings
             )
             
             val prefs = AppPreferences(this@XrayService)
@@ -271,20 +276,20 @@ class XrayService : Service() {
 
             val cmdArgs = mutableListOf(
                 executable,
-                "-listen", xrayConfig.socksBindAddress,
+                "-listen", xraySettings.socksBindAddress,
                 "-stats-socket", socketName
             )
 
-            if (xrayConfig.httpBindAddress.isNotBlank()) {
+            if (xraySettings.httpBindAddress.isNotBlank()) {
                 cmdArgs.add("-http")
-                cmdArgs.add(xrayConfig.httpBindAddress)
+                cmdArgs.add(xraySettings.httpBindAddress)
             }
 
-            if (xrayConfig.isProxyAuthEnabled && xrayConfig.proxyUser.isNotBlank()) {
+            if (xraySettings.isProxyAuthEnabled && xraySettings.proxyUser.isNotBlank()) {
                 cmdArgs.add("-proxy-user")
-                cmdArgs.add(xrayConfig.proxyUser)
+                cmdArgs.add(xraySettings.proxyUser)
                 cmdArgs.add("-proxy-pass")
-                cmdArgs.add(xrayConfig.proxyPass)
+                cmdArgs.add(xraySettings.proxyPass)
             }
             
             if (runningClientConfig.kernelVariant == KernelVariant.OLCRTC) {

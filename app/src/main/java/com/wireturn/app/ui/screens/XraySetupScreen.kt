@@ -1,7 +1,12 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
+@file:OptIn(
+    ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3ExpressiveApi::class
+)
 
 package com.wireturn.app.ui.screens
 
+import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -12,15 +17,20 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -28,13 +38,16 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
@@ -46,48 +59,107 @@ import com.wireturn.app.R
 import com.wireturn.app.data.WgConfig
 import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.data.VlessConfig
+import com.wireturn.app.data.XrayConfig
+import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.ui.ConfigDropdownMenu
+import com.wireturn.app.ui.ConfigRowLabel
+import com.wireturn.app.ui.FieldTrailingIcons
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.LabeledButtonGroup
+import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.SettingsGroup
 import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.configButtonGroupItem
+import com.wireturn.app.ui.redact
 import com.wireturn.app.ui.showExclusiveSnackbar
 import kotlinx.coroutines.launch
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun XraySetupScreen(
+    isEditMode: Boolean,
     showProtocolSelection: Boolean,
     defaultProtocol: XrayConfiguration? = null,
+    initialWgConfig: WgConfig = WgConfig(),
+    initialVlessConfig: VlessConfig = VlessConfig(),
+    initialXrayConfig: XrayConfig = XrayConfig(),
+    wgConfigSnapshot: WgConfig? = null,
+    vlessConfigSnapshot: VlessConfig? = null,
+    xrayConfigSnapshot: XrayConfig? = null,
+    privacyMode: Boolean = false,
+    kernelVariant: KernelVariant = KernelVariant.TURNABLE,
+    vlessLinkHistory: List<String> = emptyList(),
+    onRemoveHistoryItem: (String) -> Unit = {},
     onBack: () -> Unit,
     onSave: (XrayConfiguration, WgConfig, VlessConfig) -> Unit
 ) {
-    var xrayConfiguration by remember { 
+    var xrayConfiguration by remember(initialXrayConfig, kernelVariant) { 
         mutableStateOf(
-            defaultProtocol ?: (if (showProtocolSelection) XrayConfiguration.WIREGUARD else XrayConfiguration.VLESS)
+            if (kernelVariant == KernelVariant.OLCRTC) XrayConfiguration.VLESS
+            else if (isEditMode) initialXrayConfig.protocol 
+            else (defaultProtocol ?: (if (showProtocolSelection) XrayConfiguration.WIREGUARD else XrayConfiguration.VLESS))
         )
     }
     
     // WireGuard states
-    var privateKey by remember { mutableStateOf("") }
-    var address by remember { mutableStateOf("") }
-    var mtu by remember { mutableStateOf("1280") }
-    var publicKey by remember { mutableStateOf("") }
-    var endpoint by remember { mutableStateOf("127.0.0.1:9000") }
-    var persistentKeepalive by remember { mutableStateOf("25") }
+    var privateKey by remember(initialWgConfig) { mutableStateOf(initialWgConfig.privateKey) }
+    var address by remember(initialWgConfig) { mutableStateOf(initialWgConfig.address) }
+    var mtu by remember(initialWgConfig) { mutableStateOf(initialWgConfig.mtu) }
+    var publicKey by remember(initialWgConfig) { mutableStateOf(initialWgConfig.publicKey) }
+    var endpoint by remember(initialWgConfig) { mutableStateOf(initialWgConfig.endpoint) }
+    var persistentKeepalive by remember(initialWgConfig) { mutableStateOf(initialWgConfig.persistentKeepalive) }
 
     // VLESS states
-    var vlessLink by remember { mutableStateOf("") }
-    var vlessIsDualRoute by remember { mutableStateOf(false) }
-    var vlessDirectAddress by remember { mutableStateOf("") }
-    var vlessHcInterval by remember { mutableStateOf("30") }
+    var vlessLink by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.vlessLink) }
+    var vlessIsDualRoute by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.isDualRoute) }
+    var vlessDirectAddress by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.directAddress) }
+    var vlessHcInterval by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.hcInterval) }
+
+    val currentWg = remember(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive) {
+        WgConfig(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive)
+    }
+    val currentVless = remember(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, initialVlessConfig.vlessUseLocalAddress) {
+        VlessConfig(vlessLink, initialVlessConfig.vlessUseLocalAddress, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval)
+    }
+
+    val isModified by remember(xrayConfiguration, currentWg, currentVless) {
+        derivedStateOf {
+            xrayConfiguration != initialXrayConfig.protocol ||
+            currentWg != initialWgConfig ||
+            currentVless != initialVlessConfig
+        }
+    }
+
+    var showExitDialog by remember { mutableStateOf(false) }
+
+    val handleBack = {
+        if (isEditMode && isModified) {
+            showExitDialog = true
+        } else {
+            onBack()
+        }
+    }
+
+    BackHandler(onBack = handleBack)
 
     val scrollState = rememberScrollState()
+
+    var previousDualRoute by remember { mutableStateOf(vlessIsDualRoute) }
+    androidx.compose.runtime.LaunchedEffect(vlessIsDualRoute) {
+        if (vlessIsDualRoute && !previousDualRoute) {
+            val scrollJob = launch {
+                androidx.compose.runtime.snapshotFlow { scrollState.maxValue }.collect {
+                    scrollState.scrollTo(it)
+                }
+            }
+            kotlinx.coroutines.delay(300)
+            scrollJob.cancel()
+        }
+        previousDualRoute = vlessIsDualRoute
+    }
+
     val isDark = com.wireturn.app.ui.theme.LocalIsDark.current
     val blockContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
     val context = LocalContext.current
@@ -109,16 +181,14 @@ fun XraySetupScreen(
                         val text = input.bufferedReader().use { r -> r.readText() }.trim()
                         val wgParsed = WgConfig.parse(text)
                         if (wgParsed.isValid()) {
-                            if (showProtocolSelection) {
-                                xrayConfiguration = XrayConfiguration.WIREGUARD
-                                privateKey = wgParsed.privateKey
-                                address = wgParsed.address
-                                mtu = wgParsed.mtu
-                                publicKey = wgParsed.publicKey
-                                endpoint = wgParsed.endpoint
-                                persistentKeepalive = wgParsed.persistentKeepalive
-                                scope.launch { snackbarHostState.showExclusiveSnackbar(importSuccessMessage) }
-                            }
+                            xrayConfiguration = XrayConfiguration.WIREGUARD
+                            privateKey = wgParsed.privateKey
+                            address = wgParsed.address
+                            mtu = wgParsed.mtu
+                            publicKey = wgParsed.publicKey
+                            endpoint = wgParsed.endpoint
+                            persistentKeepalive = wgParsed.persistentKeepalive
+                            scope.launch { snackbarHostState.showExclusiveSnackbar(importSuccessMessage) }
                         } else if (ValidatorUtils.isValidVlessLink(text)) {
                             xrayConfiguration = XrayConfiguration.VLESS
                             vlessLink = text
@@ -134,13 +204,40 @@ fun XraySetupScreen(
         }
     )
 
+    if (showExitDialog) {
+        AlertDialog(
+            onDismissRequest = { showExitDialog = false },
+            title = { Text(stringResource(R.string.unsaved_changes_title)) },
+            text = { Text(stringResource(R.string.unsaved_changes_desc)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                    showExitDialog = false
+                    val wg = WgConfig(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive)
+                    val vless = VlessConfig(vlessLink, initialVlessConfig.vlessUseLocalAddress, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval)
+                    onSave(xrayConfiguration, wg, vless)
+                }) {
+                    Text(stringResource(R.string.btn_save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showExitDialog = false
+                    onBack()
+                }) {
+                    Text(stringResource(R.string.btn_discard))
+                }
+            }
+        )
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.xray_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = handleBack) {
                         Icon(
                             painter = painterResource(R.drawable.arrow_back_24px),
                             contentDescription = null
@@ -176,16 +273,14 @@ fun XraySetupScreen(
                                         val text = clipEntry?.clipData?.getItemAt(0)?.text?.toString() ?: ""
                                         val wgParsed = WgConfig.parse(text)
                                         if (wgParsed.isValid()) {
-                                            if (showProtocolSelection) {
-                                                xrayConfiguration = XrayConfiguration.WIREGUARD
-                                                privateKey = wgParsed.privateKey
-                                                address = wgParsed.address
-                                                mtu = wgParsed.mtu
-                                                publicKey = wgParsed.publicKey
-                                                endpoint = wgParsed.endpoint
-                                                persistentKeepalive = wgParsed.persistentKeepalive
-                                                snackbarHostState.showExclusiveSnackbar(importSuccessMessage)
-                                            }
+                                            xrayConfiguration = XrayConfiguration.WIREGUARD
+                                            privateKey = wgParsed.privateKey
+                                            address = wgParsed.address
+                                            mtu = wgParsed.mtu
+                                            publicKey = wgParsed.publicKey
+                                            endpoint = wgParsed.endpoint
+                                            persistentKeepalive = wgParsed.persistentKeepalive
+                                            snackbarHostState.showExclusiveSnackbar(importSuccessMessage)
                                         } else if (ValidatorUtils.isValidVlessLink(text)) {
                                             xrayConfiguration = XrayConfiguration.VLESS
                                             vlessLink = text
@@ -207,12 +302,38 @@ fun XraySetupScreen(
                         }
                     }
 
+                    if (isEditMode) {
+                        val canShare = when (xrayConfiguration) {
+                            XrayConfiguration.WIREGUARD -> currentWg.isValid()
+                            XrayConfiguration.VLESS -> currentVless.isValid()
+                        }
+
+                        IconButton(
+                            onClick = {
+                                val textToShare = when (xrayConfiguration) {
+                                    XrayConfiguration.WIREGUARD -> currentWg.toWgString()
+                                    XrayConfiguration.VLESS -> currentVless.vlessLink
+                                }
+                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, textToShare)
+                                }
+                                context.startActivity(Intent.createChooser(intent, null))
+                            },
+                            enabled = canShare
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.share_24px),
+                                contentDescription = stringResource(R.string.share)
+                            )
+                        }
+                    }
+
                     IconButton(onClick = { 
-                        onSave(
-                            xrayConfiguration,
-                            WgConfig(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive),
-                            VlessConfig(vlessLink, true, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval)
-                        ) 
+                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                        val wg = WgConfig(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive)
+                        val vless = VlessConfig(vlessLink, initialVlessConfig.vlessUseLocalAddress, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval)
+                        onSave(xrayConfiguration, wg, vless)
                     }) {
                         Icon(
                             painter = painterResource(R.drawable.check_24px),
@@ -231,7 +352,8 @@ fun XraySetupScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            if (showProtocolSelection) {
+            // Выбор протокола
+            if (kernelVariant != KernelVariant.OLCRTC) {
                 SettingsGroup(title = stringResource(R.string.xray_protocol_label)) {
                     SettingsGroupItem(
                         isTop = true,
@@ -247,7 +369,8 @@ fun XraySetupScreen(
                         }
                         LabeledButtonGroup(
                             label = stringResource(R.string.xray_protocol_label),
-                            supportingText = stringResource(R.string.xray_protocol_desc)
+                            supportingText = stringResource(R.string.xray_protocol_desc),
+                            isModified = isEditMode && xrayConfigSnapshot != null && (wgConfigSnapshot != null && xrayConfiguration != XrayConfiguration.WIREGUARD || vlessConfigSnapshot != null && xrayConfiguration != XrayConfiguration.VLESS)
                         ) {
                             configurations.forEachIndexed { index, config ->
                                 configButtonGroupItem(
@@ -269,22 +392,31 @@ fun XraySetupScreen(
             when (xrayConfiguration) {
                 XrayConfiguration.WIREGUARD -> {
                     WireGuardSettingsBlock(
-                        privateKey = privateKey, onPrivateKeyChange = { privateKey = it },
-                        address = address, onAddressChange = { address = it },
+                        privateKey = privateKey, onPrivateKeyChange = { if (!privacyMode) privateKey = it },
+                        address = address, onAddressChange = { if (!privacyMode) address = it },
                         mtu = mtu, onMtuChange = { mtu = it },
-                        publicKey = publicKey, onPublicKeyChange = { publicKey = it },
+                        publicKey = publicKey, onPublicKeyChange = { if (!privacyMode) publicKey = it },
                         endpoint = endpoint,
                         persistentKeepalive = persistentKeepalive, onPersistentKeepaliveChange = { persistentKeepalive = it },
-                        blockContainerColor = blockContainerColor
+                        wgConfigSnapshot = wgConfigSnapshot,
+                        privacyMode = privacyMode,
+                        kernelVariant = kernelVariant,
+                        blockContainerColor = blockContainerColor,
+                        isEditMode = isEditMode
                     )
                 }
                 XrayConfiguration.VLESS -> {
                     VlessSettingsBlock(
-                        vlessLink = vlessLink, onVlessLinkChange = { vlessLink = it },
+                        vlessLink = vlessLink, onVlessLinkChange = { if (!privacyMode) vlessLink = it },
                         vlessIsDualRoute = vlessIsDualRoute, onVlessIsDualRouteChange = { vlessIsDualRoute = it },
-                        vlessDirectAddress = vlessDirectAddress, onVlessDirectAddressChange = { vlessDirectAddress = it },
+                        vlessDirectAddress = vlessDirectAddress, onVlessDirectAddressChange = { if (!privacyMode) vlessDirectAddress = it },
                         vlessHcInterval = vlessHcInterval, onVlessHcIntervalChange = { vlessHcInterval = it },
-                        blockContainerColor = blockContainerColor
+                        vlessLinkHistory = vlessLinkHistory,
+                        onRemoveHistoryItem = onRemoveHistoryItem,
+                        vlessConfigSnapshot = vlessConfigSnapshot,
+                        privacyMode = privacyMode,
+                        blockContainerColor = blockContainerColor,
+                        isEditMode = isEditMode
                     )
                 }
             }
@@ -299,16 +431,14 @@ fun XraySetupScreen(
             onResult = { result ->
                 val wgParsed = WgConfig.parse(result)
                 if (wgParsed.isValid()) {
-                    if (showProtocolSelection) {
-                        xrayConfiguration = XrayConfiguration.WIREGUARD
-                        privateKey = wgParsed.privateKey
-                        address = wgParsed.address
-                        mtu = wgParsed.mtu
-                        publicKey = wgParsed.publicKey
-                        endpoint = wgParsed.endpoint
-                        persistentKeepalive = wgParsed.persistentKeepalive
-                        scope.launch { snackbarHostState.showExclusiveSnackbar(importSuccessMessage) }
-                    }
+                    xrayConfiguration = XrayConfiguration.WIREGUARD
+                    privateKey = wgParsed.privateKey
+                    address = wgParsed.address
+                    mtu = wgParsed.mtu
+                    publicKey = wgParsed.publicKey
+                    endpoint = wgParsed.endpoint
+                    persistentKeepalive = wgParsed.persistentKeepalive
+                    scope.launch { snackbarHostState.showExclusiveSnackbar(importSuccessMessage) }
                 } else if (ValidatorUtils.isValidVlessLink(result)) {
                     xrayConfiguration = XrayConfiguration.VLESS
                     vlessLink = result
@@ -329,24 +459,59 @@ private fun WireGuardSettingsBlock(
     publicKey: String, onPublicKeyChange: (String) -> Unit,
     endpoint: String,
     persistentKeepalive: String, onPersistentKeepaliveChange: (String) -> Unit,
-    blockContainerColor: androidx.compose.ui.graphics.Color
+    wgConfigSnapshot: WgConfig?,
+    privacyMode: Boolean,
+    kernelVariant: KernelVariant,
+    blockContainerColor: androidx.compose.ui.graphics.Color,
+    isEditMode: Boolean
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+        if (kernelVariant == KernelVariant.OLCRTC) {
+            SettingsGroupItem(
+                isTop = true,
+                isBottom = true,
+                containerColor = blockContainerColor
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    LargeLeadingIcon {
+                        Icon(
+                            painter = painterResource(R.drawable.info_24px),
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        ConfigRowLabel(stringResource(R.string.wg_not_used_with_olcrtc))
+                    }
+                }
+            }
+        }
+
         SettingsGroup(title = stringResource(R.string.wg_interface)) {
             SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
                 TextFieldRow(
                     label = stringResource(R.string.wg_private_key),
-                    value = privateKey,
+                    value = privateKey.redact(privacyMode),
                     onValueChange = onPrivateKeyChange,
-                    placeholder = stringResource(R.string.wg_private_key_placeholder)
+                    placeholder = stringResource(R.string.wg_private_key_placeholder),
+                    isError = privateKey.isBlank(),
+                    readOnly = privacyMode,
+                    isModified = isEditMode && wgConfigSnapshot != null && privateKey != wgConfigSnapshot.privateKey
                 )
             }
             SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
                 TextFieldRow(
                     label = stringResource(R.string.wg_address),
-                    value = address,
+                    value = address.redact(privacyMode),
                     onValueChange = onAddressChange,
-                    placeholder = stringResource(R.string.wg_address_placeholder)
+                    placeholder = stringResource(R.string.wg_address_placeholder),
+                    isError = address.isBlank(),
+                    readOnly = privacyMode,
+                    isModified = isEditMode && wgConfigSnapshot != null && address != wgConfigSnapshot.address
                 )
             }
             SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
@@ -355,6 +520,8 @@ private fun WireGuardSettingsBlock(
                     value = mtu,
                     onValueChange = onMtuChange,
                     placeholder = stringResource(R.string.wg_mtu_placeholder),
+                    isError = mtu.isNotEmpty() && mtu.toIntOrNull() == null,
+                    isModified = isEditMode && wgConfigSnapshot != null && mtu != wgConfigSnapshot.mtu,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
             }
@@ -364,17 +531,21 @@ private fun WireGuardSettingsBlock(
             SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
                 TextFieldRow(
                     label = stringResource(R.string.wg_public_key),
-                    value = publicKey,
+                    value = publicKey.redact(privacyMode),
                     onValueChange = onPublicKeyChange,
-                    placeholder = stringResource(R.string.wg_public_key_placeholder)
+                    placeholder = stringResource(R.string.wg_public_key_placeholder),
+                    isError = publicKey.isBlank(),
+                    readOnly = privacyMode,
+                    isModified = isEditMode && wgConfigSnapshot != null && publicKey != wgConfigSnapshot.publicKey
                 )
             }
             SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
                 TextFieldRow(
                     label = stringResource(R.string.wg_endpoint),
-                    value = endpoint,
+                    value = endpoint.redact(privacyMode),
                     onValueChange = { },
-                    readOnly = true
+                    readOnly = true,
+                    isModified = isEditMode && wgConfigSnapshot != null && endpoint != wgConfigSnapshot.endpoint
                 )
             }
             SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
@@ -383,6 +554,8 @@ private fun WireGuardSettingsBlock(
                     value = persistentKeepalive,
                     onValueChange = onPersistentKeepaliveChange,
                     placeholder = stringResource(R.string.wg_persistent_keepalive_placeholder),
+                    isError = persistentKeepalive.isNotEmpty() && persistentKeepalive.toIntOrNull() == null,
+                    isModified = isEditMode && wgConfigSnapshot != null && persistentKeepalive != wgConfigSnapshot.persistentKeepalive,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
             }
@@ -396,19 +569,41 @@ private fun VlessSettingsBlock(
     vlessIsDualRoute: Boolean, onVlessIsDualRouteChange: (Boolean) -> Unit,
     vlessDirectAddress: String, onVlessDirectAddressChange: (String) -> Unit,
     vlessHcInterval: String, onVlessHcIntervalChange: (String) -> Unit,
-    blockContainerColor: androidx.compose.ui.graphics.Color
+    vlessLinkHistory: List<String>,
+    onRemoveHistoryItem: (String) -> Unit,
+    vlessConfigSnapshot: VlessConfig?,
+    privacyMode: Boolean,
+    blockContainerColor: androidx.compose.ui.graphics.Color,
+    isEditMode: Boolean
 ) {
+    val context = LocalContext.current
+    val vlessName = remember(vlessLink) {
+        val fragment = vlessLink.substringAfterLast('#', "")
+        if (fragment.isNotEmpty()) " #${android.net.Uri.decode(fragment)}" else ""
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
         SettingsGroup(title = stringResource(R.string.vless_settings)) {
             SettingsGroupItem(isTop = true, isBottom = true, containerColor = blockContainerColor) {
                 TextFieldRow(
-                    label = stringResource(R.string.vless_link_label),
-                    value = vlessLink,
+                    label = stringResource(R.string.vless_link_label) + vlessName,
+                    value = vlessLink.redact(privacyMode),
                     onValueChange = onVlessLinkChange,
                     placeholder = stringResource(R.string.vless_link_placeholder),
+                    isError = vlessLink.isNotBlank() && !ValidatorUtils.isValidVlessLink(vlessLink),
                     minLines = 4,
                     maxLines = 4,
-                    singleLine = false
+                    singleLine = false,
+                    readOnly = privacyMode,
+                    isModified = isEditMode && vlessConfigSnapshot != null && vlessLink.trim() != vlessConfigSnapshot.vlessLink,
+                    trailingIcon = {
+                        FieldTrailingIcons(
+                            history = vlessLinkHistory,
+                            onSelect = onVlessLinkChange,
+                            onRemove = onRemoveHistoryItem,
+                            privacyMode = privacyMode
+                        )
+                    }
                 )
             }
 
@@ -418,13 +613,31 @@ private fun VlessSettingsBlock(
                 isTop = true,
                 isBottom = !vlessIsDualRoute,
                 containerColor = blockContainerColor,
-                onClick = { onVlessIsDualRouteChange(!vlessIsDualRoute) }
+                onClick = { 
+                    val next = !vlessIsDualRoute
+                    HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                    onVlessIsDualRouteChange(next)
+                    if (next && vlessDirectAddress.isBlank()) {
+                        ValidatorUtils.parseVlessAddress(vlessLink)?.let { addr ->
+                            onVlessDirectAddressChange(addr)
+                        }
+                    }
+                }
             ) {
                 SwitchRow(
                     label = stringResource(R.string.vless_dual_route),
                     supportingText = stringResource(R.string.vless_dual_route_desc),
                     checked = vlessIsDualRoute,
-                    onCheckedChange = onVlessIsDualRouteChange
+                    onCheckedChange = { next ->
+                        HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                        onVlessIsDualRouteChange(next)
+                        if (next && vlessDirectAddress.isBlank()) {
+                            ValidatorUtils.parseVlessAddress(vlessLink)?.let { addr ->
+                                onVlessDirectAddressChange(addr)
+                            }
+                        }
+                    },
+                    isModified = isEditMode && vlessConfigSnapshot != null && vlessIsDualRoute != vlessConfigSnapshot.isDualRoute
                 )
             }
 
@@ -437,9 +650,21 @@ private fun VlessSettingsBlock(
                     SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
                         TextFieldRow(
                             label = stringResource(R.string.vless_direct_address),
-                            value = vlessDirectAddress,
+                            value = vlessDirectAddress.redact(privacyMode),
                             onValueChange = onVlessDirectAddressChange,
-                            placeholder = stringResource(R.string.vless_direct_address_placeholder)
+                            placeholder = stringResource(R.string.vless_direct_address_placeholder),
+                            isError = !ValidatorUtils.isValidHostPort(vlessDirectAddress),
+                            readOnly = privacyMode,
+                            isModified = isEditMode && vlessConfigSnapshot != null && vlessDirectAddress != vlessConfigSnapshot.directAddress,
+                            trailingIcon = {
+                                IconButton(onClick = {
+                                    ValidatorUtils.parseVlessAddress(vlessLink)?.let { addr ->
+                                        onVlessDirectAddressChange(addr)
+                                    }
+                                }) {
+                                    Icon(painterResource(R.drawable.sync_24px), stringResource(R.string.vless_parse_from_link))
+                                }
+                            }
                         )
                     }
                     SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
@@ -448,6 +673,8 @@ private fun VlessSettingsBlock(
                             value = vlessHcInterval,
                             onValueChange = onVlessHcIntervalChange,
                             placeholder = "30",
+                            isError = vlessHcInterval.isNotEmpty() && vlessHcInterval.toIntOrNull() == null,
+                            isModified = isEditMode && vlessConfigSnapshot != null && vlessHcInterval != vlessConfigSnapshot.hcInterval,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                         )
                     }

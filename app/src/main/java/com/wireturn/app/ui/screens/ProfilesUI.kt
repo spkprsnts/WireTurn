@@ -101,19 +101,19 @@ fun ProfileSummary(
     }
 
     if (profile.xrayEnabled) {
-        val isValid = when (profile.xrayConfiguration) {
+        val isValid = when (profile.xrayProtocol) {
             XrayConfiguration.VLESS -> profile.vlessConfig.isValid()
             XrayConfiguration.WIREGUARD -> profile.wgConfig.isValid()
         }
 
         if (isValid) {
             parts.add(
-                when (profile.xrayConfiguration) {
+                when (profile.xrayProtocol) {
                     XrayConfiguration.VLESS -> stringResource(R.string.vless)
                     XrayConfiguration.WIREGUARD -> stringResource(R.string.wg_short)
                 }
             )
-            if (profile.xrayConfiguration == XrayConfiguration.VLESS && profile.vlessConfig.isDualRoute) {
+            if (profile.xrayProtocol == XrayConfiguration.VLESS && profile.vlessConfig.isDualRoute) {
                 parts.add(stringResource(R.string.vless_dual_route_short))
             }
         }

@@ -319,6 +319,11 @@
     <string name="warn_proxy_wg_mismatch">Туннель ожидает WireGuard-подключение, а Xray настроен на VLESS</string>
     <string name="warn_vpn_requires_xray">Режим VPN требует включенного Xray!</string>
 
+    <string name="unsaved_changes_title">Несохранённые изменения</string>
+    <string name="unsaved_changes_desc">У вас есть несохранённые изменения. Сохранить их перед выходом?</string>
+    <string name="btn_discard">Сбросить</string>
+    <string name="xray_setup_title">Настройка Xray</string>
+
     <!-- Импорт через QR и расширенные параметры -->
     <string name="qr_import">QR-код</string>
     <string name="qr_scan_desc">Наведите камеру на QR-код конфигурации для импорта</string>

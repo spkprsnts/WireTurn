@@ -3,6 +3,7 @@ package com.wireturn.app
 import com.wireturn.app.data.VlessConfig
 import com.wireturn.app.data.WgConfig
 import com.wireturn.app.data.XrayConfig
+import com.wireturn.app.data.XraySettings
 import com.wireturn.app.viewmodel.XrayState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,6 +23,9 @@ object XrayServiceState {
     private val _xrayConfigSnapshot = MutableStateFlow<XrayConfig?>(null)
     val xrayConfigSnapshot = _xrayConfigSnapshot.asStateFlow()
 
+    private val _xraySettingsSnapshot = MutableStateFlow<XraySettings?>(null)
+    val xraySettingsSnapshot = _xraySettingsSnapshot.asStateFlow()
+
     private val _vlessConfigSnapshot = MutableStateFlow<VlessConfig?>(null)
     val vlessConfigSnapshot = _vlessConfigSnapshot.asStateFlow()
 
@@ -30,6 +34,7 @@ object XrayServiceState {
         if (newStatus == XrayState.Idle) {
             _wgConfigSnapshot.value = null
             _xrayConfigSnapshot.value = null
+            _xraySettingsSnapshot.value = null
             _vlessConfigSnapshot.value = null
             _statsSocketName.value = null
         }
@@ -39,14 +44,17 @@ object XrayServiceState {
         _statsSocketName.value = name
     }
 
-    fun setConfigsSnapshot(wg: WgConfig?, xray: XrayConfig?, vless: VlessConfig?) {
+    fun setConfigsSnapshot(wg: WgConfig?, xray: XrayConfig?, vless: VlessConfig?, settings: XraySettings? = null) {
         _wgConfigSnapshot.value = wg
         _xrayConfigSnapshot.value = xray
         _vlessConfigSnapshot.value = vless
+        _xraySettingsSnapshot.value = settings
 
-        if (xray != null && xray.isProxyAuthEnabled && xray.proxyUser.isNotBlank()) {
-            val u = xray.proxyUser
-            val p = xray.proxyPass
+        val activeSettings = settings ?: return // If null, we don't set global auth
+
+        if (activeSettings.isProxyAuthEnabled && activeSettings.proxyUser.isNotBlank()) {
+            val u = activeSettings.proxyUser
+            val p = activeSettings.proxyPass
 
             // Set global properties for SOCKS5 auth (fallback for some Java versions/libs)
             System.setProperty("java.net.socks.username", u)

@@ -135,8 +135,8 @@ class ProxyService : Service() {
         val safeProfileName = profileName?.take(50) ?: "-"
         AppLogsState.addLog(getString(R.string.log_proxy_start, safeProfileName))
 
-        val isXrayVless = xrayConfig.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS
-        val isDualRouteStart = xraySettings.xrayEnabled && isXrayVless && vlessConfig.isDualRoute
+        val isXrayVless = xrayConfig.protocol == com.wireturn.app.data.XrayConfiguration.VLESS
+        val isDualRouteStart = xrayConfig.enabled && isXrayVless && vlessConfig.isDualRoute
 
         NotificationHelper.cancelErrorNotification(this)
         
@@ -195,14 +195,14 @@ class ProxyService : Service() {
                 prefs.xrayConfigFlow,
                 prefs.vlessConfigFlow,
                 XrayServiceState.vlessConfigSnapshot
-            ) { state, settings, xray, vless, snapshotVless ->
-                val isXrayVless = xray.xrayConfiguration == com.wireturn.app.data.XrayConfiguration.VLESS
+            ) { state, _, xray, vless, snapshotVless ->
+                val isXrayVless = xray.protocol == com.wireturn.app.data.XrayConfiguration.VLESS
                 
                 // Используем снапшот работающего конфига Xray для определения режима Dual-route.
                 // Это предотвращает преждевременный запуск бинарника при отключении Dual-route,
                 // пока Xray еще не перезагружен с новыми настройками.
                 val effectiveVless = if (state != XrayState.Idle) (snapshotVless ?: vless) else vless
-                val isDualRoute = settings.xrayEnabled && isXrayVless && effectiveVless.isDualRoute
+                val isDualRoute = xray.enabled && isXrayVless && effectiveVless.isDualRoute
                 
                 if (isDualRoute) {
                     when (state) {
@@ -758,14 +758,14 @@ class ProxyService : Service() {
         xraySupervisorJob = serviceScope.launch {
             val prefs = AppPreferences(applicationContext)
             combine(
-                prefs.xraySettingsFlow,
+                prefs.xrayConfigFlow,
                 ProxyServiceState.status,
                 XrayServiceState.state,
                 ProxyServiceState.clientConfigSnapshot
-            ) { settings, status, xrayState, clientConfig ->
+            ) { xrayConfig, status, xrayState, clientConfig ->
                 if (clientConfig == null) return@combine null
 
-                val shouldBeRunning = settings.xrayEnabled && 
+                val shouldBeRunning = xrayConfig.enabled &&
                         status !is ProxyStatus.Idle && 
                         status !is ProxyStatus.Error && 
                         status !is ProxyStatus.WaitingForNetwork

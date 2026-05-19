@@ -8,7 +8,6 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.gson.Gson
 import com.wireturn.app.data.ClientConfig
-import com.wireturn.app.data.XrayConfig
 import com.wireturn.app.ui.screens.XraySetupScreen
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
@@ -27,7 +26,7 @@ class XraySetupActivity : ComponentActivity() {
 
         val profileName = intent.getStringExtra("EXTRA_PROFILE_NAME") ?: "New Profile"
         val clientConfigJson = intent.getStringExtra("EXTRA_CLIENT_CONFIG_JSON")
-        val clientConfig = if (clientConfigJson != null) {
+        val clientConfigFromIntent = if (clientConfigJson != null) {
             try { Gson().fromJson(clientConfigJson, ClientConfig::class.java) } catch (_: Exception) { ClientConfig() }
         } else {
             ClientConfig()
@@ -37,16 +36,19 @@ class XraySetupActivity : ComponentActivity() {
             val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
 
+            val savedXrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
+
             WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
                 XraySetupScreen(
+                    isEditMode = false,
                     showProtocolSelection = showProtocolSelection,
                     defaultProtocol = defaultProtocol,
                     onBack = { finish() },
                     onSave = { type, wg, vless ->
                         viewModel.addFullProfile(
                             name = profileName,
-                            clientConfig = clientConfig,
-                            xrayConfig = XrayConfig(xrayConfiguration = type),
+                            clientConfig = clientConfigFromIntent,
+                            xrayConfig = savedXrayConfig.copy(protocol = type),
                             wgConfig = wg,
                             vlessConfig = vless
                         )

@@ -116,8 +116,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _wgConfig = MutableStateFlow(WgConfig())
     val wgConfig: StateFlow<WgConfig> = _wgConfig.asStateFlow()
 
-    private val _xraySettings = MutableStateFlow(XraySettings())
-    val xraySettings: StateFlow<XraySettings> = _xraySettings.asStateFlow()
+    private val _xrayConfig = MutableStateFlow(XrayConfig())
+    val xrayConfig: StateFlow<XrayConfig> = _xrayConfig.asStateFlow()
 
     private val _globalVpnSettings = MutableStateFlow(GlobalVpnSettings())
     val globalVpnSettings: StateFlow<GlobalVpnSettings> = _globalVpnSettings.asStateFlow()
@@ -125,8 +125,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _excludedApps = MutableStateFlow<Set<String>>(emptySet())
     val excludedApps: StateFlow<Set<String>> = _excludedApps.asStateFlow()
 
-    private val _xrayConfig = MutableStateFlow(XrayConfig())
-    val xrayConfig: StateFlow<XrayConfig> = _xrayConfig.asStateFlow()
+    private val _xraySettings = MutableStateFlow(XraySettings())
+    val xraySettings: StateFlow<XraySettings> = _xraySettings.asStateFlow()
 
     private val _vlessConfig = MutableStateFlow(VlessConfig())
     val vlessConfig: StateFlow<VlessConfig> = _vlessConfig.asStateFlow()
@@ -177,6 +177,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         wgConfig, XrayServiceState.wgConfigSnapshot,
         vlessConfig, XrayServiceState.vlessConfigSnapshot,
         xrayConfig, XrayServiceState.xrayConfigSnapshot,
+        xraySettings, XrayServiceState.xraySettingsSnapshot,
         clientConfig, ProxyServiceState.clientConfigSnapshot
     ) { args: Array<Any?> ->
         val wg = args[0] as WgConfig
@@ -185,12 +186,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val vlessSnap = args[3] as VlessConfig?
         val xray = args[4] as XrayConfig
         val xraySnap = args[5] as XrayConfig?
-        val client = args[6] as ClientConfig
-        val clientSnap = args[7] as ClientConfig?
+        val settings = args[6] as XraySettings
+        val settingsSnap = args[7] as XraySettings?
+        val client = args[8] as ClientConfig
+        val clientSnap = args[9] as ClientConfig?
 
         val baseChanged = (wgSnap != null && wg.fillDefaults() != wgSnap) ||
                 (vlessSnap != null && vless != vlessSnap) ||
-                (xraySnap != null && xray.fillDefaults() != xraySnap)
+                (xraySnap != null && xray != xraySnap) ||
+                (settingsSnap != null && settings.fillDefaults() != settingsSnap)
         
         val connectionChanged = clientSnap != null && (
                 client.kernelVariant != clientSnap.kernelVariant ||
@@ -648,7 +652,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun checkProxyPing(delayFirst: Boolean = false) {
-        val addr = XrayServiceState.xrayConfigSnapshot.value?.connectableAddress ?: return
+        val addr = XrayServiceState.xraySettingsSnapshot.value?.connectableAddress ?: return
         if (addr.isBlank() || !com.wireturn.app.ui.ValidatorUtils.isValidHostPort(addr)) return
         pingJob?.cancel()
         pingJob = viewModelScope.launch {
@@ -703,19 +707,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun installUpdate() { appUpdater.installUpdate() }
 
     fun updateWgConfig(c: WgConfig) { 
-        viewModelScope.launch { 
+        ProcessLifecycleOwner.get().lifecycleScope.launch { 
             prefs.saveWgConfig(c)
             updateCurrentProfileInList() 
         } 
     }
     
-    fun updateXraySettings(s: XraySettings) { 
-        viewModelScope.launch { 
+    fun updateXraySettings(s: XraySettings) {
+        ProcessLifecycleOwner.get().lifecycleScope.launch {
             prefs.saveXraySettings(s)
-            updateCurrentProfileInList() 
-        } 
+            updateCurrentProfileInList()
+        }
     }
-    
+
     fun updateGlobalVpnSettings(s: GlobalVpnSettings) { 
         viewModelScope.launch { prefs.saveGlobalVpnSettings(s) } 
     }
@@ -732,27 +736,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
     
     fun updateXrayConfig(c: XrayConfig) {
-        viewModelScope.launch {
-            prefs.saveXrayGlobal(c.socksBindAddress, c.httpBindAddress, c.isProxyAuthEnabled, c.proxyUser, c.proxyPass)
-            prefs.saveActiveProfilePart(profiles.value.find { it.id == currentProfileId.value }?.copy(xrayConfiguration = c.xrayConfiguration) ?: return@launch)
+        ProcessLifecycleOwner.get().lifecycleScope.launch {
+            prefs.saveXrayConfig(c)
             updateCurrentProfileInList()
         }
     }
     
     fun updateVlessConfig(c: VlessConfig) { 
-        viewModelScope.launch { 
+        ProcessLifecycleOwner.get().lifecycleScope.launch {
             prefs.saveVlessConfig(c)
             updateCurrentProfileInList() 
-        } 
-    }
-    
-    fun updateWgConfigText(t: String) { 
-        val p = WgConfig.parse(t)
-        if (_wgConfig.value != p) {
-            viewModelScope.launch { 
-                prefs.saveWgConfig(p)
-                updateCurrentProfileInList() 
-            }
         } 
     }
 
@@ -765,8 +758,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             rawCommand = _clientConfig.value.rawCommand,
             turnableConfig = _clientConfig.value.turnableConfig,
             olcrtcConfig = _clientConfig.value.olcrtcConfig,
-            xrayConfiguration = _xrayConfig.value.xrayConfiguration,
-            xrayEnabled = _xraySettings.value.xrayEnabled,
+            xrayProtocol = _xrayConfig.value.protocol,
+            xrayEnabled = _xrayConfig.value.enabled,
             wgConfig = _wgConfig.value,
             vlessConfig = _vlessConfig.value
         )
@@ -818,21 +811,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         wgConfig: WgConfig,
         vlessConfig: VlessConfig
     ) {
+        val id = java.util.UUID.randomUUID().toString()
         val newProfile = Profile(
-            id = java.util.UUID.randomUUID().toString(),
+            id = id,
             name = name,
             kernelVariant = clientConfig.kernelVariant,
             isRawMode = clientConfig.isRawMode,
             rawCommand = clientConfig.rawCommand,
             turnableConfig = clientConfig.turnableConfig,
             olcrtcConfig = clientConfig.olcrtcConfig,
-            xrayConfiguration = xrayConfig.xrayConfiguration,
-            xrayEnabled = true,
+            xrayProtocol = xrayConfig.protocol,
+            xrayEnabled = xrayConfig.enabled,
             wgConfig = wgConfig,
             vlessConfig = vlessConfig
         ).sanitize()
         viewModelScope.launch {
             prefs.saveProfiles(profiles.value + newProfile)
+            selectProfile(id, newProfile)
         }
     }
 

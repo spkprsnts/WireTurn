@@ -83,7 +83,6 @@ import com.wireturn.app.ui.screens.LogsScreen
 import com.wireturn.app.ui.screens.OnboardingScreen
 import com.wireturn.app.ui.components.ProxyToggleButton
 import com.wireturn.app.ui.screens.SettingsScreen
-import com.wireturn.app.ui.screens.XrayConfigScreen
 import com.wireturn.app.viewmodel.ProxyState
 import com.wireturn.app.viewmodel.MainViewModel
 import android.net.VpnService
@@ -93,7 +92,6 @@ import com.wireturn.app.data.KernelVariant
 
 object Routes {
     const val ONBOARDING = "onboarding"
-    const val XRAY_CONFIG = "xray_config"
     const val CLIENT_CONFIG = "client_config"
     const val HOME = "home"
     const val APP_SETTINGS = "app_settings"
@@ -101,7 +99,7 @@ object Routes {
 }
 
 // Нижнее меню видно только в основном потоке, не во время онбординга
-private val BOTTOM_NAV_ROUTES = setOf(Routes.HOME, Routes.LOGS, Routes.CLIENT_CONFIG, Routes.XRAY_CONFIG, Routes.APP_SETTINGS)
+private val BOTTOM_NAV_ROUTES = setOf(Routes.HOME, Routes.LOGS, Routes.CLIENT_CONFIG, Routes.APP_SETTINGS)
 
 @Composable
 fun AppNavigation(
@@ -115,7 +113,6 @@ fun AppNavigation(
     if (!isInitialized) return
 
     val proxyState by viewModel.proxyState.collectAsStateWithLifecycle()
-    val xraySettings by viewModel.xraySettings.collectAsStateWithLifecycle()
     val vpnEnabled by viewModel.vpnEnabled.collectAsStateWithLifecycle()
     val currentProfileId by viewModel.currentProfileId.collectAsStateWithLifecycle()
     val isBottomBarVisibleByScroll by viewModel.isBottomBarVisible.collectAsStateWithLifecycle()
@@ -158,8 +155,8 @@ fun AppNavigation(
 
         val isTurnable = clientConfig.kernelVariant == KernelVariant.TURNABLE
         val mismatch = isTurnable && targetXrayEnabled && (
-                (isTunnelVless && xrayConfig.xrayConfiguration == XrayConfiguration.WIREGUARD) ||
-                        (!isTunnelVless && xrayConfig.xrayConfiguration == XrayConfiguration.VLESS)
+                (isTunnelVless && xrayConfig.protocol == XrayConfiguration.WIREGUARD) ||
+                        (!isTunnelVless && xrayConfig.protocol == XrayConfiguration.VLESS)
                 )
 
         if (mismatch) {
@@ -257,7 +254,7 @@ fun AppNavigation(
         val action = {
             when (proxyState) {
                 is ProxyState.Idle, is ProxyState.Error -> {
-                    checkMismatch(xraySettings.xrayEnabled) {
+                    checkMismatch(xrayConfig.enabled) {
                         HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
                         if (vpnEnabled) {
                             val intent = VpnService.prepare(context)
@@ -332,15 +329,6 @@ fun AppNavigation(
                     )
                 }
 
-                composable(Routes.XRAY_CONFIG) {
-                    key(currentProfileId) {
-                        XrayConfigScreen(
-                            modifier = Modifier.statusBarsPadding(),
-                            viewModel = viewModel
-                        )
-                    }
-                }
-
                 composable(route = Routes.CLIENT_CONFIG) {
                     key(currentProfileId) {
                         ClientConfigScreen(
@@ -356,6 +344,10 @@ fun AppNavigation(
                         viewModel = viewModel,
                         onNavigateToExclusions = { 
                             context.startActivity(Intent(context, AppExceptionsActivity::class.java))
+                        },
+                        onNavigateToXrayConfig = {
+                            val intent = Intent(context, com.wireturn.app.ui.activities.XrayEditActivity::class.java)
+                            context.startActivity(intent)
                         },
                         onToggleProxy = { triggerProxyAction() },
                         onCheckMismatch = { target: Boolean, action: () -> Unit -> checkMismatch(target, action) }
@@ -587,7 +579,6 @@ private data class NavItem(
 private val navItems = listOf(
     NavItem(Routes.HOME, R.string.nav_home, R.drawable.home_24px, R.drawable.home_outlined_24px),
     NavItem(Routes.CLIENT_CONFIG, R.string.client_title, R.drawable.mobile_24px, R.drawable.mobile_outlined_24px),
-    NavItem(Routes.XRAY_CONFIG, R.string.xray_short, R.drawable.ic_xray_24px, R.drawable.ic_xray_24px),
     NavItem(Routes.APP_SETTINGS, R.string.app_settings_title, R.drawable.settings_24px, R.drawable.settings_outlined_24px),
     NavItem(Routes.LOGS, R.string.logs_title, R.drawable.terminal_24px, R.drawable.terminal_24px)
 )
