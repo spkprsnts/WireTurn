@@ -198,16 +198,18 @@ class XrayService : Service() {
             val rawXray = prefs.xrayConfigFlow.first()
             val rawVless = prefs.vlessConfigFlow.first()
             val rawClient = ProxyServiceState.clientConfigSnapshot.value ?: prefs.clientConfigFlow.first()
-            val xraySettings = prefs.xraySettingsFlow.first()
+            val rawXraySettings = prefs.xraySettingsFlow.first()
 
             val wgConfig = rawWg.fillDefaults()
             val vlessConfig = rawVless.fillDefaults()
             val clientConfig = rawClient.fillDefaults()
+            val xraySettings = rawXraySettings.fillDefaults()
 
             prefs.saveWgConfig(wgConfig)
             prefs.saveXrayConfig(rawXray)
             prefs.saveVlessConfig(vlessConfig)
             prefs.saveClientConfig(clientConfig)
+            prefs.saveXraySettings(xraySettings)
 
             val snapshot = XrayConfigsSnapshot(
                 wg = wgConfig,

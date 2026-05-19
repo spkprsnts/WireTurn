@@ -186,19 +186,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val clientSnap = args[9] as ClientConfig?
 
         val baseChanged = (wgSnap != null && wg.fillDefaults() != wgSnap) ||
-                (vlessSnap != null && vless != vlessSnap) ||
+                (vlessSnap != null && vless.fillDefaults() != vlessSnap) ||
                 (xraySnap != null && xray != xraySnap) ||
                 (settingsSnap != null && settings.fillDefaults() != settingsSnap)
         
         val connectionChanged = clientSnap != null && (
-                client.kernelVariant != clientSnap.kernelVariant ||
-                client.listenAddr != clientSnap.listenAddr ||
-                client.olcrtcConfig.carrier != clientSnap.olcrtcConfig.carrier ||
-                client.olcrtcConfig.transport != clientSnap.olcrtcConfig.transport ||
-                client.socksAddr != clientSnap.socksAddr ||
-                client.isSocksAuthEnabled != clientSnap.isSocksAuthEnabled ||
-                client.socksUser != clientSnap.socksUser ||
-                client.socksPass != clientSnap.socksPass
+                client.fillDefaults().let { c ->
+                    c.kernelVariant != clientSnap.kernelVariant ||
+                    c.listenAddr != clientSnap.listenAddr ||
+                    c.olcrtcConfig.carrier != clientSnap.olcrtcConfig.carrier ||
+                    c.olcrtcConfig.transport != clientSnap.olcrtcConfig.transport ||
+                    c.socksAddr != clientSnap.socksAddr ||
+                    c.isSocksAuthEnabled != clientSnap.isSocksAuthEnabled ||
+                    c.socksUser != clientSnap.socksUser ||
+                    c.socksPass != clientSnap.socksPass
+                }
         )
         
         baseChanged || connectionChanged
@@ -768,11 +770,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     if (!isRunning) return@launch
                     val clientSnap = ProxyServiceState.clientConfigSnapshot.value
                     
-                    val mainChanged = clientSnap != null && (
+                    val mainChanged = isMainConfigChanged.value || (clientSnap != null && (
                         p.kernelVariant != clientSnap.kernelVariant ||
                         (p.kernelVariant == KernelVariant.TURNABLE && p.turnableConfig.sanitize() != clientSnap.turnableConfig) ||
                         (p.kernelVariant == KernelVariant.OLCRTC && p.olcrtcConfig.fillDefaults() != clientSnap.olcrtcConfig)
-                    )
+                    ))
 
                     if (mainChanged) restartProxyInternal()
                     else getApplication<Application>().stopService(Intent(getApplication(), XrayService::class.java))
