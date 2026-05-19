@@ -68,6 +68,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.VerticalDivider
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.TwoRowsTopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.ui.graphics.takeOrElse
+import com.wireturn.app.ui.theme.LocalIsDark
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -88,7 +95,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -1176,6 +1185,104 @@ private fun truncateUrlParameters(url: String): String {
     } catch (_: Exception) {
         url
     }
+}
+
+@Composable
+fun ConfigTopAppBar(
+    title: String,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    onBack: (() -> Unit)? = null,
+    actions: @Composable (RowScope.() -> Unit)? = null,
+    scrollBehavior: TopAppBarScrollBehavior? = null,
+    expandedHeight: Dp = 254.dp,
+    collapsedHeight: Dp = TopAppBarDefaults.LargeAppBarCollapsedHeight,
+    containerColor: Color = Color.Unspecified,
+    startCollapsed: Boolean = true,
+) {
+    if (startCollapsed && scrollBehavior != null) {
+        LaunchedEffect(scrollBehavior.state.heightOffsetLimit) {
+            if (scrollBehavior.state.heightOffsetLimit != 0f) {
+                scrollBehavior.state.heightOffset = scrollBehavior.state.heightOffsetLimit
+            }
+        }
+    }
+
+    val isDark = LocalIsDark.current
+    val screenBackgroundColor = containerColor.takeOrElse {
+        if (isDark) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerLow
+    }
+
+    val annotatedTitle = remember(title) {
+
+        buildAnnotatedString {
+            val parts = title.split("**")
+            if (parts.size == 3) {
+                append(parts[0])
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                    append(parts[1])
+                }
+                append(parts[2])
+            } else {
+                append(title)
+            }
+        }
+    }
+
+    val collapsedTitle = remember(title) {
+        title.replace("**", "")
+    }
+
+    TwoRowsTopAppBar(
+        expandedHeight = expandedHeight,
+        collapsedHeight = collapsedHeight,
+        title = { isExpanded ->
+            Text(
+                text = if (isExpanded) annotatedTitle else buildAnnotatedString { append(collapsedTitle) },
+                style = if (isExpanded) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.titleLarge,
+                modifier = Modifier
+                    .padding(horizontal = 8.dp)
+                    .padding(bottom = if (isExpanded) 28.dp else 0.dp)
+                    .padding(top = if (isExpanded) 28.dp else 0.dp)
+            )
+        },
+        subtitle = { isExpanded ->
+            if (isExpanded && subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier
+                        .padding(horizontal = 8.dp)
+                        .padding(bottom = 28.dp)
+                )
+            }
+        },
+        modifier = modifier.fillMaxWidth(),
+        navigationIcon = {
+            if (onBack != null) {
+                FilledTonalIconButton(
+                    onClick = onBack,
+                    modifier = Modifier.padding(start = 15.dp, end = 3.dp),
+                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
+                    Icon(
+                        painterResource(R.drawable.arrow_back_24px),
+                        contentDescription = null
+                    )
+                }
+            }
+        },
+        actions = { actions?.invoke(this) },
+        scrollBehavior = scrollBehavior,
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = screenBackgroundColor,
+            scrolledContainerColor = screenBackgroundColor,
+            subtitleContentColor = MaterialTheme.colorScheme.onSurface
+        )
+    )
 }
 
 @Composable

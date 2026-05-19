@@ -39,7 +39,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Scaffold
@@ -49,8 +48,10 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -86,6 +87,7 @@ import androidx.compose.ui.zIndex
 import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
+import com.wireturn.app.ui.ConfigTopAppBar
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.SectionHeader
 import com.wireturn.app.ui.SettingsGroupItem
@@ -97,6 +99,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.absoluteValue
 
 private object AppExceptionsDefaults {
     val IconSize = 32.dp
@@ -320,7 +323,11 @@ fun AppExceptionsScreen(
         }
     }
 
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val topAppBarState = rememberTopAppBarState()
+
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
+        state = topAppBarState
+    )
 
     val searchScrollConnection = remember {
         object : NestedScrollConnection {
@@ -573,49 +580,17 @@ fun AppExceptionsScreen(
                     }
                 }
 
-                LargeTopAppBar(
-                    title = {
-                        Column {
-                            val fullText = if (globalVpn.bypassMode) stringResource(R.string.vpn_apps_exceptions)
-                            else stringResource(R.string.vpn_apps_inclusions)
-
-                            Text(
-                                text = buildAnnotatedString {
-                                    val parts = fullText.split("**")
-                                    if (parts.size == 3) {
-                                        append(parts[0])
-                                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                                            append(parts[1])
-                                        }
-                                        append(parts[2])
-                                    } else {
-                                        append(fullText)
-                                    }
-                                }
-                            )
-                            Text(
-                                text = stringResource(R.string.vpn_apps_hint),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = FontWeight.Normal
-                            )
-                        }
-                    },
+                ConfigTopAppBar(
+                    title = if (globalVpn.bypassMode) stringResource(R.string.vpn_apps_exceptions)
+                            else stringResource(R.string.vpn_apps_inclusions),
+                    subtitle = stringResource(R.string.vpn_apps_hint),
+                    onBack = onBack,
+                    scrollBehavior = scrollBehavior,
                     modifier = Modifier
-                        .fillMaxWidth()
                         .zIndex(3f)
                         .onGloballyPositioned { coordinates ->
-                            // Получаем высоту в пикселях
                             appBarHeightPx = coordinates.size.height.toFloat()
                         },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                painterResource(R.drawable.arrow_back_24px),
-                                contentDescription = null
-                            )
-                        }
-                    },
                     actions = {
                         Box {
                             IconButton(onClick = { showMenu = true }) {
@@ -757,12 +732,7 @@ fun AppExceptionsScreen(
                                 }
                             }
                         }
-                    },
-                    scrollBehavior = scrollBehavior,
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        scrolledContainerColor = MaterialTheme.colorScheme.surface
-                    )
+                    }
                 )
             }
         }
@@ -858,7 +828,7 @@ private fun AppListItem(
         SwitchRow(
             label = app.name,
             checked = isExcluded,
-            onCheckedChange = { }, // Обрабатывается родителем (SettingsGroupItem)
+            onCheckedChange = {}, // Обрабатывается родителем
             supportingText = app.packageName,
             useLargeIcon = true,
             leadingIcon = {
