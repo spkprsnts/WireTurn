@@ -1195,7 +1195,7 @@ fun ConfigTopAppBar(
     onBack: (() -> Unit)? = null,
     actions: @Composable (RowScope.() -> Unit)? = null,
     scrollBehavior: TopAppBarScrollBehavior? = null,
-    expandedHeight: Dp = 254.dp,
+    expandedHeight: Dp = if (subtitle != null) 254.dp else 188.dp,
     collapsedHeight: Dp = TopAppBarDefaults.LargeAppBarCollapsedHeight,
     containerColor: Color = Color.Unspecified,
     startCollapsed: Boolean = true,
@@ -1208,9 +1208,8 @@ fun ConfigTopAppBar(
         }
     }
 
-    val isDark = LocalIsDark.current
     val screenBackgroundColor = containerColor.takeOrElse {
-        if (isDark) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerLow
+        if (LocalIsDark.current) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerLow
     }
 
     val annotatedTitle = remember(title) {

@@ -42,7 +42,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
@@ -67,6 +66,8 @@ import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.data.VlessConfig
 import com.wireturn.app.data.XrayConfig
 import com.wireturn.app.data.KernelVariant
+import androidx.compose.material3.rememberTopAppBarState
+import com.wireturn.app.ui.ConfigTopAppBar
 import com.wireturn.app.ui.ConfigDropdownMenu
 import com.wireturn.app.ui.ConfigRowLabel
 import com.wireturn.app.ui.FieldTrailingIcons
@@ -177,7 +178,10 @@ fun XraySetupScreen(
 
     val showQrScanner = remember { mutableStateOf(false) }
 
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+    val topAppBarState = rememberTopAppBarState()
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
+        state = topAppBarState
+    )
 
     val importSuccessMessage = stringResource(R.string.import_success)
     val importErrorMessage = stringResource(R.string.import_error)
@@ -246,21 +250,10 @@ fun XraySetupScreen(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.xray_title)) },
+            ConfigTopAppBar(
+                title = stringResource(R.string.xray_title),
+                onBack = handleBack,
                 scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = Color.Transparent
-                ),
-                navigationIcon = {
-                    IconButton(onClick = handleBack) {
-                        Icon(
-                            painter = painterResource(R.drawable.arrow_back_24px),
-                            contentDescription = null
-                        )
-                    }
-                },
                 actions = {
                     IconButton(onClick = { showQrScanner.value = true }) {
                         Icon(

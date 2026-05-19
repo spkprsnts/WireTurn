@@ -31,7 +31,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -39,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -57,7 +57,6 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -73,6 +72,7 @@ import com.wireturn.app.XrayServiceState
 import com.wireturn.app.data.ThemeMode
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.XraySettings
+import com.wireturn.app.ui.ConfigTopAppBar
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.LabeledButtonGroup
 import com.wireturn.app.ui.SettingsGroup
@@ -142,15 +142,9 @@ fun SettingsScreen(
         }
     }
 
-    val initialOffset = with(LocalDensity.current) { -48.dp.toPx() }
+    val topAppBarState = rememberTopAppBarState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
-        remember {
-            androidx.compose.material3.TopAppBarState(
-                initialHeightOffsetLimit = initialOffset,
-                initialHeightOffset = initialOffset,
-                initialContentOffset = 0f
-            )
-        }
+        state = topAppBarState
     )
 
     val dash = stringResource(R.string.dash)
@@ -176,28 +170,16 @@ fun SettingsScreen(
     Scaffold(
         modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            MediumTopAppBar(
-                title = {
-                    val collapsedFraction = scrollBehavior.state.collapsedFraction
-                    Text(
-                        text = stringResource(R.string.app_settings_title),
-                        modifier = Modifier.padding(
-                            bottom = 24.dp * (1f - collapsedFraction)
-                        )
-                    )
-                },
+            ConfigTopAppBar(
+                title = stringResource(R.string.app_settings_title),
                 scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = Color.Transparent
-                ),
                 actions = {
                     IconButton(onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         showBottomSheet.value = true
                     }) {
                         Icon(
-                            painter = painterResource(R.drawable.info_24px), 
+                            painter = painterResource(R.drawable.info_24px),
                             contentDescription = stringResource(R.string.info_desc)
                         )
                     }

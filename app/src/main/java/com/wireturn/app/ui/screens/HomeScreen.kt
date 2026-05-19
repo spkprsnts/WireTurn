@@ -340,7 +340,7 @@ fun HomeScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text(text = stringResource(R.string.turn_proxy_title)) },
+                title = { Text(text = stringResource(R.string.turn_proxy_title), modifier = Modifier.padding(horizontal = 8.dp)) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent,
                     scrolledContainerColor = Color.Transparent

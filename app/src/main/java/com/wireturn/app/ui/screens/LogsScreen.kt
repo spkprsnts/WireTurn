@@ -118,7 +118,7 @@ fun LogsScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.logs_title)) },
+                title = { Text(stringResource(R.string.logs_title), modifier = Modifier.padding(horizontal = 8.dp)) },
                 actions = {
                     var isCopied by remember { mutableStateOf(false) }
                     LaunchedEffect(isCopied) {
