@@ -42,6 +42,7 @@
     <string name="btn_start">Запустить</string>
     <string name="btn_close">Закрыть</string>
     <string name="btn_save">Сохранить</string>
+    <string name="btn_next">Далее</string>
     <string name="reset_settings">Сбросить настройки</string>
     <string name="reset">Сбросить</string>
     <string name="reset_all_settings_title">Сбросить все настройки?</string>

@@ -150,6 +150,7 @@ fun ProfilesBlock(
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
     val currentId by viewModel.currentProfileId.collectAsStateWithLifecycle()
     val currentProfile = profiles.find { it.id == currentId } ?: profiles.firstOrNull()
+    val context = LocalContext.current
 
     if (currentProfile != null) {
         Row(
@@ -179,6 +180,21 @@ fun ProfilesBlock(
                     profile = currentProfile,
                     modifier = Modifier.basicMarquee(),
                     useAnimation = true
+                )
+            }
+            IconButton(onClick = {
+                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                val intent = when (currentProfile.kernelVariant) {
+                    com.wireturn.app.data.KernelVariant.TURNABLE -> android.content.Intent(context, com.wireturn.app.ui.activities.TurnableConfigActivity::class.java)
+                    com.wireturn.app.data.KernelVariant.OLCRTC -> android.content.Intent(context, com.wireturn.app.ui.activities.OlcRtcConfigActivity::class.java)
+                }
+                intent.putExtra("EXTRA_EDIT_MODE", true)
+                context.startActivity(intent)
+            }) {
+                Icon(
+                    painter = painterResource(R.drawable.edit_square_24px),
+                    contentDescription = stringResource(R.string.profile_rename),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

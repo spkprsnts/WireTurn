@@ -77,7 +77,6 @@ import com.wireturn.app.ui.activities.AppExceptionsActivity
 import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.screens.CaptchaWebViewDialog
-import com.wireturn.app.ui.screens.ClientConfigScreen
 import com.wireturn.app.ui.screens.HomeScreen
 import com.wireturn.app.ui.screens.LogsScreen
 import com.wireturn.app.ui.screens.OnboardingScreen
@@ -92,14 +91,13 @@ import com.wireturn.app.data.KernelVariant
 
 object Routes {
     const val ONBOARDING = "onboarding"
-    const val CLIENT_CONFIG = "client_config"
     const val HOME = "home"
     const val APP_SETTINGS = "app_settings"
     const val LOGS = "logs"
 }
 
 // Нижнее меню видно только в основном потоке, не во время онбординга
-private val BOTTOM_NAV_ROUTES = setOf(Routes.HOME, Routes.LOGS, Routes.CLIENT_CONFIG, Routes.APP_SETTINGS)
+private val BOTTOM_NAV_ROUTES = setOf(Routes.HOME, Routes.LOGS, Routes.APP_SETTINGS)
 
 @Composable
 fun AppNavigation(
@@ -114,7 +112,6 @@ fun AppNavigation(
 
     val proxyState by viewModel.proxyState.collectAsStateWithLifecycle()
     val vpnEnabled by viewModel.vpnEnabled.collectAsStateWithLifecycle()
-    val currentProfileId by viewModel.currentProfileId.collectAsStateWithLifecycle()
     val isBottomBarVisibleByScroll by viewModel.isBottomBarVisible.collectAsStateWithLifecycle()
     val bottomBarOffset by viewModel.bottomBarOffset.collectAsStateWithLifecycle()
     val bottomBarHeight by viewModel.bottomBarHeight.collectAsStateWithLifecycle()
@@ -321,21 +318,12 @@ fun AppNavigation(
                         modifier = Modifier.statusBarsPadding(),
                         onSkip = {
                             viewModel.setOnboardingDone()
-                            navController.navigate(Routes.CLIENT_CONFIG) {
+                            navController.navigate(Routes.HOME) {
                                 popUpTo(Routes.ONBOARDING) { inclusive = true }
                                 launchSingleTop = true
                             }
                         }
                     )
-                }
-
-                composable(route = Routes.CLIENT_CONFIG) {
-                    key(currentProfileId) {
-                        ClientConfigScreen(
-                            modifier = Modifier.statusBarsPadding(),
-                            viewModel = viewModel
-                        )
-                    }
                 }
 
                 composable(Routes.HOME) {
@@ -578,7 +566,6 @@ private data class NavItem(
 
 private val navItems = listOf(
     NavItem(Routes.HOME, R.string.nav_home, R.drawable.home_24px, R.drawable.home_outlined_24px),
-    NavItem(Routes.CLIENT_CONFIG, R.string.client_title, R.drawable.mobile_24px, R.drawable.mobile_outlined_24px),
     NavItem(Routes.APP_SETTINGS, R.string.app_settings_title, R.drawable.settings_24px, R.drawable.settings_outlined_24px),
     NavItem(Routes.LOGS, R.string.logs_title, R.drawable.terminal_24px, R.drawable.terminal_24px)
 )

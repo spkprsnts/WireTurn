@@ -46,6 +46,7 @@
     <string name="btn_start">Start</string>
     <string name="btn_close">Close</string>
     <string name="btn_save">Save</string>
+    <string name="btn_next">Next</string>
     <string name="reset_settings">Reset settings</string>
     <string name="reset">Reset</string>
     <string name="reset_all_settings_title">Reset all settings?</string>

@@ -1,10 +1,12 @@
 @file:OptIn(
     androidx.compose.material3.ExperimentalMaterial3Api::class,
-    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class
+    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class,
 )
 
 package com.wireturn.app.ui.screens
 
+import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,14 +22,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,13 +62,34 @@ import kotlin.math.roundToInt
 
 @Composable
 fun OlcRtcConfigScreen(
+    isEditMode: Boolean = false,
     initialConfig: OlcrtcConfig = OlcrtcConfig(),
     onBack: () -> Unit,
     onSave: (OlcrtcConfig) -> Unit
 ) {
-    var config by remember { mutableStateOf(initialConfig) }
-    var videoW by remember { mutableStateOf(initialConfig.videoW.let { if (it == 0) "1080" else it.toString() }) }
-    var videoH by remember { mutableStateOf(initialConfig.videoH.let { if (it == 0) "1080" else it.toString() }) }
+    var config by remember(initialConfig) { mutableStateOf(initialConfig) }
+    var videoW by remember(initialConfig) { mutableStateOf(initialConfig.videoW.let { if (it == 0) "1080" else it.toString() }) }
+    var videoH by remember(initialConfig) { mutableStateOf(initialConfig.videoH.let { if (it == 0) "1080" else it.toString() }) }
+
+    val isModified by remember(config, videoW, videoH) {
+        derivedStateOf {
+            config != initialConfig ||
+            videoW != (initialConfig.videoW.let { if (it == 0) "1080" else it.toString() }) ||
+            videoH != (initialConfig.videoH.let { if (it == 0) "1080" else it.toString() })
+        }
+    }
+
+    val showExitDialog = remember { mutableStateOf(false) }
+
+    val handleBack = {
+        if (isEditMode && isModified) {
+            showExitDialog.value = true
+        } else {
+            onBack()
+        }
+    }
+
+    BackHandler(enabled = isEditMode && isModified, onBack = handleBack)
 
     val showCarrierDialog = remember { mutableStateOf(false) }
     val showTransportDialog = remember { mutableStateOf(false) }
@@ -73,6 +99,34 @@ fun OlcRtcConfigScreen(
     val context = LocalContext.current
 
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
+    if (showExitDialog.value) {
+        AlertDialog(
+            onDismissRequest = { showExitDialog.value = false },
+            title = { Text(stringResource(R.string.unsaved_changes_title)) },
+            text = { Text(stringResource(R.string.unsaved_changes_desc)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                    showExitDialog.value = false
+                    onSave(config.copy(
+                        videoW = videoW.toIntOrNull() ?: 1080,
+                        videoH = videoH.toIntOrNull() ?: 1080
+                    ))
+                }) {
+                    Text(stringResource(R.string.btn_save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showExitDialog.value = false
+                    onBack()
+                }) {
+                    Text(stringResource(R.string.btn_discard))
+                }
+            }
+        )
+    }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -85,7 +139,7 @@ fun OlcRtcConfigScreen(
                     scrolledContainerColor = Color.Transparent
                 ),
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = handleBack) {
                         Icon(
                             painter = painterResource(R.drawable.arrow_back_24px),
                             contentDescription = null
@@ -93,19 +147,46 @@ fun OlcRtcConfigScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { 
-                        onSave(config.copy(
-                            videoW = videoW.toIntOrNull() ?: 1080,
-                            videoH = videoH.toIntOrNull() ?: 1080
-                        )) 
-                    }) {
-                        Icon(
-                            painter = painterResource(R.drawable.check_24px),
-                            contentDescription = stringResource(R.string.btn_save)
-                        )
+                    if (isEditMode) {
+                        IconButton(onClick = {
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, config.copy(
+                                    videoW = videoW.toIntOrNull() ?: 1080,
+                                    videoH = videoH.toIntOrNull() ?: 1080
+                                ).toUri())
+                            }
+                            context.startActivity(Intent.createChooser(intent, null))
+                        }) {
+                            Icon(
+                                painter = painterResource(R.drawable.share_24px),
+                                contentDescription = stringResource(R.string.share)
+                            )
+                        }
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            androidx.compose.material3.MediumFloatingActionButton(
+                onClick = {
+                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                    onSave(config.copy(
+                        videoW = videoW.toIntOrNull() ?: 1080,
+                        videoH = videoH.toIntOrNull() ?: 1080
+                    ))
+                },
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            ) {
+                Icon(
+                    painter = painterResource(
+                        if (isEditMode) R.drawable.save_24px 
+                        else R.drawable.arrow_forward_ios_24px
+                    ),
+                    contentDescription = stringResource(if (isEditMode) R.string.btn_save else R.string.btn_next)
+                )
+            }
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { padding ->
@@ -149,7 +230,10 @@ fun OlcRtcConfigScreen(
                             )
                         }
                         Column(modifier = Modifier.weight(1f)) {
-                            ConfigRowLabel(stringResource(R.string.olcrtc_carrier_label))
+                            ConfigRowLabel(
+                                text = stringResource(R.string.olcrtc_carrier_label),
+                                isModified = isEditMode && config.carrier != initialConfig.carrier
+                            )
                             val currentLabel = when (config.carrier) {
                                 "wbstream" -> "WB Stream"
                                 "telemost" -> "Telemost"
@@ -191,7 +275,10 @@ fun OlcRtcConfigScreen(
                             )
                         }
                         Column(modifier = Modifier.weight(1f)) {
-                            ConfigRowLabel(stringResource(R.string.olcrtc_transport_label))
+                            ConfigRowLabel(
+                                text = stringResource(R.string.olcrtc_transport_label),
+                                isModified = isEditMode && config.transport != initialConfig.transport
+                            )
                             val currentLabel = when (config.transport) {
                                 "datachannel" -> "DataChannel"
                                 "vp8channel" -> "VP8Channel"
@@ -209,14 +296,16 @@ fun OlcRtcConfigScreen(
                     TextFieldRow(
                         label = stringResource(R.string.olcrtc_id_label),
                         value = config.id,
-                        onValueChange = { config = config.copy(id = it) }
+                        onValueChange = { config = config.copy(id = it) },
+                        isModified = isEditMode && config.id != initialConfig.id
                     )
                 }
                 SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
                     TextFieldRow(
                         label = stringResource(R.string.olcrtc_dns_label),
                         value = config.dns,
-                        onValueChange = { config = config.copy(dns = it) }
+                        onValueChange = { config = config.copy(dns = it) },
+                        isModified = isEditMode && config.dns != initialConfig.dns
                     )
                 }
             }
@@ -227,14 +316,16 @@ fun OlcRtcConfigScreen(
                     TextFieldRow(
                         label = stringResource(R.string.olcrtc_client_id_label),
                         value = config.clientId,
-                        onValueChange = { config = config.copy(clientId = it) }
+                        onValueChange = { config = config.copy(clientId = it) },
+                        isModified = isEditMode && config.clientId != initialConfig.clientId
                     )
                 }
                 SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
                     TextFieldRow(
                         label = stringResource(R.string.olcrtc_key_label),
                         value = config.key,
-                        onValueChange = { config = config.copy(key = it) }
+                        onValueChange = { config = config.copy(key = it) },
+                        isModified = isEditMode && config.key != initialConfig.key
                     )
                 }
             }
@@ -249,7 +340,8 @@ fun OlcRtcConfigScreen(
                                 value = config.vp8Fps.toFloat(),
                                 onValueChange = { config = config.copy(vp8Fps = it.roundToInt()) },
                                 valueRange = 1f..60f,
-                                steps = 59
+                                steps = 59,
+                                isModified = isEditMode && config.vp8Fps != initialConfig.vp8Fps
                             )
                         }
                         SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
@@ -258,7 +350,8 @@ fun OlcRtcConfigScreen(
                                 value = config.vp8Batch.toFloat(),
                                 onValueChange = { config = config.copy(vp8Batch = it.roundToInt()) },
                                 valueRange = 1f..100f,
-                                steps = 99
+                                steps = 99,
+                                isModified = isEditMode && config.vp8Batch != initialConfig.vp8Batch
                             )
                         }
                     }
@@ -271,7 +364,8 @@ fun OlcRtcConfigScreen(
                                 value = config.seiFps.toFloat(),
                                 onValueChange = { config = config.copy(seiFps = it.roundToInt()) },
                                 valueRange = 1f..120f,
-                                steps = 119
+                                steps = 119,
+                                isModified = isEditMode && config.seiFps != initialConfig.seiFps
                             )
                         }
                         SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
@@ -280,7 +374,8 @@ fun OlcRtcConfigScreen(
                                 value = config.seiBatch.toFloat(),
                                 onValueChange = { config = config.copy(seiBatch = it.roundToInt()) },
                                 valueRange = 1f..256f,
-                                steps = 255
+                                steps = 255,
+                                isModified = isEditMode && config.seiBatch != initialConfig.seiBatch
                             )
                         }
                         SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
@@ -289,7 +384,8 @@ fun OlcRtcConfigScreen(
                                 value = config.seiFrag.toFloat(),
                                 onValueChange = { config = config.copy(seiFrag = it.roundToInt()) },
                                 valueRange = 100f..1500f,
-                                steps = 140
+                                steps = 140,
+                                isModified = isEditMode && config.seiFrag != initialConfig.seiFrag
                             )
                         }
                         SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
@@ -298,7 +394,8 @@ fun OlcRtcConfigScreen(
                                 value = config.seiAckMs.toFloat(),
                                 onValueChange = { config = config.copy(seiAckMs = it.roundToInt()) },
                                 valueRange = 100f..5000f,
-                                steps = 49
+                                steps = 49,
+                                isModified = isEditMode && config.seiAckMs != initialConfig.seiAckMs
                             )
                         }
                     }
@@ -309,7 +406,8 @@ fun OlcRtcConfigScreen(
                             TextFieldRow(
                                 label = stringResource(R.string.olcrtc_video_codec),
                                 value = config.videoCodec,
-                                onValueChange = { config = config.copy(videoCodec = it) }
+                                onValueChange = { config = config.copy(videoCodec = it) },
+                                isModified = isEditMode && config.videoCodec != initialConfig.videoCodec
                             )
                         }
                         SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
@@ -319,14 +417,16 @@ fun OlcRtcConfigScreen(
                                     value = videoW,
                                     onValueChange = { videoW = it },
                                     modifier = Modifier.weight(1f),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    isModified = isEditMode && videoW != (initialConfig.videoW.let { if (it == 0) "1080" else it.toString() })
                                 )
                                 TextFieldRow(
                                     label = stringResource(R.string.olcrtc_video_height),
                                     value = videoH,
                                     onValueChange = { videoH = it },
                                     modifier = Modifier.weight(1f),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    isModified = isEditMode && videoH != (initialConfig.videoH.let { if (it == 0) "1080" else it.toString() })
                                 )
                             }
                         }
@@ -336,28 +436,32 @@ fun OlcRtcConfigScreen(
                                 value = config.videoFps.toFloat(),
                                 onValueChange = { config = config.copy(videoFps = it.roundToInt()) },
                                 valueRange = 1f..60f,
-                                steps = 59
+                                steps = 59,
+                                isModified = isEditMode && config.videoFps != initialConfig.videoFps
                             )
                         }
                         SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
                             TextFieldRow(
                                 label = stringResource(R.string.olcrtc_video_bitrate),
                                 value = config.videoBitrate,
-                                onValueChange = { config = config.copy(videoBitrate = it) }
+                                onValueChange = { config = config.copy(videoBitrate = it) },
+                                isModified = isEditMode && config.videoBitrate != initialConfig.videoBitrate
                             )
                         }
                         SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
                             TextFieldRow(
                                 label = stringResource(R.string.olcrtc_video_hw),
                                 value = config.videoHw,
-                                onValueChange = { config = config.copy(videoHw = it) }
+                                onValueChange = { config = config.copy(videoHw = it) },
+                                isModified = isEditMode && config.videoHw != initialConfig.videoHw
                             )
                         }
                         SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
                             TextFieldRow(
                                 label = stringResource(R.string.olcrtc_video_qr_recovery),
                                 value = config.videoQrRecovery,
-                                onValueChange = { config = config.copy(videoQrRecovery = it) }
+                                onValueChange = { config = config.copy(videoQrRecovery = it) },
+                                isModified = isEditMode && config.videoQrRecovery != initialConfig.videoQrRecovery
                             )
                         }
                         SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
@@ -366,7 +470,8 @@ fun OlcRtcConfigScreen(
                                 value = config.videoQrSize.toFloat(),
                                 onValueChange = { config = config.copy(videoQrSize = it.roundToInt()) },
                                 valueRange = 0f..1000f,
-                                steps = 100
+                                steps = 100,
+                                isModified = isEditMode && config.videoQrSize != initialConfig.videoQrSize
                             )
                         }
                         SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
@@ -375,7 +480,8 @@ fun OlcRtcConfigScreen(
                                 value = config.videoTileModule.toFloat(),
                                 onValueChange = { config = config.copy(videoTileModule = it.roundToInt()) },
                                 valueRange = 1f..32f,
-                                steps = 31
+                                steps = 31,
+                                isModified = isEditMode && config.videoTileModule != initialConfig.videoTileModule
                             )
                         }
                         SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
@@ -384,12 +490,16 @@ fun OlcRtcConfigScreen(
                                 value = config.videoTileRs.toFloat(),
                                 onValueChange = { config = config.copy(videoTileRs = it.roundToInt()) },
                                 valueRange = 0f..100f,
-                                steps = 100
+                                steps = 100,
+                                isModified = isEditMode && config.videoTileRs != initialConfig.videoTileRs
                             )
                         }
                     }
                 }
             }
+
+            // Padding to prevent FAB from overlapping content
+            Spacer(Modifier.height(80.dp))
         }
     }
 

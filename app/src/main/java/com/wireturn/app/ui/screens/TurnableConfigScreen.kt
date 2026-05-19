@@ -5,59 +5,120 @@
 
 package com.wireturn.app.ui.screens
 
+import android.content.Intent
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
 import com.wireturn.app.data.TurnableConfig
+import com.wireturn.app.data.TurnableRoute
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.LabeledButtonGroup
+import com.wireturn.app.ui.LargeLeadingIcon
+import com.wireturn.app.ui.SelectionDialog
 import com.wireturn.app.ui.SettingsGroup
 import com.wireturn.app.ui.SettingsGroupItem
+import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.configButtonGroupItem
+import com.wireturn.app.ui.InlineConfigIndicator
 import kotlin.math.roundToInt
 
 @Composable
 fun TurnableConfigScreen(
+    isEditMode: Boolean = false,
     initialConfig: TurnableConfig = TurnableConfig(),
     onBack: () -> Unit,
     onSave: (TurnableConfig) -> Unit
 ) {
-    var config by remember { mutableStateOf(initialConfig) }
+    var config by remember(initialConfig) { mutableStateOf(initialConfig) }
     val showRoutesDialog = remember { mutableStateOf(false) }
+
+    val isModified by remember(config) {
+        derivedStateOf { config != initialConfig }
+    }
+
+    val showExitDialog = remember { mutableStateOf(false) }
+
+    val handleBack = {
+        if (isEditMode && isModified) {
+            showExitDialog.value = true
+        } else {
+            onBack()
+        }
+    }
+
+    BackHandler(enabled = isEditMode && isModified, onBack = handleBack)
     
     val scrollState = rememberScrollState()
     val isDark = com.wireturn.app.ui.theme.LocalIsDark.current
     val blockContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
 
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
+    if (showExitDialog.value) {
+        AlertDialog(
+            onDismissRequest = { showExitDialog.value = false },
+            title = { Text(stringResource(R.string.unsaved_changes_title)) },
+            text = { Text(stringResource(R.string.unsaved_changes_desc)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                    showExitDialog.value = false
+                    onSave(config)
+                }) {
+                    Text(stringResource(R.string.btn_save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showExitDialog.value = false
+                    onBack()
+                }) {
+                    Text(stringResource(R.string.btn_discard))
+                }
+            }
+        )
+    }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -70,7 +131,7 @@ fun TurnableConfigScreen(
                     scrolledContainerColor = Color.Transparent
                 ),
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = handleBack) {
                         Icon(
                             painter = painterResource(R.drawable.arrow_back_24px),
                             contentDescription = null
@@ -78,14 +139,40 @@ fun TurnableConfigScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { onSave(config) }) {
-                        Icon(
-                            painter = painterResource(R.drawable.check_24px),
-                            contentDescription = stringResource(R.string.btn_save)
-                        )
+                    if (isEditMode) {
+                        IconButton(onClick = {
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, config.toUrl())
+                            }
+                            context.startActivity(Intent.createChooser(intent, null))
+                        }) {
+                            Icon(
+                                painter = painterResource(R.drawable.share_24px),
+                                contentDescription = stringResource(R.string.share)
+                            )
+                        }
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            androidx.compose.material3.MediumFloatingActionButton(
+                onClick = {
+                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                    onSave(config)
+                },
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            ) {
+                Icon(
+                    painter = painterResource(
+                        if (isEditMode) R.drawable.save_24px 
+                        else R.drawable.arrow_forward_ios_24px
+                    ),
+                    contentDescription = stringResource(if (isEditMode) R.string.btn_save else R.string.btn_next)
+                )
+            }
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { padding ->
@@ -111,7 +198,10 @@ fun TurnableConfigScreen(
                             showRoutesDialog.value = true
                         }
                     ) {
-                        RoutesBlock(config = config)
+                        RoutesBlock(
+                            config = config,
+                            isModified = isEditMode && config.selectedRouteId != initialConfig.selectedRouteId
+                        )
                     }
                 }
                 SettingsGroupItem(
@@ -127,7 +217,8 @@ fun TurnableConfigScreen(
                         },
                         valueRange = 1f..32f,
                         steps = 30,
-                        supportingText = stringResource(R.string.peers_desc)
+                        supportingText = stringResource(R.string.peers_desc),
+                        isModified = isEditMode && config.peers != initialConfig.peers
                     )
                 }
                 SettingsGroupItem(
@@ -139,7 +230,8 @@ fun TurnableConfigScreen(
                         label = stringResource(R.string.username_label),
                         value = config.username,
                         onValueChange = { config = config.copy(username = it) },
-                        supportingText = stringResource(R.string.username_desc)
+                        supportingText = stringResource(R.string.username_desc),
+                        isModified = isEditMode && config.username != initialConfig.username
                     )
                 }
                 SettingsGroupItem(
@@ -151,7 +243,8 @@ fun TurnableConfigScreen(
                         label = stringResource(R.string.call_id_label),
                         value = config.callId,
                         onValueChange = { config = config.copy(callId = it) },
-                        supportingText = stringResource(R.string.call_id_desc)
+                        supportingText = stringResource(R.string.call_id_desc),
+                        isModified = isEditMode && config.callId != initialConfig.callId
                     )
                 }
             }
@@ -167,7 +260,8 @@ fun TurnableConfigScreen(
                         label = stringResource(R.string.user_uuid_label),
                         value = config.userUuid ?: "",
                         onValueChange = { config = config.copy(userUuid = it) },
-                        supportingText = stringResource(R.string.user_uuid_desc)
+                        supportingText = stringResource(R.string.user_uuid_desc),
+                        isModified = isEditMode && config.userUuid != initialConfig.userUuid
                     )
                 }
                 SettingsGroupItem(
@@ -179,7 +273,8 @@ fun TurnableConfigScreen(
                         label = stringResource(R.string.platform_id_label),
                         value = config.platformId,
                         onValueChange = { config = config.copy(platformId = it) },
-                        supportingText = stringResource(R.string.platform_id_desc)
+                        supportingText = stringResource(R.string.platform_id_desc),
+                        isModified = isEditMode && config.platformId != initialConfig.platformId
                     )
                 }
                 SettingsGroupItem(
@@ -189,7 +284,8 @@ fun TurnableConfigScreen(
                 ) {
                     LabeledButtonGroup(
                         label = stringResource(R.string.connection_type_label),
-                        supportingText = stringResource(R.string.connection_type_desc)
+                        supportingText = stringResource(R.string.connection_type_desc),
+                        isModified = isEditMode && config.type != initialConfig.type
                     ) {
                         val types = listOf("relay", "direct")
                         types.forEachIndexed { index, t ->
@@ -212,7 +308,8 @@ fun TurnableConfigScreen(
                         label = stringResource(R.string.pub_key_label),
                         value = config.pubKey ?: "",
                         onValueChange = { config = config.copy(pubKey = it) },
-                        supportingText = stringResource(R.string.pub_key_desc)
+                        supportingText = stringResource(R.string.pub_key_desc),
+                        isModified = isEditMode && config.pubKey != initialConfig.pubKey
                     )
                 }
                 SettingsGroupItem(
@@ -222,7 +319,8 @@ fun TurnableConfigScreen(
                 ) {
                     LabeledButtonGroup(
                         label = stringResource(R.string.encryption_label),
-                        supportingText = stringResource(R.string.encryption_desc)
+                        supportingText = stringResource(R.string.encryption_desc),
+                        isModified = isEditMode && config.encryption != initialConfig.encryption
                     ) {
                         val options = listOf("handshake", "full")
                         options.forEachIndexed { index, e ->
@@ -245,7 +343,8 @@ fun TurnableConfigScreen(
                         label = stringResource(R.string.gateway_label),
                         value = config.gateway,
                         onValueChange = { config = config.copy(gateway = it) },
-                        supportingText = stringResource(R.string.gateway_desc)
+                        supportingText = stringResource(R.string.gateway_desc),
+                        isModified = isEditMode && config.gateway != initialConfig.gateway
                     )
                 }
                 SettingsGroupItem(
@@ -255,7 +354,8 @@ fun TurnableConfigScreen(
                 ) {
                     LabeledButtonGroup(
                         label = stringResource(R.string.proto_label),
-                        supportingText = stringResource(R.string.proto_desc)
+                        supportingText = stringResource(R.string.proto_desc),
+                        isModified = isEditMode && config.proto != initialConfig.proto
                     ) {
                         val options = listOf("dtls", "srtp", "none")
                         val currentProto = config.proto ?: "none"
@@ -279,21 +379,129 @@ fun TurnableConfigScreen(
                         label = stringResource(R.string.force_turn_label),
                         supportingText = stringResource(R.string.force_turn_desc),
                         checked = config.forceTurn,
-                        onCheckedChange = { config = config.copy(forceTurn = it) }
+                        onCheckedChange = { config = config.copy(forceTurn = it) },
+                        isModified = isEditMode && config.forceTurn != initialConfig.forceTurn
                     )
                 }
             }
+
+            // Padding to prevent FAB from overlapping content
+            Spacer(Modifier.height(80.dp))
         }
     }
 
     if (showRoutesDialog.value) {
         RoutesDialog(
             config = config,
-            onSelect = {
-                config = config.copy(selectedRouteId = it)
+            onSelect = { routeId ->
+                config = config.copy(selectedRouteId = routeId)
                 showRoutesDialog.value = false
             },
             onDismiss = { showRoutesDialog.value = false }
         )
+    }
+}
+
+@Composable
+fun RouteSummary(
+    route: TurnableRoute,
+    modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.onSurfaceVariant
+) {
+    Text(
+        text = "${route.socket.uppercase()} • ${route.transport?.uppercase() ?: "none"}",
+        style = MaterialTheme.typography.labelSmall,
+        color = color,
+        maxLines = 1,
+        modifier = modifier
+    )
+}
+
+@Composable
+fun RoutesBlock(
+    config: TurnableConfig,
+    modifier: Modifier = Modifier,
+    isModified: Boolean = false
+) {
+    val selectedRoute = config.routes.find { it.routeId == config.selectedRouteId } ?: config.routes.firstOrNull()
+    if (selectedRoute != null) {
+        val iconRes = when (selectedRoute.socket.lowercase()) {
+            "tcp" -> R.drawable.compare_arrows_24px
+            "udp" -> R.drawable.arrow_forward_24px
+            else -> R.drawable.route_24px
+        }
+        Row(
+            modifier = modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            LargeLeadingIcon {
+                Icon(
+                    painter = painterResource(iconRes),
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = selectedRoute.name.ifBlank { selectedRoute.routeId },
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        modifier = Modifier.basicMarquee().weight(1f, fill = false)
+                    )
+                    InlineConfigIndicator(isModified)
+                }
+                RouteSummary(route = selectedRoute)
+            }
+        }
+    }
+}
+
+@Composable
+fun RoutesDialog(
+    config: TurnableConfig,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    SelectionDialog(
+        title = stringResource(R.string.route_title),
+        items = config.routes,
+        isSelected = { it.routeId == config.selectedRouteId },
+        onSelect = { route -> onSelect(route.routeId) },
+        onDismiss = onDismiss
+    ) { route, isSelected ->
+        val iconRes = when (route.socket.lowercase()) {
+            "tcp" -> R.drawable.compare_arrows_24px
+            "udp" -> R.drawable.arrow_forward_24px
+            else -> R.drawable.route_24px
+        }
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            StandardLeadingIcon {
+                Icon(
+                    painter = painterResource(iconRes),
+                    contentDescription = null,
+                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = route.name.ifBlank { route.routeId },
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                    color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
+                )
+                RouteSummary(
+                    route = route,
+                    color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
+        }
     }
 }

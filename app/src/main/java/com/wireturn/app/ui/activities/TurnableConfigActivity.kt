@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.gson.Gson
@@ -22,40 +23,56 @@ class TurnableConfigActivity : ComponentActivity() {
 
         splashScreen.setKeepOnScreenCondition { !viewModel.isInitialized.value }
 
+        val isEditMode = intent.getBooleanExtra("EXTRA_EDIT_MODE", false)
         val profileName = intent.getStringExtra("EXTRA_PROFILE_NAME") ?: ""
         val configJson = intent.getStringExtra("EXTRA_CONFIG_JSON")
-        val initialConfig = if (configJson != null) {
-            try { Gson().fromJson(configJson, TurnableConfig::class.java) } catch (_: Exception) { TurnableConfig() }
-        } else {
-            TurnableConfig()
-        }
 
         setContent {
             val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
+            val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
+
+            val initialConfig = remember(clientConfig) {
+                if (configJson != null) {
+                    try { Gson().fromJson(configJson, TurnableConfig::class.java) } catch (_: Exception) { TurnableConfig() }
+                } else if (isEditMode) {
+                    clientConfig.turnableConfig
+                } else {
+                    TurnableConfig()
+                }
+            }
 
             WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
                 TurnableConfigScreen(
+                    isEditMode = isEditMode,
                     initialConfig = initialConfig,
                     onBack = { finish() },
                     onSave = { config ->
-                        val selectedRoute = config.routes.find { it.routeId == config.selectedRouteId } ?: config.routes.firstOrNull()
-                        val isTcp = selectedRoute?.socket?.lowercase() == "tcp"
-
-                        val intent = android.content.Intent(this, XraySetupActivity::class.java).apply {
-                            putExtra("SHOW_PROTOCOL_SELECTION", true)
-                            putExtra("EXTRA_PROFILE_NAME", profileName)
-                            if (isTcp) {
-                                putExtra("EXTRA_DEFAULT_PROTOCOL", com.wireturn.app.data.XrayConfiguration.VLESS.name)
-                            }
-                            putExtra("EXTRA_CLIENT_CONFIG_JSON", Gson().toJson(
-                                com.wireturn.app.data.ClientConfig(
-                                    turnableConfig = config,
-                                    kernelVariant = com.wireturn.app.data.KernelVariant.TURNABLE
-                                )
+                        if (isEditMode) {
+                            viewModel.saveClientConfig(clientConfig.copy(
+                                turnableConfig = config,
+                                kernelVariant = com.wireturn.app.data.KernelVariant.TURNABLE
                             ))
+                            finish()
+                        } else {
+                            val selectedRoute = config.routes.find { it.routeId == config.selectedRouteId } ?: config.routes.firstOrNull()
+                            val isTcp = selectedRoute?.socket?.lowercase() == "tcp"
+
+                            val intent = android.content.Intent(this, XraySetupActivity::class.java).apply {
+                                putExtra("SHOW_PROTOCOL_SELECTION", true)
+                                putExtra("EXTRA_PROFILE_NAME", profileName)
+                                if (isTcp) {
+                                    putExtra("EXTRA_DEFAULT_PROTOCOL", com.wireturn.app.data.XrayConfiguration.VLESS.name)
+                                }
+                                putExtra("EXTRA_CLIENT_CONFIG_JSON", Gson().toJson(
+                                    com.wireturn.app.data.ClientConfig(
+                                        turnableConfig = config,
+                                        kernelVariant = com.wireturn.app.data.KernelVariant.TURNABLE
+                                    )
+                                ))
+                            }
+                            startActivity(intent)
                         }
-                        startActivity(intent)
                     }
                 )
             }
