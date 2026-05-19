@@ -20,14 +20,11 @@ import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
 import com.google.gson.stream.JsonWriter
 import com.wireturn.app.ui.ValidatorUtils
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.withContext
-import java.io.File
 import java.io.StringReader
 
 private val Context.internalDataStore: DataStore<Preferences> by preferencesDataStore(name = "app_prefs")
@@ -329,8 +326,6 @@ data class ClientConfig(
     val isSocksAuthEnabled: Boolean = true,
     val socksUser: String = "",
     val socksPass: String = "",
-    val isRawMode: Boolean = false,
-    val rawCommand: String = "",
     val turnableConfig: TurnableConfig = TurnableConfig(),
     val olcrtcConfig: OlcrtcConfig = OlcrtcConfig(),
     val kernelVariant: KernelVariant = KernelVariant.TURNABLE
@@ -351,11 +346,9 @@ data class ClientConfig(
     }
 
     val connectableAddress: String get() = listenAddr.replace("0.0.0.0:", "127.0.0.1:")
-    fun getValidationErrorResId(): Int? = if (isRawMode && rawCommand.isBlank()) {
-        com.wireturn.app.R.string.error_raw_empty
-    } else if (!isRawMode && kernelVariant == KernelVariant.TURNABLE && !turnableConfig.isValid()) {
+    fun getValidationErrorResId(): Int? = if (kernelVariant == KernelVariant.TURNABLE && !turnableConfig.isValid()) {
         com.wireturn.app.R.string.error_settings_empty
-    } else if (!isRawMode && kernelVariant == KernelVariant.OLCRTC && !olcrtcConfig.isValid()) {
+    } else if (kernelVariant == KernelVariant.OLCRTC && !olcrtcConfig.isValid()) {
         com.wireturn.app.R.string.error_settings_empty
     } else {
         null
@@ -478,8 +471,6 @@ data class Profile(
     @SerializedName("id") val id: String,
     @SerializedName("name") val name: String,
     @SerializedName("kernelVariant") val kernelVariant: KernelVariant = KernelVariant.TURNABLE,
-    @SerializedName("isRawMode") val isRawMode: Boolean = false,
-    @SerializedName("rawCommand") val rawCommand: String = "",
     @SerializedName("turnableConfig") val turnableConfig: TurnableConfig = TurnableConfig(),
     @SerializedName("olcrtcConfig") val olcrtcConfig: OlcrtcConfig = OlcrtcConfig(),
     @SerializedName("xrayProtocol") val xrayProtocol: XrayConfiguration = XrayConfiguration.WIREGUARD,
@@ -495,8 +486,7 @@ data class Profile(
     @SerializedName("xraySettings") private val oldXraySettings: Any? = null,
     @SerializedName("xrayConfig") private val oldXrayConfig: Any? = null
 ) {
-    fun isEmpty(): Boolean = (rawCommand as Any?)?.toString().isNullOrBlank() &&
-            !turnableConfig.isValid() &&
+    fun isEmpty(): Boolean = !turnableConfig.isValid() &&
             !olcrtcConfig.isValid() &&
             !wgConfig.isValid() &&
             !vlessConfig.isValid()
@@ -504,8 +494,6 @@ data class Profile(
     fun sanitize(): Profile {
         @Suppress("SENSELESS_COMPARISON")
         var kv = if ((kernelVariant as Any?) == null) KernelVariant.TURNABLE else kernelVariant
-        var raw = isRawMode ?: false
-        var cmd = (rawCommand as Any?)?.toString() ?: ""
         var tc = (turnableConfig ?: TurnableConfig())
         var oc = (olcrtcConfig ?: OlcrtcConfig())
 
@@ -521,15 +509,13 @@ data class Profile(
         // Migration from old nested ClientConfig format
         if (oldClientConfig != null && ((tc.routes as List<*>?)?.isEmpty() != false) && !oc.isValid()) {
             kv = oldClientConfig.kernelVariant
-            raw = oldClientConfig.isRawMode
-            cmd = oldClientConfig.rawCommand
             tc = oldClientConfig.turnableConfig
             oc = oldClientConfig.olcrtcConfig
         }
 
         // Migration from old nested Xray format (objects)
         if (oldXraySettings != null && !en) {
-            en = (oldXraySettings as? Map<*, *>)?.get("xrayEnabled") as? Boolean ?: en
+            en = (oldXraySettings as? Map<*, *>)?.get("xrayEnabled") as? Boolean ?: false
         }
         if (oldXrayConfig != null && prot == XrayConfiguration.WIREGUARD) {
             val oldType = (oldXrayConfig as? Map<*, *>)?.get("xrayConfiguration")?.toString()
@@ -544,8 +530,6 @@ data class Profile(
             id = (id as Any?)?.toString()?.take(100) ?: java.util.UUID.randomUUID().toString(),
             name = (name as Any?)?.toString()?.take(100) ?: "Unnamed",
             kernelVariant = kv,
-            isRawMode = raw,
-            rawCommand = cmd,
             turnableConfig = tc.sanitize(),
             olcrtcConfig = oc.sanitize(),
             xrayProtocol = prot,
@@ -611,8 +595,6 @@ class AppPreferences(val context: Context) {
         val XRAY_PASS = stringPreferencesKey("xray_pass")
 
         val ACTIVE_KERNEL_VARIANT = stringPreferencesKey("active_kernel_variant")
-        val ACTIVE_IS_RAW = booleanPreferencesKey("active_is_raw")
-        val ACTIVE_RAW_CMD = stringPreferencesKey("active_raw_cmd")
         val ACTIVE_TURNABLE_JSON = stringPreferencesKey("active_turnable_json")
         val ACTIVE_OLCRTC_JSON = stringPreferencesKey("active_olcrtc_json")
         val ACTIVE_XRAY_CONFIG_TYPE = stringPreferencesKey("active_xray_config_type")
@@ -702,8 +684,6 @@ class AppPreferences(val context: Context) {
                 isSocksAuthEnabled = p[OLCRTC_SOCKS_AUTH_ENABLED] ?: true,
                 socksUser = p[OLCRTC_SOCKS_USER] ?: "",
                 socksPass = p[OLCRTC_SOCKS_PASS] ?: "",
-                isRawMode = p[ACTIVE_IS_RAW] ?: false,
-                rawCommand = p[ACTIVE_RAW_CMD] ?: "",
                 kernelVariant = try {
                     KernelVariant.valueOf(p[ACTIVE_KERNEL_VARIANT] ?: KernelVariant.TURNABLE.name)
                 } catch (_: Exception) {
@@ -749,8 +729,6 @@ class AppPreferences(val context: Context) {
         appCtx.internalDataStore.edit { p ->
             p[CURRENT_PROFILE_ID] = id
             p[ACTIVE_KERNEL_VARIANT] = profile.kernelVariant.name
-            p[ACTIVE_IS_RAW] = profile.isRawMode
-            p[ACTIVE_RAW_CMD] = profile.rawCommand
             p[ACTIVE_TURNABLE_JSON] = gson.toJson(profile.turnableConfig)
             p[ACTIVE_OLCRTC_JSON] = gson.toJson(profile.olcrtcConfig)
             p[ACTIVE_XRAY_CONFIG_TYPE] = profile.xrayProtocol.name
@@ -897,8 +875,6 @@ class AppPreferences(val context: Context) {
             it[OLCRTC_SOCKS_USER] = c.socksUser
             it[OLCRTC_SOCKS_PASS] = c.socksPass
             it[ACTIVE_KERNEL_VARIANT] = c.kernelVariant.name
-            it[ACTIVE_IS_RAW] = c.isRawMode
-            it[ACTIVE_RAW_CMD] = c.rawCommand
             it[ACTIVE_TURNABLE_JSON] = gson.toJson(c.turnableConfig)
             it[ACTIVE_OLCRTC_JSON] = gson.toJson(c.olcrtcConfig)
         }
@@ -906,16 +882,11 @@ class AppPreferences(val context: Context) {
 
     suspend fun resetAll() {
         appCtx.internalDataStore.edit { it.clear() }
-        withContext(Dispatchers.IO) {
-            File(appCtx.filesDir, "custom_core").delete()
-        }
     }
 
     suspend fun saveActiveProfilePart(profile: Profile) {
         appCtx.internalDataStore.edit { p ->
             p[ACTIVE_KERNEL_VARIANT] = profile.kernelVariant.name
-            p[ACTIVE_IS_RAW] = profile.isRawMode
-            p[ACTIVE_RAW_CMD] = profile.rawCommand
             p[ACTIVE_TURNABLE_JSON] = gson.toJson(profile.turnableConfig)
             p[ACTIVE_OLCRTC_JSON] = gson.toJson(profile.olcrtcConfig)
             p[ACTIVE_XRAY_CONFIG_TYPE] = profile.xrayProtocol.name

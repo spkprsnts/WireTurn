@@ -1098,56 +1098,7 @@ fun HomeScreen(
                 }
             }
 
-            // --- Raw Mode Details ---
-            if (activeConfig.isValid && activeConfig.isRawMode) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp)
-                        .graphicsLayer { alpha = 0.55f }
-                ) {
-                    androidx.compose.material3.HorizontalDivider(
-                        modifier = Modifier.padding(top = 24.dp, bottom = 12.dp),
-                        thickness = 0.5.dp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
-                    )
-                    
-                    Text(
-                        text = stringResource(R.string.raw_mode),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
 
-                    val parts = activeConfig.rawCommand.split("\\s+".toRegex())
-                        .filter { it.isNotBlank() }
-                    val args = mutableListOf<String>()
-                    var i = 0
-                    while (i < parts.size) {
-                        val part = parts[i]
-                        if (part.startsWith("-") && i + 1 < parts.size && !parts[i + 1].startsWith("-")) {
-                            args.add("$part ${parts[i + 1]}")
-                            i += 2
-                        } else {
-                            args.add(part)
-                            i += 1
-                        }
-                    }
-                    Column(
-                        modifier = Modifier.padding(horizontal = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        args.forEach { arg ->
-                            Text(
-                                text = "• $arg",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-                }
-            }
 
         }
     }

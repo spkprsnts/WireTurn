@@ -76,7 +76,6 @@ fun ProxyToggleButton(
     val xrayState by XrayServiceState.state.collectAsStateWithLifecycle()
     val xrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
     val autoLaunchSettings by viewModel.autoLaunchSettings.collectAsStateWithLifecycle()
-    val customKernelExists by viewModel.customKernelExists.collectAsStateWithLifecycle()
 
     val isRestarting by ProxyServiceState.isRestarting.collectAsStateWithLifecycle()
     val isChangingProfile by ProxyServiceState.isChangingProfile.collectAsStateWithLifecycle()
@@ -129,7 +128,7 @@ fun ProxyToggleButton(
         toggleState == "loading" && (isBusy || wasActiveBeforeRestart) -> stringResource(R.string.proxy_restarting)
         proxyState is ProxyState.Connected -> {
             if (xrayState == XrayState.DirectRoute) stringResource(R.string.vless_direct_active)
-            else stringResource(if (customKernelExists) R.string.proxy_running else R.string.proxy_active)
+            else stringResource(R.string.proxy_active)
         }
         proxyState is ProxyState.Starting -> stringResource(R.string.starting)
         proxyState is ProxyState.Connecting -> stringResource(R.string.connecting)

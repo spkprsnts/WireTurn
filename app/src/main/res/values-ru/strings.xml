@@ -6,7 +6,6 @@
     <string name="app_settings_title">Настройки</string>
     <string name="info_desc">Информация</string>
     <string name="proxy_active">Туннель активен</string>
-    <string name="proxy_running">Ядро активно</string>
     <string name="proxy_press_to_start">Нажмите для запуска</string>
     <string name="proxy_stop">Остановить</string>
     <string name="proxy_active_stop">Туннель активен — нажмите для остановки</string>
@@ -84,7 +83,6 @@
     <!-- Настройка клиента (Backend/Proxy) -->
     <string name="client_title">Клиент</string>
     <string name="connection_title">Подключение</string>
-    <string name="raw_mode_desc">Ввод аргументов вручную</string>
     <string name="client_import_config">Импорт конфигурации клиента</string>
     <string name="config_missing">Отсутствует конфигурация</string>
     <string name="config_import_hint_start">Импортируйте</string>
@@ -116,9 +114,6 @@
     <string name="kernel_help_title">Гайды по ядрам</string>
     <string name="kernel_help_turnable_guide">Гайд по созданию сервера Turnable</string>
     <string name="kernel_help_olcrtc_guide">Гайд по созданию сервера olcRTC</string>
-    <string name="kernel_label">Ядро</string>
-    <string name="kernel_config_label">Формат параметров</string>
-    <string name="kernel_config_desc">Выберите структуру аргументов для кастомного ядра</string>
     <string name="olcrtc_id_label">ID комнаты</string>
     <string name="olcrtc_client_id_label">ID клиента</string>
     <string name="olcrtc_key_label">Ключ авторизации</string>
@@ -147,13 +142,6 @@
     <string name="olcrtc_socks_proxy_label">Локальный SOCKS5 прокси</string>
     <string name="local_listen_address">Локальный адрес прослушивания</string>
     <string name="local_listen_placeholder">127.0.0.1:9000</string>
-    <string name="core_title">Загрузка ядра</string>
-    <string name="custom_core">Кастомное ядро</string>
-    <string name="builtin_core">Встроенное ядро</string>
-    <string name="loaded_from_memory">Загружено из памяти устройства</string>
-    <string name="kernel_date_format">Изменён: %1$s</string>
-    <string name="from_apk">Из APK</string>
-    <string name="btn_load">Загрузить</string>
     <string name="local_port_help_text">Это сетевой адрес и порт, на которых приложение запустит локальную точку входа для туннеля.</string>
     <string name="local_port_help_secondary">К этому адресу должен подключаться встроенный Xray или сторонние VPN-клиенты (WireGuard, v2RayTun и др.), чтобы трафик шел через созданный туннель.</string>
     <string name="olcrtc_socks_help_text">Ядро olcRTC не использует традиционные VPN-протоколы. Оно запускает локальный SOCKS5-прокси, который служит точкой входа для трафика.</string>
@@ -225,23 +213,14 @@
     <!-- Ошибки и системные сообщения -->
     <string name="error_proxy_crashed">Туннель упал %1$d раз — проверьте настройки</string>
     <string name="error_settings_empty">Не заполнены настройки клиента</string>
-    <string name="error_raw_empty">Не задана raw-команда</string>
     <string name="error_proxy_not_started">Туннель не запустился</string>
     <string name="error_file_open">Не удалось открыть файл</string>
-    <string name="error_not_elf">Файл не является ELF-бинарником. Убедитесь, что загружаете правильное ядро.</string>
-    <string name="error_file_empty">Файл пустой</string>
-    <string name="error_file_too_large">Файл слишком большой (максимум %1$d МБ)</string>
-    <string name="log_custom_kernel_installed">Кастомное ядро установлено: %1$d КБ</string>
     <string name="log_proxy_invalid_config">[Xray] Некорректный или отсутствующий конфиг, запуск отменен</string>
-    <string name="error_kernel_install_failed">Ошибка установки ядра: %1$s</string>
-    <string name="log_custom_kernel_deleted">Кастомное ядро удалено, используется встроенное</string>
     <string name="error_update_url_not_found">URL обновления не найден</string>
     <string name="error_update_file_not_found">Файл обновления не найден</string>
     <string name="error_no_connection">Нет соединения с сервером</string>
     <string name="error_apk_not_found">APK не найден в релизе</string>
     <string name="error_download_failed">Ошибка загрузки: %1$s</string>
-    <string name="log_standard_kernel">Используется стандартное ядро из APK</string>
-    <string name="log_custom_kernel">Используется кастомное ядро из памяти телефона</string>
     <string name="log_command">Команда: %1$s</string>
     <string name="log_proxy_start">=== ЗАПУСК ТУННЕЛЯ: %1$s ===</string>
     <string name="log_proxy_suppressed">=== ТУННЕЛЬ ПОДАВЛЕН (ПРЯМОЙ МАРШРУТ) ===</string>
@@ -261,7 +240,6 @@
 
     <string name="error_release_info_failed">Не удалось получить информацию о релизе</string>
     <string name="error_process_no_output">Процесс завершился без вывода (код: %1$d)</string>
-    <string name="error_kernel_permission_denied">КРИТИЧЕСКАЯ ОШИБКА: Отказано в запуске ядра — ваше устройство блокирует выполнение файлов из внутреннего хранилища (SELinux/noexec). Используйте встроенное ядро.</string>
     <string name="error_critical_format">КРИТИЧЕСКАЯ ОШИБКА: %1$s</string>
     <string name="error_connecting">Ошибка подключения</string>
     <string name="error_platform_unavailable">Платформа недоступна</string>
@@ -315,6 +293,7 @@
     <!-- Предупреждения -->
     <string name="warn_unsupported_arch_title">Архитектура не поддерживается</string>
     <string name="warn_unsupported_arch_desc">Ваше устройство использует архитектуру (%1$s), которая не поддерживается встроенными бинарными файлами. Приложение может работать некорректно или не запускаться.\n\nПоддерживаемые архитектуры: arm64-v8a, x86_64.</string>
+
     <string name="mismatch_title">Несоответствие</string>
     <string name="warn_proxy_vless_mismatch">Туннель ожидает VLESS-подключение, а Xray настроен на WireGuard</string>
     <string name="warn_proxy_wg_mismatch">Туннель ожидает WireGuard-подключение, а Xray настроен на VLESS</string>

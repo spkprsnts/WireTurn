@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.LocalSocket
 import android.net.LocalSocketAddress
-import android.net.Uri
 import android.os.Build
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
@@ -66,8 +65,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val proxyState: StateFlow<ProxyState> = proxyManager.proxyState
     val logs: StateFlow<List<AppLogsState.LogEntry>> = AppLogsState.logs
-    val customKernelExists: StateFlow<Boolean> = proxyManager.customKernelExists
-    val customKernelLastModified: StateFlow<Long?> = proxyManager.customKernelLastModified
     val updateState: StateFlow<UpdateState> = appUpdater.state
     val updateProgress: StateFlow<Int> = appUpdater.downloadProgress
 
@@ -146,9 +143,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         it == "arm64-v8a" || it == "x86_64" 
     }
     val deviceArchitecture: String = Build.SUPPORTED_ABIS.firstOrNull() ?: "unknown"
-
-    private val _kernelError = MutableStateFlow<String?>(null)
-    val kernelError: StateFlow<String?> = _kernelError.asStateFlow()
 
     private val _proxyPing = MutableStateFlow<PingResult?>(null)
     val proxyPing: StateFlow<PingResult?> = _proxyPing.asStateFlow()
@@ -580,8 +574,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 config.socksPass
             )
             prefs.saveActiveProfilePart(profiles.value.find { it.id == currentProfileId.value }?.copy(
-                isRawMode = config.isRawMode,
-                rawCommand = config.rawCommand,
                 kernelVariant = config.kernelVariant,
                 turnableConfig = config.turnableConfig,
                 olcrtcConfig = config.olcrtcConfig
@@ -687,13 +679,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun setCustomKernel(uri: Uri) { 
-        viewModelScope.launch { _kernelError.value = proxyManager.setCustomKernel(uri) } 
-    }
-    
-    fun clearCustomKernel() { proxyManager.clearCustomKernel() }
-    fun clearKernelError() { _kernelError.value = null }
-    
     fun checkForUpdate() { 
         viewModelScope.launch { 
             appUpdater.checkForUpdate(silent = false, allowUnstable = _allowUnstableUpdates.value) 
@@ -754,8 +739,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val profile = profiles.value.find { it.id == curId } ?: return
         val updated = profile.copy(
             kernelVariant = _clientConfig.value.kernelVariant,
-            isRawMode = _clientConfig.value.isRawMode,
-            rawCommand = _clientConfig.value.rawCommand,
             turnableConfig = _clientConfig.value.turnableConfig,
             olcrtcConfig = _clientConfig.value.olcrtcConfig,
             xrayProtocol = _xrayConfig.value.protocol,
@@ -787,8 +770,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     
                     val mainChanged = clientSnap != null && (
                         p.kernelVariant != clientSnap.kernelVariant ||
-                        p.isRawMode != clientSnap.isRawMode ||
-                        p.rawCommand != clientSnap.rawCommand ||
                         (p.kernelVariant == KernelVariant.TURNABLE && p.turnableConfig.sanitize() != clientSnap.turnableConfig) ||
                         (p.kernelVariant == KernelVariant.OLCRTC && p.olcrtcConfig.fillDefaults() != clientSnap.olcrtcConfig)
                     )
@@ -816,8 +797,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             id = id,
             name = name,
             kernelVariant = clientConfig.kernelVariant,
-            isRawMode = clientConfig.isRawMode,
-            rawCommand = clientConfig.rawCommand,
             turnableConfig = clientConfig.turnableConfig,
             olcrtcConfig = clientConfig.olcrtcConfig,
             xrayProtocol = xrayConfig.protocol,

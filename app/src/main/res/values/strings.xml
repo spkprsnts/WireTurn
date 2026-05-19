@@ -7,7 +7,6 @@
     <string name="turn_proxy_title" translatable="false">WireTurn</string>
     <string name="info_desc">Info</string>
     <string name="proxy_active">Tunnel active</string>
-    <string name="proxy_running">Core active</string>
     <string name="proxy_press_to_start">Tap to start</string>
     <string name="proxy_stop">Stop</string>
     <string name="proxy_active_stop">Tunnel active — tap to stop</string>
@@ -114,10 +113,6 @@
     <!-- Client Setup (Backend/Proxy) -->
     <string name="client_title">Client</string>
     <string name="connection_title">Connection</string>
-    <string name="raw_mode" translatable="false">Raw Mode</string>
-    <string name="raw_mode_desc">Manual argument input</string>
-    <string name="raw_label" translatable="false">Raw</string>
-    <string name="raw_placeholder" translatable="false">-listen 127.0.0.1:9000 -peer 292.313.32.45:56000 …</string>
     <string name="client_import_config">Client configuration import</string>
     <string name="config_missing">Missing configuration</string>
     <string name="config_import_hint_start">Import</string>
@@ -146,9 +141,6 @@
     <string name="force_turn_label">Force TURN</string>
     <string name="force_turn_desc">TURN server for all connections</string>
     <string name="history_label">History</string>
-    <string name="kernel_label">Core</string>
-    <string name="kernel_config_label">Parameter format</string>
-    <string name="kernel_config_desc">Select argument structure for custom core</string>
     <string name="kernel_help_title">Core guides</string>
     <string name="kernel_help_turnable_guide">Turnable server setup guide</string>
     <string name="kernel_help_olcrtc_guide">olcRTC server setup guide</string>
@@ -182,13 +174,6 @@
     <string name="olcrtc_socks_proxy_label">Local SOCKS5 proxy</string>
     <string name="local_listen_address">Local listen address</string>
     <string name="local_listen_placeholder">127.0.0.1:9000</string>
-    <string name="core_title">Core download</string>
-    <string name="custom_core">Custom core</string>
-    <string name="builtin_core">Built-in core</string>
-    <string name="loaded_from_memory">Loaded from device memory</string>
-    <string name="kernel_date_format">Modified: %1$s</string>
-    <string name="from_apk">From APK</string>
-    <string name="btn_load">Load</string>
     <string name="local_port_help_text">This is the network address and port where the app will start a local tunnel entry point.</string>
     <string name="local_port_help_secondary">The built-in Xray or third-party VPN clients (WireGuard, v2RayTun, etc.) must connect to this address to route traffic through the created tunnel.</string>
     <string name="olcrtc_socks_help_text">The olcRTC core does not use traditional VPN protocols. Instead, it starts a local SOCKS5 proxy that serves as an entry point for traffic.</string>
@@ -261,23 +246,14 @@
     <!-- Errors and system messages -->
     <string name="error_proxy_crashed">Tunnel crashed %1$d times — check settings</string>
     <string name="error_settings_empty">Client settings not filled</string>
-    <string name="error_raw_empty">Raw command not specified</string>
     <string name="error_proxy_not_started">Tunnel failed to start</string>
     <string name="error_file_open">Could not open file</string>
-    <string name="error_not_elf">File is not an ELF binary. Make sure you are loading the correct core.</string>
-    <string name="error_file_empty">File is empty</string>
-    <string name="error_file_too_large">File too large (max %1$d MB)</string>
-    <string name="log_custom_kernel_installed">Custom core installed: %1$d KB</string>
     <string name="log_proxy_invalid_config">[Xray] Invalid or missing config, startup canceled</string>
-    <string name="error_kernel_install_failed">Core installation error: %1$s</string>
-    <string name="log_custom_kernel_deleted">Custom core deleted, using built-in</string>
     <string name="error_update_url_not_found">Update URL not found</string>
     <string name="error_update_file_not_found">Update file not found</string>
     <string name="error_no_connection">No server connection</string>
     <string name="error_apk_not_found">APK not found in release</string>
     <string name="error_download_failed">Download error: %1$s</string>
-    <string name="log_standard_kernel">Using standard core from APK</string>
-    <string name="log_custom_kernel">Using custom core from phone memory</string>
     <string name="log_command">Command: %1$s</string>
     <string name="log_proxy_start">=== TUNNEL STARTING: %1$s ===</string>
     <string name="log_proxy_suppressed">=== TUNNEL SUPPRESSED (DIRECT ROUTE) ===</string>
@@ -297,7 +273,6 @@
 
     <string name="error_release_info_failed">Could not get release information</string>
     <string name="error_process_no_output">Process finished with no output (code: %1$d)</string>
-    <string name="error_kernel_permission_denied">CRITICAL ERROR: Core execution denied — your device blocks running files from internal storage (SELinux/noexec). Use the built-in core.</string>
     <string name="error_critical_format">CRITICAL ERROR: %1$s</string>
     <string name="error_connecting">Connection error</string>
     <string name="error_platform_unavailable">Platform unavailable</string>
@@ -360,6 +335,7 @@
     <!-- Warnings -->
     <string name="warn_unsupported_arch_title">Architecture not supported</string>
     <string name="warn_unsupported_arch_desc">Your device uses an architecture (%1$s) not supported by the built-in binaries. The app may not work correctly or fail to start.\n\nSupported architectures: arm64-v8a, x86_64.</string>
+
     <string name="mismatch_title">Mismatch</string>
     <string name="warn_proxy_vless_mismatch">Tunnel expects a VLESS connection, but Xray is configured for WireGuard</string>
     <string name="warn_proxy_wg_mismatch">Tunnel expects a WireGuard connection, but Xray is configured for VLESS</string>

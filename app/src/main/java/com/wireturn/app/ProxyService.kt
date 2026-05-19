@@ -17,7 +17,6 @@ import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.viewmodel.AppLifecycleState
 import com.wireturn.app.viewmodel.XrayState
 import java.io.BufferedReader
-import java.io.File
 import java.io.InputStreamReader
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -335,11 +334,7 @@ class ProxyService : Service() {
             }
             process.set(proc)
 
-            val useCustom = cmdArgs.any { it.contains("custom_core") }
-            if (useCustom) {
-                ProxyServiceState.setStatus(ProxyStatus.Connected)
-                state.startupEmitted = true
-            } else if (cfg.kernelVariant == KernelVariant.OLCRTC) {
+            if (cfg.kernelVariant == KernelVariant.OLCRTC) {
                 ProxyServiceState.setStatus(ProxyStatus.Connecting)
                 updateNotification(getString(R.string.connecting))
             }
@@ -603,129 +598,105 @@ class ProxyService : Service() {
     }
 
     private fun buildCommandArgs(cfg: ClientConfig): List<String> {
-        val customBin = File(filesDir, "custom_core")
-        val useCustom = customBin.exists()
-        val executable = if (useCustom) {
-            AppLogsState.addLog(getString(R.string.log_custom_kernel))
-            customBin.absolutePath
-        } else {
-            AppLogsState.addLog(getString(R.string.log_standard_kernel))
-            when (cfg.kernelVariant) {
-                KernelVariant.TURNABLE -> "${applicationInfo.nativeLibraryDir}/libturnable.so"
-                KernelVariant.OLCRTC -> "${applicationInfo.nativeLibraryDir}/libolcrtc.so"
-            }
+        val executable = when (cfg.kernelVariant) {
+            KernelVariant.TURNABLE -> "${applicationInfo.nativeLibraryDir}/libturnable.so"
+            KernelVariant.OLCRTC -> "${applicationInfo.nativeLibraryDir}/libolcrtc.so"
         }
 
         val cmdArgs = mutableListOf<String>()
         cmdArgs.add(executable)
 
-        if (cfg.isRawMode) {
-            val parts = cfg.rawCommand.trim().split("\\s+".toRegex())
-            if (parts.isNotEmpty()) cmdArgs.addAll(parts)
-        } else {
-            when (cfg.kernelVariant) {
-                KernelVariant.TURNABLE -> {
+        when (cfg.kernelVariant) {
+            KernelVariant.TURNABLE -> {
+                cmdArgs.addAll(
+                    listOf(
+                        "client",
+                        "-l", cfg.listenAddr.ifBlank { ClientConfig.DEFAULT_LISTEN_ADDR },
+                        cfg.turnableConfig.toUrl(true)
+                    )
+                )
+            }
+            KernelVariant.OLCRTC -> {
+                val o = cfg.olcrtcConfig
+
+                cmdArgs.addAll(
+                    listOf(
+                        "-mode", "cnc",
+                        "-carrier", o.carrier,
+                        "-transport", o.transport,
+                        "-id", o.id,
+                        "-client-id", o.clientId,
+                        "-key", o.key,
+                        "-link", "direct",
+                        "-data", "data",
+                        "-dns", o.dns,
+                        "-socks-host", cfg.socksAddr.substringBefore(':').ifBlank { "127.0.0.1" },
+                        "-socks-port", cfg.socksAddr.substringAfter(':', "9001").ifBlank { "9001" },
+                        "-ffmpeg", "${applicationInfo.nativeLibraryDir}/libffmpeg.so"
+                    )
+                )
+
+                if (cfg.isSocksAuthEnabled) {
                     cmdArgs.addAll(
                         listOf(
-                            "client",
-                            "-l", cfg.listenAddr.ifBlank { ClientConfig.DEFAULT_LISTEN_ADDR },
-                            cfg.turnableConfig.toUrl(true)
+                            "-socks-user", cfg.socksUser,
+                            "-socks-pass", cfg.socksPass
                         )
                     )
                 }
-                KernelVariant.OLCRTC -> {
-                    val o = cfg.olcrtcConfig
 
-                    cmdArgs.addAll(
-                        listOf(
-                            "-mode", "cnc",
-                            "-carrier", o.carrier,
-                            "-transport", o.transport,
-                            "-id", o.id,
-                            "-client-id", o.clientId,
-                            "-key", o.key,
-                            "-link", "direct",
-                            "-data", "data",
-                            "-dns", o.dns,
-                            "-socks-host", cfg.socksAddr.substringBefore(':').ifBlank { "127.0.0.1" },
-                            "-socks-port", cfg.socksAddr.substringAfter(':', "9001").ifBlank { "9001" },
-                            "-ffmpeg", "${applicationInfo.nativeLibraryDir}/libffmpeg.so"
-                        )
-                    )
-
-                    if (cfg.isSocksAuthEnabled) {
-                        cmdArgs.addAll(
-                            listOf(
-                                "-socks-user", cfg.socksUser,
-                                "-socks-pass", cfg.socksPass
-                            )
-                        )
+                // Transport specific flags
+                when (o.transport) {
+                    "vp8channel" -> {
+                        cmdArgs.add("-vp8-fps")
+                        cmdArgs.add(o.vp8Fps.toString())
+                        cmdArgs.add("-vp8-batch")
+                        cmdArgs.add(o.vp8Batch.toString())
                     }
-
-                    // Transport specific flags
-                    when (o.transport) {
-                        "vp8channel" -> {
-                            cmdArgs.add("-vp8-fps")
-                            cmdArgs.add(o.vp8Fps.toString())
-                            cmdArgs.add("-vp8-batch")
-                            cmdArgs.add(o.vp8Batch.toString())
-                        }
-                        "seichannel" -> {
-                            cmdArgs.add("-fps")
-                            cmdArgs.add(o.seiFps.toString())
-                            cmdArgs.add("-batch")
-                            cmdArgs.add(o.seiBatch.toString())
-                            cmdArgs.add("-frag")
-                            cmdArgs.add(o.seiFrag.toString())
-                            cmdArgs.add("-ack-ms")
-                            cmdArgs.add(o.seiAckMs.toString())
-                        }
-                        "videochannel" -> {
-                            cmdArgs.add("-video-codec")
-                            cmdArgs.add(o.videoCodec)
-                            cmdArgs.add("-video-w")
-                            cmdArgs.add(o.videoW.toString())
-                            cmdArgs.add("-video-h")
-                            cmdArgs.add(o.videoH.toString())
-                            cmdArgs.add("-video-fps")
-                            cmdArgs.add(o.videoFps.toString())
-                            cmdArgs.add("-video-bitrate")
-                            cmdArgs.add(o.videoBitrate)
-                            cmdArgs.add("-video-hw")
-                            cmdArgs.add(o.videoHw)
-                            if (o.videoCodec == "qrcode") {
-                                cmdArgs.add("-video-qr-recovery")
-                                cmdArgs.add(o.videoQrRecovery)
-                                cmdArgs.add("-video-qr-size")
-                                cmdArgs.add(o.videoQrSize.toString())
-                            } else if (o.videoCodec == "tile") {
-                                cmdArgs.add("-video-tile-module")
-                                cmdArgs.add(o.videoTileModule.toString())
-                                cmdArgs.add("-video-tile-rs")
-                                cmdArgs.add(o.videoTileRs.toString())
-                            }
+                    "seichannel" -> {
+                        cmdArgs.add("-fps")
+                        cmdArgs.add(o.seiFps.toString())
+                        cmdArgs.add("-batch")
+                        cmdArgs.add(o.seiBatch.toString())
+                        cmdArgs.add("-frag")
+                        cmdArgs.add(o.seiFrag.toString())
+                        cmdArgs.add("-ack-ms")
+                        cmdArgs.add(o.seiAckMs.toString())
+                    }
+                    "videochannel" -> {
+                        cmdArgs.add("-video-codec")
+                        cmdArgs.add(o.videoCodec)
+                        cmdArgs.add("-video-w")
+                        cmdArgs.add(o.videoW.toString())
+                        cmdArgs.add("-video-h")
+                        cmdArgs.add(o.videoH.toString())
+                        cmdArgs.add("-video-fps")
+                        cmdArgs.add(o.videoFps.toString())
+                        cmdArgs.add("-video-bitrate")
+                        cmdArgs.add(o.videoBitrate)
+                        cmdArgs.add("-video-hw")
+                        cmdArgs.add(o.videoHw)
+                        if (o.videoCodec == "qrcode") {
+                            cmdArgs.add("-video-qr-recovery")
+                            cmdArgs.add(o.videoQrRecovery)
+                            cmdArgs.add("-video-qr-size")
+                            cmdArgs.add(o.videoQrSize.toString())
+                        } else if (o.videoCodec == "tile") {
+                            cmdArgs.add("-video-tile-module")
+                            cmdArgs.add(o.videoTileModule.toString())
+                            cmdArgs.add("-video-tile-rs")
+                            cmdArgs.add(o.videoTileRs.toString())
                         }
                     }
                 }
             }
-        }
-
-        if (useCustom) {
-            val linker = if (Build.SUPPORTED_ABIS.firstOrNull()?.contains("64") == true) "/system/bin/linker64" else "/system/bin/linker"
-            cmdArgs.add(0, linker)
         }
         
         return cmdArgs
     }
 
     private fun handleProcessException(e: Exception) {
-        val msg = e.message ?: ""
-        if (msg.contains("error=13") || msg.contains("Permission denied")) {
-            AppLogsState.addLog(getString(R.string.error_kernel_permission_denied))
-            ProxyServiceState.setStatus(ProxyStatus.Error(msg))
-        } else {
-            AppLogsState.addLog(getString(R.string.error_critical_format, e.message))
-        }
+        AppLogsState.addLog(getString(R.string.error_critical_format, e.message))
     }
 
     private suspend fun stopBinaryProcessGracefully() {

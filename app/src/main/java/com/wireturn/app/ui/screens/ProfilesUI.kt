@@ -96,9 +96,7 @@ fun ProfileSummary(
     }
     parts.add(kernelPart)
 
-    if (profile.isRawMode) {
-        parts.add(stringResource(R.string.raw_label))
-    }
+
 
     if (profile.xrayEnabled) {
         val isValid = when (profile.xrayProtocol) {
