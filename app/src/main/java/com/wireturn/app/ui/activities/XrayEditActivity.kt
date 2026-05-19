@@ -7,7 +7,6 @@ import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.wireturn.app.XrayServiceState
 import com.wireturn.app.ui.screens.XraySetupScreen
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
@@ -33,10 +32,6 @@ class XrayEditActivity : ComponentActivity() {
             val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
             val vlessLinkHistory by viewModel.vlessLinkHistory.collectAsStateWithLifecycle()
 
-            val wgConfigSnapshot by XrayServiceState.wgConfigSnapshot.collectAsStateWithLifecycle()
-            val vlessConfigSnapshot by XrayServiceState.vlessConfigSnapshot.collectAsStateWithLifecycle()
-            val xrayConfigSnapshot by XrayServiceState.xrayConfigSnapshot.collectAsStateWithLifecycle()
-
             WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
                 XraySetupScreen(
                     isEditMode = true,
@@ -44,9 +39,6 @@ class XrayEditActivity : ComponentActivity() {
                     initialWgConfig = savedWgConfig,
                     initialVlessConfig = savedVlessConfig,
                     initialXrayConfig = savedXrayConfig,
-                    wgConfigSnapshot = wgConfigSnapshot,
-                    vlessConfigSnapshot = vlessConfigSnapshot,
-                    xrayConfigSnapshot = xrayConfigSnapshot,
                     privacyMode = privacyMode,
                     kernelVariant = clientConfig.kernelVariant,
                     vlessLinkHistory = vlessLinkHistory,

@@ -91,9 +91,6 @@ fun XraySetupScreen(
     initialWgConfig: WgConfig = WgConfig(),
     initialVlessConfig: VlessConfig = VlessConfig(),
     initialXrayConfig: XrayConfig = XrayConfig(),
-    wgConfigSnapshot: WgConfig? = null,
-    vlessConfigSnapshot: VlessConfig? = null,
-    xrayConfigSnapshot: XrayConfig? = null,
     privacyMode: Boolean = false,
     kernelVariant: KernelVariant = KernelVariant.TURNABLE,
     vlessLinkHistory: List<String> = emptyList(),
@@ -408,7 +405,7 @@ fun XraySetupScreen(
                                 LabeledButtonGroup(
                                     label = stringResource(R.string.xray_protocol_label),
                                     supportingText = stringResource(R.string.xray_protocol_desc),
-                                    isModified = isEditMode && xrayConfigSnapshot != null && (wgConfigSnapshot != null && xrayConfiguration != XrayConfiguration.WIREGUARD || vlessConfigSnapshot != null && xrayConfiguration != XrayConfiguration.VLESS)
+                                    isModified = isEditMode && xrayConfiguration != initialXrayConfig.protocol
                                 ) {
                                     configurations.forEachIndexed { index, config ->
                                         configButtonGroupItem(
@@ -444,7 +441,7 @@ fun XraySetupScreen(
                                 endpoint = endpoint,
                                 persistentKeepalive = persistentKeepalive,
                                 onPersistentKeepaliveChange = { persistentKeepalive = it },
-                                wgConfigSnapshot = wgConfigSnapshot,
+                                initialWgConfig = initialWgConfig,
                                 privacyMode = privacyMode,
                                 kernelVariant = kernelVariant,
                                 blockContainerColor = blockContainerColor,
@@ -464,8 +461,9 @@ fun XraySetupScreen(
                                 onVlessHcIntervalChange = { vlessHcInterval = it },
                                 vlessLinkHistory = vlessLinkHistory,
                                 onRemoveHistoryItem = onRemoveHistoryItem,
-                                vlessConfigSnapshot = vlessConfigSnapshot,
+                                initialVlessConfig = initialVlessConfig,
                                 privacyMode = privacyMode,
+                                kernelVariant = kernelVariant,
                                 blockContainerColor = blockContainerColor,
                                 isEditMode = isEditMode
                             )
@@ -515,7 +513,7 @@ private fun WireGuardSettingsBlock(
     publicKey: String, onPublicKeyChange: (String) -> Unit,
     endpoint: String,
     persistentKeepalive: String, onPersistentKeepaliveChange: (String) -> Unit,
-    wgConfigSnapshot: WgConfig?,
+    initialWgConfig: WgConfig,
     privacyMode: Boolean,
     kernelVariant: KernelVariant,
     blockContainerColor: Color,
@@ -556,7 +554,7 @@ private fun WireGuardSettingsBlock(
                     placeholder = stringResource(R.string.wg_private_key_placeholder),
                     isError = privateKey.isBlank(),
                     readOnly = privacyMode,
-                    isModified = isEditMode && wgConfigSnapshot != null && privateKey != wgConfigSnapshot.privateKey
+                    isModified = isEditMode && privateKey != initialWgConfig.privateKey
                 )
             }
             SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
@@ -567,7 +565,7 @@ private fun WireGuardSettingsBlock(
                     placeholder = stringResource(R.string.wg_address_placeholder),
                     isError = address.isBlank(),
                     readOnly = privacyMode,
-                    isModified = isEditMode && wgConfigSnapshot != null && address != wgConfigSnapshot.address
+                    isModified = isEditMode && address != initialWgConfig.address
                 )
             }
             SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
@@ -577,7 +575,7 @@ private fun WireGuardSettingsBlock(
                     onValueChange = onMtuChange,
                     placeholder = stringResource(R.string.wg_mtu_placeholder),
                     isError = mtu.isNotEmpty() && mtu.toIntOrNull() == null,
-                    isModified = isEditMode && wgConfigSnapshot != null && mtu != wgConfigSnapshot.mtu,
+                    isModified = isEditMode && mtu != initialWgConfig.mtu,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
             }
@@ -592,7 +590,7 @@ private fun WireGuardSettingsBlock(
                     placeholder = stringResource(R.string.wg_public_key_placeholder),
                     isError = publicKey.isBlank(),
                     readOnly = privacyMode,
-                    isModified = isEditMode && wgConfigSnapshot != null && publicKey != wgConfigSnapshot.publicKey
+                    isModified = isEditMode && publicKey != initialWgConfig.publicKey
                 )
             }
             SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
@@ -601,7 +599,7 @@ private fun WireGuardSettingsBlock(
                     value = endpoint.redact(privacyMode),
                     onValueChange = { },
                     readOnly = true,
-                    isModified = isEditMode && wgConfigSnapshot != null && endpoint != wgConfigSnapshot.endpoint
+                    isModified = isEditMode && endpoint != initialWgConfig.endpoint
                 )
             }
             SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
@@ -611,7 +609,7 @@ private fun WireGuardSettingsBlock(
                     onValueChange = onPersistentKeepaliveChange,
                     placeholder = stringResource(R.string.wg_persistent_keepalive_placeholder),
                     isError = persistentKeepalive.isNotEmpty() && persistentKeepalive.toIntOrNull() == null,
-                    isModified = isEditMode && wgConfigSnapshot != null && persistentKeepalive != wgConfigSnapshot.persistentKeepalive,
+                    isModified = isEditMode && persistentKeepalive != initialWgConfig.persistentKeepalive,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
             }
@@ -627,8 +625,9 @@ private fun VlessSettingsBlock(
     vlessHcInterval: String, onVlessHcIntervalChange: (String) -> Unit,
     vlessLinkHistory: List<String>,
     onRemoveHistoryItem: (String) -> Unit,
-    vlessConfigSnapshot: VlessConfig?,
+    initialVlessConfig: VlessConfig,
     privacyMode: Boolean,
+    kernelVariant: KernelVariant,
     blockContainerColor: Color,
     isEditMode: Boolean
 ) {
@@ -636,6 +635,12 @@ private fun VlessSettingsBlock(
     val vlessName = remember(vlessLink) {
         val fragment = vlessLink.substringAfterLast('#', "")
         if (fragment.isNotEmpty()) " #${android.net.Uri.decode(fragment)}" else ""
+    }
+
+    val vlessLinkError = if (kernelVariant == KernelVariant.OLCRTC) {
+        vlessLink.isNotBlank() && !ValidatorUtils.isValidVlessLink(vlessLink)
+    } else {
+        !ValidatorUtils.isValidVlessLink(vlessLink)
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -646,12 +651,12 @@ private fun VlessSettingsBlock(
                     value = vlessLink.redact(privacyMode),
                     onValueChange = onVlessLinkChange,
                     placeholder = stringResource(R.string.vless_link_placeholder),
-                    isError = vlessLink.isNotBlank() && !ValidatorUtils.isValidVlessLink(vlessLink),
+                    isError = vlessLinkError,
                     minLines = 4,
                     maxLines = 4,
                     singleLine = false,
                     readOnly = privacyMode,
-                    isModified = isEditMode && vlessConfigSnapshot != null && vlessLink.trim() != vlessConfigSnapshot.vlessLink,
+                    isModified = isEditMode && vlessLink.trim() != initialVlessConfig.vlessLink,
                     trailingIcon = {
                         FieldTrailingIcons(
                             history = vlessLinkHistory,
@@ -693,7 +698,7 @@ private fun VlessSettingsBlock(
                             }
                         }
                     },
-                    isModified = isEditMode && vlessConfigSnapshot != null && vlessIsDualRoute != vlessConfigSnapshot.isDualRoute
+                    isModified = isEditMode && vlessIsDualRoute != initialVlessConfig.isDualRoute
                 )
             }
 
@@ -711,7 +716,7 @@ private fun VlessSettingsBlock(
                             placeholder = stringResource(R.string.vless_direct_address_placeholder),
                             isError = !ValidatorUtils.isValidHostPort(vlessDirectAddress),
                             readOnly = privacyMode,
-                            isModified = isEditMode && vlessConfigSnapshot != null && vlessDirectAddress != vlessConfigSnapshot.directAddress,
+                            isModified = isEditMode && vlessDirectAddress != initialVlessConfig.directAddress,
                             trailingIcon = {
                                 IconButton(onClick = {
                                     ValidatorUtils.parseVlessAddress(vlessLink)?.let { addr ->
@@ -730,7 +735,7 @@ private fun VlessSettingsBlock(
                             onValueChange = onVlessHcIntervalChange,
                             placeholder = "30",
                             isError = vlessHcInterval.isNotEmpty() && vlessHcInterval.toIntOrNull() == null,
-                            isModified = isEditMode && vlessConfigSnapshot != null && vlessHcInterval != vlessConfigSnapshot.hcInterval,
+                            isModified = isEditMode && vlessHcInterval != initialVlessConfig.hcInterval,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                         )
                     }
