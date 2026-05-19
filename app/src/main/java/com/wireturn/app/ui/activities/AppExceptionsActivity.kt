@@ -10,6 +10,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.ui.screens.AppExceptionsScreen
 import com.wireturn.app.ui.theme.WireturnTheme
@@ -20,25 +21,24 @@ class AppExceptionsActivity : AppCompatActivity() {
     private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+        splashScreen.setKeepOnScreenCondition { !viewModel.isInitialized.value }
         enableEdgeToEdge()
 
         setContent {
-            val isInitialized by viewModel.isInitialized.collectAsStateWithLifecycle()
             val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
 
-            if (isInitialized) {
-                WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.background
-                    ) {
-                        AppExceptionsScreen(
-                            viewModel = viewModel,
-                            onBack = { finish() }
-                        )
-                    }
+            WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    AppExceptionsScreen(
+                        viewModel = viewModel,
+                        onBack = { finish() }
+                    )
                 }
             }
         }

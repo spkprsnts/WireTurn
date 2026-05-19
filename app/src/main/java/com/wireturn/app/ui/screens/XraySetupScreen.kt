@@ -42,6 +42,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -51,6 +52,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -176,6 +179,8 @@ fun XraySetupScreen(
 
     val showQrScanner = remember { mutableStateOf(false) }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     val importSuccessMessage = stringResource(R.string.import_success)
     val importErrorMessage = stringResource(R.string.import_error)
 
@@ -240,10 +245,16 @@ fun XraySetupScreen(
 
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.xray_title)) },
+                scrollBehavior = scrollBehavior,
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent
+                ),
                 navigationIcon = {
                     IconButton(onClick = handleBack) {
                         Icon(
@@ -500,7 +511,7 @@ private fun WireGuardSettingsBlock(
     wgConfigSnapshot: WgConfig?,
     privacyMode: Boolean,
     kernelVariant: KernelVariant,
-    blockContainerColor: androidx.compose.ui.graphics.Color,
+    blockContainerColor: Color,
     isEditMode: Boolean
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -611,7 +622,7 @@ private fun VlessSettingsBlock(
     onRemoveHistoryItem: (String) -> Unit,
     vlessConfigSnapshot: VlessConfig?,
     privacyMode: Boolean,
-    blockContainerColor: androidx.compose.ui.graphics.Color,
+    blockContainerColor: Color,
     isEditMode: Boolean
 ) {
     val context = LocalContext.current

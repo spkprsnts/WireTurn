@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.gson.Gson
 import com.wireturn.app.data.ClientConfig
@@ -16,7 +17,10 @@ class XraySetupActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+
+        splashScreen.setKeepOnScreenCondition { !viewModel.isInitialized.value }
 
         val showProtocolSelection = intent.getBooleanExtra("SHOW_PROTOCOL_SELECTION", true)
         val defaultProtocolName = intent.getStringExtra("EXTRA_DEFAULT_PROTOCOL")
@@ -37,6 +41,7 @@ class XraySetupActivity : ComponentActivity() {
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
 
             val savedXrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
+            val isInitialized by viewModel.isInitialized.collectAsStateWithLifecycle()
 
             WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
                 XraySetupScreen(
@@ -57,7 +62,8 @@ class XraySetupActivity : ComponentActivity() {
                         val intent = android.content.Intent(this, MainActivity::class.java)
                         intent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP)
                         startActivity(intent)
-                    }
+                    },
+                    isLoading = !isInitialized
                 )
             }
         }

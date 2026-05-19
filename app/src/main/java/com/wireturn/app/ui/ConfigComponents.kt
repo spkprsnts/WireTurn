@@ -67,6 +67,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -715,18 +716,17 @@ fun SwitchRow(
             Icon(
                 painter = painterResource(R.drawable.arrow_forward_ios_24px),
                 contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                modifier = Modifier.size(12.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.width(11.dp))
+            // Vertical Divider
+            VerticalDivider(
+                modifier = Modifier.height(39.dp),
+                thickness = 1.5.dp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .5f)
             )
             Spacer(Modifier.width(12.dp))
-            // Vertical Divider
-            Box(
-                modifier = Modifier
-                    .width(1.dp)
-                    .height(36.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-            )
-            Spacer(Modifier.width(8.dp))
         } else {
             Spacer(Modifier.width(16.dp))
         }

@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.gson.Gson
 import com.wireturn.app.data.OlcrtcConfig
@@ -16,7 +17,10 @@ class OlcRtcConfigActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+
+        splashScreen.setKeepOnScreenCondition { !viewModel.isInitialized.value }
 
         val profileName = intent.getStringExtra("EXTRA_PROFILE_NAME") ?: ""
         val configJson = intent.getStringExtra("EXTRA_CONFIG_JSON")
