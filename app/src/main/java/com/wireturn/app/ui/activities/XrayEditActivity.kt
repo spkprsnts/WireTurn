@@ -18,6 +18,7 @@ class XrayEditActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
+            val isInitialized by viewModel.isInitialized.collectAsStateWithLifecycle()
             val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
             
@@ -53,7 +54,8 @@ class XrayEditActivity : ComponentActivity() {
                         viewModel.updateWgConfig(wg)
                         viewModel.updateVlessConfig(vless)
                         finish()
-                    }
+                    },
+                    isLoading = !isInitialized
                 )
             }
         }

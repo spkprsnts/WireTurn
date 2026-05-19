@@ -43,6 +43,7 @@ class XraySetupActivity : ComponentActivity() {
                     isEditMode = false,
                     showProtocolSelection = showProtocolSelection,
                     defaultProtocol = defaultProtocol,
+                    kernelVariant = clientConfigFromIntent.kernelVariant,
                     onBack = { finish() },
                     onSave = { type, wg, vless ->
                         viewModel.addFullProfile(
