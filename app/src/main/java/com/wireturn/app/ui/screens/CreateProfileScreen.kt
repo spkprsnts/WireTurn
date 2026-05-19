@@ -3,7 +3,9 @@ package com.wireturn.app.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -34,6 +36,7 @@ import com.wireturn.app.data.OlcrtcConfig
 import com.google.gson.Gson
 import com.wireturn.app.ui.HapticUtil
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import com.wireturn.app.ui.SupportingText
 import kotlinx.coroutines.launch
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
@@ -174,9 +177,14 @@ fun CreateProfileScreen(
                     isTop = true,
                     isBottom = false,
                     containerColor = blockContainerColor,
+                    enabled = false,
                     onClick = { onSelectType("Turnable", null, profileName) }
                 ) {
-                    ConfigRowLabel(text = stringResource(R.string.kernel_turnable))
+                    Column {
+                        ConfigRowLabel(text = stringResource(R.string.kernel_turnable))
+                        Spacer(Modifier.height(2.dp))
+                        SupportingText(stringResource(R.string.profile_turnable_manual_disabled), style = MaterialTheme.typography.bodySmall)
+                    }
                 }
 
                 SettingsGroupItem(

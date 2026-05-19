@@ -86,6 +86,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.input.KeyboardType
@@ -356,14 +357,15 @@ fun SettingsGroupItem(
             interactionSource = internalInteractionSource,
             colors = CardDefaults.cardColors(
                 containerColor = containerColor,
-                disabledContainerColor = containerColor
+                disabledContainerColor = if (enabled) containerColor else containerColor.copy(alpha = 0.5f)
             )
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 72.dp)
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
+                    .let { if (!enabled) it.alpha(0.38f) else it },
                 contentAlignment = Alignment.CenterStart
             ) {
                 content()
@@ -392,13 +394,14 @@ fun CompactSettingsItem(
             interactionSource = internalInteractionSource,
             colors = CardDefaults.cardColors(
                 containerColor = containerColor,
-                disabledContainerColor = containerColor
+                disabledContainerColor = if (enabled) containerColor else containerColor.copy(alpha = 0.5f)
             )
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
+                    .let { if (!enabled) it.alpha(0.38f) else it },
                 contentAlignment = Alignment.Center
             ) {
                 content()

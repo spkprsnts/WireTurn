@@ -352,4 +352,5 @@
     <string name="profile_import_qr">QR-код</string>
     <string name="profile_import_clipboard">Буфер обмена</string>
     <string name="profile_import_file">Файл</string>
+    <string name="profile_turnable_manual_disabled">Ручная настройка недоступна без первоначального конфига. Пожалуйста, выполните импорт.</string>
 </resources>
