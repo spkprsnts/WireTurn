@@ -1125,13 +1125,12 @@ fun UpdateBlock(
                 is UpdateState.Idle, is UpdateState.NoUpdate, is UpdateState.Error -> {
                     if (onCheck != null) {
                         Spacer(Modifier.width(12.dp))
-                        IconButton(
+                        FilledTonalIconButton(
                             onClick = { onCheck.invoke() }
                         ) {
                             Icon(
                                 painter = painterResource(R.drawable.refresh_24px),
-                                contentDescription = stringResource(R.string.update_tap_to_check),
-                                tint = MaterialTheme.colorScheme.primary
+                                contentDescription = stringResource(R.string.update_tap_to_check)
                             )
                         }
                     }

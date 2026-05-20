@@ -32,9 +32,9 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.ModalBottomSheet
@@ -199,7 +199,7 @@ fun ProfilesBlock(
                     useAnimation = true
                 )
             }
-            IconButton(onClick = {
+            FilledTonalIconButton(onClick = {
                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                 val intent = when (currentProfile.kernelVariant) {
                     KernelVariant.TURNABLE -> android.content.Intent(context, com.wireturn.app.ui.activities.TurnableConfigActivity::class.java)
@@ -210,8 +210,7 @@ fun ProfilesBlock(
             }) {
                 Icon(
                     painter = painterResource(R.drawable.edit_square_24px),
-                    contentDescription = stringResource(R.string.profile_rename),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    contentDescription = stringResource(R.string.profile_rename)
                 )
             }
         }
@@ -237,25 +236,23 @@ fun ProfilesBlock(
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
-            Row {
-                IconButton(onClick = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilledTonalIconButton(onClick = {
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     onImport()
                 }) {
                     Icon(
                         painter = painterResource(R.drawable.file_open_24px),
-                        contentDescription = stringResource(R.string.profile_import),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        contentDescription = stringResource(R.string.profile_import)
                     )
                 }
-                IconButton(onClick = {
+                FilledTonalIconButton(onClick = {
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     context.startActivity(android.content.Intent(context, com.wireturn.app.ui.activities.CreateProfileActivity::class.java))
                 }) {
                     Icon(
                         painter = painterResource(R.drawable.add_24px),
-                        contentDescription = stringResource(R.string.profile_create),
-                        tint = MaterialTheme.colorScheme.primary
+                        contentDescription = stringResource(R.string.profile_create)
                     )
                 }
             }
@@ -530,9 +527,12 @@ fun ProfilesDialog(
                                else stringResource(R.string.profiles_title),
                         style = MaterialTheme.typography.titleLarge
                     )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         if (isSelectionMode) {
-                            IconButton(onClick = {
+                            FilledTonalIconButton(onClick = {
                                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                 zipToExport.value = viewModel.exportProfilesToZip(selectedIds.toList())
                                 zipExportLauncher.launch("wt_profiles_selected.zip")
@@ -542,7 +542,7 @@ fun ProfilesDialog(
                                     contentDescription = null
                                 )
                             }
-                            IconButton(onClick = {
+                            FilledTonalIconButton(onClick = {
                                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                 showBulkDeleteConfirm.value = selectedIds.toList()
                             }) {
@@ -552,7 +552,7 @@ fun ProfilesDialog(
                                     tint = MaterialTheme.colorScheme.error
                                 )
                             }
-                            IconButton(onClick = {
+                            FilledTonalIconButton(onClick = {
                                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                 val isAllSelected = selectedIds.size == profiles.size
                                 if (isAllSelected) {
@@ -572,7 +572,7 @@ fun ProfilesDialog(
                             }
                         } else {
                             if (profiles.isNotEmpty()) {
-                                IconButton(onClick = {
+                                FilledTonalIconButton(onClick = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                     zipToExport.value = viewModel.exportAllProfilesToZip()
                                     zipExportLauncher.launch("wt_profiles_backup.zip")
@@ -584,7 +584,7 @@ fun ProfilesDialog(
                                 }
                             }
                             Box {
-                                IconButton(onClick = {
+                                FilledTonalIconButton(onClick = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                     addMenuExpanded = true
                                 }) {
@@ -779,15 +779,13 @@ fun ProfilesDialog(
                                 )
                             } else {
                                 Box {
-                                    IconButton(onClick = {
+                                    FilledTonalIconButton(onClick = {
                                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                         menuExpanded = true
                                     }) {
                                         Icon(
                                             painterResource(R.drawable.more_vert_24px),
-                                            contentDescription = null,
-                                            tint = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer
-                                                   else MaterialTheme.colorScheme.onSurfaceVariant
+                                            contentDescription = null
                                         )
                                     }
                                     ConfigDropdownMenu(

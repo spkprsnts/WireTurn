@@ -41,8 +41,8 @@ import androidx.compose.ui.res.stringResource
 import com.wireturn.app.R
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -948,7 +948,7 @@ fun HomeScreen(
                                 hintShown = appsExclusionHintShown,
                                 onHintShown = { viewModel.setAppsExclusionHintShown(true) }
                             ) {
-                                IconButton(
+                                FilledTonalIconButton(
                                     onClick = {
                                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                         if (!appsExclusionHintShown) {
@@ -960,10 +960,8 @@ fun HomeScreen(
                                     Icon(
                                         painter = painterResource(R.drawable.route_24px),
                                         contentDescription = stringResource(R.string.vpn_apps_exceptions),
-                                        modifier = Modifier.size(32.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                                            alpha = if (globalVpnSettings.filteringEnabled) 1f else 0.38f
-                                        )
+                                        modifier = Modifier.size(24.dp),
+                                        tint = if (globalVpnSettings.filteringEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
                                     )
                                 }
                             }
