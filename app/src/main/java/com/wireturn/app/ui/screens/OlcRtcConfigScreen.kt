@@ -209,14 +209,8 @@ fun OlcRtcConfigScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         LargeLeadingIcon {
-                            val iconRes = when (config.carrier) {
-                                "wbstream" -> R.drawable.ic_wbstream
-                                "telemost" -> R.drawable.ic_telemost
-                                "jazz" -> R.drawable.ic_jazz
-                                else -> R.drawable.mobile_24px
-                            }
                             Icon(
-                                painter = painterResource(iconRes),
+                                painter = painterResource(getCarrierIcon(config.carrier)),
                                 contentDescription = null,
                                 modifier = Modifier.size(32.dp),
                                 tint = MaterialTheme.colorScheme.primary
@@ -227,12 +221,7 @@ fun OlcRtcConfigScreen(
                                 text = stringResource(R.string.olcrtc_carrier_label),
                                 isModified = isEditMode && config.carrier != initialConfig.carrier
                             )
-                            val currentLabel = when (config.carrier) {
-                                "wbstream" -> "WB Stream"
-                                "telemost" -> "Telemost"
-                                "jazz" -> "Jazz"
-                                else -> config.carrier
-                            }
+                            val currentLabel = config.carrierDisplayName
                             Spacer(Modifier.height(2.dp))
                             SupportingText(currentLabel)
                         }
@@ -253,15 +242,8 @@ fun OlcRtcConfigScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         LargeLeadingIcon {
-                            val iconRes = when (config.transport) {
-                                "datachannel" -> R.drawable.data_array_24px
-                                "vp8channel" -> R.drawable.movie_24px
-                                "seichannel" -> R.drawable.video_settings_24px
-                                "videochannel" -> R.drawable.grid_view_24px
-                                else -> R.drawable.route_24px
-                            }
                             Icon(
-                                painter = painterResource(iconRes),
+                                painter = painterResource(getTransportIcon(config.transport)),
                                 contentDescription = null,
                                 modifier = Modifier.size(32.dp),
                                 tint = MaterialTheme.colorScheme.primary
@@ -272,13 +254,7 @@ fun OlcRtcConfigScreen(
                                 text = stringResource(R.string.olcrtc_transport_label),
                                 isModified = isEditMode && config.transport != initialConfig.transport
                             )
-                            val currentLabel = when (config.transport) {
-                                "datachannel" -> "DataChannel"
-                                "vp8channel" -> "VP8Channel"
-                                "seichannel" -> "SEIChannel"
-                                "videochannel" -> "VideoChannel"
-                                else -> config.transport
-                            }
+                            val currentLabel = config.transportDisplayName
                             Spacer(Modifier.height(2.dp))
                             SupportingText(currentLabel)
                         }
@@ -519,6 +495,21 @@ fun OlcRtcConfigScreen(
     }
 }
 
+private fun getCarrierIcon(carrier: String): Int = when (carrier) {
+    "wbstream" -> R.drawable.ic_wbstream
+    "telemost" -> R.drawable.ic_telemost
+    "jazz" -> R.drawable.ic_jazz
+    else -> R.drawable.call_quality_24px
+}
+
+private fun getTransportIcon(transport: String): Int = when (transport) {
+    "datachannel" -> R.drawable.data_array_24px
+    "vp8channel" -> R.drawable.movie_24px
+    "seichannel" -> R.drawable.video_settings_24px
+    "videochannel" -> R.drawable.grid_view_24px
+    else -> R.drawable.route_24px
+}
+
 @Composable
 fun OlcrtcCarrierDialog(
     currentCarrier: String,
@@ -538,19 +529,13 @@ fun OlcrtcCarrierDialog(
         onSelect = { onSelect(it.first) },
         onDismiss = onDismiss
     ) { (value, label), isSelected ->
-        val iconRes = when (value) {
-            "wbstream" -> R.drawable.ic_wbstream
-            "telemost" -> R.drawable.ic_telemost
-            "jazz" -> R.drawable.ic_jazz
-            else -> R.drawable.mobile_24px
-        }
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             StandardLeadingIcon {
                 Icon(
-                    painter = painterResource(iconRes),
+                    painter = painterResource(getCarrierIcon(value)),
                     contentDescription = null,
                     tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )
@@ -573,39 +558,32 @@ fun OlcrtcTransportDialog(
     onDismiss: () -> Unit
 ) {
     val transports = listOf(
-        "datachannel" to "DataChannel",
-        "vp8channel" to "VP8Channel",
-        "seichannel" to "SEIChannel",
-        "videochannel" to "VideoChannel"
+        "datachannel",
+        "vp8channel",
+        "seichannel",
+        "videochannel"
     )
 
     SelectionDialog(
         title = stringResource(R.string.olcrtc_transport_label),
         items = transports,
-        isSelected = { it.first == currentTransport },
-        onSelect = { onSelect(it.first) },
+        isSelected = { it == currentTransport },
+        onSelect = { onSelect(it) },
         onDismiss = onDismiss
-    ) { (value, label), isSelected ->
-        val iconRes = when (value) {
-            "datachannel" -> R.drawable.data_array_24px
-            "vp8channel" -> R.drawable.movie_24px
-            "seichannel" -> R.drawable.video_settings_24px
-            "videochannel" -> R.drawable.grid_view_24px
-            else -> R.drawable.route_24px
-        }
+    ) { value, isSelected ->
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             StandardLeadingIcon {
                 Icon(
-                    painter = painterResource(iconRes),
+                    painter = painterResource(getTransportIcon(value)),
                     contentDescription = null,
                     tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )
             }
             Text(
-                text = label,
+                text = OlcrtcConfig.getTransportDisplayName(value),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
                 color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,

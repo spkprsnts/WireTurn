@@ -275,12 +275,8 @@ fun TurnableConfigScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         LargeLeadingIcon {
-                            val iconRes = when (config.platformId) {
-                                "vk.com" -> R.drawable.ic_vk
-                                else -> R.drawable.ic_vk
-                            }
                             Icon(
-                                painter = painterResource(iconRes),
+                                painter = painterResource(getPlatformIcon(config.platformId)),
                                 contentDescription = null,
                                 modifier = Modifier.size(32.dp),
                                 tint = MaterialTheme.colorScheme.primary
@@ -291,10 +287,7 @@ fun TurnableConfigScreen(
                                 text = stringResource(R.string.olcrtc_carrier_label),
                                 isModified = isEditMode && config.platformId != initialConfig.platformId
                             )
-                            val currentLabel = when (config.platformId) {
-                                "vk.com" -> "VK"
-                                else -> config.platformId
-                            }
+                            val currentLabel = config.platformDisplayName
                             Spacer(Modifier.height(2.dp))
                             SupportingText(currentLabel)
                         }
@@ -441,6 +434,11 @@ fun TurnableConfigScreen(
     }
 }
 
+private fun getPlatformIcon(platformId: String): Int = when (platformId) {
+    "vk.com" -> R.drawable.ic_vk
+    else -> R.drawable.call_quality_24px
+}
+
 @Composable
 fun RouteSummary(
     route: TurnableRoute,
@@ -552,33 +550,29 @@ fun TurnablePlatformDialog(
     onDismiss: () -> Unit
 ) {
     val platforms = listOf(
-        "vk.com" to "VK"
+        "vk.com"
     )
 
     SelectionDialog(
         title = stringResource(R.string.olcrtc_carrier_label),
         items = platforms,
-        isSelected = { it.first == currentPlatform },
-        onSelect = { onSelect(it.first) },
+        isSelected = { it == currentPlatform },
+        onSelect = { onSelect(it) },
         onDismiss = onDismiss
-    ) { (value, label), isSelected ->
-        val iconRes = when (value) {
-            "vk.com" -> R.drawable.ic_vk
-            else -> R.drawable.ic_vk
-        }
+    ) { value, isSelected ->
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             StandardLeadingIcon {
                 Icon(
-                    painter = painterResource(iconRes),
+                    painter = painterResource(getPlatformIcon(value)),
                     contentDescription = null,
                     tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )
             }
             Text(
-                text = label,
+                text = TurnableConfig.getPlatformDisplayName(value),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
                 color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,

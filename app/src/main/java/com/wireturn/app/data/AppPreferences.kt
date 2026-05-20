@@ -106,6 +106,10 @@ data class TurnableConfig(
             gateway.isNotBlank() &&
             routes.isNotEmpty()
 
+
+    val platformDisplayName: String
+        get() = getPlatformDisplayName(platformId)
+
     fun toUrl(onlySelected: Boolean = false): String {
         val targetRoutes = if (onlySelected && selectedRouteId.isNotBlank()) {
             routes.filter { it.routeId == selectedRouteId }
@@ -145,6 +149,10 @@ data class TurnableConfig(
     }
 
     companion object {
+        fun getPlatformDisplayName(platformId: String): String = when (platformId) {
+            "vk.com" -> "VK"
+            else -> platformId
+        }
         fun parse(url: String, base: TurnableConfig = TurnableConfig()): TurnableConfig? {
             if (!url.startsWith("turnable://", ignoreCase = true)) return null
             return try {
@@ -212,6 +220,17 @@ data class OlcrtcConfig(
     @SerializedName("video_tile_module") val videoTileModule: Int = 4,
     @SerializedName("video_tile_rs") val videoTileRs: Int = 20
 ) {
+    val carrierDisplayName: String
+        get() = when (carrier) {
+            "wbstream" -> "WB Stream"
+            "telemost" -> "Telemost"
+            "jazz" -> "Jazz"
+            else -> carrier
+        }
+
+    val transportDisplayName: String
+        get() = getTransportDisplayName(transport)
+
     fun sanitize(): OlcrtcConfig = copy(
         carrier = (carrier as Any?)?.toString()?.take(100) ?: "wbstream",
         transport = (transport as Any?)?.toString()?.take(100) ?: "datachannel",
@@ -264,6 +283,14 @@ data class OlcrtcConfig(
     }
 
     companion object {
+        fun getTransportDisplayName(transport: String, short: Boolean = false): String = when (transport) {
+            "datachannel" -> if (short) "DC" else "DataChannel"
+            "vp8channel" -> if (short) "VP8C" else "VP8Channel"
+            "seichannel" -> if (short) "SEIC" else "SEIChannel"
+            "videochannel" -> if (short) "VC" else "VideoChannel"
+            else -> transport
+        }
+
         fun parse(url: String, base: OlcrtcConfig = OlcrtcConfig()): OlcrtcConfig? {
             if (!url.startsWith("olcrtc://", ignoreCase = true)) return null
             return try {

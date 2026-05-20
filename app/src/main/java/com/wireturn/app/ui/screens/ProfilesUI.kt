@@ -70,6 +70,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
+import com.wireturn.app.data.KernelVariant
+import com.wireturn.app.data.OlcrtcConfig.Companion.getTransportDisplayName
 import com.wireturn.app.data.Profile
 import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.ui.HapticUtil
@@ -91,11 +93,25 @@ fun ProfileSummary(
     val parts = mutableListOf<String>()
 
     // Core mode
-    val kernelPart = when (profile.kernelVariant) {
-        com.wireturn.app.data.KernelVariant.TURNABLE -> stringResource(R.string.kernel_turnable) + " " + profile.turnableConfig.selectedRouteId
-        com.wireturn.app.data.KernelVariant.OLCRTC -> stringResource(R.string.kernel_olcrtc) + " " + profile.olcrtcConfig.carrier
+    parts.add(stringResource(when (profile.kernelVariant) {
+        KernelVariant.TURNABLE -> R.string.kernel_turnable
+        KernelVariant.OLCRTC -> R.string.kernel_olcrtc
+    }))
+
+    when (profile.kernelVariant) {
+        KernelVariant.TURNABLE -> {
+            val config = profile.turnableConfig
+            val route = config.routes.find { it.routeId == config.selectedRouteId } ?: config.routes.firstOrNull()
+            val routeName = route?.name?.ifBlank { route.routeId } ?: config.selectedRouteId
+            parts.add("r:$routeName")
+            parts.add(config.platformDisplayName)
+        }
+        KernelVariant.OLCRTC -> {
+            val config = profile.olcrtcConfig
+            parts.add(getTransportDisplayName(config.transport, short = true))
+            parts.add(config.carrierDisplayName)
+        }
     }
-    parts.add(kernelPart)
 
 
 
@@ -135,6 +151,7 @@ fun ProfileSummary(
                 style = MaterialTheme.typography.labelSmall,
                 color = color,
                 maxLines = 1,
+                softWrap = false,
                 modifier = modifier
             )
         }
@@ -160,7 +177,7 @@ fun ProfilesBlock(
         ) {
             LargeLeadingIcon {
                 Icon(
-                    painter = painterResource(R.drawable.mobile_24px),
+                    painter = painterResource(getProfileIcon(currentProfile, outlined = false)),
                     contentDescription = null,
                     modifier = Modifier.size(32.dp),
                     tint = MaterialTheme.colorScheme.primary
@@ -174,19 +191,19 @@ fun ProfilesBlock(
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     softWrap = false,
-                    modifier = Modifier.basicMarquee()
+                    modifier = Modifier.fillMaxWidth().basicMarquee()
                 )
                 ProfileSummary(
                     profile = currentProfile,
-                    modifier = Modifier.basicMarquee(),
+                    modifier = Modifier.fillMaxWidth().basicMarquee(),
                     useAnimation = true
                 )
             }
             IconButton(onClick = {
                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                 val intent = when (currentProfile.kernelVariant) {
-                    com.wireturn.app.data.KernelVariant.TURNABLE -> android.content.Intent(context, com.wireturn.app.ui.activities.TurnableConfigActivity::class.java)
-                    com.wireturn.app.data.KernelVariant.OLCRTC -> android.content.Intent(context, com.wireturn.app.ui.activities.OlcRtcConfigActivity::class.java)
+                    KernelVariant.TURNABLE -> android.content.Intent(context, com.wireturn.app.ui.activities.TurnableConfigActivity::class.java)
+                    KernelVariant.OLCRTC -> android.content.Intent(context, com.wireturn.app.ui.activities.OlcRtcConfigActivity::class.java)
                 }
                 intent.putExtra("EXTRA_EDIT_MODE", true)
                 context.startActivity(intent)
@@ -704,10 +721,7 @@ fun ProfilesDialog(
                         },
                         leadingContent = {
                             Icon(
-                                painter = painterResource(
-                                    if (isSelected) R.drawable.mobile_24px
-                                    else R.drawable.mobile_outlined_24px
-                                ),
+                                painter = painterResource(getProfileIcon(profile, outlined = !isSelected)),
                                 contentDescription = null,
                                 tint = if (isSelected) MaterialTheme.colorScheme.primary
                                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
@@ -939,6 +953,25 @@ fun ProfilesDialog(
                 TextButton(onClick = { showBulkDeleteConfirm.value = null }) { Text(stringResource(R.string.cancel)) }
             }
         )
+    }
+}
+
+private fun getProfileIcon(profile: Profile, outlined: Boolean): Int {
+    return when (profile.kernelVariant) {
+        KernelVariant.TURNABLE -> {
+            when (profile.turnableConfig.platformId) {
+                "vk.com" -> R.drawable.ic_vk
+                else -> if (outlined) R.drawable.mobile_outlined_24px else R.drawable.mobile_24px
+            }
+        }
+        KernelVariant.OLCRTC -> {
+            when (profile.olcrtcConfig.carrier) {
+                "wbstream" -> R.drawable.ic_wbstream
+                "telemost" -> R.drawable.ic_telemost
+                "jazz" -> R.drawable.ic_jazz
+                else -> if (outlined) R.drawable.mobile_outlined_24px else R.drawable.mobile_24px
+            }
+        }
     }
 }
 
