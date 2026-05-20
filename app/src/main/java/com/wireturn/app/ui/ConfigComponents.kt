@@ -5,6 +5,7 @@
 
 package com.wireturn.app.ui
 
+import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
@@ -21,6 +22,7 @@ import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -88,12 +90,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -102,7 +112,9 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.wireturn.app.R
@@ -1190,6 +1202,7 @@ private fun truncateUrlParameters(url: String): String {
     }
 }
 
+@SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
 fun ConfigTopAppBar(
     title: String,
@@ -1198,25 +1211,16 @@ fun ConfigTopAppBar(
     onBack: (() -> Unit)? = null,
     actions: @Composable (RowScope.() -> Unit)? = null,
     scrollBehavior: TopAppBarScrollBehavior? = null,
-    expandedHeight: Dp = if (subtitle != null) 254.dp else 188.dp,
-    collapsedHeight: Dp = TopAppBarDefaults.LargeAppBarCollapsedHeight,
+    expandedHeight: Dp = Dp.Unspecified,
+    collapsedHeight: Dp = TopAppBarDefaults.LargeAppBarCollapsedHeight - 8.dp,
     containerColor: Color = Color.Unspecified,
     startCollapsed: Boolean = true,
 ) {
-    if (startCollapsed && scrollBehavior != null) {
-        LaunchedEffect(scrollBehavior.state.heightOffsetLimit) {
-            if (scrollBehavior.state.heightOffsetLimit != 0f) {
-                scrollBehavior.state.heightOffset = scrollBehavior.state.heightOffsetLimit
-            }
-        }
-    }
-
     val screenBackgroundColor = containerColor.takeOrElse {
         if (LocalIsDark.current) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerLow
     }
 
     val annotatedTitle = remember(title) {
-
         buildAnnotatedString {
             val parts = title.split("**")
             if (parts.size == 3) {
@@ -1231,12 +1235,48 @@ fun ConfigTopAppBar(
         }
     }
 
+    val density = LocalDensity.current
+    val windowInfo = LocalWindowInfo.current
+    val configuration = LocalConfiguration.current
+    val textMeasurer = rememberTextMeasurer()
+    val titleStyle = MaterialTheme.typography.headlineLarge
+
+    val isMultiLine = remember(annotatedTitle, windowInfo.containerSize.width, configuration.screenWidthDp) {
+        val width = windowInfo.containerSize.width.takeIf { it > 0 }
+            ?: with(density) { configuration.screenWidthDp.dp.toPx() }.toInt()
+        val horizontalPadding = with(density) { 32.dp.toPx() }.toInt()
+        val availableWidth = width - horizontalPadding
+        val measuredText = textMeasurer.measure(
+            text = annotatedTitle,
+            style = titleStyle,
+            constraints = Constraints(maxWidth = availableWidth)
+        )
+        measuredText.lineCount > 1
+    }
+
+    val finalExpandedHeight = remember(isMultiLine, subtitle, expandedHeight) {
+        if (expandedHeight != Dp.Unspecified) return@remember expandedHeight
+        
+        when {
+            subtitle != null -> if (isMultiLine) 262.dp else 222.dp
+            else -> if (isMultiLine) 212.dp else 179.dp
+        }
+    }
+
+    if (startCollapsed && scrollBehavior != null) {
+        LaunchedEffect(scrollBehavior.state.heightOffsetLimit, finalExpandedHeight) {
+            if (scrollBehavior.state.heightOffsetLimit != 0f) {
+                scrollBehavior.state.heightOffset = scrollBehavior.state.heightOffsetLimit
+            }
+        }
+    }
+
     val collapsedTitle = remember(title) {
         title.replace("**", "")
     }
 
     TwoRowsTopAppBar(
-        expandedHeight = expandedHeight,
+        expandedHeight = finalExpandedHeight,
         collapsedHeight = collapsedHeight,
         title = { isExpanded ->
             Text(
@@ -1244,8 +1284,8 @@ fun ConfigTopAppBar(
                 style = if (isExpanded) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.titleLarge,
                 modifier = Modifier
                     .padding(horizontal = 8.dp)
-                    .padding(bottom = if (isExpanded) 28.dp else 0.dp)
                     .padding(top = if (isExpanded) 28.dp else 0.dp)
+                    .padding(bottom = if (isExpanded) 24.dp else 0.dp)
             )
         },
         subtitle = { isExpanded ->
@@ -1255,11 +1295,29 @@ fun ConfigTopAppBar(
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier
                         .padding(horizontal = 8.dp)
-                        .padding(bottom = 28.dp)
+                        .padding(bottom = 24.dp)
                 )
             }
         },
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        // Перехватываем события на начальной фазе (до того, как их увидит AppBar)
+                        val event = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+                        
+                        event.changes.forEach { change ->
+                            // Если палец движется (драг), поглощаем это движение.
+                            // Мы не трогаем Down и Up, чтобы клики по кнопкам продолжали работать.
+                            val dragAmount = change.position - change.previousPosition
+                            if (dragAmount.getDistanceSquared() > 0.1f) {
+                                change.consume()
+                            }
+                        }
+                    }
+                }
+            },
         navigationIcon = {
             if (onBack != null) {
                 FilledTonalIconButton(

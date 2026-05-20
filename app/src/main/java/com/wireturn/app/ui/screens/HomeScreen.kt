@@ -344,7 +344,8 @@ fun HomeScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent,
                     scrolledContainerColor = Color.Transparent
-                )
+                ),
+                expandedHeight = 56.dp
             )
         },
         snackbarHost = {
@@ -885,35 +886,36 @@ fun HomeScreen(
                     )
                 }
 
-                SettingsGroupItem(
-                    isTop = false,
-                    isBottom = true,
-                    containerColor = blockContainerColor,
-                    onClick = {
-                        val next = !vpnEnabled
-                        HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
-                        
-                        if (next && !xrayConfig.enabled) {
-                            showVpnWarning()
-                        }
+            val toggleVpnAction = { next: Boolean ->
+                HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                
+                if (next && !xrayConfig.enabled) {
+                    showVpnWarning()
+                }
 
-                        if (next) {
-                            val intent = VpnService.prepare(context)
-                            if (intent != null) {
-                                vpnLauncher.launch(intent)
-                            } else {
-                                viewModel.setVpnEnabled(true)
-                            }
-                        } else {
-                            viewModel.setVpnEnabled(false)
-                        }
+                if (next) {
+                    val intent = VpnService.prepare(context)
+                    if (intent != null) {
+                        vpnLauncher.launch(intent)
+                    } else {
+                        viewModel.setVpnEnabled(true)
                     }
-                ) {
-                    SwitchRow(
-                        label = stringResource(R.string.vpn_mode),
-                        checked = vpnEnabled,
-                        onCheckedChange = {}, // Обрабатывается родителем
-                        isModified = wgConfigSnapshot != null && vpnEnabled != (vpnServiceState == VpnState.Running),
+                } else {
+                    viewModel.setVpnEnabled(false)
+                }
+            }
+
+            SettingsGroupItem(
+                isTop = false,
+                isBottom = true,
+                containerColor = blockContainerColor,
+                onClick = { toggleVpnAction(!vpnEnabled) }
+            ) {
+                SwitchRow(
+                    label = stringResource(R.string.vpn_mode),
+                    checked = vpnEnabled,
+                    onCheckedChange = toggleVpnAction,
+                    isModified = wgConfigSnapshot != null && vpnEnabled != (vpnServiceState == VpnState.Running),
                         supportingText = when (vpnServiceState) {
                             VpnState.Starting -> stringResource(R.string.starting)
                             VpnState.Running -> stringResource(R.string.running)

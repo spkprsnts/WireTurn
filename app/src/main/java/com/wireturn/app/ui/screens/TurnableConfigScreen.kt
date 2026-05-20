@@ -176,8 +176,9 @@ fun TurnableConfigScreen(
                 .consumeWindowInsets(padding)
                 .imePadding()
                 .verticalScroll(scrollState)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+                .padding(horizontal = 16.dp)
+                .padding(top = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(19.dp)
         ) {
             // connection details
             SettingsGroup(title = stringResource(R.string.connection_details)) {
@@ -366,7 +367,12 @@ fun TurnableConfigScreen(
                 SettingsGroupItem(
                     isTop = false,
                     isBottom = true,
-                    containerColor = blockContainerColor
+                    containerColor = blockContainerColor,
+                    onClick = {
+                        val next = !config.forceTurn
+                        HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                        config = config.copy(forceTurn = next)
+                    }
                 ) {
                     SwitchRow(
                         label = stringResource(R.string.force_turn_label),

@@ -822,7 +822,7 @@ private fun AppListItem(
         SwitchRow(
             label = app.name,
             checked = isExcluded,
-            onCheckedChange = {}, // Обрабатывается родителем
+            onCheckedChange = { onToggleExclusion(app.packageName) },
             supportingText = app.packageName,
             useLargeIcon = true,
             leadingIcon = {

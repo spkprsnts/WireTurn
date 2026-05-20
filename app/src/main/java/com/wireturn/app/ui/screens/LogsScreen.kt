@@ -159,7 +159,8 @@ fun LogsScreen(
                             }
                         )
                     }
-                }
+                },
+                expandedHeight = 56.dp
             )
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)

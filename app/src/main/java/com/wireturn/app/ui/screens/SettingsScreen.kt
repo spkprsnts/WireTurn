@@ -197,14 +197,15 @@ fun SettingsScreen(
                 .padding(padding)
                 .consumeWindowInsets(padding)
                 .imePadding()
-                .padding(horizontal = 16.dp)
                 .trackScrollDelta(
                     onScrollDelta = { viewModel.onBottomBarScroll(it) },
                     onSettle = { viewModel.settleBottomBar(it) }
                 )
                 .verticalScroll(scrollState)
+                .padding(horizontal = 16.dp)
+                .padding(top = 18.dp)
                 .padding(bottom = 76.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(19.dp)
         ) {
             // 0. Proxy
             val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()

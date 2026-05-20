@@ -189,8 +189,9 @@ fun OlcRtcConfigScreen(
                 .consumeWindowInsets(padding)
                 .imePadding()
                 .verticalScroll(scrollState)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+                .padding(horizontal = 16.dp)
+                .padding(top = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(19.dp)
         ) {
             // Connection Details
             SettingsGroup(title = stringResource(R.string.connection_details)) {

@@ -375,8 +375,9 @@ fun XraySetupScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .verticalScroll(scrollState)
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                        .padding(horizontal = 16.dp)
+                        .padding(top = 18.dp),
+                    verticalArrangement = Arrangement.spacedBy(19.dp)
                 ) {
                     // Выбор протокола
                     if (canChangeProtocol) {
@@ -512,7 +513,7 @@ private fun WireGuardSettingsBlock(
     blockContainerColor: Color,
     isEditMode: Boolean
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(19.dp)) {
         if (kernelVariant == KernelVariant.OLCRTC) {
             SettingsGroupItem(
                 isTop = true,
@@ -636,7 +637,7 @@ private fun VlessSettingsBlock(
         !ValidatorUtils.isValidVlessLink(vlessLink)
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(19.dp)) {
         SettingsGroup(title = stringResource(R.string.vless_settings)) {
             SettingsGroupItem(isTop = true, isBottom = true, containerColor = blockContainerColor) {
                 TextFieldRow(
