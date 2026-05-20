@@ -62,11 +62,17 @@ object ValidatorUtils {
         }
     }
 
-    fun isValidProxyUser(input: String): Boolean = input.trim().length >= 3
+    fun isValidProxyUser(input: String): Boolean {
+        if (input.isBlank()) return true
+        return input.all { it in 'a'..'z' || it in 'A'..'Z' || it.isDigit() || it == '-' || it == '_' || it == '.' } && input.length >= 3
+    }
 
-    fun isValidProxyPass(input: String): Boolean = input.trim().length >= 3
+    fun isValidProxyPass(input: String): Boolean {
+        if (input.isBlank()) return true
+        return input.length >= 3
+    }
 
     fun cleanProxyString(input: String): String {
-        return input.trim().filter { it.isLetterOrDigit() || it == '-' || it == '_' || it == '.' }
+        return input.trim().filter { it in 'a'..'z' || it in 'A'..'Z' || it.isDigit() || it == '-' || it == '_' || it == '.' }
     }
 }

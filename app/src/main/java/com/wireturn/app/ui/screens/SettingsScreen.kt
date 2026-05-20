@@ -264,7 +264,7 @@ fun SettingsScreen(
                         label = stringResource(R.string.socks5),
                         value = olSocks.redact(privacyMode),
                         onValueChange = { olSocks = it },
-                        placeholder = "127.0.0.1:9001",
+                        placeholder = ClientConfig.DEFAULT_SOCKS_ADDR,
                         isError = olSocks.isNotEmpty() && !ValidatorUtils.isValidHostPort(olSocks),
                         readOnly = privacyMode,
                         isModified = clientSnapshot?.let { it.socksAddr != olSocks } ?: false,
@@ -300,7 +300,8 @@ fun SettingsScreen(
                                 label = stringResource(R.string.xray_proxy_user),
                                 value = olUser.redact(privacyMode),
                                 onValueChange = { olUser = it },
-                                placeholder = "admin",
+                                placeholder = stringResource(R.string.proxy_user_placeholder),
+                                isError = !ValidatorUtils.isValidProxyUser(olUser),
                                 readOnly = privacyMode,
                                 isModified = clientSnapshot?.let { it.socksUser != olUser } ?: false
                             )
@@ -310,7 +311,8 @@ fun SettingsScreen(
                                 label = stringResource(R.string.xray_proxy_pass),
                                 value = olPass.redact(privacyMode),
                                 onValueChange = { olPass = it },
-                                placeholder = "password",
+                                placeholder = stringResource(R.string.proxy_pass_placeholder),
+                                isError = !ValidatorUtils.isValidProxyPass(olPass),
                                 readOnly = privacyMode,
                                 isModified = clientSnapshot?.let { it.socksPass != olPass } ?: false,
                                 trailingIcon = {
@@ -364,7 +366,7 @@ fun SettingsScreen(
                         label = stringResource(R.string.xray_http),
                         value = xrayHttp.redact(privacyMode),
                         onValueChange = { xrayHttp = it },
-                        placeholder = "127.0.0.1:1081",
+                        placeholder = XraySettings.DEFAULT_HTTP_BIND_ADDRESS,
                         isError = xrayHttp.isNotEmpty() && !ValidatorUtils.isValidHostPort(xrayHttp),
                         readOnly = privacyMode,
                         isModified = xraySettingsSnapshot?.let { it.httpBindAddress != xrayHttp } ?: false
@@ -409,7 +411,8 @@ fun SettingsScreen(
                                 label = stringResource(R.string.xray_proxy_user),
                                 value = xrayUser.redact(privacyMode),
                                 onValueChange = { xrayUser = it },
-                                placeholder = "admin",
+                                placeholder = stringResource(R.string.proxy_user_placeholder),
+                                isError = !ValidatorUtils.isValidProxyUser(xrayUser),
                                 readOnly = privacyMode,
                                 isModified = xraySettingsSnapshot?.let { it.proxyUser != xrayUser } ?: false
                             )
@@ -419,7 +422,8 @@ fun SettingsScreen(
                                 label = stringResource(R.string.xray_proxy_pass),
                                 value = xrayPass.redact(privacyMode),
                                 onValueChange = { xrayPass = it },
-                                placeholder = "password",
+                                placeholder = stringResource(R.string.proxy_pass_placeholder),
+                                isError = !ValidatorUtils.isValidProxyPass(xrayPass),
                                 readOnly = privacyMode,
                                 isModified = xraySettingsSnapshot?.let { it.proxyPass != xrayPass } ?: false,
                                 trailingIcon = {

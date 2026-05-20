@@ -358,12 +358,16 @@ data class ClientConfig(
     val kernelVariant: KernelVariant = KernelVariant.TURNABLE
 ) {
     fun fillDefaults(): ClientConfig {
-        var current = this
-        if (current.isSocksAuthEnabled && (socksUser.isBlank() || socksPass.isBlank())) {
+        val cleanedUser = ValidatorUtils.cleanProxyString(socksUser)
+        val cleanedPass = socksPass.trim()
+
+        var current = this.copy(socksUser = cleanedUser, socksPass = cleanedPass)
+
+        if (current.isSocksAuthEnabled && (current.socksUser.isBlank() || current.socksPass.isBlank())) {
             val allowed = ('A'..'Z') + ('a'..'z') + ('0'..'9')
             current = current.copy(
-                socksUser = socksUser.ifBlank { (1..8).map { allowed.random() }.joinToString("") },
-                socksPass = socksPass.ifBlank { (1..12).map { allowed.random() }.joinToString("") }
+                socksUser = current.socksUser.ifBlank { (1..8).map { allowed.random() }.joinToString("") },
+                socksPass = current.socksPass.ifBlank { (1..12).map { allowed.random() }.joinToString("") }
             )
         }
         return current.copy(
@@ -393,7 +397,7 @@ data class ClientConfig(
 
     companion object {
         const val DEFAULT_LISTEN_ADDR = "127.0.0.1:9000"
-        const val DEFAULT_SOCKS_ADDR = "127.0.0.1:9001"
+        const val DEFAULT_SOCKS_ADDR = "127.0.0.1:2081"
     }
 }
 
@@ -405,12 +409,16 @@ data class XraySettings(
     val proxyPass: String = ""
 ) {
     fun fillDefaults(): XraySettings {
-        var current = this
-        if (current.isProxyAuthEnabled && (proxyUser.isBlank() || proxyPass.isBlank())) {
+        val cleanedUser = ValidatorUtils.cleanProxyString(proxyUser)
+        val cleanedPass = proxyPass.trim()
+
+        var current = this.copy(proxyUser = cleanedUser, proxyPass = cleanedPass)
+
+        if (current.isProxyAuthEnabled && (current.proxyUser.isBlank() || current.proxyPass.isBlank())) {
             val allowed = ('A'..'Z') + ('a'..'z') + ('0'..'9')
             current = current.copy(
-                proxyUser = proxyUser.ifBlank { (1..8).map { allowed.random() }.joinToString("") },
-                proxyPass = proxyPass.ifBlank { (1..12).map { allowed.random() }.joinToString("") }
+                proxyUser = current.proxyUser.ifBlank { (1..8).map { allowed.random() }.joinToString("") },
+                proxyPass = current.proxyPass.ifBlank { (1..12).map { allowed.random() }.joinToString("") }
             )
         }
         return current
@@ -420,6 +428,7 @@ data class XraySettings(
 
     companion object {
         const val DEFAULT_SOCKS_BIND_ADDRESS = "127.0.0.1:1080"
+        const val DEFAULT_HTTP_BIND_ADDRESS = "127.0.0.1:8080"
     }
 }
 

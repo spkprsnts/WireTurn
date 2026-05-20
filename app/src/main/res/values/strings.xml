@@ -16,7 +16,6 @@
     <string name="captcha_desc">Complete the check to continue</string>
     <string name="start_proxy">Start tunnel</string>
     <string name="xray_config_invalid">Invalid config</string>
-    <string name="error_format_short">Error: %1$s</string>
     <string name="repo_links">Repository links</string>
 
     <string name="idle">Stopped</string>
@@ -91,39 +90,28 @@
     <string name="wg_public_key" translatable="false">Public Key</string>
     <string name="wg_public_key_placeholder" translatable="false">WG_PUBLIC_KEY</string>
     <string name="wg_endpoint">Endpoint (local)</string>
-    <string name="wg_endpoint_placeholder" translatable="false">127.0.0.1:9000</string>
     <string name="wg_persistent_keepalive" translatable="false">Persistent Keepalive</string>
     <string name="wg_persistent_keepalive_placeholder" translatable="false">25</string>
-    <string name="wg_mtu_recommendation">Recommended value is 1280</string>
     <string name="wg_not_used_with_olcrtc">WireGuard is not used with olcRTC</string>
 
     <!-- Xray Setup (SOCKS/HTTP) -->
     <string name="xray_title" translatable="false">Xray</string>
     <string name="xray_http" translatable="false">HTTP</string>
-    <string name="xray_http_placeholder" translatable="false">127.0.0.1:8080</string>
     <string name="socks5" translatable="false">SOCKS5</string>
-    <string name="socks5_placeholder" translatable="false">127.0.0.1:2080</string>
     <string name="xray_proxy_auth">Proxy authentication</string>
-    <string name="xray_proxy_auth_desc">Protect local proxy with login and password</string>
+    <string name="xray_proxy_auth_desc">Protect proxy with login and password</string>
     <string name="xray_proxy_user">Username</string>
+    <string name="proxy_user_placeholder" translatable="false">wireturn</string>
     <string name="xray_proxy_pass">Password</string>
-    <string name="xray_proxy_auth_hint">Can be left empty for random generation</string>
+    <string name="proxy_pass_placeholder" translatable="false">ultrapass</string>
 
 
     <!-- Client Setup (Backend/Proxy) -->
-    <string name="client_title">Client</string>
-    <string name="connection_title">Connection</string>
-    <string name="client_import_config">Client configuration import</string>
-    <string name="config_missing">Missing configuration</string>
-    <string name="config_import_hint_start">Import</string>
-    <string name="config_import_hint_end">turnable:// link</string>
     <string name="route_title">Route</string>
     <string name="user_uuid_label">User UUID</string>
     <string name="user_uuid_desc">User authorization on the Turnable server</string>
     <string name="username_label">Call participant name</string>
     <string name="username_desc">Join the call on the platform</string>
-    <string name="platform_id_label">Call platform ID</string>
-    <string name="platform_id_desc">Only vk.com is supported at the moment</string>
     <string name="call_id_label">Call ID</string>
     <string name="call_id_desc">Extracted from the call link.\nVK: «https://vk.com/call/join/[ID]»</string>
     <string name="connection_type_label">Connection type</string>
@@ -141,9 +129,6 @@
     <string name="force_turn_label">Force TURN</string>
     <string name="force_turn_desc">TURN server for all connections</string>
     <string name="history_label">History</string>
-    <string name="kernel_help_title">Core guides</string>
-    <string name="kernel_help_turnable_guide">Turnable server setup guide</string>
-    <string name="kernel_help_olcrtc_guide">olcRTC server setup guide</string>
     <string name="kernel_turnable" translatable="false">Turnable</string>
     <string name="kernel_olcrtc" translatable="false">olcRTC</string>
     <string name="olcrtc_id_label">Room ID</string>
@@ -171,9 +156,7 @@
     <string name="olcrtc_video_qr_size">QR Size</string>
     <string name="olcrtc_video_tile_module">Tile Module</string>
     <string name="olcrtc_video_tile_rs">Tile RS</string>
-    <string name="olcrtc_socks_proxy_label">Local SOCKS5 proxy</string>
     <string name="local_listen_address">Local listen address</string>
-    <string name="local_listen_placeholder">127.0.0.1:9000</string>
     <string name="local_port_help_text">This is the network address and port where the app will start a local tunnel entry point.</string>
     <string name="local_port_help_secondary">The built-in Xray or third-party VPN clients (WireGuard, v2RayTun, etc.) must connect to this address to route traffic through the created tunnel.</string>
     <string name="olcrtc_socks_help_text">The olcRTC core does not use traditional VPN protocols. Instead, it starts a local SOCKS5 proxy that serves as an entry point for traffic.</string>
@@ -247,7 +230,6 @@
     <string name="error_proxy_crashed">Tunnel crashed %1$d times — check settings</string>
     <string name="error_settings_empty">Client settings not filled</string>
     <string name="error_proxy_not_started">Tunnel failed to start</string>
-    <string name="error_file_open">Could not open file</string>
     <string name="log_proxy_invalid_config">[Xray] Invalid or missing config, startup canceled</string>
     <string name="error_update_url_not_found">Update URL not found</string>
     <string name="error_update_file_not_found">Update file not found</string>
@@ -283,7 +265,6 @@
     <string name="notification_channel_description">Status and management notification</string>
     <string name="captcha_channel_name">Captcha notifications</string>
     <string name="captcha_channel_description">Notifications for captcha requirements</string>
-    <string name="xray_short" translatable="false">Xray</string>
     <string name="xray_protocol_label">Protocol</string>
     <string name="wg_short" translatable="false">WG</string>
     <string name="vpn_short" translatable="false">VPN</string>
@@ -294,7 +275,6 @@
     <string name="tile_captcha">Captcha!</string>
     <string name="notification_reconnecting">Reconnecting (%1$d/%2$d)…</string>
     <string name="notification_network_change">Network change, reconnecting…</string>
-    <string name="error_with_details">%1$s: %2$s</string>
     <string name="vless" translatable="false">VLESS</string>
     <!-- UI elements and formatting -->
     <string name="redacted_value" translatable="false">••••••</string>
@@ -320,15 +300,12 @@
     <!-- VLESS Setup -->
     <string name="vless_link_label">VLESS link</string>
     <string name="vless_link_placeholder">vless://…</string>
-    <string name="vless_link_config_desc">VLESS configuration. The server IP and port are automatically replaced with the local listen address.</string>
     <string name="vless_dual_route">Dual-route mode</string>
     <string name="vless_dual_route_short">Dual-route</string>
     <string name="vless_dual_route_desc">Prefer direct connection to VLESS server, falling back to local tunnel if direct route is restricted</string>
     <string name="vless_direct_address">Direct server address</string>
     <string name="vless_direct_address_placeholder" translatable="false">292.313.32.45:443</string>
-    <string name="vless_direct_address_desc">External address of the VLESS server</string>
     <string name="vless_hc_interval">Health check interval (sec)</string>
-    <string name="vless_hc_interval_desc">How often to check if direct connection is possible</string>
     <string name="vless_parse_from_link">Parse from link</string>
     <string name="vless_direct_active">Direct VLESS</string>
 
@@ -344,7 +321,6 @@
     <string name="unsaved_changes_title">Unsaved changes</string>
     <string name="unsaved_changes_desc">You have unsaved changes. Do you want to save them before leaving?</string>
     <string name="btn_discard">Discard</string>
-    <string name="xray_setup_title">Xray setup</string>
 
     <!-- QR Import and Advanced Parameters -->
     <string name="qr_import">QR Code</string>
@@ -352,13 +328,9 @@
     <string name="settings_group_turnable">Turnable settings</string>
     <string name="settings_group_olcrtc">olcRTC settings</string>
     <string name="settings_group_xray">Xray settings</string>
-    <string name="xray_proxy_settings">Proxy settings</string>
-    <string name="xray_socks_desc">Address for SOCKS5 proxy</string>
-    <string name="xray_http_desc">Address for HTTP proxy</string>
     <string name="xray_protocol_desc">Choose protocol for Xray-core</string>
     <string name="vless_settings">VLESS Settings</string>
     <string name="protocol_wireguard" translatable="false">WireGuard</string>
-    <string name="client_variants_desc">Client variants</string>
     <string name="connection_details">Connection details</string>
     <string name="server_settings_title">Server settings</string>
     <string name="math_minus" translatable="false">−</string>
@@ -377,19 +349,14 @@
     <string name="profile_export_all">Export all (zip)</string>
     <string name="profile_import">Import</string>
     <string name="profile_name_label">Profile name</string>
-    <string name="profile_default_name">Primary profile</string>
     <string name="profile_delete_confirm">Delete profile %1$s?</string>
     <string name="profile_delete_desc">All settings for this profile will be deleted.</string>
     <string name="profile_select">Select</string>
     <string name="profile_selected_count">Selected: %1$d</string>
     <string name="profile_delete_selected_confirm">Delete %1$d selected profiles?</string>
     <string name="profile_none_selected">No profiles</string>
-    <string name="profile_create_hint">Create or import to start</string>
     <string name="profiles_empty">No profiles yet</string>
 
-    <string name="profile_select_type">Select configuration type</string>
-    <string name="profile_turnable_desc">Create a profile using Turnable core</string>
-    <string name="profile_olcrtc_desc">Create a profile using olcRTC core</string>
     <string name="profile_import_group">Import configuration</string>
     <string name="profile_manual_setup">Manual setup</string>
     <string name="profile_import_qr">QR Code</string>
