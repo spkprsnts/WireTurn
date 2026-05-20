@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -143,6 +144,7 @@ fun ProfileSummary(
 @Composable
 fun ProfilesBlock(
     viewModel: MainViewModel,
+    onImport: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
@@ -194,6 +196,51 @@ fun ProfilesBlock(
                     contentDescription = stringResource(R.string.profile_rename),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+        }
+    } else {
+        Row(
+            modifier = modifier
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            LargeLeadingIcon {
+                Icon(
+                    painter = painterResource(R.drawable.mobile_outlined_24px),
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.profile_none_selected),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            Row {
+                IconButton(onClick = {
+                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                    onImport()
+                }) {
+                    Icon(
+                        painter = painterResource(R.drawable.file_open_24px),
+                        contentDescription = stringResource(R.string.profile_import),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(onClick = {
+                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                    context.startActivity(android.content.Intent(context, com.wireturn.app.ui.activities.CreateProfileActivity::class.java))
+                }) {
+                    Icon(
+                        painter = painterResource(R.drawable.add_24px),
+                        contentDescription = stringResource(R.string.profile_create),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
     }
@@ -507,15 +554,17 @@ fun ProfilesDialog(
                                 )
                             }
                         } else {
-                            IconButton(onClick = {
-                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                zipToExport.value = viewModel.exportAllProfilesToZip()
-                                zipExportLauncher.launch("wt_profiles_backup.zip")
-                            }) {
-                                Icon(
-                                    painterResource(R.drawable.ios_share_24px),
-                                    contentDescription = stringResource(R.string.profile_export_all)
-                                )
+                            if (profiles.isNotEmpty()) {
+                                IconButton(onClick = {
+                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                    zipToExport.value = viewModel.exportAllProfilesToZip()
+                                    zipExportLauncher.launch("wt_profiles_backup.zip")
+                                }) {
+                                    Icon(
+                                        painterResource(R.drawable.ios_share_24px),
+                                        contentDescription = stringResource(R.string.profile_export_all)
+                                    )
+                                }
                             }
                             Box {
                                 IconButton(onClick = {
@@ -533,21 +582,6 @@ fun ProfilesDialog(
                                     title = stringResource(R.string.profile_new)
                                 ) {
                                     DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.profile_create)) },
-                                        leadingIcon = {
-                                            Icon(
-                                                painterResource(R.drawable.add_24px),
-                                                contentDescription = null,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                        },
-                                        onClick = {
-                                            addMenuExpanded = false
-                                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                            context.startActivity(android.content.Intent(context, com.wireturn.app.ui.activities.CreateProfileActivity::class.java))
-                                        }
-                                    )
-                                    DropdownMenuItem(
                                         text = { Text(stringResource(R.string.profile_import)) },
                                         leadingIcon = {
                                             Icon(
@@ -560,6 +594,21 @@ fun ProfilesDialog(
                                             addMenuExpanded = false
                                             HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                             onImport()
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.profile_create)) },
+                                        leadingIcon = {
+                                            Icon(
+                                                painterResource(R.drawable.add_24px),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        },
+                                        onClick = {
+                                            addMenuExpanded = false
+                                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                            context.startActivity(android.content.Intent(context, com.wireturn.app.ui.activities.CreateProfileActivity::class.java))
                                         }
                                     )
                                 }
@@ -586,7 +635,31 @@ fun ProfilesDialog(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
-                itemsIndexed(profiles, key = { _, it -> it.id }) { index, profile ->
+                if (profiles.isEmpty()) {
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.mobile_outlined_24px),
+                                contentDescription = null,
+                                modifier = Modifier.size(48.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                            )
+                            Spacer(Modifier.height(16.dp))
+                            Text(
+                                text = stringResource(R.string.profiles_empty),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                } else {
+                    itemsIndexed(profiles, key = { _, it -> it.id }) { index, profile ->
                     val isDragged = draggedItemId == profile.id
                     val isSelected = profile.id == (optimisticSelectedId ?: currentId)
                     val isSelectedInMode = selectedIds.contains(profile.id)
@@ -772,28 +845,26 @@ fun ProfilesDialog(
                                                 }
                                             }
                                         )
-                                        if (profiles.size > 1) {
-                                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                                            DropdownMenuItem(
-                                                text = { Text(stringResource(R.string.profile_delete)) },
-                                                leadingIcon = {
-                                                    Icon(
-                                                        painterResource(R.drawable.delete_24px),
-                                                        null,
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
-                                                },
-                                                onClick = {
-                                                    menuExpanded = false
-                                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                                    showDeleteConfirm.value = profile
-                                                },
-                                                colors = MenuDefaults.itemColors(
-                                                    textColor = MaterialTheme.colorScheme.error,
-                                                    leadingIconColor = MaterialTheme.colorScheme.error
+                                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(R.string.profile_delete)) },
+                                            leadingIcon = {
+                                                Icon(
+                                                    painterResource(R.drawable.delete_24px),
+                                                    null,
+                                                    modifier = Modifier.size(20.dp)
                                                 )
+                                            },
+                                            onClick = {
+                                                menuExpanded = false
+                                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                                showDeleteConfirm.value = profile
+                                            },
+                                            colors = MenuDefaults.itemColors(
+                                                textColor = MaterialTheme.colorScheme.error,
+                                                leadingIconColor = MaterialTheme.colorScheme.error
                                             )
-                                        }
+                                        )
                                     }
                                 }
                             }
@@ -803,6 +874,7 @@ fun ProfilesDialog(
             }
         }
     }
+}
 
     showRenameDialog.value?.let { profile ->
         ProfileNameDialog(

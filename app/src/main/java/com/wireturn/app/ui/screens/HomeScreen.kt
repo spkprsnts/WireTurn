@@ -495,13 +495,21 @@ fun HomeScreen(
             }
 
             // --- Proxy Toggle ---
+            val profiles by viewModel.profiles.collectAsStateWithLifecycle()
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 ProxyToggleButton(
                     viewModel = viewModel,
-                    onClick = onToggleProxy
+                    onClick = {
+                        if (profiles.isEmpty()) {
+                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                            context.startActivity(Intent(context, com.wireturn.app.ui.activities.CreateProfileActivity::class.java))
+                        } else {
+                            onToggleProxy()
+                        }
+                    }
                 )
             }
 
@@ -703,7 +711,10 @@ fun HomeScreen(
                     showProfilesDialog.value = true
                 }
             ) {
-                ProfilesBlock(viewModel)
+                ProfilesBlock(
+                    viewModel = viewModel,
+                    onImport = { profileImportLauncher.launch(arrayOf("application/json", "application/zip")) }
+                )
             }
 
             // --- Permissions & Optimization Banner ---
@@ -828,7 +839,6 @@ fun HomeScreen(
                     isTop = true,
                     isBottom = false,
                     containerColor = blockContainerColor,
-                    enabled = configValid,
                     onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         onNavigateToXrayConfig()
@@ -842,7 +852,7 @@ fun HomeScreen(
                     }
 
                     SwitchRow(
-                        label = stringResource(R.string.xray_title) + " " + xrayProtocol,
+                        label = stringResource(R.string.xray_title) + if (configValid) " $xrayProtocol" else "",
                         checked = xrayConfig.enabled,
                         onCheckedChange = { next ->
                             val action = {

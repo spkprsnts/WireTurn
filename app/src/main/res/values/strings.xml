@@ -383,6 +383,9 @@
     <string name="profile_select">Select</string>
     <string name="profile_selected_count">Selected: %1$d</string>
     <string name="profile_delete_selected_confirm">Delete %1$d selected profiles?</string>
+    <string name="profile_none_selected">No profiles</string>
+    <string name="profile_create_hint">Create or import to start</string>
+    <string name="profiles_empty">No profiles yet</string>
 
     <string name="profile_select_type">Select configuration type</string>
     <string name="profile_turnable_desc">Create a profile using Turnable core</string>

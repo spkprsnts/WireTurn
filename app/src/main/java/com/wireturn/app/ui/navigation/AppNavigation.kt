@@ -118,6 +118,7 @@ fun AppNavigation(
     val autoLaunchSettings by viewModel.autoLaunchSettings.collectAsStateWithLifecycle()
     val xrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
     val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
+    val profiles by viewModel.profiles.collectAsStateWithLifecycle()
 
     val showAutoLaunchOverride = rememberSaveable { mutableStateOf(false) }
     val showMismatchDialog = rememberSaveable { mutableStateOf(false) }
@@ -322,6 +323,7 @@ fun AppNavigation(
                                 popUpTo(Routes.ONBOARDING) { inclusive = true }
                                 launchSingleTop = true
                             }
+                            context.startActivity(Intent(context, com.wireturn.app.ui.activities.CreateProfileActivity::class.java))
                         }
                     )
                 }
@@ -371,7 +373,8 @@ fun AppNavigation(
                 currentRoute != Routes.HOME && 
                 currentRoute != Routes.ONBOARDING &&
                 showFloatingActionButton &&
-                isFabVisibleByScroll
+                isFabVisibleByScroll &&
+                profiles.isNotEmpty()
 
             // Определяем положение для анимаций (всегда справа по M3)
             val statusAlignment = Alignment.End

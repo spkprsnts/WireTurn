@@ -15,8 +15,7 @@ import java.util.zip.ZipOutputStream
 
 class ProfileManager(
     private val prefs: AppPreferences,
-    private val scope: CoroutineScope,
-    private val defaultProfileName: String = "Primary profile"
+    private val scope: CoroutineScope
 ) {
     val profiles: StateFlow<List<Profile>> = prefs.profilesFlow
         .stateIn(scope, SharingStarted.Eagerly, emptyList())
@@ -63,17 +62,13 @@ class ProfileManager(
         val isCurrentDeleted = currentProfileId.value in ids
         val firstDeletedIdx = currentList.indexOfFirst { it.id in ids }
 
-        var newList = currentList.filter { it.id !in ids }
-        if (newList.isEmpty()) {
-            val defaultProfile = Profile(id = UUID.randomUUID().toString(), name = defaultProfileName)
-            newList = listOf(defaultProfile)
-        }
+        val newList = currentList.filter { it.id !in ids }
 
         scope.launch {
             prefs.saveProfiles(newList)
             if (isCurrentDeleted) {
-                val targetIndex = (firstDeletedIdx - 1).coerceIn(0, newList.size - 1)
-                val toSelect = newList.getOrNull(targetIndex)
+                val targetIndex = if (newList.isEmpty()) -1 else (firstDeletedIdx - 1).coerceAtMost(newList.size - 1).coerceAtLeast(0)
+                val toSelect = if (targetIndex != -1) newList.getOrNull(targetIndex) else null
                 if (toSelect != null) onFallback(toSelect.id, toSelect)
             }
         }
@@ -121,7 +116,7 @@ class ProfileManager(
         return bos.toByteArray()
     }
 
-    fun importProfilesFromZip(inputStream: java.io.InputStream, onAutoSelect: ((String) -> Unit)? = null) {
+    fun importProfilesFromZip(inputStream: java.io.InputStream, onAutoSelect: ((Profile) -> Unit)? = null) {
         try {
             val extractedData = mutableListOf<Pair<String?, String>>()
             ZipInputStream(inputStream).use { zis ->
@@ -137,7 +132,7 @@ class ProfileManager(
         } catch (_: Exception) {}
     }
 
-    fun importProfiles(data: List<Pair<String?, String>>, onAutoSelect: ((String) -> Unit)? = null) {
+    fun importProfiles(data: List<Pair<String?, String>>, onAutoSelect: ((Profile) -> Unit)? = null) {
         try {
             val newProfiles = data.mapNotNull { (fileName, json) ->
                 try {
@@ -151,11 +146,13 @@ class ProfileManager(
             }
             if (newProfiles.isEmpty()) return
             val currentProfiles = profiles.value
-            val shouldReplace = currentProfiles.size == 1 && currentProfiles[0].isEmpty()
-            val newList = if (shouldReplace) newProfiles else currentProfiles + newProfiles
+            val wasEmpty = currentProfiles.isEmpty()
+            val newList = currentProfiles + newProfiles
             scope.launch {
                 prefs.saveProfiles(newList)
-                if (shouldReplace) onAutoSelect?.invoke(newProfiles.first().id)
+                if (wasEmpty) {
+                    onAutoSelect?.invoke(newProfiles.first())
+                }
             }
         } catch (_: Exception) {}
     }

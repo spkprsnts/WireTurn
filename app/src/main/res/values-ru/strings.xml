@@ -343,6 +343,9 @@
     <string name="profile_select">Выбрать</string>
     <string name="profile_selected_count">Выбрано: %1$d</string>
     <string name="profile_delete_selected_confirm">Удалить выбранные профили (%1$d)?</string>
+    <string name="profile_none_selected">Нет профилей</string>
+    <string name="profile_create_hint">Создайте или импортируйте для начала</string>
+    <string name="profiles_empty">Профилей пока нет</string>
 
     <string name="profile_select_type">Выберите тип конфигурации</string>
     <string name="profile_turnable_desc">Создать профиль с использованием ядра Turnable</string>

@@ -17,7 +17,6 @@ import com.wireturn.app.ProxyService
 import com.wireturn.app.ProxyServiceState
 import com.wireturn.app.ProxyStatus
 import com.wireturn.app.ProxyTileService
-import com.wireturn.app.R
 import com.wireturn.app.XrayService
 import com.wireturn.app.XrayServiceState
 import com.wireturn.app.data.AppPreferences
@@ -59,8 +58,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val appUpdater = AppUpdater(application)
     private val profileManager = ProfileManager(
         prefs = prefs,
-        scope = ProcessLifecycleOwner.get().lifecycleScope,
-        defaultProfileName = application.getString(R.string.profile_default_name)
+        scope = ProcessLifecycleOwner.get().lifecycleScope
     )
 
     val proxyState: StateFlow<ProxyState> = proxyManager.proxyState
@@ -759,8 +757,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun selectProfileAndRestart(id: String, onCompletion: (() -> Unit)? = null) {
-        val target = profiles.value.find { it.id == id } ?: return
+    fun selectProfileAndRestart(id: String, profile: Profile? = null, onCompletion: (() -> Unit)? = null) {
+        val target = profile ?: profiles.value.find { it.id == id } ?: return
         if (ProxyServiceState.isRunning.value) ProxyServiceState.setRestarting(true)
         profileManager.selectProfile(id, target) { p ->
             viewModelScope.launch {
@@ -814,14 +812,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun cloneProfile(id: String, name: String) = profileManager.cloneProfile(id, name)
     fun deleteProfile(id: String) = deleteProfiles(listOf(id))
-    fun deleteProfiles(ids: List<String>) = profileManager.deleteProfiles(ids) { nextId, p -> selectProfile(nextId, p) }
+    fun deleteProfiles(ids: List<String>) {
+        val willBeEmpty = (profiles.value.size - ids.size) <= 0
+        if (willBeEmpty) {
+            if (ProxyServiceState.isRunning.value) stopProxy()
+            viewModelScope.launch { prefs.clearActiveProfile() }
+        }
+        profileManager.deleteProfiles(ids) { nextId, p -> selectProfile(nextId, p) }
+    }
     fun renameProfile(id: String, name: String) = profileManager.renameProfile(id, name)
     fun reorderProfiles(list: List<Profile>) = profileManager.reorderProfiles(list)
     fun getProfileJson(id: String) = profileManager.getProfileJson(id)
     fun exportAllProfilesToZip() = profileManager.exportAllProfilesToZip()
     fun exportProfilesToZip(ids: List<String>) = profileManager.exportProfilesToZip(ids)
-    fun importProfilesFromZip(s: java.io.InputStream) = profileManager.importProfilesFromZip(s) { selectProfileAndRestart(it) }
-    fun importProfiles(data: List<Pair<String?, String>>) = profileManager.importProfiles(data) { selectProfileAndRestart(it) }
+    fun importProfilesFromZip(s: java.io.InputStream) = profileManager.importProfilesFromZip(s) { selectProfileAndRestart(it.id, it) }
+    fun importProfiles(data: List<Pair<String?, String>>) = profileManager.importProfiles(data) { selectProfileAndRestart(it.id, it) }
     
     fun resetAllSettings(c: Context) {
         viewModelScope.launch {

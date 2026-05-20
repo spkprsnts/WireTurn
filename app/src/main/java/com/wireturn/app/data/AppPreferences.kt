@@ -895,4 +895,17 @@ class AppPreferences(val context: Context) {
             p[ACTIVE_VLESS_JSON] = gson.toJson(profile.vlessConfig)
         }
     }
+
+    suspend fun clearActiveProfile() {
+        appCtx.internalDataStore.edit { p ->
+            p.remove(ACTIVE_KERNEL_VARIANT)
+            p.remove(ACTIVE_TURNABLE_JSON)
+            p.remove(ACTIVE_OLCRTC_JSON)
+            p.remove(ACTIVE_XRAY_CONFIG_TYPE)
+            p.remove(ACTIVE_XRAY_ENABLED)
+            p.remove(ACTIVE_WG_JSON)
+            p.remove(ACTIVE_VLESS_JSON)
+            p.remove(CURRENT_PROFILE_ID)
+        }
+    }
 }
