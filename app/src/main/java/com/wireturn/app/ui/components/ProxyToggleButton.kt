@@ -1,10 +1,15 @@
+@file:OptIn(
+    androidx.compose.material3.ExperimentalMaterial3Api::class,
+    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class
+)
+
 package com.wireturn.app.ui.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -24,9 +29,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -41,9 +46,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.DefaultShadowColor
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.platform.LocalContext
+import androidx.graphics.shapes.Morph
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -66,7 +77,7 @@ fun ProxyToggleButton(
     viewModel: MainViewModel,
     modifier: Modifier = Modifier,
     size: Dp = 160.dp,
-    shape: androidx.compose.ui.graphics.Shape? = null,
+    shape: Shape? = null,
     isFloat: Boolean = false,
     isVisible: Boolean = true,
     statusAlignment: Alignment.Horizontal = Alignment.End,
@@ -102,11 +113,13 @@ fun ProxyToggleButton(
             proxyState is ProxyState.Starting || 
             proxyState is ProxyState.Connecting || 
             proxyState is ProxyState.CaptchaRequired || 
-            proxyState is ProxyState.WaitingForNetwork ||
-            (xrayConfig.enabled && !isXrayWorking && proxyState !is ProxyState.Idle) -> "loading"
+            proxyState is ProxyState.WaitingForNetwork -> "loading"
             
-            proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed -> "active"
             proxyState is ProxyState.Error -> "error"
+            
+            (xrayConfig.enabled && !isXrayWorking && proxyState !is ProxyState.Idle) -> "loading"
+
+            proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed -> "active"
             else -> "idle"
         }
     }
@@ -219,7 +232,6 @@ fun ProxyToggleButton(
             ProxyToggleButtonInternal(
                 toggleState = toggleState,
                 xrayState = xrayState,
-                isFloat = true,
                 isLocked = autoLaunchSettings.enabled,
                 size = size,
                 shape = shape,
@@ -235,7 +247,6 @@ fun ProxyToggleButton(
             ProxyToggleButtonInternal(
                 toggleState = toggleState,
                 xrayState = xrayState,
-                isFloat = false,
                 isLocked = autoLaunchSettings.enabled,
                 size = size,
                 shape = shape,
@@ -258,25 +269,71 @@ private fun ProxyToggleButtonInternal(
     toggleState: String,
     xrayState: XrayState,
     modifier: Modifier = Modifier,
-    isFloat: Boolean = false,
     isLocked: Boolean = false,
     size: Dp = 160.dp,
-    shape: androidx.compose.ui.graphics.Shape? = null,
+    shape: Shape? = null,
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    val cornerPercent by animateIntAsState(
-        targetValue = when (toggleState) {
-            "active" -> 28 // Более выраженный Squircle
-            "loading" -> 38
-            else -> 50 // Circle
-        },
-        animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow),
-        label = "shape_morph"
-    )
-    val animatedShape = shape ?: RoundedCornerShape(cornerPercent)
+    val targetPolygon = remember(toggleState, xrayState) {
+        when (toggleState) {
+            "active" -> if (xrayState == XrayState.DirectRoute) MaterialShapes.VerySunny else MaterialShapes.Sunny
+            "loading" -> MaterialShapes.Pill
+            "error"   -> MaterialShapes.Triangle
+            else      -> MaterialShapes.Cookie7Sided
+        }
+    }
+    var startPolygon by remember { mutableStateOf(targetPolygon) }
+    var endPolygon   by remember { mutableStateOf(targetPolygon) }
+    val morphAnim = remember { Animatable(1f) }
+    LaunchedEffect(targetPolygon) {
+        startPolygon = endPolygon
+        endPolygon = targetPolygon
+        morphAnim.snapTo(0f)
+        morphAnim.animateTo(
+            targetValue = 1f,
+            animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow)
+        )
+    }
+    val morph = remember(startPolygon, endPolygon) { Morph(startPolygon, endPolygon) }
+    val morphProgress = morphAnim.value.coerceIn(0f, 1f)
+
+    val morphPath = remember(morph, morphProgress) {
+        android.graphics.Path().also { path ->
+            var first = true
+            morph.forEachCubic(morphProgress) { cubic ->
+                if (first) {
+                    path.moveTo(cubic.anchor0X, cubic.anchor0Y)
+                    first = false
+                }
+                path.cubicTo(
+                    cubic.control0X, cubic.control0Y,
+                    cubic.control1X, cubic.control1Y,
+                    cubic.anchor1X, cubic.anchor1Y
+                )
+            }
+            path.close()
+        }
+    }
+    val animatedShape: Shape = shape ?: remember(morphPath) {
+        object : Shape {
+            override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+                val scaledPath = android.graphics.Path(morphPath)
+                val bounds = android.graphics.RectF()
+                scaledPath.computeBounds(bounds, true)
+                val matrix = android.graphics.Matrix()
+                matrix.setRectToRect(
+                    bounds,
+                    android.graphics.RectF(0f, 0f, size.width, size.height),
+                    android.graphics.Matrix.ScaleToFit.CENTER
+                )
+                scaledPath.transform(matrix)
+                return Outline.Generic(scaledPath.asComposePath())
+            }
+        }
+    }
 
     val containerColor by animateColorAsState(
         targetValue = when (toggleState) {
@@ -300,16 +357,17 @@ private fun ProxyToggleButtonInternal(
         label = "btn_fg"
     )
 
-    val scale by animateFloatAsState(
-        targetValue = when {
-            isPressed -> 0.84f
-            toggleState == "loading" -> 0.90f
-            toggleState == "active" || toggleState == "error" -> 0.95f
-            else -> 1f
-        },
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
-        label = "btn_scale"
-    )
+    val scale = remember { Animatable(1f) }
+    LaunchedEffect(isPressed) {
+        scale.animateTo(
+            targetValue = if (isPressed) 0.9f else 1f,
+            animationSpec = if (isPressed) {
+                spring(stiffness = Spring.StiffnessHigh, dampingRatio = Spring.DampingRatioNoBouncy)
+            } else {
+                spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioLowBouncy)
+            }
+        )
+    }
 
     Box(contentAlignment = Alignment.Center, modifier = modifier.size(size)) {
         val surfaceSize = size * (148f / 160f)
@@ -335,18 +393,12 @@ private fun ProxyToggleButtonInternal(
             interactionSource = interactionSource,
             modifier = Modifier
                 .size(surfaceSize)
-                .scale(scale)
-                .shadow(
-                    elevation = elevation,
-                    shape = animatedShape,
-                    ambientColor = if (isFloat) DefaultShadowColor else containerColor.copy(alpha = 0.4f),
-                    spotColor = if (isFloat) DefaultShadowColor else containerColor
-                )
+                .scale(scale.value)
                 .clip(animatedShape),
             shape = animatedShape,
             color = containerColor,
             shadowElevation = 0.dp,
-            tonalElevation = (elevation * 0.4f).coerceAtMost(8.dp) // Более адекватный тональный эффект
+            tonalElevation = elevation.coerceAtMost(16.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Column(
