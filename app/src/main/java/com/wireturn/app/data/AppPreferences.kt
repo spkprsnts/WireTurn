@@ -346,12 +346,16 @@ data class ClientConfig(
     }
 
     val connectableAddress: String get() = listenAddr.replace("0.0.0.0:", "127.0.0.1:")
-    fun getValidationErrorResId(): Int? = if (kernelVariant == KernelVariant.TURNABLE && !turnableConfig.isValid()) {
-        com.wireturn.app.R.string.error_settings_empty
-    } else if (kernelVariant == KernelVariant.OLCRTC && !olcrtcConfig.isValid()) {
-        com.wireturn.app.R.string.error_settings_empty
-    } else {
-        null
+    fun getValidationErrorResId(): Int? = when (kernelVariant) {
+        KernelVariant.TURNABLE if !turnableConfig.isValid() -> {
+            com.wireturn.app.R.string.error_settings_empty
+        }
+        KernelVariant.OLCRTC if !olcrtcConfig.isValid() -> {
+            com.wireturn.app.R.string.error_settings_empty
+        }
+        else -> {
+            null
+        }
     }
 
     val isValid: Boolean get() = getValidationErrorResId() == null
