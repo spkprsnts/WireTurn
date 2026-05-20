@@ -106,6 +106,7 @@ import com.wireturn.app.ui.VerticalAnimatedText
 import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.showExclusiveSnackbar
+import com.wireturn.app.ui.redact
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.ProxyState
 import androidx.core.net.toUri
@@ -156,6 +157,7 @@ fun HomeScreen(
     val batteryNotificationDismissed by viewModel.batteryNotificationDismissed.collectAsStateWithLifecycle()
     val vpnEnabled by viewModel.vpnEnabled.collectAsStateWithLifecycle()
     val appsExclusionHintShown by viewModel.appsExclusionHintShown.collectAsStateWithLifecycle()
+    val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
     val isRestarting by ProxyServiceState.isRestarting.collectAsStateWithLifecycle()
     val isChangingProfile by ProxyServiceState.isChangingProfile.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
@@ -1043,6 +1045,7 @@ fun HomeScreen(
                     containerColor = blockContainerColor,
                     enabled = showXray || isOlcrtc,
                     onClick = {
+                        if (privacyMode) return@SettingsGroupItem
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         scope.launch {
                             clipboard.setClipEntry(ClipData.newPlainText(socks5Label, copySocksAddr).toClipEntry())
@@ -1052,7 +1055,7 @@ fun HomeScreen(
                 ) {
                     ProxyAddressRow(
                         label = stringResource(R.string.socks5),
-                        address = displaySocksAddr,
+                        address = displaySocksAddr.redact(privacyMode),
                         isModified = isSocksModified,
                         isCopied = socksCopied,
                         leadingIcon = {
@@ -1084,6 +1087,7 @@ fun HomeScreen(
                     containerColor = blockContainerColor,
                     enabled = showXray,
                     onClick = {
+                        if (privacyMode) return@SettingsGroupItem
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         scope.launch {
                             clipboard.setClipEntry(ClipData.newPlainText(httpLabel, copyHttpAddr).toClipEntry())
@@ -1093,7 +1097,7 @@ fun HomeScreen(
                 ) {
                         ProxyAddressRow(
                             label = stringResource(R.string.xray_http),
-                            address = displayHttpAddr,
+                            address = displayHttpAddr.redact(privacyMode),
                             isModified = isHttpModified,
                             isCopied = httpCopied,
                             leadingIcon = {

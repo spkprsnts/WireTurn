@@ -60,12 +60,14 @@ import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SupportingText
 import com.wireturn.app.ui.TextFieldRow
+import com.wireturn.app.ui.redact
 import kotlin.math.roundToInt
 
 @Composable
 fun OlcRtcConfigScreen(
     isEditMode: Boolean = false,
     initialConfig: OlcrtcConfig = OlcrtcConfig(),
+    privacyMode: Boolean = false,
     onBack: () -> Unit,
     onSave: (OlcrtcConfig) -> Unit
 ) {
@@ -269,16 +271,18 @@ fun OlcRtcConfigScreen(
                 SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
                     TextFieldRow(
                         label = stringResource(R.string.olcrtc_id_label),
-                        value = config.id,
-                        onValueChange = { config = config.copy(id = it) },
+                        value = config.id.redact(privacyMode),
+                        onValueChange = { if (!privacyMode) config = config.copy(id = it) },
+                        readOnly = privacyMode,
                         isModified = isEditMode && config.id != initialConfig.id
                     )
                 }
                 SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
                     TextFieldRow(
                         label = stringResource(R.string.olcrtc_dns_label),
-                        value = config.dns,
-                        onValueChange = { config = config.copy(dns = it) },
+                        value = config.dns.redact(privacyMode),
+                        onValueChange = { if (!privacyMode) config = config.copy(dns = it) },
+                        readOnly = privacyMode,
                         isModified = isEditMode && config.dns != initialConfig.dns
                     )
                 }
@@ -289,16 +293,18 @@ fun OlcRtcConfigScreen(
                 SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
                     TextFieldRow(
                         label = stringResource(R.string.olcrtc_client_id_label),
-                        value = config.clientId,
-                        onValueChange = { config = config.copy(clientId = it) },
+                        value = config.clientId.redact(privacyMode),
+                        onValueChange = { if (!privacyMode) config = config.copy(clientId = it) },
+                        readOnly = privacyMode,
                         isModified = isEditMode && config.clientId != initialConfig.clientId
                     )
                 }
                 SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
                     TextFieldRow(
                         label = stringResource(R.string.olcrtc_key_label),
-                        value = config.key,
-                        onValueChange = { config = config.copy(key = it) },
+                        value = config.key.redact(privacyMode),
+                        onValueChange = { if (!privacyMode) config = config.copy(key = it) },
+                        readOnly = privacyMode,
                         isModified = isEditMode && config.key != initialConfig.key
                     )
                 }

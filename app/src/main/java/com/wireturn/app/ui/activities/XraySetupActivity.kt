@@ -40,6 +40,7 @@ class XraySetupActivity : ComponentActivity() {
         setContent {
             val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
+            val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
 
             val savedXrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
             val isInitialized by viewModel.isInitialized.collectAsStateWithLifecycle()
@@ -49,6 +50,7 @@ class XraySetupActivity : ComponentActivity() {
                     isEditMode = false,
                     showProtocolSelection = showProtocolSelection,
                     defaultProtocol = defaultProtocol,
+                    privacyMode = privacyMode,
                     kernelVariant = clientConfigFromIntent.kernelVariant,
                     onBack = { finish() },
                     onSave = { type, wg, vless ->

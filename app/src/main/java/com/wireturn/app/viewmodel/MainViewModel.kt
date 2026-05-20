@@ -103,6 +103,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _captchaForceTint = MutableStateFlow(true)
     val captchaForceTint: StateFlow<Boolean> = _captchaForceTint.asStateFlow()
 
+    val privacyMode: StateFlow<Boolean> = prefs.privacyModeFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = false
+    )
+
     private val _showFloatingActionButton = MutableStateFlow(true)
     val showFloatingActionButton: StateFlow<Boolean> = _showFloatingActionButton.asStateFlow()
 
@@ -459,9 +465,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { prefs.setThemeMode(mode) } 
     }
 
-    private val _privacyMode = MutableStateFlow(false)
-    val privacyMode: StateFlow<Boolean> = _privacyMode.asStateFlow()
-    fun setPrivacyMode(enabled: Boolean) { _privacyMode.value = enabled }
+    fun setPrivacyMode(enabled: Boolean) { 
+        viewModelScope.launch { prefs.setPrivacyMode(enabled) } 
+    }
 
     fun updateAutoLaunchSettings(settings: AutoLaunchSettings) {
         viewModelScope.launch { 

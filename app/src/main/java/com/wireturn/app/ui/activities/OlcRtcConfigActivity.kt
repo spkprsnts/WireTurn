@@ -30,6 +30,7 @@ class OlcRtcConfigActivity : ComponentActivity() {
         setContent {
             val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
+            val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
             val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
 
             val initialConfig = remember(clientConfig) {
@@ -46,6 +47,7 @@ class OlcRtcConfigActivity : ComponentActivity() {
                 OlcRtcConfigScreen(
                     isEditMode = isEditMode,
                     initialConfig = initialConfig,
+                    privacyMode = privacyMode,
                     onBack = { finish() },
                     onSave = { config ->
                         if (isEditMode) {

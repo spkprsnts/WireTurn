@@ -65,12 +65,14 @@ import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.configButtonGroupItem
 import com.wireturn.app.ui.InlineConfigIndicator
+import com.wireturn.app.ui.redact
 import kotlin.math.roundToInt
 
 @Composable
 fun TurnableConfigScreen(
     isEditMode: Boolean = false,
     initialConfig: TurnableConfig = TurnableConfig(),
+    privacyMode: Boolean = false,
     onBack: () -> Unit,
     onSave: (TurnableConfig) -> Unit
 ) {
@@ -230,8 +232,9 @@ fun TurnableConfigScreen(
                 ) {
                     TextFieldRow(
                         label = stringResource(R.string.username_label),
-                        value = config.username,
-                        onValueChange = { config = config.copy(username = it) },
+                        value = config.username.redact(privacyMode),
+                        onValueChange = { if (!privacyMode) config = config.copy(username = it) },
+                        readOnly = privacyMode,
                         supportingText = stringResource(R.string.username_desc),
                         isModified = isEditMode && config.username != initialConfig.username
                     )
@@ -243,8 +246,9 @@ fun TurnableConfigScreen(
                 ) {
                     TextFieldRow(
                         label = stringResource(R.string.call_id_label),
-                        value = config.callId,
-                        onValueChange = { config = config.copy(callId = it) },
+                        value = config.callId.redact(privacyMode),
+                        onValueChange = { if (!privacyMode) config = config.copy(callId = it) },
+                        readOnly = privacyMode,
                         supportingText = stringResource(R.string.call_id_desc),
                         isModified = isEditMode && config.callId != initialConfig.callId
                     )
@@ -260,8 +264,9 @@ fun TurnableConfigScreen(
                 ) {
                     TextFieldRow(
                         label = stringResource(R.string.user_uuid_label),
-                        value = config.userUuid ?: "",
-                        onValueChange = { config = config.copy(userUuid = it) },
+                        value = (config.userUuid ?: "").redact(privacyMode),
+                        onValueChange = { if (!privacyMode) config = config.copy(userUuid = it) },
+                        readOnly = privacyMode,
                         supportingText = stringResource(R.string.user_uuid_desc),
                         isModified = isEditMode && config.userUuid != initialConfig.userUuid
                     )
@@ -327,8 +332,9 @@ fun TurnableConfigScreen(
                 ) {
                     TextFieldRow(
                         label = stringResource(R.string.pub_key_label),
-                        value = config.pubKey ?: "",
-                        onValueChange = { config = config.copy(pubKey = it) },
+                        value = (config.pubKey ?: "").redact(privacyMode),
+                        onValueChange = { if (!privacyMode) config = config.copy(pubKey = it) },
+                        readOnly = privacyMode,
                         supportingText = stringResource(R.string.pub_key_desc),
                         isModified = isEditMode && config.pubKey != initialConfig.pubKey
                     )
@@ -362,8 +368,9 @@ fun TurnableConfigScreen(
                 ) {
                     TextFieldRow(
                         label = stringResource(R.string.gateway_label),
-                        value = config.gateway,
-                        onValueChange = { config = config.copy(gateway = it) },
+                        value = config.gateway.redact(privacyMode),
+                        onValueChange = { if (!privacyMode) config = config.copy(gateway = it) },
+                        readOnly = privacyMode,
                         supportingText = stringResource(R.string.gateway_desc),
                         isModified = isEditMode && config.gateway != initialConfig.gateway
                     )

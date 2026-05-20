@@ -643,6 +643,7 @@ class AppPreferences(val context: Context) {
         val RESTART_ON_NETWORK_CHANGE = booleanPreferencesKey("restart_on_network_change")
         val CAPTCHA_STYLE_MOD = booleanPreferencesKey("captcha_style_mod")
         val CAPTCHA_FORCE_TINT = booleanPreferencesKey("captcha_force_tint")
+        val PRIVACY_MODE = booleanPreferencesKey("privacy_mode")
 
         val CLIENT_LISTEN_ADDR = stringPreferencesKey("client_listen_addr")
         val OLCRTC_SOCKS_ADDR = stringPreferencesKey("olcrtc_socks_addr")
@@ -685,6 +686,7 @@ class AppPreferences(val context: Context) {
     val restartOnNetworkChangeFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(RESTART_ON_NETWORK_CHANGE, false)
     val captchaStyleModFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(CAPTCHA_STYLE_MOD, true)
     val captchaForceTintFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(CAPTCHA_FORCE_TINT, true)
+    val privacyModeFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(PRIVACY_MODE, false)
     val showFloatingActionButtonFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(SHOW_FLOATING_ACTION_BUTTON, true)
     val appLanguageFlow: Flow<String> = appCtx.internalDataStore.data.mapPref(APP_LANGUAGE, "system")
 
@@ -867,6 +869,10 @@ class AppPreferences(val context: Context) {
 
     suspend fun setCaptchaForceTint(v: Boolean) {
         appCtx.internalDataStore.edit { it[CAPTCHA_FORCE_TINT] = v }
+    }
+
+    suspend fun setPrivacyMode(v: Boolean) {
+        appCtx.internalDataStore.edit { it[PRIVACY_MODE] = v }
     }
 
     suspend fun addVlessLinkToHistory(l: String) {

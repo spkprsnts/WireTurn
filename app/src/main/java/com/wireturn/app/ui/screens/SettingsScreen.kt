@@ -227,7 +227,7 @@ fun SettingsScreen(
                     TextFieldRow(
                         label = stringResource(R.string.local_listen_address),
                         value = listenAddr.redact(privacyMode),
-                        onValueChange = { listenAddr = it },
+                        onValueChange = { if (!privacyMode) listenAddr = it },
                         placeholder = ClientConfig.DEFAULT_LISTEN_ADDR,
                         isError = !ValidatorUtils.isValidHostPort(listenAddr),
                         readOnly = privacyMode,
@@ -264,7 +264,7 @@ fun SettingsScreen(
                     TextFieldRow(
                         label = stringResource(R.string.socks5),
                         value = olSocks.redact(privacyMode),
-                        onValueChange = { olSocks = it },
+                        onValueChange = { if (!privacyMode) olSocks = it },
                         placeholder = ClientConfig.DEFAULT_SOCKS_ADDR,
                         isError = olSocks.isNotEmpty() && !ValidatorUtils.isValidHostPort(olSocks),
                         readOnly = privacyMode,
@@ -300,7 +300,7 @@ fun SettingsScreen(
                             TextFieldRow(
                                 label = stringResource(R.string.xray_proxy_user),
                                 value = olUser.redact(privacyMode),
-                                onValueChange = { olUser = it },
+                                onValueChange = { if (!privacyMode) olUser = it },
                                 placeholder = stringResource(R.string.proxy_user_placeholder),
                                 isError = !ValidatorUtils.isValidProxyUser(olUser),
                                 readOnly = privacyMode,
@@ -311,7 +311,7 @@ fun SettingsScreen(
                             TextFieldRow(
                                 label = stringResource(R.string.xray_proxy_pass),
                                 value = olPass.redact(privacyMode),
-                                onValueChange = { olPass = it },
+                                onValueChange = { if (!privacyMode) olPass = it },
                                 placeholder = stringResource(R.string.proxy_pass_placeholder),
                                 isError = !ValidatorUtils.isValidProxyPass(olPass),
                                 readOnly = privacyMode,
@@ -354,7 +354,7 @@ fun SettingsScreen(
                     TextFieldRow(
                         label = stringResource(R.string.socks5),
                         value = xraySocks.redact(privacyMode),
-                        onValueChange = { xraySocks = it },
+                        onValueChange = { if (!privacyMode) xraySocks = it },
                         placeholder = XraySettings.DEFAULT_SOCKS_BIND_ADDRESS,
                         isError = !ValidatorUtils.isValidHostPort(xraySocks),
                         readOnly = privacyMode,
@@ -366,7 +366,7 @@ fun SettingsScreen(
                     TextFieldRow(
                         label = stringResource(R.string.xray_http),
                         value = xrayHttp.redact(privacyMode),
-                        onValueChange = { xrayHttp = it },
+                        onValueChange = { if (!privacyMode) xrayHttp = it },
                         placeholder = XraySettings.DEFAULT_HTTP_BIND_ADDRESS,
                         isError = xrayHttp.isNotEmpty() && !ValidatorUtils.isValidHostPort(xrayHttp),
                         readOnly = privacyMode,
@@ -411,7 +411,7 @@ fun SettingsScreen(
                             TextFieldRow(
                                 label = stringResource(R.string.xray_proxy_user),
                                 value = xrayUser.redact(privacyMode),
-                                onValueChange = { xrayUser = it },
+                                onValueChange = { if (!privacyMode) xrayUser = it },
                                 placeholder = stringResource(R.string.proxy_user_placeholder),
                                 isError = !ValidatorUtils.isValidProxyUser(xrayUser),
                                 readOnly = privacyMode,
@@ -422,7 +422,7 @@ fun SettingsScreen(
                             TextFieldRow(
                                 label = stringResource(R.string.xray_proxy_pass),
                                 value = xrayPass.redact(privacyMode),
-                                onValueChange = { xrayPass = it },
+                                onValueChange = { if (!privacyMode) xrayPass = it },
                                 placeholder = stringResource(R.string.proxy_pass_placeholder),
                                 isError = !ValidatorUtils.isValidProxyPass(xrayPass),
                                 readOnly = privacyMode,
