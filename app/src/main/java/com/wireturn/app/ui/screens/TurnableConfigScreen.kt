@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
 import com.wireturn.app.data.TurnableConfig
 import com.wireturn.app.data.TurnableRoute
+import com.wireturn.app.ui.ConfigRowLabel
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.LabeledButtonGroup
 import com.wireturn.app.ui.LargeLeadingIcon
@@ -57,6 +58,7 @@ import com.wireturn.app.ui.SelectionDialog
 import com.wireturn.app.ui.SettingsGroup
 import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.ui.StandardLeadingIcon
+import com.wireturn.app.ui.SupportingText
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.configButtonGroupItem
@@ -72,6 +74,7 @@ fun TurnableConfigScreen(
 ) {
     var config by remember(initialConfig) { mutableStateOf(initialConfig) }
     val showRoutesDialog = remember { mutableStateOf(false) }
+    val showPlatformDialog = remember { mutableStateOf(false) }
 
     val isModified by remember(config) {
         derivedStateOf { config != initialConfig }
@@ -261,15 +264,41 @@ fun TurnableConfigScreen(
                 SettingsGroupItem(
                     isTop = false,
                     isBottom = false,
-                    containerColor = blockContainerColor
+                    containerColor = blockContainerColor,
+                    onClick = {
+                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                        showPlatformDialog.value = true
+                    }
                 ) {
-                    TextFieldRow(
-                        label = stringResource(R.string.platform_id_label),
-                        value = config.platformId,
-                        onValueChange = { config = config.copy(platformId = it) },
-                        supportingText = stringResource(R.string.platform_id_desc),
-                        isModified = isEditMode && config.platformId != initialConfig.platformId
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        LargeLeadingIcon {
+                            val iconRes = when (config.platformId) {
+                                "vk.com" -> R.drawable.ic_vk
+                                else -> R.drawable.ic_vk
+                            }
+                            Icon(
+                                painter = painterResource(iconRes),
+                                contentDescription = null,
+                                modifier = Modifier.size(32.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            ConfigRowLabel(
+                                text = stringResource(R.string.olcrtc_carrier_label),
+                                isModified = isEditMode && config.platformId != initialConfig.platformId
+                            )
+                            val currentLabel = when (config.platformId) {
+                                "vk.com" -> "VK"
+                                else -> config.platformId
+                            }
+                            Spacer(Modifier.height(2.dp))
+                            SupportingText(currentLabel)
+                        }
+                    }
                 }
                 SettingsGroupItem(
                     isTop = false,
@@ -399,6 +428,17 @@ fun TurnableConfigScreen(
             onDismiss = { showRoutesDialog.value = false }
         )
     }
+
+    if (showPlatformDialog.value) {
+        TurnablePlatformDialog(
+            currentPlatform = config.platformId,
+            onSelect = { platform ->
+                config = config.copy(platformId = platform)
+                showPlatformDialog.value = false
+            },
+            onDismiss = { showPlatformDialog.value = false }
+        )
+    }
 }
 
 @Composable
@@ -501,6 +541,49 @@ fun RoutesDialog(
                     color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun TurnablePlatformDialog(
+    currentPlatform: String,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val platforms = listOf(
+        "vk.com" to "VK"
+    )
+
+    SelectionDialog(
+        title = stringResource(R.string.olcrtc_carrier_label),
+        items = platforms,
+        isSelected = { it.first == currentPlatform },
+        onSelect = { onSelect(it.first) },
+        onDismiss = onDismiss
+    ) { (value, label), isSelected ->
+        val iconRes = when (value) {
+            "vk.com" -> R.drawable.ic_vk
+            else -> R.drawable.ic_vk
+        }
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            StandardLeadingIcon {
+                Icon(
+                    painter = painterResource(iconRes),
+                    contentDescription = null,
+                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
+            )
         }
     }
 }
