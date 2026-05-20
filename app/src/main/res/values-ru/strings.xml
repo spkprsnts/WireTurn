@@ -315,6 +315,7 @@
     <string name="profile_name_label">Название профиля</string>
     <string name="profile_delete_confirm">Удалить профиль %1$s?</string>
     <string name="profile_delete_desc">Все настройки этого профиля будут удалены.</string>
+    <string name="profile_default_name">Профиль</string>
     <string name="profile_select">Выбрать</string>
     <string name="profile_selected_count">Выбрано: %1$d</string>
     <string name="profile_delete_selected_confirm">Удалить выбранные профили (%1$d)?</string>

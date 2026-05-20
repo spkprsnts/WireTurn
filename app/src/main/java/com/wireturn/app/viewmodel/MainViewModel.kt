@@ -18,6 +18,7 @@ import com.wireturn.app.ProxyServiceState
 import com.wireturn.app.ProxyStatus
 import com.wireturn.app.ProxyTileService
 import com.wireturn.app.XrayService
+import com.wireturn.app.R
 import com.wireturn.app.XrayServiceState
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.AutoLaunchSettings
@@ -793,6 +794,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         vlessConfig: VlessConfig
     ) {
         val id = java.util.UUID.randomUUID().toString()
+        val defaultName = getApplication<Application>().getString(R.string.profile_default_name)
         val newProfile = Profile(
             id = id,
             name = name,
@@ -803,7 +805,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             xrayEnabled = xrayConfig.enabled,
             wgConfig = wgConfig,
             vlessConfig = vlessConfig
-        ).sanitize()
+        ).sanitize(defaultName)
         viewModelScope.launch {
             prefs.saveProfiles(profiles.value + newProfile)
             selectProfile(id, newProfile)

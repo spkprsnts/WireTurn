@@ -2,6 +2,7 @@ package com.wireturn.app.domain
 
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.Profile
+import com.wireturn.app.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -49,9 +50,11 @@ class ProfileManager(
     fun cloneProfile(id: String, newName: String) {
         val currentList = profiles.value
         val profile = currentList.find { it.id == id } ?: return
+        val defaultName = prefs.context.getString(R.string.profile_default_name)
+        val validatedName = newName.takeIf { it.isNotBlank() } ?: defaultName
         val clonedProfile = profile.copy(
             id = UUID.randomUUID().toString(),
-            name = newName
+            name = validatedName
         )
         val newList = currentList + clonedProfile
         scope.launch { prefs.saveProfiles(newList) }
@@ -75,7 +78,9 @@ class ProfileManager(
     }
 
     fun renameProfile(id: String, newName: String) {
-        val newList = profiles.value.map { if (it.id == id) it.copy(name = newName) else it }
+        val defaultName = prefs.context.getString(R.string.profile_default_name)
+        val validatedName = newName.takeIf { it.isNotBlank() } ?: defaultName
+        val newList = profiles.value.map { if (it.id == id) it.copy(name = validatedName) else it }
         scope.launch { prefs.saveProfiles(newList) }
     }
 
@@ -84,7 +89,8 @@ class ProfileManager(
     }
 
     fun updateCurrentProfile(profile: Profile) {
-        val newList = profiles.value.map { if (it.id == profile.id) profile.sanitize() else it }
+        val defaultName = prefs.context.getString(R.string.profile_default_name)
+        val newList = profiles.value.map { if (it.id == profile.id) profile.sanitize(defaultName) else it }
         if (newList != profiles.value) {
             scope.launch { prefs.saveProfiles(newList) }
         }
@@ -134,13 +140,14 @@ class ProfileManager(
 
     fun importProfiles(data: List<Pair<String?, String>>, onAutoSelect: ((Profile) -> Unit)? = null) {
         try {
+            val defaultName = prefs.context.getString(R.string.profile_default_name)
             val newProfiles = data.mapNotNull { (fileName, json) ->
                 try {
                     val p = gson.fromJson(json, Profile::class.java) ?: return@mapNotNull null
                     val nameFromFile = fileName?.removeSuffix(".json")?.removePrefix("wt_")
-                    p.sanitize().copy(
+                    p.sanitize(defaultName).copy(
                         id = UUID.randomUUID().toString(),
-                        name = (p.name as String?)?.takeIf { it.isNotBlank() } ?: nameFromFile?.take(100) ?: "Imported"
+                        name = (p.name as String?)?.takeIf { it.isNotBlank() } ?: nameFromFile?.takeIf { it.isNotBlank() }?.take(100) ?: defaultName
                     )
                 } catch (_: Exception) { null }
             }

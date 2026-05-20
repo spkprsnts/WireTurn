@@ -12,6 +12,7 @@ import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.ui.screens.XraySetupScreen
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
+import com.wireturn.app.R
 
 class XraySetupActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
@@ -28,7 +29,7 @@ class XraySetupActivity : ComponentActivity() {
             try { com.wireturn.app.data.XrayConfiguration.valueOf(defaultProtocolName) } catch (_: Exception) { null }
         } else null
 
-        val profileName = intent.getStringExtra("EXTRA_PROFILE_NAME") ?: "New Profile"
+        val profileName = intent.getStringExtra("EXTRA_PROFILE_NAME") ?: getString(R.string.profile_default_name)
         val clientConfigJson = intent.getStringExtra("EXTRA_CLIENT_CONFIG_JSON")
         val clientConfigFromIntent = if (clientConfigJson != null) {
             try { Gson().fromJson(clientConfigJson, ClientConfig::class.java) } catch (_: Exception) { ClientConfig() }

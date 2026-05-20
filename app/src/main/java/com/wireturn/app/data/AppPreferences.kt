@@ -2,6 +2,7 @@ package com.wireturn.app.data
 
 import android.content.Context
 import android.net.Uri
+import com.wireturn.app.R
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -531,7 +532,7 @@ data class Profile(
             !wgConfig.isValid() &&
             !vlessConfig.isValid()
 
-    fun sanitize(): Profile {
+    fun sanitize(defaultName: String = "Profile"): Profile {
         @Suppress("SENSELESS_COMPARISON")
         var kv = if ((kernelVariant as Any?) == null) KernelVariant.TURNABLE else kernelVariant
         var tc = (turnableConfig ?: TurnableConfig())
@@ -568,7 +569,7 @@ data class Profile(
 
         return copy(
             id = (id as Any?)?.toString()?.take(100) ?: java.util.UUID.randomUUID().toString(),
-            name = (name as Any?)?.toString()?.take(100) ?: "Unnamed",
+            name = (name as Any?)?.toString()?.takeIf { it.isNotBlank() }?.take(100) ?: defaultName,
             kernelVariant = kv,
             turnableConfig = tc.sanitize(),
             olcrtcConfig = oc.sanitize(),
@@ -689,7 +690,8 @@ class AppPreferences(val context: Context) {
             } catch (_: Exception) {
                 emptyList()
             }
-            list.map { it.sanitize() }
+            val defaultName = appCtx.getString(R.string.profile_default_name)
+            list.map { it.sanitize(defaultName) }
         }.distinctUntilChanged()
 
     val currentProfileIdFlow: Flow<String> = appCtx.internalDataStore.data.mapPref(CURRENT_PROFILE_ID, "default")
