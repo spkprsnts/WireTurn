@@ -45,10 +45,12 @@ WireTurn интегрирует возможности **Turnable** и **olcRTC*
 ## Скриншоты
 
 <p>
-  <img src="docs/screenshots/screenshot_1.png" width="155" alt="Screenshot 1" />
-  <img src="docs/screenshots/screenshot_2.png" width="155" alt="Screenshot 2" />
-  <img src="docs/screenshots/screenshot_3.png" width="155" alt="Screenshot 3" />
-  <img src="docs/screenshots/screenshot_4.png" width="155" alt="Screenshot 4" />
+  <img src="docs/screenshots/screenshot_1.png" width="130" alt="Screenshot 1" />
+  <img src="docs/screenshots/screenshot_2.png" width="130" alt="Screenshot 2" />
+  <img src="docs/screenshots/screenshot_3.png" width="130" alt="Screenshot 3" />
+  <img src="docs/screenshots/screenshot_4.png" width="130" alt="Screenshot 4" />
+  <img src="docs/screenshots/screenshot_5.png" width="130" alt="Screenshot 5" />
+  <img src="docs/screenshots/screenshot_6.png" width="130" alt="Screenshot 6" />
 </p>
 
 ## Быстрый старт
