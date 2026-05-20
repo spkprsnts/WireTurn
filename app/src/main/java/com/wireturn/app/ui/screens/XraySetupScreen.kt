@@ -619,9 +619,12 @@ private fun VlessSettingsBlock(
     isEditMode: Boolean
 ) {
     val context = LocalContext.current
-    val vlessName = remember(vlessLink) {
-        val fragment = vlessLink.substringAfterLast('#', "")
-        if (fragment.isNotEmpty()) " #${android.net.Uri.decode(fragment)}" else ""
+    val vlessName = remember(vlessLink, privacyMode) {
+        if (privacyMode) ""
+        else {
+            val fragment = vlessLink.substringAfterLast('#', "")
+            if (fragment.isNotEmpty()) " #${android.net.Uri.decode(fragment)}" else ""
+        }
     }
 
     val vlessLinkError = if (kernelVariant == KernelVariant.OLCRTC) {
