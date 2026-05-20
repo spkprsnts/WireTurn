@@ -362,7 +362,15 @@ data class ClientConfig(
         val cleanedUser = ValidatorUtils.cleanProxyString(socksUser)
         val cleanedPass = socksPass.trim()
 
-        var current = this.copy(socksUser = cleanedUser, socksPass = cleanedPass)
+        val validListen = if (ValidatorUtils.isValidHostPort(listenAddr)) listenAddr else DEFAULT_LISTEN_ADDR
+        val validSocks = if (ValidatorUtils.isValidHostPort(socksAddr)) socksAddr else DEFAULT_SOCKS_ADDR
+
+        var current = this.copy(
+            listenAddr = validListen,
+            socksAddr = validSocks,
+            socksUser = cleanedUser,
+            socksPass = cleanedPass
+        )
 
         if (current.isSocksAuthEnabled && (current.socksUser.isBlank() || current.socksPass.isBlank())) {
             val allowed = ('A'..'Z') + ('a'..'z') + ('0'..'9')
@@ -413,7 +421,19 @@ data class XraySettings(
         val cleanedUser = ValidatorUtils.cleanProxyString(proxyUser)
         val cleanedPass = proxyPass.trim()
 
-        var current = this.copy(proxyUser = cleanedUser, proxyPass = cleanedPass)
+        val validSocks = if (ValidatorUtils.isValidHostPort(socksBindAddress)) socksBindAddress else DEFAULT_SOCKS_BIND_ADDRESS
+        val validHttp = if (httpBindAddress.isBlank() || ValidatorUtils.isValidHostPort(httpBindAddress)) {
+            httpBindAddress
+        } else {
+            ""
+        }
+
+        var current = this.copy(
+            socksBindAddress = validSocks,
+            httpBindAddress = validHttp,
+            proxyUser = cleanedUser,
+            proxyPass = cleanedPass
+        )
 
         if (current.isProxyAuthEnabled && (current.proxyUser.isBlank() || current.proxyPass.isBlank())) {
             val allowed = ('A'..'Z') + ('a'..'z') + ('0'..'9')
@@ -733,7 +753,7 @@ class AppPreferences(val context: Context) {
                 },
                 turnableConfig = gson.fromJson(p[ACTIVE_TURNABLE_JSON] ?: "{}", TurnableConfig::class.java) ?: TurnableConfig(),
                 olcrtcConfig = gson.fromJson(p[ACTIVE_OLCRTC_JSON] ?: "{}", OlcrtcConfig::class.java) ?: OlcrtcConfig()
-            ).fillDefaults()
+            )
         }.distinctUntilChanged()
 
     val xraySettingsFlow: Flow<XraySettings> = appCtx.internalDataStore.data
@@ -744,7 +764,7 @@ class AppPreferences(val context: Context) {
                 isProxyAuthEnabled = p[XRAY_AUTH_ENABLED] ?: true,
                 proxyUser = p[XRAY_USER] ?: "",
                 proxyPass = p[XRAY_PASS] ?: ""
-            ).fillDefaults()
+            )
         }.distinctUntilChanged()
 
     val xrayConfigFlow: Flow<XrayConfig> = appCtx.internalDataStore.data
@@ -760,11 +780,11 @@ class AppPreferences(val context: Context) {
         }.distinctUntilChanged()
 
     val wgConfigFlow: Flow<WgConfig> = appCtx.internalDataStore.data
-        .map { (gson.fromJson(it[ACTIVE_WG_JSON] ?: "{}", WgConfig::class.java) ?: WgConfig()).fillDefaults() }
+        .map { (gson.fromJson(it[ACTIVE_WG_JSON] ?: "{}", WgConfig::class.java) ?: WgConfig()) }
         .distinctUntilChanged()
 
     val vlessConfigFlow: Flow<VlessConfig> = appCtx.internalDataStore.data
-        .map { (gson.fromJson(it[ACTIVE_VLESS_JSON] ?: "{}", VlessConfig::class.java) ?: VlessConfig()).fillDefaults() }
+        .map { (gson.fromJson(it[ACTIVE_VLESS_JSON] ?: "{}", VlessConfig::class.java) ?: VlessConfig()) }
         .distinctUntilChanged()
 
     suspend fun saveFullProfile(id: String, profile: Profile) {
