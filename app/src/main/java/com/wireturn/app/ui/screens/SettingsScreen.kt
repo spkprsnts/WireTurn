@@ -864,7 +864,6 @@ fun SettingsScreen(
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     showResetDialog.value = true
                 },
-                modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.medium,
                 color = Color.Transparent
             ) {
