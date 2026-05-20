@@ -363,4 +363,6 @@
     <string name="profile_import_clipboard">Clipboard</string>
     <string name="profile_import_file">File</string>
     <string name="profile_turnable_manual_disabled">Manual setup unavailable without initial config. Please import to continue.</string>
+    <string name="guide_turnable">Server setup guide: Turnable</string>
+    <string name="guide_olcrtc">Server setup guide: olcRTC</string>
 </resources>

@@ -6,14 +6,20 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
@@ -23,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -90,6 +97,9 @@ fun CreateProfileScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .fillMaxWidth()
+                .wrapContentWidth(Alignment.CenterHorizontally)
+                .widthIn(max = 840.dp)
                 .padding(padding)
                 .consumeWindowInsets(padding)
                 .imePadding()
@@ -202,6 +212,35 @@ fun CreateProfileScreen(
                     ConfigRowLabel(text = stringResource(R.string.kernel_olcrtc))
                 }
             }
+
+            // Guide Links
+            Column(
+                modifier = Modifier
+                    .padding(top = 8.dp, bottom = 24.dp)
+            ) {
+                val versionName = remember {
+                    try {
+                        context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: ""
+                    } catch (_: Exception) {
+                        ""
+                    }
+                }
+                val branch = if (versionName.contains("unstable", ignoreCase = true)) "unstable" else "main"
+                val uriHandler = LocalUriHandler.current
+
+                GuideLinkItem(
+                    text = stringResource(R.string.guide_turnable),
+                    onClick = {
+                        uriHandler.openUri("https://github.com/spkprsnts/WireTurn/blob/$branch/docs/guides/turnable.md")
+                    }
+                )
+                GuideLinkItem(
+                    text = stringResource(R.string.guide_olcrtc),
+                    onClick = {
+                        uriHandler.openUri("https://github.com/spkprsnts/WireTurn/blob/$branch/docs/guides/olcrtc.md")
+                    }
+                )
+            }
         }
     }
 
@@ -215,6 +254,36 @@ fun CreateProfileScreen(
                 showQrScanner.value = false
             }
         )
+    }
+}
+
+@Composable
+private fun GuideLinkItem(
+    text: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        color = androidx.compose.ui.graphics.Color.Transparent,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(vertical = 12.dp, horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.open_in_new_24px),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.size(22.dp)
+            )
+            Text(
+                text = text,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
     }
 }
 

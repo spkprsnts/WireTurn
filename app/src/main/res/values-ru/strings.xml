@@ -327,4 +327,6 @@
     <string name="profile_import_clipboard">Буфер обмена</string>
     <string name="profile_import_file">Файл</string>
     <string name="profile_turnable_manual_disabled">Ручная настройка недоступна без первоначального конфига. Пожалуйста, выполните импорт.</string>
+    <string name="guide_turnable">Инструкция по настройке сервера Turnable</string>
+    <string name="guide_olcrtc">Инструкция по настройке сервера olcRTC</string>
 </resources>
