@@ -388,10 +388,10 @@ data class ClientConfig(
     val connectableAddress: String get() = listenAddr.replace("0.0.0.0:", "127.0.0.1:")
     fun getValidationErrorResId(): Int? = when (kernelVariant) {
         KernelVariant.TURNABLE if !turnableConfig.isValid() -> {
-            com.wireturn.app.R.string.error_settings_empty
+            R.string.error_settings_empty
         }
         KernelVariant.OLCRTC if !olcrtcConfig.isValid() -> {
-            com.wireturn.app.R.string.error_settings_empty
+            R.string.error_settings_empty
         }
         else -> {
             null
@@ -400,8 +400,8 @@ data class ClientConfig(
 
     val isValid: Boolean get() = getValidationErrorResId() == null
     fun getKernelDescription(context: Context): String = when (kernelVariant) {
-        KernelVariant.TURNABLE -> context.getString(com.wireturn.app.R.string.kernel_turnable) + " " + turnableConfig.selectedRouteId
-        KernelVariant.OLCRTC -> context.getString(com.wireturn.app.R.string.kernel_olcrtc) + " " + olcrtcConfig.carrier
+        KernelVariant.TURNABLE -> context.getString(R.string.kernel_turnable) + " " + turnableConfig.selectedRouteId
+        KernelVariant.OLCRTC -> context.getString(R.string.kernel_olcrtc) + " " + olcrtcConfig.carrier
     }
 
     companion object {
