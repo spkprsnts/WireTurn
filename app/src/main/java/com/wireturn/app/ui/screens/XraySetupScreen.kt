@@ -16,7 +16,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -99,8 +98,7 @@ fun XraySetupScreen(
     vlessLinkHistory: List<String> = emptyList(),
     onRemoveHistoryItem: (String) -> Unit = {},
     onBack: () -> Unit,
-    onSave: (XrayConfiguration, WgConfig, VlessConfig) -> Unit,
-    isLoading: Boolean = false
+    onSave: (XrayConfiguration, WgConfig, VlessConfig) -> Unit
 ) {
     val canChangeProtocol = remember(kernelVariant, showProtocolSelection) {
         kernelVariant != KernelVariant.OLCRTC && showProtocolSelection
@@ -362,117 +360,107 @@ fun XraySetupScreen(
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { padding ->
-        Box(
+        Column(
             modifier = Modifier
+                .fillMaxSize()
+                .fillMaxWidth()
+                .wrapContentWidth(Alignment.CenterHorizontally)
+                .widthIn(max = 840.dp)
                 .padding(padding)
                 .consumeWindowInsets(padding)
                 .imePadding()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 16.dp)
+                .padding(top = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(19.dp)
         ) {
-            AnimatedVisibility(
-                visible = !isLoading,
-                enter = fadeIn(tween(100)),
-                exit = fadeOut(tween(100))
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .fillMaxWidth()
-                        .wrapContentWidth(Alignment.CenterHorizontally)
-                        .widthIn(max = 840.dp)
-                        .verticalScroll(scrollState)
-                        .padding(horizontal = 16.dp)
-                        .padding(top = 18.dp),
-                    verticalArrangement = Arrangement.spacedBy(19.dp)
-                ) {
-                    // Выбор протокола
-                    if (canChangeProtocol) {
-                        SettingsGroup(title = stringResource(R.string.xray_protocol_label)) {
-                            SettingsGroupItem(
-                                isTop = true,
-                                isBottom = true,
-                                containerColor = blockContainerColor
-                            ) {
-                                val configurations = XrayConfiguration.entries
-                                val protocolLabels = configurations.associateWith { config ->
-                                    stringResource(
-                                        when (config) {
-                                            XrayConfiguration.WIREGUARD -> R.string.protocol_wireguard
-                                            XrayConfiguration.VLESS -> R.string.vless
-                                        }
-                                    )
+            // Выбор протокола
+            if (canChangeProtocol) {
+                SettingsGroup(title = stringResource(R.string.xray_protocol_label)) {
+                    SettingsGroupItem(
+                        isTop = true,
+                        isBottom = true,
+                        containerColor = blockContainerColor
+                    ) {
+                        val configurations = XrayConfiguration.entries
+                        val protocolLabels = configurations.associateWith { config ->
+                            stringResource(
+                                when (config) {
+                                    XrayConfiguration.WIREGUARD -> R.string.protocol_wireguard
+                                    XrayConfiguration.VLESS -> R.string.vless
                                 }
-                                LabeledButtonGroup(
-                                    label = stringResource(R.string.xray_protocol_label),
-                                    supportingText = stringResource(R.string.xray_protocol_desc),
-                                    isModified = isEditMode && xrayConfiguration != initialXrayConfig.protocol
-                                ) {
-                                    configurations.forEachIndexed { index, config ->
-                                        configButtonGroupItem(
-                                            selected = xrayConfiguration == config,
-                                            onSelect = {
-                                                HapticUtil.perform(
-                                                    context,
-                                                    HapticUtil.Pattern.TOGGLE_ON
-                                                )
-                                                xrayConfiguration = config
-                                            },
-                                            label = protocolLabels[config] ?: "",
-                                            index = index,
-                                            count = configurations.size
+                            )
+                        }
+                        LabeledButtonGroup(
+                            label = stringResource(R.string.xray_protocol_label),
+                            supportingText = stringResource(R.string.xray_protocol_desc),
+                            isModified = isEditMode && xrayConfiguration != initialXrayConfig.protocol
+                        ) {
+                            configurations.forEachIndexed { index, config ->
+                                configButtonGroupItem(
+                                    selected = xrayConfiguration == config,
+                                    onSelect = {
+                                        HapticUtil.perform(
+                                            context,
+                                            HapticUtil.Pattern.TOGGLE_ON
                                         )
-                                    }
-                                }
+                                        xrayConfiguration = config
+                                    },
+                                    label = protocolLabels[config] ?: "",
+                                    index = index,
+                                    count = configurations.size
+                                )
                             }
                         }
                     }
-
-                    when (xrayConfiguration) {
-                        XrayConfiguration.WIREGUARD -> {
-                            WireGuardSettingsBlock(
-                                privateKey = privateKey,
-                                onPrivateKeyChange = { if (!privacyMode) privateKey = it },
-                                address = address,
-                                onAddressChange = { if (!privacyMode) address = it },
-                                mtu = mtu,
-                                onMtuChange = { mtu = it },
-                                publicKey = publicKey,
-                                onPublicKeyChange = { if (!privacyMode) publicKey = it },
-                                endpoint = endpoint,
-                                persistentKeepalive = persistentKeepalive,
-                                onPersistentKeepaliveChange = { persistentKeepalive = it },
-                                initialWgConfig = initialWgConfig,
-                                privacyMode = privacyMode,
-                                kernelVariant = kernelVariant,
-                                blockContainerColor = blockContainerColor,
-                                isEditMode = isEditMode
-                            )
-                        }
-
-                        XrayConfiguration.VLESS -> {
-                            VlessSettingsBlock(
-                                vlessLink = vlessLink,
-                                onVlessLinkChange = { if (!privacyMode) vlessLink = it },
-                                vlessIsDualRoute = vlessIsDualRoute,
-                                onVlessIsDualRouteChange = { vlessIsDualRoute = it },
-                                vlessDirectAddress = vlessDirectAddress,
-                                onVlessDirectAddressChange = { if (!privacyMode) vlessDirectAddress = it },
-                                vlessHcInterval = vlessHcInterval,
-                                onVlessHcIntervalChange = { vlessHcInterval = it },
-                                vlessLinkHistory = vlessLinkHistory,
-                                onRemoveHistoryItem = onRemoveHistoryItem,
-                                initialVlessConfig = initialVlessConfig,
-                                privacyMode = privacyMode,
-                                kernelVariant = kernelVariant,
-                                blockContainerColor = blockContainerColor,
-                                isEditMode = isEditMode
-                            )
-                        }
-                    }
-
-                    // Padding to prevent FAB from overlapping content
-                    Spacer(Modifier.height(80.dp))
                 }
             }
+
+            when (xrayConfiguration) {
+                XrayConfiguration.WIREGUARD -> {
+                    WireGuardSettingsBlock(
+                        privateKey = privateKey,
+                        onPrivateKeyChange = { if (!privacyMode) privateKey = it },
+                        address = address,
+                        onAddressChange = { if (!privacyMode) address = it },
+                        mtu = mtu,
+                        onMtuChange = { mtu = it },
+                        publicKey = publicKey,
+                        onPublicKeyChange = { if (!privacyMode) publicKey = it },
+                        endpoint = endpoint,
+                        persistentKeepalive = persistentKeepalive,
+                        onPersistentKeepaliveChange = { persistentKeepalive = it },
+                        initialWgConfig = initialWgConfig,
+                        privacyMode = privacyMode,
+                        kernelVariant = kernelVariant,
+                        blockContainerColor = blockContainerColor,
+                        isEditMode = isEditMode
+                    )
+                }
+
+                XrayConfiguration.VLESS -> {
+                    VlessSettingsBlock(
+                        vlessLink = vlessLink,
+                        onVlessLinkChange = { if (!privacyMode) vlessLink = it },
+                        vlessIsDualRoute = vlessIsDualRoute,
+                        onVlessIsDualRouteChange = { vlessIsDualRoute = it },
+                        vlessDirectAddress = vlessDirectAddress,
+                        onVlessDirectAddressChange = { if (!privacyMode) vlessDirectAddress = it },
+                        vlessHcInterval = vlessHcInterval,
+                        onVlessHcIntervalChange = { vlessHcInterval = it },
+                        vlessLinkHistory = vlessLinkHistory,
+                        onRemoveHistoryItem = onRemoveHistoryItem,
+                        initialVlessConfig = initialVlessConfig,
+                        privacyMode = privacyMode,
+                        kernelVariant = kernelVariant,
+                        blockContainerColor = blockContainerColor,
+                        isEditMode = isEditMode
+                    )
+                }
+            }
+
+            // Padding to prevent FAB from overlapping content
+            Spacer(Modifier.height(80.dp))
         }
     }
 

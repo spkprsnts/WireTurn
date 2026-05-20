@@ -21,7 +21,6 @@ class XrayEditActivity : ComponentActivity() {
         splashScreen.setKeepOnScreenCondition { !viewModel.isInitialized.value }
 
         setContent {
-            val isInitialized by viewModel.isInitialized.collectAsStateWithLifecycle()
             val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
             
@@ -50,8 +49,7 @@ class XrayEditActivity : ComponentActivity() {
                         viewModel.updateWgConfig(wg)
                         viewModel.updateVlessConfig(vless)
                         finish()
-                    },
-                    isLoading = !isInitialized
+                    }
                 )
             }
         }

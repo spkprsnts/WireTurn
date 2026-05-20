@@ -43,7 +43,6 @@ class XraySetupActivity : ComponentActivity() {
             val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
 
             val savedXrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
-            val isInitialized by viewModel.isInitialized.collectAsStateWithLifecycle()
 
             WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
                 XraySetupScreen(
@@ -65,8 +64,7 @@ class XraySetupActivity : ComponentActivity() {
                         val intent = android.content.Intent(this, MainActivity::class.java)
                         intent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP)
                         startActivity(intent)
-                    },
-                    isLoading = !isInitialized
+                    }
                 )
             }
         }
