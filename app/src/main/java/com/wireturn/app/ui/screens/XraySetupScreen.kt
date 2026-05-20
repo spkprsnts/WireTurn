@@ -100,6 +100,7 @@ fun XraySetupScreen(
     onBack: () -> Unit,
     onSave: (XrayConfiguration, WgConfig, VlessConfig) -> Unit
 ) {
+    val isPrivacyActive = privacyMode && isEditMode
     val canChangeProtocol = remember(kernelVariant, showProtocolSelection) {
         kernelVariant != KernelVariant.OLCRTC && showProtocolSelection
     }
@@ -420,18 +421,18 @@ fun XraySetupScreen(
                 XrayConfiguration.WIREGUARD -> {
                     WireGuardSettingsBlock(
                         privateKey = privateKey,
-                        onPrivateKeyChange = { if (!privacyMode) privateKey = it },
+                        onPrivateKeyChange = { if (!isPrivacyActive) privateKey = it },
                         address = address,
-                        onAddressChange = { if (!privacyMode) address = it },
+                        onAddressChange = { if (!isPrivacyActive) address = it },
                         mtu = mtu,
                         onMtuChange = { mtu = it },
                         publicKey = publicKey,
-                        onPublicKeyChange = { if (!privacyMode) publicKey = it },
+                        onPublicKeyChange = { if (!isPrivacyActive) publicKey = it },
                         endpoint = endpoint,
                         persistentKeepalive = persistentKeepalive,
                         onPersistentKeepaliveChange = { persistentKeepalive = it },
                         initialWgConfig = initialWgConfig,
-                        privacyMode = privacyMode,
+                        isPrivacyActive = isPrivacyActive,
                         kernelVariant = kernelVariant,
                         blockContainerColor = blockContainerColor,
                         isEditMode = isEditMode
@@ -441,17 +442,17 @@ fun XraySetupScreen(
                 XrayConfiguration.VLESS -> {
                     VlessSettingsBlock(
                         vlessLink = vlessLink,
-                        onVlessLinkChange = { if (!privacyMode) vlessLink = it },
+                        onVlessLinkChange = { if (!isPrivacyActive) vlessLink = it },
                         vlessIsDualRoute = vlessIsDualRoute,
                         onVlessIsDualRouteChange = { vlessIsDualRoute = it },
                         vlessDirectAddress = vlessDirectAddress,
-                        onVlessDirectAddressChange = { if (!privacyMode) vlessDirectAddress = it },
+                        onVlessDirectAddressChange = { if (!isPrivacyActive) vlessDirectAddress = it },
                         vlessHcInterval = vlessHcInterval,
                         onVlessHcIntervalChange = { vlessHcInterval = it },
                         vlessLinkHistory = vlessLinkHistory,
                         onRemoveHistoryItem = onRemoveHistoryItem,
                         initialVlessConfig = initialVlessConfig,
-                        privacyMode = privacyMode,
+                        isPrivacyActive = isPrivacyActive,
                         kernelVariant = kernelVariant,
                         blockContainerColor = blockContainerColor,
                         isEditMode = isEditMode
@@ -501,7 +502,7 @@ private fun WireGuardSettingsBlock(
     endpoint: String,
     persistentKeepalive: String, onPersistentKeepaliveChange: (String) -> Unit,
     initialWgConfig: WgConfig,
-    privacyMode: Boolean,
+    isPrivacyActive: Boolean,
     kernelVariant: KernelVariant,
     blockContainerColor: Color,
     isEditMode: Boolean
@@ -536,23 +537,25 @@ private fun WireGuardSettingsBlock(
             SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
                 TextFieldRow(
                     label = stringResource(R.string.wg_private_key),
-                    value = privateKey.redact(privacyMode),
-                    onValueChange = onPrivateKeyChange,
+                    value = privateKey.redact(isPrivacyActive),
+                    onValueChange = { if (!isPrivacyActive) onPrivateKeyChange(it) },
                     placeholder = stringResource(R.string.wg_private_key_placeholder),
                     isError = privateKey.isBlank(),
-                    readOnly = privacyMode,
-                    isModified = isEditMode && privateKey != initialWgConfig.privateKey
+                    readOnly = isPrivacyActive,
+                    isModified = isEditMode && privateKey != initialWgConfig.privateKey,
+                    privacyMode = isPrivacyActive
                 )
             }
             SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
                 TextFieldRow(
                     label = stringResource(R.string.wg_address),
-                    value = address.redact(privacyMode),
-                    onValueChange = onAddressChange,
+                    value = address.redact(isPrivacyActive),
+                    onValueChange = { if (!isPrivacyActive) onAddressChange(it) },
                     placeholder = stringResource(R.string.wg_address_placeholder),
                     isError = address.isBlank(),
-                    readOnly = privacyMode,
-                    isModified = isEditMode && address != initialWgConfig.address
+                    readOnly = isPrivacyActive,
+                    isModified = isEditMode && address != initialWgConfig.address,
+                    privacyMode = isPrivacyActive
                 )
             }
             SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
@@ -572,21 +575,23 @@ private fun WireGuardSettingsBlock(
             SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
                 TextFieldRow(
                     label = stringResource(R.string.wg_public_key),
-                    value = publicKey.redact(privacyMode),
-                    onValueChange = onPublicKeyChange,
+                    value = publicKey.redact(isPrivacyActive),
+                    onValueChange = { if (!isPrivacyActive) onPublicKeyChange(it) },
                     placeholder = stringResource(R.string.wg_public_key_placeholder),
                     isError = publicKey.isBlank(),
-                    readOnly = privacyMode,
-                    isModified = isEditMode && publicKey != initialWgConfig.publicKey
+                    readOnly = isPrivacyActive,
+                    isModified = isEditMode && publicKey != initialWgConfig.publicKey,
+                    privacyMode = isPrivacyActive
                 )
             }
             SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
                 TextFieldRow(
                     label = stringResource(R.string.wg_endpoint),
-                    value = endpoint.redact(privacyMode),
+                    value = endpoint.redact(isPrivacyActive),
                     onValueChange = { },
                     readOnly = true,
-                    isModified = isEditMode && endpoint != initialWgConfig.endpoint
+                    isModified = isEditMode && endpoint != initialWgConfig.endpoint,
+                    privacyMode = isPrivacyActive
                 )
             }
             SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
@@ -613,14 +618,14 @@ private fun VlessSettingsBlock(
     vlessLinkHistory: List<String>,
     onRemoveHistoryItem: (String) -> Unit,
     initialVlessConfig: VlessConfig,
-    privacyMode: Boolean,
+    isPrivacyActive: Boolean,
     kernelVariant: KernelVariant,
     blockContainerColor: Color,
     isEditMode: Boolean
 ) {
     val context = LocalContext.current
-    val vlessName = remember(vlessLink, privacyMode) {
-        if (privacyMode) ""
+    val vlessName = remember(vlessLink, isPrivacyActive) {
+        if (isPrivacyActive) ""
         else {
             val fragment = vlessLink.substringAfterLast('#', "")
             if (fragment.isNotEmpty()) " #${android.net.Uri.decode(fragment)}" else ""
@@ -638,21 +643,22 @@ private fun VlessSettingsBlock(
             SettingsGroupItem(isTop = true, isBottom = true, containerColor = blockContainerColor) {
                 TextFieldRow(
                     label = stringResource(R.string.vless_link_label) + vlessName,
-                    value = vlessLink.redact(privacyMode),
-                    onValueChange = onVlessLinkChange,
+                    value = vlessLink.redact(isPrivacyActive),
+                    onValueChange = { if (!isPrivacyActive) onVlessLinkChange(it) },
                     placeholder = stringResource(R.string.vless_link_placeholder),
                     isError = vlessLinkError,
                     minLines = 4,
                     maxLines = 4,
                     singleLine = false,
-                    readOnly = privacyMode,
+                    readOnly = isPrivacyActive,
                     isModified = isEditMode && vlessLink.trim() != initialVlessConfig.vlessLink,
+                    privacyMode = isPrivacyActive,
                     trailingIcon = {
                         FieldTrailingIcons(
                             history = vlessLinkHistory,
                             onSelect = onVlessLinkChange,
                             onRemove = onRemoveHistoryItem,
-                            privacyMode = privacyMode
+                            privacyMode = isPrivacyActive
                         )
                     }
                 )
@@ -701,12 +707,13 @@ private fun VlessSettingsBlock(
                     SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
                         TextFieldRow(
                             label = stringResource(R.string.vless_direct_address),
-                            value = vlessDirectAddress.redact(privacyMode),
-                            onValueChange = onVlessDirectAddressChange,
+                            value = vlessDirectAddress.redact(isPrivacyActive),
+                            onValueChange = { if (!isPrivacyActive) onVlessDirectAddressChange(it) },
                             placeholder = stringResource(R.string.vless_direct_address_placeholder),
                             isError = !ValidatorUtils.isValidHostPort(vlessDirectAddress),
-                            readOnly = privacyMode,
+                            readOnly = isPrivacyActive,
                             isModified = isEditMode && vlessDirectAddress != initialVlessConfig.directAddress,
+                            privacyMode = isPrivacyActive,
                             trailingIcon = {
                                 IconButton(onClick = {
                                     ValidatorUtils.parseVlessAddress(vlessLink)?.let { addr ->

@@ -232,7 +232,8 @@ fun SettingsScreen(
                         isError = !ValidatorUtils.isValidHostPort(listenAddr),
                         readOnly = privacyMode,
                         isModified = clientSnapshot?.let { it.listenAddr != listenAddr } ?: false,
-                        onHelpClick = { showListenHelp.value = true }
+                        onHelpClick = { showListenHelp.value = true },
+                        privacyMode = privacyMode
                     )
                 }
             }
@@ -269,7 +270,8 @@ fun SettingsScreen(
                         isError = olSocks.isNotEmpty() && !ValidatorUtils.isValidHostPort(olSocks),
                         readOnly = privacyMode,
                         isModified = clientSnapshot?.let { it.socksAddr != olSocks } ?: false,
-                        onHelpClick = { showSocksHelp.value = true }
+                        onHelpClick = { showSocksHelp.value = true },
+                        privacyMode = privacyMode
                     )
                 }
                 
@@ -290,7 +292,7 @@ fun SettingsScreen(
                         supportingText = stringResource(R.string.xray_proxy_auth_desc),
                         checked = olAuth,
                         onCheckedChange = { olAuth = it },
-                        isModified = clientSnapshot?.let { it.isSocksAuthEnabled != olAuth } ?: false
+                        isModified = clientSnapshot?.let { it.isSocksAuthEnabled != olAuth } ?: false,
                     )
                 }
                 
@@ -304,7 +306,8 @@ fun SettingsScreen(
                                 placeholder = stringResource(R.string.proxy_user_placeholder),
                                 isError = !ValidatorUtils.isValidProxyUser(olUser),
                                 readOnly = privacyMode,
-                                isModified = clientSnapshot?.let { it.socksUser != olUser } ?: false
+                                isModified = clientSnapshot?.let { it.socksUser != olUser } ?: false,
+                                privacyMode = privacyMode
                             )
                         }
                         SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
@@ -316,6 +319,7 @@ fun SettingsScreen(
                                 isError = !ValidatorUtils.isValidProxyPass(olPass),
                                 readOnly = privacyMode,
                                 isModified = clientSnapshot?.let { it.socksPass != olPass } ?: false,
+                                privacyMode = privacyMode,
                                 trailingIcon = {
                                     IconButton(onClick = { olPassVisible = !olPassVisible }) {
                                         Icon(
@@ -358,7 +362,8 @@ fun SettingsScreen(
                         placeholder = XraySettings.DEFAULT_SOCKS_BIND_ADDRESS,
                         isError = !ValidatorUtils.isValidHostPort(xraySocks),
                         readOnly = privacyMode,
-                        isModified = xraySettingsSnapshot?.let { it.socksBindAddress != xraySocks } ?: false
+                        isModified = xraySettingsSnapshot?.let { it.socksBindAddress != xraySocks } ?: false,
+                        privacyMode = privacyMode
                     )
                 }
                 
@@ -370,7 +375,8 @@ fun SettingsScreen(
                         placeholder = XraySettings.DEFAULT_HTTP_BIND_ADDRESS,
                         isError = xrayHttp.isNotEmpty() && !ValidatorUtils.isValidHostPort(xrayHttp),
                         readOnly = privacyMode,
-                        isModified = xraySettingsSnapshot?.let { it.httpBindAddress != xrayHttp } ?: false
+                        isModified = xraySettingsSnapshot?.let { it.httpBindAddress != xrayHttp } ?: false,
+                        privacyMode = privacyMode
                     )
                 }
 
@@ -401,7 +407,7 @@ fun SettingsScreen(
                         supportingText = stringResource(R.string.xray_proxy_auth_desc),
                         checked = xrayAuth,
                         onCheckedChange = { xrayAuth = it },
-                        isModified = xraySettingsSnapshot?.let { it.isProxyAuthEnabled != xrayAuth } ?: false
+                        isModified = xraySettingsSnapshot?.let { it.isProxyAuthEnabled != xrayAuth } ?: false,
                     )
                 }
                 
@@ -415,7 +421,8 @@ fun SettingsScreen(
                                 placeholder = stringResource(R.string.proxy_user_placeholder),
                                 isError = !ValidatorUtils.isValidProxyUser(xrayUser),
                                 readOnly = privacyMode,
-                                isModified = xraySettingsSnapshot?.let { it.proxyUser != xrayUser } ?: false
+                                isModified = xraySettingsSnapshot?.let { it.proxyUser != xrayUser } ?: false,
+                                privacyMode = privacyMode
                             )
                         }
                         SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
@@ -427,6 +434,7 @@ fun SettingsScreen(
                                 isError = !ValidatorUtils.isValidProxyPass(xrayPass),
                                 readOnly = privacyMode,
                                 isModified = xraySettingsSnapshot?.let { it.proxyPass != xrayPass } ?: false,
+                                privacyMode = privacyMode,
                                 trailingIcon = {
                                     IconButton(onClick = { xrayPassVisible = !xrayPassVisible }) {
                                         Icon(

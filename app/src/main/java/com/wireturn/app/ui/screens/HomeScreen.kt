@@ -118,6 +118,7 @@ import com.wireturn.app.ui.components.ProxyToggleButton
 import com.wireturn.app.ui.ConfigRowLabel
 import com.wireturn.app.ui.SupportingText
 import com.wireturn.app.ui.UpdateBlock
+import com.wireturn.app.ui.privacySpoiler
 import com.wireturn.app.viewmodel.UpdateState
 import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.viewmodel.XrayState
@@ -1055,9 +1056,10 @@ fun HomeScreen(
                 ) {
                     ProxyAddressRow(
                         label = stringResource(R.string.socks5),
-                        address = displaySocksAddr.redact(privacyMode),
+                        address = displaySocksAddr,
                         isModified = isSocksModified,
                         isCopied = socksCopied,
+                        privacyMode = privacyMode,
                         leadingIcon = {
                             Icon(
                                 painter = painterResource(R.drawable.lan_24px),
@@ -1097,9 +1099,10 @@ fun HomeScreen(
                 ) {
                         ProxyAddressRow(
                             label = stringResource(R.string.xray_http),
-                            address = displayHttpAddr.redact(privacyMode),
+                            address = displayHttpAddr,
                             isModified = isHttpModified,
                             isCopied = httpCopied,
+                            privacyMode = privacyMode,
                             leadingIcon = {
                                 Icon(
                                     painter = painterResource(R.drawable.lan_24px),
@@ -1172,11 +1175,10 @@ private fun ProxyAddressRow(
     address: String,
     isModified: Boolean,
     isCopied: Boolean,
-    leadingIcon: @Composable (() -> Unit)? = null
+    leadingIcon: @Composable (() -> Unit)? = null,
+    privacyMode: Boolean = false
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (leadingIcon != null) {
@@ -1184,12 +1186,18 @@ private fun ProxyAddressRow(
         }
 
         Column(modifier = Modifier.weight(1f)) {
+            val displayText = if (privacyMode) {
+                if (address.isBlank()) " ".repeat(25) else address.redact(true)
+            } else {
+                address.ifBlank { stringResource(R.string.dash) }
+            }
             Text(
-                address.ifBlank { stringResource(R.string.dash) },
+                displayText,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = if (address.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                else MaterialTheme.colorScheme.onSurface
+                color = if (address.isBlank() && !privacyMode) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.privacySpoiler(privacyMode)
             )
             Spacer(Modifier.height(2.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {

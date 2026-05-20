@@ -76,6 +76,7 @@ fun TurnableConfigScreen(
     onBack: () -> Unit,
     onSave: (TurnableConfig) -> Unit
 ) {
+    val isPrivacyActive = privacyMode && isEditMode
     var config by remember(initialConfig) { mutableStateOf(initialConfig) }
     val showRoutesDialog = remember { mutableStateOf(false) }
     val showPlatformDialog = remember { mutableStateOf(false) }
@@ -232,11 +233,12 @@ fun TurnableConfigScreen(
                 ) {
                     TextFieldRow(
                         label = stringResource(R.string.username_label),
-                        value = config.username.redact(privacyMode),
-                        onValueChange = { if (!privacyMode) config = config.copy(username = it) },
-                        readOnly = privacyMode,
+                        value = config.username.redact(isPrivacyActive),
+                        onValueChange = { if (!isPrivacyActive) config = config.copy(username = it) },
+                        readOnly = isPrivacyActive,
                         supportingText = stringResource(R.string.username_desc),
-                        isModified = isEditMode && config.username != initialConfig.username
+                        isModified = isEditMode && config.username != initialConfig.username,
+                        privacyMode = isPrivacyActive
                     )
                 }
                 SettingsGroupItem(
@@ -246,11 +248,12 @@ fun TurnableConfigScreen(
                 ) {
                     TextFieldRow(
                         label = stringResource(R.string.call_id_label),
-                        value = config.callId.redact(privacyMode),
-                        onValueChange = { if (!privacyMode) config = config.copy(callId = it) },
-                        readOnly = privacyMode,
+                        value = config.callId.redact(isPrivacyActive),
+                        onValueChange = { if (!isPrivacyActive) config = config.copy(callId = it) },
+                        readOnly = isPrivacyActive,
                         supportingText = stringResource(R.string.call_id_desc),
-                        isModified = isEditMode && config.callId != initialConfig.callId
+                        isModified = isEditMode && config.callId != initialConfig.callId,
+                        privacyMode = isPrivacyActive
                     )
                 }
             }
@@ -264,11 +267,12 @@ fun TurnableConfigScreen(
                 ) {
                     TextFieldRow(
                         label = stringResource(R.string.user_uuid_label),
-                        value = (config.userUuid ?: "").redact(privacyMode),
-                        onValueChange = { if (!privacyMode) config = config.copy(userUuid = it) },
-                        readOnly = privacyMode,
+                        value = (config.userUuid ?: "").redact(isPrivacyActive),
+                        onValueChange = { if (!isPrivacyActive) config = config.copy(userUuid = it) },
+                        readOnly = isPrivacyActive,
                         supportingText = stringResource(R.string.user_uuid_desc),
-                        isModified = isEditMode && config.userUuid != initialConfig.userUuid
+                        isModified = isEditMode && config.userUuid != initialConfig.userUuid,
+                        privacyMode = isPrivacyActive
                     )
                 }
                 SettingsGroupItem(
@@ -332,11 +336,12 @@ fun TurnableConfigScreen(
                 ) {
                     TextFieldRow(
                         label = stringResource(R.string.pub_key_label),
-                        value = (config.pubKey ?: "").redact(privacyMode),
-                        onValueChange = { if (!privacyMode) config = config.copy(pubKey = it) },
-                        readOnly = privacyMode,
+                        value = (config.pubKey ?: "").redact(isPrivacyActive),
+                        onValueChange = { if (!isPrivacyActive) config = config.copy(pubKey = it) },
+                        readOnly = isPrivacyActive,
                         supportingText = stringResource(R.string.pub_key_desc),
-                        isModified = isEditMode && config.pubKey != initialConfig.pubKey
+                        isModified = isEditMode && config.pubKey != initialConfig.pubKey,
+                        privacyMode = isPrivacyActive
                     )
                 }
                 SettingsGroupItem(
@@ -368,11 +373,12 @@ fun TurnableConfigScreen(
                 ) {
                     TextFieldRow(
                         label = stringResource(R.string.gateway_label),
-                        value = config.gateway.redact(privacyMode),
-                        onValueChange = { if (!privacyMode) config = config.copy(gateway = it) },
-                        readOnly = privacyMode,
+                        value = config.gateway.redact(isPrivacyActive),
+                        onValueChange = { if (!isPrivacyActive) config = config.copy(gateway = it) },
+                        readOnly = isPrivacyActive,
                         supportingText = stringResource(R.string.gateway_desc),
-                        isModified = isEditMode && config.gateway != initialConfig.gateway
+                        isModified = isEditMode && config.gateway != initialConfig.gateway,
+                        privacyMode = isPrivacyActive
                     )
                 }
                 SettingsGroupItem(

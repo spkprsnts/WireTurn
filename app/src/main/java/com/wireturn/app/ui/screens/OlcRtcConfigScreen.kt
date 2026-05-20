@@ -71,6 +71,7 @@ fun OlcRtcConfigScreen(
     onBack: () -> Unit,
     onSave: (OlcrtcConfig) -> Unit
 ) {
+    val isPrivacyActive = privacyMode && isEditMode
     var config by remember(initialConfig) { mutableStateOf(initialConfig) }
     var videoW by remember(initialConfig) { mutableStateOf(initialConfig.videoW.let { if (it == 0) "1080" else it.toString() }) }
     var videoH by remember(initialConfig) { mutableStateOf(initialConfig.videoH.let { if (it == 0) "1080" else it.toString() }) }
@@ -271,19 +272,21 @@ fun OlcRtcConfigScreen(
                 SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
                     TextFieldRow(
                         label = stringResource(R.string.olcrtc_id_label),
-                        value = config.id.redact(privacyMode),
-                        onValueChange = { if (!privacyMode) config = config.copy(id = it) },
-                        readOnly = privacyMode,
-                        isModified = isEditMode && config.id != initialConfig.id
+                        value = config.id.redact(isPrivacyActive),
+                        onValueChange = { if (!isPrivacyActive) config = config.copy(id = it) },
+                        readOnly = isPrivacyActive,
+                        isModified = isEditMode && config.id != initialConfig.id,
+                        privacyMode = isPrivacyActive
                     )
                 }
                 SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
                     TextFieldRow(
                         label = stringResource(R.string.olcrtc_dns_label),
-                        value = config.dns.redact(privacyMode),
-                        onValueChange = { if (!privacyMode) config = config.copy(dns = it) },
-                        readOnly = privacyMode,
-                        isModified = isEditMode && config.dns != initialConfig.dns
+                        value = config.dns.redact(isPrivacyActive),
+                        onValueChange = { if (!isPrivacyActive) config = config.copy(dns = it) },
+                        readOnly = isPrivacyActive,
+                        isModified = isEditMode && config.dns != initialConfig.dns,
+                        privacyMode = isPrivacyActive
                     )
                 }
             }
@@ -293,19 +296,21 @@ fun OlcRtcConfigScreen(
                 SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
                     TextFieldRow(
                         label = stringResource(R.string.olcrtc_client_id_label),
-                        value = config.clientId.redact(privacyMode),
-                        onValueChange = { if (!privacyMode) config = config.copy(clientId = it) },
-                        readOnly = privacyMode,
-                        isModified = isEditMode && config.clientId != initialConfig.clientId
+                        value = config.clientId.redact(isPrivacyActive),
+                        onValueChange = { if (!isPrivacyActive) config = config.copy(clientId = it) },
+                        readOnly = isPrivacyActive,
+                        isModified = isEditMode && config.clientId != initialConfig.clientId,
+                        privacyMode = isPrivacyActive
                     )
                 }
                 SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
                     TextFieldRow(
                         label = stringResource(R.string.olcrtc_key_label),
-                        value = config.key.redact(privacyMode),
-                        onValueChange = { if (!privacyMode) config = config.copy(key = it) },
-                        readOnly = privacyMode,
-                        isModified = isEditMode && config.key != initialConfig.key
+                        value = config.key.redact(isPrivacyActive),
+                        onValueChange = { if (!isPrivacyActive) config = config.copy(key = it) },
+                        readOnly = isPrivacyActive,
+                        isModified = isEditMode && config.key != initialConfig.key,
+                        privacyMode = isPrivacyActive
                     )
                 }
             }

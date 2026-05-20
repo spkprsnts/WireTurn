@@ -107,6 +107,16 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import kotlin.random.Random
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -177,7 +187,94 @@ fun InlineConfigIndicator(isModified: Boolean, modifier: Modifier = Modifier) {
 
 @Composable
 fun String.redact(enabled: Boolean): String {
-    return if (enabled) stringResource(R.string.redacted_value) else this
+    if (!enabled) return this
+    return " ".repeat(this.length.coerceAtLeast(12))
+}
+
+/**
+ * Telegram-style spoiler effect with magic sparks.
+ */
+@Composable
+fun Modifier.privacySpoiler(
+    enabled: Boolean,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+    sparkColor: Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+): Modifier {
+    if (!enabled) return this
+
+    val infiniteTransition = rememberInfiniteTransition(label = "privacySpoiler")
+    val t by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "time"
+    )
+
+    return this.drawWithContent {
+        if (enabled) {
+            // Background mask
+            drawRect(color = containerColor)
+            
+            // Стабильный seed на основе размера, чтобы не было мерцания при микро-изменениях size
+            val seed = (size.width.toInt() shl 16) xor size.height.toInt()
+            val random = Random(seed.toLong() + 42L)
+            
+            // Оптимизированная плотность: 1 искра на ~40 пикселей (по площади)
+            // Этого достаточно для создания густого эффекта, но гораздо легче для GPU
+            val count = (size.width * size.height / 40).toInt().coerceIn(60, 500)
+            
+            clipRect {
+                repeat(count) {
+                    val x = random.nextFloat() * size.width
+                    val y = random.nextFloat() * size.height
+                    
+                    val individualPhase = random.nextFloat()
+                    // Используем только целые множители скорости (1 или 2), 
+                    // чтобы анимация была идеально бесшовной при t=0 и t=1
+                    val speedScale = if (random.nextBoolean()) 1f else 2f
+                    val particleT = (t * speedScale + individualPhase) % 1f
+                    
+                    // Плавное мерцание (синус от 0 до PI всегда возвращается в 0)
+                    val alphaScale = kotlin.math.sin(particleT * Math.PI).toFloat()
+                    
+                    val radiusX = 1.5.dp.toPx() + random.nextFloat() * 2.5.dp.toPx()
+                    val radiusY = 1.5.dp.toPx() + random.nextFloat() * 2.5.dp.toPx()
+                    
+                    // Рандомизируем направление вращения и тип траектории
+                    val dirX = if (random.nextBoolean()) 1f else -1f
+                    val dirY = if (random.nextBoolean()) 1f else -1f
+                    val movementType = random.nextInt(3)
+                    
+                    val (offsetX, offsetY) = when (movementType) {
+                        0 -> { // Эллипс
+                            kotlin.math.sin(particleT * 2 * Math.PI).toFloat() * radiusX * dirX to
+                            kotlin.math.cos(particleT * 2 * Math.PI).toFloat() * radiusY * dirY
+                        }
+                        1 -> { // Восьмерка
+                            kotlin.math.sin(particleT * 2 * Math.PI).toFloat() * radiusX * dirX to
+                            kotlin.math.sin(particleT * 4 * Math.PI).toFloat() * radiusY * dirY
+                        }
+                        else -> { // Колебание по диагонали
+                            val angle = individualPhase * 2 * Math.PI
+                            val dist = kotlin.math.sin(particleT * 2 * Math.PI).toFloat() * radiusX
+                            kotlin.math.cos(angle).toFloat() * dist * dirX to kotlin.math.sin(angle).toFloat() * dist * dirY
+                        }
+                    }
+                    
+                    drawCircle(
+                        color = sparkColor.copy(alpha = alphaScale * sparkColor.alpha),
+                        radius = (random.nextFloat() * 1.2.dp.toPx()).coerceAtLeast(0.7.dp.toPx()),
+                        center = Offset(x + offsetX, y + offsetY)
+                    )
+                }
+            }
+        } else {
+            drawContent()
+        }
+    }
 }
 
 @Composable
@@ -229,7 +326,8 @@ fun VerticalAnimatedText(
     overflow: TextOverflow = TextOverflow.Clip,
     softWrap: Boolean = true,
     maxLines: Int = Int.MAX_VALUE,
-    contentAlignment: Alignment = Alignment.CenterStart
+    contentAlignment: Alignment = Alignment.CenterStart,
+    privacyMode: Boolean = false
 ) {
     AnimatedContent(
         targetState = text,
@@ -251,7 +349,8 @@ fun VerticalAnimatedText(
             textAlign = textAlign,
             overflow = overflow,
             softWrap = softWrap,
-            maxLines = maxLines
+            maxLines = maxLines,
+            modifier = Modifier.privacySpoiler(privacyMode)
         )
     }
 }
@@ -778,7 +877,8 @@ fun TextFieldRow(
     visualTransformation: VisualTransformation = VisualTransformation.None,
     isModified: Boolean = false,
     onHelpClick: (() -> Unit)? = null,
-    keyboardOptions: KeyboardOptions = KeyboardOptions.Default
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    privacyMode: Boolean = false
 ) {
     val context = LocalContext.current
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -815,7 +915,8 @@ fun TextFieldRow(
             onValueChange = onValueChange,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 4.dp),
+                .padding(vertical = 4.dp)
+                .privacySpoiler(privacyMode),
             readOnly = readOnly,
             isError = isError,
             singleLine = singleLine,
@@ -832,7 +933,7 @@ fun TextFieldRow(
                 }
             },
             trailingIcon = trailingIcon,
-            visualTransformation = visualTransformation,
+            visualTransformation = if (privacyMode) PasswordVisualTransformation() else visualTransformation,
             keyboardOptions = keyboardOptions,
             shape = RoundedCornerShape(8.dp),
             colors = TextFieldDefaults.colors(
