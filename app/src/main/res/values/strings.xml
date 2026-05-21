@@ -331,6 +331,8 @@
     <string name="xray_protocol_desc">Choose protocol for Xray-core</string>
     <string name="vless_settings">VLESS Settings</string>
     <string name="protocol_wireguard" translatable="false">WireGuard</string>
+    <string name="connection_settings_title">Connection Settings</string>
+    <string name="connection_settings_desc">Addresses and ports of tunnel cores</string>
     <string name="connection_details">Connection details</string>
     <string name="server_settings_title">Server settings</string>
     <string name="math_minus" translatable="false">−</string>

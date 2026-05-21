@@ -133,6 +133,7 @@ fun HomeScreen(
     viewModel: MainViewModel,
     onNavigateToExclusions: () -> Unit,
     onNavigateToXrayConfig: () -> Unit,
+    onNavigateToConnectionSettings: () -> Unit,
     onToggleProxy: () -> Unit,
     onCheckMismatch: (Boolean, () -> Unit) -> Unit,
     modifier: Modifier = Modifier
@@ -1064,7 +1065,7 @@ fun HomeScreen(
 
                 SettingsGroupItem(
                     isTop = true,
-                    isBottom = !showHttpBlock,
+                    isBottom = false,
                     containerColor = blockContainerColor,
                     enabled = showXray || isOlcrtc,
                     onClick = {
@@ -1106,19 +1107,19 @@ fun HomeScreen(
                     }
 
                     SettingsGroupItem(
-                    isTop = false,
-                    isBottom = true,
-                    containerColor = blockContainerColor,
-                    enabled = showXray,
-                    onClick = {
-                        if (privacyMode) return@SettingsGroupItem
-                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                        scope.launch {
-                            clipboard.setClipEntry(ClipData.newPlainText(httpLabel, copyHttpAddr).toClipEntry())
-                            httpCopied = true
+                        isTop = false,
+                        isBottom = false,
+                        containerColor = blockContainerColor,
+                        enabled = showXray,
+                        onClick = {
+                            if (privacyMode) return@SettingsGroupItem
+                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                            scope.launch {
+                                clipboard.setClipEntry(ClipData.newPlainText(httpLabel, copyHttpAddr).toClipEntry())
+                                httpCopied = true
+                            }
                         }
-                    }
-                ) {
+                    ) {
                         ProxyAddressRow(
                             label = stringResource(R.string.xray_http),
                             address = displayHttpAddr,
@@ -1135,10 +1136,37 @@ fun HomeScreen(
                         )
                     }
                 }
+
+                SettingsGroupItem(
+                    isTop = false,
+                    isBottom = true,
+                    containerColor = blockContainerColor,
+                    onClick = {
+                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                        onNavigateToConnectionSettings()
+                    }
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        StandardLeadingIcon {
+                            Icon(
+                                painter = painterResource(R.drawable.settings_24px),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            ConfigRowLabel(stringResource(R.string.connection_settings_title))
+                            SupportingText(stringResource(R.string.connection_settings_desc))
+                        }
+                        Icon(
+                            painter = painterResource(R.drawable.arrow_forward_ios_24px),
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                    }
+                }
             }
-
-
-
         }
     }
 }

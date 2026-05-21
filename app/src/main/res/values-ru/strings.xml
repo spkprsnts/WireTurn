@@ -297,6 +297,8 @@
     <string name="proxy_pass_placeholder" translatable="false">ultrapass</string>
     <string name="xray_protocol_desc">Выберите протокол для Xray-core</string>
     <string name="vless_settings">Настройки VLESS</string>
+    <string name="connection_settings_title">Параметры подключения</string>
+    <string name="connection_settings_desc">Адреса и порты ядер туннеля</string>
     <string name="connection_details">Детали подключения</string>
     <string name="server_settings_title">Настройки сервера</string>
 

@@ -339,6 +339,9 @@ fun AppNavigation(
                             val intent = Intent(context, com.wireturn.app.ui.activities.XrayEditActivity::class.java)
                             context.startActivity(intent)
                         },
+                        onNavigateToConnectionSettings = {
+                            context.startActivity(Intent(context, com.wireturn.app.ui.activities.ConnectionSettingsActivity::class.java))
+                        },
                         onToggleProxy = { triggerProxyAction() },
                         onCheckMismatch = { target: Boolean, action: () -> Unit -> checkMismatch(target, action) }
                     )

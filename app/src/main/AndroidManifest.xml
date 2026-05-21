@@ -130,6 +130,11 @@
             android:theme="@style/Theme.wireturn"
             android:windowSoftInputMode="adjustResize" />
 
+        <activity
+            android:name=".ui.activities.ConnectionSettingsActivity"
+            android:theme="@style/Theme.wireturn"
+            android:windowSoftInputMode="adjustResize" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
