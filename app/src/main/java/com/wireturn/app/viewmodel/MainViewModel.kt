@@ -769,14 +769,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         profileManager.updateCurrentProfile(updated)
     }
 
-    fun selectProfile(id: String, profile: Profile? = null) {
-        profileManager.selectProfile(id, profile) { target ->
-            viewModelScope.launch {
-                prefs.saveFullProfile(target.id, target)
-            }
-        }
-    }
-
     fun selectProfileAndRestart(id: String, profile: Profile? = null, onCompletion: (() -> Unit)? = null) {
         val target = profile ?: profiles.value.find { it.id == id } ?: return
         if (ProxyServiceState.isRunning.value) ProxyServiceState.setRestarting(true)
@@ -788,14 +780,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     if (!isRunning) return@launch
                     val clientSnap = ProxyServiceState.clientConfigSnapshot.value
                     
-                    val mainChanged = isMainConfigChanged.value || (clientSnap != null && (
+                    val mainChanged = clientSnap != null && (
                         p.kernelVariant != clientSnap.kernelVariant ||
                         (p.kernelVariant == KernelVariant.TURNABLE && p.turnableConfig.sanitize() != clientSnap.turnableConfig) ||
                         (p.kernelVariant == KernelVariant.OLCRTC && p.olcrtcConfig.fillDefaults() != clientSnap.olcrtcConfig)
-                    ))
+                    )
 
-                    if (mainChanged) restartProxyInternal()
-                    else getApplication<Application>().stopService(Intent(getApplication(), XrayService::class.java))
+                    if (mainChanged) {
+                        restartProxyInternal()
+                    } else {
+                        val wgSnap = XrayServiceState.wgConfigSnapshot.value
+                        val vlessSnap = XrayServiceState.vlessConfigSnapshot.value
+                        val xraySnap = XrayServiceState.xrayConfigSnapshot.value
+                        
+                        val xrayChanged = (wgSnap != null && p.wgConfig.fillDefaults() != wgSnap) ||
+                                (vlessSnap != null && p.vlessConfig.fillDefaults() != vlessSnap) ||
+                                (xraySnap != null && (p.xrayEnabled != xraySnap.enabled || p.xrayProtocol != xraySnap.protocol))
+
+                        if (xrayChanged) {
+                            getApplication<Application>().stopService(Intent(getApplication(), XrayService::class.java))
+                        }
+                    }
                 } finally { 
                     delay(300)
                     ProxyServiceState.setRestarting(false) 
@@ -825,9 +830,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             wgConfig = wgConfig,
             vlessConfig = vlessConfig
         ).sanitize(defaultName)
+        val wasEmpty = profiles.value.isEmpty()
         viewModelScope.launch {
             prefs.saveProfiles(profiles.value + newProfile)
-            selectProfile(id, newProfile)
+            if (wasEmpty) {
+                selectProfileAndRestart(id, newProfile)
+            }
         }
     }
 
@@ -839,7 +847,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (ProxyServiceState.isRunning.value) stopProxy()
             viewModelScope.launch { prefs.clearActiveProfile() }
         }
-        profileManager.deleteProfiles(ids) { nextId, p -> selectProfile(nextId, p) }
+        profileManager.deleteProfiles(ids) { nextId, p -> selectProfileAndRestart(nextId, p) }
     }
     fun renameProfile(id: String, name: String) = profileManager.renameProfile(id, name)
     fun reorderProfiles(list: List<Profile>) = profileManager.reorderProfiles(list)

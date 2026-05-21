@@ -33,12 +33,6 @@ class ProfileManager(
         scope.launch {
             com.wireturn.app.ProxyServiceState.setChangingProfile(true)
             try {
-                // In this simplified model, Profile in the list already contains its core settings
-                // and protocol states. WG/VLESS details for the profile might need to be fetched 
-                // or we use current active ones if they are not stored in Profile class anymore.
-                // Wait, if Profile class doesn't have WG/VLESS objects, where are they in the list?
-                // They should be in Profile class. Let's check my rewrite.
-                // Ah, I missed them in Profile class rewrite too!
                 onConfigLoaded(targetProfile)
             } finally {
                 kotlinx.coroutines.delay(150)

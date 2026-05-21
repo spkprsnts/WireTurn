@@ -6,9 +6,11 @@ package com.wireturn.app.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.scrollBy
@@ -272,17 +274,25 @@ fun ProfileListItem(
     modifier: Modifier = Modifier,
     shape: Shape = MaterialTheme.shapes.medium,
     isDragged: Boolean = false,
+    isHighlighted: Boolean = false,
     trailingContent: @Composable (() -> Unit)? = null,
     leadingContent: @Composable (() -> Unit)? = null
 ) {
+    val backgroundColor by animateColorAsState(
+        targetValue = when {
+            isDragged -> MaterialTheme.colorScheme.surfaceContainerHighest
+            isSelected -> MaterialTheme.colorScheme.secondaryContainer
+            isHighlighted -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+            else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        },
+        animationSpec = tween(durationMillis = if (isHighlighted) 200 else 1000),
+        label = "profile_item_bg"
+    )
+
     Surface(
         onClick = onClick,
         shape = shape,
-        color = when {
-            isDragged -> MaterialTheme.colorScheme.surfaceContainerHighest
-            isSelected -> MaterialTheme.colorScheme.secondaryContainer
-            else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-        },
+        color = backgroundColor,
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 74.dp)
@@ -329,7 +339,10 @@ fun ProfilesDialog(
     val context = LocalContext.current
     val density = androidx.compose.ui.platform.LocalDensity.current
 
-    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
+    val sheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
+    )
     val scope = rememberCoroutineScope()
 
     // Local state for reordering
@@ -382,19 +395,40 @@ fun ProfilesDialog(
         }
     }
 
+    val highlightedIds = remember { mutableStateListOf<String>() }
+
     // Sync local list with source of truth only when NOT dragging
     LaunchedEffect(profilesSource) {
         val oldSize = profiles.size
+        val oldIds = profiles.map { it.id }.toSet()
+        val isFirstLoad = oldSize == 0 && profilesSource.isNotEmpty()
+
         if (draggedItemId == null && (profiles.size != profilesSource.size || profiles.toList() != profilesSource)) {
             androidx.compose.runtime.snapshots.Snapshot.withMutableSnapshot {
                 profiles.clear()
                 profiles.addAll(profilesSource)
             }
 
-            // Scroll to new items if added to an existing list (not on initial dialog open)
-            if (oldSize > 0 && profilesSource.size > oldSize) {
-                scope.launch {
-                    delay(100) // Wait for layout update
+            if (oldSize > 0) {
+                val newIds = profilesSource.map { it.id }.filter { it !in oldIds }
+                if (newIds.isNotEmpty()) {
+                    highlightedIds.addAll(newIds)
+                    scope.launch {
+                        delay(1000)
+                        highlightedIds.removeAll(newIds)
+                    }
+                }
+            }
+
+            // Scroll logic
+            scope.launch {
+                delay(150) // Wait for layout update
+                if (isFirstLoad) {
+                    val currentIndex = profiles.indexOfFirst { it.id == currentId }
+                    if (currentIndex != -1) {
+                        lazyListState.scrollToItem(currentIndex)
+                    }
+                } else if (profilesSource.size > oldSize && oldSize > 0) {
                     if (oldSize < profiles.size) {
                         lazyListState.animateScrollToItem(oldSize)
                     }
@@ -709,6 +743,7 @@ fun ProfilesDialog(
                     ProfileListItem(
                         profile = profile,
                         isSelected = isSelected,
+                        isHighlighted = highlightedIds.contains(profile.id),
                         shape = itemShape,
                         isDragged = isDragged,
                         onClick = {
