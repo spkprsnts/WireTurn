@@ -111,9 +111,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         initialValue = false
     )
 
-    private val _showFloatingActionButton = MutableStateFlow(true)
-    val showFloatingActionButton: StateFlow<Boolean> = _showFloatingActionButton.asStateFlow()
-
     private val _appLanguage = MutableStateFlow("system")
     val appLanguage: StateFlow<String> = _appLanguage.asStateFlow()
 
@@ -324,7 +321,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _restartOnNetworkChange.value = prefs.restartOnNetworkChangeFlow.first()
             _captchaStyleMod.value = prefs.captchaStyleModFlow.first()
             _captchaForceTint.value = prefs.captchaForceTintFlow.first()
-            _showFloatingActionButton.value = prefs.showFloatingActionButtonFlow.first()
             _appLanguage.value = prefs.appLanguageFlow.first()
             _globalVpnSettings.value = prefs.globalVpnSettingsFlow.first()
             _excludedApps.value = prefs.excludedAppsFlow.first()
@@ -366,7 +362,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.restartOnNetworkChangeFlow.collect { _restartOnNetworkChange.value = it } }
             launch { prefs.captchaStyleModFlow.collect { _captchaStyleMod.value = it } }
             launch { prefs.captchaForceTintFlow.collect { _captchaForceTint.value = it } }
-            launch { prefs.showFloatingActionButtonFlow.collect { _showFloatingActionButton.value = it } }
             launch { prefs.appLanguageFlow.collect { _appLanguage.value = it } }
             launch { prefs.autoLaunchSettingsFlow.collect { _autoLaunchSettings.value = it; updateAutoLaunchJob(it) } }
             launch { prefs.globalVpnSettingsFlow.collect { _globalVpnSettings.value = it } }
@@ -638,10 +633,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { prefs.setCaptchaForceTint(v) } 
     }
     
-    fun setShowFloatingActionButton(v: Boolean) { 
-        viewModelScope.launch { prefs.setShowFloatingActionButton(v) } 
-    }
-    
     fun setAppLanguage(l: String) { 
         _appLanguage.value = l
         viewModelScope.launch { 
@@ -858,7 +849,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             prefs.resetAll()
             proxyManager.clearState()
             AppLogsState.clearLogs()
-            val intent = (c as? android.app.Activity)?.intent ?: Intent(c, com.wireturn.app.ui.activities.MainActivity::class.java)
+            val intent = Intent(c, com.wireturn.app.ui.activities.MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
             c.startActivity(intent)
         }

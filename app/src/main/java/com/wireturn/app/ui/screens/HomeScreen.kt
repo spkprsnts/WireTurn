@@ -134,6 +134,8 @@ fun HomeScreen(
     onNavigateToExclusions: () -> Unit,
     onNavigateToXrayConfig: () -> Unit,
     onNavigateToConnectionSettings: () -> Unit,
+    onNavigateToSettings: () -> Unit,
+    onNavigateToLogs: () -> Unit,
     onToggleProxy: () -> Unit,
     onCheckMismatch: (Boolean, () -> Unit) -> Unit,
     modifier: Modifier = Modifier
@@ -353,14 +355,37 @@ fun HomeScreen(
                     containerColor = Color.Transparent,
                     scrolledContainerColor = Color.Transparent
                 ),
+                actions = {
+                    IconButton(
+                        onClick = {
+                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                            onNavigateToLogs()
+                        }
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.terminal_24px),
+                            contentDescription = stringResource(R.string.logs_title)
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                            onNavigateToSettings()
+                        },
+                        modifier = Modifier.padding(end = 8.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.settings_24px),
+                            contentDescription = stringResource(R.string.app_settings_title)
+                        )
+                    }
+                },
                 expandedHeight = 56.dp
             )
         },
         snackbarHost = {
             SnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier
-                    .padding(bottom = 64.dp)
+                hostState = snackbarHostState
             ) { data ->
                 Snackbar(
                     modifier = Modifier.padding(12.dp),
@@ -395,8 +420,7 @@ fun HomeScreen(
                     onSettle = { viewModel.settleBottomBar(it) }
                 )
                 .verticalScroll(homeScrollState)
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 76.dp),
+                .padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {

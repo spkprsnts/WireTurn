@@ -10,6 +10,8 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -21,7 +23,6 @@ import com.wireturn.app.ProxyTileService
 import com.wireturn.app.NotificationHelper
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.navigation.AppNavigation
-import com.wireturn.app.ui.navigation.Routes
 import com.wireturn.app.ui.screens.CaptchaWebViewDialog
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.AppLifecycleState
@@ -87,16 +88,22 @@ class MainActivity : AppCompatActivity() {
 
             val captchaUrl = intent?.getStringExtra("CAPTCHA_URL")
 
+            val onboardingDone by viewModel.onboardingDone.collectAsStateWithLifecycle()
+
             WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
                     if (isInitialized) {
-                        AppNavigation(
-                            viewModel = viewModel,
-                            startDestination = if (fromTile) Routes.HOME else null
-                        )
+                        if (!onboardingDone && !fromTile) {
+                            LaunchedEffect(Unit) {
+                                startActivity(Intent(this@MainActivity, OnboardingActivity::class.java))
+                                finish()
+                            }
+                        } else {
+                            AppNavigation(viewModel = viewModel)
+                        }
                     }
 
                     if (captchaUrl != null) {

@@ -28,6 +28,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ElevatedButton
@@ -36,8 +37,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -50,9 +51,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -61,7 +62,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
+import com.wireturn.app.ui.ConfigTopAppBar
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.components.ProxyToggleButton
 import com.wireturn.app.ui.trackScrollDelta
 import com.wireturn.app.ui.theme.extendedColorScheme
 import com.wireturn.app.viewmodel.MainViewModel
@@ -70,14 +73,14 @@ import kotlinx.coroutines.launch
 @Composable
 fun LogsScreen(
     viewModel: MainViewModel,
+    onBack: () -> Unit,
+    onToggleProxy: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val logs by viewModel.logs.collectAsStateWithLifecycle()
-    val bottomBarOffset by viewModel.bottomBarOffset.collectAsStateWithLifecycle()
-    val bottomBarHeight by viewModel.bottomBarHeight.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
 
     var lastLogsSize by remember { mutableIntStateOf(logs.size) }
@@ -116,15 +119,16 @@ fun LogsScreen(
         if (isAtBottom) showScrollButton = false
     }
 
+    val topAppBarState = rememberTopAppBarState()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(topAppBarState)
+
     Scaffold(
         modifier = modifier,
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.logs_title), modifier = Modifier.padding(horizontal = 8.dp)) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = Color.Transparent
-                ),
+            ConfigTopAppBar(
+                title = stringResource(R.string.logs_title),
+                onBack = onBack,
+                scrollBehavior = scrollBehavior,
                 actions = {
                     var isCopied by remember { mutableStateOf(false) }
                     LaunchedEffect(isCopied) {
@@ -165,9 +169,21 @@ fun LogsScreen(
                             }
                         )
                     }
-                },
-                expandedHeight = 56.dp
+                }
             )
+        },
+        floatingActionButton = {
+            val profiles by viewModel.profiles.collectAsStateWithLifecycle()
+            if (profiles.isNotEmpty()) {
+                ProxyToggleButton(
+                    viewModel = viewModel,
+                    size = 86.dp,
+                    shape = RoundedCornerShape(20.dp),
+                    onClick = onToggleProxy,
+                    isFloat = true,
+                    isVisible = true
+                )
+            }
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { padding ->
@@ -196,12 +212,8 @@ fun LogsScreen(
                         .fillMaxSize()
                         .fillMaxWidth()
                         .wrapContentWidth(Alignment.CenterHorizontally)
-                        .widthIn(max = 840.dp)
-                        .trackScrollDelta(
-                            onScrollDelta = { viewModel.onBottomBarScroll(it) },
-                            onSettle = { viewModel.settleBottomBar(it) }
-                        ),
-                    contentPadding = PaddingValues(bottom = 76.dp)
+                        .widthIn(max = 840.dp),
+                    contentPadding = PaddingValues(bottom = 100.dp)
                 ) {
                     items(logs, key = { it.id }) { entry ->
                         LogLine(line = entry.message)
@@ -214,17 +226,10 @@ fun LogsScreen(
                     exit = fadeOut() + scaleOut(),
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .graphicsLayer {
-                            val extraRise = if (bottomBarHeight > 0) {
-                                (bottomBarOffset / bottomBarHeight) * 32.dp.toPx()
-                            } else 0f
-                            translationY = bottomBarOffset - extraRise
-                        }
-                        .padding(bottom = 76.dp)
+                        .padding(bottom = 100.dp)
                 ) {
                     ElevatedButton(
                         onClick = {
-                            viewModel.settleBottomBar(10000f)
                             scope.launch {
                                 if (logs.isNotEmpty()) {
                                     listState.animateScrollToItem(logs.lastIndex)
@@ -309,4 +314,3 @@ private fun LogLine(line: String) {
         }
     }
 }
-

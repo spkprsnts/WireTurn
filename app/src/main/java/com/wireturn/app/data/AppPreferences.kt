@@ -631,7 +631,6 @@ class AppPreferences(val context: Context) {
         val VPN_GROUP_APPS_BY_LETTER = booleanPreferencesKey("vpn_group_apps_by_letter")
         val XRAY_EXCLUDED_APPS = stringSetPreferencesKey("proxy_excluded_apps")
         val APP_LANGUAGE = stringPreferencesKey("app_language")
-        val SHOW_FLOATING_ACTION_BUTTON = booleanPreferencesKey("show_floating_action_button")
         val AUTO_LAUNCH_ENABLED = booleanPreferencesKey("auto_launch_enabled")
         val AUTO_LAUNCH_URL = stringPreferencesKey("auto_launch_url")
         val AUTO_LAUNCH_INTERVAL = intPreferencesKey("auto_launch_interval")
@@ -687,7 +686,6 @@ class AppPreferences(val context: Context) {
     val captchaStyleModFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(CAPTCHA_STYLE_MOD, true)
     val captchaForceTintFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(CAPTCHA_FORCE_TINT, true)
     val privacyModeFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(PRIVACY_MODE, false)
-    val showFloatingActionButtonFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(SHOW_FLOATING_ACTION_BUTTON, true)
     val appLanguageFlow: Flow<String> = appCtx.internalDataStore.data.mapPref(APP_LANGUAGE, "system")
 
     val globalVpnSettingsFlow: Flow<GlobalVpnSettings> = appCtx.internalDataStore.data
@@ -837,10 +835,6 @@ class AppPreferences(val context: Context) {
 
     suspend fun setAppLanguage(l: String) {
         appCtx.internalDataStore.edit { it[APP_LANGUAGE] = l }
-    }
-
-    suspend fun setShowFloatingActionButton(v: Boolean) {
-        appCtx.internalDataStore.edit { it[SHOW_FLOATING_ACTION_BUTTON] = v }
     }
 
     suspend fun setBatteryNotificationDismissed(v: Boolean) {

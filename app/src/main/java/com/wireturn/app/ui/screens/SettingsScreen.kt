@@ -75,7 +75,6 @@ import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.UpdateBlock
 import com.wireturn.app.ui.configButtonGroupItem
-import com.wireturn.app.ui.trackScrollDelta
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.UpdateState
 import kotlinx.coroutines.delay
@@ -84,7 +83,8 @@ import kotlinx.coroutines.delay
 fun SettingsScreen(
     viewModel: MainViewModel,
     modifier: Modifier = Modifier,
-    scrollToUpdate: Long = 0L
+    scrollToUpdate: Long = 0L,
+    onBack: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
@@ -162,6 +162,7 @@ fun SettingsScreen(
             ConfigTopAppBar(
                 title = stringResource(R.string.app_settings_title),
                 scrollBehavior = scrollBehavior,
+                onBack = onBack,
                 actions = {
                     IconButton(onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -186,14 +187,10 @@ fun SettingsScreen(
                 .padding(padding)
                 .consumeWindowInsets(padding)
                 .imePadding()
-                .trackScrollDelta(
-                    onScrollDelta = { viewModel.onBottomBarScroll(it) },
-                    onSettle = { viewModel.settleBottomBar(it) }
-                )
                 .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp)
                 .padding(top = 18.dp)
-                .padding(bottom = 76.dp),
+                .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(19.dp)
         ) {
             // 1. Оформление
@@ -213,11 +210,9 @@ fun SettingsScreen(
             }
 
             SettingsGroup(title = stringResource(R.string.app_appearance)) {
-                val showFloatingActionButton by viewModel.showFloatingActionButton.collectAsStateWithLifecycle()
-
                 SettingsGroupItem(
                     isTop = true, 
-                    isBottom = false, 
+                    isBottom = !supportsDynamicColor, 
                     containerColor = blockContainerColor
                 ) {
                     LabeledButtonGroup(label = stringResource(R.string.theme_title)) {
@@ -239,7 +234,7 @@ fun SettingsScreen(
                 if (supportsDynamicColor) {
                     SettingsGroupItem(
                         isTop = false, 
-                        isBottom = false, 
+                        isBottom = true, 
                         containerColor = blockContainerColor,
                         onClick = {
                             val next = !dynamicTheme
@@ -257,27 +252,6 @@ fun SettingsScreen(
                             onCheckedChange = { viewModel.setDynamicTheme(it) }
                         )
                     }
-                }
-
-                SettingsGroupItem(
-                    isTop = false,
-                    isBottom = true,
-                    containerColor = blockContainerColor,
-                    onClick = {
-                        val next = !showFloatingActionButton
-                        HapticUtil.perform(
-                            context, 
-                            if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
-                        )
-                        viewModel.setShowFloatingActionButton(next)
-                    }
-                ) {
-                    SwitchRow(
-                        label = stringResource(R.string.settings_show_fab_title),
-                        supportingText = stringResource(R.string.settings_show_fab_desc),
-                        checked = showFloatingActionButton,
-                        onCheckedChange = { viewModel.setShowFloatingActionButton(it) }
-                    )
                 }
 
                 Spacer(Modifier.height(12.dp))
