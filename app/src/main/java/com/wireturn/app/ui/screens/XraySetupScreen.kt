@@ -39,6 +39,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumFloatingActionButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -249,7 +250,29 @@ fun XraySetupScreen(
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+        snackbarHost = {
+            SnackbarHost(
+                hostState = snackbarHostState
+            ) { data ->
+                Snackbar(
+                    modifier = Modifier.padding(12.dp),
+                    action = data.visuals.actionLabel?.let { label ->
+                        {
+                            TextButton(onClick = { data.performAction() }) {
+                                Text(label)
+                            }
+                        }
+                    },
+                    dismissAction = {
+                        IconButton(onClick = { data.dismiss() }) {
+                            Icon(painterResource(R.drawable.close_24px), contentDescription = null)
+                        }
+                    }
+                ) {
+                    Text(data.visuals.message)
+                }
+            }
+        },
         topBar = {
             ConfigTopAppBar(
                 title = stringResource(R.string.xray_title),

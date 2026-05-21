@@ -44,9 +44,11 @@ import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
@@ -380,7 +382,29 @@ fun AppExceptionsScreen(
                 .fillMaxSize()
                 .nestedScroll(searchScrollConnection)
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
-            snackbarHost = { SnackbarHost(snackbarHostState) },
+            snackbarHost = {
+                SnackbarHost(
+                    hostState = snackbarHostState
+                ) { data ->
+                    Snackbar(
+                        modifier = Modifier.padding(12.dp),
+                        action = data.visuals.actionLabel?.let { label ->
+                            {
+                                TextButton(onClick = { data.performAction() }) {
+                                    Text(label)
+                                }
+                            }
+                        },
+                        dismissAction = {
+                            IconButton(onClick = { data.dismiss() }) {
+                                Icon(painterResource(R.drawable.close_24px), contentDescription = null)
+                            }
+                        }
+                    ) {
+                        Text(data.visuals.message)
+                    }
+                }
+            },
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             containerColor = screenBackgroundColor
         ) { innerPadding ->

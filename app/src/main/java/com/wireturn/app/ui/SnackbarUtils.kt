@@ -11,7 +11,7 @@ import androidx.compose.material3.SnackbarResult
 suspend fun SnackbarHostState.showExclusiveSnackbar(
     message: String,
     actionLabel: String? = null,
-    withDismissAction: Boolean = false,
+    withDismissAction: Boolean = true,
     duration: SnackbarDuration = SnackbarDuration.Short
 ): SnackbarResult {
     currentSnackbarData?.dismiss()

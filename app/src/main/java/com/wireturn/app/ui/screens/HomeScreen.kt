@@ -43,12 +43,15 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.data.KernelVariant
@@ -58,10 +61,12 @@ import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.ui.unit.dp
+import com.wireturn.app.ui.showExclusiveSnackbar
+import com.wireturn.app.ui.trackScrollDelta
+import kotlinx.coroutines.launch
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.offset
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -69,43 +74,40 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import android.content.ClipData
 import android.net.VpnService
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
-import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import com.wireturn.app.ui.InlineConfigIndicator
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.HapticUtil
-import com.wireturn.app.ui.trackScrollDelta
 import com.wireturn.app.ui.AppExclusionTooltip
 import com.wireturn.app.ui.VerticalAnimatedText
 import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.ui.StandardLeadingIcon
-import com.wireturn.app.ui.showExclusiveSnackbar
 import com.wireturn.app.ui.redact
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.ProxyState
@@ -323,7 +325,9 @@ fun HomeScreen(
 
     val showVpnWarning = {
         scope.launch {
-            snackbarHostState.showExclusiveSnackbar(warnVpnRequiresXray)
+            snackbarHostState.showExclusiveSnackbar(
+                message = warnVpnRequiresXray
+            )
         }
     }
 
@@ -356,7 +360,25 @@ fun HomeScreen(
                 hostState = snackbarHostState,
                 modifier = Modifier
                     .padding(bottom = 64.dp)
-            )
+            ) { data ->
+                Snackbar(
+                    modifier = Modifier.padding(12.dp),
+                    action = data.visuals.actionLabel?.let { label ->
+                        {
+                            TextButton(onClick = { data.performAction() }) {
+                                Text(label)
+                            }
+                        }
+                    },
+                    dismissAction = {
+                        IconButton(onClick = { data.dismiss() }) {
+                            Icon(painterResource(R.drawable.close_24px), contentDescription = null)
+                        }
+                    }
+                ) {
+                    Text(data.visuals.message)
+                }
+            }
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { padding ->
