@@ -671,7 +671,7 @@ fun LabeledButtonGroup(
         ButtonGroup(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
-            expandedRatio = ButtonGroupDefaults.ExpandedRatio,
+            expandedRatio = 0.1f,
             overflowIndicator = { menuState ->
                 ButtonGroupDefaults.OverflowIndicator(menuState)
             },
