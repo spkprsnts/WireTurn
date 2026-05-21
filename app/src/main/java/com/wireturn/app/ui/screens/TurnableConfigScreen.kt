@@ -144,7 +144,7 @@ fun TurnableConfigScreen(
                         IconButton(onClick = {
                             val intent = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, config.toUrl())
+                                putExtra(Intent.EXTRA_TEXT, config.toUri())
                             }
                             context.startActivity(Intent.createChooser(intent, null))
                         }) {

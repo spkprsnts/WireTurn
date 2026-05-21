@@ -111,7 +111,7 @@ data class TurnableConfig(
     val platformDisplayName: String
         get() = getPlatformDisplayName(platformId)
 
-    fun toUrl(onlySelected: Boolean = false): String {
+    fun toUri(onlySelected: Boolean = false): String {
         val targetRoutes = if (onlySelected && selectedRouteId.isNotBlank()) {
             routes.filter { it.routeId == selectedRouteId }
         } else {
@@ -131,16 +131,16 @@ data class TurnableConfig(
         encryption?.let { builder.appendQueryParameter("encryption", it) }
         pubKey?.let { builder.appendQueryParameter("pub_key", it) }
         proto?.let { builder.appendQueryParameter("proto", it) }
-        if (peers != 1) builder.appendQueryParameter("peers", peers.toString())
-        if (forceTurn) builder.appendQueryParameter("forceturn", "true")
+        builder.appendQueryParameter("peers", peers.toString())
+        builder.appendQueryParameter("forceturn", forceTurn.toString())
         if (targetRoutes.size == 1) {
             val r = targetRoutes[0]
-            if (r.socket != "udp") builder.appendQueryParameter("socket", r.socket)
+            builder.appendQueryParameter("socket", r.socket)
             r.transport?.let { builder.appendQueryParameter("transport", it) }
         } else {
             targetRoutes.forEachIndexed { index, r ->
                 val idx = index + 1
-                if (r.socket != "udp") builder.appendQueryParameter("socket[$idx]", r.socket)
+                builder.appendQueryParameter("socket[$idx]", r.socket)
                 r.transport?.let { builder.appendQueryParameter("transport[$idx]", it) }
             }
         }
@@ -250,28 +250,28 @@ data class OlcrtcConfig(
         val params = mutableListOf<String>()
         when (transport) {
             "vp8channel" -> {
-                if (vp8Fps != 60) params.add("vp8-fps=$vp8Fps")
-                if (vp8Batch != 64) params.add("vp8-batch=$vp8Batch")
+                params.add("vp8-fps=$vp8Fps")
+                params.add("vp8-batch=$vp8Batch")
             }
             "seichannel" -> {
-                if (seiFps != 60) params.add("fps=$seiFps")
-                if (seiBatch != 64) params.add("batch=$seiBatch")
-                if (seiFrag != 900) params.add("frag=$seiFrag")
-                if (seiAckMs != 2000) params.add("ack-ms=$seiAckMs")
+                params.add("fps=$seiFps")
+                params.add("batch=$seiBatch")
+                params.add("frag=$seiFrag")
+                params.add("ack-ms=$seiAckMs")
             }
             "videochannel" -> {
-                if (videoW != 1080) params.add("video-w=$videoW")
-                if (videoH != 1080) params.add("video-h=$videoH")
-                if (videoFps != 60) params.add("video-fps=$videoFps")
-                if (videoBitrate != "5000k") params.add("video-bitrate=$videoBitrate")
-                if (videoHw != "none") params.add("video-hw=$videoHw")
-                if (videoCodec != "qrcode") params.add("video-codec=$videoCodec")
+                params.add("video-w=$videoW")
+                params.add("video-h=$videoH")
+                params.add("video-fps=$videoFps")
+                params.add("video-bitrate=$videoBitrate")
+                params.add("video-hw=$videoHw")
+                params.add("video-codec=$videoCodec")
                 if (videoCodec == "qrcode") {
-                    if (videoQrSize != 0) params.add("video-qr-size=$videoQrSize")
-                    if (videoQrRecovery != "low") params.add("video-qr-recovery=$videoQrRecovery")
+                    params.add("video-qr-size=$videoQrSize")
+                    params.add("video-qr-recovery=$videoQrRecovery")
                 } else if (videoCodec == "tile") {
-                    if (videoTileModule != 4) params.add("video-tile-module=$videoTileModule")
-                    if (videoTileRs != 20) params.add("video-tile-rs=$videoTileRs")
+                    params.add("video-tile-module=$videoTileModule")
+                    params.add("video-tile-rs=$videoTileRs")
                 }
             }
         }

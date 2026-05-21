@@ -612,7 +612,7 @@ class ProxyService : Service() {
                     listOf(
                         "client",
                         "-l", cfg.listenAddr.ifBlank { ClientConfig.DEFAULT_LISTEN_ADDR },
-                        cfg.turnableConfig.toUrl(true)
+                        cfg.turnableConfig.toUri(true)
                     )
                 )
             }
