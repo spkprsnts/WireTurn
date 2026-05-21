@@ -671,7 +671,7 @@ fun LabeledButtonGroup(
         ButtonGroup(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
-            expandedRatio = 0f,
+            expandedRatio = ButtonGroupDefaults.ExpandedRatio,
             overflowIndicator = { menuState ->
                 ButtonGroupDefaults.OverflowIndicator(menuState)
             },
@@ -710,7 +710,8 @@ fun ButtonGroupScope.configButtonGroupItem(
                 onCheckedChange = { if (!selected) onSelect() },
                 enabled = enabled,
                 modifier = Modifier
-                    .weight(weight),
+                    .weight(weight)
+                    .animateWidth(interactionSource),
                 interactionSource = interactionSource,
                 shapes = shapes
             ) {
