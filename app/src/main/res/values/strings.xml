@@ -360,9 +360,9 @@
 
     <string name="profile_import_group">Import configuration</string>
     <string name="profile_manual_setup">Manual setup</string>
-    <string name="profile_import_qr">QR Code</string>
-    <string name="profile_import_clipboard">Clipboard</string>
-    <string name="profile_import_file">File</string>
+    <string name="profile_import_qr">Scan QR Code</string>
+    <string name="profile_import_clipboard">Paste Config URI</string>
+    <string name="profile_import_file">Import from File</string>
     <string name="profile_turnable_manual_disabled">Manual setup unavailable without initial config. Please import to continue.</string>
     <string name="guide_turnable">Server setup guide: Turnable</string>
     <string name="guide_olcrtc">Server setup guide: olcRTC</string>

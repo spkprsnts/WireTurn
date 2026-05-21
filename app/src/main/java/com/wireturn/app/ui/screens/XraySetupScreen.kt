@@ -37,7 +37,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MediumFloatingActionButton
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
@@ -366,7 +366,7 @@ fun XraySetupScreen(
             )
         },
         floatingActionButton = {
-            MediumFloatingActionButton(
+            ExtendedFloatingActionButton(
                 onClick = {
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     val wg = WgConfig(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive)
@@ -374,13 +374,19 @@ fun XraySetupScreen(
                     onSave(xrayConfiguration, wg, vless)
                 },
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.save_24px),
-                    contentDescription = stringResource(R.string.btn_save)
-                )
-            }
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                icon = {
+                    Icon(
+                        painter = painterResource(R.drawable.save_24px),
+                        contentDescription = null
+                    )
+                },
+                text = {
+                    Text(
+                        text = stringResource(R.string.btn_save)
+                    )
+                }
+            )
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { padding ->

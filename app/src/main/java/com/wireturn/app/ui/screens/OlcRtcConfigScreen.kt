@@ -165,7 +165,7 @@ fun OlcRtcConfigScreen(
             )
         },
         floatingActionButton = {
-            androidx.compose.material3.MediumFloatingActionButton(
+            androidx.compose.material3.ExtendedFloatingActionButton(
                 onClick = {
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     onSave(config.copy(
@@ -174,16 +174,22 @@ fun OlcRtcConfigScreen(
                     ))
                 },
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-            ) {
-                Icon(
-                    painter = painterResource(
-                        if (isEditMode) R.drawable.save_24px 
-                        else R.drawable.arrow_forward_ios_24px
-                    ),
-                    contentDescription = stringResource(if (isEditMode) R.string.btn_save else R.string.btn_next)
-                )
-            }
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                icon = {
+                    Icon(
+                        painter = painterResource(
+                            if (isEditMode) R.drawable.save_24px 
+                            else R.drawable.arrow_forward_ios_24px
+                        ),
+                        contentDescription = null
+                    )
+                },
+                text = {
+                    Text(
+                        text = stringResource(if (isEditMode) R.string.btn_save else R.string.btn_next)
+                    )
+                }
+            )
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { padding ->

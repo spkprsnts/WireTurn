@@ -324,9 +324,9 @@
 
     <string name="profile_import_group">Импорт конфигурации</string>
     <string name="profile_manual_setup">Ручная настройка</string>
-    <string name="profile_import_qr">QR-код</string>
-    <string name="profile_import_clipboard">Буфер обмена</string>
-    <string name="profile_import_file">Файл</string>
+    <string name="profile_import_qr">Сканировать QR-код</string>
+    <string name="profile_import_clipboard">Вставить URI конфигурации</string>
+    <string name="profile_import_file">Импорт из файла</string>
     <string name="profile_turnable_manual_disabled">Ручная настройка недоступна без первоначального конфига. Пожалуйста, выполните импорт.</string>
     <string name="guide_turnable">Инструкция по настройке сервера Turnable</string>
     <string name="guide_olcrtc">Инструкция по настройке сервера olcRTC</string>
