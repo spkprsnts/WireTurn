@@ -302,13 +302,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val vpnEnabled: StateFlow<Boolean> = _vpnEnabled.asStateFlow()
 
     private val _olcrtcSocksAddr = MutableStateFlow("")
-    val olcrtcSocksAddr: StateFlow<String> = _olcrtcSocksAddr.asStateFlow()
     private val _olcrtcSocksAuthEnabled = MutableStateFlow(true)
-    val olcrtcSocksAuthEnabled: StateFlow<Boolean> = _olcrtcSocksAuthEnabled.asStateFlow()
     private val _olcrtcSocksUser = MutableStateFlow("")
-    val olcrtcSocksUser: StateFlow<String> = _olcrtcSocksUser.asStateFlow()
     private val _olcrtcSocksPass = MutableStateFlow("")
-    val olcrtcSocksPass: StateFlow<String> = _olcrtcSocksPass.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -633,12 +629,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setVpnEnabled(v: Boolean) { 
         viewModelScope.launch { prefs.setVpnEnabled(v) } 
     }
-    
-    fun saveOlcrtcSocks(addr: String, auth: Boolean, user: String, pass: String) { 
-        viewModelScope.launch { prefs.saveOlcrtcSocks(addr, auth, user, pass) } 
-    }
-    
-    fun setCaptchaStyleMod(v: Boolean) { 
+
+    fun setCaptchaStyleMod(v: Boolean) {
         viewModelScope.launch { prefs.setCaptchaStyleMod(v) } 
     }
     

@@ -6,7 +6,6 @@
 package com.wireturn.app.ui.screens
 
 import android.os.Build
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -62,17 +61,11 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
-import com.wireturn.app.ProxyServiceState
-import com.wireturn.app.XrayServiceState
 import com.wireturn.app.data.ThemeMode
-import com.wireturn.app.data.ClientConfig
-import com.wireturn.app.data.XraySettings
 import com.wireturn.app.ui.ConfigTopAppBar
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.LabeledButtonGroup
@@ -81,9 +74,7 @@ import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.UpdateBlock
-import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.configButtonGroupItem
-import com.wireturn.app.ui.redact
 import com.wireturn.app.ui.trackScrollDelta
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.UpdateState
@@ -102,9 +93,6 @@ fun SettingsScreen(
     val allowUnstableUpdates by viewModel.allowUnstableUpdates.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
     val updateProgress by viewModel.updateProgress.collectAsStateWithLifecycle()
-
-    val clientSnapshot by ProxyServiceState.clientConfigSnapshot.collectAsStateWithLifecycle()
-    val xraySettingsSnapshot by XrayServiceState.xraySettingsSnapshot.collectAsStateWithLifecycle()
 
     val showResetDialog = rememberSaveable { mutableStateOf(false) }
     val showListenHelp = remember { mutableStateOf(false) }
