@@ -42,6 +42,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -337,6 +339,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             applyLanguage(_appLanguage.value)
 
             _isInitialized.value = true
+            launch {
+                delay(2000)
+                appUpdater.checkForUpdate(silent = true, allowUnstable = _allowUnstableUpdates.value)
+            }
 
             // Migration: if ACTIVE keys are empty but we have profiles, activate current
             val currentProfiles = prefs.profilesFlow.first()
@@ -370,6 +376,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.globalVpnSettingsFlow.collect { _globalVpnSettings.value = it } }
             launch { prefs.excludedAppsFlow.collect { _excludedApps.value = it } }
             launch { prefs.vlessLinkHistoryFlow.collect { _vlessLinkHistory.value = it } }
+
+            launch {
+                allowUnstableUpdates
+                    .drop(1)
+                    .debounce(1000)
+                    .collect { appUpdater.checkForUpdate(silent = true, allowUnstable = it) }
+            }
 
             launch { prefs.olcrtcSocksAddrFlow.collect { _olcrtcSocksAddr.value = it } }
             launch { prefs.olcrtcSocksAuthEnabledFlow.collect { _olcrtcSocksAuthEnabled.value = it } }
