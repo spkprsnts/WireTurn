@@ -673,7 +673,7 @@ class AppPreferences(val context: Context) {
         appCtx.internalDataStore.data.map { it[ACTIVE_KERNEL_VARIANT] }.first() != null
 
     val themeModeFlow: Flow<ThemeMode> = appCtx.internalDataStore.data
-        .map { ThemeMode.valueOf(it[THEME_MODE] ?: ThemeMode.DARK.name) }
+        .map { ThemeMode.valueOf(it[THEME_MODE] ?: ThemeMode.SYSTEM.name) }
         .distinctUntilChanged()
 
     val dynamicThemeFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(DYNAMIC_THEME, true)

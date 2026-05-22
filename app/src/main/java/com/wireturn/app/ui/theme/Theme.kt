@@ -95,12 +95,12 @@ private val darkScheme = darkColorScheme(
 )
 
 
-val LocalThemeMode = compositionLocalOf { ThemeMode.DARK }
+val LocalThemeMode = compositionLocalOf { ThemeMode.SYSTEM }
 val LocalIsDark = compositionLocalOf { true }
 
 @Composable
 fun WireturnTheme(
-    themeMode: ThemeMode = ThemeMode.DARK,
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
