@@ -541,15 +541,12 @@ data class Profile(
     @SerializedName("kernelVariant") val kernelVariant: KernelVariant = KernelVariant.TURNABLE,
     @SerializedName("turnableConfig") val turnableConfig: TurnableConfig = TurnableConfig(),
     @SerializedName("olcrtcConfig") val olcrtcConfig: OlcrtcConfig = OlcrtcConfig(),
-    @SerializedName("xrayProtocol") val xrayProtocol: XrayConfiguration = XrayConfiguration.WIREGUARD,
-    @SerializedName("xrayEnabled") val xrayEnabled: Boolean = false,
+    @SerializedName("xrayProtocol", alternate = ["protocol", "xrayConfiguration"]) val xrayProtocol: XrayConfiguration = XrayConfiguration.WIREGUARD,
+    @SerializedName("xrayEnabled", alternate = ["enabled"]) val xrayEnabled: Boolean = false,
     @SerializedName("wgConfig") val wgConfig: WgConfig = WgConfig(),
     @SerializedName("vlessConfig") val vlessConfig: VlessConfig = VlessConfig(),
 
-    // Migration fields
-    @SerializedName("protocol") private val shortProtocol: XrayConfiguration? = null,
-    @SerializedName("enabled") private val shortEnabled: Boolean? = null,
-    @SerializedName("xrayConfiguration") private val oldProtocol: XrayConfiguration? = null,
+    // Migration fields (complex nested structures)
     @SerializedName("clientConfig") private val oldClientConfig: ClientConfig? = null,
     @SerializedName("xraySettings") private val oldXraySettings: Any? = null,
     @SerializedName("xrayConfig") private val oldXrayConfig: Any? = null
@@ -560,22 +557,14 @@ data class Profile(
             !vlessConfig.isValid()
 
     fun sanitize(defaultName: String = "Profile"): Profile {
-        @Suppress("SENSELESS_COMPARISON")
-        var kv = if ((kernelVariant as Any?) == null) KernelVariant.TURNABLE else kernelVariant
-        var tc = (turnableConfig ?: TurnableConfig())
-        var oc = (olcrtcConfig ?: OlcrtcConfig())
-
-        @Suppress("SENSELESS_COMPARISON")
-        var prot = if ((xrayProtocol as Any?) == null) {
-            (shortProtocol ?: oldProtocol ?: XrayConfiguration.WIREGUARD)
-        } else xrayProtocol
-        
-        var en = if ((xrayEnabled as Any?) == null) {
-            (shortEnabled ?: false)
-        } else xrayEnabled
+        var kv = kernelVariant ?: KernelVariant.TURNABLE
+        var tc = turnableConfig ?: TurnableConfig()
+        var oc = olcrtcConfig ?: OlcrtcConfig()
+        var prot = xrayProtocol ?: XrayConfiguration.WIREGUARD
+        var en = xrayEnabled ?: false
 
         // Migration from old nested ClientConfig format
-        if (oldClientConfig != null && ((tc.routes as List<*>?)?.isEmpty() != false) && !oc.isValid()) {
+        if (oldClientConfig != null && (tc.routes.isEmpty()) && !oc.isValid()) {
             kv = oldClientConfig.kernelVariant
             tc = oldClientConfig.turnableConfig
             oc = oldClientConfig.olcrtcConfig
@@ -595,8 +584,8 @@ data class Profile(
         val vc = (vlessConfig ?: VlessConfig()).sanitize()
 
         return copy(
-            id = (id as Any?)?.toString()?.take(100) ?: java.util.UUID.randomUUID().toString(),
-            name = (name as Any?)?.toString()?.takeIf { it.isNotBlank() }?.take(100) ?: defaultName,
+            id = id.ifBlank { java.util.UUID.randomUUID().toString() },
+            name = name.takeIf { it.isNotBlank() }?.take(100) ?: defaultName,
             kernelVariant = kv,
             turnableConfig = tc.sanitize(),
             olcrtcConfig = oc.sanitize(),
