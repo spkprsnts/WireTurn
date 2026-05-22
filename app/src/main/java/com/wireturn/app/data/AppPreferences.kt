@@ -197,7 +197,7 @@ data class TurnableConfig(
 }
 
 data class OlcrtcConfig(
-    @SerializedName("provider") val provider: String = "wbstream",
+    @SerializedName("provider", alternate = ["carrier"]) val provider: String = "wbstream",
     @SerializedName("transport") val transport: String = "datachannel",
     @SerializedName("id") val id: String = "",
     @SerializedName("key") val key: String = "",
@@ -218,10 +218,7 @@ data class OlcrtcConfig(
     @SerializedName("video_qr_recovery") val videoQrRecovery: String = "low",
     @SerializedName("video_qr_size") val videoQrSize: Int = 0,
     @SerializedName("video_tile_module") val videoTileModule: Int = 4,
-    @SerializedName("video_tile_rs") val videoTileRs: Int = 20,
-
-    // Migration fields
-    @SerializedName("carrier") private val oldProvider: String? = null
+    @SerializedName("video_tile_rs") val videoTileRs: Int = 20
 ) {
     val providerDisplayName: String
         get() = when (provider) {
@@ -235,20 +232,20 @@ data class OlcrtcConfig(
         get() = getTransportDisplayName(transport)
 
     fun sanitize(): OlcrtcConfig {
-        val p = if (provider != "wbstream") provider else (oldProvider ?: provider)
-
         return copy(
-            provider = (p as Any?)?.toString()?.take(100) ?: "wbstream",
+            provider = (provider as Any?)?.toString()?.take(100) ?: "wbstream",
             transport = (transport as Any?)?.toString()?.take(100) ?: "datachannel",
             id = (id as Any?)?.toString()?.take(200) ?: "",
             key = (key as Any?)?.toString()?.take(1000) ?: "",
             dns = (dns as Any?)?.toString()?.take(200) ?: "1.1.1.1:53",
-            mimo = (mimo as Any?)?.toString()?.take(500) ?: ""
+            mimo = (mimo as Any?)?.toString()?.take(500) ?: "",
+            videoW = if (videoW <= 0) 1080 else videoW,
+            videoH = if (videoH <= 0) 1080 else videoH
         )
     }
 
     fun isValid(): Boolean = id.isNotBlank() && key.isNotBlank() && dns.isNotBlank()
-    fun fillDefaults(): OlcrtcConfig = copy(videoW = if (videoW <= 0) 1080 else videoW, videoH = if (videoH <= 0) 1080 else videoH)
+    fun fillDefaults(): OlcrtcConfig = sanitize()
 
     fun toUri(profileName: String? = null): String {
         val sb = StringBuilder("olcrtc://").append(provider).append("?").append(transport)
