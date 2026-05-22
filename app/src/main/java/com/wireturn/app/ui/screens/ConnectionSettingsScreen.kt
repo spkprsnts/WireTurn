@@ -38,7 +38,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,7 +52,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.XraySettings
@@ -66,19 +64,17 @@ import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.redact
-import com.wireturn.app.viewmodel.MainViewModel
 
 @Composable
 fun ConnectionSettingsScreen(
-    viewModel: MainViewModel,
     initialClientConfig: ClientConfig,
     initialXraySettings: XraySettings,
+    privacyMode: Boolean,
     onBack: () -> Unit,
     onSave: (ClientConfig, XraySettings) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
 
     // Turnable states
     var listenAddr by remember(initialClientConfig.listenAddr) { mutableStateOf(initialClientConfig.listenAddr) }
@@ -98,7 +94,7 @@ fun ConnectionSettingsScreen(
     var xrayPass by remember(initialXraySettings.proxyPass) { mutableStateOf(initialXraySettings.proxyPass) }
     var xrayPassVisible by rememberSaveable { mutableStateOf(false) }
 
-    val currentClientConfig = remember(listenAddr, olSocks, olAuth, olUser, olPass) {
+    val currentClientConfig = remember(listenAddr, olSocks, olAuth, olUser, olPass, initialClientConfig) {
         initialClientConfig.copy(
             listenAddr = listenAddr,
             socksAddr = olSocks,
@@ -108,7 +104,7 @@ fun ConnectionSettingsScreen(
         )
     }
     
-    val currentXraySettings = remember(xraySocks, xrayHttp, xrayAuth, xrayUser, xrayPass) {
+    val currentXraySettings = remember(xraySocks, xrayHttp, xrayAuth, xrayUser, xrayPass, initialXraySettings) {
         initialXraySettings.copy(
             socksBindAddress = xraySocks,
             httpBindAddress = xrayHttp,
@@ -118,11 +114,17 @@ fun ConnectionSettingsScreen(
         )
     }
 
-    val isModified by remember(currentClientConfig, currentXraySettings) {
-        derivedStateOf {
-            currentClientConfig != initialClientConfig ||
-            currentXraySettings != initialXraySettings
-        }
+    val isModified = remember(currentClientConfig, initialClientConfig, currentXraySettings, initialXraySettings) {
+        currentClientConfig.listenAddr != initialClientConfig.listenAddr ||
+        currentClientConfig.socksAddr != initialClientConfig.socksAddr ||
+        currentClientConfig.isSocksAuthEnabled != initialClientConfig.isSocksAuthEnabled ||
+        currentClientConfig.socksUser != initialClientConfig.socksUser ||
+        currentClientConfig.socksPass != initialClientConfig.socksPass ||
+        currentXraySettings.socksBindAddress != initialXraySettings.socksBindAddress ||
+        currentXraySettings.httpBindAddress != initialXraySettings.httpBindAddress ||
+        currentXraySettings.isProxyAuthEnabled != initialXraySettings.isProxyAuthEnabled ||
+        currentXraySettings.proxyUser != initialXraySettings.proxyUser ||
+        currentXraySettings.proxyPass != initialXraySettings.proxyPass
     }
 
     val showExitDialog = remember { mutableStateOf(false) }
