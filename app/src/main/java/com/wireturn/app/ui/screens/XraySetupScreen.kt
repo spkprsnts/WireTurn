@@ -78,6 +78,7 @@ import com.wireturn.app.ui.ConfigDropdownMenu
 import com.wireturn.app.ui.ConfigRowLabel
 import com.wireturn.app.ui.FieldTrailingIcons
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LabeledButtonGroup
 import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.SettingsGroup
@@ -430,10 +431,7 @@ fun XraySetupScreen(
             // Выбор протокола
             if (canChangeProtocol) {
                 SettingsGroup(title = stringResource(R.string.xray_protocol_label)) {
-                    SettingsGroupItem(
-                        isTop = true,
-                        isBottom = true
-                    ) {
+                    SettingsGroupItem(position = ItemPosition.Single) {
                         val configurations = XrayConfiguration.entries
                         val protocolLabels = configurations.associateWith { config ->
                             stringResource(
@@ -554,10 +552,7 @@ private fun WireGuardSettingsBlock(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(19.dp)) {
         if (kernelVariant == KernelVariant.OLCRTC) {
-            SettingsGroupItem(
-                isTop = true,
-                isBottom = true
-            ) {
+            SettingsGroupItem(position = ItemPosition.Single) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -578,7 +573,7 @@ private fun WireGuardSettingsBlock(
         }
 
         SettingsGroup(title = stringResource(R.string.wg_interface)) {
-            SettingsGroupItem(isTop = true, isBottom = false) {
+            SettingsGroupItem(position = ItemPosition.Top) {
                 TextFieldRow(
                     label = stringResource(R.string.wg_private_key),
                     value = privateKey.redact(isPrivacyActive),
@@ -590,7 +585,7 @@ private fun WireGuardSettingsBlock(
                     privacyMode = isPrivacyActive
                 )
             }
-            SettingsGroupItem(isTop = false, isBottom = false) {
+            SettingsGroupItem {
                 TextFieldRow(
                     label = stringResource(R.string.wg_address),
                     value = address.redact(isPrivacyActive),
@@ -602,7 +597,7 @@ private fun WireGuardSettingsBlock(
                     privacyMode = isPrivacyActive
                 )
             }
-            SettingsGroupItem(isTop = false, isBottom = true) {
+            SettingsGroupItem(position = ItemPosition.Bottom) {
                 TextFieldRow(
                     label = stringResource(R.string.wg_mtu),
                     value = mtu,
@@ -616,7 +611,7 @@ private fun WireGuardSettingsBlock(
         }
 
         SettingsGroup(title = stringResource(R.string.wg_peer)) {
-            SettingsGroupItem(isTop = true, isBottom = false) {
+            SettingsGroupItem(position = ItemPosition.Top) {
                 TextFieldRow(
                     label = stringResource(R.string.wg_public_key),
                     value = publicKey.redact(isPrivacyActive),
@@ -628,7 +623,7 @@ private fun WireGuardSettingsBlock(
                     privacyMode = isPrivacyActive
                 )
             }
-            SettingsGroupItem(isTop = false, isBottom = false) {
+            SettingsGroupItem {
                 TextFieldRow(
                     label = stringResource(R.string.wg_endpoint),
                     value = endpoint.redact(isPrivacyActive),
@@ -638,7 +633,7 @@ private fun WireGuardSettingsBlock(
                     privacyMode = isPrivacyActive
                 )
             }
-            SettingsGroupItem(isTop = false, isBottom = true) {
+            SettingsGroupItem(position = ItemPosition.Bottom) {
                 TextFieldRow(
                     label = stringResource(R.string.wg_persistent_keepalive),
                     value = persistentKeepalive,
@@ -683,7 +678,7 @@ private fun VlessSettingsBlock(
 
     Column(verticalArrangement = Arrangement.spacedBy(19.dp)) {
         SettingsGroup(title = stringResource(R.string.vless_settings)) {
-            SettingsGroupItem(isTop = true, isBottom = true) {
+            SettingsGroupItem(position = ItemPosition.Single) {
                 TextFieldRow(
                     label = stringResource(R.string.vless_link_label) + vlessName,
                     value = vlessLink.redact(isPrivacyActive),
@@ -710,8 +705,7 @@ private fun VlessSettingsBlock(
             Spacer(Modifier.height(12.dp))
 
             SettingsGroupItem(
-                isTop = true,
-                isBottom = !vlessIsDualRoute,
+                position = if (vlessIsDualRoute) ItemPosition.Top else ItemPosition.Single,
                 onClick = { 
                     val next = !vlessIsDualRoute
                     HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
@@ -746,7 +740,7 @@ private fun VlessSettingsBlock(
                 exit = fadeOut(tween(300)) + shrinkVertically(tween(300))
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    SettingsGroupItem(isTop = false, isBottom = false) {
+                    SettingsGroupItem {
                         TextFieldRow(
                             label = stringResource(R.string.vless_direct_address),
                             value = vlessDirectAddress.redact(isPrivacyActive),
@@ -767,7 +761,7 @@ private fun VlessSettingsBlock(
                             }
                         )
                     }
-                    SettingsGroupItem(isTop = false, isBottom = true) {
+                    SettingsGroupItem(position = ItemPosition.Bottom) {
                         TextFieldRow(
                             label = stringResource(R.string.vless_hc_interval),
                             value = vlessHcInterval,

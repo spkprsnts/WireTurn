@@ -110,6 +110,7 @@ import com.wireturn.app.ui.InlineConfigIndicator
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.AppExclusionTooltip
+import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.VerticalAnimatedText
 import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.ui.StandardLeadingIcon
@@ -459,8 +460,7 @@ fun HomeScreen(
                 exit = fadeOut() + shrinkVertically()
             ) {
                 SettingsGroupItem(
-                    isTop = true,
-                    isBottom = true,
+                    position = ItemPosition.Single,
                     containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f),
                     modifier = Modifier.padding(bottom = 24.dp)
                 ) {
@@ -761,8 +761,7 @@ fun HomeScreen(
             // --- Profiles Section ---
             val showProfilesDialog = rememberSaveable { mutableStateOf(false) }
             SettingsGroupItem(
-                isTop = true,
-                isBottom = !configChanged || proxyState is ProxyState.Idle,
+                position = if (configChanged && proxyState !is ProxyState.Idle) ItemPosition.Top else ItemPosition.Single,
                 onClick = {
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     showProfilesDialog.value = true
@@ -783,8 +782,7 @@ fun HomeScreen(
                 Column {
                     Spacer(Modifier.height(2.dp))
                     SettingsGroupItem(
-                        isTop = false,
-                        isBottom = true
+                        position = ItemPosition.Bottom
                     ) {
                         Column {
                             Row(
@@ -893,8 +891,7 @@ fun HomeScreen(
             val profilesExist = profiles.isNotEmpty()
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 SettingsGroupItem(
-                    isTop = true,
-                    isBottom = false,
+                    position = ItemPosition.Top,
                     onClick = {
                         if (profilesExist) {
                             HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -974,8 +971,7 @@ fun HomeScreen(
             }
 
             SettingsGroupItem(
-                isTop = false,
-                isBottom = true,
+                position = ItemPosition.Bottom,
                 onClick = { toggleVpnAction(!vpnEnabled) }
             ) {
                 SwitchRow(
@@ -1095,8 +1091,7 @@ fun HomeScreen(
                 val showHttpBlock = displayHttpAddr.isNotBlank() || isHttpModified
 
                 SettingsGroupItem(
-                    isTop = true,
-                    isBottom = false,
+                    position = ItemPosition.Top,
                     enabled = showXray || isOlcrtc,
                     onClick = {
                         if (privacyMode) return@SettingsGroupItem
@@ -1137,8 +1132,6 @@ fun HomeScreen(
                     }
 
                     SettingsGroupItem(
-                        isTop = false,
-                        isBottom = false,
                         enabled = showXray,
                         onClick = {
                             if (privacyMode) return@SettingsGroupItem
@@ -1169,8 +1162,7 @@ fun HomeScreen(
 
             Spacer(Modifier.height(2.dp))
             SettingsGroupItem(
-                isTop = false,
-                isBottom = true,
+                position = ItemPosition.Bottom,
                 onClick = {
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     onNavigateToConnectionSettings()
@@ -1219,8 +1211,7 @@ private fun UpdateBanner(
         exit = fadeOut() + shrinkVertically()
     ) {
         SettingsGroupItem(
-            isTop = true,
-            isBottom = true,
+            position = ItemPosition.Single,
             containerColor = containerColor,
             modifier = Modifier.padding(bottom = 24.dp)
         ) {

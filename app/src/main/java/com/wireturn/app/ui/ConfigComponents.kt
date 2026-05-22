@@ -425,17 +425,23 @@ fun LargeLeadingIcon(
     )
 }
 
+enum class ItemPosition {
+    Top, Middle, Bottom, Single
+}
+
 @Composable
 fun SettingsGroupItem(
-    isTop: Boolean,
-    isBottom: Boolean,
     modifier: Modifier = Modifier,
+    position: ItemPosition = ItemPosition.Middle,
     containerColor: Color = MaterialTheme.colorScheme.surface,
     onClick: (() -> Unit)? = null,
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit
 ) {
+    val isTop = position == ItemPosition.Top || position == ItemPosition.Single
+    val isBottom = position == ItemPosition.Bottom || position == ItemPosition.Single
+
     // LargeIncreased = 20.dp (for outer group boundaries)
     // ExtraSmall = 4.dp (for internal joints)
     val cornerSize = 20.dp

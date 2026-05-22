@@ -65,6 +65,7 @@ import com.wireturn.app.R
 import com.wireturn.app.data.ThemeMode
 import com.wireturn.app.ui.ConfigTopAppBar
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LabeledButtonGroup
 import com.wireturn.app.ui.SettingsGroup
 import com.wireturn.app.ui.SettingsGroupItem
@@ -184,8 +185,7 @@ fun SettingsScreen(
 
             SettingsGroup(title = stringResource(R.string.app_appearance)) {
                 SettingsGroupItem(
-                    isTop = true, 
-                    isBottom = !supportsDynamicColor
+                    position = if (supportsDynamicColor) ItemPosition.Top else ItemPosition.Single
                 ) {
                     LabeledButtonGroup(label = stringResource(R.string.theme_title)) {
                         themeModes.forEachIndexed { index, mode ->
@@ -205,8 +205,7 @@ fun SettingsScreen(
 
                 if (supportsDynamicColor) {
                     SettingsGroupItem(
-                        isTop = false, 
-                        isBottom = true, 
+                        position = ItemPosition.Bottom, 
                         onClick = {
                             val next = !dynamicTheme
                             HapticUtil.perform(
@@ -228,8 +227,7 @@ fun SettingsScreen(
                 Spacer(Modifier.height(12.dp))
 
                 SettingsGroupItem(
-                    isTop = true,
-                    isBottom = true,
+                    position = ItemPosition.Single,
                     onClick = {
                         val next = !privacyMode
                         HapticUtil.perform(
@@ -255,8 +253,7 @@ fun SettingsScreen(
 
             SettingsGroup(title = stringResource(R.string.network_settings_title)) {
                 SettingsGroupItem(
-                    isTop = true,
-                    isBottom = false,
+                    position = ItemPosition.Top,
                     onClick = {
                         val next = !waitForNetwork
                         HapticUtil.perform(
@@ -275,8 +272,7 @@ fun SettingsScreen(
                 }
 
                 SettingsGroupItem(
-                    isTop = false,
-                    isBottom = true,
+                    position = ItemPosition.Bottom,
                     onClick = {
                         val next = !restartOnNetworkChange
                         HapticUtil.perform(
@@ -332,8 +328,7 @@ fun SettingsScreen(
                 }
 
                 SettingsGroupItem(
-                    isTop = true,
-                    isBottom = false,
+                    position = ItemPosition.Top,
                     enabled = canEnable,
                     onClick = {
                         if (!canEnable) return@SettingsGroupItem
@@ -356,10 +351,7 @@ fun SettingsScreen(
                     )
                 }
 
-                SettingsGroupItem(
-                    isTop = false,
-                    isBottom = false
-                ) {
+                SettingsGroupItem {
                     TextFieldRow(
                         label = stringResource(R.string.settings_auto_launch_url),
                         value = localUrl,
@@ -370,8 +362,7 @@ fun SettingsScreen(
                 }
 
                 SettingsGroupItem(
-                    isTop = false,
-                    isBottom = true
+                    position = ItemPosition.Bottom
                 ) {
                     TextFieldRow(
                         label = stringResource(R.string.settings_auto_launch_interval),
@@ -390,8 +381,7 @@ fun SettingsScreen(
 
             SettingsGroup(title = stringResource(R.string.captcha_settings_title)) {
                 SettingsGroupItem(
-                    isTop = true,
-                    isBottom = !captchaStyleMod,
+                    position = if (captchaStyleMod) ItemPosition.Top else ItemPosition.Single,
                     onClick = {
                         val next = !captchaStyleMod
                         HapticUtil.perform(
@@ -413,8 +403,7 @@ fun SettingsScreen(
                     val originalLabel = stringResource(R.string.captcha_color_original)
                     val primaryLabel = stringResource(R.string.captcha_color_primary)
                     SettingsGroupItem(
-                        isTop = false,
-                        isBottom = true
+                        position = ItemPosition.Bottom
                     ) {
                         LabeledButtonGroup(
                             label = stringResource(R.string.captcha_force_tint_title),
@@ -460,8 +449,7 @@ fun SettingsScreen(
                 title = stringResource(R.string.update_title)
             ) {
                 SettingsGroupItem(
-                    isTop = true,
-                    isBottom = false,
+                    position = ItemPosition.Top,
                     containerColor = updateContainerColor
                 ) {
                     UpdateBlock(
@@ -484,8 +472,7 @@ fun SettingsScreen(
                 }
 
                 SettingsGroupItem(
-                    isTop = false, 
-                    isBottom = true, 
+                    position = ItemPosition.Bottom, 
                     onClick = {
                         val next = !allowUnstableUpdates
                         HapticUtil.perform(
@@ -516,7 +503,7 @@ fun SettingsScreen(
             }
 
             SettingsGroup(title = stringResource(R.string.localization_title)) {
-                SettingsGroupItem(isTop = true, isBottom = true) {
+                SettingsGroupItem(position = ItemPosition.Single) {
                     LabeledButtonGroup(label = stringResource(R.string.lang_title)) {
                         languages.forEachIndexed { index, lang ->
                             configButtonGroupItem(

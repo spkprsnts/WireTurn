@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
 import com.wireturn.app.ui.ConfigTopAppBar
 import com.wireturn.app.ui.ConfigRowLabel
+import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.SettingsGroup
 import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.ui.StandardLeadingIcon
@@ -108,10 +109,7 @@ fun CreateProfileScreen(
             verticalArrangement = Arrangement.spacedBy(19.dp)
         ) {
             // Profile Name Input
-            SettingsGroupItem(
-                isTop = true,
-                isBottom = true
-            ) {
+            SettingsGroupItem(position = ItemPosition.Single) {
                 TextFieldRow(
                     label = stringResource(R.string.profile_name_label),
                     value = profileName,
@@ -123,8 +121,7 @@ fun CreateProfileScreen(
             // Import Group
             SettingsGroup(title = stringResource(R.string.profile_import_group)) {
                 SettingsGroupItem(
-                    isTop = true,
-                    isBottom = false,
+                    position = ItemPosition.Top,
                     onClick = { showQrScanner.value = true }
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -140,9 +137,7 @@ fun CreateProfileScreen(
                 }
 
                 SettingsGroupItem(
-                    isTop = false,
-                    isBottom = false,
-                    onClick = { 
+                    onClick = {
                         scope.launch {
                             val clipEntry = clipboard.getClipEntry()
                             val text = clipEntry?.clipData?.getItemAt(0)?.text?.toString() ?: ""
@@ -165,8 +160,7 @@ fun CreateProfileScreen(
                 }
 
                 SettingsGroupItem(
-                    isTop = false,
-                    isBottom = true,
+                    position = ItemPosition.Bottom,
                     onClick = { filePickerLauncher.launch("*/*") }
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -185,8 +179,7 @@ fun CreateProfileScreen(
             // Manual Setup Group
             SettingsGroup(title = stringResource(R.string.profile_manual_setup)) {
                 SettingsGroupItem(
-                    isTop = true,
-                    isBottom = false,
+                    position = ItemPosition.Top,
                     enabled = false,
                     onClick = { onSelectType("Turnable", null, profileName) }
                 ) {
@@ -198,8 +191,7 @@ fun CreateProfileScreen(
                 }
 
                 SettingsGroupItem(
-                    isTop = false,
-                    isBottom = true,
+                    position = ItemPosition.Bottom,
                     onClick = { onSelectType("olcRTC", null, profileName) }
                 ) {
                     ConfigRowLabel(text = stringResource(R.string.kernel_olcrtc))

@@ -59,6 +59,7 @@ import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.XraySettings
 import com.wireturn.app.ui.ConfigTopAppBar
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.SettingsGroup
 import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.ui.SwitchRow
@@ -231,7 +232,7 @@ fun ConnectionSettingsScreen(
         ) {
             // Turnable
             SettingsGroup(title = stringResource(R.string.settings_group_turnable)) {
-                SettingsGroupItem(isTop = true, isBottom = true) {
+                SettingsGroupItem(position = ItemPosition.Single) {
                     TextFieldRow(
                         label = stringResource(R.string.local_listen_address),
                         value = listenAddr.redact(privacyMode),
@@ -248,7 +249,7 @@ fun ConnectionSettingsScreen(
 
             // olcRTC
             SettingsGroup(title = stringResource(R.string.settings_group_olcrtc)) {
-                SettingsGroupItem(isTop = true, isBottom = false) {
+                SettingsGroupItem(position = ItemPosition.Top) {
                     TextFieldRow(
                         label = stringResource(R.string.socks5),
                         value = olSocks.redact(privacyMode),
@@ -263,8 +264,7 @@ fun ConnectionSettingsScreen(
                 }
                 
                 SettingsGroupItem(
-                    isTop = false,
-                    isBottom = !olAuth,
+                    position = if (olAuth) ItemPosition.Middle else ItemPosition.Bottom,
                     onClick = {
                         olAuth = !olAuth
                         HapticUtil.perform(
@@ -284,7 +284,7 @@ fun ConnectionSettingsScreen(
                 
                 AnimatedVisibility(visible = olAuth) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        SettingsGroupItem(isTop = false, isBottom = false) {
+                        SettingsGroupItem {
                             TextFieldRow(
                                 label = stringResource(R.string.xray_proxy_user),
                                 value = olUser.redact(privacyMode),
@@ -296,7 +296,7 @@ fun ConnectionSettingsScreen(
                                 privacyMode = privacyMode
                             )
                         }
-                        SettingsGroupItem(isTop = false, isBottom = true) {
+                        SettingsGroupItem(position = ItemPosition.Bottom) {
                             TextFieldRow(
                                 label = stringResource(R.string.xray_proxy_pass),
                                 value = olPass.redact(privacyMode),
@@ -330,7 +330,7 @@ fun ConnectionSettingsScreen(
 
             // Xray
             SettingsGroup(title = stringResource(R.string.settings_group_xray)) {
-                SettingsGroupItem(isTop = true, isBottom = false) {
+                SettingsGroupItem(position = ItemPosition.Top) {
                     TextFieldRow(
                         label = stringResource(R.string.socks5),
                         value = xraySocks.redact(privacyMode),
@@ -343,7 +343,7 @@ fun ConnectionSettingsScreen(
                     )
                 }
                 
-                SettingsGroupItem(isTop = false, isBottom = false) {
+                SettingsGroupItem {
                     TextFieldRow(
                         label = stringResource(R.string.xray_http),
                         value = xrayHttp.redact(privacyMode),
@@ -357,8 +357,7 @@ fun ConnectionSettingsScreen(
                 }
 
                 SettingsGroupItem(
-                    isTop = false,
-                    isBottom = !xrayAuth,
+                    position = if (xrayAuth) ItemPosition.Middle else ItemPosition.Bottom,
                     onClick = {
                         xrayAuth = !xrayAuth
                         HapticUtil.perform(
@@ -378,7 +377,7 @@ fun ConnectionSettingsScreen(
                 
                 AnimatedVisibility(visible = xrayAuth) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        SettingsGroupItem(isTop = false, isBottom = false) {
+                        SettingsGroupItem {
                             TextFieldRow(
                                 label = stringResource(R.string.xray_proxy_user),
                                 value = xrayUser.redact(privacyMode),
@@ -390,7 +389,7 @@ fun ConnectionSettingsScreen(
                                 privacyMode = privacyMode
                             )
                         }
-                        SettingsGroupItem(isTop = false, isBottom = true) {
+                        SettingsGroupItem(position = ItemPosition.Bottom) {
                             TextFieldRow(
                                 label = stringResource(R.string.xray_proxy_pass),
                                 value = xrayPass.redact(privacyMode),

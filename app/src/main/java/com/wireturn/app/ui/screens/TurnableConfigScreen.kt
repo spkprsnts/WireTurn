@@ -66,6 +66,7 @@ import com.wireturn.app.ui.ConfigRowLabel
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.LabeledButtonGroup
 import com.wireturn.app.ui.LargeLeadingIcon
+import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.SelectionDialog
 import com.wireturn.app.ui.SettingsGroup
 import com.wireturn.app.ui.SettingsGroupItem
@@ -230,8 +231,7 @@ fun TurnableConfigScreen(
             SettingsGroup(title = stringResource(R.string.connection_details)) {
                 if (config.routes.isNotEmpty()) {
                     SettingsGroupItem(
-                        isTop = true,
-                        isBottom = false,
+                        position = ItemPosition.Top,
                         onClick = {
                             HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                             showRoutesDialog.value = true
@@ -244,8 +244,7 @@ fun TurnableConfigScreen(
                     }
                 }
                 SettingsGroupItem(
-                    isTop = config.routes.isEmpty(),
-                    isBottom = false
+                    position = if (config.routes.isEmpty()) ItemPosition.Top else ItemPosition.Middle
                 ) {
                     com.wireturn.app.ui.SliderRow(
                         label = stringResource(R.string.peers_label),
@@ -259,10 +258,7 @@ fun TurnableConfigScreen(
                         isModified = isEditMode && config.peers != initialConfig.peers
                     )
                 }
-                SettingsGroupItem(
-                    isTop = false,
-                    isBottom = false
-                ) {
+                SettingsGroupItem {
                     TextFieldRow(
                         label = stringResource(R.string.username_label),
                         value = config.username.redact(isPrivacyActive),
@@ -273,10 +269,7 @@ fun TurnableConfigScreen(
                         privacyMode = isPrivacyActive
                     )
                 }
-                SettingsGroupItem(
-                    isTop = false,
-                    isBottom = true
-                ) {
+                SettingsGroupItem(position = ItemPosition.Bottom) {
                     TextFieldRow(
                         label = stringResource(R.string.call_id_label),
                         value = config.callId.redact(isPrivacyActive),
@@ -291,10 +284,7 @@ fun TurnableConfigScreen(
 
             // server settings
             SettingsGroup(title = stringResource(R.string.server_settings_title)) {
-                SettingsGroupItem(
-                    isTop = true,
-                    isBottom = false
-                ) {
+                SettingsGroupItem(position = ItemPosition.Top) {
                     TextFieldRow(
                         label = stringResource(R.string.user_uuid_label),
                         value = (config.userUuid ?: "").redact(isPrivacyActive),
@@ -306,8 +296,6 @@ fun TurnableConfigScreen(
                     )
                 }
                 SettingsGroupItem(
-                    isTop = false,
-                    isBottom = false,
                     onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         showPlatformDialog.value = true
@@ -336,10 +324,7 @@ fun TurnableConfigScreen(
                         }
                     }
                 }
-                SettingsGroupItem(
-                    isTop = false,
-                    isBottom = false
-                ) {
+                SettingsGroupItem {
                     LabeledButtonGroup(
                         label = stringResource(R.string.connection_type_label),
                         supportingText = stringResource(R.string.connection_type_desc),
@@ -357,10 +342,7 @@ fun TurnableConfigScreen(
                         }
                     }
                 }
-                SettingsGroupItem(
-                    isTop = false,
-                    isBottom = false
-                ) {
+                SettingsGroupItem {
                     TextFieldRow(
                         label = stringResource(R.string.pub_key_label),
                         value = (config.pubKey ?: "").redact(isPrivacyActive),
@@ -371,10 +353,7 @@ fun TurnableConfigScreen(
                         privacyMode = isPrivacyActive
                     )
                 }
-                SettingsGroupItem(
-                    isTop = false,
-                    isBottom = false
-                ) {
+                SettingsGroupItem {
                     LabeledButtonGroup(
                         label = stringResource(R.string.encryption_label),
                         supportingText = stringResource(R.string.encryption_desc),
@@ -392,10 +371,7 @@ fun TurnableConfigScreen(
                         }
                     }
                 }
-                SettingsGroupItem(
-                    isTop = false,
-                    isBottom = false
-                ) {
+                SettingsGroupItem {
                     TextFieldRow(
                         label = stringResource(R.string.gateway_label),
                         value = config.gateway.redact(isPrivacyActive),
@@ -406,10 +382,7 @@ fun TurnableConfigScreen(
                         privacyMode = isPrivacyActive
                     )
                 }
-                SettingsGroupItem(
-                    isTop = false,
-                    isBottom = false
-                ) {
+                SettingsGroupItem {
                     LabeledButtonGroup(
                         label = stringResource(R.string.proto_label),
                         supportingText = stringResource(R.string.proto_desc),
@@ -429,8 +402,7 @@ fun TurnableConfigScreen(
                     }
                 }
                 SettingsGroupItem(
-                    isTop = false,
-                    isBottom = true,
+                    position = ItemPosition.Bottom,
                     onClick = {
                         val next = !config.forceTurn
                         HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)

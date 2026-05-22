@@ -85,6 +85,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.ui.ConfigTopAppBar
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LabeledButtonGroup
 import com.wireturn.app.ui.MainSwitchItem
 import com.wireturn.app.ui.SectionHeader
@@ -453,8 +454,7 @@ fun AppExceptionsScreen(
                             val vpnModeBypass = stringResource(R.string.vpn_apps_exceptions)
 
                             SettingsGroupItem(
-                                isTop = true,
-                                isBottom = true,
+                                position = ItemPosition.Single,
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             ) {
                                 LabeledButtonGroup(
@@ -491,8 +491,7 @@ fun AppExceptionsScreen(
 
                             SettingsGroup {
                                 SettingsGroupItem(
-                                    isTop = true,
-                                    isBottom = false,
+                                    position = ItemPosition.Top,
                                     modifier = Modifier.padding(horizontal = 16.dp),
                                     onClick = {
                                         viewModel.updateGlobalVpnSettings(
@@ -514,8 +513,7 @@ fun AppExceptionsScreen(
                                     )
                                 }
                                 SettingsGroupItem(
-                                    isTop = false,
-                                    isBottom = true,
+                                    position = ItemPosition.Bottom,
                                     modifier = Modifier.padding(horizontal = 16.dp),
                                     onClick = {
                                         viewModel.updateGlobalVpnSettings(
@@ -855,8 +853,12 @@ private fun AppListItem(
     )
 
     SettingsGroupItem(
-        isTop = index == 0,
-        isBottom = index == groupSize - 1,
+        position = when {
+            groupSize == 1 -> ItemPosition.Single
+            index == 0 -> ItemPosition.Top
+            index == groupSize - 1 -> ItemPosition.Bottom
+            else -> ItemPosition.Middle
+        },
         containerColor = backgroundColor,
         onClick = { onToggleExclusion(app.packageName) },
         modifier = Modifier
