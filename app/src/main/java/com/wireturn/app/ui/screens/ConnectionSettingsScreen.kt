@@ -283,7 +283,7 @@ fun ConnectionSettingsScreen(
                 }
                 
                 AnimatedVisibility(visible = olAuth) {
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    SettingsGroup {
                         SettingsGroupItem {
                             TextFieldRow(
                                 label = stringResource(R.string.xray_proxy_user),
@@ -376,7 +376,7 @@ fun ConnectionSettingsScreen(
                 }
                 
                 AnimatedVisibility(visible = xrayAuth) {
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    SettingsGroup {
                         SettingsGroupItem {
                             TextFieldRow(
                                 label = stringResource(R.string.xray_proxy_user),

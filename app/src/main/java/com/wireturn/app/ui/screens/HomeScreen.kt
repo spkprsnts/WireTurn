@@ -124,6 +124,7 @@ import com.wireturn.app.XrayServiceState
 import com.wireturn.app.ui.CompactSettingsItem
 import com.wireturn.app.ui.components.ProxyToggleButton
 import com.wireturn.app.ui.ConfigRowLabel
+import com.wireturn.app.ui.SettingsGroup
 import com.wireturn.app.ui.SupportingText
 import com.wireturn.app.ui.UpdateBlock
 import com.wireturn.app.ui.privacySpoiler
@@ -153,20 +154,20 @@ fun HomeScreen(
     val proxyState by viewModel.proxyState.collectAsStateWithLifecycle()
     val xrayState by XrayServiceState.state.collectAsStateWithLifecycle()
     val vpnServiceState by VpnServiceState.state.collectAsStateWithLifecycle()
-    
+
     val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
     val xrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
     val xraySettings by viewModel.xraySettings.collectAsStateWithLifecycle()
     val vlessConfig by viewModel.vlessConfig.collectAsStateWithLifecycle()
     val wgConfig by viewModel.wgConfig.collectAsStateWithLifecycle()
     val globalVpnSettings by viewModel.globalVpnSettings.collectAsStateWithLifecycle()
-    
+
     val clientConfigSnapshot by ProxyServiceState.clientConfigSnapshot.collectAsStateWithLifecycle()
     val xrayConfigSnapshot by XrayServiceState.xrayConfigSnapshot.collectAsStateWithLifecycle()
     val xraySettingsSnapshot by XrayServiceState.xraySettingsSnapshot.collectAsStateWithLifecycle()
     val wgConfigSnapshot by XrayServiceState.wgConfigSnapshot.collectAsStateWithLifecycle()
     val vlessConfigSnapshot by XrayServiceState.vlessConfigSnapshot.collectAsStateWithLifecycle()
-    
+
     val batteryNotificationDismissed by viewModel.batteryNotificationDismissed.collectAsStateWithLifecycle()
     val vpnEnabled by viewModel.vpnEnabled.collectAsStateWithLifecycle()
     val appsExclusionHintShown by viewModel.appsExclusionHintShown.collectAsStateWithLifecycle()
@@ -193,7 +194,14 @@ fun HomeScreen(
         AlertDialog(
             onDismissRequest = { showArchWarning.value = false },
             title = { Text(stringResource(R.string.warn_unsupported_arch_title)) },
-            text = { Text(stringResource(R.string.warn_unsupported_arch_desc, deviceArchitecture)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.warn_unsupported_arch_desc,
+                        deviceArchitecture
+                    )
+                )
+            },
             confirmButton = {
                 TextButton(onClick = { showArchWarning.value = false }) {
                     Text(stringResource(R.string.btn_close))
@@ -215,7 +223,8 @@ fun HomeScreen(
             lastSuccessPing = proxyPing as MainViewModel.PingResult.Success
         }
 
-        val isProxyActive = proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed
+        val isProxyActive =
+            proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed
         if (isProxyActive) {
             if (proxyPing is MainViewModel.PingResult.Success || proxyPing is MainViewModel.PingResult.Error) {
                 if (!isControlPingScheduled) {
@@ -261,7 +270,10 @@ fun HomeScreen(
     var hasNotificationPermission by remember {
         mutableStateOf(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                ContextCompat.checkSelfPermission(context, "android.permission.POST_NOTIFICATIONS") == PackageManager.PERMISSION_GRANTED
+                ContextCompat.checkSelfPermission(
+                    context,
+                    "android.permission.POST_NOTIFICATIONS"
+                ) == PackageManager.PERMISSION_GRANTED
             } else true
         )
     }
@@ -276,15 +288,17 @@ fun HomeScreen(
         ActivityResultContracts.OpenMultipleDocuments()
     ) { uris ->
         if (uris.isEmpty()) return@rememberLauncherForActivityResult
-        
+
         scope.launch(Dispatchers.IO) {
             val jsonFiles = mutableListOf<Pair<String?, String>>()
             uris.forEach { uri ->
                 try {
-                    val fileName = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                        val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-                        if (index != -1 && cursor.moveToFirst()) cursor.getString(index) else null
-                    } ?: uri.lastPathSegment
+                    val fileName =
+                        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                            val index =
+                                cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                            if (index != -1 && cursor.moveToFirst()) cursor.getString(index) else null
+                        } ?: uri.lastPathSegment
 
                     if (fileName?.endsWith(".zip", ignoreCase = true) == true) {
                         context.contentResolver.openInputStream(uri)?.use { stream ->
@@ -296,7 +310,8 @@ fun HomeScreen(
                         }
                         if (json != null) jsonFiles.add(fileName to json)
                     }
-                } catch (_: Exception) {}
+                } catch (_: Exception) {
+                }
             }
             if (jsonFiles.isNotEmpty()) {
                 viewModel.importProfiles(jsonFiles)
@@ -309,17 +324,24 @@ fun HomeScreen(
             when (event) {
                 Lifecycle.Event.ON_RESUME -> {
                     viewModel.setHomeScreenActive(true)
-                    isIgnoringBatteryOptimizations = pm.isIgnoringBatteryOptimizations(context.packageName)
-                    hasNotificationPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        ContextCompat.checkSelfPermission(context, "android.permission.POST_NOTIFICATIONS") == PackageManager.PERMISSION_GRANTED
-                    } else true
+                    isIgnoringBatteryOptimizations =
+                        pm.isIgnoringBatteryOptimizations(context.packageName)
+                    hasNotificationPermission =
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            ContextCompat.checkSelfPermission(
+                                context,
+                                "android.permission.POST_NOTIFICATIONS"
+                            ) == PackageManager.PERMISSION_GRANTED
+                        } else true
                     if (XrayServiceState.state.value == XrayState.Running) {
                         viewModel.checkProxyPing()
                     }
                 }
+
                 Lifecycle.Event.ON_PAUSE -> {
                     viewModel.setHomeScreenActive(false)
                 }
+
                 else -> {}
             }
         }
@@ -355,7 +377,12 @@ fun HomeScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text(text = stringResource(R.string.turn_proxy_title), modifier = Modifier.padding(horizontal = 8.dp)) },
+                title = {
+                    Text(
+                        text = stringResource(R.string.turn_proxy_title),
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent,
                     scrolledContainerColor = Color.Transparent
@@ -492,7 +519,10 @@ fun HomeScreen(
                                     if (!hasNotificationPermission) {
                                         Button(
                                             onClick = {
-                                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                                HapticUtil.perform(
+                                                    context,
+                                                    HapticUtil.Pattern.CLICK
+                                                )
                                                 notificationLauncher.launch("android.permission.POST_NOTIFICATIONS")
                                             },
                                             colors = ButtonDefaults.buttonColors(
@@ -502,9 +532,16 @@ fun HomeScreen(
                                             contentPadding = PaddingValues(horizontal = 12.dp),
                                             modifier = Modifier.height(32.dp)
                                         ) {
-                                            Icon(painterResource(R.drawable.info_24px), null, Modifier.size(16.dp))
+                                            Icon(
+                                                painterResource(R.drawable.info_24px),
+                                                null,
+                                                Modifier.size(16.dp)
+                                            )
                                             Spacer(Modifier.width(6.dp))
-                                            Text(stringResource(R.string.permission_notifications), style = MaterialTheme.typography.labelMedium)
+                                            Text(
+                                                stringResource(R.string.permission_notifications),
+                                                style = MaterialTheme.typography.labelMedium
+                                            )
                                         }
                                     }
                                     if (!hasNotificationPermission && !isIgnoringBatteryOptimizations) {
@@ -513,10 +550,14 @@ fun HomeScreen(
                                     if (!isIgnoringBatteryOptimizations) {
                                         Button(
                                             onClick = {
-                                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                                HapticUtil.perform(
+                                                    context,
+                                                    HapticUtil.Pattern.CLICK
+                                                )
                                                 batteryOptLauncher.launch(
                                                     Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                                                        data = "package:${context.packageName}".toUri()
+                                                        data =
+                                                            "package:${context.packageName}".toUri()
                                                     }
                                                 )
                                             },
@@ -527,9 +568,16 @@ fun HomeScreen(
                                             contentPadding = PaddingValues(horizontal = 12.dp),
                                             modifier = Modifier.height(32.dp)
                                         ) {
-                                            Icon(painterResource(R.drawable.battery_android_frame_5_24px), null, Modifier.size(16.dp))
+                                            Icon(
+                                                painterResource(R.drawable.battery_android_frame_5_24px),
+                                                null,
+                                                Modifier.size(16.dp)
+                                            )
                                             Spacer(Modifier.width(6.dp))
-                                            Text(stringResource(R.string.permission_battery), style = MaterialTheme.typography.labelMedium)
+                                            Text(
+                                                stringResource(R.string.permission_battery),
+                                                style = MaterialTheme.typography.labelMedium
+                                            )
                                         }
                                     }
                                 }
@@ -565,7 +613,12 @@ fun HomeScreen(
                     onClick = {
                         if (profiles.isEmpty()) {
                             HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                            context.startActivity(Intent(context, com.wireturn.app.ui.activities.CreateProfileActivity::class.java))
+                            context.startActivity(
+                                Intent(
+                                    context,
+                                    com.wireturn.app.ui.activities.CreateProfileActivity::class.java
+                                )
+                            )
                         } else {
                             onToggleProxy()
                         }
@@ -575,12 +628,12 @@ fun HomeScreen(
 
             Spacer(Modifier.height(22.dp))
 
-    // --- Ping & Transfer Stats ---
-    AnimatedVisibility(
-        visible = (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute) && (proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed),
-        enter = fadeIn() + expandVertically(),
-        exit = fadeOut() + shrinkVertically()
-    ) {
+            // --- Ping & Transfer Stats ---
+            AnimatedVisibility(
+                visible = (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute) && (proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed),
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -589,7 +642,10 @@ fun HomeScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(IntrinsicSize.Min),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                        horizontalArrangement = Arrangement.spacedBy(
+                            10.dp,
+                            Alignment.CenterHorizontally
+                        ),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Stats Block
@@ -602,7 +658,10 @@ fun HomeScreen(
                             ) {
                                 val transfer = proxyTransfer
                                 // Download
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
                                     Icon(
                                         painter = painterResource(R.drawable.arrow_downward_24px),
                                         contentDescription = null,
@@ -623,13 +682,18 @@ fun HomeScreen(
                                         Text(
                                             text = formatSpeed(transfer?.rxSpeed ?: 0L),
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                                alpha = 0.6f
+                                            )
                                         )
                                     }
                                 }
 
                                 // Upload
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
                                     Icon(
                                         painter = painterResource(R.drawable.arrow_upward_24px),
                                         contentDescription = null,
@@ -650,7 +714,9 @@ fun HomeScreen(
                                         Text(
                                             text = formatSpeed(transfer?.txSpeed ?: 0L),
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                                alpha = 0.6f
+                                            )
                                         )
                                     }
                                 }
@@ -683,7 +749,8 @@ fun HomeScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     val currentPing = proxyPing
-                                    val infiniteTransition = rememberInfiniteTransition(label = "ping_pulse")
+                                    val infiniteTransition =
+                                        rememberInfiniteTransition(label = "ping_pulse")
                                     val pulseAlpha by infiniteTransition.animateFloat(
                                         initialValue = 0.3f,
                                         targetValue = 0.9f,
@@ -698,9 +765,14 @@ fun HomeScreen(
                                         is MainViewModel.PingResult.Loading -> {
                                             if (lastSuccessPing != null) {
                                                 VerticalAnimatedText(
-                                                    text = stringResource(R.string.ping_ms, lastSuccessPing!!.ms),
+                                                    text = stringResource(
+                                                        R.string.ping_ms,
+                                                        lastSuccessPing!!.ms
+                                                    ),
                                                     style = MaterialTheme.typography.labelMedium,
-                                                    color = (if (lastSuccessPing!!.ms < 300) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error).copy(alpha = pulseAlpha),
+                                                    color = (if (lastSuccessPing!!.ms < 300) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error).copy(
+                                                        alpha = pulseAlpha
+                                                    ),
                                                     fontWeight = FontWeight.Bold,
                                                     contentAlignment = Alignment.Center
                                                 )
@@ -721,8 +793,10 @@ fun HomeScreen(
 
                                         is MainViewModel.PingResult.Success -> {
                                             VerticalAnimatedText(
-                                                text = stringResource(R.string.ping_ms,
-                                                    currentPing.ms),
+                                                text = stringResource(
+                                                    R.string.ping_ms,
+                                                    currentPing.ms
+                                                ),
                                                 style = MaterialTheme.typography.labelMedium,
                                                 color = if (currentPing.ms < 300) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
                                                 fontWeight = FontWeight.Bold,
@@ -769,7 +843,14 @@ fun HomeScreen(
             ) {
                 ProfilesBlock(
                     viewModel = viewModel,
-                    onImport = { profileImportLauncher.launch(arrayOf("application/json", "application/zip")) }
+                    onImport = {
+                        profileImportLauncher.launch(
+                            arrayOf(
+                                "application/json",
+                                "application/zip"
+                            )
+                        )
+                    }
                 )
             }
 
@@ -798,11 +879,18 @@ fun HomeScreen(
                                 Column(modifier = Modifier.weight(1f)) {
                                     ConfigRowLabel(stringResource(R.string.restart_required))
                                     Spacer(Modifier.height(2.dp))
-                                    SupportingText(when {
-                                        mainConfigChanged && xrayConfigChanged -> "${stringResource(R.string.restart_reason_client)} • ${stringResource(R.string.restart_reason_xray)}"
-                                        mainConfigChanged -> stringResource(R.string.restart_reason_client)
-                                        else -> stringResource(R.string.restart_reason_xray)
-                                    })
+                                    SupportingText(
+                                        when {
+                                            mainConfigChanged && xrayConfigChanged -> "${
+                                                stringResource(
+                                                    R.string.restart_reason_client
+                                                )
+                                            } • ${stringResource(R.string.restart_reason_xray)}"
+
+                                            mainConfigChanged -> stringResource(R.string.restart_reason_client)
+                                            else -> stringResource(R.string.restart_reason_xray)
+                                        }
+                                    )
                                 }
                             }
 
@@ -855,7 +943,14 @@ fun HomeScreen(
             if (showProfilesDialog.value) {
                 ProfilesDialog(
                     viewModel = viewModel,
-                    onImport = { profileImportLauncher.launch(arrayOf("application/json", "application/zip")) },
+                    onImport = {
+                        profileImportLauncher.launch(
+                            arrayOf(
+                                "application/json",
+                                "application/zip"
+                            )
+                        )
+                    },
                     onDismiss = { showProfilesDialog.value = false }
                 )
             }
@@ -879,17 +974,27 @@ fun HomeScreen(
                         XrayState.DirectRoute -> stringResource(R.string.vless)
                         XrayState.Running -> stringResource(R.string.socks5)
                         else -> {
-                            if (activeVlessConfig.isDualRoute) "${stringResource(R.string.socks5)} / ${stringResource(R.string.vless)}"
+                            if (activeVlessConfig.isDualRoute) "${stringResource(R.string.socks5)} / ${
+                                stringResource(
+                                    R.string.vless
+                                )
+                            }"
                             else stringResource(R.string.socks5)
                         }
                     }
                 }
-                xrayState == XrayState.Running || xrayState == XrayState.DirectRoute -> if (vlessConfigSnapshot != null) stringResource(R.string.vless) else stringResource(R.string.wg_short)
-                else -> if (activeXrayConfig.protocol == XrayConfiguration.VLESS) stringResource(R.string.vless) else stringResource(R.string.wg_short)
+
+                xrayState == XrayState.Running || xrayState == XrayState.DirectRoute -> if (vlessConfigSnapshot != null) stringResource(
+                    R.string.vless
+                ) else stringResource(R.string.wg_short)
+
+                else -> if (activeXrayConfig.protocol == XrayConfiguration.VLESS) stringResource(R.string.vless) else stringResource(
+                    R.string.wg_short
+                )
             }
 
             val profilesExist = profiles.isNotEmpty()
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            SettingsGroup {
                 SettingsGroupItem(
                     position = ItemPosition.Top,
                     onClick = {
@@ -899,7 +1004,12 @@ fun HomeScreen(
                         }
                     }
                 ) {
-                    LaunchedEffect(configValid, xrayConfig.enabled, currentProfileId, autoLaunchSettings.enabled) {
+                    LaunchedEffect(
+                        configValid,
+                        xrayConfig.enabled,
+                        currentProfileId,
+                        autoLaunchSettings.enabled
+                    ) {
                         delay(300)
                         if (!configValid && xrayConfig.enabled && !autoLaunchSettings.enabled) {
                             viewModel.updateXrayConfig(viewModel.xrayConfig.value.copy(enabled = false))
@@ -911,7 +1021,10 @@ fun HomeScreen(
                         checked = xrayConfig.enabled,
                         onCheckedChange = { next ->
                             val action = {
-                                HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                                HapticUtil.perform(
+                                    context,
+                                    if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                                )
 
                                 if (!next && vpnEnabled) {
                                     showVpnWarning()
@@ -927,7 +1040,9 @@ fun HomeScreen(
                             }
                         },
                         isSplit = true,
-                        supportingText = if (!profilesExist) null else if (!configValid) stringResource(R.string.xray_config_invalid) else {
+                        supportingText = if (!profilesExist) null else if (!configValid) stringResource(
+                            R.string.xray_config_invalid
+                        ) else {
                             when (xrayState) {
                                 XrayState.Starting -> stringResource(R.string.starting)
                                 XrayState.Connecting -> stringResource(R.string.connecting)
@@ -944,6 +1059,7 @@ fun HomeScreen(
                                     contentDescription = null,
                                     tint = if (xrayState == XrayState.Idle || !profilesExist) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary
                                 )
+
                                 XrayState.Starting, XrayState.Connecting -> LoadingIndicator()
                             }
                         },
@@ -951,34 +1067,37 @@ fun HomeScreen(
                     )
                 }
 
-            val toggleVpnAction = { next: Boolean ->
-                HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
-                
-                if (next && !xrayConfig.enabled) {
-                    showVpnWarning()
-                }
+                val toggleVpnAction = { next: Boolean ->
+                    HapticUtil.perform(
+                        context,
+                        if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                    )
 
-                if (next) {
-                    val intent = VpnService.prepare(context)
-                    if (intent != null) {
-                        vpnLauncher.launch(intent)
-                    } else {
-                        viewModel.setVpnEnabled(true)
+                    if (next && !xrayConfig.enabled) {
+                        showVpnWarning()
                     }
-                } else {
-                    viewModel.setVpnEnabled(false)
-                }
-            }
 
-            SettingsGroupItem(
-                position = ItemPosition.Bottom,
-                onClick = { toggleVpnAction(!vpnEnabled) }
-            ) {
-                SwitchRow(
-                    label = stringResource(R.string.vpn_mode),
-                    checked = vpnEnabled,
-                    onCheckedChange = toggleVpnAction,
-                    isModified = wgConfigSnapshot != null && vpnEnabled != (vpnServiceState == VpnState.Running),
+                    if (next) {
+                        val intent = VpnService.prepare(context)
+                        if (intent != null) {
+                            vpnLauncher.launch(intent)
+                        } else {
+                            viewModel.setVpnEnabled(true)
+                        }
+                    } else {
+                        viewModel.setVpnEnabled(false)
+                    }
+                }
+
+                SettingsGroupItem(
+                    position = ItemPosition.Bottom,
+                    onClick = { toggleVpnAction(!vpnEnabled) }
+                ) {
+                    SwitchRow(
+                        label = stringResource(R.string.vpn_mode),
+                        checked = vpnEnabled,
+                        onCheckedChange = toggleVpnAction,
+                        isModified = wgConfigSnapshot != null && vpnEnabled != (vpnServiceState == VpnState.Running),
                         supportingText = when (vpnServiceState) {
                             VpnState.Starting -> stringResource(R.string.starting)
                             VpnState.Running -> stringResource(R.string.running)
@@ -993,6 +1112,7 @@ fun HomeScreen(
                                     contentDescription = null,
                                     tint = if (vpnServiceState == VpnState.Running) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+
                                 VpnState.Starting -> LoadingIndicator()
                             }
                         },
@@ -1028,7 +1148,12 @@ fun HomeScreen(
             val isOlcrtc = activeConfig.kernelVariant == KernelVariant.OLCRTC
             val showXray = xrayConfig.enabled
 
-            fun formatProxyAddr(addr: String, user: String, pass: String, authEnabled: Boolean): String {
+            fun formatProxyAddr(
+                addr: String,
+                user: String,
+                pass: String,
+                authEnabled: Boolean
+            ): String {
                 if (addr.isBlank()) return ""
                 return if (authEnabled && user.isNotBlank()) {
                     "$user:$pass@$addr"
@@ -1044,9 +1169,26 @@ fun HomeScreen(
             }
 
             val copySocksAddr = when {
-                showXray -> formatProxyAddr(activeXraySettings.socksBindAddress, activeXraySettings.proxyUser, activeXraySettings.proxyPass, activeXraySettings.isProxyAuthEnabled)
-                isOlcrtc -> formatProxyAddr(activeConfig.socksAddr, activeConfig.socksUser, activeConfig.socksPass, activeConfig.isSocksAuthEnabled)
-                else -> formatProxyAddr(activeXraySettings.socksBindAddress, activeXraySettings.proxyUser, activeXraySettings.proxyPass, activeXraySettings.isProxyAuthEnabled)
+                showXray -> formatProxyAddr(
+                    activeXraySettings.socksBindAddress,
+                    activeXraySettings.proxyUser,
+                    activeXraySettings.proxyPass,
+                    activeXraySettings.isProxyAuthEnabled
+                )
+
+                isOlcrtc -> formatProxyAddr(
+                    activeConfig.socksAddr,
+                    activeConfig.socksUser,
+                    activeConfig.socksPass,
+                    activeConfig.isSocksAuthEnabled
+                )
+
+                else -> formatProxyAddr(
+                    activeXraySettings.socksBindAddress,
+                    activeXraySettings.proxyUser,
+                    activeXraySettings.proxyPass,
+                    activeXraySettings.isProxyAuthEnabled
+                )
             }
 
             val displayHttpAddr = when {
@@ -1056,9 +1198,20 @@ fun HomeScreen(
             }
 
             val copyHttpAddr = when {
-                showXray -> formatProxyAddr(activeXraySettings.httpBindAddress, activeXraySettings.proxyUser, activeXraySettings.proxyPass, activeXraySettings.isProxyAuthEnabled)
+                showXray -> formatProxyAddr(
+                    activeXraySettings.httpBindAddress,
+                    activeXraySettings.proxyUser,
+                    activeXraySettings.proxyPass,
+                    activeXraySettings.isProxyAuthEnabled
+                )
+
                 isOlcrtc -> ""
-                else -> formatProxyAddr(activeXraySettings.httpBindAddress, activeXraySettings.proxyUser, activeXraySettings.proxyPass, activeXraySettings.isProxyAuthEnabled)
+                else -> formatProxyAddr(
+                    activeXraySettings.httpBindAddress,
+                    activeXraySettings.proxyUser,
+                    activeXraySettings.proxyPass,
+                    activeXraySettings.isProxyAuthEnabled
+                )
             }
 
             val isSocksModified = when {
@@ -1072,9 +1225,10 @@ fun HomeScreen(
                 else -> false
             }
 
-            Column(
-                modifier = Modifier.graphicsLayer { alpha = if (showXray || isOlcrtc) 1f else 0.38f },
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+            SettingsGroup(
+                modifier = Modifier.graphicsLayer {
+                    alpha = if (showXray || isOlcrtc) 1f else 0.38f
+                }
             ) {
                 val clipboard = LocalClipboard.current
                 val socks5Label = stringResource(R.string.clipboard_label_socks5)
@@ -1097,7 +1251,9 @@ fun HomeScreen(
                         if (privacyMode) return@SettingsGroupItem
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         scope.launch {
-                            clipboard.setClipEntry(ClipData.newPlainText(socks5Label, copySocksAddr).toClipEntry())
+                            clipboard.setClipEntry(
+                                ClipData.newPlainText(socks5Label, copySocksAddr).toClipEntry()
+                            )
                             socksCopied = true
                         }
                     }
@@ -1112,7 +1268,9 @@ fun HomeScreen(
                             Icon(
                                 painter = painterResource(R.drawable.lan_24px),
                                 contentDescription = null,
-                                tint = if (showXray || isOlcrtc) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                                tint = if (showXray || isOlcrtc) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                    alpha = 0.38f
+                                )
                             )
                         }
                     )
@@ -1137,7 +1295,12 @@ fun HomeScreen(
                             if (privacyMode) return@SettingsGroupItem
                             HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                             scope.launch {
-                                clipboard.setClipEntry(ClipData.newPlainText(httpLabel, copyHttpAddr).toClipEntry())
+                                clipboard.setClipEntry(
+                                    ClipData.newPlainText(
+                                        httpLabel,
+                                        copyHttpAddr
+                                    ).toClipEntry()
+                                )
                                 httpCopied = true
                             }
                         }
@@ -1152,7 +1315,9 @@ fun HomeScreen(
                                 Icon(
                                     painter = painterResource(R.drawable.lan_24px),
                                     contentDescription = null,
-                                    tint = if (showXray) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                                    tint = if (showXray) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                        alpha = 0.38f
+                                    )
                                 )
                             }
                         )
@@ -1266,7 +1431,9 @@ private fun ProxyAddressRow(
                 displayText,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = if (address.isBlank() && !privacyMode) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                color = if (address.isBlank() && !privacyMode) MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                    alpha = 0.5f
+                )
                 else MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.privacySpoiler(privacyMode)
             )
@@ -1285,7 +1452,9 @@ private fun ProxyAddressRow(
             painter = painterResource(if (isCopied) R.drawable.check_circle_24px else R.drawable.content_copy_24px),
             contentDescription = null,
             modifier = Modifier.size(20.dp),
-            tint = if (isCopied) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            tint = if (isCopied) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                alpha = 0.6f
+            )
         )
     }
 }

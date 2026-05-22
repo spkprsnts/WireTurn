@@ -739,7 +739,7 @@ private fun VlessSettingsBlock(
                 enter = fadeIn(tween(300)) + expandVertically(tween(300)),
                 exit = fadeOut(tween(300)) + shrinkVertically(tween(300))
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                SettingsGroup {
                     SettingsGroupItem {
                         TextFieldRow(
                             label = stringResource(R.string.vless_direct_address),
