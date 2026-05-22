@@ -43,7 +43,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.material3.TopAppBarDefaults
-import com.wireturn.app.ui.ConfigTopAppBar
+import com.wireturn.app.ui.AppTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -62,20 +62,20 @@ import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
 import com.wireturn.app.data.TurnableConfig
 import com.wireturn.app.data.TurnableRoute
-import com.wireturn.app.ui.ConfigRowLabel
+import com.wireturn.app.ui.RowLabel
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.LabeledButtonGroup
 import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.SelectionDialog
-import com.wireturn.app.ui.SettingsGroup
-import com.wireturn.app.ui.SettingsGroupItem
+import com.wireturn.app.ui.SectionGroup
+import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SupportingText
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
-import com.wireturn.app.ui.configButtonGroupItem
-import com.wireturn.app.ui.InlineConfigIndicator
+import com.wireturn.app.ui.selectableButtonItem
+import com.wireturn.app.ui.ModifiedIndicator
 import com.wireturn.app.ui.redact
 import kotlin.math.roundToInt
 
@@ -144,7 +144,7 @@ fun TurnableConfigScreen(
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            ConfigTopAppBar(
+            AppTopAppBar(
                 title = stringResource(R.string.kernel_turnable),
                 onBack = handleBack,
                 scrollBehavior = scrollBehavior,
@@ -228,9 +228,9 @@ fun TurnableConfigScreen(
             verticalArrangement = Arrangement.spacedBy(19.dp)
         ) {
             // connection details
-            SettingsGroup(title = stringResource(R.string.connection_details)) {
+            SectionGroup(title = stringResource(R.string.connection_details)) {
                 if (config.routes.isNotEmpty()) {
-                    SettingsGroupItem(
+                    SectionItem(
                         position = ItemPosition.Top,
                         onClick = {
                             HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -243,7 +243,7 @@ fun TurnableConfigScreen(
                         )
                     }
                 }
-                SettingsGroupItem(
+                SectionItem(
                     position = if (config.routes.isEmpty()) ItemPosition.Top else ItemPosition.Middle
                 ) {
                     com.wireturn.app.ui.SliderRow(
@@ -258,7 +258,7 @@ fun TurnableConfigScreen(
                         isModified = isEditMode && config.peers != initialConfig.peers
                     )
                 }
-                SettingsGroupItem {
+                SectionItem {
                     TextFieldRow(
                         label = stringResource(R.string.username_label),
                         value = config.username.redact(isPrivacyActive),
@@ -269,7 +269,7 @@ fun TurnableConfigScreen(
                         privacyMode = isPrivacyActive
                     )
                 }
-                SettingsGroupItem(position = ItemPosition.Bottom) {
+                SectionItem(position = ItemPosition.Bottom) {
                     TextFieldRow(
                         label = stringResource(R.string.call_id_label),
                         value = config.callId.redact(isPrivacyActive),
@@ -283,8 +283,8 @@ fun TurnableConfigScreen(
             }
 
             // server settings
-            SettingsGroup(title = stringResource(R.string.server_settings_title)) {
-                SettingsGroupItem(position = ItemPosition.Top) {
+            SectionGroup(title = stringResource(R.string.server_settings_title)) {
+                SectionItem(position = ItemPosition.Top) {
                     TextFieldRow(
                         label = stringResource(R.string.user_uuid_label),
                         value = (config.userUuid ?: "").redact(isPrivacyActive),
@@ -295,7 +295,7 @@ fun TurnableConfigScreen(
                         privacyMode = isPrivacyActive
                     )
                 }
-                SettingsGroupItem(
+                SectionItem(
                     onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         showPlatformDialog.value = true
@@ -314,7 +314,7 @@ fun TurnableConfigScreen(
                             )
                         }
                         Column(modifier = Modifier.weight(1f)) {
-                            ConfigRowLabel(
+                            RowLabel(
                                 text = stringResource(R.string.olcrtc_carrier_label),
                                 isModified = isEditMode && config.platformId != initialConfig.platformId
                             )
@@ -324,7 +324,7 @@ fun TurnableConfigScreen(
                         }
                     }
                 }
-                SettingsGroupItem {
+                SectionItem {
                     LabeledButtonGroup(
                         label = stringResource(R.string.connection_type_label),
                         supportingText = stringResource(R.string.connection_type_desc),
@@ -332,7 +332,7 @@ fun TurnableConfigScreen(
                     ) {
                         val types = listOf("relay", "direct")
                         types.forEachIndexed { index, t ->
-                            configButtonGroupItem(
+                            selectableButtonItem(
                                 selected = config.type == t,
                                 onSelect = { config = config.copy(type = t) },
                                 label = t.replaceFirstChar { it.uppercase() },
@@ -342,7 +342,7 @@ fun TurnableConfigScreen(
                         }
                     }
                 }
-                SettingsGroupItem {
+                SectionItem {
                     TextFieldRow(
                         label = stringResource(R.string.pub_key_label),
                         value = (config.pubKey ?: "").redact(isPrivacyActive),
@@ -353,7 +353,7 @@ fun TurnableConfigScreen(
                         privacyMode = isPrivacyActive
                     )
                 }
-                SettingsGroupItem {
+                SectionItem {
                     LabeledButtonGroup(
                         label = stringResource(R.string.encryption_label),
                         supportingText = stringResource(R.string.encryption_desc),
@@ -361,7 +361,7 @@ fun TurnableConfigScreen(
                     ) {
                         val options = listOf("handshake", "full")
                         options.forEachIndexed { index, e ->
-                            configButtonGroupItem(
+                            selectableButtonItem(
                                 selected = config.encryption == e,
                                 onSelect = { config = config.copy(encryption = e) },
                                 label = e.replaceFirstChar { it.uppercase() },
@@ -371,7 +371,7 @@ fun TurnableConfigScreen(
                         }
                     }
                 }
-                SettingsGroupItem {
+                SectionItem {
                     TextFieldRow(
                         label = stringResource(R.string.gateway_label),
                         value = config.gateway.redact(isPrivacyActive),
@@ -382,7 +382,7 @@ fun TurnableConfigScreen(
                         privacyMode = isPrivacyActive
                     )
                 }
-                SettingsGroupItem {
+                SectionItem {
                     LabeledButtonGroup(
                         label = stringResource(R.string.proto_label),
                         supportingText = stringResource(R.string.proto_desc),
@@ -391,7 +391,7 @@ fun TurnableConfigScreen(
                         val options = listOf("dtls", "srtp", "none")
                         val currentProto = config.proto ?: "none"
                         options.forEachIndexed { index, p ->
-                            configButtonGroupItem(
+                            selectableButtonItem(
                                 selected = currentProto == p,
                                 onSelect = { config = config.copy(proto = if (p == "none") null else p) },
                                 label = p.uppercase(),
@@ -401,7 +401,7 @@ fun TurnableConfigScreen(
                         }
                     }
                 }
-                SettingsGroupItem(
+                SectionItem(
                     position = ItemPosition.Bottom,
                     onClick = {
                         val next = !config.forceTurn
@@ -499,7 +499,7 @@ fun RoutesBlock(
                         maxLines = 1,
                         modifier = Modifier.basicMarquee().weight(1f, fill = false)
                     )
-                    InlineConfigIndicator(isModified)
+                    ModifiedIndicator(isModified)
                 }
                 RouteSummary(route = selectedRoute)
             }

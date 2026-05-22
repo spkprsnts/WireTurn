@@ -63,16 +63,16 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.data.ThemeMode
-import com.wireturn.app.ui.ConfigTopAppBar
+import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LabeledButtonGroup
-import com.wireturn.app.ui.SettingsGroup
-import com.wireturn.app.ui.SettingsGroupItem
+import com.wireturn.app.ui.SectionGroup
+import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.UpdateBlock
-import com.wireturn.app.ui.configButtonGroupItem
+import com.wireturn.app.ui.selectableButtonItem
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.UpdateState
 import kotlinx.coroutines.delay
@@ -133,7 +133,7 @@ fun SettingsScreen(
     Scaffold(
         modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            ConfigTopAppBar(
+            AppTopAppBar(
                 title = stringResource(R.string.app_settings_title),
                 scrollBehavior = scrollBehavior,
                 onBack = onBack,
@@ -183,13 +183,13 @@ fun SettingsScreen(
                 })
             }
 
-            SettingsGroup(title = stringResource(R.string.app_appearance)) {
-                SettingsGroupItem(
+            SectionGroup(title = stringResource(R.string.app_appearance)) {
+                SectionItem(
                     position = if (supportsDynamicColor) ItemPosition.Top else ItemPosition.Single
                 ) {
                     LabeledButtonGroup(label = stringResource(R.string.theme_title)) {
                         themeModes.forEachIndexed { index, mode ->
-                            configButtonGroupItem(
+                            selectableButtonItem(
                                 selected = themeMode == mode,
                                 onSelect = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -204,7 +204,7 @@ fun SettingsScreen(
                 }
 
                 if (supportsDynamicColor) {
-                    SettingsGroupItem(
+                    SectionItem(
                         position = ItemPosition.Bottom, 
                         onClick = {
                             val next = !dynamicTheme
@@ -226,7 +226,7 @@ fun SettingsScreen(
 
                 Spacer(Modifier.height(12.dp))
 
-                SettingsGroupItem(
+                SectionItem(
                     position = ItemPosition.Single,
                     onClick = {
                         val next = !privacyMode
@@ -251,8 +251,8 @@ fun SettingsScreen(
             val restartOnNetworkChange by viewModel.restartOnNetworkChange.collectAsStateWithLifecycle()
             val autoLaunchSettings by viewModel.autoLaunchSettings.collectAsStateWithLifecycle()
 
-            SettingsGroup(title = stringResource(R.string.network_settings_title)) {
-                SettingsGroupItem(
+            SectionGroup(title = stringResource(R.string.network_settings_title)) {
+                SectionItem(
                     position = ItemPosition.Top,
                     onClick = {
                         val next = !waitForNetwork
@@ -271,7 +271,7 @@ fun SettingsScreen(
                     )
                 }
 
-                SettingsGroupItem(
+                SectionItem(
                     position = ItemPosition.Bottom,
                     onClick = {
                         val next = !restartOnNetworkChange
@@ -327,11 +327,11 @@ fun SettingsScreen(
                     }
                 }
 
-                SettingsGroupItem(
+                SectionItem(
                     position = ItemPosition.Top,
                     enabled = canEnable,
                     onClick = {
-                        if (!canEnable) return@SettingsGroupItem
+                        if (!canEnable) return@SectionItem
                         val next = !autoLaunchSettings.enabled
                         HapticUtil.perform(
                             context, 
@@ -351,7 +351,7 @@ fun SettingsScreen(
                     )
                 }
 
-                SettingsGroupItem {
+                SectionItem {
                     TextFieldRow(
                         label = stringResource(R.string.settings_auto_launch_url),
                         value = localUrl,
@@ -361,7 +361,7 @@ fun SettingsScreen(
                     )
                 }
 
-                SettingsGroupItem(
+                SectionItem(
                     position = ItemPosition.Bottom
                 ) {
                     TextFieldRow(
@@ -379,8 +379,8 @@ fun SettingsScreen(
             val captchaStyleMod by viewModel.captchaStyleMod.collectAsStateWithLifecycle()
             val captchaForceTint by viewModel.captchaForceTint.collectAsStateWithLifecycle()
 
-            SettingsGroup(title = stringResource(R.string.captcha_settings_title)) {
-                SettingsGroupItem(
+            SectionGroup(title = stringResource(R.string.captcha_settings_title)) {
+                SectionItem(
                     position = if (captchaStyleMod) ItemPosition.Top else ItemPosition.Single,
                     onClick = {
                         val next = !captchaStyleMod
@@ -402,14 +402,14 @@ fun SettingsScreen(
                 if (captchaStyleMod) {
                     val originalLabel = stringResource(R.string.captcha_color_original)
                     val primaryLabel = stringResource(R.string.captcha_color_primary)
-                    SettingsGroupItem(
+                    SectionItem(
                         position = ItemPosition.Bottom
                     ) {
                         LabeledButtonGroup(
                             label = stringResource(R.string.captcha_force_tint_title),
                             supportingText = stringResource(R.string.captcha_force_tint_desc)
                         ) {
-                            configButtonGroupItem(
+                            selectableButtonItem(
                                 selected = !captchaForceTint,
                                 onSelect = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -419,7 +419,7 @@ fun SettingsScreen(
                                 index = 0,
                                 count = 2
                             )
-                            configButtonGroupItem(
+                            selectableButtonItem(
                                 selected = captchaForceTint,
                                 onSelect = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -445,10 +445,10 @@ fun SettingsScreen(
                 MaterialTheme.colorScheme.surface
             }
 
-            SettingsGroup(
+            SectionGroup(
                 title = stringResource(R.string.update_title)
             ) {
-                SettingsGroupItem(
+                SectionItem(
                     position = ItemPosition.Top,
                     containerColor = updateContainerColor
                 ) {
@@ -471,7 +471,7 @@ fun SettingsScreen(
                     )
                 }
 
-                SettingsGroupItem(
+                SectionItem(
                     position = ItemPosition.Bottom, 
                     onClick = {
                         val next = !allowUnstableUpdates
@@ -502,11 +502,11 @@ fun SettingsScreen(
                 })
             }
 
-            SettingsGroup(title = stringResource(R.string.localization_title)) {
-                SettingsGroupItem(position = ItemPosition.Single) {
+            SectionGroup(title = stringResource(R.string.localization_title)) {
+                SectionItem(position = ItemPosition.Single) {
                     LabeledButtonGroup(label = stringResource(R.string.lang_title)) {
                         languages.forEachIndexed { index, lang ->
-                            configButtonGroupItem(
+                            selectableButtonItem(
                                 selected = appLanguage == lang,
                                 onSelect = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)

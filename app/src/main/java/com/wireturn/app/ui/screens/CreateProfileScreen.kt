@@ -35,11 +35,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
-import com.wireturn.app.ui.ConfigTopAppBar
-import com.wireturn.app.ui.ConfigRowLabel
+import com.wireturn.app.ui.AppTopAppBar
+import com.wireturn.app.ui.RowLabel
 import com.wireturn.app.ui.ItemPosition
-import com.wireturn.app.ui.SettingsGroup
-import com.wireturn.app.ui.SettingsGroupItem
+import com.wireturn.app.ui.SectionGroup
+import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.data.TurnableConfig
@@ -86,7 +86,7 @@ fun CreateProfileScreen(
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            ConfigTopAppBar(
+            AppTopAppBar(
                 title = stringResource(R.string.profile_new),
                 onBack = onBack,
                 scrollBehavior = scrollBehavior
@@ -109,7 +109,7 @@ fun CreateProfileScreen(
             verticalArrangement = Arrangement.spacedBy(19.dp)
         ) {
             // Profile Name Input
-            SettingsGroupItem(position = ItemPosition.Single) {
+            SectionItem(position = ItemPosition.Single) {
                 TextFieldRow(
                     label = stringResource(R.string.profile_name_label),
                     value = profileName,
@@ -119,8 +119,8 @@ fun CreateProfileScreen(
             }
 
             // Import Group
-            SettingsGroup(title = stringResource(R.string.profile_import_group)) {
-                SettingsGroupItem(
+            SectionGroup(title = stringResource(R.string.profile_import_group)) {
+                SectionItem(
                     position = ItemPosition.Top,
                     onClick = { showQrScanner.value = true }
                 ) {
@@ -132,11 +132,11 @@ fun CreateProfileScreen(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
-                        ConfigRowLabel(text = stringResource(R.string.profile_import_qr))
+                        RowLabel(text = stringResource(R.string.profile_import_qr))
                     }
                 }
 
-                SettingsGroupItem(
+                SectionItem(
                     onClick = {
                         scope.launch {
                             val clipEntry = clipboard.getClipEntry()
@@ -155,11 +155,11 @@ fun CreateProfileScreen(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
-                        ConfigRowLabel(text = stringResource(R.string.profile_import_clipboard))
+                        RowLabel(text = stringResource(R.string.profile_import_clipboard))
                     }
                 }
 
-                SettingsGroupItem(
+                SectionItem(
                     position = ItemPosition.Bottom,
                     onClick = { filePickerLauncher.launch("*/*") }
                 ) {
@@ -171,30 +171,30 @@ fun CreateProfileScreen(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
-                        ConfigRowLabel(text = stringResource(R.string.profile_import_file))
+                        RowLabel(text = stringResource(R.string.profile_import_file))
                     }
                 }
             }
 
             // Manual Setup Group
-            SettingsGroup(title = stringResource(R.string.profile_manual_setup)) {
-                SettingsGroupItem(
+            SectionGroup(title = stringResource(R.string.profile_manual_setup)) {
+                SectionItem(
                     position = ItemPosition.Top,
                     enabled = false,
                     onClick = { onSelectType("Turnable", null, profileName) }
                 ) {
                     Column {
-                        ConfigRowLabel(text = stringResource(R.string.kernel_turnable))
+                        RowLabel(text = stringResource(R.string.kernel_turnable))
                         Spacer(Modifier.height(2.dp))
                         SupportingText(stringResource(R.string.profile_turnable_manual_disabled), style = MaterialTheme.typography.bodySmall)
                     }
                 }
 
-                SettingsGroupItem(
+                SectionItem(
                     position = ItemPosition.Bottom,
                     onClick = { onSelectType("olcRTC", null, profileName) }
                 ) {
-                    ConfigRowLabel(text = stringResource(R.string.kernel_olcrtc))
+                    RowLabel(text = stringResource(R.string.kernel_olcrtc))
                 }
             }
 

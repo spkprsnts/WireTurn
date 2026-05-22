@@ -61,7 +61,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
-import com.wireturn.app.ui.ConfigTopAppBar
+import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.components.ProxyToggleButton
 import com.wireturn.app.ui.theme.extendedColorScheme
@@ -123,7 +123,7 @@ fun LogsScreen(
     Scaffold(
         modifier = modifier,
         topBar = {
-            ConfigTopAppBar(
+            AppTopAppBar(
                 title = stringResource(R.string.logs_title),
                 onBack = onBack,
                 scrollBehavior = scrollBehavior,

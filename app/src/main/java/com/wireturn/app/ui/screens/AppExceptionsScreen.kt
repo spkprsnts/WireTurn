@@ -83,16 +83,16 @@ import androidx.compose.ui.zIndex
 import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
-import com.wireturn.app.ui.ConfigTopAppBar
+import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LabeledButtonGroup
 import com.wireturn.app.ui.MainSwitchItem
 import com.wireturn.app.ui.SectionHeader
-import com.wireturn.app.ui.SettingsGroup
-import com.wireturn.app.ui.SettingsGroupItem
+import com.wireturn.app.ui.SectionGroup
+import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.SwitchRow
-import com.wireturn.app.ui.configButtonGroupItem
+import com.wireturn.app.ui.selectableButtonItem
 import com.wireturn.app.ui.showExclusiveSnackbar
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.Dispatchers
@@ -453,7 +453,7 @@ fun AppExceptionsScreen(
                             val vpnModeInclude = stringResource(R.string.vpn_apps_inclusions)
                             val vpnModeBypass = stringResource(R.string.vpn_apps_exceptions)
 
-                            SettingsGroupItem(
+                            SectionItem(
                                 position = ItemPosition.Single,
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             ) {
@@ -462,7 +462,7 @@ fun AppExceptionsScreen(
                                     supportingText = if (globalVpn.bypassMode) stringResource(R.string.vpn_mode_bypass_desc)
                                     else stringResource(R.string.vpn_mode_include_desc)
                                 ) {
-                                    configButtonGroupItem(
+                                    selectableButtonItem(
                                         selected = !globalVpn.bypassMode,
                                         onSelect = {
                                             viewModel.updateGlobalVpnSettings(
@@ -473,7 +473,7 @@ fun AppExceptionsScreen(
                                         index = 0,
                                         count = 2
                                     )
-                                    configButtonGroupItem(
+                                    selectableButtonItem(
                                         selected = globalVpn.bypassMode,
                                         onSelect = {
                                             viewModel.updateGlobalVpnSettings(
@@ -489,8 +489,8 @@ fun AppExceptionsScreen(
 
                             Spacer(Modifier.height(16.dp))
 
-                            SettingsGroup {
-                                SettingsGroupItem(
+                            SectionGroup {
+                                SectionItem(
                                     position = ItemPosition.Top,
                                     modifier = Modifier.padding(horizontal = 16.dp),
                                     onClick = {
@@ -512,7 +512,7 @@ fun AppExceptionsScreen(
                                         }
                                     )
                                 }
-                                SettingsGroupItem(
+                                SectionItem(
                                     position = ItemPosition.Bottom,
                                     modifier = Modifier.padding(horizontal = 16.dp),
                                     onClick = {
@@ -698,7 +698,7 @@ fun AppExceptionsScreen(
                     }
                 }
 
-                ConfigTopAppBar(
+                AppTopAppBar(
                     title = stringResource(R.string.vpn_apps_hint),
                     onBack = onBack,
                     scrollBehavior = scrollBehavior,
@@ -852,7 +852,7 @@ private fun AppListItem(
         label = "item_bg_color"
     )
 
-    SettingsGroupItem(
+    SectionItem(
         position = when {
             groupSize == 1 -> ItemPosition.Single
             index == 0 -> ItemPosition.Top

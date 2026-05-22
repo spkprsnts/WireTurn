@@ -106,13 +106,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import com.wireturn.app.ui.InlineConfigIndicator
+import com.wireturn.app.ui.ModifiedIndicator
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.AppExclusionTooltip
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.VerticalAnimatedText
-import com.wireturn.app.ui.SettingsGroupItem
+import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.redact
 import com.wireturn.app.viewmodel.MainViewModel
@@ -121,10 +121,10 @@ import androidx.core.net.toUri
 import com.wireturn.app.ProxyServiceState
 import com.wireturn.app.VpnServiceState
 import com.wireturn.app.XrayServiceState
-import com.wireturn.app.ui.CompactSettingsItem
+import com.wireturn.app.ui.CompactItem
 import com.wireturn.app.ui.components.ProxyToggleButton
-import com.wireturn.app.ui.ConfigRowLabel
-import com.wireturn.app.ui.SettingsGroup
+import com.wireturn.app.ui.RowLabel
+import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SupportingText
 import com.wireturn.app.ui.UpdateBlock
 import com.wireturn.app.ui.privacySpoiler
@@ -484,7 +484,7 @@ fun HomeScreen(
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
-                SettingsGroupItem(
+                SectionItem(
                     position = ItemPosition.Single,
                     containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f),
                     modifier = Modifier.padding(bottom = 24.dp)
@@ -500,7 +500,7 @@ fun HomeScreen(
                                     )
                                 }
                                 Column {
-                                    ConfigRowLabel(stringResource(R.string.permissions_title))
+                                    RowLabel(stringResource(R.string.permissions_title))
                                     Spacer(Modifier.height(2.dp))
                                     SupportingText(
                                         stringResource(R.string.permissions_desc),
@@ -647,7 +647,7 @@ fun HomeScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Stats Block
-                        CompactSettingsItem(
+                        CompactItem(
                             modifier = Modifier.fillMaxHeight()
                         ) {
                             Row(
@@ -722,7 +722,7 @@ fun HomeScreen(
                         }
 
                         // Ping Block
-                        CompactSettingsItem(
+                        CompactItem(
                             modifier = Modifier.fillMaxHeight(),
                             onClick = {
                                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -832,7 +832,7 @@ fun HomeScreen(
 
             // --- Profiles Section ---
             val showProfilesDialog = rememberSaveable { mutableStateOf(false) }
-            SettingsGroupItem(
+            SectionItem(
                 position = if (configChanged && proxyState !is ProxyState.Idle) ItemPosition.Top else ItemPosition.Single,
                 onClick = {
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -860,7 +860,7 @@ fun HomeScreen(
             ) {
                 Column {
                     Spacer(Modifier.height(2.dp))
-                    SettingsGroupItem(
+                    SectionItem(
                         position = ItemPosition.Bottom
                     ) {
                         Column {
@@ -875,7 +875,7 @@ fun HomeScreen(
                                     )
                                 }
                                 Column(modifier = Modifier.weight(1f)) {
-                                    ConfigRowLabel(stringResource(R.string.restart_required))
+                                    RowLabel(stringResource(R.string.restart_required))
                                     Spacer(Modifier.height(2.dp))
                                     SupportingText(
                                         when {
@@ -992,8 +992,8 @@ fun HomeScreen(
             }
 
             val profilesExist = profiles.isNotEmpty()
-            SettingsGroup {
-                SettingsGroupItem(
+            SectionGroup {
+                SectionItem(
                     position = ItemPosition.Top,
                     onClick = {
                         if (profilesExist) {
@@ -1087,7 +1087,7 @@ fun HomeScreen(
                     }
                 }
 
-                SettingsGroupItem(
+                SectionItem(
                     position = ItemPosition.Bottom,
                     onClick = { toggleVpnAction(!vpnEnabled) }
                 ) {
@@ -1223,7 +1223,7 @@ fun HomeScreen(
                 else -> false
             }
 
-            SettingsGroup(
+            SectionGroup(
                 modifier = Modifier.graphicsLayer {
                     alpha = if (showXray || isOlcrtc) 1f else 0.38f
                 }
@@ -1242,11 +1242,11 @@ fun HomeScreen(
 
                 val showHttpBlock = displayHttpAddr.isNotBlank() || isHttpModified
 
-                SettingsGroupItem(
+                SectionItem(
                     position = ItemPosition.Top,
                     enabled = showXray || isOlcrtc,
                     onClick = {
-                        if (privacyMode) return@SettingsGroupItem
+                        if (privacyMode) return@SectionItem
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         scope.launch {
                             clipboard.setClipEntry(
@@ -1287,10 +1287,10 @@ fun HomeScreen(
                         }
                     }
 
-                    SettingsGroupItem(
+                    SectionItem(
                         enabled = showXray,
                         onClick = {
-                            if (privacyMode) return@SettingsGroupItem
+                            if (privacyMode) return@SectionItem
                             HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                             scope.launch {
                                 clipboard.setClipEntry(
@@ -1324,7 +1324,7 @@ fun HomeScreen(
             }
 
             Spacer(Modifier.height(2.dp))
-            SettingsGroupItem(
+            SectionItem(
                 position = ItemPosition.Bottom,
                 onClick = {
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -1340,7 +1340,7 @@ fun HomeScreen(
                         )
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        ConfigRowLabel(stringResource(R.string.connection_settings_title))
+                        RowLabel(stringResource(R.string.connection_settings_title))
                         SupportingText(stringResource(R.string.connection_settings_desc))
                     }
                     Icon(
@@ -1373,7 +1373,7 @@ private fun UpdateBanner(
         enter = fadeIn() + expandVertically(),
         exit = fadeOut() + shrinkVertically()
     ) {
-        SettingsGroupItem(
+        SectionItem(
             position = ItemPosition.Single,
             containerColor = containerColor,
             modifier = Modifier.padding(bottom = 24.dp)
@@ -1443,7 +1443,7 @@ private fun ProxyAddressRow(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                InlineConfigIndicator(isModified)
+                ModifiedIndicator(isModified)
             }
         }
         Icon(

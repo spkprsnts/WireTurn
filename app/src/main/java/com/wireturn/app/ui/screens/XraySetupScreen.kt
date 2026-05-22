@@ -73,20 +73,20 @@ import com.wireturn.app.data.VlessConfig
 import com.wireturn.app.data.XrayConfig
 import com.wireturn.app.data.KernelVariant
 import androidx.compose.material3.rememberTopAppBarState
-import com.wireturn.app.ui.ConfigTopAppBar
-import com.wireturn.app.ui.ConfigDropdownMenu
-import com.wireturn.app.ui.ConfigRowLabel
+import com.wireturn.app.ui.AppTopAppBar
+import com.wireturn.app.ui.AppDropdownMenu
+import com.wireturn.app.ui.RowLabel
 import com.wireturn.app.ui.FieldTrailingIcons
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LabeledButtonGroup
 import com.wireturn.app.ui.LargeLeadingIcon
-import com.wireturn.app.ui.SettingsGroup
-import com.wireturn.app.ui.SettingsGroupItem
+import com.wireturn.app.ui.SectionGroup
+import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.ValidatorUtils
-import com.wireturn.app.ui.configButtonGroupItem
+import com.wireturn.app.ui.selectableButtonItem
 import com.wireturn.app.ui.redact
 import com.wireturn.app.ui.showExclusiveSnackbar
 import kotlinx.coroutines.launch
@@ -277,7 +277,7 @@ fun XraySetupScreen(
             }
         },
         topBar = {
-            ConfigTopAppBar(
+            AppTopAppBar(
                 title = stringResource(R.string.xray_title),
                 onBack = handleBack,
                 scrollBehavior = scrollBehavior,
@@ -295,7 +295,7 @@ fun XraySetupScreen(
                             painter = painterResource(R.drawable.note_add_24px),
                             contentDescription = stringResource(R.string.xray_import_config)
                         )
-                        ConfigDropdownMenu(
+                        AppDropdownMenu(
                             expanded = showImportMenu,
                             onDismissRequest = { showImportMenu = false },
                             title = stringResource(R.string.xray_import_config)
@@ -430,8 +430,8 @@ fun XraySetupScreen(
         ) {
             // Выбор протокола
             if (canChangeProtocol) {
-                SettingsGroup(title = stringResource(R.string.xray_protocol_label)) {
-                    SettingsGroupItem(position = ItemPosition.Single) {
+                SectionGroup(title = stringResource(R.string.xray_protocol_label)) {
+                    SectionItem(position = ItemPosition.Single) {
                         val configurations = XrayConfiguration.entries
                         val protocolLabels = configurations.associateWith { config ->
                             stringResource(
@@ -447,7 +447,7 @@ fun XraySetupScreen(
                             isModified = isEditMode && xrayConfiguration != initialXrayConfig.protocol
                         ) {
                             configurations.forEachIndexed { index, config ->
-                                configButtonGroupItem(
+                                selectableButtonItem(
                                     selected = xrayConfiguration == config,
                                     onSelect = {
                                         HapticUtil.perform(
@@ -552,7 +552,7 @@ private fun WireGuardSettingsBlock(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(19.dp)) {
         if (kernelVariant == KernelVariant.OLCRTC) {
-            SettingsGroupItem(position = ItemPosition.Single) {
+            SectionItem(position = ItemPosition.Single) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -566,14 +566,14 @@ private fun WireGuardSettingsBlock(
                         )
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        ConfigRowLabel(stringResource(R.string.wg_not_used_with_olcrtc))
+                        RowLabel(stringResource(R.string.wg_not_used_with_olcrtc))
                     }
                 }
             }
         }
 
-        SettingsGroup(title = stringResource(R.string.wg_interface)) {
-            SettingsGroupItem(position = ItemPosition.Top) {
+        SectionGroup(title = stringResource(R.string.wg_interface)) {
+            SectionItem(position = ItemPosition.Top) {
                 TextFieldRow(
                     label = stringResource(R.string.wg_private_key),
                     value = privateKey.redact(isPrivacyActive),
@@ -585,7 +585,7 @@ private fun WireGuardSettingsBlock(
                     privacyMode = isPrivacyActive
                 )
             }
-            SettingsGroupItem {
+            SectionItem {
                 TextFieldRow(
                     label = stringResource(R.string.wg_address),
                     value = address.redact(isPrivacyActive),
@@ -597,7 +597,7 @@ private fun WireGuardSettingsBlock(
                     privacyMode = isPrivacyActive
                 )
             }
-            SettingsGroupItem(position = ItemPosition.Bottom) {
+            SectionItem(position = ItemPosition.Bottom) {
                 TextFieldRow(
                     label = stringResource(R.string.wg_mtu),
                     value = mtu,
@@ -610,8 +610,8 @@ private fun WireGuardSettingsBlock(
             }
         }
 
-        SettingsGroup(title = stringResource(R.string.wg_peer)) {
-            SettingsGroupItem(position = ItemPosition.Top) {
+        SectionGroup(title = stringResource(R.string.wg_peer)) {
+            SectionItem(position = ItemPosition.Top) {
                 TextFieldRow(
                     label = stringResource(R.string.wg_public_key),
                     value = publicKey.redact(isPrivacyActive),
@@ -623,7 +623,7 @@ private fun WireGuardSettingsBlock(
                     privacyMode = isPrivacyActive
                 )
             }
-            SettingsGroupItem {
+            SectionItem {
                 TextFieldRow(
                     label = stringResource(R.string.wg_endpoint),
                     value = endpoint.redact(isPrivacyActive),
@@ -633,7 +633,7 @@ private fun WireGuardSettingsBlock(
                     privacyMode = isPrivacyActive
                 )
             }
-            SettingsGroupItem(position = ItemPosition.Bottom) {
+            SectionItem(position = ItemPosition.Bottom) {
                 TextFieldRow(
                     label = stringResource(R.string.wg_persistent_keepalive),
                     value = persistentKeepalive,
@@ -677,8 +677,8 @@ private fun VlessSettingsBlock(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(19.dp)) {
-        SettingsGroup(title = stringResource(R.string.vless_settings)) {
-            SettingsGroupItem(position = ItemPosition.Single) {
+        SectionGroup(title = stringResource(R.string.vless_settings)) {
+            SectionItem(position = ItemPosition.Single) {
                 TextFieldRow(
                     label = stringResource(R.string.vless_link_label) + vlessName,
                     value = vlessLink.redact(isPrivacyActive),
@@ -704,7 +704,7 @@ private fun VlessSettingsBlock(
 
             Spacer(Modifier.height(12.dp))
 
-            SettingsGroupItem(
+            SectionItem(
                 position = if (vlessIsDualRoute) ItemPosition.Top else ItemPosition.Single,
                 onClick = { 
                     val next = !vlessIsDualRoute
@@ -739,8 +739,8 @@ private fun VlessSettingsBlock(
                 enter = fadeIn(tween(300)) + expandVertically(tween(300)),
                 exit = fadeOut(tween(300)) + shrinkVertically(tween(300))
             ) {
-                SettingsGroup {
-                    SettingsGroupItem {
+                SectionGroup {
+                    SectionItem {
                         TextFieldRow(
                             label = stringResource(R.string.vless_direct_address),
                             value = vlessDirectAddress.redact(isPrivacyActive),
@@ -761,7 +761,7 @@ private fun VlessSettingsBlock(
                             }
                         )
                     }
-                    SettingsGroupItem(position = ItemPosition.Bottom) {
+                    SectionItem(position = ItemPosition.Bottom) {
                         TextFieldRow(
                             label = stringResource(R.string.vless_hc_interval),
                             value = vlessHcInterval,

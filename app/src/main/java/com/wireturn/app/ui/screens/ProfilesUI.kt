@@ -81,7 +81,7 @@ import com.wireturn.app.data.OlcrtcConfig.Companion.getTransportDisplayName
 import com.wireturn.app.data.Profile
 import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.ui.HapticUtil
-import com.wireturn.app.ui.ConfigDropdownMenu
+import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.VerticalAnimatedText
@@ -668,7 +668,7 @@ fun ProfilesDialog(
                                         contentDescription = stringResource(R.string.profile_create)
                                     )
                                 }
-                                ConfigDropdownMenu(
+                                AppDropdownMenu(
                                     expanded = addMenuExpanded,
                                     onDismissRequest = { addMenuExpanded = false },
                                     title = stringResource(R.string.profile_new)
@@ -888,7 +888,7 @@ fun ProfilesDialog(
                                                 contentDescription = null
                                             )
                                         }
-                                        ConfigDropdownMenu(
+                                        AppDropdownMenu(
                                             expanded = menuExpanded,
                                             onDismissRequest = { menuExpanded = false },
                                             title = stringResource(R.string.profile_actions)

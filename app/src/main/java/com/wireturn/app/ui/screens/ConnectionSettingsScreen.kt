@@ -55,11 +55,11 @@ import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.XraySettings
-import com.wireturn.app.ui.ConfigTopAppBar
+import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
-import com.wireturn.app.ui.SettingsGroup
-import com.wireturn.app.ui.SettingsGroupItem
+import com.wireturn.app.ui.SectionGroup
+import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.ValidatorUtils
@@ -177,7 +177,7 @@ fun ConnectionSettingsScreen(
     Scaffold(
         modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            ConfigTopAppBar(
+            AppTopAppBar(
                 title = stringResource(R.string.connection_settings_title),
                 scrollBehavior = scrollBehavior,
                 onBack = handleBack
@@ -233,8 +233,8 @@ fun ConnectionSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(19.dp)
         ) {
             // Turnable
-            SettingsGroup(title = stringResource(R.string.settings_group_turnable)) {
-                SettingsGroupItem(position = ItemPosition.Single) {
+            SectionGroup(title = stringResource(R.string.settings_group_turnable)) {
+                SectionItem(position = ItemPosition.Single) {
                     TextFieldRow(
                         label = stringResource(R.string.local_listen_address),
                         value = listenAddr.redact(privacyMode),
@@ -250,8 +250,8 @@ fun ConnectionSettingsScreen(
             }
 
             // olcRTC
-            SettingsGroup(title = stringResource(R.string.settings_group_olcrtc)) {
-                SettingsGroupItem(position = ItemPosition.Top) {
+            SectionGroup(title = stringResource(R.string.settings_group_olcrtc)) {
+                SectionItem(position = ItemPosition.Top) {
                     TextFieldRow(
                         label = stringResource(R.string.socks5),
                         value = olSocks.redact(privacyMode),
@@ -265,7 +265,7 @@ fun ConnectionSettingsScreen(
                     )
                 }
                 
-                SettingsGroupItem(
+                SectionItem(
                     position = if (olAuth) ItemPosition.Middle else ItemPosition.Bottom,
                     onClick = {
                         olAuth = !olAuth
@@ -285,8 +285,8 @@ fun ConnectionSettingsScreen(
                 }
                 
                 AnimatedVisibility(visible = olAuth) {
-                    SettingsGroup {
-                        SettingsGroupItem {
+                    SectionGroup {
+                        SectionItem {
                             TextFieldRow(
                                 label = stringResource(R.string.xray_proxy_user),
                                 value = olUser.redact(privacyMode),
@@ -298,7 +298,7 @@ fun ConnectionSettingsScreen(
                                 privacyMode = privacyMode
                             )
                         }
-                        SettingsGroupItem(position = ItemPosition.Bottom) {
+                        SectionItem(position = ItemPosition.Bottom) {
                             TextFieldRow(
                                 label = stringResource(R.string.xray_proxy_pass),
                                 value = olPass.redact(privacyMode),
@@ -331,8 +331,8 @@ fun ConnectionSettingsScreen(
             }
 
             // Xray
-            SettingsGroup(title = stringResource(R.string.settings_group_xray)) {
-                SettingsGroupItem(position = ItemPosition.Top) {
+            SectionGroup(title = stringResource(R.string.settings_group_xray)) {
+                SectionItem(position = ItemPosition.Top) {
                     TextFieldRow(
                         label = stringResource(R.string.socks5),
                         value = xraySocks.redact(privacyMode),
@@ -345,7 +345,7 @@ fun ConnectionSettingsScreen(
                     )
                 }
                 
-                SettingsGroupItem {
+                SectionItem {
                     TextFieldRow(
                         label = stringResource(R.string.xray_http),
                         value = xrayHttp.redact(privacyMode),
@@ -358,7 +358,7 @@ fun ConnectionSettingsScreen(
                     )
                 }
 
-                SettingsGroupItem(
+                SectionItem(
                     position = if (xrayAuth) ItemPosition.Middle else ItemPosition.Bottom,
                     onClick = {
                         xrayAuth = !xrayAuth
@@ -378,8 +378,8 @@ fun ConnectionSettingsScreen(
                 }
                 
                 AnimatedVisibility(visible = xrayAuth) {
-                    SettingsGroup {
-                        SettingsGroupItem {
+                    SectionGroup {
+                        SectionItem {
                             TextFieldRow(
                                 label = stringResource(R.string.xray_proxy_user),
                                 value = xrayUser.redact(privacyMode),
@@ -391,7 +391,7 @@ fun ConnectionSettingsScreen(
                                 privacyMode = privacyMode
                             )
                         }
-                        SettingsGroupItem(position = ItemPosition.Bottom) {
+                        SectionItem(position = ItemPosition.Bottom) {
                             TextFieldRow(
                                 label = stringResource(R.string.xray_proxy_pass),
                                 value = xrayPass.redact(privacyMode),

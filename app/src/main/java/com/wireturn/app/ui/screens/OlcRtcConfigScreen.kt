@@ -42,7 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.material3.TopAppBarDefaults
-import com.wireturn.app.ui.ConfigTopAppBar
+import com.wireturn.app.ui.AppTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -60,13 +60,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
 import com.wireturn.app.data.OlcrtcConfig
-import com.wireturn.app.ui.ConfigRowLabel
+import com.wireturn.app.ui.RowLabel
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.SelectionDialog
-import com.wireturn.app.ui.SettingsGroup
-import com.wireturn.app.ui.SettingsGroupItem
+import com.wireturn.app.ui.SectionGroup
+import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SupportingText
 import com.wireturn.app.ui.TextFieldRow
@@ -147,7 +147,7 @@ fun OlcRtcConfigScreen(
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            ConfigTopAppBar(
+            AppTopAppBar(
                 title = stringResource(R.string.kernel_olcrtc),
                 onBack = handleBack,
                 scrollBehavior = scrollBehavior,
@@ -237,8 +237,8 @@ fun OlcRtcConfigScreen(
             verticalArrangement = Arrangement.spacedBy(19.dp)
         ) {
             // Connection Details
-            SettingsGroup(title = stringResource(R.string.connection_details)) {
-                SettingsGroupItem(
+            SectionGroup(title = stringResource(R.string.connection_details)) {
+                SectionItem(
                     position = ItemPosition.Top,
                     onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -258,7 +258,7 @@ fun OlcRtcConfigScreen(
                             )
                         }
                         Column(modifier = Modifier.weight(1f)) {
-                            ConfigRowLabel(
+                            RowLabel(
                                 text = stringResource(R.string.olcrtc_carrier_label),
                                 isModified = isEditMode && config.carrier != initialConfig.carrier
                             )
@@ -269,7 +269,7 @@ fun OlcRtcConfigScreen(
                     }
                 }
 
-                SettingsGroupItem(
+                SectionItem(
                     onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         showTransportDialog.value = true
@@ -288,7 +288,7 @@ fun OlcRtcConfigScreen(
                             )
                         }
                         Column(modifier = Modifier.weight(1f)) {
-                            ConfigRowLabel(
+                            RowLabel(
                                 text = stringResource(R.string.olcrtc_transport_label),
                                 isModified = isEditMode && config.transport != initialConfig.transport
                             )
@@ -299,7 +299,7 @@ fun OlcRtcConfigScreen(
                     }
                 }
 
-                SettingsGroupItem {
+                SectionItem {
                     TextFieldRow(
                         label = stringResource(R.string.olcrtc_id_label),
                         value = config.id.redact(isPrivacyActive),
@@ -309,7 +309,7 @@ fun OlcRtcConfigScreen(
                         privacyMode = isPrivacyActive
                     )
                 }
-                SettingsGroupItem(position = ItemPosition.Bottom) {
+                SectionItem(position = ItemPosition.Bottom) {
                     TextFieldRow(
                         label = stringResource(R.string.olcrtc_dns_label),
                         value = config.dns.redact(isPrivacyActive),
@@ -322,8 +322,8 @@ fun OlcRtcConfigScreen(
             }
 
             // Server Settings
-            SettingsGroup(title = stringResource(R.string.server_settings_title)) {
-                SettingsGroupItem(position = ItemPosition.Top) {
+            SectionGroup(title = stringResource(R.string.server_settings_title)) {
+                SectionItem(position = ItemPosition.Top) {
                     TextFieldRow(
                         label = stringResource(R.string.olcrtc_client_id_label),
                         value = config.clientId.redact(isPrivacyActive),
@@ -333,7 +333,7 @@ fun OlcRtcConfigScreen(
                         privacyMode = isPrivacyActive
                     )
                 }
-                SettingsGroupItem(position = ItemPosition.Bottom) {
+                SectionItem(position = ItemPosition.Bottom) {
                     TextFieldRow(
                         label = stringResource(R.string.olcrtc_key_label),
                         value = config.key.redact(isPrivacyActive),
@@ -348,8 +348,8 @@ fun OlcRtcConfigScreen(
             // Additional transport settings
             when (config.transport) {
                 "vp8channel" -> {
-                    SettingsGroup(title = stringResource(R.string.olcrtc_vp8_settings_title)) {
-                        SettingsGroupItem(position = ItemPosition.Top) {
+                    SectionGroup(title = stringResource(R.string.olcrtc_vp8_settings_title)) {
+                        SectionItem(position = ItemPosition.Top) {
                             com.wireturn.app.ui.SliderRow(
                                 label = stringResource(R.string.olcrtc_vp8_fps),
                                 value = config.vp8Fps.toFloat(),
@@ -359,7 +359,7 @@ fun OlcRtcConfigScreen(
                                 isModified = isEditMode && config.vp8Fps != initialConfig.vp8Fps
                             )
                         }
-                        SettingsGroupItem(position = ItemPosition.Bottom) {
+                        SectionItem(position = ItemPosition.Bottom) {
                             com.wireturn.app.ui.SliderRow(
                                 label = stringResource(R.string.olcrtc_vp8_batch),
                                 value = config.vp8Batch.toFloat(),
@@ -372,8 +372,8 @@ fun OlcRtcConfigScreen(
                     }
                 }
                 "seichannel" -> {
-                    SettingsGroup(title = stringResource(R.string.olcrtc_sei_settings_title)) {
-                        SettingsGroupItem(position = ItemPosition.Top) {
+                    SectionGroup(title = stringResource(R.string.olcrtc_sei_settings_title)) {
+                        SectionItem(position = ItemPosition.Top) {
                             com.wireturn.app.ui.SliderRow(
                                 label = stringResource(R.string.olcrtc_sei_fps),
                                 value = config.seiFps.toFloat(),
@@ -383,7 +383,7 @@ fun OlcRtcConfigScreen(
                                 isModified = isEditMode && config.seiFps != initialConfig.seiFps
                             )
                         }
-                        SettingsGroupItem {
+                        SectionItem {
                             com.wireturn.app.ui.SliderRow(
                                 label = stringResource(R.string.olcrtc_sei_batch),
                                 value = config.seiBatch.toFloat(),
@@ -393,7 +393,7 @@ fun OlcRtcConfigScreen(
                                 isModified = isEditMode && config.seiBatch != initialConfig.seiBatch
                             )
                         }
-                        SettingsGroupItem {
+                        SectionItem {
                             com.wireturn.app.ui.SliderRow(
                                 label = stringResource(R.string.olcrtc_sei_frag),
                                 value = config.seiFrag.toFloat(),
@@ -403,7 +403,7 @@ fun OlcRtcConfigScreen(
                                 isModified = isEditMode && config.seiFrag != initialConfig.seiFrag
                             )
                         }
-                        SettingsGroupItem(position = ItemPosition.Bottom) {
+                        SectionItem(position = ItemPosition.Bottom) {
                             com.wireturn.app.ui.SliderRow(
                                 label = stringResource(R.string.olcrtc_sei_ack_ms),
                                 value = config.seiAckMs.toFloat(),
@@ -416,8 +416,8 @@ fun OlcRtcConfigScreen(
                     }
                 }
                 "videochannel" -> {
-                    SettingsGroup(title = stringResource(R.string.olcrtc_video_settings_title)) {
-                        SettingsGroupItem(position = ItemPosition.Top) {
+                    SectionGroup(title = stringResource(R.string.olcrtc_video_settings_title)) {
+                        SectionItem(position = ItemPosition.Top) {
                             TextFieldRow(
                                 label = stringResource(R.string.olcrtc_video_codec),
                                 value = config.videoCodec,
@@ -425,7 +425,7 @@ fun OlcRtcConfigScreen(
                                 isModified = isEditMode && config.videoCodec != initialConfig.videoCodec
                             )
                         }
-                        SettingsGroupItem {
+                        SectionItem {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                 TextFieldRow(
                                     label = stringResource(R.string.olcrtc_video_width),
@@ -445,7 +445,7 @@ fun OlcRtcConfigScreen(
                                 )
                             }
                         }
-                        SettingsGroupItem {
+                        SectionItem {
                             com.wireturn.app.ui.SliderRow(
                                 label = stringResource(R.string.olcrtc_video_fps),
                                 value = config.videoFps.toFloat(),
@@ -455,7 +455,7 @@ fun OlcRtcConfigScreen(
                                 isModified = isEditMode && config.videoFps != initialConfig.videoFps
                             )
                         }
-                        SettingsGroupItem {
+                        SectionItem {
                             TextFieldRow(
                                 label = stringResource(R.string.olcrtc_video_bitrate),
                                 value = config.videoBitrate,
@@ -463,7 +463,7 @@ fun OlcRtcConfigScreen(
                                 isModified = isEditMode && config.videoBitrate != initialConfig.videoBitrate
                             )
                         }
-                        SettingsGroupItem {
+                        SectionItem {
                             TextFieldRow(
                                 label = stringResource(R.string.olcrtc_video_hw),
                                 value = config.videoHw,
@@ -471,7 +471,7 @@ fun OlcRtcConfigScreen(
                                 isModified = isEditMode && config.videoHw != initialConfig.videoHw
                             )
                         }
-                        SettingsGroupItem {
+                        SectionItem {
                             TextFieldRow(
                                 label = stringResource(R.string.olcrtc_video_qr_recovery),
                                 value = config.videoQrRecovery,
@@ -479,7 +479,7 @@ fun OlcRtcConfigScreen(
                                 isModified = isEditMode && config.videoQrRecovery != initialConfig.videoQrRecovery
                             )
                         }
-                        SettingsGroupItem {
+                        SectionItem {
                             com.wireturn.app.ui.SliderRow(
                                 label = stringResource(R.string.olcrtc_video_qr_size),
                                 value = config.videoQrSize.toFloat(),
@@ -489,7 +489,7 @@ fun OlcRtcConfigScreen(
                                 isModified = isEditMode && config.videoQrSize != initialConfig.videoQrSize
                             )
                         }
-                        SettingsGroupItem {
+                        SectionItem {
                             com.wireturn.app.ui.SliderRow(
                                 label = stringResource(R.string.olcrtc_video_tile_module),
                                 value = config.videoTileModule.toFloat(),
@@ -499,7 +499,7 @@ fun OlcRtcConfigScreen(
                                 isModified = isEditMode && config.videoTileModule != initialConfig.videoTileModule
                             )
                         }
-                        SettingsGroupItem(position = ItemPosition.Bottom) {
+                        SectionItem(position = ItemPosition.Bottom) {
                             com.wireturn.app.ui.SliderRow(
                                 label = stringResource(R.string.olcrtc_video_tile_rs),
                                 value = config.videoTileRs.toFloat(),

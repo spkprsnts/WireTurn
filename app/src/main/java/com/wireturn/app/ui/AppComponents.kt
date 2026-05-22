@@ -134,7 +134,7 @@ val LocalSettingsInteractionSource = compositionLocalOf<MutableInteractionSource
  * Inline indicator for rows, usually placed after a text label.
  */
 @Composable
-fun ConfigSwitch(
+fun IconSwitch(
     checked: Boolean,
     onCheckedChange: ((Boolean) -> Unit)?,
     modifier: Modifier = Modifier,
@@ -172,7 +172,7 @@ fun ConfigSwitch(
 }
 
 @Composable
-fun InlineConfigIndicator(isModified: Boolean, modifier: Modifier = Modifier) {
+fun ModifiedIndicator(isModified: Boolean, modifier: Modifier = Modifier) {
     if (isModified) {
         Box(
             modifier = modifier
@@ -290,7 +290,7 @@ fun SectionHeader(title: String, modifier: Modifier = Modifier) {
  * Shared label for settings rows.
  */
 @Composable
-fun ConfigRowLabel(
+fun RowLabel(
     text: String,
     modifier: Modifier = Modifier,
     style: TextStyle = MaterialTheme.typography.titleMedium,
@@ -308,7 +308,7 @@ fun ConfigRowLabel(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
-        InlineConfigIndicator(isModified)
+        ModifiedIndicator(isModified)
     }
 }
 
@@ -376,7 +376,7 @@ fun SupportingText(
 }
 
 @Composable
-fun SettingsGroup(
+fun SectionGroup(
     modifier: Modifier = Modifier,
     title: String? = null,
     content: @Composable ColumnScope.() -> Unit
@@ -430,7 +430,7 @@ enum class ItemPosition {
 }
 
 @Composable
-fun SettingsGroupItem(
+fun SectionItem(
     modifier: Modifier = Modifier,
     position: ItemPosition = ItemPosition.Middle,
     containerColor: Color = MaterialTheme.colorScheme.surface,
@@ -521,7 +521,7 @@ fun MainSwitchItem(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    ConfigRowLabel(
+                    RowLabel(
                         text = label,
                         modifier = Modifier.padding(start = 12.dp),
                         color = contentColor
@@ -535,7 +535,7 @@ fun MainSwitchItem(
                     }
                 }
 
-                ConfigSwitch(
+                IconSwitch(
                     checked = checked,
                     onCheckedChange = null,
                     enabled = enabled
@@ -547,7 +547,7 @@ fun MainSwitchItem(
 
 
 @Composable
-fun CompactSettingsItem(
+fun CompactItem(
     modifier: Modifier = Modifier,
     containerColor: Color = MaterialTheme.colorScheme.surface,
     onClick: (() -> Unit)? = null,
@@ -655,7 +655,7 @@ fun SliderRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ConfigRowLabel(text = label, isModified = isModified, modifier = Modifier.weight(1f))
+            RowLabel(text = label, isModified = isModified, modifier = Modifier.weight(1f))
             Surface(
                 onClick = {
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -710,7 +710,7 @@ fun LabeledButtonGroup(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 if (!label.isNullOrBlank()) {
-                    ConfigRowLabel(
+                    RowLabel(
                         text = label,
                         isModified = isModified,
                         modifier = Modifier.weight(1f, fill = false)
@@ -751,7 +751,7 @@ fun LabeledButtonGroup(
 /**
  * A toggleable item for [LabeledButtonGroup] with expressive shapes and fixed text wrapping.
  */
-fun ButtonGroupScope.configButtonGroupItem(
+fun ButtonGroupScope.selectableButtonItem(
     selected: Boolean,
     onSelect: () -> Unit,
     label: String,
@@ -883,7 +883,7 @@ fun SwitchRow(
                 }
 
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
-                    ConfigRowLabel(text = label, isModified = isModified)
+                    RowLabel(text = label, isModified = isModified)
                     Spacer(Modifier.height(2.dp))
                     SupportingText(text = supportingText)
                 }
@@ -916,7 +916,7 @@ fun SwitchRow(
             Spacer(Modifier.width(16.dp))
         }
 
-        ConfigSwitch(
+        IconSwitch(
             checked = checked,
             onCheckedChange = onCheckedChange,
             enabled = enabled,
@@ -955,7 +955,7 @@ fun TextFieldRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            ConfigRowLabel(
+            RowLabel(
                 text = label,
                 isModified = isModified,
                 modifier = Modifier.weight(1f, fill = false)
@@ -1025,7 +1025,7 @@ fun TextFieldRow(
 }
 
 @Composable
-fun ConfigDropdownMenu(
+fun AppDropdownMenu(
     expanded: Boolean,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
@@ -1125,7 +1125,7 @@ fun HistoryDropdownMenu(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    ConfigDropdownMenu(
+    AppDropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest,
         title = title,
@@ -1240,7 +1240,7 @@ fun UpdateBlock(
             }
 
             Column(modifier = Modifier.weight(1f)) {
-                ConfigRowLabel(text = titleText)
+                RowLabel(text = titleText)
                 Spacer(Modifier.height(2.dp))
                 SupportingText(
                     text = supportingText,
@@ -1366,7 +1366,7 @@ private fun truncateUrlParameters(url: String): String {
 
 @SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
-fun ConfigTopAppBar(
+fun AppTopAppBar(
     title: String,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
