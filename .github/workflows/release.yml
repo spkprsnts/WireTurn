@@ -6,8 +6,6 @@ on:
       - 'unstable'
     tags:
       - 'v*'
-    paths:
-      - 'gradle.properties'
   workflow_dispatch:
 
 jobs:
@@ -41,9 +39,12 @@ jobs:
           NDK_VERSION=$(grep "ndkVersion =" app/build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/' || echo "29.0.14206865")
           # Read Compile SDK (matches build tools) from gradle.properties
           BUILD_TOOLS=$(grep "project.compileSdk=" gradle.properties | cut -d'=' -f2 || echo "36")
+          # Read Version Name from gradle.properties
+          VERSION_NAME=$(grep "project.versionName=" gradle.properties | cut -d'=' -f2)
           
           echo "ndk_version=$NDK_VERSION" >> $GITHUB_OUTPUT
           echo "build_tools=$BUILD_TOOLS.0.0" >> $GITHUB_OUTPUT
+          echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
           
           # Add sdkmanager to PATH
           echo "${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/tools/bin" >> $GITHUB_PATH
@@ -136,25 +137,28 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Clean Old Unstable Assets
-        if: github.ref == 'refs/heads/unstable'
+      - name: Cleanup Unstable Release on Stable Tag
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
-          # Only try to clean if the release exists
-          if gh release view unstable-latest >/dev/null 2>&1; then
-            gh release view unstable-latest --json assets -q '.assets[].name' | while read -r asset; do
-              gh release delete-asset unstable-latest "$asset" -y
-            done
-          fi
+          TAG_NAME="${{ github.ref_name }}-unstable"
+          gh release delete "$TAG_NAME" --yes --cleanup-tag || true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Update Unstable Release
+      - name: Delete Old Unstable Release
+        if: github.ref == 'refs/heads/unstable'
+        run: |
+          gh release delete unstable-latest --yes --cleanup-tag || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Unstable Release
         uses: softprops/action-gh-release@v3
         if: github.ref == 'refs/heads/unstable'
         with:
           tag_name: unstable-latest
-          name: "Unstable Build (Development)"
-          body: "Latest build from unstable branch. Commit: ${{ github.sha }}"
+          name: "Unstable Build v${{ steps.vars.outputs.version_name }} (Development)"
+          generate_release_notes: true
           files: final_apks/*.apk
           prerelease: true
           make_latest: false
