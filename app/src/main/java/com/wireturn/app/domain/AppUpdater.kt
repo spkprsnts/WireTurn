@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
@@ -51,7 +52,7 @@ class AppUpdater(private val context: Context) {
             _state.value = UpdateState.Checking
             try {
                 var release = withContext(Dispatchers.IO) { 
-                    if (allowUnstable) fetchReleaseByTag("unstable-latest") else fetchLatestRelease() 
+                    if (allowUnstable) fetchLatestUnstableRelease() else fetchLatestRelease() 
                 }
                 
                 if (release == null) {
@@ -59,7 +60,7 @@ class AppUpdater(private val context: Context) {
                     val proxy = getXrayIfRunning()
                     if (proxy != null) {
                         release = withContext(Dispatchers.IO) { 
-                            if (allowUnstable) fetchReleaseByTag("unstable-latest", proxy) else fetchLatestRelease(proxy) 
+                            if (allowUnstable) fetchLatestUnstableRelease(proxy) else fetchLatestRelease(proxy) 
                         }
                     }
                 }
@@ -71,7 +72,22 @@ class AppUpdater(private val context: Context) {
                 }
 
                 val remoteTag = release.getString("tag_name")
-                val remoteVersion = remoteTag.removePrefix("v")
+                val remoteName = release.optString("name", "")
+                
+                // Если тег — "unstable-latest", пытаемся вытащить реальную версию из названия релиза
+                // Например: "Unstable Build v6.1.1 (Development)" -> "6.1.1-unstable"
+                val remoteVersion = if (remoteTag == "unstable-latest" && remoteName.isNotBlank()) {
+                    val versionRegex = """v(\d+\.\d+\.\d+)""".toRegex()
+                    val match = versionRegex.find(remoteName)
+                    if (match != null) {
+                        "${match.groupValues[1]}-unstable"
+                    } else {
+                        "unstable-latest"
+                    }
+                } else {
+                    remoteTag.removePrefix("v")
+                }
+
                 val remoteBody = release.optString("body", "")
 
                 if (isNewer(remoteVersion, getCurrentVersion(), remoteBody)) {
@@ -168,15 +184,30 @@ class AppUpdater(private val context: Context) {
     // Private
 
     private fun fetchLatestRelease(proxy: java.net.Proxy? = null): JSONObject? {
-        return fetchJson(RELEASES_URL, proxy)
+        val json = fetchString(RELEASES_URL, proxy) ?: return null
+        return try { JSONObject(json) } catch (_: Exception) { null }
     }
 
-    private fun fetchReleaseByTag(tag: String, proxy: java.net.Proxy? = null): JSONObject? {
-        val url = "https://api.github.com/repos/spkprsnts/WireTurn/releases/tags/$tag"
-        return fetchJson(url, proxy)
+    private fun fetchLatestUnstableRelease(proxy: java.net.Proxy? = null): JSONObject? {
+        val url = "https://api.github.com/repos/spkprsnts/WireTurn/releases"
+        val json = fetchString(url, proxy) ?: return null
+        
+        return try {
+            val jsonArray = JSONArray(json)
+            for (i in 0 until jsonArray.length()) {
+                val release = jsonArray.getJSONObject(i)
+                val tagName = release.getString("tag_name")
+                if (tagName.contains("unstable", ignoreCase = true) || release.getBoolean("prerelease")) {
+                    return release
+                }
+            }
+            null
+        } catch (_: Exception) {
+            null
+        }
     }
 
-    private fun fetchJson(url: String, proxy: java.net.Proxy? = null): JSONObject? {
+    private fun fetchString(url: String, proxy: java.net.Proxy? = null): String? {
         val connection = if (proxy != null) {
             URL(url).openConnection(proxy)
         } else {
@@ -189,7 +220,7 @@ class AppUpdater(private val context: Context) {
 
         return try {
             if (connection.responseCode == 200) {
-                JSONObject(connection.inputStream.bufferedReader().readText())
+                connection.inputStream.bufferedReader().readText()
             } else null
         } catch (_: Exception) {
             null
@@ -275,16 +306,11 @@ class AppUpdater(private val context: Context) {
         private var activeJob: Job? = null
 
         fun isNewer(remote: String, current: String, remoteBody: String = ""): Boolean {
-            if (remote == "unstable-latest") {
-                // Если мы сами на unstable, проверяем хеш коммита в описании релиза
-                if (current.contains("unstable", ignoreCase = true)) {
-                    val currentHash = current.split("-").lastOrNull()
-                    if (currentHash != null && currentHash.length >= 7 && remoteBody.contains(currentHash)) {
-                        return false
-                    }
-                }
-                // В остальных случаях (мы на stable или хеш другой) считаем, что unstable-latest — это обнова
-                return true
+            // Вспомогательная функция для получения списка чисел из версии (напр. "1.0.2-unstable" -> [1, 0, 2])
+            fun String.toVersionList(): List<Int> {
+                val basePart = this.split("-").first()
+                return basePart.split(".")
+                    .map { it.filter { char -> char.isDigit() }.toIntOrNull() ?: 0 }
             }
 
             val remoteIsUnstable = remote.contains("unstable", ignoreCase = true)
@@ -292,17 +318,23 @@ class AppUpdater(private val context: Context) {
 
             // Если обе версии нестабильные, сравниваем хеши (если они есть)
             if (remoteIsUnstable && currentIsUnstable) {
-                val rHash = remote.split("-").lastOrNull()
-                val cHash = current.split("-").lastOrNull()
+                val rHash = remote.split("-").lastOrNull()?.take(7)
+                val cHash = current.split("-").lastOrNull()?.take(7)
+                
+                // Если хеши в самих тегах/версиях совпали — это та же версия
                 if (rHash != null && cHash != null && rHash == cHash && rHash.length >= 7) return false
-                // Если хеши разные, идем дальше сравнивать основные номера версий
-            }
-
-            // Вспомогательная функция для получения списка чисел из версии (напр. "1.0.2-unstable" -> [1, 0, 2])
-            fun String.toVersionList(): List<Int> {
-                val basePart = this.split("-").first()
-                return basePart.split(".")
-                    .map { it.filter { char -> char.isDigit() }.toIntOrNull() ?: 0 }
+                
+                // Если в удаленном теге нет хеша (напр. просто v1.0-unstable), 
+                // ищем хеш текущей версии в описании релиза
+                if (cHash != null && cHash.length >= 7 && remoteBody.contains(cHash)) {
+                    return false
+                }
+                
+                // Если номера версий одинаковые, но хеши разные (или текущий хеш не найден в удаленном)
+                // считаем, что на GitHub более свежая сборка (так как мы пересоздаем релиз)
+                val r = remote.toVersionList()
+                val c = current.toVersionList()
+                if (r == c) return true
             }
 
             val r = remote.toVersionList()
