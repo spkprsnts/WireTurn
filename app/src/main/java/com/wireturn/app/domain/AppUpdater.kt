@@ -74,13 +74,14 @@ class AppUpdater(private val context: Context) {
                 val remoteTag = release.getString("tag_name")
                 val remoteName = release.optString("name", "")
                 
-                // Если тег — "unstable-latest", пытаемся вытащить реальную версию из названия релиза
-                // Например: "Unstable Build v6.1.1 (Development)" -> "6.1.1-unstable"
+                // Извлекаем версию и хеш из названия: "Unstable Build v6.1.1-a1b2c3d" -> "6.1.1-unstable-a1b2c3d"
                 val remoteVersion = if (remoteTag == "unstable-latest" && remoteName.isNotBlank()) {
-                    val versionRegex = """v(\d+\.\d+\.\d+)""".toRegex()
+                    val versionRegex = """v(\d+\.\d+\.\d+)(?:-([a-f0-9]+))?""".toRegex()
                     val match = versionRegex.find(remoteName)
                     if (match != null) {
-                        "${match.groupValues[1]}-unstable"
+                        val ver = match.groupValues[1]
+                        val hash = match.groupValues[2]
+                        if (hash.isNotBlank()) "$ver-unstable-$hash" else "$ver-unstable"
                     } else {
                         "unstable-latest"
                     }

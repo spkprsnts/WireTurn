@@ -41,10 +41,13 @@ jobs:
           BUILD_TOOLS=$(grep "project.compileSdk=" gradle.properties | cut -d'=' -f2 || echo "36")
           # Read Version Name from gradle.properties
           VERSION_NAME=$(grep "project.versionName=" gradle.properties | cut -d'=' -f2)
+          # Get short git hash
+          SHA_SHORT=$(git rev-parse --short HEAD)
           
           echo "ndk_version=$NDK_VERSION" >> $GITHUB_OUTPUT
           echo "build_tools=$BUILD_TOOLS.0.0" >> $GITHUB_OUTPUT
           echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
+          echo "sha_short=$SHA_SHORT" >> $GITHUB_OUTPUT
           
           # Add sdkmanager to PATH
           echo "${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/tools/bin" >> $GITHUB_PATH
@@ -157,7 +160,7 @@ jobs:
         if: github.ref == 'refs/heads/unstable'
         with:
           tag_name: unstable-latest
-          name: "Unstable Build v${{ steps.vars.outputs.version_name }} (Development)"
+          name: "Unstable Build v${{ steps.vars.outputs.version_name }}-${{ steps.vars.outputs.sha_short }}"
           generate_release_notes: true
           files: final_apks/*.apk
           prerelease: true
