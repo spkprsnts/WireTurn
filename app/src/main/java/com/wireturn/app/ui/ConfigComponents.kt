@@ -103,7 +103,6 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -295,6 +294,8 @@ fun SectionHeader(title: String, modifier: Modifier = Modifier) {
 fun ConfigRowLabel(
     text: String,
     modifier: Modifier = Modifier,
+    style: TextStyle = MaterialTheme.typography.titleMedium,
+    color: Color = Color.Unspecified,
     isModified: Boolean = false
 ) {
     Row(
@@ -303,8 +304,8 @@ fun ConfigRowLabel(
     ) {
         VerticalAnimatedText(
             text = text,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
+            style = style,
+            color = color.takeOrElse { MaterialTheme.colorScheme.onSurface },
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -377,13 +378,15 @@ fun SupportingText(
 
 @Composable
 fun SettingsGroup(
-    title: String,
     modifier: Modifier = Modifier,
+    title: String? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Column(modifier = modifier) {
-        Box(modifier = Modifier.padding(start = 8.dp)) {
-            SectionHeader(title = title)
+        if (!title.isNullOrBlank()) {
+            Box(modifier = Modifier.padding(start = 8.dp)) {
+                SectionHeader(title = title)
+            }
         }
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             content()
@@ -478,6 +481,65 @@ fun SettingsGroupItem(
         }
     }
 }
+
+@Composable
+fun MainSwitchItem(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    supportingText: String? = null,
+    enabled: Boolean = true,
+) {
+    val containerColor = MaterialTheme.colorScheme.primaryContainer
+    val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+
+    val interactionSource = remember { MutableInteractionSource() }
+
+    CompositionLocalProvider(LocalSettingsInteractionSource provides interactionSource) {
+        Card(
+            modifier = modifier.fillMaxWidth(),
+            shape = CircleShape,
+            onClick = { onCheckedChange(!checked) },
+            enabled = enabled,
+            interactionSource = interactionSource,
+            colors = CardDefaults.cardColors(
+                containerColor = containerColor,
+                contentColor = contentColor
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    ConfigRowLabel(
+                        text = label,
+                        modifier = Modifier.padding(start = 12.dp),
+                        color = contentColor
+                    )
+                    if (supportingText != null) {
+                        SupportingText(
+                            text = supportingText,
+                            color = contentColor.copy(alpha = 0.7f),
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                }
+
+                ConfigSwitch(
+                    checked = checked,
+                    onCheckedChange = null,
+                    enabled = enabled
+                )
+            }
+        }
+    }
+}
+
 
 @Composable
 fun CompactSettingsItem(
@@ -1317,16 +1379,7 @@ fun ConfigTopAppBar(
 
     val annotatedTitle = remember(title) {
         buildAnnotatedString {
-            val parts = title.split("**")
-            if (parts.size == 3) {
-                append(parts[0])
-                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                    append(parts[1])
-                }
-                append(parts[2])
-            } else {
-                append(title)
-            }
+            append(title)
         }
     }
 
@@ -1366,17 +1419,15 @@ fun ConfigTopAppBar(
         }
     }
 
-    val collapsedTitle = remember(title) {
-        title.replace("**", "")
-    }
-
     TwoRowsTopAppBar(
         expandedHeight = finalExpandedHeight,
         collapsedHeight = collapsedHeight,
         title = { isExpanded ->
             Text(
-                text = if (isExpanded) annotatedTitle else buildAnnotatedString { append(collapsedTitle) },
+                text = annotatedTitle,
                 style = if (isExpanded) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.titleLarge,
+                maxLines = if (isExpanded) Int.MAX_VALUE else 1,
+                overflow = if (isExpanded) TextOverflow.Clip else TextOverflow.Ellipsis,
                 modifier = Modifier
                     .padding(horizontal = 8.dp)
                     .padding(top = if (isExpanded) 28.dp else 0.dp)

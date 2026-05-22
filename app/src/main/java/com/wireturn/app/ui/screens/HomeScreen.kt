@@ -1026,7 +1026,7 @@ fun HomeScreen(
                                         painter = painterResource(R.drawable.route_24px),
                                         contentDescription = stringResource(R.string.vpn_apps_exceptions),
                                         modifier = Modifier.size(24.dp),
-                                        tint = if (globalVpnSettings.filteringEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                                        tint = if (globalVpnSettings.filteringEnabled) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }

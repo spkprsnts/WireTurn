@@ -48,16 +48,16 @@
     <string name="cancel">Отмена</string>
     <!-- Режим VPN (VpnService) -->
     <string name="vpn_mode">Режим VPN</string>
-    <string name="vpn_apps_exceptions">Приложения **без** VPN</string>
+    <string name="vpn_apps_exceptions">Без VPN</string>
     <string name="vpn_apps_hint">Маршрутизация приложений</string>
-    <string name="vpn_apps_inclusions">Приложения **через** VPN</string>
+    <string name="vpn_apps_inclusions">Через VPN</string>
     <string name="search_apps">Поиск приложений</string>
     <string name="no_apps_found">Приложения не найдены</string>
     <string name="hide_system_apps">Скрывать системные</string>
     <string name="bypass_mode">Режим маршрутизации</string>
     <string name="vpn_mode_bypass_desc">Выбранные — в обход</string>
     <string name="vpn_mode_include_desc">Выбранные — через VPN</string>
-    <string name="filtering_enabled">Выборочная маршрутизация</string>
+    <string name="filtering_enabled">Использовать маршрутизацию</string>
     <string name="group_apps_by_letter">Группировать по буквам</string>
     <string name="clear_list">Снять выделение со всех</string>
     <string name="copy_list">Копировать список</string>

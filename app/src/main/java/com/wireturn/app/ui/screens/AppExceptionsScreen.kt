@@ -67,7 +67,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -86,9 +85,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.ui.ConfigTopAppBar
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.LabeledButtonGroup
+import com.wireturn.app.ui.MainSwitchItem
 import com.wireturn.app.ui.SectionHeader
+import com.wireturn.app.ui.SettingsGroup
 import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.ui.SwitchRow
+import com.wireturn.app.ui.configButtonGroupItem
 import com.wireturn.app.ui.showExclusiveSnackbar
 import com.wireturn.app.ui.theme.LocalIsDark
 import com.wireturn.app.viewmodel.MainViewModel
@@ -387,7 +390,9 @@ fun AppExceptionsScreen(
                     hostState = snackbarHostState
                 ) { data ->
                     Snackbar(
-                        modifier = Modifier.padding(12.dp),
+                        modifier = Modifier
+                            .padding(12.dp)
+                            .padding(bottom = 16.dp),
                         action = data.visuals.actionLabel?.let { label ->
                             {
                                 TextButton(onClick = { data.performAction() }) {
@@ -425,16 +430,121 @@ fun AppExceptionsScreen(
                         .fillMaxHeight()
                         .widthIn(max = 840.dp)
                         .zIndex(1f)
-                        .padding(top = innerPadding.calculateTopPadding() + appBarHeightDp)
-                        .graphicsLayer {
-                            alpha = if (globalVpn.filteringEnabled) 1f else 0.5f
-                        },
+                        .padding(top = innerPadding.calculateTopPadding() + appBarHeightDp),
                     contentPadding = PaddingValues(
                         bottom = 16.dp + WindowInsets.navigationBars.asPaddingValues()
                             .calculateBottomPadding(),
-                        top = (if (globalVpn.groupAppsByLetter) 10.dp else 20.dp) + SearchBarDefaults.InputFieldHeight
+                        top = 24.dp + SearchBarDefaults.InputFieldHeight
                     )
                 ) {
+                    item {
+                        Column(modifier = Modifier.padding(bottom = 16.dp)) {
+                            MainSwitchItem(
+                                label = stringResource(R.string.filtering_enabled),
+                                checked = globalVpn.filteringEnabled,
+                                onCheckedChange = {
+                                    viewModel.updateGlobalVpnSettings(
+                                        globalVpn.copy(filteringEnabled = it)
+                                    )
+                                },
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
+
+                            Spacer(Modifier.height(16.dp))
+
+                            val vpnModeInclude = stringResource(R.string.vpn_apps_inclusions)
+                            val vpnModeBypass = stringResource(R.string.vpn_apps_exceptions)
+
+                            SettingsGroupItem(
+                                isTop = true,
+                                isBottom = true,
+                                containerColor = blockContainerColor,
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            ) {
+                                LabeledButtonGroup(
+                                    label = stringResource(R.string.bypass_mode),
+                                    supportingText = if (globalVpn.bypassMode) stringResource(R.string.vpn_mode_bypass_desc)
+                                    else stringResource(R.string.vpn_mode_include_desc)
+                                ) {
+                                    configButtonGroupItem(
+                                        selected = !globalVpn.bypassMode,
+                                        onSelect = {
+                                            viewModel.updateGlobalVpnSettings(
+                                                globalVpn.copy(bypassMode = false)
+                                            )
+                                        },
+                                        label = vpnModeInclude,
+                                        index = 0,
+                                        count = 2
+                                    )
+                                    configButtonGroupItem(
+                                        selected = globalVpn.bypassMode,
+                                        onSelect = {
+                                            viewModel.updateGlobalVpnSettings(
+                                                globalVpn.copy(bypassMode = true)
+                                            )
+                                        },
+                                        label = vpnModeBypass,
+                                        index = 1,
+                                        count = 2
+                                    )
+                                }
+                            }
+
+                            Spacer(Modifier.height(16.dp))
+
+                            SettingsGroup {
+                                SettingsGroupItem(
+                                    isTop = true,
+                                    isBottom = false,
+                                    containerColor = blockContainerColor,
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    onClick = {
+                                        viewModel.updateGlobalVpnSettings(
+                                            globalVpn.copy(groupAppsByLetter = !globalVpn.groupAppsByLetter)
+                                        )
+                                    }
+                                ) {
+                                    SwitchRow(
+                                        label = stringResource(R.string.group_apps_by_letter),
+                                        checked = globalVpn.groupAppsByLetter,
+                                        onCheckedChange = {
+                                            viewModel.updateGlobalVpnSettings(
+                                                globalVpn.copy(groupAppsByLetter = it)
+                                            )
+                                        },
+                                        leadingIcon = {
+                                            Icon(painterResource(R.drawable.abc_24px), null)
+                                        }
+                                    )
+                                }
+                                SettingsGroupItem(
+                                    isTop = false,
+                                    isBottom = true,
+                                    containerColor = blockContainerColor,
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    onClick = {
+                                        viewModel.updateGlobalVpnSettings(
+                                            globalVpn.copy(hideSystemApps = !globalVpn.hideSystemApps)
+                                        )
+                                    }
+                                ) {
+                                    SwitchRow(
+                                        label = stringResource(R.string.hide_system_apps),
+                                        checked = globalVpn.hideSystemApps,
+                                        onCheckedChange = {
+                                            viewModel.updateGlobalVpnSettings(
+                                                globalVpn.copy(hideSystemApps = it)
+                                            )
+                                        },
+                                        leadingIcon = {
+                                            Icon(painterResource(R.drawable.android_24px), null)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
                     if (isAppsLoading) {
                         item {
                             Box(
@@ -599,9 +709,7 @@ fun AppExceptionsScreen(
                 }
 
                 ConfigTopAppBar(
-                    title = if (globalVpn.bypassMode) stringResource(R.string.vpn_apps_exceptions)
-                            else stringResource(R.string.vpn_apps_inclusions),
-                    subtitle = stringResource(R.string.vpn_apps_hint),
+                    title = stringResource(R.string.vpn_apps_hint),
                     onBack = onBack,
                     scrollBehavior = scrollBehavior,
                     modifier = Modifier
@@ -635,42 +743,7 @@ fun AppExceptionsScreen(
                                         .widthIn(min = 240.dp)
                                 ) {
                                     DropdownMenuGroup(
-                                        shapes = MenuDefaults.groupShape(0, 3),
-                                        shadowElevation = 4.dp,
-                                        containerColor = MaterialTheme.colorScheme.surfaceContainer
-                                    ) {
-                                        DropdownMenuItem(
-                                            checked = globalVpn.filteringEnabled,
-                                            onCheckedChange = {
-                                                viewModel.updateGlobalVpnSettings(
-                                                    globalVpn.copy(filteringEnabled = it)
-                                                )
-                                            },
-                                            text = { Text(stringResource(R.string.filtering_enabled)) },
-                                            shapes = MenuDefaults.itemShape(0, 2)
-                                        )
-                                        DropdownMenuItem(
-                                            checked = globalVpn.bypassMode,
-                                            onCheckedChange = {
-                                                viewModel.updateGlobalVpnSettings(
-                                                    globalVpn.copy(bypassMode = it)
-                                                )
-                                            },
-                                            text = { Text(stringResource(R.string.bypass_mode)) },
-                                            supportingText = {
-                                                Text(
-                                                    text = if (globalVpn.bypassMode) stringResource(R.string.vpn_mode_bypass_desc)
-                                                    else stringResource(R.string.vpn_mode_include_desc)
-                                                )
-                                            },
-                                            shapes = MenuDefaults.itemShape(1, 2)
-                                        )
-                                    }
-
-                                    Spacer(Modifier.height(MenuDefaults.GroupSpacing))
-
-                                    DropdownMenuGroup(
-                                        shapes = MenuDefaults.groupShape(1, 3),
+                                        shapes = MenuDefaults.groupShape(0, 1),
                                         shadowElevation = 4.dp,
                                         containerColor = MaterialTheme.colorScheme.surfaceContainer
                                     ) {
@@ -718,35 +791,6 @@ fun AppExceptionsScreen(
                                             shape = MenuDefaults.itemShape(2, 3).shape
                                         )
                                     }
-
-                                    Spacer(Modifier.height(MenuDefaults.GroupSpacing))
-
-                                    DropdownMenuGroup(
-                                        shapes = MenuDefaults.groupShape(2, 3),
-                                        shadowElevation = 4.dp,
-                                        containerColor = MaterialTheme.colorScheme.surfaceContainer
-                                    ) {
-                                        DropdownMenuItem(
-                                            checked = globalVpn.groupAppsByLetter,
-                                            onCheckedChange = {
-                                                viewModel.updateGlobalVpnSettings(
-                                                    globalVpn.copy(groupAppsByLetter = it)
-                                                )
-                                            },
-                                            text = { Text(stringResource(R.string.group_apps_by_letter)) },
-                                            shapes = MenuDefaults.itemShape(0, 2)
-                                        )
-                                        DropdownMenuItem(
-                                            checked = globalVpn.hideSystemApps,
-                                            onCheckedChange = {
-                                                viewModel.updateGlobalVpnSettings(
-                                                    globalVpn.copy(hideSystemApps = it)
-                                                )
-                                            },
-                                            text = { Text(stringResource(R.string.hide_system_apps)) },
-                                            shapes = MenuDefaults.itemShape(1, 2)
-                                        )
-                                    }
                                 }
                             }
                         }
@@ -772,7 +816,8 @@ private fun LazyListScope.appListItems(
             item(key = "header_$letter") {
                 SectionHeader(
                     title = letter.toString(),
-                    modifier = Modifier.padding(start = 24.dp, top = 16.dp, bottom = 8.dp)
+                    modifier = Modifier
+                        .padding(start = 24.dp, top = 16.dp, bottom = 8.dp)
                 )
             }
             itemsIndexed(groupApps, key = { _, app -> app.packageName }) { index, app ->

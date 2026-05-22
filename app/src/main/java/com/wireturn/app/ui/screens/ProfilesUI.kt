@@ -216,7 +216,7 @@ fun ProfilesBlock(
             }) {
                 Icon(
                     painter = painterResource(R.drawable.edit_square_24px),
-                    contentDescription = stringResource(R.string.profile_rename)
+                    contentDescription = null
                 )
             }
         }
@@ -231,7 +231,7 @@ fun ProfilesBlock(
                     painter = painterResource(R.drawable.mobile_outlined_24px),
                     contentDescription = null,
                     modifier = Modifier.size(32.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             Column(modifier = Modifier.weight(1f)) {
