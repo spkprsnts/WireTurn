@@ -403,8 +403,7 @@ fun HomeScreen(
                         onClick = {
                             HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                             onNavigateToSettings()
-                        },
-                        modifier = Modifier.padding(end = 8.dp)
+                        }
                     ) {
                         BadgedBox(
                             badge = {
@@ -458,12 +457,11 @@ fun HomeScreen(
                 .consumeWindowInsets(padding)
                 .imePadding()
                 .verticalScroll(homeScrollState)
+                .padding(top = 8.dp)
                 .padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Spacer(Modifier.height(8.dp))
-
             LaunchedEffect(hasNotificationPermission, isIgnoringBatteryOptimizations) {
                 if (hasNotificationPermission && isIgnoringBatteryOptimizations) {
                     viewModel.setBatteryNotificationDismissed(false)
