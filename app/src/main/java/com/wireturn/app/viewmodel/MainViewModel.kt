@@ -137,8 +137,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _autoLaunchSettings = MutableStateFlow(AutoLaunchSettings())
     val autoLaunchSettings: StateFlow<AutoLaunchSettings> = _autoLaunchSettings.asStateFlow()
 
-    private var autoLaunchJob: Job? = null
-
     val profiles: StateFlow<List<Profile>> = profileManager.profiles
     val currentProfileId: StateFlow<String> = profileManager.currentProfileId
 
@@ -438,7 +436,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun updateAutoLaunchJob(settings: AutoLaunchSettings) {
         autoLaunchJob?.cancel()
         if (settings.enabled) {
-            autoLaunchJob = viewModelScope.launch(Dispatchers.IO) {
+            autoLaunchJob = ProcessLifecycleOwner.get().lifecycleScope.launch(Dispatchers.IO) {
                 while (true) {
                     val isReachable = isUrlReachable(settings.checkUrl)
                     val isRunning = ProxyServiceState.isRunning.value
@@ -783,5 +781,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
             c.startActivity(intent)
         }
+    }
+
+    companion object {
+        private var autoLaunchJob: Job? = null
     }
 }

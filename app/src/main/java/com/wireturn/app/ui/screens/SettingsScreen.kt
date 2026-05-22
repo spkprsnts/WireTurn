@@ -292,8 +292,8 @@ fun SettingsScreen(
 
                 Spacer(Modifier.height(12.dp))
 
-                var localUrl by remember { mutableStateOf(autoLaunchSettings.checkUrl) }
-                var localInterval by remember { mutableStateOf(autoLaunchSettings.intervalMinutes.toString()) }
+                var localUrl by rememberSaveable { mutableStateOf(autoLaunchSettings.checkUrl) }
+                var localInterval by rememberSaveable { mutableStateOf(autoLaunchSettings.intervalMinutes.toString()) }
 
                 val defaultUrl = "https://www.google.com"
                 val defaultInterval = 15
@@ -305,19 +305,35 @@ fun SettingsScreen(
                 val isIntervalValid = minutesInt != null && minutesInt >= 1
                 val canEnable = isUrlValid && isIntervalValid
 
-                LaunchedEffect(localUrl) {
-                    delay(300)
-                    val valueToSave = if (isUrlValid) localUrl else defaultUrl
-                    if (valueToSave != autoLaunchSettings.checkUrl) {
-                        viewModel.updateAutoLaunchSettings(autoLaunchSettings.copy(checkUrl = valueToSave))
+                // Sync with VM only if local is empty or matching default (initial load case)
+                LaunchedEffect(autoLaunchSettings) {
+                    if (localUrl == defaultUrl && autoLaunchSettings.checkUrl != defaultUrl) {
+                        localUrl = autoLaunchSettings.checkUrl
+                    }
+                    if (localInterval == defaultInterval.toString() && autoLaunchSettings.intervalMinutes != defaultInterval) {
+                        localInterval = autoLaunchSettings.intervalMinutes.toString()
                     }
                 }
 
-                LaunchedEffect(localInterval) {
-                    delay(300)
-                    val valueToSave = if (isIntervalValid) minutesInt else defaultInterval
-                    if (valueToSave != autoLaunchSettings.intervalMinutes) {
-                        viewModel.updateAutoLaunchSettings(autoLaunchSettings.copy(intervalMinutes = valueToSave))
+                LaunchedEffect(localUrl, isUrlValid) {
+                    if (isUrlValid && localUrl != autoLaunchSettings.checkUrl) {
+                        delay(200)
+                        if (localUrl != autoLaunchSettings.checkUrl) {
+                            viewModel.updateAutoLaunchSettings(
+                                autoLaunchSettings.copy(
+                                    checkUrl = localUrl,
+                                    enabled = false
+                                )
+                            )
+                        }
+                    }
+                }
+
+                LaunchedEffect(localInterval, isIntervalValid) {
+                    val value = minutesInt
+                    if (isIntervalValid && value != autoLaunchSettings.intervalMinutes) {
+                        delay(600)
+                        viewModel.updateAutoLaunchSettings(autoLaunchSettings.copy(intervalMinutes = value))
                     }
                 }
 
