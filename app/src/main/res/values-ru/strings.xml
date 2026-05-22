@@ -2,7 +2,6 @@
 <resources>
 
     <!-- Главный экран (Home) -->
-    <string name="nav_home">Главная</string>
     <string name="app_settings_title">Настройки</string>
     <string name="info_desc">Информация</string>
     <string name="proxy_active">Туннель активен</string>
@@ -164,8 +163,6 @@
     <string name="theme_light">Светлая</string>
     <string name="theme_dark">Тёмная</string>
     <string name="theme_system">Системная</string>
-    <string name="settings_show_fab_title">Плавающая кнопка</string>
-    <string name="settings_show_fab_desc">Показывать кнопку управления туннелем на всех экранах</string>
     <string name="localization_title">Локализация</string>
     <string name="lang_title">Язык интерфейса</string>
     <string name="lang_system">Системный</string>
@@ -292,9 +289,7 @@
     <string name="xray_proxy_auth">Авторизация прокси</string>
     <string name="xray_proxy_auth_desc">Защитить прокси логином и паролем</string>
     <string name="xray_proxy_user">Логин</string>
-    <string name="proxy_user_placeholder" translatable="false">wireturn</string>
     <string name="xray_proxy_pass">Пароль</string>
-    <string name="proxy_pass_placeholder" translatable="false">ultrapass</string>
     <string name="xray_protocol_desc">Выберите протокол для Xray-core</string>
     <string name="vless_settings">Настройки VLESS</string>
     <string name="connection_settings_title">Параметры подключения</string>

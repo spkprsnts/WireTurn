@@ -2,7 +2,6 @@
 <resources>
 
     <!-- Main Screen (Home) -->
-    <string name="nav_home">Home</string>
     <string name="app_settings_title">Settings</string>
     <string name="turn_proxy_title" translatable="false">WireTurn</string>
     <string name="info_desc">Info</string>
@@ -195,8 +194,6 @@
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
     <string name="theme_system">System</string>
-    <string name="settings_show_fab_title">Floating button</string>
-    <string name="settings_show_fab_desc">Show tunnel control button on all screens</string>
     <string name="localization_title">Localization</string>
     <string name="lang_title">Interface Language</string>
     <string name="lang_system">System</string>
@@ -277,7 +274,6 @@
     <string name="notification_network_change">Network change, reconnecting…</string>
     <string name="vless" translatable="false">VLESS</string>
     <!-- UI elements and formatting -->
-    <string name="redacted_value" translatable="false">••••••</string>
     <string name="dash" translatable="false">—</string>
     <string name="ping_unknown" translatable="false">\?</string>
     <string name="version_format" translatable="false">v%1$s</string>
