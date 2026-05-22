@@ -48,7 +48,7 @@ sudo adduser --system --group --no-create-home --shell /usr/sbin/nologin olcrtc
 cd /opt
 sudo git clone https://github.com/openlibrecommunity/olcrtc --recurse-submodules
 cd /opt/olcrtc
-sudo GOFLAGS="-buildvcs=false" /usr/local/go/bin/go run github.com/magefile/mage@latest buildCLI
+sudo GOFLAGS="-buildvcs=false" /usr/local/go/bin/go run github.com/magefile/mage@latest build
 sudo chown -R olcrtc:olcrtc /opt/olcrtc
 sudo chmod +x /opt/olcrtc/build/olcrtc-linux-amd64
 sudo mv /opt/olcrtc/build/olcrtc-linux-amd64 /opt/olcrtc/build/olcrtc
@@ -65,7 +65,7 @@ sudo mv /opt/olcrtc/build/olcrtc-linux-amd64 /opt/olcrtc/build/olcrtc
 ```bash
 cd /opt/olcrtc
 sudo git pull --recurse-submodules
-sudo GOFLAGS="-buildvcs=false" /usr/local/go/bin/go run github.com/magefile/mage@latest buildCLI
+sudo GOFLAGS="-buildvcs=false" /usr/local/go/bin/go run github.com/magefile/mage@latest build
 sudo chown -R olcrtc:olcrtc /opt/olcrtc
 sudo chmod +x /opt/olcrtc/build/olcrtc-linux-amd64
 sudo mv /opt/olcrtc/build/olcrtc-linux-amd64 /opt/olcrtc/build/olcrtc
@@ -106,14 +106,11 @@ openssl rand -hex 32
 
 ### 3.2 ID комнаты WB Stream
 
-> **Внимание:** WB Stream ограничил создание гостевых комнат и подключение к ним — поддержка этой платформы в olcRTC может быть прекращена. Команда генерации ID комнаты ниже может не сработать. Если не сработает — пропустите разделы 3.2, 4.1 и 5.1 и настройте только Telemost.
+ID комнаты создаётся вручную через сайт:
 
-```bash
-cd /opt/olcrtc
-sudo -u olcrtc ./build/olcrtc -mode gen -carrier wbstream -dns 1.1.1.1:53 -amount 1 -data data
-```
-
-В выводе будет UUID вида `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` — это ваш ID комнаты WB Stream.
+1. Перейдите на [stream.wb.ru](https://stream.wb.ru/) и войдите в аккаунт.
+2. Создайте новую комнату.
+3. Из ссылки на приглашение вида `https://stream.wb.ru/room/wb_stream_xxxxxxxx` скопируйте только часть после `/room/` — это и есть ID комнаты (`wb_stream_xxxxxxxx`).
 
 ---
 
@@ -132,11 +129,33 @@ ID комнаты создаётся вручную через веб-интер
 
 Можно настроить **одну службу** (WB Stream **или** Telemost) или **обе сразу** — они работают независимо и не мешают друг другу. Если одна платформа недоступна, вторая продолжает работать.
 
-**client-id** — придумайте любой логин без пробелов (например, `wireturn`). Для каждой службы можно использовать один и тот же client-id или разные — как удобнее.
-
 ---
 
 ### 4.1 Служба WB Stream
+
+Создайте файл конфигурации, подставив ваши значения из шагов 3.1 и 3.2:
+
+```bash
+sudo tee /opt/olcrtc/server-wbstream.yaml > /dev/null <<EOF
+mode: srv
+auth:
+  provider: wbstream
+room:
+  id: "ВАШ_ID_КОМНАТЫ_WBSTREAM"
+crypto:
+  key: "ВАШ_КЛЮЧ_АВТОРИЗАЦИИ"
+net:
+  transport: vp8channel
+  dns: "1.1.1.1:53"
+vp8:
+  fps: 60
+  batch_size: 64
+data: data
+EOF
+sudo chown olcrtc:olcrtc /opt/olcrtc/server-wbstream.yaml
+```
+
+Создайте службу:
 
 ```bash
 sudo tee /etc/systemd/system/olcrtc-wbstream.service > /dev/null <<EOF
@@ -150,16 +169,7 @@ Type=simple
 User=olcrtc
 Group=olcrtc
 WorkingDirectory=/opt/olcrtc
-ExecStart=/opt/olcrtc/build/olcrtc \
-  -mode srv \
-  -carrier wbstream \
-  -transport datachannel \
-  -id "ВАШ_UUID_КОМНАТЫ_WBSTREAM" \
-  -client-id "ВАШ_ID_КЛИЕНТА" \
-  -key "ВАШ_КЛЮЧ_АВТОРИЗАЦИИ" \
-  -link direct \
-  -dns 1.1.1.1:53 \
-  -data data
+ExecStart=/opt/olcrtc/build/olcrtc /opt/olcrtc/server-wbstream.yaml
 Restart=on-failure
 RestartSec=5
 
@@ -180,6 +190,30 @@ sudo systemctl status olcrtc-wbstream
 
 ### 4.2 Служба Telemost
 
+Создайте файл конфигурации, подставив ваши значения из шагов 3.1 и 3.3:
+
+```bash
+sudo tee /opt/olcrtc/server-telemost.yaml > /dev/null <<EOF
+mode: srv
+auth:
+  provider: telemost
+room:
+  id: "ВАШ_ID_КОМНАТЫ_TELEMOST"
+crypto:
+  key: "ВАШ_КЛЮЧ_АВТОРИЗАЦИИ"
+net:
+  transport: vp8channel
+  dns: "1.1.1.1:53"
+vp8:
+  fps: 60
+  batch_size: 64
+data: data
+EOF
+sudo chown olcrtc:olcrtc /opt/olcrtc/server-telemost.yaml
+```
+
+Создайте службу:
+
 ```bash
 sudo tee /etc/systemd/system/olcrtc-telemost.service > /dev/null <<EOF
 [Unit]
@@ -192,18 +226,7 @@ Type=simple
 User=olcrtc
 Group=olcrtc
 WorkingDirectory=/opt/olcrtc
-ExecStart=/opt/olcrtc/build/olcrtc \
-  -mode srv \
-  -carrier telemost \
-  -transport vp8channel \
-  -vp8-fps 60 \
-  -vp8-batch 64 \
-  -id "ВАШ_ID_КОМНАТЫ_TELEMOST" \
-  -client-id "ВАШ_ID_КЛИЕНТА" \
-  -key "ВАШ_КЛЮЧ_АВТОРИЗАЦИИ" \
-  -link direct \
-  -dns 1.1.1.1:53 \
-  -data data
+ExecStart=/opt/olcrtc/build/olcrtc /opt/olcrtc/server-telemost.yaml
 Restart=on-failure
 RestartSec=5
 
@@ -257,13 +280,13 @@ sudo journalctl -u olcrtc-telemost -n 50
 
 ### 5.1 Профиль для WB Stream
 
-Платформа **WB Stream**, транспорт **DataChannel**. Введите ID комнаты WB Stream, ID клиента и ключ авторизации из шагов 3 и 4.
+Платформа **WB Stream**, транспорт **VP8Channel**. Введите ID комнаты WB Stream и ключ авторизации из шагов 3 и 4.
 
 ---
 
 ### 5.2 Профиль для Telemost
 
-Платформа **Telemost**, транспорт **VP8Channel**. Введите ID комнаты Telemost, ID клиента и ключ авторизации из шагов 3 и 4.
+Платформа **Telemost**, транспорт **VP8Channel**. Введите ID комнаты Telemost и ключ авторизации из шагов 3 и 4.
 
 Дополнительно проверьте, что настройки соответствуют параметрам запуска службы:
 - **VP8 FPS** — должно быть `60`

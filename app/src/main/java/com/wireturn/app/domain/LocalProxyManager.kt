@@ -112,7 +112,7 @@ class LocalProxyManager(private val context: Context) {
                 setErrorWithAutoReset(context.getString(R.string.error_proxy_not_started))
             }
             is ProxyStatus.Error -> {
-                // Если сервис вернул ошибку (например, Jazz недоступен),
+                // Если сервис вернул ошибку (например, Jitsi недоступен),
                 // останавливаем его и показываем ошибку в UI.
                 ProxyService.stop(context)
                 setErrorWithAutoReset(result.message)

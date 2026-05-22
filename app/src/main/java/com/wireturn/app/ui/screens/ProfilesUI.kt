@@ -121,7 +121,7 @@ fun ProfileSummary(
         KernelVariant.OLCRTC -> {
             val config = profile.olcrtcConfig
             parts.add(getTransportDisplayName(config.transport, short = true))
-            parts.add(config.carrierDisplayName)
+            parts.add(config.providerDisplayName)
         }
     }
 
@@ -1087,10 +1087,9 @@ private fun getProfileIcon(profile: Profile, outlined: Boolean): Int {
         }
 
         KernelVariant.OLCRTC -> {
-            when (profile.olcrtcConfig.carrier) {
+            when (profile.olcrtcConfig.provider) {
                 "wbstream" -> R.drawable.ic_wbstream
                 "telemost" -> R.drawable.ic_telemost
-                "jazz" -> R.drawable.ic_jazz
                 else -> if (outlined) R.drawable.mobile_outlined_24px else R.drawable.mobile_24px
             }
         }

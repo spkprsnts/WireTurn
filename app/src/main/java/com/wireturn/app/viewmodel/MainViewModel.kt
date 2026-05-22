@@ -186,7 +186,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 client.fillDefaults().let { c ->
                     c.kernelVariant != clientSnap.kernelVariant ||
                     c.listenAddr != clientSnap.listenAddr ||
-                    c.olcrtcConfig.carrier != clientSnap.olcrtcConfig.carrier ||
+                    c.olcrtcConfig.provider != clientSnap.olcrtcConfig.provider ||
                     c.olcrtcConfig.transport != clientSnap.olcrtcConfig.transport ||
                     c.socksAddr != clientSnap.socksAddr ||
                     c.isSocksAuthEnabled != clientSnap.isSocksAuthEnabled ||

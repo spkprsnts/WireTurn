@@ -77,6 +77,7 @@ import kotlin.math.roundToInt
 fun OlcRtcConfigScreen(
     isEditMode: Boolean = false,
     initialConfig: OlcrtcConfig = OlcrtcConfig(),
+    profileName: String? = null,
     privacyMode: Boolean = false,
     onBack: () -> Unit,
     onSave: (OlcrtcConfig) -> Unit
@@ -106,7 +107,7 @@ fun OlcRtcConfigScreen(
 
     BackHandler(enabled = isEditMode && isModified, onBack = handleBack)
 
-    val showCarrierDialog = remember { mutableStateOf(false) }
+    val showProviderDialog = remember { mutableStateOf(false) }
     val showTransportDialog = remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
     val context = LocalContext.current
@@ -159,7 +160,7 @@ fun OlcRtcConfigScreen(
                                 putExtra(Intent.EXTRA_TEXT, config.copy(
                                     videoW = videoW.toIntOrNull() ?: 1080,
                                     videoH = videoH.toIntOrNull() ?: 1080
-                                ).toUri())
+                                ).toUri(profileName))
                             }
                             context.startActivity(Intent.createChooser(intent, null))
                         }) {
@@ -242,7 +243,7 @@ fun OlcRtcConfigScreen(
                     position = ItemPosition.Top,
                     onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                        showCarrierDialog.value = true
+                        showProviderDialog.value = true
                     }
                 ) {
                     Row(
@@ -251,7 +252,7 @@ fun OlcRtcConfigScreen(
                     ) {
                         LargeLeadingIcon {
                             Icon(
-                                painter = painterResource(getCarrierIcon(config.carrier)),
+                                painter = painterResource(getProviderIcon(config.provider)),
                                 contentDescription = null,
                                 modifier = Modifier.size(32.dp),
                                 tint = MaterialTheme.colorScheme.primary
@@ -260,9 +261,9 @@ fun OlcRtcConfigScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             RowLabel(
                                 text = stringResource(R.string.olcrtc_carrier_label),
-                                isModified = isEditMode && config.carrier != initialConfig.carrier
+                                isModified = isEditMode && config.provider != initialConfig.provider
                             )
-                            val currentLabel = config.carrierDisplayName
+                            val currentLabel = config.providerDisplayName
                             Spacer(Modifier.height(2.dp))
                             SupportingText(currentLabel)
                         }
@@ -323,17 +324,7 @@ fun OlcRtcConfigScreen(
 
             // Server Settings
             SectionGroup(title = stringResource(R.string.server_settings_title)) {
-                SectionItem(position = ItemPosition.Top) {
-                    TextFieldRow(
-                        label = stringResource(R.string.olcrtc_client_id_label),
-                        value = config.clientId.redact(isPrivacyActive),
-                        onValueChange = { if (!isPrivacyActive) config = config.copy(clientId = it) },
-                        readOnly = isPrivacyActive,
-                        isModified = isEditMode && config.clientId != initialConfig.clientId,
-                        privacyMode = isPrivacyActive
-                    )
-                }
-                SectionItem(position = ItemPosition.Bottom) {
+                SectionItem(position = ItemPosition.Single) {
                     TextFieldRow(
                         label = stringResource(R.string.olcrtc_key_label),
                         value = config.key.redact(isPrivacyActive),
@@ -515,14 +506,14 @@ fun OlcRtcConfigScreen(
         }
     }
 
-    if (showCarrierDialog.value) {
-        OlcrtcCarrierDialog(
-            currentCarrier = config.carrier,
+    if (showProviderDialog.value) {
+        OlcrtcProviderDialog(
+            currentProvider = config.provider,
             onSelect = {
-                config = config.copy(carrier = it)
-                showCarrierDialog.value = false
+                config = config.copy(provider = it)
+                showProviderDialog.value = false
             },
-            onDismiss = { showCarrierDialog.value = false }
+            onDismiss = { showProviderDialog.value = false }
         )
     }
 
@@ -538,10 +529,9 @@ fun OlcRtcConfigScreen(
     }
 }
 
-private fun getCarrierIcon(carrier: String): Int = when (carrier) {
+private fun getProviderIcon(provider: String): Int = when (provider) {
     "wbstream" -> R.drawable.ic_wbstream
     "telemost" -> R.drawable.ic_telemost
-    "jazz" -> R.drawable.ic_jazz
     else -> R.drawable.call_quality_24px
 }
 
@@ -554,21 +544,21 @@ private fun getTransportIcon(transport: String): Int = when (transport) {
 }
 
 @Composable
-fun OlcrtcCarrierDialog(
-    currentCarrier: String,
+fun OlcrtcProviderDialog(
+    currentProvider: String,
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val carriers = listOf(
+    val providers = listOf(
         "wbstream" to "WB Stream",
         "telemost" to "Telemost",
-        "jazz" to "Jazz"
+        "jitsi" to "Jitsi"
     )
 
     SelectionDialog(
         title = stringResource(R.string.olcrtc_carrier_label),
-        items = carriers,
-        isSelected = { it.first == currentCarrier },
+        items = providers,
+        isSelected = { it.first == currentProvider },
         onSelect = { onSelect(it.first) },
         onDismiss = onDismiss
     ) { (value, label), isSelected ->
@@ -578,7 +568,7 @@ fun OlcrtcCarrierDialog(
         ) {
             StandardLeadingIcon {
                 Icon(
-                    painter = painterResource(getCarrierIcon(value)),
+                    painter = painterResource(getProviderIcon(value)),
                     contentDescription = null,
                     tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )

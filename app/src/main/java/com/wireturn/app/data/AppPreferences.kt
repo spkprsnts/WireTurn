@@ -197,10 +197,9 @@ data class TurnableConfig(
 }
 
 data class OlcrtcConfig(
-    @SerializedName("carrier") val carrier: String = "wbstream",
+    @SerializedName("provider") val provider: String = "wbstream",
     @SerializedName("transport") val transport: String = "datachannel",
     @SerializedName("id") val id: String = "",
-    @SerializedName("client_id") val clientId: String = "wireturn",
     @SerializedName("key") val key: String = "",
     @SerializedName("dns") val dns: String = "1.1.1.1:53",
     @SerializedName("mimo") val mimo: String = "",
@@ -219,34 +218,40 @@ data class OlcrtcConfig(
     @SerializedName("video_qr_recovery") val videoQrRecovery: String = "low",
     @SerializedName("video_qr_size") val videoQrSize: Int = 0,
     @SerializedName("video_tile_module") val videoTileModule: Int = 4,
-    @SerializedName("video_tile_rs") val videoTileRs: Int = 20
+    @SerializedName("video_tile_rs") val videoTileRs: Int = 20,
+
+    // Migration fields
+    @SerializedName("carrier") private val oldProvider: String? = null
 ) {
-    val carrierDisplayName: String
-        get() = when (carrier) {
+    val providerDisplayName: String
+        get() = when (provider) {
             "wbstream" -> "WB Stream"
             "telemost" -> "Telemost"
-            "jazz" -> "Jazz"
-            else -> carrier
+            "jitsi" -> "Jitsi"
+            else -> provider
         }
 
     val transportDisplayName: String
         get() = getTransportDisplayName(transport)
 
-    fun sanitize(): OlcrtcConfig = copy(
-        carrier = (carrier as Any?)?.toString()?.take(100) ?: "wbstream",
-        transport = (transport as Any?)?.toString()?.take(100) ?: "datachannel",
-        id = (id as Any?)?.toString()?.take(200) ?: "",
-        clientId = (clientId as Any?)?.toString()?.take(200) ?: "wireturn",
-        key = (key as Any?)?.toString()?.take(1000) ?: "",
-        dns = (dns as Any?)?.toString()?.take(200) ?: "1.1.1.1:53",
-        mimo = (mimo as Any?)?.toString()?.take(500) ?: ""
-    )
+    fun sanitize(): OlcrtcConfig {
+        val p = if (provider != "wbstream") provider else (oldProvider ?: provider)
 
-    fun isValid(): Boolean = id.isNotBlank() && clientId.isNotBlank() && key.isNotBlank() && dns.isNotBlank()
+        return copy(
+            provider = (p as Any?)?.toString()?.take(100) ?: "wbstream",
+            transport = (transport as Any?)?.toString()?.take(100) ?: "datachannel",
+            id = (id as Any?)?.toString()?.take(200) ?: "",
+            key = (key as Any?)?.toString()?.take(1000) ?: "",
+            dns = (dns as Any?)?.toString()?.take(200) ?: "1.1.1.1:53",
+            mimo = (mimo as Any?)?.toString()?.take(500) ?: ""
+        )
+    }
+
+    fun isValid(): Boolean = id.isNotBlank() && key.isNotBlank() && dns.isNotBlank()
     fun fillDefaults(): OlcrtcConfig = copy(videoW = if (videoW <= 0) 1080 else videoW, videoH = if (videoH <= 0) 1080 else videoH)
 
-    fun toUri(): String {
-        val sb = StringBuilder("olcrtc://").append(carrier).append("?").append(transport)
+    fun toUri(profileName: String? = null): String {
+        val sb = StringBuilder("olcrtc://").append(provider).append("?").append(transport)
         val params = mutableListOf<String>()
         when (transport) {
             "vp8channel" -> {
@@ -278,8 +283,15 @@ data class OlcrtcConfig(
         if (params.isNotEmpty()) sb.append("<").append(params.joinToString("&")).append(">")
         sb.append("@").append(id)
         if (key.isNotBlank()) sb.append("#").append(key)
-        if (clientId.isNotBlank()) sb.append("%").append(clientId)
-        if (mimo.isNotBlank()) sb.append("$").append(mimo)
+
+        val effectiveMimo = if (mimo.isNotBlank()) {
+            mimo
+        } else if (!profileName.isNullOrBlank()) {
+            profileName
+        } else {
+            ""
+        }
+        if (effectiveMimo.isNotBlank()) sb.append("$").append(effectiveMimo)
         return sb.toString()
     }
 
@@ -295,21 +307,19 @@ data class OlcrtcConfig(
         fun parse(url: String, base: OlcrtcConfig = OlcrtcConfig()): OlcrtcConfig? {
             if (!url.startsWith("olcrtc://", ignoreCase = true)) return null
             return try {
-                val carrier = url.substringAfter("olcrtc://").substringBefore("?")
+                val provider = url.substringAfter("olcrtc://").substringBefore("?")
                 val transportPart = url.substringAfter("?").substringBefore("@")
                 val transport = transportPart.substringBefore("<")
                 val payload = if (transportPart.contains("<")) transportPart.substringAfter("<").substringBefore(">") else ""
                 val rest = url.substringAfter("@")
-                val id = rest.substringBefore("#").substringBefore("%").substringBefore("$")
-                val key = if (rest.contains("#")) rest.substringAfter("#").substringBefore("%").substringBefore("$") else ""
-                val clientId = if (rest.contains("%")) rest.substringAfter("%").substringBefore("$") else ""
+                val id = rest.substringBefore("#").substringBefore("$")
+                val key = if (rest.contains("#")) rest.substringAfter("#").substringBefore("$") else ""
                 val mimo = if (rest.contains("$")) rest.substringAfter("$") else ""
                 var cfg = base.copy(
-                    carrier = carrier,
+                    provider = provider,
                     transport = transport,
                     id = id,
                     key = key,
-                    clientId = clientId.ifBlank { "wireturn" },
                     mimo = mimo
                 )
                 if (payload.isNotBlank()) {
@@ -401,7 +411,7 @@ data class ClientConfig(
     val isValid: Boolean get() = getValidationErrorResId() == null
     fun getKernelDescription(context: Context): String = when (kernelVariant) {
         KernelVariant.TURNABLE -> context.getString(R.string.kernel_turnable) + " " + turnableConfig.selectedRouteId
-        KernelVariant.OLCRTC -> context.getString(R.string.kernel_olcrtc) + " " + olcrtcConfig.carrier
+        KernelVariant.OLCRTC -> context.getString(R.string.kernel_olcrtc) + " " + olcrtcConfig.provider
     }
 
     companion object {

@@ -317,7 +317,9 @@ class ProxyService : Service() {
             AppLogsState.addLog(getString(R.string.log_command, cmdArgs.joinToString(" ")))
 
             val proc = withContext(Dispatchers.IO) {
-                val builder = ProcessBuilder(cmdArgs).redirectErrorStream(true)
+                val builder = ProcessBuilder(cmdArgs)
+                    .directory(filesDir)
+                    .redirectErrorStream(true)
                 val env = builder.environment()
                 val nativeLibDir = applicationInfo.nativeLibraryDir
                 
@@ -618,77 +620,65 @@ class ProxyService : Service() {
             }
             KernelVariant.OLCRTC -> {
                 val o = cfg.olcrtcConfig
+                val configFile = java.io.File(filesDir, "olcrtc.yaml")
+                val dataDir = java.io.File(filesDir, "data")
+                if (!dataDir.exists()) dataDir.mkdirs()
 
-                cmdArgs.addAll(
-                    listOf(
-                        "-mode", "cnc",
-                        "-carrier", o.carrier,
-                        "-transport", o.transport,
-                        "-id", o.id,
-                        "-client-id", o.clientId,
-                        "-key", o.key,
-                        "-link", "direct",
-                        "-data", "data",
-                        "-dns", o.dns,
-                        "-socks-host", cfg.socksAddr.substringBefore(':').ifBlank { "127.0.0.1" },
-                        "-socks-port", cfg.socksAddr.substringAfter(':', "9001").ifBlank { "9001" },
-                        "-ffmpeg", "${applicationInfo.nativeLibraryDir}/libffmpeg.so"
-                    )
-                )
-
-                if (cfg.isSocksAuthEnabled) {
-                    cmdArgs.addAll(
-                        listOf(
-                            "-socks-user", cfg.socksUser,
-                            "-socks-pass", cfg.socksPass
-                        )
-                    )
-                }
-
-                // Transport specific flags
-                when (o.transport) {
-                    "vp8channel" -> {
-                        cmdArgs.add("-vp8-fps")
-                        cmdArgs.add(o.vp8Fps.toString())
-                        cmdArgs.add("-vp8-batch")
-                        cmdArgs.add(o.vp8Batch.toString())
+                val yaml = buildString {
+                    appendLine("mode: cnc")
+                    appendLine("data: data")
+                    appendLine("ffmpeg: \"${applicationInfo.nativeLibraryDir}/libffmpeg.so\"")
+                    appendLine("auth:")
+                    appendLine("  provider: ${o.provider}")
+                    appendLine("room:")
+                    appendLine("  id: \"${o.id}\"")
+                    appendLine("crypto:")
+                    appendLine("  key: \"${o.key}\"")
+                    appendLine("net:")
+                    appendLine("  transport: ${o.transport}")
+                    appendLine("  dns: \"${o.dns}\"")
+                    appendLine("socks:")
+                    appendLine("  host: \"${cfg.socksAddr.substringBefore(':').ifBlank { "127.0.0.1" }}\"")
+                    appendLine("  port: ${cfg.socksAddr.substringAfter(':', "9001").ifBlank { "9001" }}")
+                    if (cfg.isSocksAuthEnabled) {
+                        appendLine("  user: \"${cfg.socksUser}\"")
+                        appendLine("  pass: \"${cfg.socksPass}\"")
                     }
-                    "seichannel" -> {
-                        cmdArgs.add("-fps")
-                        cmdArgs.add(o.seiFps.toString())
-                        cmdArgs.add("-batch")
-                        cmdArgs.add(o.seiBatch.toString())
-                        cmdArgs.add("-frag")
-                        cmdArgs.add(o.seiFrag.toString())
-                        cmdArgs.add("-ack-ms")
-                        cmdArgs.add(o.seiAckMs.toString())
-                    }
-                    "videochannel" -> {
-                        cmdArgs.add("-video-codec")
-                        cmdArgs.add(o.videoCodec)
-                        cmdArgs.add("-video-w")
-                        cmdArgs.add(o.videoW.toString())
-                        cmdArgs.add("-video-h")
-                        cmdArgs.add(o.videoH.toString())
-                        cmdArgs.add("-video-fps")
-                        cmdArgs.add(o.videoFps.toString())
-                        cmdArgs.add("-video-bitrate")
-                        cmdArgs.add(o.videoBitrate)
-                        cmdArgs.add("-video-hw")
-                        cmdArgs.add(o.videoHw)
-                        if (o.videoCodec == "qrcode") {
-                            cmdArgs.add("-video-qr-recovery")
-                            cmdArgs.add(o.videoQrRecovery)
-                            cmdArgs.add("-video-qr-size")
-                            cmdArgs.add(o.videoQrSize.toString())
-                        } else if (o.videoCodec == "tile") {
-                            cmdArgs.add("-video-tile-module")
-                            cmdArgs.add(o.videoTileModule.toString())
-                            cmdArgs.add("-video-tile-rs")
-                            cmdArgs.add(o.videoTileRs.toString())
+
+                    when (o.transport) {
+                        "vp8channel" -> {
+                            appendLine("vp8:")
+                            appendLine("  fps: ${o.vp8Fps}")
+                            appendLine("  batch_size: ${o.vp8Batch}")
+                        }
+                        "seichannel" -> {
+                            appendLine("sei:")
+                            appendLine("  fps: ${o.seiFps}")
+                            appendLine("  batch_size: ${o.seiBatch}")
+                            appendLine("  fragment_size: ${o.seiFrag}")
+                            appendLine("  ack_timeout_ms: ${o.seiAckMs}")
+                        }
+                        "videochannel" -> {
+                            appendLine("video:")
+                            appendLine("  codec: ${o.videoCodec}")
+                            appendLine("  width: ${o.videoW}")
+                            appendLine("  height: ${o.videoH}")
+                            appendLine("  fps: ${o.videoFps}")
+                            appendLine("  bitrate: \"${o.videoBitrate}\"")
+                            appendLine("  hw: ${o.videoHw}")
+                            if (o.videoCodec == "qrcode") {
+                                appendLine("  qr_recovery: ${o.videoQrRecovery}")
+                                appendLine("  qr_size: ${o.videoQrSize}")
+                            } else if (o.videoCodec == "tile") {
+                                appendLine("  tile_module: ${o.videoTileModule}")
+                                appendLine("  tile_rs: ${o.videoTileRs}")
+                            }
                         }
                     }
                 }
+                configFile.writeText(yaml)
+                cmdArgs.add(configFile.absolutePath)
+                return cmdArgs
             }
         }
         

@@ -47,6 +47,7 @@ class OlcRtcConfigActivity : ComponentActivity() {
                 OlcRtcConfigScreen(
                     isEditMode = isEditMode,
                     initialConfig = initialConfig,
+                    profileName = profileName,
                     privacyMode = privacyMode,
                     onBack = { finish() },
                     onSave = { config ->
