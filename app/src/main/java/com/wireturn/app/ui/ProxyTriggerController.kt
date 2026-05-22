@@ -1,6 +1,5 @@
 package com.wireturn.app.ui
 
-import android.content.Intent
 import android.net.VpnService
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts

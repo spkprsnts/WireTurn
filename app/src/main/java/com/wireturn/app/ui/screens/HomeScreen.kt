@@ -85,6 +85,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
@@ -188,7 +189,7 @@ fun HomeScreen(
     val showArchWarning = rememberSaveable { mutableStateOf(!isArchitectureSupported) }
 
     if (showArchWarning.value) {
-        androidx.compose.material3.AlertDialog(
+        AlertDialog(
             onDismissRequest = { showArchWarning.value = false },
             title = { Text(stringResource(R.string.warn_unsupported_arch_title)) },
             text = { Text(stringResource(R.string.warn_unsupported_arch_desc, deviceArchitecture)) },

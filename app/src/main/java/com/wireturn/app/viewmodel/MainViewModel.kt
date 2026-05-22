@@ -155,15 +155,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _isHomeScreenActive = MutableStateFlow(false)
 
-    private val _isBottomBarVisible = MutableStateFlow(true)
-    val isBottomBarVisible: StateFlow<Boolean> = _isBottomBarVisible.asStateFlow()
-
-    private val _bottomBarOffset = MutableStateFlow(0f)
-    val bottomBarOffset: StateFlow<Float> = _bottomBarOffset.asStateFlow()
-
-    private val _bottomBarHeight = MutableStateFlow(0f)
-    val bottomBarHeight: StateFlow<Float> = _bottomBarHeight.asStateFlow()
-
     val isMainConfigChanged: StateFlow<Boolean> = combine(
         clientConfig, ProxyServiceState.clientConfigSnapshot
     ) { client, clientSnap ->
@@ -214,65 +205,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     ) { main, xray, isRestarting -> 
         !isRestarting && (main || xray) 
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
-    private var settleJob: Job? = null
-
-    fun setBottomBarHeight(height: Float) {
-        if (height > 0 && _bottomBarHeight.value != height) {
-            if (_bottomBarOffset.value > height) _bottomBarOffset.value = height
-        }
-        _bottomBarHeight.value = height
-    }
-
-    fun onBottomBarScroll(delta: Float) {
-        val height = _bottomBarHeight.value
-        if (height <= 0f) return
-        settleJob?.cancel()
-        val adjustedDelta = delta / 3f
-        val currentOffset = _bottomBarOffset.value
-        if (adjustedDelta > 0) {
-            _bottomBarOffset.value = (currentOffset - adjustedDelta).coerceAtLeast(0f)
-        } else {
-            _bottomBarOffset.value = (currentOffset - adjustedDelta).coerceAtMost(height)
-        }
-    }
-
-    fun settleBottomBar(velocity: Float) {
-        val height = _bottomBarHeight.value
-        if (height <= 0f) return
-        settleJob?.cancel()
-        val currentOffset = _bottomBarOffset.value
-        val target = when {
-            velocity > 300f -> 0f
-            velocity < -1500f -> height
-            currentOffset > height * 0.8f -> height
-            else -> 0f
-        }
-        if (currentOffset == target) return
-        settleJob = viewModelScope.launch {
-            val duration = if (target == 0f) 150L else 250L
-            val startTime = System.currentTimeMillis()
-            while (true) {
-                val elapsed = System.currentTimeMillis() - startTime
-                if (elapsed >= duration) break
-                val progress = elapsed.toFloat() / duration
-                val easedProgress = if (target == 0f) {
-                    1f - (1f - progress) * (1f - progress)
-                } else {
-                    progress * progress
-                }
-                _bottomBarOffset.value = currentOffset + (target - currentOffset) * easedProgress
-                delay(16)
-            }
-            _bottomBarOffset.value = target
-        }
-    }
-
-    fun setBottomBarVisible(visible: Boolean) {
-        settleJob?.cancel()
-        _isBottomBarVisible.value = visible
-        if (visible) _bottomBarOffset.value = 0f
-    }
 
     private var pingJob: Job? = null
     private var metricsJob: Job? = null
