@@ -152,6 +152,10 @@ fun WireturnTheme(
                 window.isStatusBarContrastEnforced = false
             }
 
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                view.isForceDarkAllowed = false
+            }
+
             val controller = WindowCompat.getInsetsController(window, view)
             controller.isAppearanceLightStatusBars = !darkTheme
             controller.isAppearanceLightNavigationBars = !darkTheme

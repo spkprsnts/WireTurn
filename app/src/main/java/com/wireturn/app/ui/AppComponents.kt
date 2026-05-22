@@ -1491,6 +1491,9 @@ fun AppTopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = screenBackgroundColor,
             scrolledContainerColor = screenBackgroundColor,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+            actionIconContentColor = MaterialTheme.colorScheme.onSurface,
             subtitleContentColor = MaterialTheme.colorScheme.onSurface
         )
     )
@@ -1528,6 +1531,7 @@ fun <T> SelectionDialog(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(bottom = if (description != null) 4.dp else 16.dp, start = 12.dp)
                 )
                 if (description != null) {
