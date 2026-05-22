@@ -146,13 +146,6 @@ fun ConnectionSettingsScreen(
         state = topAppBarState
     )
 
-    val isDark = com.wireturn.app.ui.theme.LocalIsDark.current
-    val blockContainerColor = if (isDark) {
-        MaterialTheme.colorScheme.surfaceContainerHighest
-    } else {
-        MaterialTheme.colorScheme.surface
-    }
-
     if (showExitDialog.value) {
         AlertDialog(
             onDismissRequest = { showExitDialog.value = false },
@@ -238,7 +231,7 @@ fun ConnectionSettingsScreen(
         ) {
             // Turnable
             SettingsGroup(title = stringResource(R.string.settings_group_turnable)) {
-                SettingsGroupItem(isTop = true, isBottom = true, containerColor = blockContainerColor) {
+                SettingsGroupItem(isTop = true, isBottom = true) {
                     TextFieldRow(
                         label = stringResource(R.string.local_listen_address),
                         value = listenAddr.redact(privacyMode),
@@ -255,7 +248,7 @@ fun ConnectionSettingsScreen(
 
             // olcRTC
             SettingsGroup(title = stringResource(R.string.settings_group_olcrtc)) {
-                SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
+                SettingsGroupItem(isTop = true, isBottom = false) {
                     TextFieldRow(
                         label = stringResource(R.string.socks5),
                         value = olSocks.redact(privacyMode),
@@ -272,7 +265,6 @@ fun ConnectionSettingsScreen(
                 SettingsGroupItem(
                     isTop = false,
                     isBottom = !olAuth,
-                    containerColor = blockContainerColor,
                     onClick = {
                         olAuth = !olAuth
                         HapticUtil.perform(
@@ -292,7 +284,7 @@ fun ConnectionSettingsScreen(
                 
                 AnimatedVisibility(visible = olAuth) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                        SettingsGroupItem(isTop = false, isBottom = false) {
                             TextFieldRow(
                                 label = stringResource(R.string.xray_proxy_user),
                                 value = olUser.redact(privacyMode),
@@ -304,7 +296,7 @@ fun ConnectionSettingsScreen(
                                 privacyMode = privacyMode
                             )
                         }
-                        SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+                        SettingsGroupItem(isTop = false, isBottom = true) {
                             TextFieldRow(
                                 label = stringResource(R.string.xray_proxy_pass),
                                 value = olPass.redact(privacyMode),
@@ -338,7 +330,7 @@ fun ConnectionSettingsScreen(
 
             // Xray
             SettingsGroup(title = stringResource(R.string.settings_group_xray)) {
-                SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
+                SettingsGroupItem(isTop = true, isBottom = false) {
                     TextFieldRow(
                         label = stringResource(R.string.socks5),
                         value = xraySocks.redact(privacyMode),
@@ -351,7 +343,7 @@ fun ConnectionSettingsScreen(
                     )
                 }
                 
-                SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                SettingsGroupItem(isTop = false, isBottom = false) {
                     TextFieldRow(
                         label = stringResource(R.string.xray_http),
                         value = xrayHttp.redact(privacyMode),
@@ -367,7 +359,6 @@ fun ConnectionSettingsScreen(
                 SettingsGroupItem(
                     isTop = false,
                     isBottom = !xrayAuth,
-                    containerColor = blockContainerColor,
                     onClick = {
                         xrayAuth = !xrayAuth
                         HapticUtil.perform(
@@ -387,7 +378,7 @@ fun ConnectionSettingsScreen(
                 
                 AnimatedVisibility(visible = xrayAuth) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                        SettingsGroupItem(isTop = false, isBottom = false) {
                             TextFieldRow(
                                 label = stringResource(R.string.xray_proxy_user),
                                 value = xrayUser.redact(privacyMode),
@@ -399,7 +390,7 @@ fun ConnectionSettingsScreen(
                                 privacyMode = privacyMode
                             )
                         }
-                        SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+                        SettingsGroupItem(isTop = false, isBottom = true) {
                             TextFieldRow(
                                 label = stringResource(R.string.xray_proxy_pass),
                                 value = xrayPass.redact(privacyMode),

@@ -59,7 +59,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
@@ -176,8 +175,6 @@ fun XraySetupScreen(
         previousDualRoute = vlessIsDualRoute
     }
 
-    val isDark = com.wireturn.app.ui.theme.LocalIsDark.current
-    val blockContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
     val context = LocalContext.current
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
@@ -435,8 +432,7 @@ fun XraySetupScreen(
                 SettingsGroup(title = stringResource(R.string.xray_protocol_label)) {
                     SettingsGroupItem(
                         isTop = true,
-                        isBottom = true,
-                        containerColor = blockContainerColor
+                        isBottom = true
                     ) {
                         val configurations = XrayConfiguration.entries
                         val protocolLabels = configurations.associateWith { config ->
@@ -489,7 +485,6 @@ fun XraySetupScreen(
                         initialWgConfig = initialWgConfig,
                         isPrivacyActive = isPrivacyActive,
                         kernelVariant = kernelVariant,
-                        blockContainerColor = blockContainerColor,
                         isEditMode = isEditMode
                     )
                 }
@@ -509,7 +504,6 @@ fun XraySetupScreen(
                         initialVlessConfig = initialVlessConfig,
                         isPrivacyActive = isPrivacyActive,
                         kernelVariant = kernelVariant,
-                        blockContainerColor = blockContainerColor,
                         isEditMode = isEditMode
                     )
                 }
@@ -556,15 +550,13 @@ private fun WireGuardSettingsBlock(
     initialWgConfig: WgConfig,
     isPrivacyActive: Boolean,
     kernelVariant: KernelVariant,
-    blockContainerColor: Color,
     isEditMode: Boolean
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(19.dp)) {
         if (kernelVariant == KernelVariant.OLCRTC) {
             SettingsGroupItem(
                 isTop = true,
-                isBottom = true,
-                containerColor = blockContainerColor
+                isBottom = true
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -586,7 +578,7 @@ private fun WireGuardSettingsBlock(
         }
 
         SettingsGroup(title = stringResource(R.string.wg_interface)) {
-            SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
+            SettingsGroupItem(isTop = true, isBottom = false) {
                 TextFieldRow(
                     label = stringResource(R.string.wg_private_key),
                     value = privateKey.redact(isPrivacyActive),
@@ -598,7 +590,7 @@ private fun WireGuardSettingsBlock(
                     privacyMode = isPrivacyActive
                 )
             }
-            SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+            SettingsGroupItem(isTop = false, isBottom = false) {
                 TextFieldRow(
                     label = stringResource(R.string.wg_address),
                     value = address.redact(isPrivacyActive),
@@ -610,7 +602,7 @@ private fun WireGuardSettingsBlock(
                     privacyMode = isPrivacyActive
                 )
             }
-            SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+            SettingsGroupItem(isTop = false, isBottom = true) {
                 TextFieldRow(
                     label = stringResource(R.string.wg_mtu),
                     value = mtu,
@@ -624,7 +616,7 @@ private fun WireGuardSettingsBlock(
         }
 
         SettingsGroup(title = stringResource(R.string.wg_peer)) {
-            SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
+            SettingsGroupItem(isTop = true, isBottom = false) {
                 TextFieldRow(
                     label = stringResource(R.string.wg_public_key),
                     value = publicKey.redact(isPrivacyActive),
@@ -636,7 +628,7 @@ private fun WireGuardSettingsBlock(
                     privacyMode = isPrivacyActive
                 )
             }
-            SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+            SettingsGroupItem(isTop = false, isBottom = false) {
                 TextFieldRow(
                     label = stringResource(R.string.wg_endpoint),
                     value = endpoint.redact(isPrivacyActive),
@@ -646,7 +638,7 @@ private fun WireGuardSettingsBlock(
                     privacyMode = isPrivacyActive
                 )
             }
-            SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+            SettingsGroupItem(isTop = false, isBottom = true) {
                 TextFieldRow(
                     label = stringResource(R.string.wg_persistent_keepalive),
                     value = persistentKeepalive,
@@ -672,7 +664,6 @@ private fun VlessSettingsBlock(
     initialVlessConfig: VlessConfig,
     isPrivacyActive: Boolean,
     kernelVariant: KernelVariant,
-    blockContainerColor: Color,
     isEditMode: Boolean
 ) {
     val context = LocalContext.current
@@ -692,7 +683,7 @@ private fun VlessSettingsBlock(
 
     Column(verticalArrangement = Arrangement.spacedBy(19.dp)) {
         SettingsGroup(title = stringResource(R.string.vless_settings)) {
-            SettingsGroupItem(isTop = true, isBottom = true, containerColor = blockContainerColor) {
+            SettingsGroupItem(isTop = true, isBottom = true) {
                 TextFieldRow(
                     label = stringResource(R.string.vless_link_label) + vlessName,
                     value = vlessLink.redact(isPrivacyActive),
@@ -721,7 +712,6 @@ private fun VlessSettingsBlock(
             SettingsGroupItem(
                 isTop = true,
                 isBottom = !vlessIsDualRoute,
-                containerColor = blockContainerColor,
                 onClick = { 
                     val next = !vlessIsDualRoute
                     HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
@@ -756,7 +746,7 @@ private fun VlessSettingsBlock(
                 exit = fadeOut(tween(300)) + shrinkVertically(tween(300))
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                    SettingsGroupItem(isTop = false, isBottom = false) {
                         TextFieldRow(
                             label = stringResource(R.string.vless_direct_address),
                             value = vlessDirectAddress.redact(isPrivacyActive),
@@ -777,7 +767,7 @@ private fun VlessSettingsBlock(
                             }
                         )
                     }
-                    SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+                    SettingsGroupItem(isTop = false, isBottom = true) {
                         TextFieldRow(
                             label = stringResource(R.string.vless_hc_interval),
                             value = vlessHcInterval,

@@ -75,7 +75,6 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.ui.graphics.takeOrElse
-import com.wireturn.app.ui.theme.LocalIsDark
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -430,8 +429,8 @@ fun LargeLeadingIcon(
 fun SettingsGroupItem(
     isTop: Boolean,
     isBottom: Boolean,
-    containerColor: Color,
     modifier: Modifier = Modifier,
+    containerColor: Color = MaterialTheme.colorScheme.surface,
     onClick: (() -> Unit)? = null,
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
@@ -543,8 +542,8 @@ fun MainSwitchItem(
 
 @Composable
 fun CompactSettingsItem(
-    containerColor: Color,
     modifier: Modifier = Modifier,
+    containerColor: Color = MaterialTheme.colorScheme.surface,
     onClick: (() -> Unit)? = null,
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
@@ -1374,7 +1373,7 @@ fun ConfigTopAppBar(
     startCollapsed: Boolean = true,
 ) {
     val screenBackgroundColor = containerColor.takeOrElse {
-        if (LocalIsDark.current) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerLow
+        MaterialTheme.colorScheme.background
     }
 
     val annotatedTitle = remember(title) {

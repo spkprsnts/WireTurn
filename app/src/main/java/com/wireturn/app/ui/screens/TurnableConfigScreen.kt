@@ -108,8 +108,6 @@ fun TurnableConfigScreen(
     BackHandler(enabled = isEditMode && isModified, onBack = handleBack)
     
     val scrollState = rememberScrollState()
-    val isDark = com.wireturn.app.ui.theme.LocalIsDark.current
-    val blockContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
     val context = LocalContext.current
 
     val topAppBarState = rememberTopAppBarState()
@@ -234,7 +232,6 @@ fun TurnableConfigScreen(
                     SettingsGroupItem(
                         isTop = true,
                         isBottom = false,
-                        containerColor = blockContainerColor,
                         onClick = {
                             HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                             showRoutesDialog.value = true
@@ -248,8 +245,7 @@ fun TurnableConfigScreen(
                 }
                 SettingsGroupItem(
                     isTop = config.routes.isEmpty(),
-                    isBottom = false,
-                    containerColor = blockContainerColor
+                    isBottom = false
                 ) {
                     com.wireturn.app.ui.SliderRow(
                         label = stringResource(R.string.peers_label),
@@ -265,8 +261,7 @@ fun TurnableConfigScreen(
                 }
                 SettingsGroupItem(
                     isTop = false,
-                    isBottom = false,
-                    containerColor = blockContainerColor
+                    isBottom = false
                 ) {
                     TextFieldRow(
                         label = stringResource(R.string.username_label),
@@ -280,8 +275,7 @@ fun TurnableConfigScreen(
                 }
                 SettingsGroupItem(
                     isTop = false,
-                    isBottom = true,
-                    containerColor = blockContainerColor
+                    isBottom = true
                 ) {
                     TextFieldRow(
                         label = stringResource(R.string.call_id_label),
@@ -299,8 +293,7 @@ fun TurnableConfigScreen(
             SettingsGroup(title = stringResource(R.string.server_settings_title)) {
                 SettingsGroupItem(
                     isTop = true,
-                    isBottom = false,
-                    containerColor = blockContainerColor
+                    isBottom = false
                 ) {
                     TextFieldRow(
                         label = stringResource(R.string.user_uuid_label),
@@ -315,7 +308,6 @@ fun TurnableConfigScreen(
                 SettingsGroupItem(
                     isTop = false,
                     isBottom = false,
-                    containerColor = blockContainerColor,
                     onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         showPlatformDialog.value = true
@@ -346,8 +338,7 @@ fun TurnableConfigScreen(
                 }
                 SettingsGroupItem(
                     isTop = false,
-                    isBottom = false,
-                    containerColor = blockContainerColor
+                    isBottom = false
                 ) {
                     LabeledButtonGroup(
                         label = stringResource(R.string.connection_type_label),
@@ -368,8 +359,7 @@ fun TurnableConfigScreen(
                 }
                 SettingsGroupItem(
                     isTop = false,
-                    isBottom = false,
-                    containerColor = blockContainerColor
+                    isBottom = false
                 ) {
                     TextFieldRow(
                         label = stringResource(R.string.pub_key_label),
@@ -383,8 +373,7 @@ fun TurnableConfigScreen(
                 }
                 SettingsGroupItem(
                     isTop = false,
-                    isBottom = false,
-                    containerColor = blockContainerColor
+                    isBottom = false
                 ) {
                     LabeledButtonGroup(
                         label = stringResource(R.string.encryption_label),
@@ -405,8 +394,7 @@ fun TurnableConfigScreen(
                 }
                 SettingsGroupItem(
                     isTop = false,
-                    isBottom = false,
-                    containerColor = blockContainerColor
+                    isBottom = false
                 ) {
                     TextFieldRow(
                         label = stringResource(R.string.gateway_label),
@@ -420,8 +408,7 @@ fun TurnableConfigScreen(
                 }
                 SettingsGroupItem(
                     isTop = false,
-                    isBottom = false,
-                    containerColor = blockContainerColor
+                    isBottom = false
                 ) {
                     LabeledButtonGroup(
                         label = stringResource(R.string.proto_label),
@@ -444,7 +431,6 @@ fun TurnableConfigScreen(
                 SettingsGroupItem(
                     isTop = false,
                     isBottom = true,
-                    containerColor = blockContainerColor,
                     onClick = {
                         val next = !config.forceTurn
                         HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)

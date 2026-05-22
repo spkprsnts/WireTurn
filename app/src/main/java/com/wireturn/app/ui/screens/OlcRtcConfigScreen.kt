@@ -108,8 +108,6 @@ fun OlcRtcConfigScreen(
     val showCarrierDialog = remember { mutableStateOf(false) }
     val showTransportDialog = remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
-    val isDark = com.wireturn.app.ui.theme.LocalIsDark.current
-    val blockContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
     val context = LocalContext.current
 
     val topAppBarState = rememberTopAppBarState()
@@ -242,7 +240,6 @@ fun OlcRtcConfigScreen(
                 SettingsGroupItem(
                     isTop = true,
                     isBottom = false,
-                    containerColor = blockContainerColor,
                     onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         showCarrierDialog.value = true
@@ -275,7 +272,6 @@ fun OlcRtcConfigScreen(
                 SettingsGroupItem(
                     isTop = false,
                     isBottom = false,
-                    containerColor = blockContainerColor,
                     onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         showTransportDialog.value = true
@@ -305,7 +301,7 @@ fun OlcRtcConfigScreen(
                     }
                 }
 
-                SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                SettingsGroupItem(isTop = false, isBottom = false) {
                     TextFieldRow(
                         label = stringResource(R.string.olcrtc_id_label),
                         value = config.id.redact(isPrivacyActive),
@@ -315,7 +311,7 @@ fun OlcRtcConfigScreen(
                         privacyMode = isPrivacyActive
                     )
                 }
-                SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+                SettingsGroupItem(isTop = false, isBottom = true) {
                     TextFieldRow(
                         label = stringResource(R.string.olcrtc_dns_label),
                         value = config.dns.redact(isPrivacyActive),
@@ -329,7 +325,7 @@ fun OlcRtcConfigScreen(
 
             // Server Settings
             SettingsGroup(title = stringResource(R.string.server_settings_title)) {
-                SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
+                SettingsGroupItem(isTop = true, isBottom = false) {
                     TextFieldRow(
                         label = stringResource(R.string.olcrtc_client_id_label),
                         value = config.clientId.redact(isPrivacyActive),
@@ -339,7 +335,7 @@ fun OlcRtcConfigScreen(
                         privacyMode = isPrivacyActive
                     )
                 }
-                SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+                SettingsGroupItem(isTop = false, isBottom = true) {
                     TextFieldRow(
                         label = stringResource(R.string.olcrtc_key_label),
                         value = config.key.redact(isPrivacyActive),
@@ -355,7 +351,7 @@ fun OlcRtcConfigScreen(
             when (config.transport) {
                 "vp8channel" -> {
                     SettingsGroup(title = stringResource(R.string.olcrtc_vp8_settings_title)) {
-                        SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
+                        SettingsGroupItem(isTop = true, isBottom = false) {
                             com.wireturn.app.ui.SliderRow(
                                 label = stringResource(R.string.olcrtc_vp8_fps),
                                 value = config.vp8Fps.toFloat(),
@@ -365,7 +361,7 @@ fun OlcRtcConfigScreen(
                                 isModified = isEditMode && config.vp8Fps != initialConfig.vp8Fps
                             )
                         }
-                        SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+                        SettingsGroupItem(isTop = false, isBottom = true) {
                             com.wireturn.app.ui.SliderRow(
                                 label = stringResource(R.string.olcrtc_vp8_batch),
                                 value = config.vp8Batch.toFloat(),
@@ -379,7 +375,7 @@ fun OlcRtcConfigScreen(
                 }
                 "seichannel" -> {
                     SettingsGroup(title = stringResource(R.string.olcrtc_sei_settings_title)) {
-                        SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
+                        SettingsGroupItem(isTop = true, isBottom = false) {
                             com.wireturn.app.ui.SliderRow(
                                 label = stringResource(R.string.olcrtc_sei_fps),
                                 value = config.seiFps.toFloat(),
@@ -389,7 +385,7 @@ fun OlcRtcConfigScreen(
                                 isModified = isEditMode && config.seiFps != initialConfig.seiFps
                             )
                         }
-                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                        SettingsGroupItem(isTop = false, isBottom = false) {
                             com.wireturn.app.ui.SliderRow(
                                 label = stringResource(R.string.olcrtc_sei_batch),
                                 value = config.seiBatch.toFloat(),
@@ -399,7 +395,7 @@ fun OlcRtcConfigScreen(
                                 isModified = isEditMode && config.seiBatch != initialConfig.seiBatch
                             )
                         }
-                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                        SettingsGroupItem(isTop = false, isBottom = false) {
                             com.wireturn.app.ui.SliderRow(
                                 label = stringResource(R.string.olcrtc_sei_frag),
                                 value = config.seiFrag.toFloat(),
@@ -409,7 +405,7 @@ fun OlcRtcConfigScreen(
                                 isModified = isEditMode && config.seiFrag != initialConfig.seiFrag
                             )
                         }
-                        SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+                        SettingsGroupItem(isTop = false, isBottom = true) {
                             com.wireturn.app.ui.SliderRow(
                                 label = stringResource(R.string.olcrtc_sei_ack_ms),
                                 value = config.seiAckMs.toFloat(),
@@ -423,7 +419,7 @@ fun OlcRtcConfigScreen(
                 }
                 "videochannel" -> {
                     SettingsGroup(title = stringResource(R.string.olcrtc_video_settings_title)) {
-                        SettingsGroupItem(isTop = true, isBottom = false, containerColor = blockContainerColor) {
+                        SettingsGroupItem(isTop = true, isBottom = false) {
                             TextFieldRow(
                                 label = stringResource(R.string.olcrtc_video_codec),
                                 value = config.videoCodec,
@@ -431,7 +427,7 @@ fun OlcRtcConfigScreen(
                                 isModified = isEditMode && config.videoCodec != initialConfig.videoCodec
                             )
                         }
-                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                        SettingsGroupItem(isTop = false, isBottom = false) {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                 TextFieldRow(
                                     label = stringResource(R.string.olcrtc_video_width),
@@ -451,7 +447,7 @@ fun OlcRtcConfigScreen(
                                 )
                             }
                         }
-                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                        SettingsGroupItem(isTop = false, isBottom = false) {
                             com.wireturn.app.ui.SliderRow(
                                 label = stringResource(R.string.olcrtc_video_fps),
                                 value = config.videoFps.toFloat(),
@@ -461,7 +457,7 @@ fun OlcRtcConfigScreen(
                                 isModified = isEditMode && config.videoFps != initialConfig.videoFps
                             )
                         }
-                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                        SettingsGroupItem(isTop = false, isBottom = false) {
                             TextFieldRow(
                                 label = stringResource(R.string.olcrtc_video_bitrate),
                                 value = config.videoBitrate,
@@ -469,7 +465,7 @@ fun OlcRtcConfigScreen(
                                 isModified = isEditMode && config.videoBitrate != initialConfig.videoBitrate
                             )
                         }
-                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                        SettingsGroupItem(isTop = false, isBottom = false) {
                             TextFieldRow(
                                 label = stringResource(R.string.olcrtc_video_hw),
                                 value = config.videoHw,
@@ -477,7 +473,7 @@ fun OlcRtcConfigScreen(
                                 isModified = isEditMode && config.videoHw != initialConfig.videoHw
                             )
                         }
-                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                        SettingsGroupItem(isTop = false, isBottom = false) {
                             TextFieldRow(
                                 label = stringResource(R.string.olcrtc_video_qr_recovery),
                                 value = config.videoQrRecovery,
@@ -485,7 +481,7 @@ fun OlcRtcConfigScreen(
                                 isModified = isEditMode && config.videoQrRecovery != initialConfig.videoQrRecovery
                             )
                         }
-                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                        SettingsGroupItem(isTop = false, isBottom = false) {
                             com.wireturn.app.ui.SliderRow(
                                 label = stringResource(R.string.olcrtc_video_qr_size),
                                 value = config.videoQrSize.toFloat(),
@@ -495,7 +491,7 @@ fun OlcRtcConfigScreen(
                                 isModified = isEditMode && config.videoQrSize != initialConfig.videoQrSize
                             )
                         }
-                        SettingsGroupItem(isTop = false, isBottom = false, containerColor = blockContainerColor) {
+                        SettingsGroupItem(isTop = false, isBottom = false) {
                             com.wireturn.app.ui.SliderRow(
                                 label = stringResource(R.string.olcrtc_video_tile_module),
                                 value = config.videoTileModule.toFloat(),
@@ -505,7 +501,7 @@ fun OlcRtcConfigScreen(
                                 isModified = isEditMode && config.videoTileModule != initialConfig.videoTileModule
                             )
                         }
-                        SettingsGroupItem(isTop = false, isBottom = true, containerColor = blockContainerColor) {
+                        SettingsGroupItem(isTop = false, isBottom = true) {
                             com.wireturn.app.ui.SliderRow(
                                 label = stringResource(R.string.olcrtc_video_tile_rs),
                                 value = config.videoTileRs.toFloat(),

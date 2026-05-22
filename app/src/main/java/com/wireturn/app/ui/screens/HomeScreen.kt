@@ -340,8 +340,6 @@ fun HomeScreen(
         }
     }
 
-    val isDark = com.wireturn.app.ui.theme.LocalIsDark.current
-    val blockContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
 
     val vpnLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -451,7 +449,7 @@ fun HomeScreen(
                 onDownload = { viewModel.downloadUpdate() },
                 onInstall = { viewModel.installUpdate() },
                 onCheck = { viewModel.checkForUpdate() },
-                containerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surfaceContainerHigh
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
             )
 
             // --- Permissions & Optimization Banner ---
@@ -596,7 +594,6 @@ fun HomeScreen(
                     ) {
                         // Stats Block
                         CompactSettingsItem(
-                            containerColor = blockContainerColor,
                             modifier = Modifier.fillMaxHeight()
                         ) {
                             Row(
@@ -662,7 +659,6 @@ fun HomeScreen(
 
                         // Ping Block
                         CompactSettingsItem(
-                            containerColor = blockContainerColor,
                             modifier = Modifier.fillMaxHeight(),
                             onClick = {
                                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -767,7 +763,6 @@ fun HomeScreen(
             SettingsGroupItem(
                 isTop = true,
                 isBottom = !configChanged || proxyState is ProxyState.Idle,
-                containerColor = blockContainerColor,
                 onClick = {
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     showProfilesDialog.value = true
@@ -789,8 +784,7 @@ fun HomeScreen(
                     Spacer(Modifier.height(2.dp))
                     SettingsGroupItem(
                         isTop = false,
-                        isBottom = true,
-                        containerColor = blockContainerColor
+                        isBottom = true
                     ) {
                         Column {
                             Row(
@@ -901,7 +895,6 @@ fun HomeScreen(
                 SettingsGroupItem(
                     isTop = true,
                     isBottom = false,
-                    containerColor = blockContainerColor,
                     onClick = {
                         if (profilesExist) {
                             HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -983,7 +976,6 @@ fun HomeScreen(
             SettingsGroupItem(
                 isTop = false,
                 isBottom = true,
-                containerColor = blockContainerColor,
                 onClick = { toggleVpnAction(!vpnEnabled) }
             ) {
                 SwitchRow(
@@ -1105,7 +1097,6 @@ fun HomeScreen(
                 SettingsGroupItem(
                     isTop = true,
                     isBottom = false,
-                    containerColor = blockContainerColor,
                     enabled = showXray || isOlcrtc,
                     onClick = {
                         if (privacyMode) return@SettingsGroupItem
@@ -1148,7 +1139,6 @@ fun HomeScreen(
                     SettingsGroupItem(
                         isTop = false,
                         isBottom = false,
-                        containerColor = blockContainerColor,
                         enabled = showXray,
                         onClick = {
                             if (privacyMode) return@SettingsGroupItem
@@ -1181,7 +1171,6 @@ fun HomeScreen(
             SettingsGroupItem(
                 isTop = false,
                 isBottom = true,
-                containerColor = blockContainerColor,
                 onClick = {
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     onNavigateToConnectionSettings()

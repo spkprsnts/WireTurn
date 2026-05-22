@@ -116,14 +116,21 @@ fun WireturnTheme(
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             val baseScheme = if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-            baseScheme.copy(
-                background = if (darkTheme) baseScheme.surface else baseScheme.surfaceContainerLow,
-                surface = if (darkTheme) baseScheme.surface else baseScheme.surface
-            )
+            if (darkTheme) {
+                baseScheme.copy(
+                    background = baseScheme.surfaceContainer,
+                    surface = baseScheme.surfaceBright
+                )
+            } else {
+                baseScheme.copy(
+                    background = baseScheme.surfaceContainerLow,
+                    surface = baseScheme.surface
+                )
+            }
         }
         darkTheme -> darkScheme.copy(
-            background = surfaceDark,
-            surface = surfaceDark
+            background = surfaceContainerDark,
+            surface = surfaceBrightDark
         )
         else -> lightScheme.copy(
             background = surfaceContainerLowLight,

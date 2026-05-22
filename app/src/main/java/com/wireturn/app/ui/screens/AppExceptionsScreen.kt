@@ -93,7 +93,6 @@ import com.wireturn.app.ui.SettingsGroupItem
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.configButtonGroupItem
 import com.wireturn.app.ui.showExclusiveSnackbar
-import com.wireturn.app.ui.theme.LocalIsDark
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -376,9 +375,7 @@ fun AppExceptionsScreen(
     val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
     Box(modifier = Modifier.fillMaxSize()) {
-        val isDark = LocalIsDark.current
-        val blockContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
-        val screenBackgroundColor = if (isDark) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerLow
+        val screenBackgroundColor = MaterialTheme.colorScheme.background
 
         Scaffold(
             modifier = modifier
@@ -458,7 +455,6 @@ fun AppExceptionsScreen(
                             SettingsGroupItem(
                                 isTop = true,
                                 isBottom = true,
-                                containerColor = blockContainerColor,
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             ) {
                                 LabeledButtonGroup(
@@ -497,7 +493,6 @@ fun AppExceptionsScreen(
                                 SettingsGroupItem(
                                     isTop = true,
                                     isBottom = false,
-                                    containerColor = blockContainerColor,
                                     modifier = Modifier.padding(horizontal = 16.dp),
                                     onClick = {
                                         viewModel.updateGlobalVpnSettings(
@@ -521,7 +516,6 @@ fun AppExceptionsScreen(
                                 SettingsGroupItem(
                                     isTop = false,
                                     isBottom = true,
-                                    containerColor = blockContainerColor,
                                     modifier = Modifier.padding(horizontal = 16.dp),
                                     onClick = {
                                         viewModel.updateGlobalVpnSettings(
@@ -577,7 +571,6 @@ fun AppExceptionsScreen(
                             apps = sortedAppList,
                             excludedApps = excludedApps,
                             newlyAddedPackages = newlyAddedPackages,
-                            blockContainerColor = blockContainerColor,
                             showHeaders = globalVpn.groupAppsByLetter,
                             onToggleExclusion = { pkg ->
                                 HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
@@ -696,7 +689,6 @@ fun AppExceptionsScreen(
                                     apps = searchDisplayList,
                                     excludedApps = excludedApps,
                                     newlyAddedPackages = newlyAddedPackages,
-                                    blockContainerColor = blockContainerColor,
                                     showHeaders = false,
                                     onToggleExclusion = { pkg ->
                                         HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
@@ -805,7 +797,6 @@ private fun LazyListScope.appListItems(
     apps: List<AppInfo>,
     excludedApps: Set<String>,
     newlyAddedPackages: Set<String>,
-    blockContainerColor: Color,
     showHeaders: Boolean = true,
     onToggleExclusion: (String) -> Unit
 ) {
@@ -827,7 +818,6 @@ private fun LazyListScope.appListItems(
                     groupSize = groupApps.size,
                     excludedApps = excludedApps,
                     newlyAddedPackages = newlyAddedPackages,
-                    blockContainerColor = blockContainerColor,
                     onToggleExclusion = onToggleExclusion
                 )
             }
@@ -840,7 +830,6 @@ private fun LazyListScope.appListItems(
                 groupSize = apps.size,
                 excludedApps = excludedApps,
                 newlyAddedPackages = newlyAddedPackages,
-                blockContainerColor = blockContainerColor,
                 onToggleExclusion = onToggleExclusion
             )
         }
@@ -854,7 +843,6 @@ private fun AppListItem(
     groupSize: Int,
     excludedApps: Set<String>,
     newlyAddedPackages: Set<String>,
-    blockContainerColor: Color,
     onToggleExclusion: (String) -> Unit
 ) {
     val context = LocalContext.current
@@ -862,7 +850,7 @@ private fun AppListItem(
     val isNewlyAdded = newlyAddedPackages.contains(app.packageName)
 
     val backgroundColor by animateColorAsState(
-        targetValue = if (isNewlyAdded) MaterialTheme.colorScheme.surfaceContainerHigh else blockContainerColor,
+        targetValue = if (isNewlyAdded) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surface,
         label = "item_bg_color"
     )
 

@@ -55,8 +55,6 @@ fun CreateProfileScreen(
     onBack: () -> Unit,
     onSelectType: (String, String?, String) -> Unit
 ) {
-    val isDark = com.wireturn.app.ui.theme.LocalIsDark.current
-    val blockContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface
     val scrollState = rememberScrollState()
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
@@ -112,8 +110,7 @@ fun CreateProfileScreen(
             // Profile Name Input
             SettingsGroupItem(
                 isTop = true,
-                isBottom = true,
-                containerColor = blockContainerColor
+                isBottom = true
             ) {
                 TextFieldRow(
                     label = stringResource(R.string.profile_name_label),
@@ -128,7 +125,6 @@ fun CreateProfileScreen(
                 SettingsGroupItem(
                     isTop = true,
                     isBottom = false,
-                    containerColor = blockContainerColor,
                     onClick = { showQrScanner.value = true }
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -146,7 +142,6 @@ fun CreateProfileScreen(
                 SettingsGroupItem(
                     isTop = false,
                     isBottom = false,
-                    containerColor = blockContainerColor,
                     onClick = { 
                         scope.launch {
                             val clipEntry = clipboard.getClipEntry()
@@ -172,7 +167,6 @@ fun CreateProfileScreen(
                 SettingsGroupItem(
                     isTop = false,
                     isBottom = true,
-                    containerColor = blockContainerColor,
                     onClick = { filePickerLauncher.launch("*/*") }
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -193,7 +187,6 @@ fun CreateProfileScreen(
                 SettingsGroupItem(
                     isTop = true,
                     isBottom = false,
-                    containerColor = blockContainerColor,
                     enabled = false,
                     onClick = { onSelectType("Turnable", null, profileName) }
                 ) {
@@ -207,7 +200,6 @@ fun CreateProfileScreen(
                 SettingsGroupItem(
                     isTop = false,
                     isBottom = true,
-                    containerColor = blockContainerColor,
                     onClick = { onSelectType("olcRTC", null, profileName) }
                 ) {
                     ConfigRowLabel(text = stringResource(R.string.kernel_olcrtc))
