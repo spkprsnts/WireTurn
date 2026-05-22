@@ -39,6 +39,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import com.wireturn.app.R
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalIconButton
@@ -63,7 +65,6 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.ui.unit.dp
 import com.wireturn.app.ui.showExclusiveSnackbar
-import com.wireturn.app.ui.trackScrollDelta
 import kotlinx.coroutines.launch
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.offset
@@ -81,6 +82,9 @@ import android.net.VpnService
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
@@ -121,6 +125,7 @@ import com.wireturn.app.ui.ConfigRowLabel
 import com.wireturn.app.ui.SupportingText
 import com.wireturn.app.ui.UpdateBlock
 import com.wireturn.app.ui.privacySpoiler
+import com.wireturn.app.viewmodel.isImportant
 import com.wireturn.app.viewmodel.UpdateState
 import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.viewmodel.XrayState
@@ -374,10 +379,18 @@ fun HomeScreen(
                         },
                         modifier = Modifier.padding(end = 8.dp)
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.settings_24px),
-                            contentDescription = stringResource(R.string.app_settings_title)
-                        )
+                        BadgedBox(
+                            badge = {
+                                if (updateState.isImportant) {
+                                    Badge()
+                                }
+                            }
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.settings_24px),
+                                contentDescription = stringResource(R.string.app_settings_title)
+                            )
+                        }
                     }
                 },
                 expandedHeight = 56.dp
@@ -411,14 +424,12 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
                 .fillMaxWidth()
                 .wrapContentWidth(Alignment.CenterHorizontally)
                 .widthIn(max = 600.dp)
-                .trackScrollDelta(
-                    onScrollDelta = { viewModel.onBottomBarScroll(it) },
-                    onSettle = { viewModel.settleBottomBar(it) }
-                )
+                .padding(padding)
+                .consumeWindowInsets(padding)
+                .imePadding()
                 .verticalScroll(homeScrollState)
                 .padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -884,14 +895,17 @@ fun HomeScreen(
                 else -> if (activeXrayConfig.protocol == XrayConfiguration.VLESS) stringResource(R.string.vless) else stringResource(R.string.wg_short)
             }
 
+            val profilesExist = profiles.isNotEmpty()
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 SettingsGroupItem(
                     isTop = true,
                     isBottom = false,
                     containerColor = blockContainerColor,
                     onClick = {
-                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                        onNavigateToXrayConfig()
+                        if (profilesExist) {
+                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                            onNavigateToXrayConfig()
+                        }
                     }
                 ) {
                     LaunchedEffect(configValid, xrayConfig.enabled, currentProfileId, autoLaunchSettings.enabled) {
@@ -902,7 +916,7 @@ fun HomeScreen(
                     }
 
                     SwitchRow(
-                        label = stringResource(R.string.xray_title) + if (configValid) " $xrayProtocol" else "",
+                        label = stringResource(R.string.xray_title) + if (configValid && profilesExist) " $xrayProtocol" else "",
                         checked = xrayConfig.enabled,
                         onCheckedChange = { next ->
                             val action = {
@@ -922,7 +936,7 @@ fun HomeScreen(
                             }
                         },
                         isSplit = true,
-                        supportingText = if (!configValid) stringResource(R.string.xray_config_invalid) else {
+                        supportingText = if (!profilesExist) null else if (!configValid) stringResource(R.string.xray_config_invalid) else {
                             when (xrayState) {
                                 XrayState.Starting -> stringResource(R.string.starting)
                                 XrayState.Connecting -> stringResource(R.string.connecting)
@@ -937,12 +951,12 @@ fun HomeScreen(
                                 XrayState.Idle, XrayState.Running, XrayState.DirectRoute -> Icon(
                                     painter = painterResource(R.drawable.ic_xray_24px),
                                     contentDescription = null,
-                                    tint = if (xrayState == XrayState.Idle) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary
+                                    tint = if (xrayState == XrayState.Idle || !profilesExist) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary
                                 )
                                 XrayState.Starting, XrayState.Connecting -> LoadingIndicator()
                             }
                         },
-                        enabled = configValid
+                        enabled = configValid && profilesExist
                     )
                 }
 
@@ -1160,37 +1174,41 @@ fun HomeScreen(
                         )
                     }
                 }
+            }
 
-                SettingsGroupItem(
-                    isTop = false,
-                    isBottom = true,
-                    containerColor = blockContainerColor,
-                    onClick = {
-                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                        onNavigateToConnectionSettings()
-                    }
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        StandardLeadingIcon {
-                            Icon(
-                                painter = painterResource(R.drawable.settings_24px),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            ConfigRowLabel(stringResource(R.string.connection_settings_title))
-                            SupportingText(stringResource(R.string.connection_settings_desc))
-                        }
+            Spacer(Modifier.height(2.dp))
+            SettingsGroupItem(
+                isTop = false,
+                isBottom = true,
+                containerColor = blockContainerColor,
+                onClick = {
+                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                    onNavigateToConnectionSettings()
+                }
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    StandardLeadingIcon {
                         Icon(
-                            painter = painterResource(R.drawable.arrow_forward_ios_24px),
+                            painter = painterResource(R.drawable.settings_24px),
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
+                    Column(modifier = Modifier.weight(1f)) {
+                        ConfigRowLabel(stringResource(R.string.connection_settings_title))
+                        SupportingText(stringResource(R.string.connection_settings_desc))
+                    }
+                    Icon(
+                        painter = painterResource(R.drawable.arrow_forward_ios_24px),
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
                 }
             }
+
+            Spacer(Modifier.navigationBarsPadding())
+            Spacer(Modifier.height(16.dp))
         }
     }
 }
@@ -1205,10 +1223,8 @@ private fun UpdateBanner(
     onCheck: () -> Unit,
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHighest
 ) {
-    val isVisible = state is UpdateState.Available || state is UpdateState.ReadyToInstall || state is UpdateState.Downloading || state is UpdateState.Error
-
     AnimatedVisibility(
-        visible = isVisible,
+        visible = state.isImportant,
         enter = fadeIn() + expandVertically(),
         exit = fadeOut() + shrinkVertically()
     ) {

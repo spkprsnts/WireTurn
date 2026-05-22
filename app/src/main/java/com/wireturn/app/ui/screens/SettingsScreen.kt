@@ -42,7 +42,6 @@ import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -54,8 +53,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
@@ -83,7 +80,6 @@ import kotlinx.coroutines.delay
 fun SettingsScreen(
     viewModel: MainViewModel,
     modifier: Modifier = Modifier,
-    scrollToUpdate: Long = 0L,
     onBack: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -99,22 +95,6 @@ fun SettingsScreen(
     val showSocksHelp = remember { mutableStateOf(false) }
 
     val scrollState = rememberScrollState()
-
-    var updateBlockOffset by remember { mutableFloatStateOf(0f) }
-    var hasScrolled by remember(scrollToUpdate) { mutableStateOf(false) }
-
-    LaunchedEffect(scrollToUpdate) {
-        if (scrollToUpdate > 0L && !hasScrolled) {
-            // Ждем пока координаты блока станут доступны
-            while (updateBlockOffset <= 0f) {
-                delay(16)
-            }
-            // Небольшая задержка, чтобы анимация была плавной и после отрисовки
-            delay(100)
-            scrollState.animateScrollTo(updateBlockOffset.toInt())
-            hasScrolled = true
-        }
-    }
 
     val supportsDynamicColor = remember { Build.VERSION.SDK_INT >= Build.VERSION_CODES.S }
     val supportsSystemTheme = remember { Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q }
@@ -498,10 +478,7 @@ fun SettingsScreen(
             }
 
             SettingsGroup(
-                title = stringResource(R.string.update_title),
-                modifier = Modifier.onGloballyPositioned { coordinates ->
-                    updateBlockOffset = coordinates.positionInParent().y
-                }
+                title = stringResource(R.string.update_title)
             ) {
                 SettingsGroupItem(
                     isTop = true,

@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
@@ -205,6 +206,7 @@ fun ConnectionSettingsScreen(
                 ) + fadeOut(animationSpec = tween(150))
             ) {
                 ExtendedFloatingActionButton(
+                    modifier = Modifier.navigationBarsPadding(),
                     onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         onSave(currentClientConfig, currentXraySettings)
@@ -230,6 +232,7 @@ fun ConnectionSettingsScreen(
                 .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp)
                 .padding(top = 18.dp)
+                .navigationBarsPadding()
                 .padding(bottom = 80.dp),
             verticalArrangement = Arrangement.spacedBy(19.dp)
         ) {

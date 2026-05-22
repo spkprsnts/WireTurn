@@ -143,9 +143,9 @@ fun OnboardingScreen(
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            painter = painterResource(R.drawable.ic_launcher_small),
+                            painter = painterResource(R.drawable.ic_logo_full),
                             contentDescription = null,
-                            modifier = Modifier.size(92.dp),
+                            modifier = Modifier.size(84.dp),
                             tint = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }

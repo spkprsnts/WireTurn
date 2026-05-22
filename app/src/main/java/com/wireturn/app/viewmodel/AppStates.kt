@@ -42,6 +42,12 @@ sealed class UpdateState {
     data class Error(val message: String) : UpdateState()
 }
 
+val UpdateState.isImportant: Boolean
+    get() = this is UpdateState.Available ||
+            this is UpdateState.Downloading ||
+            this is UpdateState.ReadyToInstall ||
+            this is UpdateState.Error
+
 object AppLifecycleState {
     val isAppInForeground = MutableStateFlow(false)
 }

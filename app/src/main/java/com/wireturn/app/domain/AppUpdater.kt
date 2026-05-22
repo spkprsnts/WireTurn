@@ -8,6 +8,9 @@ import androidx.core.content.FileProvider
 import com.wireturn.app.R
 import com.wireturn.app.viewmodel.UpdateState
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,16 +22,8 @@ import java.net.URL
 
 class AppUpdater(private val context: Context) {
 
-    private val _state = MutableStateFlow<UpdateState>(UpdateState.Idle)
     val state: StateFlow<UpdateState> = _state.asStateFlow()
-
-    private val _downloadProgress = MutableStateFlow(0)
     val downloadProgress: StateFlow<Int> = _downloadProgress.asStateFlow()
-
-    private var latestApkUrl: String? = null
-
-    private val apkFile: File
-        get() = File(context.cacheDir, "update.apk")
 
     private fun getCurrentVersion(): String = try {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "0.0.0"
@@ -39,49 +34,62 @@ class AppUpdater(private val context: Context) {
     /**
      * @param silent true — при ошибке сети остаёмся в [UpdateState.Idle] (автопроверка при запуске).
      *               false — показываем [UpdateState.Error] (ручная проверка из UI).
+     * @param force  true — игнорировать минутный кулдаун (при смене настроек).
      */
-    suspend fun checkForUpdate(silent: Boolean = false, allowUnstable: Boolean = false) {
-        _state.value = UpdateState.Checking
-        try {
-            var release = withContext(Dispatchers.IO) { 
-                if (allowUnstable) fetchReleaseByTag("unstable-latest") else fetchLatestRelease() 
-            }
-            
-            if (release == null) {
-                // Try again with xray if conditions are met
-                val proxy = getXrayIfRunning()
-                if (proxy != null) {
-                    release = withContext(Dispatchers.IO) { 
-                        if (allowUnstable) fetchReleaseByTag("unstable-latest", proxy) else fetchLatestRelease(proxy) 
+    suspend fun checkForUpdate(silent: Boolean = false, allowUnstable: Boolean = false, force: Boolean = false) {
+        if (!force && (_state.value == UpdateState.Checking || _state.value == UpdateState.Downloading)) return
+        if (!force && _state.value == UpdateState.ReadyToInstall) return
+        
+        if (force) cancelOngoingWork()
+
+        val now = System.currentTimeMillis()
+        if (!force && silent && now - lastCheckTime < 60_000) return
+        
+        lastCheckTime = now
+        
+        withWorker {
+            _state.value = UpdateState.Checking
+            try {
+                var release = withContext(Dispatchers.IO) { 
+                    if (allowUnstable) fetchReleaseByTag("unstable-latest") else fetchLatestRelease() 
+                }
+                
+                if (release == null) {
+                    // Try again with xray if conditions are met
+                    val proxy = getXrayIfRunning()
+                    if (proxy != null) {
+                        release = withContext(Dispatchers.IO) { 
+                            if (allowUnstable) fetchReleaseByTag("unstable-latest", proxy) else fetchLatestRelease(proxy) 
+                        }
                     }
                 }
-            }
 
-            if (release == null) {
-                _state.value = if (silent) UpdateState.Idle
-                else UpdateState.Error(context.getString(R.string.error_release_info_failed))
-                return
-            }
-
-            val remoteTag = release.getString("tag_name")
-            val remoteVersion = remoteTag.removePrefix("v")
-            val remoteBody = release.optString("body", "")
-
-            if (isNewer(remoteVersion, getCurrentVersion(), remoteBody)) {
-                latestApkUrl = findApkUrl(release)
-                if (latestApkUrl != null) {
-                    val changelog = release.optString("body", "").trim()
-                    _state.value = UpdateState.Available(remoteVersion, changelog)
-                } else {
+                if (release == null) {
                     _state.value = if (silent) UpdateState.Idle
-                    else UpdateState.Error(context.getString(R.string.error_apk_not_found))
+                    else UpdateState.Error(context.getString(R.string.error_release_info_failed))
+                    return@withWorker
                 }
-            } else {
-                _state.value = UpdateState.NoUpdate
+
+                val remoteTag = release.getString("tag_name")
+                val remoteVersion = remoteTag.removePrefix("v")
+                val remoteBody = release.optString("body", "")
+
+                if (isNewer(remoteVersion, getCurrentVersion(), remoteBody)) {
+                    latestApkUrl = findApkUrl(release)
+                    if (latestApkUrl != null) {
+                        val changelog = release.optString("body", "").trim()
+                        _state.value = UpdateState.Available(remoteVersion, changelog)
+                    } else {
+                        _state.value = if (silent) UpdateState.Idle
+                        else UpdateState.Error(context.getString(R.string.error_apk_not_found))
+                    }
+                } else {
+                    _state.value = UpdateState.NoUpdate
+                }
+            } catch (_: Exception) {
+                _state.value = if (silent) UpdateState.Idle
+                else UpdateState.Error(context.getString(R.string.error_no_connection))
             }
-        } catch (_: Exception) {
-            _state.value = if (silent) UpdateState.Idle
-            else UpdateState.Error(context.getString(R.string.error_no_connection))
         }
     }
 
@@ -91,49 +99,57 @@ class AppUpdater(private val context: Context) {
             return
         }
 
-        _state.value = UpdateState.Downloading
-        _downloadProgress.value = 0
-        try {
-            withContext(Dispatchers.IO) {
-                val proxy = getXrayIfRunning()
-                val connection = if (proxy != null) {
-                    URL(url).openConnection(proxy)
-                } else {
-                    URL(url).openConnection()
-                } as HttpURLConnection
-                connection.instanceFollowRedirects = true
-                connection.connect()
+        cancelOngoingWork()
+        
+        withWorker {
+            _state.value = UpdateState.Downloading
+            _downloadProgress.value = 0
+            try {
+                val apkFile = File(context.cacheDir, "update.apk")
+                withContext(Dispatchers.IO) {
+                    val proxy = getXrayIfRunning()
+                    val connection = if (proxy != null) {
+                        URL(url).openConnection(proxy)
+                    } else {
+                        URL(url).openConnection()
+                    } as HttpURLConnection
+                    connection.instanceFollowRedirects = true
+                    connection.connect()
 
-                val totalSize = connection.contentLength.toLong()
-                var downloaded = 0L
+                    val totalSize = connection.contentLength.toLong()
+                    var downloaded = 0L
 
-                connection.inputStream.use { input ->
-                    apkFile.outputStream().use { output ->
-                        val buffer = ByteArray(8192)
-                        var bytesRead: Int
-                        var lastProgress = -1
-                        while (input.read(buffer).also { bytesRead = it } != -1) {
-                            output.write(buffer, 0, bytesRead)
-                            downloaded += bytesRead
-                            if (totalSize > 0) {
-                                val progress = (downloaded * 100 / totalSize).toInt()
-                                if (progress != lastProgress) {
-                                    _downloadProgress.value = progress
-                                    lastProgress = progress
+                    connection.inputStream.use { input ->
+                        apkFile.outputStream().use { output ->
+                            val buffer = ByteArray(8192)
+                            var bytesRead: Int
+                            var lastProgress = -1
+                            while (input.read(buffer).also { bytesRead = it } != -1) {
+                                ensureActive()
+                                output.write(buffer, 0, bytesRead)
+                                downloaded += bytesRead
+                                if (totalSize > 0) {
+                                    val progress = (downloaded * 100 / totalSize).toInt()
+                                    if (progress != lastProgress) {
+                                        _downloadProgress.value = progress
+                                        lastProgress = progress
+                                    }
                                 }
                             }
                         }
                     }
                 }
+                _state.value = UpdateState.ReadyToInstall
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                File(context.cacheDir, "update.apk").delete()
+                _state.value = UpdateState.Error(context.getString(R.string.error_download_failed, e.message))
             }
-            _state.value = UpdateState.ReadyToInstall
-        } catch (e: Exception) {
-            apkFile.delete()
-            _state.value = UpdateState.Error(context.getString(R.string.error_download_failed, e.message))
         }
     }
 
     fun installUpdate() {
+        val apkFile = File(context.cacheDir, "update.apk")
         if (!apkFile.exists()) {
             _state.value = UpdateState.Error(context.getString(R.string.error_update_file_not_found))
             return
@@ -233,9 +249,30 @@ class AppUpdater(private val context: Context) {
         return apkAssets.firstOrNull()?.getString("browser_download_url")
     }
 
+    private fun cancelOngoingWork() {
+        activeJob?.cancel()
+        activeJob = null
+    }
+
+    private suspend inline fun withWorker(crossinline block: suspend () -> Unit) {
+        val job = currentCoroutineContext()[Job]
+        activeJob = job
+        try {
+            block()
+        } finally {
+            if (activeJob == job) activeJob = null
+        }
+    }
+
     companion object {
         private const val RELEASES_URL =
             "https://api.github.com/repos/spkprsnts/WireTurn/releases/latest"
+
+        private val _state = MutableStateFlow<UpdateState>(UpdateState.Idle)
+        private val _downloadProgress = MutableStateFlow(0)
+        private var latestApkUrl: String? = null
+        private var lastCheckTime = 0L
+        private var activeJob: Job? = null
 
         fun isNewer(remote: String, current: String, remoteBody: String = ""): Boolean {
             if (remote == "unstable-latest") {
@@ -288,4 +325,3 @@ class AppUpdater(private val context: Context) {
         }
     }
 }
-

@@ -20,8 +20,6 @@ class SettingsActivity : ComponentActivity() {
 
         splashScreen.setKeepOnScreenCondition { !viewModel.isInitialized.value }
 
-        val scrollToUpdate = intent.getLongExtra("EXTRA_SCROLL_TO_UPDATE", 0L)
-
         setContent {
             val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
@@ -29,7 +27,6 @@ class SettingsActivity : ComponentActivity() {
             WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
                 SettingsScreen(
                     viewModel = viewModel,
-                    scrollToUpdate = scrollToUpdate,
                     onBack = { finish() }
                 )
             }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.PaddingValues
@@ -50,10 +51,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -65,7 +64,6 @@ import com.wireturn.app.R
 import com.wireturn.app.ui.ConfigTopAppBar
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.components.ProxyToggleButton
-import com.wireturn.app.ui.trackScrollDelta
 import com.wireturn.app.ui.theme.extendedColorScheme
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
@@ -177,6 +175,7 @@ fun LogsScreen(
             if (profiles.isNotEmpty()) {
                 ProxyToggleButton(
                     viewModel = viewModel,
+                    modifier = Modifier.navigationBarsPadding(),
                     size = 86.dp,
                     shape = RoundedCornerShape(20.dp),
                     onClick = onToggleProxy,
@@ -212,8 +211,9 @@ fun LogsScreen(
                         .fillMaxSize()
                         .fillMaxWidth()
                         .wrapContentWidth(Alignment.CenterHorizontally)
-                        .widthIn(max = 840.dp),
-                    contentPadding = PaddingValues(bottom = 100.dp)
+                        .widthIn(max = 840.dp)
+                        .navigationBarsPadding(),
+                    contentPadding = PaddingValues(bottom = 148.dp)
                 ) {
                     items(logs, key = { it.id }) { entry ->
                         LogLine(line = entry.message)
