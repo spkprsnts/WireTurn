@@ -1090,6 +1090,7 @@ private fun getProfileIcon(profile: Profile, outlined: Boolean): Int {
             when (profile.olcrtcConfig.provider) {
                 "wbstream" -> R.drawable.ic_wbstream
                 "telemost" -> R.drawable.ic_telemost
+                "jitsi" -> R.drawable.ic_jitsi
                 else -> if (outlined) R.drawable.mobile_outlined_24px else R.drawable.mobile_24px
             }
         }

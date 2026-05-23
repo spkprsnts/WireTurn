@@ -532,6 +532,7 @@ fun OlcRtcConfigScreen(
 private fun getProviderIcon(provider: String): Int = when (provider) {
     "wbstream" -> R.drawable.ic_wbstream
     "telemost" -> R.drawable.ic_telemost
+    "jitsi" -> R.drawable.ic_jitsi
     else -> R.drawable.call_quality_24px
 }
 
