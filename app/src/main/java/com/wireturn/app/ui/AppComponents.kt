@@ -57,9 +57,11 @@ import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ButtonGroupScope
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -363,7 +365,9 @@ fun SupportingText(
     text: String?,
     modifier: Modifier = Modifier,
     style: TextStyle = MaterialTheme.typography.bodyMedium,
-    color: Color = MaterialTheme.colorScheme.onSurfaceVariant
+    color: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    textAlign: TextAlign? = null,
+    contentAlignment: Alignment = Alignment.CenterStart
 ) {
     if (text.isNullOrBlank()) return
 
@@ -371,7 +375,9 @@ fun SupportingText(
         text = text,
         style = style,
         color = color,
-        modifier = modifier
+        modifier = modifier,
+        textAlign = textAlign,
+        contentAlignment = contentAlignment
     )
 }
 
@@ -1518,36 +1524,38 @@ fun <T> SelectionDialog(
     ) {
         Surface(
             shape = MaterialTheme.shapes.extraLarge,
-            tonalElevation = 6.dp,
-            color = MaterialTheme.colorScheme.surface
+            color = MaterialTheme.colorScheme.surfaceContainerHigh
         ) {
             Column(
                 modifier = Modifier
                     .padding(vertical = 24.dp, horizontal = 12.dp)
                     .heightIn(max = 600.dp)
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(bottom = if (description != null) 4.dp else 16.dp, start = 12.dp)
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = if (description != null) 8.dp else 16.dp)
                 )
                 if (description != null) {
                     SupportingText(
                         text = description,
-                        modifier = Modifier.padding(bottom = 16.dp, start = 12.dp)
+                        textAlign = TextAlign.Center,
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp)
+                            .padding(horizontal = 12.dp)
                     )
                 }
-                items.forEachIndexed { index, item ->
+                items.forEach { item ->
                     val selected = isSelected(item)
-                    val shape = when {
-                        items.size == 1 -> MaterialTheme.shapes.medium
-                        index == 0 -> RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
-                        index == items.size - 1 -> RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
-                        else -> RoundedCornerShape(4.dp)
-                    }
+                    val shape = MaterialTheme.shapes.extraLarge
 
                     Surface(
                         onClick = {
@@ -1556,12 +1564,19 @@ fun <T> SelectionDialog(
                             onDismiss()
                         },
                         shape = shape,
-                        color = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+                        color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else Color.Transparent,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = 64.dp)
                     ) {
-                        itemContent(item, selected)
+                        CompositionLocalProvider(
+                            LocalContentColor provides if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                        ) {
+                            ProvideTextStyle(value = MaterialTheme.typography.titleMedium) {
+                                itemContent(item, selected)
+                            }
+                        }
                     }
                 }
             }

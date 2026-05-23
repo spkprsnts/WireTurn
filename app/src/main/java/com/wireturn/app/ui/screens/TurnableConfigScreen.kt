@@ -37,6 +37,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -53,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -453,12 +455,12 @@ private fun getPlatformIcon(platformId: String): Int = when (platformId) {
 fun RouteSummary(
     route: TurnableRoute,
     modifier: Modifier = Modifier,
-    color: Color = MaterialTheme.colorScheme.onSurfaceVariant
+    color: Color = Color.Unspecified
 ) {
     Text(
         text = "${route.socket.uppercase()} • ${route.transport?.uppercase() ?: "none"}",
         style = MaterialTheme.typography.labelSmall,
-        color = color,
+        color = color.takeOrElse { LocalContentColor.current },
         maxLines = 1,
         modifier = modifier
     )
@@ -519,7 +521,7 @@ fun RoutesDialog(
         isSelected = { it.routeId == config.selectedRouteId },
         onSelect = { route -> onSelect(route.routeId) },
         onDismiss = onDismiss
-    ) { route, isSelected ->
+    ) { route, _ ->
         val iconRes = when (route.socket.lowercase()) {
             "tcp" -> R.drawable.compare_arrows_24px
             "udp" -> R.drawable.arrow_forward_24px
@@ -532,22 +534,15 @@ fun RoutesDialog(
             StandardLeadingIcon {
                 Icon(
                     painter = painterResource(iconRes),
-                    contentDescription = null,
-                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    contentDescription = null
                 )
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = route.name.ifBlank { route.routeId },
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-                    color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1
                 )
-                RouteSummary(
-                    route = route,
-                    color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                )
+                RouteSummary(route = route)
             }
         }
     }
@@ -569,7 +564,7 @@ fun TurnablePlatformDialog(
         isSelected = { it == currentPlatform },
         onSelect = { onSelect(it) },
         onDismiss = onDismiss
-    ) { value, isSelected ->
+    ) { value, _ ->
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -577,15 +572,11 @@ fun TurnablePlatformDialog(
             StandardLeadingIcon {
                 Icon(
                     painter = painterResource(getPlatformIcon(value)),
-                    contentDescription = null,
-                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    contentDescription = null
                 )
             }
             Text(
                 text = TurnableConfig.getPlatformDisplayName(value),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-                color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f)
             )
         }

@@ -55,7 +55,6 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
@@ -562,7 +561,7 @@ fun OlcrtcProviderDialog(
         isSelected = { it.first == currentProvider },
         onSelect = { onSelect(it.first) },
         onDismiss = onDismiss
-    ) { (value, label), isSelected ->
+    ) { (value, label), _ ->
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -570,15 +569,11 @@ fun OlcrtcProviderDialog(
             StandardLeadingIcon {
                 Icon(
                     painter = painterResource(getProviderIcon(value)),
-                    contentDescription = null,
-                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    contentDescription = null
                 )
             }
             Text(
                 text = label,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-                color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -604,7 +599,7 @@ fun OlcrtcTransportDialog(
         isSelected = { it == currentTransport },
         onSelect = { onSelect(it) },
         onDismiss = onDismiss
-    ) { value, isSelected ->
+    ) { value, _ ->
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -612,15 +607,11 @@ fun OlcrtcTransportDialog(
             StandardLeadingIcon {
                 Icon(
                     painter = painterResource(getTransportIcon(value)),
-                    contentDescription = null,
-                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    contentDescription = null
                 )
             }
             Text(
                 text = OlcrtcConfig.getTransportDisplayName(value),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-                color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f)
             )
         }
