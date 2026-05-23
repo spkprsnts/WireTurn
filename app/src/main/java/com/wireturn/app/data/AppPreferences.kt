@@ -583,12 +583,17 @@ data class Profile(
         val wc = (wgConfig ?: WgConfig()).fillDefaults()
         val vc = (vlessConfig ?: VlessConfig()).sanitize()
 
+        val finalName = name.takeIf { it.isNotBlank() }?.take(100) ?: defaultName
+        val finalOc = oc.sanitize().let {
+            if (it.mimo.isBlank()) it.copy(mimo = finalName) else it
+        }
+
         return copy(
             id = id.ifBlank { java.util.UUID.randomUUID().toString() },
-            name = name.takeIf { it.isNotBlank() }?.take(100) ?: defaultName,
+            name = finalName,
             kernelVariant = kv,
             turnableConfig = tc.sanitize(),
-            olcrtcConfig = oc.sanitize(),
+            olcrtcConfig = finalOc,
             xrayProtocol = prot,
             xrayEnabled = en,
             vlessConfig = vc,

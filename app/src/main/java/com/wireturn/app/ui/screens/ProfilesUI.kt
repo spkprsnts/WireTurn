@@ -229,6 +229,7 @@ fun ProfilesBlock(
                     )
                 }
                 intent.putExtra("EXTRA_EDIT_MODE", true)
+                intent.putExtra("EXTRA_PROFILE_NAME", currentProfile.name)
                 context.startActivity(intent)
             }) {
                 Icon(
