@@ -275,11 +275,16 @@ class ProxyService : Service() {
                     ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_kernel_or_settings)))
                 }
                 delay(500)
-                withContext(Dispatchers.Main) { stopSelf() }
+                if (isActive && !userStopped.get()) {
+                    withContext(Dispatchers.Main) { stopSelf() }
+                }
                 break
             }
 
             // Logic for restarts
+            if (duration > 300_000) {
+                restartCount = 0
+            }
             restartCount++
             if (restartCount > MAX_RESTARTS) {
                 AppLogsState.addLog(getString(R.string.log_watchdog_limit, MAX_RESTARTS))
@@ -331,14 +336,20 @@ class ProxyService : Service() {
                 if (!currentPath.contains(nativeLibDir)) {
                     env["PATH"] = "$nativeLibDir:$currentPath"
                 }
+
+                // Force Go-based binaries to use internal resolver (often avoids IPv6 issues)
+                env["GODEBUG"] = "netdns=go"
                 
                 builder.start()
             }
             process.set(proc)
 
             if (cfg.kernelVariant == KernelVariant.OLCRTC) {
-                ProxyServiceState.setStatus(ProxyStatus.Connecting)
-                updateNotification(getString(R.string.connecting))
+                state.startupEmitted = true
+                if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                    ProxyServiceState.setStatus(ProxyStatus.Connecting)
+                    updateNotification(getString(R.string.connecting))
+                }
             }
 
             // Watchdog for connection timeout
@@ -381,7 +392,8 @@ class ProxyService : Service() {
             }
             AppLogsState.addLog(getString(R.string.log_process_stopped, exitCode))
 
-            if (!state.startupEmitted && !state.startupFailed) {
+            val wasKilledIntentionally = process.get() == null
+            if (!state.startupEmitted && !state.startupFailed && !wasKilledIntentionally && isActive) {
                 ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_process_no_output, exitCode)))
             }
 
@@ -465,6 +477,7 @@ class ProxyService : Service() {
                 ProxyServiceState.setStatus(ProxyStatus.Connected)
                 updateNotification(getString(R.string.proxy_active))
                 state.startupEmitted = true
+                restartCount = 0
             }
         }
 
@@ -518,6 +531,7 @@ class ProxyService : Service() {
                 ProxyServiceState.setStatus(ProxyStatus.Connected)
                 updateNotification(getString(R.string.proxy_active))
                 state.startupEmitted = true
+                restartCount = 0
             }
         }
 
