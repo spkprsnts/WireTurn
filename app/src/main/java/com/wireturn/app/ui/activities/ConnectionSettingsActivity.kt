@@ -21,6 +21,9 @@ class ConnectionSettingsActivity : ComponentActivity() {
         splashScreen.setKeepOnScreenCondition { !viewModel.isInitialized.value }
 
         setContent {
+            val isInitialized by viewModel.isInitialized.collectAsStateWithLifecycle()
+            if (!isInitialized) return@setContent
+
             val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
             
