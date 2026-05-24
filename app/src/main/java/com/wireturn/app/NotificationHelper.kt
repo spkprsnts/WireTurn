@@ -74,13 +74,17 @@ object NotificationHelper {
         val clientConfig = coreSession?.clientConfig
         val xrayState = XrayServiceState.state.value
         val vpnState = VpnServiceState.state.value
+        val isRestarting = CoreServiceState.isRestarting.value
 
         if (coreStatus !is CoreStatus.Idle) {
-            val pStatus = coreStatusText ?: if (coreStatus is CoreStatus.Suppressed) {
-                if (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute) context.getString(R.string.vless_direct_active)
-                else context.getString(R.string.connecting)
-            } else {
-                when (coreStatus) {
+            val pStatus = when {
+                isRestarting -> context.getString(R.string.core_restarting)
+                coreStatusText != null -> coreStatusText
+                coreStatus is CoreStatus.Suppressed -> {
+                    if (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute) context.getString(R.string.vless_direct_active)
+                    else context.getString(R.string.connecting)
+                }
+                else -> when (coreStatus) {
                     is CoreStatus.Connected -> context.getString(R.string.core_active)
                     is CoreStatus.Starting -> context.getString(R.string.starting)
                     is CoreStatus.Stopping -> context.getString(R.string.stopping)
@@ -245,6 +249,7 @@ object NotificationHelper {
             combine(
                 listOf(
                     CoreServiceState.status,
+                    CoreServiceState.isRestarting,
                     CoreServiceState.statusText,
                     CoreServiceState.session,
                     XrayServiceState.state,

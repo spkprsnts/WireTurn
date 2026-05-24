@@ -179,11 +179,11 @@ class CoreTileService : TileService() {
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             tile.subtitle = when {
+                isRestarting -> getString(R.string.core_restarting)
                 isCaptcha -> getString(R.string.tile_captcha)
                 isWaiting -> getString(R.string.status_waiting_for_network)
                 autoLaunchEnabled && !isRunning -> getString(R.string.settings_auto_launch_title)
                 statusText != null -> statusText
-                isRestarting -> getString(R.string.core_restarting)
                 isStopping -> getString(R.string.stopping)
                 isDirect -> {
                     if (isXrayWorking) getString(R.string.vless_direct_active)
