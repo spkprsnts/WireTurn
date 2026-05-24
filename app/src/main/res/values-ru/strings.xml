@@ -233,16 +233,16 @@
 
     <string name="log_vpn_service_active">* [VPN] Сервис уже запущен или запускается (статус=%1$s, job=%2$b)</string>
     <string name="log_vpn_foreground_failed">* [VPN] Ошибка запуска foreground: %1$s</string>
-    <string name="log_vpn_establishing">* [VPN] Установка туннеля (hev-socks5-tunnel)</string>
+    <string name="log_vpn_establishing">* [VPN] Установка TUN (hev-socks5-tunnel)</string>
     <string name="log_vpn_filtering_disabled">* [VPN] Фильтрация приложений отключена: весь трафик через VPN</string>
     <string name="log_vpn_exclude_failed">* [VPN] Не удалось исключить %1$s: %2$s</string>
     <string name="log_vpn_include_failed">* [VPN] Не удалось включить %1$s: %2$s</string>
     <string name="log_vpn_include_empty">* [VPN] Режим включения с пустым списком: ни одно приложение не будет использовать VPN</string>
     <string name="log_vpn_tun_failed">* [VPN] Не удалось установить TUN-интерфейс (hev-socks5-tunnel)</string>
     <string name="log_vpn_starting">* [VPN] Запуск (hev-socks5-tunnel, fd=%1$d, proxy=%2$s)</string>
-    <string name="log_vpn_start_command_sent">* [VPN] Команда запуска туннеля отправлена (hev-socks5-tunnel)</string>
+    <string name="log_vpn_start">* [VPN] Запущен (hev-socks5-tunnel)</string>
     <string name="log_vpn_error">* [VPN] Ошибка: %1$s (hev-socks5-tunnel)</string>
-    <string name="log_vpn_stopped">* [VPN] Туннель остановлен (hev-socks5-tunnel)</string>
+    <string name="log_vpn_stopped">* [VPN] TUN остановлен (hev-socks5-tunnel)</string>
     <string name="log_vpn_stop_error">* [VPN] Ошибка при остановке: %1$s (hev-socks5-tunnel)</string>
     <string name="log_vpn_restarting_config">* [VPN] Перезапуск из-за изменения настроек или восстановления</string>
 

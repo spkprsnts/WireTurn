@@ -214,7 +214,7 @@ misc:
                 hevRunning.set(true)
                 VpnServiceState.updateStatus(VpnState.Running)
                 NotificationHelper.updateNotification(this@HevVpnService)
-                AppLogsState.addLog(getString(R.string.log_vpn_start_command_sent))
+                AppLogsState.addLog(getString(R.string.log_vpn_start))
             }
 
         } catch (e: Exception) {

@@ -264,16 +264,16 @@
 
     <string name="log_vpn_service_active">* [VPN] Service already running or starting (status=%1$s, job=%2$b)</string>
     <string name="log_vpn_foreground_failed">* [VPN] Failed to start foreground: %1$s</string>
-    <string name="log_vpn_establishing">* [VPN] Establishing tunnel (hev-socks5-tunnel)</string>
+    <string name="log_vpn_establishing">* [VPN] Establishing TUN (hev-socks5-tunnel)</string>
     <string name="log_vpn_filtering_disabled">* [VPN] App filtering disabled: all traffic through VPN</string>
     <string name="log_vpn_exclude_failed">* [VPN] Could not exclude %1$s: %2$s</string>
     <string name="log_vpn_include_failed">* [VPN] Could not include %1$s: %2$s</string>
     <string name="log_vpn_include_empty">* [VPN] Include mode with empty list: no apps will use VPN</string>
     <string name="log_vpn_tun_failed">* [VPN] Failed to establish TUN interface (hev-socks5-tunnel)</string>
     <string name="log_vpn_starting">* [VPN] Starting (hev-socks5-tunnel, fd=%1$d, proxy=%2$s)</string>
-    <string name="log_vpn_start_command_sent">* [VPN] Tunnel start command sent (hev-socks5-tunnel)</string>
+    <string name="log_vpn_start">* [VPN] Started (hev-socks5-tunnel)</string>
     <string name="log_vpn_error">* [VPN] Error: %1$s (hev-socks5-tunnel)</string>
-    <string name="log_vpn_stopped">* [VPN] Tunnel stopped (hev-socks5-tunnel)</string>
+    <string name="log_vpn_stopped">* [VPN] TUN stopped (hev-socks5-tunnel)</string>
     <string name="log_vpn_stop_error">* [VPN] Stop error: %1$s (hev-socks5-tunnel)</string>
     <string name="log_vpn_restarting_config">* [VPN] Restarting due to settings change or recovery</string>
 
