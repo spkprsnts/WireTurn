@@ -20,6 +20,7 @@
     <string name="starting">Запускается…</string>
     <string name="stopping">Остановка…</string>
     <string name="core_restarting">Перезапуск…</string>
+    <string name="core_failed">Запуск не удался</string>
     <string name="running">Запущен</string>
     <string name="connecting">Подключение…</string>
     <string name="status_waiting_for_network">Ожидание сети…</string>

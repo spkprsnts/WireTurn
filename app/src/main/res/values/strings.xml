@@ -21,6 +21,7 @@
     <string name="starting">Starting…</string>
     <string name="stopping">Stopping…</string>
     <string name="core_restarting">Restarting…</string>
+    <string name="core_failed">Failed to start</string>
     <string name="running">Running</string>
     <string name="connecting">Connecting…</string>
     <string name="status_waiting_for_network">Waiting for network…</string>

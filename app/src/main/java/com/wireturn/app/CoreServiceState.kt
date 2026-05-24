@@ -92,9 +92,9 @@ object CoreServiceState {
         _session.value = session
     }
 
-    fun emitFailed() {
+    fun emitFailed(message: String) {
         _coreFailed.tryEmit(Unit)
-        setStatus(CoreStatus.Error("Core failed"))
+        setStatus(CoreStatus.Error(message))
     }
 
     fun setCaptchaSession(session: CaptchaSession?) {

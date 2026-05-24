@@ -324,7 +324,11 @@ class CoreService : Service() {
             restartCount++
             if (restartCount > MAX_RESTARTS) {
                 AppLogsState.addLog(getString(R.string.log_core_watchdog_limit, MAX_RESTARTS))
-                CoreServiceState.emitFailed()
+                val errorMsg = getString(R.string.core_failed)
+                CoreServiceState.emitFailed(errorMsg)
+                if (!AppLifecycleState.isAppInForeground.value) {
+                    NotificationHelper.notifyError(this@CoreService, errorMsg)
+                }
                 withContext(Dispatchers.Main) { stopSelf() }
                 break
             }
@@ -886,7 +890,7 @@ class CoreService : Service() {
             }.collect { (status, isForeground) ->
                 if (status is CoreStatus.Error && !isForeground) {
                     NotificationHelper.notifyError(this@CoreService, status.message)
-                } else if ((status is CoreStatus.Connected || status is CoreStatus.Suppressed || status is CoreStatus.WaitingForNetwork) || isForeground) {
+                } else if (status is CoreStatus.Connected || status is CoreStatus.Suppressed || status is CoreStatus.WaitingForNetwork || isForeground) {
                     NotificationHelper.cancelErrorNotification(this@CoreService)
                 }
             }
