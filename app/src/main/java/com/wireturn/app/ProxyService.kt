@@ -207,12 +207,8 @@ class ProxyService : Service() {
                             }
                             updateNotification(getString(R.string.vless_direct_active))
                         }
-                        XrayState.Running -> {
-                            if (ProxyServiceState.status.value is ProxyStatus.Suppressed) {
-                                ProxyServiceState.setStatus(ProxyStatus.Connecting)
-                            }
-                        }
-                        // В промежуточных состояниях (Starting, Connecting) держим текущий статус
+                        // Running, Starting, Connecting — пробуждение туннеля при потере прямого
+                        // маршрута обрабатывается в XrayService.handleDualRouteLog
                         else -> {}
                     }
                 } else if (ProxyServiceState.status.value is ProxyStatus.Suppressed) {
@@ -250,6 +246,7 @@ class ProxyService : Service() {
                             AppLogsState.addLog("[DualRoute] Tunnel config changed, suppressing until route is determined")
                             ProxyServiceState.setStatus(ProxyStatus.Suppressed)
                         } else {
+                            restartCount = 0
                             AppLogsState.addLog("[HotReload] Tunnel config changed, restarting binary")
                             stopBinaryProcessGracefully()
                         }
@@ -402,6 +399,8 @@ class ProxyService : Service() {
                             if (!isActive) break
                             val line = AppLogsState.stripAnsi(rawLine)
                             AppLogsState.addLog(line)
+                            // Process was intentionally killed (hot-reload/stop) — log but don't update status
+                            if (process.get() == null) continue
                             if (processOutputLine(line, state, cfg.kernelVariant)) break
                         }
                     }
@@ -813,15 +812,6 @@ class ProxyService : Service() {
                 val needsRestart = data.shouldBeRunning && data.xrayState != XrayState.Idle
 
                 if (needsRestart) {
-                    // При переходе в dual-route режим подавляем бинарник до тех пор,
-                    // пока Xray не определит, работает ли прямой VLESS.
-                    // Это предотвращает лишний запуск туннеля если прямой маршрут доступен.
-                    if (data.signals.vless.isDualRoute &&
-                        ProxyServiceState.status.value !is ProxyStatus.Suppressed &&
-                        ProxyServiceState.status.value !is ProxyStatus.Idle) {
-                        AppLogsState.addLog("[DualRoute] Switching to dual-route, suppressing binary until route is determined")
-                        ProxyServiceState.setStatus(ProxyStatus.Suppressed)
-                    }
                     AppLogsState.addLog("[Xray] Restarting due to config change")
                     withContext(Dispatchers.Main) {
                         stopService(Intent(this@ProxyService, XrayService::class.java))
