@@ -306,7 +306,7 @@
     <string name="error_notification_title">Startup failed</string>
     <string name="tile_active">Active</string>
     <string name="tile_captcha">Captcha!</string>
-    <string name="notification_reconnecting">Reconnecting (%1$d/%2$d)…</string>
+    <string name="notification_restart">Restarting (%1$d/%2$d)…</string>
     <string name="notification_network_change">Network change, reconnecting…</string>
     <string name="vless" translatable="false">VLESS</string>
     <!-- UI elements and formatting -->

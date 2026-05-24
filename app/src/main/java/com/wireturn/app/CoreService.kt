@@ -262,6 +262,7 @@ class CoreService : Service() {
                         } else {
                             restartCount = 0
                             AppLogsState.addLog(getString(R.string.log_core_config_changed))
+                            CoreServiceState.setStatusText(null)
                             CoreServiceState.setRestarting(true)
                             CoreServiceState.setStatus(CoreStatus.Stopping)
                             stopBinaryProcessGracefully()
@@ -343,7 +344,7 @@ class CoreService : Service() {
             val delayMs = baseDelay + Random.nextLong(0, 500)
             
             AppLogsState.addLog(getString(R.string.log_core_watchdog_restart, delayMs, restartCount, MAX_RESTARTS))
-            updateNotification(getString(R.string.notification_reconnecting, restartCount, MAX_RESTARTS))
+            updateNotification(getString(R.string.notification_restart, restartCount, MAX_RESTARTS))
             
             CoreServiceState.setRestarting(true)
             delay(delayMs)

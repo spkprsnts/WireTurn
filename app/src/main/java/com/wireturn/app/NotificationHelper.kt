@@ -78,8 +78,8 @@ object NotificationHelper {
 
         if (coreStatus !is CoreStatus.Idle) {
             val pStatus = when {
-                isRestarting -> context.getString(R.string.core_restarting)
                 coreStatusText != null -> coreStatusText
+                isRestarting -> context.getString(R.string.core_restarting)
                 coreStatus is CoreStatus.Suppressed -> {
                     if (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute) context.getString(R.string.vless_direct_active)
                     else context.getString(R.string.connecting)

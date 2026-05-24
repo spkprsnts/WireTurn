@@ -33,6 +33,7 @@ class ProfileManager(
         val targetProfile = profile ?: profiles.value.find { it.id == id } ?: return
         scope.launch {
             if (CoreServiceState.isRunning.value) {
+                CoreServiceState.setStatusText(null)
                 CoreServiceState.setRestarting(true)
             }
             onConfigLoaded(targetProfile)
