@@ -11,31 +11,26 @@ import java.net.Authenticator
 import java.net.PasswordAuthentication
 
 object XrayServiceState {
+    data class RunningSession(
+        val wg: WgConfig?,
+        val xray: XrayConfig,
+        val vless: VlessConfig?,
+        val settings: XraySettings
+    )
+
     private val _state = MutableStateFlow<XrayState>(XrayState.Idle)
     val state = _state.asStateFlow()
 
     private val _statsSocketName = MutableStateFlow<String?>(null)
     val statsSocketName = _statsSocketName.asStateFlow()
 
-    private val _wgConfigSnapshot = MutableStateFlow<WgConfig?>(null)
-    val wgConfigSnapshot = _wgConfigSnapshot.asStateFlow()
-
-    private val _xrayConfigSnapshot = MutableStateFlow<XrayConfig?>(null)
-    val xrayConfigSnapshot = _xrayConfigSnapshot.asStateFlow()
-
-    private val _xraySettingsSnapshot = MutableStateFlow<XraySettings?>(null)
-    val xraySettingsSnapshot = _xraySettingsSnapshot.asStateFlow()
-
-    private val _vlessConfigSnapshot = MutableStateFlow<VlessConfig?>(null)
-    val vlessConfigSnapshot = _vlessConfigSnapshot.asStateFlow()
+    private val _session = MutableStateFlow<RunningSession?>(null)
+    val session = _session.asStateFlow()
 
     fun updateStatus(newStatus: XrayState) {
         _state.value = newStatus
         if (newStatus == XrayState.Idle) {
-            _wgConfigSnapshot.value = null
-            _xrayConfigSnapshot.value = null
-            _xraySettingsSnapshot.value = null
-            _vlessConfigSnapshot.value = null
+            _session.value = null
             _statsSocketName.value = null
         }
     }
@@ -44,22 +39,14 @@ object XrayServiceState {
         _statsSocketName.value = name
     }
 
-    fun setConfigsSnapshot(wg: WgConfig?, xray: XrayConfig?, vless: VlessConfig?, settings: XraySettings? = null) {
-        _wgConfigSnapshot.value = wg
-        _xrayConfigSnapshot.value = xray
-        _vlessConfigSnapshot.value = vless
-        _xraySettingsSnapshot.value = settings
-
-        val activeSettings = settings ?: return // If null, we don't set global auth
-
+    fun setSession(session: RunningSession?) {
+        _session.value = session
+        val activeSettings = session?.settings ?: return
         if (activeSettings.isProxyAuthEnabled && activeSettings.proxyUser.isNotBlank()) {
             val u = activeSettings.proxyUser
             val p = activeSettings.proxyPass
-
-            // Set global properties for SOCKS5 auth (fallback for some Java versions/libs)
             System.setProperty("java.net.socks.username", u)
             System.setProperty("java.net.socks.password", p)
-
             Authenticator.setDefault(object : Authenticator() {
                 override fun getPasswordAuthentication(): PasswordAuthentication {
                     return PasswordAuthentication(u, p.toCharArray())

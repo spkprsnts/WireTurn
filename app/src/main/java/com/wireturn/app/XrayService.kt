@@ -13,7 +13,7 @@ import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.XrayConfig
 import com.wireturn.app.data.XraySettings
-import com.wireturn.app.data.GlobalVpnSettings
+import com.wireturn.app.data.VpnSettings
 import com.wireturn.app.data.VlessConfig
 import com.wireturn.app.data.WgConfig
 import kotlinx.coroutines.CoroutineScope
@@ -56,62 +56,26 @@ class XrayService : Service() {
     private fun startXraySupervisor() {
         serviceScope.launch {
             val prefs = AppPreferences(applicationContext)
-            var lastExcludedApps: Set<String>? = null
-            var lastBypassMode: Boolean? = null
-            var lastFilteringEnabled: Boolean? = null
-            var lastVpnEnabled: Boolean? = null
+            var lastVpnSettings: VpnSettings? = null
 
             combine(
-                listOf(
-                    XrayServiceState.state,
-                    prefs.vpnEnabledFlow,
-                    prefs.globalVpnSettingsFlow,
-                    prefs.excludedAppsFlow,
-                    XrayServiceState.xraySettingsSnapshot,
-                    VpnServiceState.state
-                )
-            ) { args ->
-                @Suppress("UNCHECKED_CAST")
-                val state = args[0] as XrayState
-                @Suppress("UNCHECKED_CAST")
-                val vpnEnabled = args[1] as Boolean
-                @Suppress("UNCHECKED_CAST")
-                val globalVpn = args[2] as GlobalVpnSettings
-                @Suppress("UNCHECKED_CAST")
-                val excludedApps = args[3] as Set<String>
-                @Suppress("UNCHECKED_CAST")
-                val runningSettings = args[4] as XraySettings?
-                @Suppress("UNCHECKED_CAST")
-                val vpnState = args[5] as VpnState
-
-                DataBundle(
-                    xrayState = state,
-                    vpnEnabled = vpnEnabled,
-                    bypassMode = globalVpn.bypassMode,
-                    filteringEnabled = globalVpn.filteringEnabled,
-                    excludedApps = excludedApps,
-                    runningSettings = runningSettings,
-                    vpnState = vpnState
-                )
+                XrayServiceState.state,
+                prefs.vpnSettingsFlow,
+                XrayServiceState.session,
+                VpnServiceState.state
+            ) { state, vpnSettings, xraySession, vpnState ->
+                DataBundle(xrayState = state, vpnSettings = vpnSettings, runningSettings = xraySession?.settings, vpnState = vpnState)
             }.collect { bundle ->
                 withContext(Dispatchers.Main) {
-                    val excludedChanged = lastExcludedApps != null && lastExcludedApps != bundle.excludedApps
-                    val bypassModeChanged = lastBypassMode != null && lastBypassMode != bundle.bypassMode
-                    val filteringChanged = lastFilteringEnabled != null && lastFilteringEnabled != bundle.filteringEnabled
-                    val vpnEnabledChanged = lastVpnEnabled != null && lastVpnEnabled != bundle.vpnEnabled
-                    
-                    lastExcludedApps = bundle.excludedApps
-                    lastBypassMode = bundle.bypassMode
-                    lastFilteringEnabled = bundle.filteringEnabled
-                    lastVpnEnabled = bundle.vpnEnabled
+                    val anySettingChanged = lastVpnSettings != null && lastVpnSettings != bundle.vpnSettings
+                    lastVpnSettings = bundle.vpnSettings
 
-                    val shouldVpnBeActive = bundle.vpnEnabled && bundle.xrayState != XrayState.Idle
+                    val shouldVpnBeActive = bundle.vpnSettings.enabled && bundle.xrayState != XrayState.Idle
 
                     if (shouldVpnBeActive) {
                         val runningSettings = bundle.runningSettings
                         val vpnRunning = bundle.vpnState == VpnState.Running
                         val vpnError = bundle.vpnState is VpnState.Error
-                        val anySettingChanged = excludedChanged || bypassModeChanged || filteringChanged || vpnEnabledChanged
 
                         if (runningSettings != null) {
                             // Запускаем если Idle ИЛИ если что-то изменилось (перезапуск)
@@ -154,10 +118,7 @@ class XrayService : Service() {
 
     private data class DataBundle(
         val xrayState: XrayState,
-        val vpnEnabled: Boolean,
-        val bypassMode: Boolean,
-        val filteringEnabled: Boolean,
-        val excludedApps: Set<String>,
+        val vpnSettings: VpnSettings,
         val runningSettings: XraySettings?,
         val vpnState: VpnState
     )
@@ -197,7 +158,7 @@ class XrayService : Service() {
             val rawWg = prefs.wgConfigFlow.first()
             val rawXray = prefs.xrayConfigFlow.first()
             val rawVless = prefs.vlessConfigFlow.first()
-            val rawClient = ProxyServiceState.clientConfigSnapshot.value ?: prefs.clientConfigFlow.first()
+            val rawClient = ProxyServiceState.session.value?.clientConfig ?: prefs.clientConfigFlow.first()
             val rawXraySettings = prefs.xraySettingsFlow.first()
 
             val wgConfig = rawWg.fillDefaults()
@@ -266,12 +227,12 @@ class XrayService : Service() {
             }
 
             // Фиксируем только тот конфиг, который реально запускаем
-            XrayServiceState.setConfigsSnapshot(
+            XrayServiceState.setSession(XrayServiceState.RunningSession(
                 wg = if (isXrayVless) null else wgConfig,
                 xray = xrayConfig,
                 vless = if (isXrayVless) vlessConfig else null,
                 settings = xraySettings
-            )
+            ))
             
             val prefs = AppPreferences(this@XrayService)
             val socketName = "sys.ipc.${java.util.UUID.randomUUID().toString().replace("-", "").take(12)}"

@@ -118,8 +118,8 @@ fun AppExceptionsScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val excludedApps by viewModel.excludedApps.collectAsStateWithLifecycle()
-    val globalVpn by viewModel.globalVpnSettings.collectAsStateWithLifecycle()
+    val vpnSettings by viewModel.vpnSettings.collectAsStateWithLifecycle()
+    val excludedApps = vpnSettings.excludedApps
     
     var isAppsLoading by remember { mutableStateOf(true) }
     var appList by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
@@ -161,13 +161,13 @@ fun AppExceptionsScreen(
     var sortedAppList by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
 
     val updateSortedList = {
-        val filtered = if (globalVpn.hideSystemApps) {
+        val filtered = if (vpnSettings.hideSystemApps) {
             appList.filter { !it.isSystem || excludedApps.contains(it.packageName) }
         } else {
             appList
         }
         sortedAppList = filtered.sortedWith(
-            if (globalVpn.groupAppsByLetter) {
+            if (vpnSettings.groupAppsByLetter) {
                 compareBy<AppInfo> { it.name.firstOrNull()?.uppercaseChar() ?: '#' }
                     .thenByDescending { sortSnapshot.contains(it.packageName) }
                     .thenBy { it.name.lowercase() }
@@ -178,7 +178,7 @@ fun AppExceptionsScreen(
         )
     }
 
-    LaunchedEffect(appList, sortSnapshot, globalVpn.hideSystemApps, excludedApps, globalVpn.groupAppsByLetter) {
+    LaunchedEffect(appList, sortSnapshot, vpnSettings.hideSystemApps, excludedApps, vpnSettings.groupAppsByLetter) {
         updateSortedList()
     }
 
@@ -196,13 +196,13 @@ fun AppExceptionsScreen(
             }.filter { it.name.isNotBlank() && it.packageName != context.packageName }
             
             val initialSnapshot = excludedApps
-            val filtered = if (globalVpn.hideSystemApps) {
+            val filtered = if (vpnSettings.hideSystemApps) {
                 result.filter { !it.isSystem || initialSnapshot.contains(it.packageName) }
             } else {
                 result
             }
             val sorted = filtered.sortedWith(
-                if (globalVpn.groupAppsByLetter) {
+                if (vpnSettings.groupAppsByLetter) {
                     compareBy<AppInfo> { it.name.firstOrNull()?.uppercaseChar() ?: '#' }
                         .thenByDescending { initialSnapshot.contains(it.packageName) }
                         .thenBy { it.name.lowercase() }
@@ -225,8 +225,8 @@ fun AppExceptionsScreen(
         loadApps()
     }
 
-    val searchDisplayList = remember(appliedSearchQuery, expanded, appList, globalVpn.hideSystemApps, sortSnapshot, excludedApps) {
-        val filtered = if (globalVpn.hideSystemApps) {
+    val searchDisplayList = remember(appliedSearchQuery, expanded, appList, vpnSettings.hideSystemApps, sortSnapshot, excludedApps) {
+        val filtered = if (vpnSettings.hideSystemApps) {
             appList.filter { !it.isSystem || excludedApps.contains(it.packageName) }
         } else {
             appList
@@ -242,7 +242,7 @@ fun AppExceptionsScreen(
         }
 
         baseList.sortedWith(
-            if (globalVpn.groupAppsByLetter) {
+            if (vpnSettings.groupAppsByLetter) {
                 compareBy<AppInfo> { it.name.firstOrNull()?.uppercaseChar() ?: '#' }
                     .thenByDescending { sortSnapshot.contains(it.packageName) }
                     .thenBy { it.name.lowercase() }
@@ -439,10 +439,10 @@ fun AppExceptionsScreen(
                         Column(modifier = Modifier.padding(bottom = 16.dp)) {
                             MainSwitchItem(
                                 label = stringResource(R.string.filtering_enabled),
-                                checked = globalVpn.filteringEnabled,
+                                checked = vpnSettings.filteringEnabled,
                                 onCheckedChange = {
-                                    viewModel.updateGlobalVpnSettings(
-                                        globalVpn.copy(filteringEnabled = it)
+                                    viewModel.saveVpnSettings(
+                                        vpnSettings.copy(filteringEnabled = it)
                                     )
                                 },
                                 modifier = Modifier.padding(horizontal = 16.dp)
@@ -459,14 +459,14 @@ fun AppExceptionsScreen(
                             ) {
                                 LabeledButtonGroup(
                                     label = stringResource(R.string.bypass_mode),
-                                    supportingText = if (globalVpn.bypassMode) stringResource(R.string.vpn_mode_bypass_desc)
+                                    supportingText = if (vpnSettings.bypassMode) stringResource(R.string.vpn_mode_bypass_desc)
                                     else stringResource(R.string.vpn_mode_include_desc)
                                 ) {
                                     selectableButtonItem(
-                                        selected = !globalVpn.bypassMode,
+                                        selected = !vpnSettings.bypassMode,
                                         onSelect = {
-                                            viewModel.updateGlobalVpnSettings(
-                                                globalVpn.copy(bypassMode = false)
+                                            viewModel.saveVpnSettings(
+                                                vpnSettings.copy(bypassMode = false)
                                             )
                                         },
                                         label = vpnModeInclude,
@@ -474,10 +474,10 @@ fun AppExceptionsScreen(
                                         count = 2
                                     )
                                     selectableButtonItem(
-                                        selected = globalVpn.bypassMode,
+                                        selected = vpnSettings.bypassMode,
                                         onSelect = {
-                                            viewModel.updateGlobalVpnSettings(
-                                                globalVpn.copy(bypassMode = true)
+                                            viewModel.saveVpnSettings(
+                                                vpnSettings.copy(bypassMode = true)
                                             )
                                         },
                                         label = vpnModeBypass,
@@ -494,17 +494,17 @@ fun AppExceptionsScreen(
                                     position = ItemPosition.Top,
                                     modifier = Modifier.padding(horizontal = 16.dp),
                                     onClick = {
-                                        viewModel.updateGlobalVpnSettings(
-                                            globalVpn.copy(groupAppsByLetter = !globalVpn.groupAppsByLetter)
+                                        viewModel.saveVpnSettings(
+                                            vpnSettings.copy(groupAppsByLetter = !vpnSettings.groupAppsByLetter)
                                         )
                                     }
                                 ) {
                                     SwitchRow(
                                         label = stringResource(R.string.group_apps_by_letter),
-                                        checked = globalVpn.groupAppsByLetter,
+                                        checked = vpnSettings.groupAppsByLetter,
                                         onCheckedChange = {
-                                            viewModel.updateGlobalVpnSettings(
-                                                globalVpn.copy(groupAppsByLetter = it)
+                                            viewModel.saveVpnSettings(
+                                                vpnSettings.copy(groupAppsByLetter = it)
                                             )
                                         },
                                         leadingIcon = {
@@ -516,17 +516,17 @@ fun AppExceptionsScreen(
                                     position = ItemPosition.Bottom,
                                     modifier = Modifier.padding(horizontal = 16.dp),
                                     onClick = {
-                                        viewModel.updateGlobalVpnSettings(
-                                            globalVpn.copy(hideSystemApps = !globalVpn.hideSystemApps)
+                                        viewModel.saveVpnSettings(
+                                            vpnSettings.copy(hideSystemApps = !vpnSettings.hideSystemApps)
                                         )
                                     }
                                 ) {
                                     SwitchRow(
                                         label = stringResource(R.string.hide_system_apps),
-                                        checked = globalVpn.hideSystemApps,
+                                        checked = vpnSettings.hideSystemApps,
                                         onCheckedChange = {
-                                            viewModel.updateGlobalVpnSettings(
-                                                globalVpn.copy(hideSystemApps = it)
+                                            viewModel.saveVpnSettings(
+                                                vpnSettings.copy(hideSystemApps = it)
                                             )
                                         },
                                         leadingIcon = {
@@ -569,7 +569,7 @@ fun AppExceptionsScreen(
                             apps = sortedAppList,
                             excludedApps = excludedApps,
                             newlyAddedPackages = newlyAddedPackages,
-                            showHeaders = globalVpn.groupAppsByLetter,
+                            showHeaders = vpnSettings.groupAppsByLetter,
                             onToggleExclusion = { pkg ->
                                 HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
                                 viewModel.toggleAppExclusion(pkg)

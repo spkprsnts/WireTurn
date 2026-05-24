@@ -18,7 +18,6 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -76,7 +75,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.draw.clip
 import android.content.ClipData
 import android.net.VpnService
 import androidx.compose.foundation.layout.Arrangement
@@ -160,19 +158,15 @@ fun HomeScreen(
     val xraySettings by viewModel.xraySettings.collectAsStateWithLifecycle()
     val vlessConfig by viewModel.vlessConfig.collectAsStateWithLifecycle()
     val wgConfig by viewModel.wgConfig.collectAsStateWithLifecycle()
-    val globalVpnSettings by viewModel.globalVpnSettings.collectAsStateWithLifecycle()
+    val vpnSettings by viewModel.vpnSettings.collectAsStateWithLifecycle()
 
-    val clientConfigSnapshot by ProxyServiceState.clientConfigSnapshot.collectAsStateWithLifecycle()
-    val xrayConfigSnapshot by XrayServiceState.xrayConfigSnapshot.collectAsStateWithLifecycle()
-    val xraySettingsSnapshot by XrayServiceState.xraySettingsSnapshot.collectAsStateWithLifecycle()
-    val wgConfigSnapshot by XrayServiceState.wgConfigSnapshot.collectAsStateWithLifecycle()
-    val vlessConfigSnapshot by XrayServiceState.vlessConfigSnapshot.collectAsStateWithLifecycle()
+    val proxySession by ProxyServiceState.session.collectAsStateWithLifecycle()
+    val xraySession by XrayServiceState.session.collectAsStateWithLifecycle()
 
     val batteryNotificationDismissed by viewModel.batteryNotificationDismissed.collectAsStateWithLifecycle()
-    val vpnEnabled by viewModel.vpnEnabled.collectAsStateWithLifecycle()
+    val vpnEnabled = vpnSettings.enabled
     val appsExclusionHintShown by viewModel.appsExclusionHintShown.collectAsStateWithLifecycle()
     val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
-    val isRestarting by ProxyServiceState.isRestarting.collectAsStateWithLifecycle()
     val isChangingProfile by ProxyServiceState.isChangingProfile.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
     val updateProgress by viewModel.updateProgress.collectAsStateWithLifecycle()
@@ -180,11 +174,11 @@ fun HomeScreen(
     val currentProfileId by viewModel.currentProfileId.collectAsStateWithLifecycle()
     val autoLaunchSettings by viewModel.autoLaunchSettings.collectAsStateWithLifecycle()
 
-    val activeConfig = clientConfigSnapshot ?: clientConfig
-    val activeXrayConfig = xrayConfigSnapshot ?: xrayConfig
-    val activeXraySettings = xraySettingsSnapshot ?: xraySettings
-    val activeWgConfig = wgConfigSnapshot ?: wgConfig
-    val activeVlessConfig = vlessConfigSnapshot ?: vlessConfig
+    val activeConfig = proxySession?.clientConfig ?: clientConfig
+    val activeXrayConfig = xraySession?.xray ?: xrayConfig
+    val activeXraySettings = xraySession?.settings ?: xraySettings
+    val activeWgConfig = xraySession?.wg ?: wgConfig
+    val activeVlessConfig = xraySession?.vless ?: vlessConfig
 
     val isArchitectureSupported = viewModel.isArchitectureSupported
     val deviceArchitecture = viewModel.deviceArchitecture
@@ -215,7 +209,6 @@ fun HomeScreen(
     var isControlPingScheduled by rememberSaveable { mutableStateOf(value = false) }
 
     val lifecycleOwner = LocalLifecycleOwner.current
-    val isBusy = isRestarting || isChangingProfile
 
     // --- Effects & Lifecycle ---
     LaunchedEffect(proxyPing, proxyState) {
@@ -245,7 +238,7 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(xrayConfigSnapshot) {
+    LaunchedEffect(xraySession?.xray) {
         lastSuccessPing = null
     }
 
@@ -876,7 +869,7 @@ fun HomeScreen(
             } else {
                 if (activeXrayConfig.protocol == XrayConfiguration.VLESS) activeVlessConfig.isValid() else activeWgConfig.isValid()
             }
-            val configValid = isSettingsValid || xrayState != XrayState.Idle || isBusy
+            val configValid = isSettingsValid || xrayState != XrayState.Idle || isChangingProfile
 
             val xrayProtocol = when {
                 activeConfig.kernelVariant == KernelVariant.OLCRTC -> {
@@ -894,7 +887,7 @@ fun HomeScreen(
                     }
                 }
 
-                xrayState == XrayState.Running || xrayState == XrayState.DirectRoute -> if (vlessConfigSnapshot != null) stringResource(
+                xrayState == XrayState.Running || xrayState == XrayState.DirectRoute -> if (xraySession?.vless != null) stringResource(
                     R.string.vless
                 ) else stringResource(R.string.wg_short)
 
@@ -1007,7 +1000,7 @@ fun HomeScreen(
                         label = stringResource(R.string.vpn_mode),
                         checked = vpnEnabled,
                         onCheckedChange = toggleVpnAction,
-                        isModified = wgConfigSnapshot != null && vpnEnabled != (vpnServiceState == VpnState.Running),
+                        isModified = xraySession?.wg != null && vpnEnabled != (vpnServiceState == VpnState.Running),
                         supportingText = when (vpnServiceState) {
                             VpnState.Starting -> stringResource(R.string.starting)
                             VpnState.Running -> stringResource(R.string.running)
@@ -1044,7 +1037,7 @@ fun HomeScreen(
                                         painter = painterResource(R.drawable.route_24px),
                                         contentDescription = stringResource(R.string.vpn_apps_exceptions),
                                         modifier = Modifier.size(24.dp),
-                                        tint = if (globalVpnSettings.filteringEnabled) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                        tint = if (vpnSettings.filteringEnabled) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
@@ -1125,13 +1118,13 @@ fun HomeScreen(
             }
 
             val isSocksModified = when {
-                showXray -> xraySettingsSnapshot != null && activeXraySettings.socksBindAddress != xraySettingsSnapshot?.socksBindAddress
-                isOlcrtc -> clientConfigSnapshot != null && activeConfig.socksAddr != clientConfigSnapshot?.socksAddr
-                else -> xraySettingsSnapshot != null && activeXraySettings.socksBindAddress != xraySettingsSnapshot?.socksBindAddress
+                showXray -> xraySession != null && activeXraySettings.socksBindAddress != xraySession?.settings?.socksBindAddress
+                isOlcrtc -> proxySession != null && activeConfig.socksAddr != proxySession?.clientConfig?.socksAddr
+                else -> xraySession != null && activeXraySettings.socksBindAddress != xraySession?.settings?.socksBindAddress
             }
 
             val isHttpModified = when {
-                showXray -> xraySettingsSnapshot != null && activeXraySettings.httpBindAddress != xraySettingsSnapshot?.httpBindAddress
+                showXray -> xraySession != null && activeXraySettings.httpBindAddress != xraySession?.settings?.httpBindAddress
                 else -> false
             }
 

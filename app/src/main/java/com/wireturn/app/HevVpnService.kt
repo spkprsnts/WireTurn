@@ -47,7 +47,7 @@ class HevVpnService : VpnService() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val prefs = AppPreferences(context)
-                if (prefs.vpnEnabledFlow.first()) {
+                if (prefs.vpnSettingsFlow.first().enabled) {
                     prefs.setVpnEnabled(false)
                 }
             } catch (_: Exception) {}
@@ -114,8 +114,7 @@ class HevVpnService : VpnService() {
         try {
             AppLogsState.addLog("[hev-socks5-tunnel] Establishing tunnel")
             val prefs = AppPreferences(applicationContext)
-            val globalVpn = prefs.globalVpnSettingsFlow.first()
-            val excludedApps = prefs.excludedAppsFlow.first()
+            val vpnSettings = prefs.vpnSettingsFlow.first()
 
             val builder = this.Builder()
                 .setSession("wireturn VPN")
@@ -123,21 +122,21 @@ class HevVpnService : VpnService() {
                 .addAddress(TUN_IPV4_ADDRESS, 24)
                 .addDnsServer(MAPDNS_ADDRESS)
 
-            if (!globalVpn.filteringEnabled) {
+            if (!vpnSettings.filteringEnabled) {
                 builder.addRoute("0.0.0.0", 0)
                 builder.addDisallowedApplication(packageName)
                 AppLogsState.addLog("[VPN] App filtering disabled: all traffic through VPN")
-            } else if (globalVpn.bypassMode) {
+            } else if (vpnSettings.bypassMode) {
                 builder.addRoute("0.0.0.0", 0)
                 builder.addDisallowedApplication(packageName)
-                excludedApps.forEach { pkg ->
+                vpnSettings.excludedApps.forEach { pkg ->
                     try { builder.addDisallowedApplication(pkg) }
                     catch (e: Exception) { AppLogsState.addLog("[VPN] Could not exclude $pkg: ${e.message}") }
                 }
             } else {
-                if (excludedApps.isNotEmpty()) {
+                if (vpnSettings.excludedApps.isNotEmpty()) {
                     builder.addRoute("0.0.0.0", 0)
-                    excludedApps.forEach { pkg ->
+                    vpnSettings.excludedApps.forEach { pkg ->
                         try { builder.addAllowedApplication(pkg) }
                         catch (e: Exception) { AppLogsState.addLog("[VPN] Could not include $pkg: ${e.message}") }
                     }

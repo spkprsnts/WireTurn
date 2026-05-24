@@ -23,8 +23,11 @@ import com.wireturn.app.XrayServiceState
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.AutoLaunchSettings
 import com.wireturn.app.data.ClientConfig
-import com.wireturn.app.data.GlobalVpnSettings
+import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
+import com.wireturn.app.data.OlcrtcConfig
+import com.wireturn.app.data.TurnableConfig
+import com.wireturn.app.data.VpnSettings
 import com.wireturn.app.data.Profile
 import com.wireturn.app.data.ThemeMode
 import com.wireturn.app.data.VlessConfig
@@ -41,13 +44,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import java.net.InetSocketAddress
 import java.net.Proxy
 import kotlin.system.measureTimeMillis
@@ -119,11 +120,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _xrayConfig = MutableStateFlow(XrayConfig())
     val xrayConfig: StateFlow<XrayConfig> = _xrayConfig.asStateFlow()
 
-    private val _globalVpnSettings = MutableStateFlow(GlobalVpnSettings())
-    val globalVpnSettings: StateFlow<GlobalVpnSettings> = _globalVpnSettings.asStateFlow()
-
-    private val _excludedApps = MutableStateFlow<Set<String>>(emptySet())
-    val excludedApps: StateFlow<Set<String>> = _excludedApps.asStateFlow()
+    private val _vpnSettings = MutableStateFlow(VpnSettings())
+    val vpnSettings: StateFlow<VpnSettings> = _vpnSettings.asStateFlow()
 
     private val _xraySettings = MutableStateFlow(XraySettings())
     val xraySettings: StateFlow<XraySettings> = _xraySettings.asStateFlow()
@@ -153,57 +151,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _isHomeScreenActive = MutableStateFlow(false)
 
-    val isMainConfigChanged: StateFlow<Boolean> = combine(
-        clientConfig, ProxyServiceState.clientConfigSnapshot
-    ) { client, clientSnap ->
-        clientSnap != null && client.fillDefaults() != clientSnap
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
-    val isXrayConfigChanged: StateFlow<Boolean> = combine(
-        wgConfig, XrayServiceState.wgConfigSnapshot,
-        vlessConfig, XrayServiceState.vlessConfigSnapshot,
-        xrayConfig, XrayServiceState.xrayConfigSnapshot,
-        xraySettings, XrayServiceState.xraySettingsSnapshot,
-        clientConfig, ProxyServiceState.clientConfigSnapshot
-    ) { args: Array<Any?> ->
-        val wg = args[0] as WgConfig
-        val wgSnap = args[1] as WgConfig?
-        val vless = args[2] as VlessConfig
-        val vlessSnap = args[3] as VlessConfig?
-        val xray = args[4] as XrayConfig
-        val xraySnap = args[5] as XrayConfig?
-        val settings = args[6] as XraySettings
-        val settingsSnap = args[7] as XraySettings?
-        val client = args[8] as ClientConfig
-        val clientSnap = args[9] as ClientConfig?
-
-        val baseChanged = (wgSnap != null && wg.fillDefaults() != wgSnap) ||
-                (vlessSnap != null && vless.fillDefaults() != vlessSnap) ||
-                (xraySnap != null && xray != xraySnap) ||
-                (settingsSnap != null && settings.fillDefaults() != settingsSnap)
-        
-        val connectionChanged = clientSnap != null && (
-                client.fillDefaults().let { c ->
-                    c.kernelVariant != clientSnap.kernelVariant ||
-                    c.listenAddr != clientSnap.listenAddr ||
-                    c.olcrtcConfig.provider != clientSnap.olcrtcConfig.provider ||
-                    c.olcrtcConfig.transport != clientSnap.olcrtcConfig.transport ||
-                    c.socksAddr != clientSnap.socksAddr ||
-                    c.isSocksAuthEnabled != clientSnap.isSocksAuthEnabled ||
-                    c.socksUser != clientSnap.socksUser ||
-                    c.socksPass != clientSnap.socksPass
-                }
-        )
-        
-        baseChanged || connectionChanged
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
-    val isConfigChanged: StateFlow<Boolean> = combine(
-        isMainConfigChanged, isXrayConfigChanged, ProxyServiceState.isRestarting
-    ) { main, xray, isRestarting -> 
-        !isRestarting && (main || xray) 
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
     private var pingJob: Job? = null
     private var metricsJob: Job? = null
 
@@ -224,9 +171,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var lastTx = 0L
     private var lastMetricsTime = 0L
 
-    private val _vpnEnabled = MutableStateFlow(false)
-    val vpnEnabled: StateFlow<Boolean> = _vpnEnabled.asStateFlow()
-
     private val _olcrtcSocksAddr = MutableStateFlow("")
     private val _olcrtcSocksAuthEnabled = MutableStateFlow(true)
     private val _olcrtcSocksUser = MutableStateFlow("")
@@ -242,7 +186,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _wgConfig.value = prefs.wgConfigFlow.first()
             _vlessConfig.value = prefs.vlessConfigFlow.first()
             _xraySettings.value = prefs.xraySettingsFlow.first()
-            _vpnEnabled.value = prefs.vpnEnabledFlow.first()
+            _vpnSettings.value = prefs.vpnSettingsFlow.first()
             _batteryNotificationDismissed.value = prefs.batteryNotificationDismissedFlow.first()
             _appsExclusionHintShown.value = prefs.appsExclusionHintShownFlow.first()
             _allowUnstableUpdates.value = prefs.allowUnstableUpdatesFlow.first()
@@ -251,8 +195,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _captchaStyleMod.value = prefs.captchaStyleModFlow.first()
             _captchaForceTint.value = prefs.captchaForceTintFlow.first()
             _appLanguage.value = prefs.appLanguageFlow.first()
-            _globalVpnSettings.value = prefs.globalVpnSettingsFlow.first()
-            _excludedApps.value = prefs.excludedAppsFlow.first()
             _vlessLinkHistory.value = prefs.vlessLinkHistoryFlow.first()
             _autoLaunchSettings.value = prefs.autoLaunchSettingsFlow.first()
 
@@ -273,7 +215,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             launch { prefs.onboardingDoneFlow.collect { _onboardingDone.value = it } }
             launch { prefs.themeModeFlow.collect { _themeMode.value = it } }
-            launch { prefs.vpnEnabledFlow.collect { _vpnEnabled.value = it } }
+            launch { prefs.vpnSettingsFlow.collect { _vpnSettings.value = it } }
             launch { prefs.dynamicThemeFlow.collect { _dynamicTheme.value = it } }
             launch { prefs.clientConfigFlow.collect { _clientConfig.value = it } }
             launch { prefs.xrayConfigFlow.collect { _xrayConfig.value = it } }
@@ -289,8 +231,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.captchaForceTintFlow.collect { _captchaForceTint.value = it } }
             launch { prefs.appLanguageFlow.collect { _appLanguage.value = it } }
             launch { prefs.autoLaunchSettingsFlow.collect { _autoLaunchSettings.value = it; updateAutoLaunchJob(it) } }
-            launch { prefs.globalVpnSettingsFlow.collect { _globalVpnSettings.value = it } }
-            launch { prefs.excludedAppsFlow.collect { _excludedApps.value = it } }
             launch { prefs.vlessLinkHistoryFlow.collect { _vlessLinkHistory.value = it } }
 
             launch {
@@ -460,45 +400,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun startProxyInternal(forceRestart: Boolean = false) { 
         proxyManager.startProxy(clientConfig.value, forceRestart) 
     }
-    
-    private suspend fun restartProxyInternal() {
-        proxyManager.stopProxy()
-        withTimeoutOrNull(5000) { ProxyServiceState.isRunning.first { !it } }
-        delay(600)
-        startProxyInternal()
-    }
-
-    fun restartProxy() {
-        ProcessLifecycleOwner.get().lifecycleScope.launch {
-            ProxyServiceState.setRestarting(true)
-            try { restartProxyInternal() } finally { 
-                delay(100)
-                ProxyServiceState.setRestarting(false) 
-            }
-        }
-    }
-
-    fun restartXray() {
-        ProcessLifecycleOwner.get().lifecycleScope.launch {
-            ProxyServiceState.setRestarting(true)
-            try {
-                getApplication<Application>().stopService(Intent(getApplication(), XrayService::class.java))
-                withTimeoutOrNull(5000) { XrayServiceState.state.first { it == XrayState.Idle } }
-            } finally { 
-                delay(100)
-                ProxyServiceState.setRestarting(false) 
-            }
-        }
-    }
 
     fun stopProxy() { proxyManager.stopProxy() }
-
-    fun revertToSnapshotConfigs() {
-        ProxyServiceState.clientConfigSnapshot.value?.let { saveClientConfig(it) }
-        XrayServiceState.wgConfigSnapshot.value?.let { updateWgConfig(it) }
-        XrayServiceState.vlessConfigSnapshot.value?.let { updateVlessConfig(it) }
-        XrayServiceState.xrayConfigSnapshot.value?.let { updateXrayConfig(it) }
-    }
 
     fun dismissCaptcha() { proxyManager.dismissCaptcha() }
     fun clearLogs() { AppLogsState.clearLogs() }
@@ -512,11 +415,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 config.socksUser, 
                 config.socksPass
             )
-            prefs.saveActiveProfilePart(profiles.value.find { it.id == currentProfileId.value }?.copy(
-                kernelVariant = config.kernelVariant,
-                turnableConfig = config.turnableConfig,
-                olcrtcConfig = config.olcrtcConfig
-            ) ?: return@launch)
+            val profile = profiles.value.find { it.id == currentProfileId.value } ?: return@launch
+            val updatedProfile = when (val k = config.kernelConfig) {
+                is KernelConfig.Turnable -> profile.copy(kernelVariant = KernelVariant.TURNABLE, turnableConfig = k.config)
+                is KernelConfig.Olcrtc -> profile.copy(kernelVariant = KernelVariant.OLCRTC, olcrtcConfig = k.config)
+            }
+            prefs.saveActiveProfilePart(updatedProfile)
             updateCurrentProfileInList()
         }
     }
@@ -575,7 +479,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun checkProxyPing(delayFirst: Boolean = false) {
-        val addr = XrayServiceState.xraySettingsSnapshot.value?.connectableAddress ?: return
+        val addr = XrayServiceState.session.value?.settings?.connectableAddress ?: return
         if (addr.isBlank() || !com.wireturn.app.ui.ValidatorUtils.isValidHostPort(addr)) return
         pingJob?.cancel()
         pingJob = viewModelScope.launch {
@@ -622,62 +526,66 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     
     fun installUpdate() { appUpdater.installUpdate() }
 
-    fun updateWgConfig(c: WgConfig) { 
-        ProcessLifecycleOwner.get().lifecycleScope.launch { 
+    fun updateWgConfig(c: WgConfig) {
+        _wgConfig.value = c
+        ProcessLifecycleOwner.get().lifecycleScope.launch {
             prefs.saveWgConfig(c)
-            updateCurrentProfileInList() 
-        } 
+            updateCurrentProfileInList()
+        }
     }
-    
+
     fun updateXraySettings(s: XraySettings) {
+        _xraySettings.value = s
         ProcessLifecycleOwner.get().lifecycleScope.launch {
             prefs.saveXraySettings(s)
             updateCurrentProfileInList()
         }
     }
 
-    fun updateGlobalVpnSettings(s: GlobalVpnSettings) { 
-        viewModelScope.launch { prefs.saveGlobalVpnSettings(s) } 
+    fun saveVpnSettings(s: VpnSettings) {
+        viewModelScope.launch { prefs.saveVpnSettings(s) }
     }
-    
-    fun toggleAppExclusion(p: String) { 
-        val cur = _excludedApps.value
-        viewModelScope.launch { 
-            prefs.saveExcludedApps(if (cur.contains(p)) cur - p else cur + p) 
-        } 
+
+    fun toggleAppExclusion(p: String) {
+        val cur = _vpnSettings.value.excludedApps
+        viewModelScope.launch {
+            prefs.saveExcludedApps(if (cur.contains(p)) cur - p else cur + p)
+        }
     }
-    
-    fun saveExcludedApps(s: Set<String>) { 
-        viewModelScope.launch { prefs.saveExcludedApps(s) } 
+
+    fun saveExcludedApps(s: Set<String>) {
+        viewModelScope.launch { prefs.saveExcludedApps(s) }
     }
-    
+
     fun updateXrayConfig(c: XrayConfig) {
+        _xrayConfig.value = c
         ProcessLifecycleOwner.get().lifecycleScope.launch {
             prefs.saveXrayConfig(c)
             updateCurrentProfileInList()
         }
     }
-    
-    fun updateVlessConfig(c: VlessConfig) { 
+
+    fun updateVlessConfig(c: VlessConfig) {
+        _vlessConfig.value = c
         ProcessLifecycleOwner.get().lifecycleScope.launch {
             prefs.saveVlessConfig(c)
-            updateCurrentProfileInList() 
-        } 
+            updateCurrentProfileInList()
+        }
     }
 
     private fun updateCurrentProfileInList() {
         val curId = currentProfileId.value
         val profile = profiles.value.find { it.id == curId } ?: return
-        val updated = profile.copy(
-            kernelVariant = _clientConfig.value.kernelVariant,
-            turnableConfig = _clientConfig.value.turnableConfig,
-            olcrtcConfig = _clientConfig.value.olcrtcConfig,
+        val withKernel = when (val k = _clientConfig.value.kernelConfig) {
+            is KernelConfig.Turnable -> profile.copy(kernelVariant = KernelVariant.TURNABLE, turnableConfig = k.config)
+            is KernelConfig.Olcrtc -> profile.copy(kernelVariant = KernelVariant.OLCRTC, olcrtcConfig = k.config)
+        }
+        profileManager.updateCurrentProfile(withKernel.copy(
             xrayProtocol = _xrayConfig.value.protocol,
             xrayEnabled = _xrayConfig.value.enabled,
             wgConfig = _wgConfig.value,
             vlessConfig = _vlessConfig.value
-        )
-        profileManager.updateCurrentProfile(updated)
+        ))
     }
 
     fun selectProfileAndRestart(id: String, profile: Profile? = null, onCompletion: (() -> Unit)? = null) {
@@ -707,12 +615,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         val id = java.util.UUID.randomUUID().toString()
         val defaultName = getApplication<Application>().getString(R.string.profile_default_name)
+        val kernelVariant = clientConfig.kernelVariant
+        val turnableConfig = (clientConfig.kernelConfig as? KernelConfig.Turnable)?.config ?: TurnableConfig()
+        val olcrtcConfig = (clientConfig.kernelConfig as? KernelConfig.Olcrtc)?.config ?: OlcrtcConfig()
         val newProfile = Profile(
             id = id,
             name = name,
-            kernelVariant = clientConfig.kernelVariant,
-            turnableConfig = clientConfig.turnableConfig,
-            olcrtcConfig = clientConfig.olcrtcConfig,
+            kernelVariant = kernelVariant,
+            turnableConfig = turnableConfig,
+            olcrtcConfig = olcrtcConfig,
             xrayProtocol = xrayConfig.protocol,
             xrayEnabled = xrayConfig.enabled,
             wgConfig = wgConfig,

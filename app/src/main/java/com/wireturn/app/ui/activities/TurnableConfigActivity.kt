@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.gson.Gson
+import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.TurnableConfig
 import com.wireturn.app.ui.screens.TurnableConfigScreen
 import com.wireturn.app.ui.theme.WireturnTheme
@@ -37,7 +38,7 @@ class TurnableConfigActivity : ComponentActivity() {
                 if (configJson != null) {
                     try { Gson().fromJson(configJson, TurnableConfig::class.java) } catch (_: Exception) { TurnableConfig() }
                 } else if (isEditMode) {
-                    clientConfig.turnableConfig
+                    (clientConfig.kernelConfig as? KernelConfig.Turnable)?.config ?: TurnableConfig()
                 } else {
                     TurnableConfig()
                 }
@@ -52,8 +53,7 @@ class TurnableConfigActivity : ComponentActivity() {
                     onSave = { config ->
                         if (isEditMode) {
                             viewModel.saveClientConfig(clientConfig.copy(
-                                turnableConfig = config,
-                                kernelVariant = com.wireturn.app.data.KernelVariant.TURNABLE
+                                kernelConfig = KernelConfig.Turnable(config)
                             ))
                             finish()
                         } else {
@@ -66,12 +66,8 @@ class TurnableConfigActivity : ComponentActivity() {
                                 if (isTcp) {
                                     putExtra("EXTRA_DEFAULT_PROTOCOL", com.wireturn.app.data.XrayConfiguration.VLESS.name)
                                 }
-                                putExtra("EXTRA_CLIENT_CONFIG_JSON", Gson().toJson(
-                                    com.wireturn.app.data.ClientConfig(
-                                        turnableConfig = config,
-                                        kernelVariant = com.wireturn.app.data.KernelVariant.TURNABLE
-                                    )
-                                ))
+                                putExtra("EXTRA_KERNEL_VARIANT", "TURNABLE")
+                                putExtra("EXTRA_TURNABLE_CONFIG_JSON", Gson().toJson(config))
                             }
                             startActivity(intent)
                         }

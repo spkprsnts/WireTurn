@@ -58,6 +58,11 @@ enum class KernelVariant { TURNABLE, OLCRTC }
 enum class XrayConfiguration { WIREGUARD, VLESS }
 enum class ThemeMode { DARK, LIGHT, SYSTEM }
 
+sealed class KernelConfig {
+    data class Turnable(val config: TurnableConfig = TurnableConfig()) : KernelConfig()
+    data class Olcrtc(val config: OlcrtcConfig = OlcrtcConfig()) : KernelConfig()
+}
+
 data class TurnableRoute(
     @SerializedName("route_id") val routeId: String = "",
     @SerializedName("name") val name: String = "",
@@ -361,10 +366,13 @@ data class ClientConfig(
     val isSocksAuthEnabled: Boolean = true,
     val socksUser: String = "",
     val socksPass: String = "",
-    val turnableConfig: TurnableConfig = TurnableConfig(),
-    val olcrtcConfig: OlcrtcConfig = OlcrtcConfig(),
-    val kernelVariant: KernelVariant = KernelVariant.TURNABLE
+    val kernelConfig: KernelConfig = KernelConfig.Turnable()
 ) {
+    val kernelVariant: KernelVariant get() = when (kernelConfig) {
+        is KernelConfig.Turnable -> KernelVariant.TURNABLE
+        is KernelConfig.Olcrtc -> KernelVariant.OLCRTC
+    }
+
     fun fillDefaults(): ClientConfig {
         val cleanedUser = ValidatorUtils.cleanProxyString(socksUser)
         val cleanedPass = socksPass.trim()
@@ -387,28 +395,25 @@ data class ClientConfig(
             )
         }
         return current.copy(
-            turnableConfig = turnableConfig.sanitize(),
-            olcrtcConfig = olcrtcConfig.fillDefaults()
+            kernelConfig = when (val k = kernelConfig) {
+                is KernelConfig.Turnable -> KernelConfig.Turnable(k.config.sanitize())
+                is KernelConfig.Olcrtc -> KernelConfig.Olcrtc(k.config.fillDefaults())
+            }
         )
     }
 
     val connectableAddress: String get() = listenAddr.replace("0.0.0.0:", "127.0.0.1:")
-    fun getValidationErrorResId(): Int? = when (kernelVariant) {
-        KernelVariant.TURNABLE if !turnableConfig.isValid() -> {
-            R.string.error_settings_empty
-        }
-        KernelVariant.OLCRTC if !olcrtcConfig.isValid() -> {
-            R.string.error_settings_empty
-        }
-        else -> {
-            null
-        }
+
+    fun getValidationErrorResId(): Int? = when (val k = kernelConfig) {
+        is KernelConfig.Turnable -> if (!k.config.isValid()) R.string.error_settings_empty else null
+        is KernelConfig.Olcrtc -> if (!k.config.isValid()) R.string.error_settings_empty else null
     }
 
     val isValid: Boolean get() = getValidationErrorResId() == null
-    fun getKernelDescription(context: Context): String = when (kernelVariant) {
-        KernelVariant.TURNABLE -> context.getString(R.string.kernel_turnable) + " " + turnableConfig.selectedRouteId
-        KernelVariant.OLCRTC -> context.getString(R.string.kernel_olcrtc) + " " + olcrtcConfig.provider
+
+    fun getKernelDescription(context: Context): String = when (val k = kernelConfig) {
+        is KernelConfig.Turnable -> context.getString(R.string.kernel_turnable) + " " + k.config.selectedRouteId
+        is KernelConfig.Olcrtc -> context.getString(R.string.kernel_olcrtc) + " " + k.config.provider
     }
 
     companion object {
@@ -535,6 +540,18 @@ data class WgConfig(
     }
 }
 
+private data class KernelSnapshot(
+    @SerializedName("variant") val variant: String = KernelVariant.TURNABLE.name,
+    @SerializedName("turnable") val turnable: TurnableConfig? = null,
+    @SerializedName("olcrtc") val olcrtc: OlcrtcConfig? = null
+)
+
+private data class OldClientConfig(
+    val kernelVariant: KernelVariant = KernelVariant.TURNABLE,
+    val turnableConfig: TurnableConfig = TurnableConfig(),
+    val olcrtcConfig: OlcrtcConfig = OlcrtcConfig()
+)
+
 data class Profile(
     @SerializedName("id") val id: String,
     @SerializedName("name") val name: String,
@@ -544,13 +561,12 @@ data class Profile(
     @SerializedName("xrayProtocol", alternate = ["protocol", "xrayConfiguration"]) val xrayProtocol: XrayConfiguration = XrayConfiguration.WIREGUARD,
     @SerializedName("xrayEnabled", alternate = ["enabled"]) val xrayEnabled: Boolean = false,
     @SerializedName("wgConfig") val wgConfig: WgConfig = WgConfig(),
-    @SerializedName("vlessConfig") val vlessConfig: VlessConfig = VlessConfig(),
-
-    // Migration fields (complex nested structures)
-    @SerializedName("clientConfig") private val oldClientConfig: ClientConfig? = null,
-    @SerializedName("xraySettings") private val oldXraySettings: Any? = null,
-    @SerializedName("xrayConfig") private val oldXrayConfig: Any? = null
+    @SerializedName("vlessConfig") val vlessConfig: VlessConfig = VlessConfig()
 ) {
+    // Migration fields — set by Gson via reflection, not part of data class equality/copy
+    @SerializedName("clientConfig") private val oldClientConfig: OldClientConfig? = null
+    @SerializedName("xraySettings") private val oldXraySettings: Any? = null
+    @SerializedName("xrayConfig") private val oldXrayConfig: Any? = null
     fun isEmpty(): Boolean = !turnableConfig.isValid() &&
             !olcrtcConfig.isValid() &&
             !wgConfig.isValid() &&
@@ -602,11 +618,13 @@ data class Profile(
     }
 }
 
-data class GlobalVpnSettings(
+data class VpnSettings(
+    val enabled: Boolean = false,
     val hideSystemApps: Boolean = true,
     val bypassMode: Boolean = true,
     val filteringEnabled: Boolean = true,
-    val groupAppsByLetter: Boolean = true
+    val groupAppsByLetter: Boolean = true,
+    val excludedApps: Set<String> = emptySet()
 )
 
 data class AutoLaunchSettings(
@@ -630,7 +648,7 @@ class AppPreferences(val context: Context) {
         val VPN_BYPASS_MODE = booleanPreferencesKey("vpn_bypass_mode")
         val VPN_FILTERING_ENABLED = booleanPreferencesKey("vpn_filtering_enabled")
         val VPN_GROUP_APPS_BY_LETTER = booleanPreferencesKey("vpn_group_apps_by_letter")
-        val XRAY_EXCLUDED_APPS = stringSetPreferencesKey("proxy_excluded_apps")
+        val VPN_EXCLUDED_APPS = stringSetPreferencesKey("proxy_excluded_apps")
         val APP_LANGUAGE = stringPreferencesKey("app_language")
         val AUTO_LAUNCH_ENABLED = booleanPreferencesKey("auto_launch_enabled")
         val AUTO_LAUNCH_URL = stringPreferencesKey("auto_launch_url")
@@ -656,10 +674,12 @@ class AppPreferences(val context: Context) {
         val XRAY_USER = stringPreferencesKey("xray_user")
         val XRAY_PASS = stringPreferencesKey("xray_pass")
 
-        val ACTIVE_KERNEL_VARIANT = stringPreferencesKey("active_kernel_variant")
-        val ACTIVE_TURNABLE_JSON = stringPreferencesKey("active_turnable_json")
-        val ACTIVE_OLCRTC_JSON = stringPreferencesKey("active_olcrtc_json")
+        val ACTIVE_KERNEL_JSON = stringPreferencesKey("active_kernel_json")
         val ACTIVE_XRAY_CONFIG_TYPE = stringPreferencesKey("active_xray_config_type")
+        // Legacy keys — used only for migration on first launch after update
+        private val LEGACY_KERNEL_VARIANT = stringPreferencesKey("active_kernel_variant")
+        private val LEGACY_TURNABLE_JSON = stringPreferencesKey("active_turnable_json")
+        private val LEGACY_OLCRTC_JSON = stringPreferencesKey("active_olcrtc_json")
         val ACTIVE_XRAY_ENABLED = booleanPreferencesKey("active_xray_enabled")
         val ACTIVE_WG_JSON = stringPreferencesKey("active_wg_json")
         val ACTIVE_VLESS_JSON = stringPreferencesKey("active_vless_json")
@@ -671,14 +691,25 @@ class AppPreferences(val context: Context) {
     val onboardingDoneFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(ONBOARDING_DONE, false)
 
     suspend fun hasActiveProfile(): Boolean =
-        appCtx.internalDataStore.data.map { it[ACTIVE_KERNEL_VARIANT] }.first() != null
+        appCtx.internalDataStore.data.map { it[ACTIVE_KERNEL_JSON] != null || it[LEGACY_KERNEL_VARIANT] != null }.first()
 
     val themeModeFlow: Flow<ThemeMode> = appCtx.internalDataStore.data
         .map { ThemeMode.valueOf(it[THEME_MODE] ?: ThemeMode.SYSTEM.name) }
         .distinctUntilChanged()
 
     val dynamicThemeFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(DYNAMIC_THEME, true)
-    val vpnEnabledFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(VPN_ENABLED, false)
+    val vpnSettingsFlow: Flow<VpnSettings> = appCtx.internalDataStore.data
+        .map {
+            VpnSettings(
+                enabled = it[VPN_ENABLED] ?: false,
+                hideSystemApps = it[VPN_HIDE_SYSTEM_APPS] ?: true,
+                bypassMode = it[VPN_BYPASS_MODE] ?: true,
+                filteringEnabled = it[VPN_FILTERING_ENABLED] ?: true,
+                groupAppsByLetter = it[VPN_GROUP_APPS_BY_LETTER] ?: true,
+                excludedApps = it[VPN_EXCLUDED_APPS] ?: emptySet()
+            )
+        }.distinctUntilChanged()
+
     val batteryNotificationDismissedFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(BATTERY_NOTIFICATION_DISMISSED, false)
     val appsExclusionHintShownFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(APPS_EXCLUSION_HINT_SHOWN, false)
     val allowUnstableUpdatesFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(ALLOW_UNSTABLE_UPDATES, false)
@@ -688,20 +719,6 @@ class AppPreferences(val context: Context) {
     val captchaForceTintFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(CAPTCHA_FORCE_TINT, true)
     val privacyModeFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(PRIVACY_MODE, false)
     val appLanguageFlow: Flow<String> = appCtx.internalDataStore.data.mapPref(APP_LANGUAGE, "system")
-
-    val globalVpnSettingsFlow: Flow<GlobalVpnSettings> = appCtx.internalDataStore.data
-        .map {
-            GlobalVpnSettings(
-                it[VPN_HIDE_SYSTEM_APPS] ?: true,
-                it[VPN_BYPASS_MODE] ?: true,
-                it[VPN_FILTERING_ENABLED] ?: true,
-                it[VPN_GROUP_APPS_BY_LETTER] ?: true
-            )
-        }.distinctUntilChanged()
-
-    val excludedAppsFlow: Flow<Set<String>> = appCtx.internalDataStore.data
-        .map { it[XRAY_EXCLUDED_APPS] ?: emptySet() }
-        .distinctUntilChanged()
 
     val profilesFlow: Flow<List<Profile>> = appCtx.internalDataStore.data
         .map { p ->
@@ -741,19 +758,28 @@ class AppPreferences(val context: Context) {
 
     val clientConfigFlow: Flow<ClientConfig> = appCtx.internalDataStore.data
         .map { p ->
+            val kernelConfig = p[ACTIVE_KERNEL_JSON]?.let { json ->
+                val snap = gson.fromJson(json, KernelSnapshot::class.java) ?: KernelSnapshot()
+                val variant = try { KernelVariant.valueOf(snap.variant) } catch (_: Exception) { KernelVariant.TURNABLE }
+                when (variant) {
+                    KernelVariant.TURNABLE -> KernelConfig.Turnable(snap.turnable ?: TurnableConfig())
+                    KernelVariant.OLCRTC -> KernelConfig.Olcrtc(snap.olcrtc ?: OlcrtcConfig())
+                }
+            } ?: run {
+                // Migration from legacy keys
+                val variant = try { KernelVariant.valueOf(p[LEGACY_KERNEL_VARIANT] ?: KernelVariant.TURNABLE.name) } catch (_: Exception) { KernelVariant.TURNABLE }
+                when (variant) {
+                    KernelVariant.TURNABLE -> KernelConfig.Turnable(gson.fromJson(p[LEGACY_TURNABLE_JSON] ?: "{}", TurnableConfig::class.java) ?: TurnableConfig())
+                    KernelVariant.OLCRTC -> KernelConfig.Olcrtc(gson.fromJson(p[LEGACY_OLCRTC_JSON] ?: "{}", OlcrtcConfig::class.java) ?: OlcrtcConfig())
+                }
+            }
             ClientConfig(
                 listenAddr = p[CLIENT_LISTEN_ADDR] ?: ClientConfig.DEFAULT_LISTEN_ADDR,
                 socksAddr = p[OLCRTC_SOCKS_ADDR] ?: ClientConfig.DEFAULT_SOCKS_ADDR,
                 isSocksAuthEnabled = p[OLCRTC_SOCKS_AUTH_ENABLED] ?: true,
                 socksUser = p[OLCRTC_SOCKS_USER] ?: "",
                 socksPass = p[OLCRTC_SOCKS_PASS] ?: "",
-                kernelVariant = try {
-                    KernelVariant.valueOf(p[ACTIVE_KERNEL_VARIANT] ?: KernelVariant.TURNABLE.name)
-                } catch (_: Exception) {
-                    KernelVariant.TURNABLE
-                },
-                turnableConfig = gson.fromJson(p[ACTIVE_TURNABLE_JSON] ?: "{}", TurnableConfig::class.java) ?: TurnableConfig(),
-                olcrtcConfig = gson.fromJson(p[ACTIVE_OLCRTC_JSON] ?: "{}", OlcrtcConfig::class.java) ?: OlcrtcConfig()
+                kernelConfig = kernelConfig
             )
         }.distinctUntilChanged()
 
@@ -788,16 +814,20 @@ class AppPreferences(val context: Context) {
         .map { (gson.fromJson(it[ACTIVE_VLESS_JSON] ?: "{}", VlessConfig::class.java) ?: VlessConfig()) }
         .distinctUntilChanged()
 
+    private fun kernelSnapshotOf(profile: Profile): KernelSnapshot = when (profile.kernelVariant) {
+        KernelVariant.TURNABLE -> KernelSnapshot(variant = KernelVariant.TURNABLE.name, turnable = profile.turnableConfig)
+        KernelVariant.OLCRTC -> KernelSnapshot(variant = KernelVariant.OLCRTC.name, olcrtc = profile.olcrtcConfig)
+    }
+
     suspend fun saveFullProfile(id: String, profile: Profile) {
         appCtx.internalDataStore.edit { p ->
             p[CURRENT_PROFILE_ID] = id
-            p[ACTIVE_KERNEL_VARIANT] = profile.kernelVariant.name
-            p[ACTIVE_TURNABLE_JSON] = gson.toJson(profile.turnableConfig)
-            p[ACTIVE_OLCRTC_JSON] = gson.toJson(profile.olcrtcConfig)
+            p[ACTIVE_KERNEL_JSON] = gson.toJson(kernelSnapshotOf(profile))
             p[ACTIVE_XRAY_CONFIG_TYPE] = profile.xrayProtocol.name
             p[ACTIVE_XRAY_ENABLED] = profile.xrayEnabled
             p[ACTIVE_WG_JSON] = gson.toJson(profile.wgConfig)
             p[ACTIVE_VLESS_JSON] = gson.toJson(profile.vlessConfig)
+            p.remove(LEGACY_KERNEL_VARIANT); p.remove(LEGACY_TURNABLE_JSON); p.remove(LEGACY_OLCRTC_JSON)
         }
     }
 
@@ -820,6 +850,10 @@ class AppPreferences(val context: Context) {
 
     suspend fun setVpnEnabled(v: Boolean) {
         appCtx.internalDataStore.edit { it[VPN_ENABLED] = v }
+    }
+
+    suspend fun saveExcludedApps(s: Set<String>) {
+        appCtx.internalDataStore.edit { it[VPN_EXCLUDED_APPS] = s }
     }
 
     suspend fun setDynamicTheme(v: Boolean) {
@@ -884,17 +918,15 @@ class AppPreferences(val context: Context) {
         }
     }
 
-    suspend fun saveGlobalVpnSettings(s: GlobalVpnSettings) {
+    suspend fun saveVpnSettings(s: VpnSettings) {
         appCtx.internalDataStore.edit {
+            it[VPN_ENABLED] = s.enabled
             it[VPN_HIDE_SYSTEM_APPS] = s.hideSystemApps
             it[VPN_BYPASS_MODE] = s.bypassMode
             it[VPN_FILTERING_ENABLED] = s.filteringEnabled
             it[VPN_GROUP_APPS_BY_LETTER] = s.groupAppsByLetter
+            it[VPN_EXCLUDED_APPS] = s.excludedApps
         }
-    }
-
-    suspend fun saveExcludedApps(s: Set<String>) {
-        appCtx.internalDataStore.edit { it[XRAY_EXCLUDED_APPS] = s }
     }
 
     suspend fun updateAutoLaunchSettings(s: AutoLaunchSettings) {
@@ -937,9 +969,11 @@ class AppPreferences(val context: Context) {
             it[OLCRTC_SOCKS_AUTH_ENABLED] = c.isSocksAuthEnabled
             it[OLCRTC_SOCKS_USER] = c.socksUser
             it[OLCRTC_SOCKS_PASS] = c.socksPass
-            it[ACTIVE_KERNEL_VARIANT] = c.kernelVariant.name
-            it[ACTIVE_TURNABLE_JSON] = gson.toJson(c.turnableConfig)
-            it[ACTIVE_OLCRTC_JSON] = gson.toJson(c.olcrtcConfig)
+            it[ACTIVE_KERNEL_JSON] = gson.toJson(when (val k = c.kernelConfig) {
+                is KernelConfig.Turnable -> KernelSnapshot(variant = KernelVariant.TURNABLE.name, turnable = k.config)
+                is KernelConfig.Olcrtc -> KernelSnapshot(variant = KernelVariant.OLCRTC.name, olcrtc = k.config)
+            })
+            it.remove(LEGACY_KERNEL_VARIANT); it.remove(LEGACY_TURNABLE_JSON); it.remove(LEGACY_OLCRTC_JSON)
         }
     }
 
@@ -949,26 +983,24 @@ class AppPreferences(val context: Context) {
 
     suspend fun saveActiveProfilePart(profile: Profile) {
         appCtx.internalDataStore.edit { p ->
-            p[ACTIVE_KERNEL_VARIANT] = profile.kernelVariant.name
-            p[ACTIVE_TURNABLE_JSON] = gson.toJson(profile.turnableConfig)
-            p[ACTIVE_OLCRTC_JSON] = gson.toJson(profile.olcrtcConfig)
+            p[ACTIVE_KERNEL_JSON] = gson.toJson(kernelSnapshotOf(profile))
             p[ACTIVE_XRAY_CONFIG_TYPE] = profile.xrayProtocol.name
             p[ACTIVE_XRAY_ENABLED] = profile.xrayEnabled
             p[ACTIVE_WG_JSON] = gson.toJson(profile.wgConfig)
             p[ACTIVE_VLESS_JSON] = gson.toJson(profile.vlessConfig)
+            p.remove(LEGACY_KERNEL_VARIANT); p.remove(LEGACY_TURNABLE_JSON); p.remove(LEGACY_OLCRTC_JSON)
         }
     }
 
     suspend fun clearActiveProfile() {
         appCtx.internalDataStore.edit { p ->
-            p.remove(ACTIVE_KERNEL_VARIANT)
-            p.remove(ACTIVE_TURNABLE_JSON)
-            p.remove(ACTIVE_OLCRTC_JSON)
+            p.remove(ACTIVE_KERNEL_JSON)
             p.remove(ACTIVE_XRAY_CONFIG_TYPE)
             p.remove(ACTIVE_XRAY_ENABLED)
             p.remove(ACTIVE_WG_JSON)
             p.remove(ACTIVE_VLESS_JSON)
             p.remove(CURRENT_PROFILE_ID)
+            p.remove(LEGACY_KERNEL_VARIANT); p.remove(LEGACY_TURNABLE_JSON); p.remove(LEGACY_OLCRTC_JSON)
         }
     }
 }

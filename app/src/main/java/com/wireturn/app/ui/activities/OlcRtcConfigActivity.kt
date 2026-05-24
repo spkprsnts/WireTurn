@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.gson.Gson
+import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.OlcrtcConfig
 import com.wireturn.app.ui.screens.OlcRtcConfigScreen
 import com.wireturn.app.ui.theme.WireturnTheme
@@ -37,7 +38,7 @@ class OlcRtcConfigActivity : ComponentActivity() {
                 if (configJson != null) {
                     try { Gson().fromJson(configJson, OlcrtcConfig::class.java) } catch (_: Exception) { OlcrtcConfig() }
                 } else if (isEditMode) {
-                    clientConfig.olcrtcConfig
+                    (clientConfig.kernelConfig as? KernelConfig.Olcrtc)?.config ?: OlcrtcConfig()
                 } else {
                     OlcrtcConfig()
                 }
@@ -53,20 +54,15 @@ class OlcRtcConfigActivity : ComponentActivity() {
                     onSave = { config ->
                         if (isEditMode) {
                             viewModel.saveClientConfig(clientConfig.copy(
-                                olcrtcConfig = config,
-                                kernelVariant = com.wireturn.app.data.KernelVariant.OLCRTC
+                                kernelConfig = KernelConfig.Olcrtc(config)
                             ))
                             finish()
                         } else {
                             val intent = android.content.Intent(this, XraySetupActivity::class.java).apply {
                                 putExtra("SHOW_PROTOCOL_SELECTION", false)
                                 putExtra("EXTRA_PROFILE_NAME", profileName)
-                                putExtra("EXTRA_CLIENT_CONFIG_JSON", Gson().toJson(
-                                    com.wireturn.app.data.ClientConfig(
-                                        olcrtcConfig = config,
-                                        kernelVariant = com.wireturn.app.data.KernelVariant.OLCRTC
-                                    )
-                                ))
+                                putExtra("EXTRA_KERNEL_VARIANT", "OLCRTC")
+                                putExtra("EXTRA_OLCRTC_CONFIG_JSON", Gson().toJson(config))
                             }
                             startActivity(intent)
                         }

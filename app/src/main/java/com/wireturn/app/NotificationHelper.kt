@@ -69,8 +69,9 @@ object NotificationHelper {
         
         val proxyStatus = ProxyServiceState.status.value
         val proxyStatusText = ProxyServiceState.statusText.value
-        val profileNameSnapshot = ProxyServiceState.profileNameSnapshot.value
-        val clientConfig = ProxyServiceState.clientConfigSnapshot.value
+        val proxySession = ProxyServiceState.session.value
+        val profileNameSnapshot = proxySession?.profileName
+        val clientConfig = proxySession?.clientConfig
         val xrayState = XrayServiceState.state.value
         val vpnState = VpnServiceState.state.value
 
@@ -244,8 +245,7 @@ object NotificationHelper {
                 listOf(
                     ProxyServiceState.status,
                     ProxyServiceState.statusText,
-                    ProxyServiceState.profileNameSnapshot,
-                    ProxyServiceState.clientConfigSnapshot,
+                    ProxyServiceState.session,
                     XrayServiceState.state,
                     VpnServiceState.state
                 )

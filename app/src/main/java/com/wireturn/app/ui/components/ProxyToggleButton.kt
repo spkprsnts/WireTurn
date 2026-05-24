@@ -88,24 +88,21 @@ fun ProxyToggleButton(
     val xrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
     val autoLaunchSettings by viewModel.autoLaunchSettings.collectAsStateWithLifecycle()
 
-    val isRestarting by ProxyServiceState.isRestarting.collectAsStateWithLifecycle()
     val isChangingProfile by ProxyServiceState.isChangingProfile.collectAsStateWithLifecycle()
-    val isBusy = isRestarting || isChangingProfile
 
     var wasActiveBeforeRestart by remember { mutableStateOf(false) }
-    LaunchedEffect(isBusy, proxyState, xrayState) {
+    LaunchedEffect(isChangingProfile, proxyState, xrayState) {
         val isActive = proxyState !is ProxyState.Idle || xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
-        if (isBusy && isActive) {
+        if (isChangingProfile && isActive) {
             wasActiveBeforeRestart = true
-        } else if (!isBusy) {
+        } else if (!isChangingProfile) {
             wasActiveBeforeRestart = false
         }
     }
 
-    val isXrayWorking = xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
-    val toggleState = remember(proxyState, xrayState, isRestarting, wasActiveBeforeRestart, xrayConfig.enabled) {
-        val isActive = proxyState !is ProxyState.Idle || isXrayWorking
-        val actuallyRestarting = isRestarting && (isActive || wasActiveBeforeRestart)
+    val toggleState = remember(proxyState, xrayState, isChangingProfile, wasActiveBeforeRestart, xrayConfig.enabled) {
+        val isXrayWorking = xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
+        val actuallyRestarting = isChangingProfile && wasActiveBeforeRestart
         val gapFilling = wasActiveBeforeRestart && proxyState is ProxyState.Idle
         
         when {
@@ -138,7 +135,7 @@ fun ProxyToggleButton(
     }
 
     val statusText = when {
-        toggleState == "loading" && (isBusy || wasActiveBeforeRestart) -> stringResource(R.string.proxy_restarting)
+        toggleState == "loading" && (isChangingProfile || wasActiveBeforeRestart) -> stringResource(R.string.proxy_restarting)
         proxyState is ProxyState.Connected -> {
             if (xrayState == XrayState.DirectRoute) stringResource(R.string.vless_direct_active)
             else stringResource(R.string.proxy_active)

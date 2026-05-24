@@ -1,5 +1,6 @@
 package com.wireturn.app
 
+import com.wireturn.app.data.ClientConfig
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -32,6 +33,11 @@ sealed class ProxyStatus {
  */
 object ProxyServiceState {
 
+    data class RunningSession(
+        val clientConfig: ClientConfig,
+        val profileName: String
+    )
+
     private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main)
 
     private val _status = MutableStateFlow<ProxyStatus>(ProxyStatus.Idle)
@@ -43,32 +49,24 @@ object ProxyServiceState {
     private val _captchaSession = MutableStateFlow<CaptchaSession?>(null)
     val captchaSession: StateFlow<CaptchaSession?> = _captchaSession.asStateFlow()
 
-    private val _clientConfigSnapshot = MutableStateFlow<com.wireturn.app.data.ClientConfig?>(null)
-    val clientConfigSnapshot: StateFlow<com.wireturn.app.data.ClientConfig?> = _clientConfigSnapshot.asStateFlow()
-
-    private val _profileNameSnapshot = MutableStateFlow<String?>(null)
-    val profileNameSnapshot: StateFlow<String?> = _profileNameSnapshot.asStateFlow()
+    private val _session = MutableStateFlow<RunningSession?>(null)
+    val session: StateFlow<RunningSession?> = _session.asStateFlow()
 
     private val _statusText = MutableStateFlow<String?>(null)
     val statusText: StateFlow<String?> = _statusText.asStateFlow()
 
-    private val _isRestarting = MutableStateFlow(false)
-    val isRestarting: StateFlow<Boolean> = _isRestarting.asStateFlow()
-
     private val _isChangingProfile = MutableStateFlow(false)
     val isChangingProfile: StateFlow<Boolean> = _isChangingProfile.asStateFlow()
 
-    // Derived flows for backward compatibility and specialized logic
     val isRunning: StateFlow<Boolean> = _status.map { it !is ProxyStatus.Idle }
         .stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, false)
-    
+
     val isWorking: StateFlow<Boolean> = _status.map { it is ProxyStatus.Connected || it is ProxyStatus.Suppressed }
         .stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, false)
 
     fun setStatus(newStatus: ProxyStatus) {
         if (newStatus is ProxyStatus.Idle) {
-            _clientConfigSnapshot.value = null
-            _profileNameSnapshot.value = null
+            _session.value = null
             _statusText.value = null
             _captchaSession.value = null
         }
@@ -76,10 +74,6 @@ object ProxyServiceState {
             _captchaSession.value = newStatus.session
         }
         _status.value = newStatus
-    }
-
-    fun setRestarting(value: Boolean) {
-        _isRestarting.value = value
     }
 
     fun setChangingProfile(value: Boolean) {
@@ -90,12 +84,8 @@ object ProxyServiceState {
         _statusText.value = text
     }
 
-    fun setClientConfigSnapshot(config: com.wireturn.app.data.ClientConfig?) {
-        _clientConfigSnapshot.value = config
-    }
-
-    fun setProfileNameSnapshot(name: String?) {
-        _profileNameSnapshot.value = name
+    fun setSession(session: RunningSession?) {
+        _session.value = session
     }
 
     fun emitFailed() {

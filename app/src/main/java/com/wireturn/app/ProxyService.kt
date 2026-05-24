@@ -13,6 +13,7 @@ import android.os.Looper
 import android.os.PowerManager
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.ClientConfig
+import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.viewmodel.AppLifecycleState
 import com.wireturn.app.viewmodel.XrayState
@@ -92,15 +93,14 @@ class ProxyService : Service() {
 
             val prefs = AppPreferences(applicationContext)
             val cfg = prefs.clientConfigFlow.first()
-            val profileName = prefs.currentProfileNameFlow.first()
+            val profileName = prefs.currentProfileNameFlow.first().orEmpty()
             val vlessConfig = prefs.vlessConfigFlow.first()
             val xrayConfig = prefs.xrayConfigFlow.first()
 
             // Сразу фиксируем работающий конфиг для UI (с заполненными дефолтами)
             val filledCfg = cfg.fillDefaults()
             prefs.saveClientConfig(filledCfg)
-            ProxyServiceState.setClientConfigSnapshot(filledCfg)
-            ProxyServiceState.setProfileNameSnapshot(profileName)
+            ProxyServiceState.setSession(ProxyServiceState.RunningSession(filledCfg, profileName))
             currentRunningCfg.set(filledCfg)
 
             if (!filledCfg.isValid) {
@@ -188,14 +188,14 @@ class ProxyService : Service() {
                 XrayServiceState.state,
                 prefs.xrayConfigFlow,
                 prefs.vlessConfigFlow,
-                XrayServiceState.vlessConfigSnapshot
-            ) { state, xray, vless, snapshotVless ->
+                XrayServiceState.session
+            ) { state, xray, vless, xraySession ->
                 val isXrayVless = xray.protocol == com.wireturn.app.data.XrayConfiguration.VLESS
 
                 // Используем снапшот работающего конфига Xray для определения режима Dual-route.
                 // Это предотвращает преждевременный запуск бинарника при отключении Dual-route,
                 // пока Xray еще не перезагружен с новыми настройками.
-                val effectiveVless = if (state != XrayState.Idle) (snapshotVless ?: vless) else vless
+                val effectiveVless = if (state != XrayState.Idle) (xraySession?.vless ?: vless) else vless
                 val isDualRoute = xray.enabled && isXrayVless && effectiveVless.isDualRoute
 
                 if (isDualRoute) {
@@ -237,10 +237,9 @@ class ProxyService : Service() {
                 .collect { newCfgRaw ->
                     val runningCfg = currentRunningCfg.get() ?: return@collect
                     val newCfg = newCfgRaw.fillDefaults()
-                    val binaryChanged = binaryLaunchKey(newCfg) != binaryLaunchKey(runningCfg)
+                    val binaryChanged = requiresBinaryRestart(runningCfg, newCfg)
                     currentRunningCfg.set(newCfg)
-                    ProxyServiceState.setClientConfigSnapshot(newCfg)
-                    ProxyServiceState.setProfileNameSnapshot(prefs.currentProfileNameFlow.first())
+                    ProxyServiceState.setSession(ProxyServiceState.RunningSession(newCfg, prefs.currentProfileNameFlow.first().orEmpty()))
                     if (binaryChanged) {
                         val xrayConfig = prefs.xrayConfigFlow.first()
                         val vlessConfig = prefs.vlessConfigFlow.first()
@@ -638,39 +637,30 @@ class ProxyService : Service() {
     }
 
     private fun buildCommandArgs(cfg: ClientConfig): List<String> {
-        val executable = when (cfg.kernelVariant) {
-            KernelVariant.TURNABLE -> "${applicationInfo.nativeLibraryDir}/libturnable.so"
-            KernelVariant.OLCRTC -> "${applicationInfo.nativeLibraryDir}/libolcrtc.so"
-        }
-
         val cmdArgs = mutableListOf<String>()
-        cmdArgs.add(executable)
-
-        when (cfg.kernelVariant) {
-            KernelVariant.TURNABLE -> {
-                cmdArgs.addAll(
-                    listOf(
-                        "client",
-                        "-l", cfg.listenAddr.ifBlank { ClientConfig.DEFAULT_LISTEN_ADDR },
-                        cfg.turnableConfig.toUri(true)
-                    )
-                )
+        when (val k = cfg.kernelConfig) {
+            is KernelConfig.Turnable -> {
+                cmdArgs.add("${applicationInfo.nativeLibraryDir}/libturnable.so")
+                cmdArgs.addAll(listOf(
+                    "client",
+                    "-l", cfg.listenAddr.ifBlank { ClientConfig.DEFAULT_LISTEN_ADDR },
+                    k.config.toUri(true)
+                ))
             }
-            KernelVariant.OLCRTC -> {
+            is KernelConfig.Olcrtc -> {
+                cmdArgs.add("${applicationInfo.nativeLibraryDir}/libolcrtc.so")
                 val dataDir = java.io.File(filesDir, "data")
                 if (!dataDir.exists()) dataDir.mkdirs()
                 val configFile = java.io.File(filesDir, "olcrtc.yaml")
                 configFile.writeText(buildOlcrtcYaml(cfg))
                 cmdArgs.add(configFile.absolutePath)
-                return cmdArgs
             }
         }
-
         return cmdArgs
     }
 
     private fun buildOlcrtcYaml(cfg: ClientConfig): String {
-        val o = cfg.olcrtcConfig
+        val o = (cfg.kernelConfig as KernelConfig.Olcrtc).config
         return buildString {
             appendLine("mode: cnc")
             appendLine("data: data")
@@ -724,9 +714,16 @@ class ProxyService : Service() {
         }
     }
 
-    private fun binaryLaunchKey(cfg: ClientConfig): String = when (cfg.kernelVariant) {
-        KernelVariant.OLCRTC -> buildOlcrtcYaml(cfg)
-        KernelVariant.TURNABLE -> "${cfg.listenAddr.ifBlank { ClientConfig.DEFAULT_LISTEN_ADDR }}|${cfg.turnableConfig.toUri(true)}"
+    private fun requiresBinaryRestart(old: ClientConfig, new: ClientConfig): Boolean {
+        if (old.kernelConfig != new.kernelConfig) return true
+        return when (new.kernelConfig) {
+            is KernelConfig.Turnable -> old.listenAddr != new.listenAddr
+            is KernelConfig.Olcrtc ->
+                old.socksAddr != new.socksAddr ||
+                old.isSocksAuthEnabled != new.isSocksAuthEnabled ||
+                old.socksUser != new.socksUser ||
+                old.socksPass != new.socksPass
+        }
     }
 
     private fun handleProcessException(e: Exception) {
@@ -774,9 +771,9 @@ class ProxyService : Service() {
                 configFlow,
                 ProxyServiceState.status,
                 XrayServiceState.state,
-                ProxyServiceState.clientConfigSnapshot
-            ) { signals, status, xrayState, clientConfig ->
-                if (clientConfig == null) return@combine null
+                ProxyServiceState.session
+            ) { signals, status, xrayState, proxySession ->
+                val clientConfig = proxySession?.clientConfig ?: return@combine null
 
                 val shouldBeRunning = signals.xrayConfig.enabled &&
                         status !is ProxyStatus.Idle &&

@@ -9,6 +9,10 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.gson.Gson
 import com.wireturn.app.data.ClientConfig
+import com.wireturn.app.data.KernelConfig
+import com.wireturn.app.data.KernelVariant
+import com.wireturn.app.data.OlcrtcConfig
+import com.wireturn.app.data.TurnableConfig
 import com.wireturn.app.ui.screens.XraySetupScreen
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
@@ -30,11 +34,17 @@ class XraySetupActivity : ComponentActivity() {
         } else null
 
         val profileName = intent.getStringExtra("EXTRA_PROFILE_NAME") ?: getString(R.string.profile_default_name)
-        val clientConfigJson = intent.getStringExtra("EXTRA_CLIENT_CONFIG_JSON")
-        val clientConfigFromIntent = if (clientConfigJson != null) {
-            try { Gson().fromJson(clientConfigJson, ClientConfig::class.java) } catch (_: Exception) { ClientConfig() }
-        } else {
-            ClientConfig()
+        val clientConfigFromIntent = when (intent.getStringExtra("EXTRA_KERNEL_VARIANT")) {
+            KernelVariant.OLCRTC.name -> {
+                val json = intent.getStringExtra("EXTRA_OLCRTC_CONFIG_JSON")
+                val olcrtc = if (json != null) Gson().fromJson(json, OlcrtcConfig::class.java) ?: OlcrtcConfig() else OlcrtcConfig()
+                ClientConfig(kernelConfig = KernelConfig.Olcrtc(olcrtc))
+            }
+            else -> {
+                val json = intent.getStringExtra("EXTRA_TURNABLE_CONFIG_JSON")
+                val turnable = if (json != null) Gson().fromJson(json, TurnableConfig::class.java) ?: TurnableConfig() else TurnableConfig()
+                ClientConfig(kernelConfig = KernelConfig.Turnable(turnable))
+            }
         }
 
         setContent {

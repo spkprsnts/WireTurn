@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
+import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.viewmodel.MainViewModel
@@ -28,7 +29,7 @@ fun ProxyTriggerController(
 ) {
     val context = LocalContext.current
     val proxyState by viewModel.proxyState.collectAsStateWithLifecycle()
-    val vpnEnabled by viewModel.vpnEnabled.collectAsStateWithLifecycle()
+    val vpnSettings by viewModel.vpnSettings.collectAsStateWithLifecycle()
     val autoLaunchSettings by viewModel.autoLaunchSettings.collectAsStateWithLifecycle()
     val xrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
     val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
@@ -50,7 +51,8 @@ fun ProxyTriggerController(
     val wgMismatch = stringResource(R.string.warn_proxy_wg_mismatch)
 
     val checkMismatch = { targetXrayEnabled: Boolean, onConfirmed: () -> Unit ->
-        val selectedRoute = clientConfig.turnableConfig.routes.find { it.routeId == clientConfig.turnableConfig.selectedRouteId }
+        val turnableConfig = (clientConfig.kernelConfig as? KernelConfig.Turnable)?.config
+        val selectedRoute = turnableConfig?.routes?.find { it.routeId == turnableConfig.selectedRouteId }
         val isTunnelVless = selectedRoute?.transport?.contains("KCP", ignoreCase = true) == true
 
         val isTurnable = clientConfig.kernelVariant == KernelVariant.TURNABLE
@@ -74,7 +76,7 @@ fun ProxyTriggerController(
                 is ProxyState.Idle, is ProxyState.Error -> {
                     checkMismatch(xrayConfig.enabled) {
                         HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                        if (vpnEnabled) {
+                        if (vpnSettings.enabled) {
                             val intent = VpnService.prepare(context)
                             if (intent != null) {
                                 vpnLauncher.launch(intent)
