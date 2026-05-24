@@ -13,12 +13,10 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -89,6 +87,7 @@ import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.selectableButtonItem
 import com.wireturn.app.ui.redact
 import com.wireturn.app.ui.showExclusiveSnackbar
+import com.wireturn.app.ui.ExpandableSection
 import kotlinx.coroutines.launch
 
 @Composable
@@ -161,20 +160,6 @@ fun XraySetupScreen(
     BackHandler(enabled = isEditMode && isModified, onBack = handleBack)
 
     val scrollState = rememberScrollState()
-
-    var previousDualRoute by remember(initialVlessConfig) { mutableStateOf(vlessIsDualRoute) }
-    androidx.compose.runtime.LaunchedEffect(vlessIsDualRoute) {
-        if (vlessIsDualRoute && !previousDualRoute) {
-            val scrollJob = launch {
-                androidx.compose.runtime.snapshotFlow { scrollState.maxValue }.collect {
-                    scrollState.scrollTo(it)
-                }
-            }
-            kotlinx.coroutines.delay(300)
-            scrollJob.cancel()
-        }
-        previousDualRoute = vlessIsDualRoute
-    }
 
     val context = LocalContext.current
     val clipboard = LocalClipboard.current
@@ -718,11 +703,7 @@ private fun VlessSettingsBlock(
                 )
             }
 
-            AnimatedVisibility(
-                visible = vlessIsDualRoute,
-                enter = fadeIn(tween(300)) + expandVertically(tween(300)),
-                exit = fadeOut(tween(300)) + shrinkVertically(tween(300))
-            ) {
+            ExpandableSection(visible = vlessIsDualRoute) {
                 SectionGroup {
                     SectionItem {
                         TextFieldRow(

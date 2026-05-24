@@ -8,13 +8,16 @@ package com.wireturn.app.ui.screens
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -44,7 +47,6 @@ import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.material3.TopAppBarDefaults
 import com.wireturn.app.ui.AppTopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -82,17 +84,10 @@ fun OlcRtcConfigScreen(
     onSave: (OlcrtcConfig) -> Unit
 ) {
     val isPrivacyActive = privacyMode && isEditMode
-    var config by remember(initialConfig) { mutableStateOf(initialConfig) }
-    var videoW by remember(initialConfig) { mutableStateOf(initialConfig.videoW.let { if (it == 0) "1080" else it.toString() }) }
-    var videoH by remember(initialConfig) { mutableStateOf(initialConfig.videoH.let { if (it == 0) "1080" else it.toString() }) }
+    
+    var config by remember { mutableStateOf(initialConfig) }
 
-    val isModified by remember(config, videoW, videoH) {
-        derivedStateOf {
-            config != initialConfig ||
-            videoW != (initialConfig.videoW.let { if (it == 0) "1080" else it.toString() }) ||
-            videoH != (initialConfig.videoH.let { if (it == 0) "1080" else it.toString() })
-        }
-    }
+    val isModified = config != initialConfig
 
     val showExitDialog = remember { mutableStateOf(false) }
 
@@ -125,10 +120,7 @@ fun OlcRtcConfigScreen(
                 TextButton(onClick = {
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     showExitDialog.value = false
-                    onSave(config.copy(
-                        videoW = videoW.toIntOrNull() ?: 1080,
-                        videoH = videoH.toIntOrNull() ?: 1080
-                    ))
+                    onSave(config)
                 }) {
                     Text(stringResource(R.string.btn_save))
                 }
@@ -156,10 +148,7 @@ fun OlcRtcConfigScreen(
                         IconButton(onClick = {
                             val intent = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, config.copy(
-                                    videoW = videoW.toIntOrNull() ?: 1080,
-                                    videoH = videoH.toIntOrNull() ?: 1080
-                                ).toUri(profileName))
+                                putExtra(Intent.EXTRA_TEXT, config.toUri(profileName))
                             }
                             context.startActivity(Intent.createChooser(intent, null))
                         }) {
@@ -194,10 +183,7 @@ fun OlcRtcConfigScreen(
                     modifier = Modifier.navigationBarsPadding(),
                     onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                        onSave(config.copy(
-                            videoW = videoW.toIntOrNull() ?: 1080,
-                            videoH = videoH.toIntOrNull() ?: 1080
-                        ))
+                        onSave(config)
                     },
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -336,169 +322,196 @@ fun OlcRtcConfigScreen(
             }
 
             // Additional transport settings
-            when (config.transport) {
-                "vp8channel" -> {
-                    SectionGroup(title = stringResource(R.string.olcrtc_vp8_settings_title)) {
-                        SectionItem(position = ItemPosition.Top) {
-                            com.wireturn.app.ui.SliderRow(
-                                label = stringResource(R.string.olcrtc_vp8_fps),
-                                value = config.vp8Fps.toFloat(),
-                                onValueChange = { config = config.copy(vp8Fps = it.roundToInt()) },
-                                valueRange = 1f..60f,
-                                steps = 59,
-                                isModified = isEditMode && config.vp8Fps != initialConfig.vp8Fps
+            val transportVp8Visible = remember {
+                MutableTransitionState(initialConfig.transport == "vp8channel")
+            }
+            transportVp8Visible.targetState = config.transport == "vp8channel"
+
+            val transportSeiVisible = remember {
+                MutableTransitionState(initialConfig.transport == "seichannel")
+            }
+            transportSeiVisible.targetState = config.transport == "seichannel"
+
+            val transportVideoVisible = remember {
+                MutableTransitionState(initialConfig.transport == "videochannel")
+            }
+            transportVideoVisible.targetState = config.transport == "videochannel"
+
+            AnimatedVisibility(
+                visibleState = transportVp8Visible,
+                enter = fadeIn(tween(300)) + expandVertically(tween(300)),
+                exit = fadeOut(tween(300)) + shrinkVertically(tween(300))
+            ) {
+                SectionGroup(title = stringResource(R.string.olcrtc_vp8_settings_title)) {
+                    SectionItem(position = ItemPosition.Top) {
+                        com.wireturn.app.ui.SliderRow(
+                            label = stringResource(R.string.olcrtc_vp8_fps),
+                            value = config.vp8Fps.toFloat(),
+                            onValueChange = { config = config.copy(vp8Fps = it.roundToInt()) },
+                            valueRange = 1f..60f,
+                            steps = 59,
+                            isModified = isEditMode && config.vp8Fps != initialConfig.vp8Fps
+                        )
+                    }
+                    SectionItem(position = ItemPosition.Bottom) {
+                        com.wireturn.app.ui.SliderRow(
+                            label = stringResource(R.string.olcrtc_vp8_batch),
+                            value = config.vp8Batch.toFloat(),
+                            onValueChange = { config = config.copy(vp8Batch = it.roundToInt()) },
+                            valueRange = 1f..100f,
+                            steps = 99,
+                            isModified = isEditMode && config.vp8Batch != initialConfig.vp8Batch
+                        )
+                    }
+                }
+            }
+
+            AnimatedVisibility(
+                visibleState = transportSeiVisible,
+                enter = fadeIn(tween(300)) + expandVertically(tween(300)),
+                exit = fadeOut(tween(300)) + shrinkVertically(tween(300))
+            ) {
+                SectionGroup(title = stringResource(R.string.olcrtc_sei_settings_title)) {
+                    SectionItem(position = ItemPosition.Top) {
+                        com.wireturn.app.ui.SliderRow(
+                            label = stringResource(R.string.olcrtc_sei_fps),
+                            value = config.seiFps.toFloat(),
+                            onValueChange = { config = config.copy(seiFps = it.roundToInt()) },
+                            valueRange = 1f..120f,
+                            steps = 119,
+                            isModified = isEditMode && config.seiFps != initialConfig.seiFps
+                        )
+                    }
+                    SectionItem {
+                        com.wireturn.app.ui.SliderRow(
+                            label = stringResource(R.string.olcrtc_sei_batch),
+                            value = config.seiBatch.toFloat(),
+                            onValueChange = { config = config.copy(seiBatch = it.roundToInt()) },
+                            valueRange = 1f..256f,
+                            steps = 255,
+                            isModified = isEditMode && config.seiBatch != initialConfig.seiBatch
+                        )
+                    }
+                    SectionItem {
+                        com.wireturn.app.ui.SliderRow(
+                            label = stringResource(R.string.olcrtc_sei_frag),
+                            value = config.seiFrag.toFloat(),
+                            onValueChange = { config = config.copy(seiFrag = it.roundToInt()) },
+                            valueRange = 100f..1500f,
+                            steps = 140,
+                            isModified = isEditMode && config.seiFrag != initialConfig.seiFrag
+                        )
+                    }
+                    SectionItem(position = ItemPosition.Bottom) {
+                        com.wireturn.app.ui.SliderRow(
+                            label = stringResource(R.string.olcrtc_sei_ack_ms),
+                            value = config.seiAckMs.toFloat(),
+                            onValueChange = { config = config.copy(seiAckMs = it.roundToInt()) },
+                            valueRange = 100f..5000f,
+                            steps = 49,
+                            isModified = isEditMode && config.seiAckMs != initialConfig.seiAckMs
+                        )
+                    }
+                }
+            }
+
+            AnimatedVisibility(
+                visibleState = transportVideoVisible,
+                enter = fadeIn(tween(300)) + expandVertically(tween(300)),
+                exit = fadeOut(tween(300)) + shrinkVertically(tween(300))
+            ) {
+                SectionGroup(title = stringResource(R.string.olcrtc_video_settings_title)) {
+                    SectionItem(position = ItemPosition.Top) {
+                        TextFieldRow(
+                            label = stringResource(R.string.olcrtc_video_codec),
+                            value = config.videoCodec,
+                            onValueChange = { config = config.copy(videoCodec = it) },
+                            isModified = isEditMode && config.videoCodec != initialConfig.videoCodec
+                        )
+                    }
+                    SectionItem {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            TextFieldRow(
+                                label = stringResource(R.string.olcrtc_video_width),
+                                value = if (config.videoW == 0) "" else config.videoW.toString(),
+                                onValueChange = { config = config.copy(videoW = it.toIntOrNull() ?: 0) },
+                                modifier = Modifier.weight(1f),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                isModified = isEditMode && config.videoW != initialConfig.videoW
                             )
-                        }
-                        SectionItem(position = ItemPosition.Bottom) {
-                            com.wireturn.app.ui.SliderRow(
-                                label = stringResource(R.string.olcrtc_vp8_batch),
-                                value = config.vp8Batch.toFloat(),
-                                onValueChange = { config = config.copy(vp8Batch = it.roundToInt()) },
-                                valueRange = 1f..100f,
-                                steps = 99,
-                                isModified = isEditMode && config.vp8Batch != initialConfig.vp8Batch
+                            TextFieldRow(
+                                label = stringResource(R.string.olcrtc_video_height),
+                                value = if (config.videoH == 0) "" else config.videoH.toString(),
+                                onValueChange = { config = config.copy(videoH = it.toIntOrNull() ?: 0) },
+                                modifier = Modifier.weight(1f),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                isModified = isEditMode && config.videoH != initialConfig.videoH
                             )
                         }
                     }
-                }
-                "seichannel" -> {
-                    SectionGroup(title = stringResource(R.string.olcrtc_sei_settings_title)) {
-                        SectionItem(position = ItemPosition.Top) {
-                            com.wireturn.app.ui.SliderRow(
-                                label = stringResource(R.string.olcrtc_sei_fps),
-                                value = config.seiFps.toFloat(),
-                                onValueChange = { config = config.copy(seiFps = it.roundToInt()) },
-                                valueRange = 1f..120f,
-                                steps = 119,
-                                isModified = isEditMode && config.seiFps != initialConfig.seiFps
-                            )
-                        }
-                        SectionItem {
-                            com.wireturn.app.ui.SliderRow(
-                                label = stringResource(R.string.olcrtc_sei_batch),
-                                value = config.seiBatch.toFloat(),
-                                onValueChange = { config = config.copy(seiBatch = it.roundToInt()) },
-                                valueRange = 1f..256f,
-                                steps = 255,
-                                isModified = isEditMode && config.seiBatch != initialConfig.seiBatch
-                            )
-                        }
-                        SectionItem {
-                            com.wireturn.app.ui.SliderRow(
-                                label = stringResource(R.string.olcrtc_sei_frag),
-                                value = config.seiFrag.toFloat(),
-                                onValueChange = { config = config.copy(seiFrag = it.roundToInt()) },
-                                valueRange = 100f..1500f,
-                                steps = 140,
-                                isModified = isEditMode && config.seiFrag != initialConfig.seiFrag
-                            )
-                        }
-                        SectionItem(position = ItemPosition.Bottom) {
-                            com.wireturn.app.ui.SliderRow(
-                                label = stringResource(R.string.olcrtc_sei_ack_ms),
-                                value = config.seiAckMs.toFloat(),
-                                onValueChange = { config = config.copy(seiAckMs = it.roundToInt()) },
-                                valueRange = 100f..5000f,
-                                steps = 49,
-                                isModified = isEditMode && config.seiAckMs != initialConfig.seiAckMs
-                            )
-                        }
+                    SectionItem {
+                        com.wireturn.app.ui.SliderRow(
+                            label = stringResource(R.string.olcrtc_video_fps),
+                            value = config.videoFps.toFloat(),
+                            onValueChange = { config = config.copy(videoFps = it.roundToInt()) },
+                            valueRange = 1f..60f,
+                            steps = 59,
+                            isModified = isEditMode && config.videoFps != initialConfig.videoFps
+                        )
                     }
-                }
-                "videochannel" -> {
-                    SectionGroup(title = stringResource(R.string.olcrtc_video_settings_title)) {
-                        SectionItem(position = ItemPosition.Top) {
-                            TextFieldRow(
-                                label = stringResource(R.string.olcrtc_video_codec),
-                                value = config.videoCodec,
-                                onValueChange = { config = config.copy(videoCodec = it) },
-                                isModified = isEditMode && config.videoCodec != initialConfig.videoCodec
-                            )
-                        }
-                        SectionItem {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                TextFieldRow(
-                                    label = stringResource(R.string.olcrtc_video_width),
-                                    value = videoW,
-                                    onValueChange = { videoW = it },
-                                    modifier = Modifier.weight(1f),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    isModified = isEditMode && videoW != (initialConfig.videoW.let { if (it == 0) "1080" else it.toString() })
-                                )
-                                TextFieldRow(
-                                    label = stringResource(R.string.olcrtc_video_height),
-                                    value = videoH,
-                                    onValueChange = { videoH = it },
-                                    modifier = Modifier.weight(1f),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    isModified = isEditMode && videoH != (initialConfig.videoH.let { if (it == 0) "1080" else it.toString() })
-                                )
-                            }
-                        }
-                        SectionItem {
-                            com.wireturn.app.ui.SliderRow(
-                                label = stringResource(R.string.olcrtc_video_fps),
-                                value = config.videoFps.toFloat(),
-                                onValueChange = { config = config.copy(videoFps = it.roundToInt()) },
-                                valueRange = 1f..60f,
-                                steps = 59,
-                                isModified = isEditMode && config.videoFps != initialConfig.videoFps
-                            )
-                        }
-                        SectionItem {
-                            TextFieldRow(
-                                label = stringResource(R.string.olcrtc_video_bitrate),
-                                value = config.videoBitrate,
-                                onValueChange = { config = config.copy(videoBitrate = it) },
-                                isModified = isEditMode && config.videoBitrate != initialConfig.videoBitrate
-                            )
-                        }
-                        SectionItem {
-                            TextFieldRow(
-                                label = stringResource(R.string.olcrtc_video_hw),
-                                value = config.videoHw,
-                                onValueChange = { config = config.copy(videoHw = it) },
-                                isModified = isEditMode && config.videoHw != initialConfig.videoHw
-                            )
-                        }
-                        SectionItem {
-                            TextFieldRow(
-                                label = stringResource(R.string.olcrtc_video_qr_recovery),
-                                value = config.videoQrRecovery,
-                                onValueChange = { config = config.copy(videoQrRecovery = it) },
-                                isModified = isEditMode && config.videoQrRecovery != initialConfig.videoQrRecovery
-                            )
-                        }
-                        SectionItem {
-                            com.wireturn.app.ui.SliderRow(
-                                label = stringResource(R.string.olcrtc_video_qr_size),
-                                value = config.videoQrSize.toFloat(),
-                                onValueChange = { config = config.copy(videoQrSize = it.roundToInt()) },
-                                valueRange = 0f..1000f,
-                                steps = 100,
-                                isModified = isEditMode && config.videoQrSize != initialConfig.videoQrSize
-                            )
-                        }
-                        SectionItem {
-                            com.wireturn.app.ui.SliderRow(
-                                label = stringResource(R.string.olcrtc_video_tile_module),
-                                value = config.videoTileModule.toFloat(),
-                                onValueChange = { config = config.copy(videoTileModule = it.roundToInt()) },
-                                valueRange = 1f..32f,
-                                steps = 31,
-                                isModified = isEditMode && config.videoTileModule != initialConfig.videoTileModule
-                            )
-                        }
-                        SectionItem(position = ItemPosition.Bottom) {
-                            com.wireturn.app.ui.SliderRow(
-                                label = stringResource(R.string.olcrtc_video_tile_rs),
-                                value = config.videoTileRs.toFloat(),
-                                onValueChange = { config = config.copy(videoTileRs = it.roundToInt()) },
-                                valueRange = 0f..100f,
-                                steps = 100,
-                                isModified = isEditMode && config.videoTileRs != initialConfig.videoTileRs
-                            )
-                        }
+                    SectionItem {
+                        TextFieldRow(
+                            label = stringResource(R.string.olcrtc_video_bitrate),
+                            value = config.videoBitrate,
+                            onValueChange = { config = config.copy(videoBitrate = it) },
+                            isModified = isEditMode && config.videoBitrate != initialConfig.videoBitrate
+                        )
+                    }
+                    SectionItem {
+                        TextFieldRow(
+                            label = stringResource(R.string.olcrtc_video_hw),
+                            value = config.videoHw,
+                            onValueChange = { config = config.copy(videoHw = it) },
+                            isModified = isEditMode && config.videoHw != initialConfig.videoHw
+                        )
+                    }
+                    SectionItem {
+                        TextFieldRow(
+                            label = stringResource(R.string.olcrtc_video_qr_recovery),
+                            value = config.videoQrRecovery,
+                            onValueChange = { config = config.copy(videoQrRecovery = it) },
+                            isModified = isEditMode && config.videoQrRecovery != initialConfig.videoQrRecovery
+                        )
+                    }
+                    SectionItem {
+                        com.wireturn.app.ui.SliderRow(
+                            label = stringResource(R.string.olcrtc_video_qr_size),
+                            value = config.videoQrSize.toFloat(),
+                            onValueChange = { config = config.copy(videoQrSize = it.roundToInt()) },
+                            valueRange = 0f..1000f,
+                            steps = 100,
+                            isModified = isEditMode && config.videoQrSize != initialConfig.videoQrSize
+                        )
+                    }
+                    SectionItem {
+                        com.wireturn.app.ui.SliderRow(
+                            label = stringResource(R.string.olcrtc_video_tile_module),
+                            value = config.videoTileModule.toFloat(),
+                            onValueChange = { config = config.copy(videoTileModule = it.roundToInt()) },
+                            valueRange = 1f..32f,
+                            steps = 31,
+                            isModified = isEditMode && config.videoTileModule != initialConfig.videoTileModule
+                        )
+                    }
+                    SectionItem(position = ItemPosition.Bottom) {
+                        com.wireturn.app.ui.SliderRow(
+                            label = stringResource(R.string.olcrtc_video_tile_rs),
+                            value = config.videoTileRs.toFloat(),
+                            onValueChange = { config = config.copy(videoTileRs = it.roundToInt()) },
+                            valueRange = 0f..100f,
+                            steps = 100,
+                            isModified = isEditMode && config.videoTileRs != initialConfig.videoTileRs
+                        )
                     }
                 }
             }

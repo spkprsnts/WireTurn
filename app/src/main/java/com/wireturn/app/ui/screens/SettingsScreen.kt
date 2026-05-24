@@ -73,6 +73,7 @@ import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.UpdateBlock
 import com.wireturn.app.ui.selectableButtonItem
+import com.wireturn.app.ui.ExpandableSection
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.UpdateState
 import kotlinx.coroutines.delay
@@ -330,10 +331,9 @@ fun SettingsScreen(
                 }
 
                 LaunchedEffect(localInterval, isIntervalValid) {
-                    val value = minutesInt
-                    if (isIntervalValid && value != autoLaunchSettings.intervalMinutes) {
+                    if (isIntervalValid && minutesInt != autoLaunchSettings.intervalMinutes) {
                         delay(600)
-                        viewModel.updateAutoLaunchSettings(autoLaunchSettings.copy(intervalMinutes = value))
+                        viewModel.updateAutoLaunchSettings(autoLaunchSettings.copy(intervalMinutes = minutesInt))
                     }
                 }
 
@@ -415,7 +415,7 @@ fun SettingsScreen(
                     )
                 }
 
-                if (captchaStyleMod) {
+                ExpandableSection(visible = captchaStyleMod) {
                     val originalLabel = stringResource(R.string.captcha_color_original)
                     val primaryLabel = stringResource(R.string.captcha_color_primary)
                     SectionItem(

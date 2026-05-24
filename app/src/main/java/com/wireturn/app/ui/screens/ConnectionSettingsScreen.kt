@@ -7,14 +7,13 @@ package com.wireturn.app.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.core.MutableTransitionState
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -65,6 +64,7 @@ import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.redact
+import com.wireturn.app.ui.ExpandableSection
 
 @Composable
 fun ConnectionSettingsScreen(
@@ -83,10 +83,6 @@ fun ConnectionSettingsScreen(
     // olcRTC states
     var olSocks by remember(initialClientConfig.socksAddr) { mutableStateOf(initialClientConfig.socksAddr) }
     var olAuth by remember(initialClientConfig.isSocksAuthEnabled) { mutableStateOf(initialClientConfig.isSocksAuthEnabled) }
-    val olAuthVisibleState = remember(initialClientConfig.isSocksAuthEnabled) {
-        MutableTransitionState(initialClientConfig.isSocksAuthEnabled)
-    }
-    olAuthVisibleState.targetState = olAuth
     var olUser by remember(initialClientConfig.socksUser) { mutableStateOf(initialClientConfig.socksUser) }
     var olPass by remember(initialClientConfig.socksPass) { mutableStateOf(initialClientConfig.socksPass) }
     var olPassVisible by rememberSaveable { mutableStateOf(false) }
@@ -95,13 +91,11 @@ fun ConnectionSettingsScreen(
     var xraySocks by remember(initialXraySettings.socksBindAddress) { mutableStateOf(initialXraySettings.socksBindAddress) }
     var xrayHttp by remember(initialXraySettings.httpBindAddress) { mutableStateOf(initialXraySettings.httpBindAddress) }
     var xrayAuth by remember(initialXraySettings.isProxyAuthEnabled) { mutableStateOf(initialXraySettings.isProxyAuthEnabled) }
-    val xrayAuthVisibleState = remember(initialXraySettings.isProxyAuthEnabled) {
-        MutableTransitionState(initialXraySettings.isProxyAuthEnabled)
-    }
-    xrayAuthVisibleState.targetState = xrayAuth
     var xrayUser by remember(initialXraySettings.proxyUser) { mutableStateOf(initialXraySettings.proxyUser) }
     var xrayPass by remember(initialXraySettings.proxyPass) { mutableStateOf(initialXraySettings.proxyPass) }
     var xrayPassVisible by rememberSaveable { mutableStateOf(false) }
+
+    val scrollState = rememberScrollState()
 
     val currentClientConfig = remember(listenAddr, olSocks, olAuth, olUser, olPass, initialClientConfig) {
         initialClientConfig.copy(
@@ -150,8 +144,6 @@ fun ConnectionSettingsScreen(
 
     val showListenHelp = remember { mutableStateOf(false) }
     val showSocksHelp = remember { mutableStateOf(false) }
-
-    val scrollState = rememberScrollState()
 
     val topAppBarState = rememberTopAppBarState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
@@ -293,7 +285,7 @@ fun ConnectionSettingsScreen(
                     )
                 }
                 
-                AnimatedVisibility(visibleState = olAuthVisibleState) {
+                ExpandableSection(visible = olAuth) {
                     SectionGroup {
                         SectionItem {
                             TextFieldRow(
@@ -386,7 +378,7 @@ fun ConnectionSettingsScreen(
                     )
                 }
                 
-                AnimatedVisibility(visibleState = xrayAuthVisibleState) {
+                ExpandableSection(visible = xrayAuth) {
                     SectionGroup {
                         SectionItem {
                             TextFieldRow(

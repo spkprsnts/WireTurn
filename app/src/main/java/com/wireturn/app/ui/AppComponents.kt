@@ -9,6 +9,9 @@ import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -17,6 +20,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.rememberTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
@@ -333,15 +337,21 @@ fun VerticalAnimatedText(
     contentAlignment: Alignment = Alignment.CenterStart,
     privacyMode: Boolean = false
 ) {
-    AnimatedContent(
-        targetState = text,
+    val transitionState = remember { MutableTransitionState(text) }
+    transitionState.targetState = text
+    val transition = rememberTransition(transitionState, label = "vertical_animated_text")
+
+    transition.AnimatedContent(
         transitionSpec = {
-            (fadeIn(animationSpec = tween(220, delayMillis = 40), initialAlpha = 0.2f) +
-                    slideInVertically(initialOffsetY = { h -> h / 2 }))
-                .togetherWith(fadeOut(animationSpec = tween(160)) +
-                        slideOutVertically(targetOffsetY = { h -> -h / 2 }))
+            if (transitionState.currentState == transitionState.targetState) {
+                EnterTransition.None togetherWith ExitTransition.None
+            } else {
+                (fadeIn(animationSpec = tween(220), initialAlpha = 0.2f) +
+                        slideInVertically(initialOffsetY = { h -> h / 2 }))
+                    .togetherWith(fadeOut(animationSpec = tween(160)) +
+                            slideOutVertically(targetOffsetY = { h -> -h / 2 }))
+            }
         },
-        label = "vertical_animated_text",
         modifier = modifier,
         contentAlignment = contentAlignment
     ) { targetText ->
@@ -381,6 +391,29 @@ fun SupportingText(
         textAlign = textAlign,
         contentAlignment = contentAlignment
     )
+}
+
+/**
+ * A reusable container for sections that expand and collapse with a smooth transition.
+ * Uses MutableTransitionState to avoid initial flicker on screen start.
+ */
+@Composable
+fun ExpandableSection(
+    visible: Boolean,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val visibleState = remember { MutableTransitionState(visible) }
+    visibleState.targetState = visible
+
+    AnimatedVisibility(
+        visibleState = visibleState,
+        enter = fadeIn(tween(300)) + expandVertically(tween(300)),
+        exit = fadeOut(tween(300)) + shrinkVertically(tween(300)),
+        modifier = modifier
+    ) {
+        content()
+    }
 }
 
 @Composable

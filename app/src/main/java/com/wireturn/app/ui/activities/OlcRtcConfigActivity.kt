@@ -29,6 +29,9 @@ class OlcRtcConfigActivity : ComponentActivity() {
         val configJson = intent.getStringExtra("EXTRA_CONFIG_JSON")
 
         setContent {
+            val isInitialized by viewModel.isInitialized.collectAsStateWithLifecycle()
+            if (!isInitialized) return@setContent
+
             val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
             val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
