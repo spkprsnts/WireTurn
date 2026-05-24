@@ -97,6 +97,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarData
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -1581,5 +1583,31 @@ fun <T> SelectionDialog(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun AppSnackbar(
+    data: SnackbarData,
+    modifier: Modifier = Modifier
+) {
+    Snackbar(
+        modifier = modifier
+            .padding(12.dp)
+            .padding(bottom = 16.dp),
+        action = data.visuals.actionLabel?.let { label ->
+            {
+                TextButton(onClick = { data.performAction() }) {
+                    Text(label)
+                }
+            }
+        },
+        dismissAction = {
+            IconButton(onClick = { data.dismiss() }) {
+                Icon(painterResource(R.drawable.close_24px), contentDescription = null)
+            }
+        }
+    ) {
+        Text(data.visuals.message)
     }
 }

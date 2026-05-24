@@ -44,7 +44,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -73,6 +72,7 @@ import com.wireturn.app.data.VlessConfig
 import com.wireturn.app.data.XrayConfig
 import com.wireturn.app.data.KernelVariant
 import androidx.compose.material3.rememberTopAppBarState
+import com.wireturn.app.ui.AppSnackbar
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.RowLabel
@@ -257,23 +257,7 @@ fun XraySetupScreen(
             SnackbarHost(
                 hostState = snackbarHostState
             ) { data ->
-                Snackbar(
-                    modifier = Modifier.padding(12.dp),
-                    action = data.visuals.actionLabel?.let { label ->
-                        {
-                            TextButton(onClick = { data.performAction() }) {
-                                Text(label)
-                            }
-                        }
-                    },
-                    dismissAction = {
-                        IconButton(onClick = { data.dismiss() }) {
-                            Icon(painterResource(R.drawable.close_24px), contentDescription = null)
-                        }
-                    }
-                ) {
-                    Text(data.visuals.message)
-                }
+                AppSnackbar(data)
             }
         },
         topBar = {

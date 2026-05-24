@@ -47,7 +47,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -63,6 +62,7 @@ import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.ui.unit.dp
+import com.wireturn.app.ui.AppSnackbar
 import com.wireturn.app.ui.showExclusiveSnackbar
 import kotlinx.coroutines.launch
 import androidx.activity.result.contract.ActivityResultContracts
@@ -415,23 +415,7 @@ fun HomeScreen(
             SnackbarHost(
                 hostState = snackbarHostState
             ) { data ->
-                Snackbar(
-                    modifier = Modifier.padding(12.dp),
-                    action = data.visuals.actionLabel?.let { label ->
-                        {
-                            TextButton(onClick = { data.performAction() }) {
-                                Text(label)
-                            }
-                        }
-                    },
-                    dismissAction = {
-                        IconButton(onClick = { data.dismiss() }) {
-                            Icon(painterResource(R.drawable.close_24px), contentDescription = null)
-                        }
-                    }
-                ) {
-                    Text(data.visuals.message)
-                }
+                AppSnackbar(data)
             }
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)

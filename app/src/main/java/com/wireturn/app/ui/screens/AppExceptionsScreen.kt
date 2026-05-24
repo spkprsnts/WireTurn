@@ -44,11 +44,9 @@ import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
-import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
@@ -83,6 +81,7 @@ import androidx.compose.ui.zIndex
 import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
+import com.wireturn.app.ui.AppSnackbar
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
@@ -194,27 +193,26 @@ fun AppExceptionsScreen(
                     isSystem = (app.flags and ApplicationInfo.FLAG_SYSTEM) != 0
                 )
             }.filter { it.name.isNotBlank() && it.packageName != context.packageName }
-            
-            val initialSnapshot = excludedApps
+
             val filtered = if (vpnSettings.hideSystemApps) {
-                result.filter { !it.isSystem || initialSnapshot.contains(it.packageName) }
+                result.filter { !it.isSystem || excludedApps.contains(it.packageName) }
             } else {
                 result
             }
             val sorted = filtered.sortedWith(
                 if (vpnSettings.groupAppsByLetter) {
                     compareBy<AppInfo> { it.name.firstOrNull()?.uppercaseChar() ?: '#' }
-                        .thenByDescending { initialSnapshot.contains(it.packageName) }
+                        .thenByDescending { excludedApps.contains(it.packageName) }
                         .thenBy { it.name.lowercase() }
                 } else {
-                    compareByDescending<AppInfo> { initialSnapshot.contains(it.packageName) }
+                    compareByDescending<AppInfo> { excludedApps.contains(it.packageName) }
                         .thenBy { it.name.lowercase() }
                 }
             )
 
             withContext(Dispatchers.Main) {
                 appList = result
-                sortSnapshot = initialSnapshot
+                sortSnapshot = excludedApps
                 sortedAppList = sorted
                 isAppsLoading = false
             }
@@ -283,13 +281,12 @@ fun AppExceptionsScreen(
                 if (packagesToImport.isNotEmpty()) {
                     val allPackages = appList.map { it.packageName }.toSet()
                     val validPackages = packagesToImport.filter { allPackages.contains(it) }.toSet()
-                    
-                    val currentExcluded = excludedApps
-                    val newlyAdded = validPackages.filter { !currentExcluded.contains(it) }.toSet()
+
+                    val newlyAdded = validPackages.filter { !excludedApps.contains(it) }.toSet()
 
                     if (newlyAdded.isNotEmpty()) {
                         isAppsLoading = true
-                        val newExcluded = currentExcluded + newlyAdded
+                        val newExcluded = excludedApps + newlyAdded
                         viewModel.saveExcludedApps(newExcluded)
                         newlyAddedPackages = newlyAdded
                         sortSnapshot = newExcluded
@@ -387,25 +384,7 @@ fun AppExceptionsScreen(
                 SnackbarHost(
                     hostState = snackbarHostState
                 ) { data ->
-                    Snackbar(
-                        modifier = Modifier
-                            .padding(12.dp)
-                            .padding(bottom = 16.dp),
-                        action = data.visuals.actionLabel?.let { label ->
-                            {
-                                TextButton(onClick = { data.performAction() }) {
-                                    Text(label)
-                                }
-                            }
-                        },
-                        dismissAction = {
-                            IconButton(onClick = { data.dismiss() }) {
-                                Icon(painterResource(R.drawable.close_24px), contentDescription = null)
-                            }
-                        }
-                    ) {
-                        Text(data.visuals.message)
-                    }
+                    AppSnackbar(data)
                 }
             },
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
