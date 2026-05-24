@@ -134,7 +134,18 @@ class ProxyService : Service() {
             AppLogsState.addLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         }
         val safeProfileName = profileName?.take(50) ?: "-"
-        AppLogsState.addLog(getString(R.string.log_proxy_start, safeProfileName))
+        AppLogsState.addLog(getString(R.string.log_core_start, safeProfileName))
+
+        val kernelInfo = when (val k = currentRunningCfg.get()?.kernelConfig) {
+            is KernelConfig.Turnable -> "Turnable (${k.config.selectedRouteId})"
+            is KernelConfig.Olcrtc -> "Olcrtc (${k.config.provider})"
+            else -> "-"
+        }
+        val xrayInfo = if (xrayConfig.enabled) {
+            val isXrayVless = xrayConfig.protocol == com.wireturn.app.data.XrayConfiguration.VLESS
+            "${xrayConfig.protocol.name}${if (isXrayVless && vlessConfig.isDualRoute) " (Dual-route)" else ""}"
+        } else "Disabled"
+        AppLogsState.addLog(getString(R.string.log_core_profile_summary, kernelInfo, xrayInfo))
 
         val isXrayVless = xrayConfig.protocol == com.wireturn.app.data.XrayConfiguration.VLESS
         val isDualRouteStart = xrayConfig.enabled && isXrayVless && vlessConfig.isDualRoute
@@ -143,7 +154,7 @@ class ProxyService : Service() {
         
         if (isDualRouteStart) {
             // В режиме Dual-route стартуем в паузе, чтобы не запускать бинарник зря
-            AppLogsState.addLog(getString(R.string.log_proxy_suppressed))
+            AppLogsState.addLog(getString(R.string.log_core_suppressed))
             ProxyServiceState.setStatus(ProxyStatus.Suppressed)
             ProxyServiceState.setStatusText(getString(R.string.connecting))
         } else {
@@ -175,7 +186,7 @@ class ProxyService : Service() {
                 startForeground(NotificationHelper.NOTIFICATION_ID, notification)
             }
         } catch (e: Exception) {
-            AppLogsState.addLog("[Proxy] Failed to start foreground: ${e.message}")
+            AppLogsState.addLog(getString(R.string.log_core_foreground_failed, e.message ?: "Unknown"))
         }
     }
 
@@ -202,7 +213,7 @@ class ProxyService : Service() {
                     when (state) {
                         XrayState.DirectRoute -> {
                             if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
-                                AppLogsState.addLog(getString(R.string.log_proxy_suppressed))
+                                AppLogsState.addLog(getString(R.string.log_core_suppressed))
                                 ProxyServiceState.setStatus(ProxyStatus.Suppressed)
                             }
                             updateNotification(getString(R.string.vless_direct_active))
@@ -243,11 +254,11 @@ class ProxyService : Service() {
                             xrayConfig.protocol == com.wireturn.app.data.XrayConfiguration.VLESS &&
                             vlessConfig.isDualRoute
                         if (isDualRoute && ProxyServiceState.status.value !is ProxyStatus.Idle) {
-                            AppLogsState.addLog("[DualRoute] Tunnel config changed, suppressing until route is determined")
+                            AppLogsState.addLog(getString(R.string.log_core_dual_route_config_changed))
                             ProxyServiceState.setStatus(ProxyStatus.Suppressed)
                         } else {
                             restartCount = 0
-                            AppLogsState.addLog("[HotReload] Tunnel config changed, restarting binary")
+                            AppLogsState.addLog(getString(R.string.log_core_config_changed))
                             stopBinaryProcessGracefully()
                         }
                     }
@@ -290,8 +301,8 @@ class ProxyService : Service() {
             val currentStatus = ProxyServiceState.status.value
             if (!startupSuccessful || currentStatus is ProxyStatus.Error) {
                 if (currentStatus !is ProxyStatus.Error) {
-                    AppLogsState.addLog(getString(R.string.log_quick_exit, duration))
-                    AppLogsState.addLog(getString(R.string.log_startup_failed_no_watchdog))
+                    AppLogsState.addLog(getString(R.string.log_core_quick_exit, duration))
+                    AppLogsState.addLog(getString(R.string.log_core_startup_failed))
                     ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_kernel_or_settings)))
                 }
                 delay(500)
@@ -307,7 +318,7 @@ class ProxyService : Service() {
             }
             restartCount++
             if (restartCount > MAX_RESTARTS) {
-                AppLogsState.addLog(getString(R.string.log_watchdog_limit, MAX_RESTARTS))
+                AppLogsState.addLog(getString(R.string.log_core_watchdog_limit, MAX_RESTARTS))
                 ProxyServiceState.emitFailed()
                 withContext(Dispatchers.Main) { stopSelf() }
                 break
@@ -317,12 +328,12 @@ class ProxyService : Service() {
             
             var baseDelay = if (duration > 30_000) 1000L else minOf(1000L * restartCount, 30_000L)
             if (isSlowConnection()) {
-                AppLogsState.addLog(getString(R.string.log_slow_network_watchdog))
+                AppLogsState.addLog(getString(R.string.log_core_slow_network_watchdog))
                 baseDelay = maxOf(baseDelay, 5000L)
             }
             val delayMs = baseDelay + Random.nextLong(0, 500)
             
-            AppLogsState.addLog(getString(R.string.log_watchdog_restart, delayMs, restartCount, MAX_RESTARTS))
+            AppLogsState.addLog(getString(R.string.log_core_watchdog_restart, delayMs, restartCount, MAX_RESTARTS))
             updateNotification(getString(R.string.notification_reconnecting, restartCount, MAX_RESTARTS))
             
             delay(delayMs)
@@ -339,7 +350,7 @@ class ProxyService : Service() {
         val state = BinaryOutputState()
 
         try {
-            AppLogsState.addLog(getString(R.string.log_command, cmdArgs.joinToString(" ")))
+            AppLogsState.addLog(getString(R.string.log_core_command, cmdArgs.joinToString(" ")))
 
             val proc = withContext(Dispatchers.IO) {
                 val builder = ProcessBuilder(cmdArgs)
@@ -380,7 +391,7 @@ class ProxyService : Service() {
                         if (state.connectingSince == 0L) {
                             state.connectingSince = System.currentTimeMillis()
                         } else if (System.currentTimeMillis() - state.connectingSince > 120_000) {
-                            AppLogsState.addLog(getString(R.string.log_connection_timeout))
+                            AppLogsState.addLog(getString(R.string.log_core_connection_timeout))
                             state.startupEmitted = true
                             proc.destroy()
                             break
@@ -412,7 +423,7 @@ class ProxyService : Service() {
             val exitCode = withContext(Dispatchers.IO) {
                 if (proc.waitFor(5, TimeUnit.SECONDS)) proc.exitValue() else -1
             }
-            AppLogsState.addLog(getString(R.string.log_process_stopped, exitCode))
+            AppLogsState.addLog(getString(R.string.log_core_stopped, exitCode))
 
             val wasKilledIntentionally = process.get() == null
             if (!state.startupEmitted && !state.startupFailed && !wasKilledIntentionally && isActive) {
@@ -583,7 +594,7 @@ class ProxyService : Service() {
             } else {
                 state.remoteNotReadyCount++
                 if (state.remoteNotReadyCount >= 7) {
-                    AppLogsState.addLog(getString(R.string.log_too_many_remote_not_ready))
+                    AppLogsState.addLog(getString(R.string.log_core_too_many_remote_not_ready))
                     state.startupEmitted = true // Trigger watchdog
                     return true
                 }
@@ -812,7 +823,7 @@ class ProxyService : Service() {
                 val needsRestart = data.shouldBeRunning && data.xrayState != XrayState.Idle
 
                 if (needsRestart) {
-                    AppLogsState.addLog("[Xray] Restarting due to config change")
+                    AppLogsState.addLog(getString(R.string.log_xray_config_change_restart))
                     withContext(Dispatchers.Main) {
                         stopService(Intent(this@ProxyService, XrayService::class.java))
                         delay(500)
@@ -919,7 +930,7 @@ class ProxyService : Service() {
 
                     delay(2000)
                     if (!userStopped.get() && process.get() != null) {
-                        AppLogsState.addLog(getString(R.string.log_network_change))
+                        AppLogsState.addLog(getString(R.string.log_core_network_change))
                         updateNotification(getString(R.string.notification_network_change))
                         restartCount = 0
                         stopBinaryProcessGracefully()
@@ -996,7 +1007,7 @@ class ProxyService : Service() {
             val prefs = AppPreferences(applicationContext)
             if (prefs.waitForNetworkFlow.first()) {
                 if (ProxyServiceState.status.value !is ProxyStatus.WaitingForNetwork) {
-                    AppLogsState.addLog(getString(R.string.log_no_network_waiting))
+                    AppLogsState.addLog(getString(R.string.log_core_no_network_waiting))
                 }
                 if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
                     ProxyServiceState.setStatus(ProxyStatus.WaitingForNetwork)
@@ -1056,7 +1067,7 @@ class ProxyService : Service() {
         
         handler.removeCallbacksAndMessages(null)
         unregisterNetworkCallback()
-        AppLogsState.addLog(getString(R.string.log_stop_ui))
+        AppLogsState.addLog(getString(R.string.log_core_stop_ui))
 
         serviceScope.launch {
             stopBinaryProcessGracefully()

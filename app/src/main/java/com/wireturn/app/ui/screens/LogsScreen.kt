@@ -259,10 +259,10 @@ fun LogsScreen(
 @Composable
 private fun LogLine(line: String) {
     val lower = line.lowercase()
-    val isHeader = line.startsWith("===")
-    val isInternalLog = lower.startsWith("[xray]") || lower.startsWith("[vpn]") ||
-                        lower.startsWith("[proxy]") || lower.startsWith("[dualroute]") ||
-                        lower.startsWith("[hev-socks5-tunnel]")
+    val isHeader = line.startsWith("*")
+    val isInternalLog = lower.startsWith("* [xray]") || lower.startsWith("* [vpn]") ||
+                        lower.startsWith("* [core]") || lower.startsWith("* [dualroute]") ||
+                        lower.startsWith("* [hev-socks5-tunnel]")
     val isError = lower.contains("ошибка") || lower.contains("error") ||
                   lower.contains("критическая") || lower.contains("failed") ||
                   lower.contains("fatal") || lower.contains("panic") ||

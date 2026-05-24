@@ -78,7 +78,7 @@ class HevVpnService : VpnService() {
         val currentState = VpnServiceState.state.value
         val isStarting = startJob?.isActive == true
         if (tunInterface != null || currentState == VpnState.Running || (isStarting && currentState == VpnState.Starting)) {
-            AppLogsState.addLog("[VPN] Service already running or starting (status=$currentState, job=$isStarting)")
+            AppLogsState.addLog(getString(R.string.log_vpn_service_active, currentState.toString(), isStarting))
             return START_STICKY
         }
         isStopping.set(false)
@@ -96,7 +96,7 @@ class HevVpnService : VpnService() {
                 startForeground(NotificationHelper.NOTIFICATION_ID, notification)
             }
         } catch (e: Exception) {
-            AppLogsState.addLog("[VPN] Failed to start foreground: ${e.message}")
+            AppLogsState.addLog(getString(R.string.log_vpn_foreground_failed, e.message ?: "Unknown"))
         }
 
         val defaultSocks = DEFAULT_SOCKS_BIND_ADDRESS
@@ -112,7 +112,7 @@ class HevVpnService : VpnService() {
 
     private suspend fun startVpn(socks5Addr: String, socks5User: String? = null, socks5Pass: String? = null) {
         try {
-            AppLogsState.addLog("[hev-socks5-tunnel] Establishing tunnel")
+            AppLogsState.addLog(getString(R.string.log_vpn_establishing))
             val prefs = AppPreferences(applicationContext)
             val vpnSettings = prefs.vpnSettingsFlow.first()
 
@@ -125,29 +125,29 @@ class HevVpnService : VpnService() {
             if (!vpnSettings.filteringEnabled) {
                 builder.addRoute("0.0.0.0", 0)
                 builder.addDisallowedApplication(packageName)
-                AppLogsState.addLog("[VPN] App filtering disabled: all traffic through VPN")
+                AppLogsState.addLog(getString(R.string.log_vpn_filtering_disabled))
             } else if (vpnSettings.bypassMode) {
                 builder.addRoute("0.0.0.0", 0)
                 builder.addDisallowedApplication(packageName)
                 vpnSettings.excludedApps.forEach { pkg ->
                     try { builder.addDisallowedApplication(pkg) }
-                    catch (e: Exception) { AppLogsState.addLog("[VPN] Could not exclude $pkg: ${e.message}") }
+                    catch (e: Exception) { AppLogsState.addLog(getString(R.string.log_vpn_exclude_failed, pkg, e.message ?: "Unknown")) }
                 }
             } else {
                 if (vpnSettings.excludedApps.isNotEmpty()) {
                     builder.addRoute("0.0.0.0", 0)
                     vpnSettings.excludedApps.forEach { pkg ->
                         try { builder.addAllowedApplication(pkg) }
-                        catch (e: Exception) { AppLogsState.addLog("[VPN] Could not include $pkg: ${e.message}") }
+                        catch (e: Exception) { AppLogsState.addLog(getString(R.string.log_vpn_include_failed, pkg, e.message ?: "Unknown")) }
                     }
                 } else {
-                    AppLogsState.addLog("[VPN] Include mode with empty list: no apps will use VPN")
+                    AppLogsState.addLog(getString(R.string.log_vpn_include_empty))
                 }
             }
 
             val established = builder.establish()
             if (established == null) {
-                AppLogsState.addLog("[hev-socks5-tunnel] Failed to establish TUN interface")
+                AppLogsState.addLog(getString(R.string.log_vpn_tun_failed))
                 VpnServiceState.updateStatus(VpnState.Error(getString(R.string.error_connecting)))
                 NotificationHelper.updateNotification(this@HevVpnService)
                 disableVpnMode()
@@ -206,7 +206,7 @@ misc:
                     tunInterface = established
                 }
 
-                AppLogsState.addLog("[hev-socks5-tunnel] Starting (fd=$tunFd, proxy=$socks5Addr)")
+                AppLogsState.addLog(getString(R.string.log_vpn_starting, tunFd, socks5Addr))
                 withContext(Dispatchers.IO) {
                     hevTunnel.TProxyStartService(configFile.absolutePath, tunFd)
                 }
@@ -214,11 +214,11 @@ misc:
                 hevRunning.set(true)
                 VpnServiceState.updateStatus(VpnState.Running)
                 NotificationHelper.updateNotification(this@HevVpnService)
-                AppLogsState.addLog("[hev-socks5-tunnel] Tunnel start command sent")
+                AppLogsState.addLog(getString(R.string.log_vpn_start_command_sent))
             }
 
         } catch (e: Exception) {
-            AppLogsState.addLog("[hev-socks5-tunnel] Error: ${e.message}")
+            AppLogsState.addLog(getString(R.string.log_vpn_error, e.message ?: "Unknown"))
             if (e !is kotlinx.coroutines.CancellationException) {
                 VpnServiceState.updateStatus(VpnState.Error(e.message ?: "Unknown error"))
             } else if (VpnServiceState.state.value == VpnState.Starting) {
@@ -238,9 +238,9 @@ misc:
                 if (wasRunning) {
                     try {
                         hevTunnel.TProxyStopService()
-                        AppLogsState.addLog("[hev-socks5-tunnel] Tunnel stopped")
+                        AppLogsState.addLog(getString(R.string.log_vpn_stopped))
                     } catch (e: Exception) {
-                        AppLogsState.addLog("[hev-socks5-tunnel] Stop error: ${e.message}")
+                        AppLogsState.addLog(getString(R.string.log_vpn_stop_error, e.message ?: "Unknown"))
                     }
                 }
 

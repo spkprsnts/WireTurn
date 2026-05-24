@@ -196,32 +196,66 @@
     <string name="error_proxy_crashed">Туннель упал %1$d раз — проверьте настройки</string>
     <string name="error_settings_empty">Не заполнены настройки клиента</string>
     <string name="error_proxy_not_started">Туннель не запустился</string>
-    <string name="log_proxy_invalid_config">[Xray] Некорректный или отсутствующий конфиг, запуск отменен</string>
+    <string name="log_xray_invalid_config">* [Xray] Некорректный или отсутствующий конфиг, запуск отменен</string>
     <string name="error_update_url_not_found">URL обновления не найден</string>
     <string name="error_update_file_not_found">Файл обновления не найден</string>
     <string name="error_no_connection">Нет соединения с сервером</string>
     <string name="error_apk_not_found">APK не найден в релизе</string>
     <string name="error_download_failed">Ошибка загрузки: %1$s</string>
-    <string name="log_command">Команда: %1$s</string>
-    <string name="log_proxy_start">=== ЗАПУСК ТУННЕЛЯ: %1$s ===</string>
-    <string name="log_proxy_suppressed">=== ТУННЕЛЬ ПОДАВЛЕН (ПРЯМОЙ МАРШРУТ) ===</string>
-    <string name="log_process_stopped">=== ПРОЦЕСС ОСТАНОВЛЕН (Код: %1$d) ===</string>
-    <string name="log_startup_failed_no_watchdog">=== Ошибка при запуске, watchdog не активирован ===</string>
-    <string name="log_quick_exit">=== Быстрый выход (%1$dмс) — проверьте параметры подключения и настройки ===</string>
-    <string name="log_watchdog_limit">=== WATCHDOG: превышен лимит попыток (%1$d), остановка ===</string>
-    <string name="log_watchdog_restart">=== WATCHDOG: перезапуск через %1$dмс (попытка %2$d/%3$d) ===</string>
-    <string name="log_network_change">=== СМЕНА СЕТИ — ПЕРЕЗАПУСК ===</string>
-    <string name="log_connection_timeout">=== ТАЙМАУТ ПОДКЛЮЧЕНИЯ (2м) — ПЕРЕЗАПУСК ===</string>
-    <string name="log_no_network_waiting">=== НЕТ СЕТИ — ОЖИДАНИЕ ===</string>
-    <string name="log_stop_ui">=== ОСТАНОВКА ИЗ ИНТЕРФЕЙСА ===</string>
-    <string name="log_too_many_remote_not_ready">>>> СЛИШКОМ МНОГО "REMOTE NOT READY" / "OPENSTREAM FAILED" — перезапуск</string>
+    <string name="log_core_command">* [Core] Команда: %1$s</string>
+    <string name="log_core_start">* [Core] ЗАПУСК ТУННЕЛЯ: %1$s</string>
+    <string name="log_core_suppressed">* [Core] ТУННЕЛЬ ПОДАВЛЕН (ПРЯМОЙ МАРШРУТ)</string>
+    <string name="log_core_stopped">* [Core] ПРОЦЕСС ОСТАНОВЛЕН (Код: %1$d)</string>
+    <string name="log_core_startup_failed">* [Core] Ошибка при запуске, watchdog не активирован</string>
+    <string name="log_core_quick_exit">* [Core] Быстрый выход (%1$dмс) — проверьте параметры подключения и настройки</string>
+    <string name="log_core_watchdog_limit">* [Core] WATCHDOG: превышен лимит попыток (%1$d), остановка</string>
+    <string name="log_core_watchdog_restart">* [Core] WATCHDOG: перезапуск через %1$dмс (попытка %2$d/%3$d)</string>
+    <string name="log_core_network_change">* [Core] СМЕНА СЕТИ — ПЕРЕЗАПУСК</string>
+    <string name="log_core_connection_timeout">* [Core] ТАЙМАУТ ПОДКЛЮЧЕНИЯ (2м) — ПЕРЕЗАПУСК</string>
+    <string name="log_core_no_network_waiting">* [Core] НЕТ СЕТИ — ОЖИДАНИЕ</string>
+    <string name="log_core_stop_ui">* [Core] ОСТАНОВКА</string>
+    <string name="log_core_too_many_remote_not_ready">* [Core] СЛИШКОМ МНОГО \"REMOTE NOT READY\" / \"OPENSTREAM FAILED\" — перезапуск</string>
+    <string name="log_core_profile_summary">* [Core] Сводка профиля: Ядро: %1$s, Xray: %2$s</string>
+    <string name="log_core_foreground_failed">* [Core] Ошибка запуска foreground: %1$s</string>
+    <string name="log_core_dual_route_config_changed">* [Core] Конфиг Dual-route изменен, подавление до определения маршрута</string>
+    <string name="log_core_config_changed">* [Core] Конфиг изменен, перезапуск бинарного файла</string>
+
+    <string name="log_xray_starting">* [Xray] Запуск: %1$s</string>
+    <string name="log_xray_exited">* [Xray] Процесс завершился с кодом %1$d</string>
+    <string name="log_xray_error">* [Xray] Ошибка: %1$s</string>
+    <string name="log_xray_stopped_by_user">* [Xray] Остановлено</string>
+    <string name="log_xray_watchdog_limit">* [Xray] Лимит попыток watchdog достигнут (%1$d)</string>
+    <string name="log_xray_watchdog_restart">* [Xray] Перезапуск через %1$dмс (попытка %2$d/%3$d)</string>
+    <string name="log_xray_config_change_restart">* [Xray] Перезапуск из-за изменения настроек</string>
+    <string name="log_xray_foreground_failed">* [Xray] Ошибка запуска foreground: %1$s</string>
+
+    <string name="log_vpn_service_active">* [VPN] Сервис уже запущен или запускается (статус=%1$s, job=%2$b)</string>
+    <string name="log_vpn_foreground_failed">* [VPN] Ошибка запуска foreground: %1$s</string>
+    <string name="log_vpn_establishing">* [VPN] Установка туннеля (hev-socks5-tunnel)</string>
+    <string name="log_vpn_filtering_disabled">* [VPN] Фильтрация приложений отключена: весь трафик через VPN</string>
+    <string name="log_vpn_exclude_failed">* [VPN] Не удалось исключить %1$s: %2$s</string>
+    <string name="log_vpn_include_failed">* [VPN] Не удалось включить %1$s: %2$s</string>
+    <string name="log_vpn_include_empty">* [VPN] Режим включения с пустым списком: ни одно приложение не будет использовать VPN</string>
+    <string name="log_vpn_tun_failed">* [VPN] Не удалось установить TUN-интерфейс (hev-socks5-tunnel)</string>
+    <string name="log_vpn_starting">* [VPN] Запуск (hev-socks5-tunnel, fd=%1$d, proxy=%2$s)</string>
+    <string name="log_vpn_start_command_sent">* [VPN] Команда запуска туннеля отправлена (hev-socks5-tunnel)</string>
+    <string name="log_vpn_error">* [VPN] Ошибка: %1$s (hev-socks5-tunnel)</string>
+    <string name="log_vpn_stopped">* [VPN] Туннель остановлен (hev-socks5-tunnel)</string>
+    <string name="log_vpn_stop_error">* [VPN] Ошибка при остановке: %1$s (hev-socks5-tunnel)</string>
+    <string name="log_vpn_restarting_config">* [VPN] Перезапуск из-за изменения настроек или восстановления</string>
+
+    <string name="log_dual_route_direct_established">* [DualRoute] Прямое соединение установлено, подавление туннеля</string>
+    <string name="log_dual_route_direct_lost">* [DualRoute] Прямое соединение потеряно, разблокировка туннеля</string>
+    <string name="log_dual_route_unreachable_start_tunnel">* [DualRoute] Маршруты недоступны, запуск туннеля</string>
+    <string name="log_dual_route_check_failed">* [DualRoute] Не удалось инициировать проверку: %1$s</string>
+
     <string name="error_invalid_auth_key">Неверный ключ авторизации</string>
-    <string name="log_slow_network_watchdog">>>> МЕДЛЕННАЯ СЕТЬ — увеличение задержки перезапуска</string>
+    <string name="log_core_slow_network_watchdog">* [Core] МЕДЛЕННАЯ СЕТЬ — увеличение задержки перезапуска</string>
     <string name="error_turnable_failed">Ошибка Turnable: %1$s</string>
 
     <string name="error_release_info_failed">Не удалось получить информацию о релизе</string>
     <string name="error_process_no_output">Процесс завершился без вывода (код: %1$d)</string>
-    <string name="error_critical_format">КРИТИЧЕСКАЯ ОШИБКА: %1$s</string>
+    <string name="error_critical_format">* КРИТИЧЕСКАЯ ОШИБКА: %1$s</string>
     <string name="error_connecting">Ошибка подключения</string>
     <string name="error_platform_unavailable">Платформа недоступна</string>
     <string name="error_kernel_or_settings">Проблема с ядром или настройками</string>

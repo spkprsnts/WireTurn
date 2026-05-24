@@ -500,7 +500,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         conn.instanceFollowRedirects = false
                         PingResult.Success(measureTimeMillis { conn.responseCode })
                     } catch (e: Exception) { 
-                        AppLogsState.addLog("[Ping] Error: ${e.message}")
+                        AppLogsState.addLog("* [Ping] Error: ${e.message}")
                         null 
                     }
                 }

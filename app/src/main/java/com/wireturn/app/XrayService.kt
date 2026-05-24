@@ -84,7 +84,7 @@ class XrayService : Service() {
                             
                             if (needsStart) {
                                 if (vpnRunning || vpnError) {
-                                    AppLogsState.addLog("[VPN] Restarting due to settings change or recovery")
+                                    AppLogsState.addLog(getString(R.string.log_vpn_restarting_config))
                                     val stopIntent = Intent(this@XrayService, HevVpnService::class.java).apply {
                                         action = HevVpnService.ACTION_STOP
                                     }
@@ -150,7 +150,7 @@ class XrayService : Service() {
                 startForeground(NotificationHelper.NOTIFICATION_ID, notification)
             }
         } catch (e: Exception) {
-            AppLogsState.addLog("[Xray] Failed to start foreground: ${e.message}")
+            AppLogsState.addLog(getString(R.string.log_xray_foreground_failed, e.message ?: "Unknown"))
         }
 
         xrayJob = serviceScope.launch {
@@ -221,7 +221,7 @@ class XrayService : Service() {
             }
 
             if (!isConfigValid) {
-                AppLogsState.addLog(getString(R.string.log_proxy_invalid_config))
+                AppLogsState.addLog(getString(R.string.log_xray_invalid_config))
                 stopSelf()
                 return
             }
@@ -301,7 +301,7 @@ class XrayService : Service() {
                 )
             }
 
-            AppLogsState.addLog("[Xray] starting: ${cmdArgs.joinToString(" ")}")
+            AppLogsState.addLog(getString(R.string.log_xray_starting, cmdArgs.joinToString(" ")))
             val proc = withContext(Dispatchers.IO) {
                 ProcessBuilder(cmdArgs)
                     .redirectErrorStream(true)
@@ -317,7 +317,7 @@ class XrayService : Service() {
                 while (true) {
                     val rawLine = reader.readLine() ?: break
                     val cleanLine = AppLogsState.stripAnsi(rawLine)
-                    AppLogsState.addLog("[Xray] $cleanLine")
+                    AppLogsState.addLog("* [Xray] $cleanLine")
                     linesProcessed++
 
                     if (!started && (cleanLine.contains("Xray started") || 
@@ -340,13 +340,13 @@ class XrayService : Service() {
             val exitCode = withContext(Dispatchers.IO) {
                 proc.waitFor()
             }
-            AppLogsState.addLog("[Xray] process exited with code $exitCode")
+            AppLogsState.addLog(getString(R.string.log_xray_exited, exitCode))
         } catch (_: InterruptedIOException) {
             // pass
         } catch (_: CancellationException) {
             // normal cancellation on restart
         } catch (e: Exception) {
-            AppLogsState.addLog("[Xray] Error: ${e.message}")
+            AppLogsState.addLog(getString(R.string.log_xray_error, e.message ?: "Unknown"))
         } finally {
             process.set(null)
             XrayServiceState.updateStatsSocketName(null)
@@ -363,7 +363,7 @@ class XrayService : Service() {
             
             NotificationHelper.updateNotification(this@XrayService)
             if (userStopped.get()) {
-                AppLogsState.addLog("[Xray] stopped by user")
+                AppLogsState.addLog(getString(R.string.log_xray_stopped_by_user))
                 NotificationHelper.updateNotification(this@XrayService)
                 stopSelf()
             } else if (isJobActive) {
@@ -377,7 +377,7 @@ class XrayService : Service() {
             line.contains("active route: direct") -> {
                 XrayServiceState.updateStatus(XrayState.DirectRoute)
                 if (ProxyServiceState.isRunning.value && ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
-                    AppLogsState.addLog("[DualRoute] Direct connection established, suppressing tunnel")
+                    AppLogsState.addLog(getString(R.string.log_dual_route_direct_established))
                     ProxyServiceState.setStatus(ProxyStatus.Suppressed)
                 }
             }
@@ -389,12 +389,12 @@ class XrayService : Service() {
                 
                 if (directUnreachable || bothUnreachable) {
                     if (ProxyServiceState.status.value is ProxyStatus.Suppressed) {
-                        AppLogsState.addLog("[DualRoute] Direct connection lost, unsuppressing tunnel")
+                        AppLogsState.addLog(getString(R.string.log_dual_route_direct_lost))
                         ProxyServiceState.setStatus(ProxyStatus.Connecting)
                     }
                     
                     if (!ProxyServiceState.isRunning.value) {
-                        AppLogsState.addLog("[DualRoute] Routes unreachable, starting tunnel")
+                        AppLogsState.addLog(getString(R.string.log_dual_route_unreachable_start_tunnel))
                         serviceScope.launch {
                             val prefs = AppPreferences(applicationContext)
                             val cfg = prefs.clientConfigFlow.first()
@@ -412,7 +412,7 @@ class XrayService : Service() {
                                     socket.close()
                                 }
                             } catch (e: Exception) {
-                                AppLogsState.addLog("[DualRoute] Failed to trigger check: ${e.message}")
+                                AppLogsState.addLog(getString(R.string.log_dual_route_check_failed, e.message ?: "Unknown"))
                             }
                         }
                     }
@@ -424,14 +424,14 @@ class XrayService : Service() {
     private fun scheduleWatchdogRestart(snapshot: XrayConfigsSnapshot) {
         restartCount++
         if (restartCount > MAX_RESTARTS) {
-            AppLogsState.addLog("[Xray] watchdog limit reached ($MAX_RESTARTS)")
+            AppLogsState.addLog(getString(R.string.log_xray_watchdog_limit, MAX_RESTARTS))
             stopSelf()
             return
         }
         
         XrayServiceState.updateStatus(XrayState.Starting)
         val delay = minOf(1000L * restartCount, 10000L)
-        AppLogsState.addLog("[Xray] restarting in ${delay}ms (attempt $restartCount/$MAX_RESTARTS)")
+        AppLogsState.addLog(getString(R.string.log_xray_watchdog_restart, delay.toInt(), restartCount, MAX_RESTARTS))
         
         handler.postDelayed({
             if (!userStopped.get()) {

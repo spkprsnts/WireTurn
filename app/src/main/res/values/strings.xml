@@ -227,32 +227,66 @@
     <string name="error_proxy_crashed">Tunnel crashed %1$d times — check settings</string>
     <string name="error_settings_empty">Client settings not filled</string>
     <string name="error_proxy_not_started">Tunnel failed to start</string>
-    <string name="log_proxy_invalid_config">[Xray] Invalid or missing config, startup canceled</string>
+    <string name="log_xray_invalid_config">* [Xray] Invalid or missing config, startup canceled</string>
     <string name="error_update_url_not_found">Update URL not found</string>
     <string name="error_update_file_not_found">Update file not found</string>
     <string name="error_no_connection">No server connection</string>
     <string name="error_apk_not_found">APK not found in release</string>
     <string name="error_download_failed">Download error: %1$s</string>
-    <string name="log_command">Command: %1$s</string>
-    <string name="log_proxy_start">=== TUNNEL STARTING: %1$s ===</string>
-    <string name="log_proxy_suppressed">=== TUNNEL SUPPRESSED (DIRECT ROUTE) ===</string>
-    <string name="log_process_stopped">=== PROCESS STOPPED (Code: %1$d) ===</string>
-    <string name="log_startup_failed_no_watchdog">=== Startup error, watchdog not activated ===</string>
-    <string name="log_quick_exit">=== Quick exit (%1$dms) — check connection details and settings ===</string>
-    <string name="log_watchdog_limit">=== WATCHDOG: attempt limit exceeded (%1$d), stopping ===</string>
-    <string name="log_watchdog_restart">=== WATCHDOG: restarting in %1$dms (attempt %2$d/%3$d) ===</string>
-    <string name="log_network_change">=== NETWORK CHANGE — RESTARTING ===</string>
-    <string name="log_connection_timeout">=== CONNECTION TIMEOUT (2m) — RESTARTING ===</string>
-    <string name="log_no_network_waiting">=== NO NETWORK — WAITING ===</string>
-    <string name="log_stop_ui">=== STOPPED FROM UI ===</string>
-    <string name="log_too_many_remote_not_ready">>>> TOO MANY \"REMOTE NOT READY\" / \"OPENSTREAM FAILED\" — restarting</string>
+    <string name="log_core_command">* [Core] Command: %1$s</string>
+    <string name="log_core_start">* [Core] TUNNEL STARTING: %1$s</string>
+    <string name="log_core_suppressed">* [Core] TUNNEL SUPPRESSED (DIRECT ROUTE)</string>
+    <string name="log_core_stopped">* [Core] PROCESS STOPPED (Code: %1$d)</string>
+    <string name="log_core_startup_failed">* [Core] Startup error, watchdog not activated</string>
+    <string name="log_core_quick_exit">* [Core] Quick exit (%1$dms) — check connection details and settings</string>
+    <string name="log_core_watchdog_limit">* [Core] WATCHDOG: attempt limit exceeded (%1$d), stopping</string>
+    <string name="log_core_watchdog_restart">* [Core] WATCHDOG: restarting in %1$dms (attempt %2$d/%3$d)</string>
+    <string name="log_core_network_change">* [Core] NETWORK CHANGE — RESTARTING</string>
+    <string name="log_core_connection_timeout">* [Core] CONNECTION TIMEOUT (2m) — RESTARTING</string>
+    <string name="log_core_no_network_waiting">* [Core] NO NETWORK — WAITING</string>
+    <string name="log_core_stop_ui">* [Core] STOPPED</string>
+    <string name="log_core_too_many_remote_not_ready">* [Core] TOO MANY \"REMOTE NOT READY\" / \"OPENSTREAM FAILED\" — restarting</string>
+    <string name="log_core_profile_summary">* [Core] Profile summary: Kernel: %1$s, Xray: %2$s</string>
+    <string name="log_core_foreground_failed">* [Core] Failed to start foreground: %1$s</string>
+    <string name="log_core_dual_route_config_changed">* [Core] Dual-route config changed, suppressing until route is determined</string>
+    <string name="log_core_config_changed">* [Core] Config changed, restarting binary</string>
+
+    <string name="log_xray_starting">* [Xray] Starting: %1$s</string>
+    <string name="log_xray_exited">* [Xray] Process exited with code %1$d</string>
+    <string name="log_xray_error">* [Xray] Error: %1$s</string>
+    <string name="log_xray_stopped_by_user">* [Xray] Stopped</string>
+    <string name="log_xray_watchdog_limit">* [Xray] Watchdog limit reached (%1$d)</string>
+    <string name="log_xray_watchdog_restart">* [Xray] Restarting in %1$dms (attempt %2$d/%3$d)</string>
+    <string name="log_xray_config_change_restart">* [Xray] Restarting due to config change</string>
+    <string name="log_xray_foreground_failed">* [Xray] Failed to start foreground: %1$s</string>
+
+    <string name="log_vpn_service_active">* [VPN] Service already running or starting (status=%1$s, job=%2$b)</string>
+    <string name="log_vpn_foreground_failed">* [VPN] Failed to start foreground: %1$s</string>
+    <string name="log_vpn_establishing">* [VPN] Establishing tunnel (hev-socks5-tunnel)</string>
+    <string name="log_vpn_filtering_disabled">* [VPN] App filtering disabled: all traffic through VPN</string>
+    <string name="log_vpn_exclude_failed">* [VPN] Could not exclude %1$s: %2$s</string>
+    <string name="log_vpn_include_failed">* [VPN] Could not include %1$s: %2$s</string>
+    <string name="log_vpn_include_empty">* [VPN] Include mode with empty list: no apps will use VPN</string>
+    <string name="log_vpn_tun_failed">* [VPN] Failed to establish TUN interface (hev-socks5-tunnel)</string>
+    <string name="log_vpn_starting">* [VPN] Starting (hev-socks5-tunnel, fd=%1$d, proxy=%2$s)</string>
+    <string name="log_vpn_start_command_sent">* [VPN] Tunnel start command sent (hev-socks5-tunnel)</string>
+    <string name="log_vpn_error">* [VPN] Error: %1$s (hev-socks5-tunnel)</string>
+    <string name="log_vpn_stopped">* [VPN] Tunnel stopped (hev-socks5-tunnel)</string>
+    <string name="log_vpn_stop_error">* [VPN] Stop error: %1$s (hev-socks5-tunnel)</string>
+    <string name="log_vpn_restarting_config">* [VPN] Restarting due to settings change or recovery</string>
+
+    <string name="log_dual_route_direct_established">* [DualRoute] Direct connection established, suppressing tunnel</string>
+    <string name="log_dual_route_direct_lost">* [DualRoute] Direct connection lost, unsuppressing tunnel</string>
+    <string name="log_dual_route_unreachable_start_tunnel">* [DualRoute] Routes unreachable, starting tunnel</string>
+    <string name="log_dual_route_check_failed">* [DualRoute] Failed to trigger check: %1$s</string>
+
     <string name="error_invalid_auth_key">Invalid authorization key</string>
-    <string name="log_slow_network_watchdog">>>> SLOW NETWORK DETECTED — increasing watchdog delay</string>
+    <string name="log_core_slow_network_watchdog">* [Core] SLOW NETWORK DETECTED — increasing watchdog delay</string>
     <string name="error_turnable_failed">Turnable error: %1$s</string>
 
     <string name="error_release_info_failed">Could not get release information</string>
     <string name="error_process_no_output">Process finished with no output (code: %1$d)</string>
-    <string name="error_critical_format">CRITICAL ERROR: %1$s</string>
+    <string name="error_critical_format">* CRITICAL ERROR: %1$s</string>
     <string name="error_connecting">Connection error</string>
     <string name="error_platform_unavailable">Platform unavailable</string>
     <string name="error_kernel_or_settings">Problem with core or settings</string>
