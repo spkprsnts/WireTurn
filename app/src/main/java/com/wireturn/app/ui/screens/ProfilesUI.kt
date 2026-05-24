@@ -97,31 +97,17 @@ fun ProfileSummary(
     useAnimation: Boolean = false
 ) {
     val parts = mutableListOf<String>()
+    val context = LocalContext.current
 
-    // Core mode
-    parts.add(
-        stringResource(
-            when (profile.kernelVariant) {
-                KernelVariant.TURNABLE -> R.string.kernel_turnable
-                KernelVariant.OLCRTC -> R.string.kernel_olcrtc
-            }
-        )
-    )
+    parts.add(profile.getKernelDescription(context))
 
     when (profile.kernelVariant) {
         KernelVariant.TURNABLE -> {
-            val config = profile.turnableConfig
-            val route = config.routes.find { it.routeId == config.selectedRouteId }
-                ?: config.routes.firstOrNull()
-            val routeName = route?.name?.ifBlank { route.routeId } ?: config.selectedRouteId
-            parts.add("r:$routeName")
-            parts.add(config.platformDisplayName)
+            parts.add(profile.turnableConfig.platformDisplayName)
         }
 
         KernelVariant.OLCRTC -> {
-            val config = profile.olcrtcConfig
-            parts.add(getTransportDisplayName(config.transport, short = true))
-            parts.add(config.providerDisplayName)
+            parts.add(getTransportDisplayName(profile.olcrtcConfig.transport, short = true))
         }
     }
 

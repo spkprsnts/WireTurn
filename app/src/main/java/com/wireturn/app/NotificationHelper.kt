@@ -97,8 +97,25 @@ object NotificationHelper {
             if (pStatus.isNotEmpty()) statusParts.add(pStatus)
         }
         
-        if (xrayState != XrayState.Idle && (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute || xrayState == XrayState.Connecting || xrayState == XrayState.Starting)) {
-            statusParts.add(context.getString(R.string.vless))
+        val xraySession = XrayServiceState.session.value
+        val xrayProtocolLabel = when {
+            clientConfig?.kernelConfig is com.wireturn.app.data.KernelConfig.Olcrtc -> {
+                when (xrayState) {
+                    XrayState.DirectRoute -> context.getString(R.string.vless)
+                    XrayState.Running -> context.getString(R.string.socks5)
+                    XrayState.Starting, XrayState.Connecting -> context.getString(R.string.socks5)
+                    else -> null
+                }
+            }
+            xrayState == XrayState.Running || xrayState == XrayState.DirectRoute || xrayState == XrayState.Starting || xrayState == XrayState.Connecting -> {
+                if (xraySession?.vless != null) context.getString(R.string.vless)
+                else context.getString(R.string.wg_short)
+            }
+            else -> null
+        }
+
+        if (xrayProtocolLabel != null) {
+            statusParts.add(xrayProtocolLabel)
         }
         if (vpnState == VpnState.Running || vpnState == VpnState.Starting) {
             statusParts.add(context.getString(R.string.vpn_short))
@@ -253,6 +270,7 @@ object NotificationHelper {
                     CoreServiceState.statusText,
                     CoreServiceState.session,
                     XrayServiceState.state,
+                    XrayServiceState.session,
                     VpnServiceState.state
                 )
             ) { _ ->

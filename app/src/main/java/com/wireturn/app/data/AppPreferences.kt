@@ -412,8 +412,12 @@ data class ClientConfig(
     val isValid: Boolean get() = getValidationErrorResId() == null
 
     fun getKernelDescription(context: Context): String = when (val k = kernelConfig) {
-        is KernelConfig.Turnable -> context.getString(R.string.kernel_turnable) + " " + k.config.selectedRouteId
-        is KernelConfig.Olcrtc -> context.getString(R.string.kernel_olcrtc) + " " + k.config.provider
+        is KernelConfig.Turnable -> {
+            val route = k.config.routes.find { it.routeId == k.config.selectedRouteId }
+            val routeName = route?.name?.ifBlank { route.routeId } ?: k.config.selectedRouteId
+            context.getString(R.string.kernel_turnable) + " r:" + routeName
+        }
+        is KernelConfig.Olcrtc -> context.getString(R.string.kernel_olcrtc) + " " + k.config.providerDisplayName
     }
 
     companion object {
@@ -615,6 +619,16 @@ data class Profile(
             vlessConfig = vc,
             wgConfig = wc
         )
+    }
+
+    fun getKernelDescription(context: Context): String = when (kernelVariant) {
+        KernelVariant.TURNABLE -> {
+            val route = turnableConfig.routes.find { it.routeId == turnableConfig.selectedRouteId }
+            val routeName = route?.name?.ifBlank { route.routeId } ?: turnableConfig.selectedRouteId
+            context.getString(R.string.kernel_turnable) + " r:" + routeName
+        }
+
+        KernelVariant.OLCRTC -> context.getString(R.string.kernel_olcrtc) + " " + olcrtcConfig.providerDisplayName
     }
 }
 
