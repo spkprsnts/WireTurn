@@ -44,7 +44,7 @@ import kotlinx.coroutines.withContext
 import java.io.InterruptedIOException
 
 
-class ProxyService : Service() {
+class CoreService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private val process = AtomicReference<Process?>()
     private val userStopped = AtomicBoolean(false)
@@ -59,7 +59,7 @@ class ProxyService : Service() {
     private var restartCount = 0
 
     private lateinit var serviceScope: CoroutineScope
-    private var proxyJob: Job? = null
+    private var coreJob: Job? = null
     private var xraySupervisorJob: Job? = null
     private var networkDebounceJob: Job? = null
 
@@ -86,8 +86,9 @@ class ProxyService : Service() {
 
         // При каждом явном вызове Start — перезапускаем цикл, чтобы подхватить возможные изменения в конфиге
         userStopped.set(false)
-        proxyJob?.cancel()
-        proxyJob = serviceScope.launch {
+        CoreServiceState.setStatus(CoreStatus.Starting)
+        coreJob?.cancel()
+        coreJob = serviceScope.launch {
             // Очищаем старый процесс перед запуском нового, чтобы избежать конфликтов портов (особенно при мягком перезапуске)
             stopBinaryProcessGracefully()
 
@@ -100,12 +101,12 @@ class ProxyService : Service() {
             // Сразу фиксируем работающий конфиг для UI (с заполненными дефолтами)
             val filledCfg = cfg.fillDefaults()
             prefs.saveClientConfig(filledCfg)
-            ProxyServiceState.setSession(ProxyServiceState.RunningSession(filledCfg, profileName))
+            CoreServiceState.setSession(CoreServiceState.RunningSession(filledCfg, profileName))
             currentRunningCfg.set(filledCfg)
 
             if (!filledCfg.isValid) {
                 val errorRes = filledCfg.getValidationErrorResId() ?: R.string.error_settings_empty
-                ProxyServiceState.setStatus(ProxyStatus.Error(getString(errorRes)))
+                CoreServiceState.setStatus(CoreStatus.Error(getString(errorRes)))
                 delay(500)
                 withContext(Dispatchers.Main) { stopSelf() }
                 return@launch
@@ -155,16 +156,15 @@ class ProxyService : Service() {
         if (isDualRouteStart) {
             // В режиме Dual-route стартуем в паузе, чтобы не запускать бинарник зря
             AppLogsState.addLog(getString(R.string.log_core_suppressed))
-            ProxyServiceState.setStatus(ProxyStatus.Suppressed)
-            ProxyServiceState.setStatusText(getString(R.string.connecting))
+            CoreServiceState.setStatus(CoreStatus.Suppressed)
+            CoreServiceState.setStatusText(getString(R.string.connecting))
         } else {
-            ProxyServiceState.setStatus(ProxyStatus.Starting)
+            CoreServiceState.setStatus(CoreStatus.Starting)
         }
 
         userStopped.set(false)
         restartCount = 0
-        
-        ProxyTileService.requestUpdate(this)
+        CoreTileService.requestUpdate(this)
 
         val powerManager = getSystemService(POWER_SERVICE) as PowerManager
         wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WireTurn::BgLock")
@@ -211,27 +211,30 @@ class ProxyService : Service() {
 
                 if (isDualRoute) {
                     when (state) {
-                        XrayState.DirectRoute -> {
-                            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                        XrayState.DirectRoute, XrayState.Running -> {
+                            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                                 AppLogsState.addLog(getString(R.string.log_core_suppressed))
-                                ProxyServiceState.setStatus(ProxyStatus.Suppressed)
+                                CoreServiceState.setStatus(CoreStatus.Suppressed)
                             }
-                            updateNotification(getString(R.string.vless_direct_active))
+                            if (state == XrayState.DirectRoute) {
+                                updateNotification(getString(R.string.vless_direct_active))
+                            }
+                            CoreServiceState.setRestarting(false)
                         }
-                        // Running, Starting, Connecting — пробуждение туннеля при потере прямого
+                        // Starting, Connecting — пробуждение туннеля при потере прямого
                         // маршрута обрабатывается в XrayService.handleDualRouteLog
                         else -> {}
                     }
-                } else if (ProxyServiceState.status.value is ProxyStatus.Suppressed) {
+                } else if (CoreServiceState.status.value is CoreStatus.Suppressed) {
                     // Режим Dual-route был выключен — пробуждаем туннель немедленно
-                    ProxyServiceState.setStatus(ProxyStatus.Connecting)
+                    CoreServiceState.setStatus(CoreStatus.Connecting)
                 }
             }.collect {}
         }
 
         launch {
-            ProxyServiceState.status.collect { status ->
-                if (status is ProxyStatus.Suppressed) {
+            CoreServiceState.status.collect { status ->
+                if (status is CoreStatus.Suppressed) {
                     stopBinaryProcessGracefully()
                 }
             }
@@ -246,19 +249,21 @@ class ProxyService : Service() {
                     val newCfg = newCfgRaw.fillDefaults()
                     val binaryChanged = requiresBinaryRestart(runningCfg, newCfg)
                     currentRunningCfg.set(newCfg)
-                    ProxyServiceState.setSession(ProxyServiceState.RunningSession(newCfg, prefs.currentProfileNameFlow.first().orEmpty()))
+                    CoreServiceState.setSession(CoreServiceState.RunningSession(newCfg, prefs.currentProfileNameFlow.first().orEmpty()))
                     if (binaryChanged) {
                         val xrayConfig = prefs.xrayConfigFlow.first()
                         val vlessConfig = prefs.vlessConfigFlow.first()
                         val isDualRoute = xrayConfig.enabled &&
                             xrayConfig.protocol == com.wireturn.app.data.XrayConfiguration.VLESS &&
                             vlessConfig.isDualRoute
-                        if (isDualRoute && ProxyServiceState.status.value !is ProxyStatus.Idle) {
+                        if (isDualRoute && CoreServiceState.status.value !is CoreStatus.Idle) {
                             AppLogsState.addLog(getString(R.string.log_core_dual_route_config_changed))
-                            ProxyServiceState.setStatus(ProxyStatus.Suppressed)
+                            CoreServiceState.setStatus(CoreStatus.Suppressed)
                         } else {
                             restartCount = 0
                             AppLogsState.addLog(getString(R.string.log_core_config_changed))
+                            CoreServiceState.setRestarting(true)
+                            CoreServiceState.setStatus(CoreStatus.Stopping)
                             stopBinaryProcessGracefully()
                         }
                     }
@@ -266,13 +271,13 @@ class ProxyService : Service() {
         }
 
         while (isActive && !userStopped.get()) {
-            if (ProxyServiceState.status.value is ProxyStatus.Suppressed) {
+            if (CoreServiceState.status.value is CoreStatus.Suppressed) {
                 // Если мы в режиме паузы, просто ждем сигнала к пробуждению
                 delay(1000)
                 continue
             }
 
-            if (ProxyServiceState.status.value is ProxyStatus.WaitingForNetwork) {
+            if (CoreServiceState.status.value is CoreStatus.WaitingForNetwork) {
                 // В режиме ожидания сети мы ничего не делаем, пока NetworkCallback не перезапустит нас
                 delay(1000)
                 continue
@@ -287,7 +292,7 @@ class ProxyService : Service() {
 
             // ПРОВЕРКА ПАУЗЫ: Если бинарник был убит супервизором для перехода в DirectRoute,
             // мы НЕ должны запускать логику вотчдога.
-            if (ProxyServiceState.status.value is ProxyStatus.Suppressed) {
+            if (CoreServiceState.status.value is CoreStatus.Suppressed) {
                 restartCount = 0
                 continue
             }
@@ -298,12 +303,12 @@ class ProxyService : Service() {
             }
 
             // Check for rapid failure
-            val currentStatus = ProxyServiceState.status.value
-            if (!startupSuccessful || currentStatus is ProxyStatus.Error) {
-                if (currentStatus !is ProxyStatus.Error) {
+            val currentStatus = CoreServiceState.status.value
+            if (!startupSuccessful || currentStatus is CoreStatus.Error) {
+                if (currentStatus !is CoreStatus.Error) {
                     AppLogsState.addLog(getString(R.string.log_core_quick_exit, duration))
                     AppLogsState.addLog(getString(R.string.log_core_startup_failed))
-                    ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_kernel_or_settings)))
+                    CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_kernel_or_settings)))
                 }
                 delay(500)
                 if (isActive && !userStopped.get()) {
@@ -319,12 +324,12 @@ class ProxyService : Service() {
             restartCount++
             if (restartCount > MAX_RESTARTS) {
                 AppLogsState.addLog(getString(R.string.log_core_watchdog_limit, MAX_RESTARTS))
-                ProxyServiceState.emitFailed()
+                CoreServiceState.emitFailed()
                 withContext(Dispatchers.Main) { stopSelf() }
                 break
             }
 
-            ProxyServiceState.setStatus(ProxyStatus.Connecting)
+            CoreServiceState.setStatus(CoreStatus.Connecting)
             
             var baseDelay = if (duration > 30_000) 1000L else minOf(1000L * restartCount, 30_000L)
             if (isSlowConnection()) {
@@ -336,6 +341,7 @@ class ProxyService : Service() {
             AppLogsState.addLog(getString(R.string.log_core_watchdog_restart, delayMs, restartCount, MAX_RESTARTS))
             updateNotification(getString(R.string.notification_reconnecting, restartCount, MAX_RESTARTS))
             
+            CoreServiceState.setRestarting(true)
             delay(delayMs)
         }
     }
@@ -343,7 +349,7 @@ class ProxyService : Service() {
     private suspend fun runBinary(cfg: ClientConfig): Boolean = coroutineScope {
         val cmdArgs = buildCommandArgs(cfg)
 
-        if (ProxyServiceState.status.value is ProxyStatus.Error) {
+        if (CoreServiceState.status.value is CoreStatus.Error) {
             return@coroutineScope false
         }
 
@@ -377,8 +383,8 @@ class ProxyService : Service() {
 
             if (cfg.kernelVariant == KernelVariant.OLCRTC) {
                 state.startupEmitted = true
-                if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
-                    ProxyServiceState.setStatus(ProxyStatus.Connecting)
+                if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                    CoreServiceState.setStatus(CoreStatus.Connecting)
                     updateNotification(getString(R.string.connecting))
                 }
             }
@@ -386,8 +392,8 @@ class ProxyService : Service() {
             // Watchdog for connection timeout
             val connectionWatchdog = launch {
                 while (isActive) {
-                    val status = ProxyServiceState.status.value
-                    if (status is ProxyStatus.Connecting) {
+                    val status = CoreServiceState.status.value
+                    if (status is CoreStatus.Connecting) {
                         if (state.connectingSince == 0L) {
                             state.connectingSince = System.currentTimeMillis()
                         } else if (System.currentTimeMillis() - state.connectingSince > 120_000) {
@@ -427,7 +433,7 @@ class ProxyService : Service() {
 
             val wasKilledIntentionally = process.get() == null
             if (!state.startupEmitted && !state.startupFailed && !wasKilledIntentionally && isActive) {
-                ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_process_no_output, exitCode)))
+                CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_process_no_output, exitCode)))
             }
 
             !state.startupFailed
@@ -439,7 +445,7 @@ class ProxyService : Service() {
             handleProcessException(e)
             false
         } finally {
-            ProxyServiceState.setCaptchaSession(null)
+            CoreServiceState.setCaptchaSession(null)
             stopBinaryProcessGracefully()
             process.set(null)
         }
@@ -462,8 +468,8 @@ class ProxyService : Service() {
             lower.contains("second shutdown signal received") ||
             lower.contains("panic") || lower.contains("fatal")
         ) {
-            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
-                ProxyServiceState.setStatus(ProxyStatus.Error(line))
+            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                CoreServiceState.setStatus(CoreStatus.Error(line))
                 updateNotification(getString(R.string.error_connecting))
             }
             state.startupFailed = true
@@ -491,8 +497,8 @@ class ProxyService : Service() {
                 state.startupEmitted = true
                 return true
             }
-            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
-                ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_turnable_failed, errorPart)))
+            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_turnable_failed, errorPart)))
             }
             state.startupFailed = true
             return true
@@ -506,11 +512,11 @@ class ProxyService : Service() {
             (onlineCount != null && onlineCount >= 1 && lower.contains("peer online"))
         ) {
             state.peerConnectFailedCount = 0
-            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
-                ProxyServiceState.setStatus(ProxyStatus.Connected)
-                updateNotification(getString(R.string.proxy_active))
+            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                CoreServiceState.setStatus(CoreStatus.Connected)
+                updateNotification(getString(R.string.core_active))
                 state.startupEmitted = true
-                restartCount = 0
+                CoreServiceState.setRestarting(false)
             }
         }
 
@@ -541,12 +547,12 @@ class ProxyService : Service() {
             lower.contains("quota") ||
             (onlineCount != null && onlineCount == 0 && lower.contains("peer offline"))
         ) {
-            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                 if (isNetworkMissingAndHandled()) {
                     state.startupFailed = true
                     return true
                 }
-                ProxyServiceState.setStatus(ProxyStatus.Connecting)
+                CoreServiceState.setStatus(CoreStatus.Connecting)
                 updateNotification(getString(R.string.connecting))
                 state.startupEmitted = true
             }
@@ -560,16 +566,16 @@ class ProxyService : Service() {
 
     private suspend fun handleOlcrtcLog(line: String, lower: String, state: BinaryOutputState): Boolean {
         if (lower.contains("socks5 server listening on")) {
-            if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
-                ProxyServiceState.setStatus(ProxyStatus.Connected)
-                updateNotification(getString(R.string.proxy_active))
+            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                CoreServiceState.setStatus(CoreStatus.Connected)
+                updateNotification(getString(R.string.core_active))
                 state.startupEmitted = true
-                restartCount = 0
+                CoreServiceState.setRestarting(false)
             }
         }
 
         if (lower.contains("setupcipher failed")) {
-            ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_invalid_auth_key)))
+            CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_invalid_auth_key)))
             state.startupFailed = true
             return true
         }
@@ -577,7 +583,7 @@ class ProxyService : Service() {
         if (lower.contains("failed to connect link") || lower.contains("failed to create link")) {
             if (getNetworkQuality() == NetworkQuality.FAST) {
                 // Быстрая сеть, но ошибка линка — платформа недоступна
-                ProxyServiceState.setStatus(ProxyStatus.Error(getString(R.string.error_platform_unavailable)))
+                CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_platform_unavailable)))
                 state.startupFailed = true
             } else {
                 // Либо медленная, либо лежит совсем — на откуп watchdog
@@ -601,6 +607,12 @@ class ProxyService : Service() {
             }
         }
 
+        if (lower.contains("client reconnect attempt=1")) {// reason=carrier
+            AppLogsState.addLog(getString(R.string.log_core_reconnect_restart))
+            state.startupEmitted = true
+            return true
+        }
+
         return false
     }
 
@@ -618,9 +630,9 @@ class ProxyService : Service() {
         if (captchaMatcher.find()) {
             val captchaUrl = captchaMatcher.group(1)!!
             state.captchaSessionCounter += 1
-            ProxyServiceState.setCaptchaSession(CaptchaSession(captchaUrl, state.captchaSessionCounter))
+            CoreServiceState.setCaptchaSession(CaptchaSession(captchaUrl, state.captchaSessionCounter))
             state.captchaActive = true
-            updateNotification(getString(R.string.proxy_captcha_required))
+            updateNotification(getString(R.string.core_captcha_required))
             state.startupEmitted = true
         }
 
@@ -629,8 +641,8 @@ class ProxyService : Service() {
                 lower.contains("[vk auth] success") ||
                 (lower.contains("[captcha]") && lower.contains("failed"))
             )) {
-            ProxyServiceState.setCaptchaSession(null)
-            updateNotification(getString(R.string.proxy_active))
+            CoreServiceState.setCaptchaSession(null)
+            updateNotification(getString(R.string.core_active))
             state.captchaActive = false
         }
     }
@@ -779,16 +791,16 @@ class ProxyService : Service() {
             }
             combine(
                 configFlow,
-                ProxyServiceState.status,
+                CoreServiceState.status,
                 XrayServiceState.state,
-                ProxyServiceState.session
-            ) { signals, status, xrayState, proxySession ->
-                val clientConfig = proxySession?.clientConfig ?: return@combine null
+                CoreServiceState.session
+            ) { signals, status, xrayState, coreSession ->
+                val clientConfig = coreSession?.clientConfig ?: return@combine null
 
                 val shouldBeRunning = signals.xrayConfig.enabled &&
-                        status !is ProxyStatus.Idle &&
-                        status !is ProxyStatus.Error &&
-                        status !is ProxyStatus.WaitingForNetwork
+                        status !is CoreStatus.Idle &&
+                        status !is CoreStatus.Error &&
+                        status !is CoreStatus.WaitingForNetwork
 
                 val connectionTarget = when (clientConfig.kernelVariant) {
                     KernelVariant.OLCRTC -> clientConfig.socksAddr
@@ -825,22 +837,22 @@ class ProxyService : Service() {
                 if (needsRestart) {
                     AppLogsState.addLog(getString(R.string.log_xray_config_change_restart))
                     withContext(Dispatchers.Main) {
-                        stopService(Intent(this@ProxyService, XrayService::class.java))
+                        stopService(Intent(this@CoreService, XrayService::class.java))
                         delay(500)
-                        startForegroundService(Intent(this@ProxyService, XrayService::class.java))
+                        startForegroundService(Intent(this@CoreService, XrayService::class.java))
                     }
                 } else if (needsStart) {
                     delay(500) // Debounce during profile switches
                     withContext(Dispatchers.Main) {
                         val currentXrayState = XrayServiceState.state.value
-                        val currentStatus = ProxyServiceState.status.value
-                        if (currentXrayState == XrayState.Idle && currentStatus !is ProxyStatus.Idle && currentStatus !is ProxyStatus.Error) {
-                            startForegroundService(Intent(this@ProxyService, XrayService::class.java))
+                        val currentStatus = CoreServiceState.status.value
+                        if (currentXrayState == XrayState.Idle && currentStatus !is CoreStatus.Idle && currentStatus !is CoreStatus.Error) {
+                            startForegroundService(Intent(this@CoreService, XrayService::class.java))
                         }
                     }
                 } else if (needsStop) {
                     withContext(Dispatchers.Main) {
-                        stopService(Intent(this@ProxyService, XrayService::class.java))
+                        stopService(Intent(this@CoreService, XrayService::class.java))
                     }
                 }
             }
@@ -867,15 +879,15 @@ class ProxyService : Service() {
     private fun observeErrorForNotification() {
         serviceScope.launch {
             combine(
-                ProxyServiceState.status,
+                CoreServiceState.status,
                 AppLifecycleState.isAppInForeground
             ) { status, isForeground ->
                 status to isForeground
             }.collect { (status, isForeground) ->
-                if (status is ProxyStatus.Error && !isForeground) {
-                    NotificationHelper.notifyError(this@ProxyService, status.message)
-                } else if ((status is ProxyStatus.Connected || status is ProxyStatus.Suppressed || status is ProxyStatus.WaitingForNetwork) || isForeground) {
-                    NotificationHelper.cancelErrorNotification(this@ProxyService)
+                if (status is CoreStatus.Error && !isForeground) {
+                    NotificationHelper.notifyError(this@CoreService, status.message)
+                } else if ((status is CoreStatus.Connected || status is CoreStatus.Suppressed || status is CoreStatus.WaitingForNetwork) || isForeground) {
+                    NotificationHelper.cancelErrorNotification(this@CoreService)
                 }
             }
         }
@@ -884,18 +896,18 @@ class ProxyService : Service() {
     private fun observeCaptchaForNotification() {
         serviceScope.launch {
             combine(
-                ProxyServiceState.captchaSession,
+                CoreServiceState.captchaSession,
                 AppLifecycleState.isAppInForeground
             ) { session, isForeground ->
                 session to isForeground
             }.collect { (session, isForeground) ->
                 if (session != null && !isForeground) {
                     delay(1000)
-                    if (ProxyServiceState.captchaSession.value != null && !AppLifecycleState.isAppInForeground.value) {
-                        NotificationHelper.notifyCaptcha(this@ProxyService, session.url, session.sessionId.toString())
+                    if (CoreServiceState.captchaSession.value != null && !AppLifecycleState.isAppInForeground.value) {
+                        NotificationHelper.notifyCaptcha(this@CoreService, session.url, session.sessionId.toString())
                     }
                 } else {
-                    NotificationHelper.cancelCaptchaNotification(this@ProxyService)
+                    NotificationHelper.cancelCaptchaNotification(this@CoreService)
                 }
             }
         }
@@ -943,12 +955,12 @@ class ProxyService : Service() {
             }
 
             override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
-                if (ProxyServiceState.status.value is ProxyStatus.WaitingForNetwork) {
+                if (CoreServiceState.status.value is CoreStatus.WaitingForNetwork) {
                     if (networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
                         !networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) {
                         // Сеть появилась — переходим в Starting, чтобы не сработать повторно, и запускаемся
-                        ProxyServiceState.setStatus(ProxyStatus.Starting)
-                        val intent = Intent(this@ProxyService, ProxyService::class.java)
+                        CoreServiceState.setStatus(CoreStatus.Starting)
+                        val intent = Intent(this@CoreService, CoreService::class.java)
                         startService(intent)
                     }
                 }
@@ -978,7 +990,8 @@ class ProxyService : Service() {
         xraySupervisorJob?.cancel()
         xraySupervisorJob = null
         NotificationHelper.cancelErrorNotification(this)
-        ProxyServiceState.setStatus(ProxyStatus.Idle)
+        CoreServiceState.setRestarting(false)
+        CoreServiceState.setStatus(CoreStatus.Stopping)
         NotificationHelper.updateNotification(this)
         serviceScope.launch {
             if (disableAutoLaunch) {
@@ -991,12 +1004,13 @@ class ProxyService : Service() {
             
             // Explicitly stop Xray when tunnel stops
             withContext(Dispatchers.Main) {
-                stopService(Intent(this@ProxyService, XrayService::class.java))
+                stopService(Intent(this@CoreService, XrayService::class.java))
             }
 
             stopBinaryProcessGracefully()
             withContext(Dispatchers.Main) {
-                NotificationHelper.updateNotification(this@ProxyService)
+                CoreServiceState.setStatus(CoreStatus.Idle)
+                NotificationHelper.updateNotification(this@CoreService)
                 stopSelf()
             }
         }
@@ -1006,11 +1020,11 @@ class ProxyService : Service() {
         if (!isNetworkAvailable()) {
             val prefs = AppPreferences(applicationContext)
             if (prefs.waitForNetworkFlow.first()) {
-                if (ProxyServiceState.status.value !is ProxyStatus.WaitingForNetwork) {
+                if (CoreServiceState.status.value !is CoreStatus.WaitingForNetwork) {
                     AppLogsState.addLog(getString(R.string.log_core_no_network_waiting))
                 }
-                if (ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
-                    ProxyServiceState.setStatus(ProxyStatus.WaitingForNetwork)
+                if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                    CoreServiceState.setStatus(CoreStatus.WaitingForNetwork)
                     updateNotification(getString(R.string.status_waiting_for_network))
                 }
                 return true
@@ -1054,7 +1068,7 @@ class ProxyService : Service() {
     private suspend fun isSlowConnection(): Boolean = getNetworkQuality() == NetworkQuality.SLOW
 
     private fun updateNotification(text: String) {
-        ProxyServiceState.setStatusText(text)
+        CoreServiceState.setStatusText(text)
     }
 
     override fun onDestroy() {
@@ -1063,7 +1077,7 @@ class ProxyService : Service() {
         userStopped.set(true)
         currentRunningCfg.set(null)
         
-        ProxyServiceState.setStatus(ProxyStatus.Idle)
+        CoreServiceState.setStatus(CoreStatus.Idle)
         
         handler.removeCallbacksAndMessages(null)
         unregisterNetworkCallback()
@@ -1072,7 +1086,7 @@ class ProxyService : Service() {
         serviceScope.launch {
             stopBinaryProcessGracefully()
             withContext(Dispatchers.Main) {
-                NotificationHelper.updateNotification(this@ProxyService)
+                NotificationHelper.updateNotification(this@CoreService)
             }
             serviceScope.cancel()
         }
@@ -1089,17 +1103,17 @@ class ProxyService : Service() {
 
         fun start(context: Context, cfg: ClientConfig) {
             cfg.getValidationErrorResId()?.let { errorRes ->
-                ProxyServiceState.setStatus(ProxyStatus.Error(context.getString(errorRes)))
+                CoreServiceState.setStatus(CoreStatus.Error(context.getString(errorRes)))
                 return
             }
-            // Устанавливаем статус Starting сразу, чтобы UI и LocalProxyManager
+            // Устанавливаем статус Starting сразу, чтобы UI и LocalCoreManager
             // поняли, что запущен новый процесс попытки подключения, даже если до этого была ошибка.
-            ProxyServiceState.setStatus(ProxyStatus.Starting)
-            context.startForegroundService(Intent(context, ProxyService::class.java))
+            CoreServiceState.setStatus(CoreStatus.Starting)
+            context.startForegroundService(Intent(context, CoreService::class.java))
         }
 
         fun stop(context: Context, byUser: Boolean = false) {
-            val intent = Intent(context, ProxyService::class.java).apply {
+            val intent = Intent(context, CoreService::class.java).apply {
                 action = if (byUser) ACTION_STOP_BY_USER else ACTION_STOP
             }
             context.startService(intent)

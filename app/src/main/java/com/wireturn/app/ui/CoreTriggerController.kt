@@ -20,15 +20,15 @@ import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.viewmodel.MainViewModel
-import com.wireturn.app.viewmodel.ProxyState
+import com.wireturn.app.viewmodel.CoreState
 
 @Composable
-fun ProxyTriggerController(
+fun CoreTriggerController(
     viewModel: MainViewModel,
-    content: @Composable (onToggleProxy: () -> Unit, onCheckMismatch: (Boolean, () -> Unit) -> Unit) -> Unit
+    content: @Composable (onToggleCore: () -> Unit, onCheckMismatch: (Boolean, () -> Unit) -> Unit) -> Unit
 ) {
     val context = LocalContext.current
-    val proxyState by viewModel.proxyState.collectAsStateWithLifecycle()
+    val coreState by viewModel.coreState.collectAsStateWithLifecycle()
     val vpnSettings by viewModel.vpnSettings.collectAsStateWithLifecycle()
     val autoLaunchSettings by viewModel.autoLaunchSettings.collectAsStateWithLifecycle()
     val xrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
@@ -37,7 +37,7 @@ fun ProxyTriggerController(
     val showAutoLaunchOverride = rememberSaveable { mutableStateOf(false) }
     val showMismatchDialog = rememberSaveable { mutableStateOf(false) }
     var mismatchMessage by rememberSaveable { mutableStateOf("") }
-    var pendingProxyAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var pendingCoreAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     val vpnLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -47,8 +47,8 @@ fun ProxyTriggerController(
         }
     }
 
-    val vlessMismatch = stringResource(R.string.warn_proxy_vless_mismatch)
-    val wgMismatch = stringResource(R.string.warn_proxy_wg_mismatch)
+    val vlessMismatch = stringResource(R.string.warn_core_vless_mismatch)
+    val wgMismatch = stringResource(R.string.warn_core_wg_mismatch)
 
     val checkMismatch = { targetXrayEnabled: Boolean, onConfirmed: () -> Unit ->
         val turnableConfig = (clientConfig.kernelConfig as? KernelConfig.Turnable)?.config
@@ -63,17 +63,17 @@ fun ProxyTriggerController(
 
         if (mismatch) {
             mismatchMessage = if (isTunnelVless) vlessMismatch else wgMismatch
-            pendingProxyAction = onConfirmed
+            pendingCoreAction = onConfirmed
             showMismatchDialog.value = true
         } else {
             onConfirmed()
         }
     }
 
-    val triggerProxyAction = {
+    val triggerCoreAction = {
         val action = {
-            when (proxyState) {
-                is ProxyState.Idle, is ProxyState.Error -> {
+            when (coreState) {
+                is CoreState.Idle, is CoreState.Error -> {
                     checkMismatch(xrayConfig.enabled) {
                         HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
                         if (vpnSettings.enabled) {
@@ -81,29 +81,29 @@ fun ProxyTriggerController(
                             if (intent != null) {
                                 vpnLauncher.launch(intent)
                             } else {
-                                viewModel.startProxy()
+                                viewModel.startCore()
                             }
                         } else {
-                            viewModel.startProxy()
+                            viewModel.startCore()
                         }
                     }
                 }
                 else -> {
                     HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_OFF)
-                    viewModel.stopProxy()
+                    viewModel.stopCore()
                 }
             }
         }
 
         if (autoLaunchSettings.enabled) {
-            pendingProxyAction = action
+            pendingCoreAction = action
             showAutoLaunchOverride.value = true
         } else {
             action()
         }
     }
 
-    content(triggerProxyAction, checkMismatch)
+    content(triggerCoreAction, checkMismatch)
 
     if (showMismatchDialog.value) {
         AlertDialog(
@@ -113,8 +113,8 @@ fun ProxyTriggerController(
             confirmButton = {
                 TextButton(onClick = {
                     showMismatchDialog.value = false
-                    pendingProxyAction?.invoke()
-                    pendingProxyAction = null
+                    pendingCoreAction?.invoke()
+                    pendingCoreAction = null
                 }) {
                     Text(stringResource(R.string.btn_start))
                 }
@@ -122,7 +122,7 @@ fun ProxyTriggerController(
             dismissButton = {
                 TextButton(onClick = {
                     showMismatchDialog.value = false
-                    pendingProxyAction = null
+                    pendingCoreAction = null
                 }) {
                     Text(stringResource(R.string.cancel))
                 }
@@ -139,8 +139,8 @@ fun ProxyTriggerController(
                 TextButton(onClick = {
                     showAutoLaunchOverride.value = false
                     viewModel.updateAutoLaunchSettings(autoLaunchSettings.copy(enabled = false))
-                    pendingProxyAction?.invoke()
-                    pendingProxyAction = null
+                    pendingCoreAction?.invoke()
+                    pendingCoreAction = null
                 }) {
                     Text(stringResource(R.string.auto_launch_disable_and_continue))
                 }

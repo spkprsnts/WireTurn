@@ -16,22 +16,23 @@ import kotlinx.coroutines.flow.stateIn
  */
 data class CaptchaSession(val url: String, val sessionId: Long)
 
-sealed class ProxyStatus {
-    data object Idle : ProxyStatus()
-    data object Starting : ProxyStatus()
-    data object Connecting : ProxyStatus()
-    data object Connected : ProxyStatus()
-    data object Suppressed : ProxyStatus()
-    data object WaitingForNetwork : ProxyStatus()
-    data class CaptchaRequired(val session: CaptchaSession) : ProxyStatus()
-    data class Error(val message: String) : ProxyStatus()
+sealed class CoreStatus {
+    data object Idle : CoreStatus()
+    data object Starting : CoreStatus()
+    data object Connecting : CoreStatus()
+    data object Connected : CoreStatus()
+    data object Suppressed : CoreStatus()
+    data object Stopping : CoreStatus()
+    data object WaitingForNetwork : CoreStatus()
+    data class CaptchaRequired(val session: CaptchaSession) : CoreStatus()
+    data class Error(val message: String) : CoreStatus()
 }
 
 /**
  * Централизованное состояние прокси-сервиса.
  * Публичный API — только read-only Flow, мутация через явные методы.
  */
-object ProxyServiceState {
+object CoreServiceState {
 
     data class RunningSession(
         val clientConfig: ClientConfig,
@@ -40,11 +41,11 @@ object ProxyServiceState {
 
     private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main)
 
-    private val _status = MutableStateFlow<ProxyStatus>(ProxyStatus.Idle)
-    val status: StateFlow<ProxyStatus> = _status.asStateFlow()
+    private val _status = MutableStateFlow<CoreStatus>(CoreStatus.Idle)
+    val status: StateFlow<CoreStatus> = _status.asStateFlow()
 
-    private val _proxyFailed = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    val proxyFailed: SharedFlow<Unit> = _proxyFailed.asSharedFlow()
+    private val _coreFailed = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val coreFailed: SharedFlow<Unit> = _coreFailed.asSharedFlow()
 
     private val _captchaSession = MutableStateFlow<CaptchaSession?>(null)
     val captchaSession: StateFlow<CaptchaSession?> = _captchaSession.asStateFlow()
@@ -55,29 +56,32 @@ object ProxyServiceState {
     private val _statusText = MutableStateFlow<String?>(null)
     val statusText: StateFlow<String?> = _statusText.asStateFlow()
 
-    private val _isChangingProfile = MutableStateFlow(false)
-    val isChangingProfile: StateFlow<Boolean> = _isChangingProfile.asStateFlow()
+    private val _isRestarting = MutableStateFlow(false)
+    val isRestarting: StateFlow<Boolean> = _isRestarting.asStateFlow()
 
-    val isRunning: StateFlow<Boolean> = _status.map { it !is ProxyStatus.Idle }
+    val isRunning: StateFlow<Boolean> = _status.map { it !is CoreStatus.Idle }
         .stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, false)
 
-    val isWorking: StateFlow<Boolean> = _status.map { it is ProxyStatus.Connected || it is ProxyStatus.Suppressed }
+    val isWorking: StateFlow<Boolean> = _status.map { it is CoreStatus.Connected || it is CoreStatus.Suppressed }
         .stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, false)
 
-    fun setStatus(newStatus: ProxyStatus) {
-        if (newStatus is ProxyStatus.Idle) {
+    fun setStatus(newStatus: CoreStatus) {
+        if (newStatus is CoreStatus.Idle || newStatus is CoreStatus.Error || newStatus is CoreStatus.Connected) {
+            _isRestarting.value = false
+        }
+        if (newStatus is CoreStatus.Idle) {
             _session.value = null
             _statusText.value = null
             _captchaSession.value = null
         }
-        if (newStatus is ProxyStatus.CaptchaRequired) {
+        if (newStatus is CoreStatus.CaptchaRequired) {
             _captchaSession.value = newStatus.session
         }
         _status.value = newStatus
     }
 
-    fun setChangingProfile(value: Boolean) {
-        _isChangingProfile.value = value
+    fun setRestarting(value: Boolean) {
+        _isRestarting.value = value
     }
 
     fun setStatusText(text: String?) {
@@ -89,14 +93,14 @@ object ProxyServiceState {
     }
 
     fun emitFailed() {
-        _proxyFailed.tryEmit(Unit)
-        setStatus(ProxyStatus.Error("Proxy failed"))
+        _coreFailed.tryEmit(Unit)
+        setStatus(CoreStatus.Error("Core failed"))
     }
 
     fun setCaptchaSession(session: CaptchaSession?) {
         _captchaSession.value = session
         if (session != null) {
-            setStatus(ProxyStatus.CaptchaRequired(session))
+            setStatus(CoreStatus.CaptchaRequired(session))
         }
     }
 }

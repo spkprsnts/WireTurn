@@ -13,10 +13,10 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import com.wireturn.app.AppLogsState
-import com.wireturn.app.ProxyService
-import com.wireturn.app.ProxyServiceState
-import com.wireturn.app.ProxyStatus
-import com.wireturn.app.ProxyTileService
+import com.wireturn.app.CoreService
+import com.wireturn.app.CoreServiceState
+import com.wireturn.app.CoreStatus
+import com.wireturn.app.CoreTileService
 import com.wireturn.app.XrayService
 import com.wireturn.app.R
 import com.wireturn.app.XrayServiceState
@@ -35,7 +35,7 @@ import com.wireturn.app.data.WgConfig
 import com.wireturn.app.data.XrayConfig
 import com.wireturn.app.data.XraySettings
 import com.wireturn.app.domain.AppUpdater
-import com.wireturn.app.domain.LocalProxyManager
+import com.wireturn.app.domain.CoreManager
 import com.wireturn.app.domain.ProfileManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -57,14 +57,14 @@ import kotlin.system.measureTimeMillis
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val prefs = AppPreferences(application)
-    private val proxyManager = LocalProxyManager(application)
+    private val coreManager = CoreManager(application)
     private val appUpdater = AppUpdater(application)
     private val profileManager = ProfileManager(
         prefs = prefs,
         scope = ProcessLifecycleOwner.get().lifecycleScope
     )
 
-    val proxyState: StateFlow<ProxyState> = proxyManager.proxyState
+    val coreState: StateFlow<CoreState> = coreManager.coreState
     val logs: StateFlow<List<AppLogsState.LogEntry>> = AppLogsState.logs
     val updateState: StateFlow<UpdateState> = appUpdater.state
     val updateProgress: StateFlow<Int> = appUpdater.downloadProgress
@@ -249,9 +249,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.olcrtcSocksPassFlow.collect { _olcrtcSocksPass.value = it } }
         }
 
-        viewModelScope.launch { proxyManager.observeProxyLifecycle() }
-        viewModelScope.launch { proxyManager.observeProxyServiceStatus() }
-        viewModelScope.launch { proxyManager.observeCaptchaEvents() }
+        viewModelScope.launch { coreManager.observeCoreLifecycle() }
+        viewModelScope.launch { coreManager.observeCoreServiceStatus() }
+        viewModelScope.launch { coreManager.observeCaptchaEvents() }
         viewModelScope.launch {
             delay(1500)
             XrayServiceState.state.collect { state ->
@@ -263,7 +263,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
-        proxyManager.syncInitialState()
+        coreManager.syncInitialState()
     }
 
     fun setHomeScreenActive(active: Boolean) { 
@@ -326,7 +326,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     override fun onCleared() { 
         super.onCleared()
-        proxyManager.destroy() 
+        coreManager.destroy()
     }
 
     fun setDynamicTheme(enabled: Boolean) { 
@@ -344,7 +344,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun updateAutoLaunchSettings(settings: AutoLaunchSettings) {
         viewModelScope.launch { 
             prefs.updateAutoLaunchSettings(settings)
-            ProxyTileService.requestUpdate(getApplication()) 
+            CoreTileService.requestUpdate(getApplication())
         }
     }
 
@@ -379,12 +379,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             autoLaunchJob = ProcessLifecycleOwner.get().lifecycleScope.launch(Dispatchers.IO) {
                 while (true) {
                     val isReachable = isUrlReachable(settings.checkUrl)
-                    val isRunning = ProxyServiceState.isRunning.value
+                    val isRunning = CoreServiceState.isRunning.value
                     if (!isReachable && !isRunning) {
-                        withContext(Dispatchers.Main) { startProxy() }
+                        withContext(Dispatchers.Main) { startCore() }
                     } else if (isReachable && isRunning) {
                         withContext(Dispatchers.Main) { 
-                            ProxyService.stop(getApplication(), byUser = false) 
+                            CoreService.stop(getApplication(), byUser = false)
                         }
                     }
                     delay(settings.intervalMinutes * 60 * 1000L)
@@ -393,17 +393,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun startProxy() { 
-        ProcessLifecycleOwner.get().lifecycleScope.launch { startProxyInternal() } 
+    fun startCore() {
+        ProcessLifecycleOwner.get().lifecycleScope.launch { startCoreInternal() }
     }
     
-    private suspend fun startProxyInternal(forceRestart: Boolean = false) { 
-        proxyManager.startProxy(clientConfig.value, forceRestart) 
+    private suspend fun startCoreInternal(forceRestart: Boolean = false) {
+        coreManager.startCore(clientConfig.value, forceRestart)
     }
 
-    fun stopProxy() { proxyManager.stopProxy() }
+    fun stopCore() { coreManager.stopCore() }
 
-    fun dismissCaptcha() { proxyManager.dismissCaptcha() }
+    fun dismissCaptcha() { coreManager.dismissCaptcha() }
     fun clearLogs() { AppLogsState.clearLogs() }
     
     fun saveClientConfig(config: ClientConfig) {
@@ -590,16 +590,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun selectProfileAndRestart(id: String, profile: Profile? = null, onCompletion: (() -> Unit)? = null) {
         val target = profile ?: profiles.value.find { it.id == id } ?: return
-        if (ProxyServiceState.isRunning.value) ProxyServiceState.setChangingProfile(true)
+        val wasRunning = CoreServiceState.isRunning.value || XrayServiceState.state.value != XrayState.Idle
+        if (wasRunning) CoreServiceState.setRestarting(true)
+        
         profileManager.selectProfile(id, target) { p ->
             viewModelScope.launch {
                 try {
                     prefs.saveFullProfile(p.id, p)
-                    // ProxyService hot-reload реактивно определит что изменилось
-                    // и перезапустит только те компоненты, чьи флаги запуска изменились
                 } finally {
-                    delay(500)
-                    ProxyServiceState.setChangingProfile(false)
+                    if (!wasRunning) {
+                        CoreServiceState.setRestarting(false)
+                    } else {
+                        // Safety timeout reset for isRestarting
+                        delay(2000)
+                        if (CoreServiceState.isRestarting.value) {
+                            CoreServiceState.setRestarting(false)
+                        }
+                    }
                 }
             }
             onCompletion?.invoke()
@@ -643,7 +650,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteProfiles(ids: List<String>) {
         val willBeEmpty = (profiles.value.size - ids.size) <= 0
         if (willBeEmpty) {
-            if (ProxyServiceState.isRunning.value) stopProxy()
+            if (CoreServiceState.isRunning.value) stopCore()
             viewModelScope.launch { prefs.clearActiveProfile() }
         }
         profileManager.deleteProfiles(ids) { nextId, p -> selectProfileAndRestart(nextId, p) }
@@ -658,12 +665,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     
     fun resetAllSettings(c: Context) {
         viewModelScope.launch {
-            c.stopService(Intent(c, ProxyService::class.java))
+            c.stopService(Intent(c, CoreService::class.java))
             c.stopService(Intent(c, XrayService::class.java))
-            ProxyServiceState.setStatus(ProxyStatus.Idle)
+            CoreServiceState.setStatus(CoreStatus.Idle)
             XrayServiceState.updateStatus(XrayState.Idle)
             prefs.resetAll()
-            proxyManager.clearState()
+            coreManager.clearState()
             AppLogsState.clearLogs()
             val intent = Intent(c, com.wireturn.app.ui.activities.MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)

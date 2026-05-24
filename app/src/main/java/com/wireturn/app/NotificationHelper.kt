@@ -20,7 +20,7 @@ object NotificationHelper {
     const val NOTIFICATION_ID = 1
     const val CAPTCHA_NOTIFICATION_ID = 2
     const val ERROR_NOTIFICATION_ID = 3
-    const val CHANNEL_ID = "ProxyChannel"
+    const val CHANNEL_ID = "CoreChannel"
     const val CAPTCHA_CHANNEL_ID = "CaptchaChannel"
     const val ERROR_CHANNEL_ID = "ErrorChannel"
 
@@ -67,26 +67,27 @@ object NotificationHelper {
 
         val statusParts = mutableListOf<String>()
         
-        val proxyStatus = ProxyServiceState.status.value
-        val proxyStatusText = ProxyServiceState.statusText.value
-        val proxySession = ProxyServiceState.session.value
-        val profileNameSnapshot = proxySession?.profileName
-        val clientConfig = proxySession?.clientConfig
+        val coreStatus = CoreServiceState.status.value
+        val coreStatusText = CoreServiceState.statusText.value
+        val coreSession = CoreServiceState.session.value
+        val profileNameSnapshot = coreSession?.profileName
+        val clientConfig = coreSession?.clientConfig
         val xrayState = XrayServiceState.state.value
         val vpnState = VpnServiceState.state.value
 
-        if (proxyStatus !is ProxyStatus.Idle) {
-            val pStatus = proxyStatusText ?: if (proxyStatus is ProxyStatus.Suppressed) {
+        if (coreStatus !is CoreStatus.Idle) {
+            val pStatus = coreStatusText ?: if (coreStatus is CoreStatus.Suppressed) {
                 if (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute) context.getString(R.string.vless_direct_active)
                 else context.getString(R.string.connecting)
             } else {
-                when (proxyStatus) {
-                    is ProxyStatus.Connected -> context.getString(R.string.proxy_active)
-                    is ProxyStatus.Starting -> context.getString(R.string.starting)
-                    is ProxyStatus.Connecting -> context.getString(R.string.connecting)
-                    is ProxyStatus.WaitingForNetwork -> context.getString(R.string.status_waiting_for_network)
-                    is ProxyStatus.CaptchaRequired -> context.getString(R.string.proxy_captcha_required)
-                    is ProxyStatus.Error -> proxyStatus.message
+                when (coreStatus) {
+                    is CoreStatus.Connected -> context.getString(R.string.core_active)
+                    is CoreStatus.Starting -> context.getString(R.string.starting)
+                    is CoreStatus.Stopping -> context.getString(R.string.stopping)
+                    is CoreStatus.Connecting -> context.getString(R.string.connecting)
+                    is CoreStatus.WaitingForNetwork -> context.getString(R.string.status_waiting_for_network)
+                    is CoreStatus.CaptchaRequired -> context.getString(R.string.core_captcha_required)
+                    is CoreStatus.Error -> coreStatus.message
                 }
             }
             if (pStatus.isNotEmpty()) statusParts.add(pStatus)
@@ -120,21 +121,21 @@ object NotificationHelper {
             .setSound(null)
             .setContentIntent(openAppIntent)
 
-        if (proxyStatus !is ProxyStatus.Idle || xrayState != XrayState.Idle) {
-            val stopProxyIntent = Intent(context, ProxyReceiver::class.java).apply {
-                action = "${context.packageName}.STOP_PROXY"
+        if (coreStatus !is CoreStatus.Idle || xrayState != XrayState.Idle) {
+            val stopCoreIntent = Intent(context, CoreReceiver::class.java).apply {
+                action = "${context.packageName}.STOP_CORE"
             }
-            val stopProxyPendingIntent = PendingIntent.getBroadcast(
+            val stopCorePendingIntent = PendingIntent.getBroadcast(
                 context, 
                 100, 
-                stopProxyIntent,
+                stopCoreIntent,
                 PendingIntent.FLAG_IMMUTABLE
             )
             
             builder.addAction(
                 android.R.drawable.ic_menu_close_clear_cancel,
-                context.getString(R.string.proxy_stop),
-                stopProxyPendingIntent
+                context.getString(R.string.core_stop),
+                stopCorePendingIntent
             )
             
             val changeProfileIntent = Intent(context, ProfileDialogActivity::class.java).apply {
@@ -154,7 +155,7 @@ object NotificationHelper {
         }
 
         if (vpnState != VpnState.Idle) {
-            val stopVpnIntent = Intent(context, ProxyReceiver::class.java).apply {
+            val stopVpnIntent = Intent(context, CoreReceiver::class.java).apply {
                 action = "${context.packageName}.STOP_VPN"
             }
             val stopVpnPendingIntent = PendingIntent.getBroadcast(
@@ -170,7 +171,7 @@ object NotificationHelper {
                 stopVpnPendingIntent
             )
         } else if (xrayState != XrayState.Idle) {
-            val startVpnIntent = Intent(context, ProxyReceiver::class.java).apply {
+            val startVpnIntent = Intent(context, CoreReceiver::class.java).apply {
                 action = "${context.packageName}.START_VPN"
             }
             val startVpnPendingIntent = PendingIntent.getBroadcast(
@@ -243,9 +244,9 @@ object NotificationHelper {
         return scope.launch {
             combine(
                 listOf(
-                    ProxyServiceState.status,
-                    ProxyServiceState.statusText,
-                    ProxyServiceState.session,
+                    CoreServiceState.status,
+                    CoreServiceState.statusText,
+                    CoreServiceState.session,
                     XrayServiceState.state,
                     VpnServiceState.state
                 )
@@ -257,8 +258,8 @@ object NotificationHelper {
 
     fun updateNotification(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java)
-        val status = ProxyServiceState.status.value
-        if (status !is ProxyStatus.Idle ||
+        val status = CoreServiceState.status.value
+        if (status !is CoreStatus.Idle ||
             XrayServiceState.state.value != XrayState.Idle ||
             VpnServiceState.state.value != VpnState.Idle) {
             nm.notify(NOTIFICATION_ID, buildNotification(context))
@@ -266,6 +267,6 @@ object NotificationHelper {
             nm.cancel(NOTIFICATION_ID)
         }
         // Также запрашиваем обновление плитки в шторке, чтобы они всегда были синхронны
-        ProxyTileService.requestUpdate(context)
+        CoreTileService.requestUpdate(context)
     }
 }

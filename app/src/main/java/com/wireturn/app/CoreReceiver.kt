@@ -7,20 +7,20 @@ import com.wireturn.app.data.AppPreferences
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
-class ProxyReceiver : BroadcastReceiver() {
+class CoreReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         val pkg = context.packageName
         when (intent.action) {
-            "$pkg.START_PROXY" -> {
+            "$pkg.START_CORE" -> {
                 val prefs = AppPreferences(context)
                 val cfg = runBlocking { prefs.clientConfigFlow.first() }
-                ProxyService.start(context, cfg)
+                CoreService.start(context, cfg)
             }
-            "$pkg.STOP_PROXY" -> {
-                ProxyServiceState.setStatus(ProxyStatus.Idle)
+            "$pkg.STOP_CORE" -> {
+                CoreServiceState.setStatus(CoreStatus.Idle)
                 NotificationHelper.updateNotification(context)
-                ProxyService.stop(context, byUser = true)
+                CoreService.stop(context, byUser = true)
             }
             "$pkg.START_VPN" -> {
                 val prefs = AppPreferences(context)

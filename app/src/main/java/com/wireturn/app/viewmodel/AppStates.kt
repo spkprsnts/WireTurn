@@ -20,15 +20,16 @@ sealed class VpnState {
 }
 
 // Local proxy client states
-sealed class ProxyState {
-    object Idle : ProxyState()
-    object Starting : ProxyState()
-    object Connecting : ProxyState()
-    object Connected : ProxyState()
-    object Suppressed : ProxyState()
-    object WaitingForNetwork : ProxyState()
-    data class Error(val message: String) : ProxyState()
-    data class CaptchaRequired(val url: String, val sessionId: Long = 0L) : ProxyState()
+sealed class CoreState {
+    object Idle : CoreState()
+    object Starting : CoreState()
+    object Connecting : CoreState()
+    object Connected : CoreState()
+    object Suppressed : CoreState()
+    object Stopping : CoreState()
+    object WaitingForNetwork : CoreState()
+    data class Error(val message: String) : CoreState()
+    data class CaptchaRequired(val url: String, val sessionId: Long = 0L) : CoreState()
 }
 
 // App update states

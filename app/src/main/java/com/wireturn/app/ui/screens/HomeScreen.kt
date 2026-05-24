@@ -114,13 +114,13 @@ import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.redact
 import com.wireturn.app.viewmodel.MainViewModel
-import com.wireturn.app.viewmodel.ProxyState
+import com.wireturn.app.viewmodel.CoreState
 import androidx.core.net.toUri
-import com.wireturn.app.ProxyServiceState
+import com.wireturn.app.CoreServiceState
 import com.wireturn.app.VpnServiceState
 import com.wireturn.app.XrayServiceState
 import com.wireturn.app.ui.CompactItem
-import com.wireturn.app.ui.components.ProxyToggleButton
+import com.wireturn.app.ui.components.CoreToggleButton
 import com.wireturn.app.ui.RowLabel
 import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SupportingText
@@ -149,7 +149,7 @@ fun HomeScreen(
     // --- State & Data ---
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val proxyState by viewModel.proxyState.collectAsStateWithLifecycle()
+    val proxyState by viewModel.coreState.collectAsStateWithLifecycle()
     val xrayState by XrayServiceState.state.collectAsStateWithLifecycle()
     val vpnServiceState by VpnServiceState.state.collectAsStateWithLifecycle()
 
@@ -160,14 +160,14 @@ fun HomeScreen(
     val wgConfig by viewModel.wgConfig.collectAsStateWithLifecycle()
     val vpnSettings by viewModel.vpnSettings.collectAsStateWithLifecycle()
 
-    val proxySession by ProxyServiceState.session.collectAsStateWithLifecycle()
+    val proxySession by CoreServiceState.session.collectAsStateWithLifecycle()
     val xraySession by XrayServiceState.session.collectAsStateWithLifecycle()
 
     val batteryNotificationDismissed by viewModel.batteryNotificationDismissed.collectAsStateWithLifecycle()
     val vpnEnabled = vpnSettings.enabled
     val appsExclusionHintShown by viewModel.appsExclusionHintShown.collectAsStateWithLifecycle()
     val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
-    val isChangingProfile by ProxyServiceState.isChangingProfile.collectAsStateWithLifecycle()
+    val isRestarting by CoreServiceState.isRestarting.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
     val updateProgress by viewModel.updateProgress.collectAsStateWithLifecycle()
 
@@ -217,7 +217,7 @@ fun HomeScreen(
         }
 
         val isProxyActive =
-            proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed
+            proxyState is CoreState.Connected || proxyState is CoreState.Suppressed
         if (isProxyActive) {
             if (proxyPing is MainViewModel.PingResult.Success || proxyPing is MainViewModel.PingResult.Error) {
                 if (!isControlPingScheduled) {
@@ -579,7 +579,7 @@ fun HomeScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                ProxyToggleButton(
+                CoreToggleButton(
                     viewModel = viewModel,
                     onClick = {
                         if (profiles.isEmpty()) {
@@ -601,7 +601,7 @@ fun HomeScreen(
 
             // --- Ping & Transfer Stats ---
             AnimatedVisibility(
-                visible = (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute) && (proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed),
+                visible = (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute) && (proxyState is CoreState.Connected || proxyState is CoreState.Suppressed),
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
@@ -853,7 +853,7 @@ fun HomeScreen(
             } else {
                 if (activeXrayConfig.protocol == XrayConfiguration.VLESS) activeVlessConfig.isValid() else activeWgConfig.isValid()
             }
-            val configValid = isSettingsValid || xrayState != XrayState.Idle || isChangingProfile
+            val configValid = isSettingsValid || xrayState != XrayState.Idle || isRestarting
 
             val xrayProtocol = when {
                 activeConfig.kernelVariant == KernelVariant.OLCRTC -> {

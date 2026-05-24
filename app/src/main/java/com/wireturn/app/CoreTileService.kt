@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
-class ProxyTileService : TileService() {
+class CoreTileService : TileService() {
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var statusJob: Job? = null
@@ -30,7 +30,7 @@ class ProxyTileService : TileService() {
          */
         fun requestUpdate(context: Context) {
             try {
-                requestListeningState(context, ComponentName(context, ProxyTileService::class.java))
+                requestListeningState(context, ComponentName(context, CoreTileService::class.java))
             } catch (_: Exception) {
                 // Игнорируем ошибки на старых API или если плитка не добавлена
             }
@@ -44,21 +44,24 @@ class ProxyTileService : TileService() {
 
         // Мгновенное обновление при открытии шторки
         val initialAutoLaunch = runBlocking { prefs.autoLaunchSettingsFlow.first() }
-        val status = ProxyServiceState.status.value
-        val statusText = ProxyServiceState.statusText.value
+        val status = CoreServiceState.status.value
+        val isRestarting = CoreServiceState.isRestarting.value
+        val statusText = CoreServiceState.statusText.value
         val xrayState = XrayServiceState.state.value
         val vpnState = VpnServiceState.state.value
         
-        val isDirect = status is ProxyStatus.Suppressed
+        val isDirect = status is CoreStatus.Suppressed
         val isXrayWorking = xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
         val isVpnRunning = vpnState is VpnState.Running
-        val isWorking = status is ProxyStatus.Connected || (isDirect && isXrayWorking) || isVpnRunning
+        val isWorking = status is CoreStatus.Connected || (isDirect && isXrayWorking) || isVpnRunning
 
         updateTileState(
-            isRunning = status !is ProxyStatus.Idle,
+            isRunning = status !is CoreStatus.Idle,
             isWorking = isWorking,
-            isWaiting = status is ProxyStatus.WaitingForNetwork,
-            isCaptcha = status is ProxyStatus.CaptchaRequired,
+            isStopping = status is CoreStatus.Stopping,
+            isRestarting = isRestarting,
+            isWaiting = status is CoreStatus.WaitingForNetwork,
+            isCaptcha = status is CoreStatus.CaptchaRequired,
             autoLaunchEnabled = initialAutoLaunch.enabled,
             isDirect = isDirect,
             isXrayWorking = isXrayWorking,
@@ -68,23 +71,34 @@ class ProxyTileService : TileService() {
         statusJob?.cancel()
         statusJob = serviceScope.launch {
             combine(
-                ProxyServiceState.status,
+                CoreServiceState.status,
+                CoreServiceState.isRestarting,
                 XrayServiceState.state,
                 VpnServiceState.state,
-                ProxyServiceState.statusText,
+                CoreServiceState.statusText,
                 prefs.autoLaunchSettingsFlow
-            ) { status, xrayState, vpnState, statusText, autoLaunch ->
-                val isRunning = status !is ProxyStatus.Idle
-                val isDirect = status is ProxyStatus.Suppressed
-                val isWaiting = status is ProxyStatus.WaitingForNetwork
+            ) { args: Array<Any?> ->
+                val status = args[0] as CoreStatus
+                val isRestarting = args[1] as Boolean
+                val xrayState = args[2] as XrayState
+                val vpnState = args[3] as VpnState
+                val statusText = args[4] as? String
+                val autoLaunch = args[5] as com.wireturn.app.data.AutoLaunchSettings
+
+                val isRunning = status !is CoreStatus.Idle
+                val isDirect = status is CoreStatus.Suppressed
+                val isWaiting = status is CoreStatus.WaitingForNetwork
                 val isXrayWorking = xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
                 val isVpnRunning = vpnState is VpnState.Running
-                val isWorking = status is ProxyStatus.Connected || (isDirect && isXrayWorking) || isVpnRunning
-                val isCaptcha = status is ProxyStatus.CaptchaRequired
+                val isWorking = status is CoreStatus.Connected || (isDirect && isXrayWorking) || isVpnRunning
+                val isCaptcha = status is CoreStatus.CaptchaRequired
+                val isStopping = status is CoreStatus.Stopping
 
                 updateTileState(
                     isRunning = isRunning,
                     isWorking = isWorking,
+                    isStopping = isStopping,
+                    isRestarting = isRestarting,
                     isWaiting = isWaiting,
                     isCaptcha = isCaptcha,
                     autoLaunchEnabled = autoLaunch.enabled,
@@ -108,7 +122,7 @@ class ProxyTileService : TileService() {
 
     override fun onClick() {
         super.onClick()
-        val currentlyRunning = ProxyServiceState.status.value !is ProxyStatus.Idle
+        val currentlyRunning = CoreServiceState.status.value !is CoreStatus.Idle
         val prefs = AppPreferences(this)
         val autoLaunch = runBlocking { prefs.autoLaunchSettingsFlow.first() }
 
@@ -123,25 +137,25 @@ class ProxyTileService : TileService() {
         }
 
         if (turningOff) {
-            ProxyServiceState.setStatus(ProxyStatus.Idle)
+            CoreServiceState.setStatus(CoreStatus.Idle)
         } else {
             val cfg = runBlocking { prefs.clientConfigFlow.first() }
             cfg.getValidationErrorResId()?.let { errorRes ->
-                ProxyServiceState.setStatus(ProxyStatus.Error(getString(errorRes)))
+                CoreServiceState.setStatus(CoreStatus.Error(getString(errorRes)))
                 // В случае ошибки конфига — откатываем плитку в выключенное состояние
                 updateTileState(isRunning = false, isWorking = false, autoLaunchEnabled = false)
                 return
             }
-            ProxyServiceState.setStatus(ProxyStatus.Starting)
+            CoreServiceState.setStatus(CoreStatus.Starting)
         }
 
         val action = if (turningOff) {
-            "$packageName.STOP_PROXY"
+            "$packageName.STOP_CORE"
         } else {
-            "$packageName.START_PROXY"
+            "$packageName.START_CORE"
         }
         
-        val intent = Intent(this, ProxyReceiver::class.java).apply {
+        val intent = Intent(this, CoreReceiver::class.java).apply {
             this.action = action
         }
         sendBroadcast(intent)
@@ -150,6 +164,8 @@ class ProxyTileService : TileService() {
     private fun updateTileState(
         isRunning: Boolean,
         isWorking: Boolean,
+        isStopping: Boolean = false,
+        isRestarting: Boolean = false,
         isWaiting: Boolean = false,
         isCaptcha: Boolean = false,
         autoLaunchEnabled: Boolean = false,
@@ -167,6 +183,8 @@ class ProxyTileService : TileService() {
                 isWaiting -> getString(R.string.status_waiting_for_network)
                 autoLaunchEnabled && !isRunning -> getString(R.string.settings_auto_launch_title)
                 statusText != null -> statusText
+                isRestarting -> getString(R.string.core_restarting)
+                isStopping -> getString(R.string.stopping)
                 isDirect -> {
                     if (isXrayWorking) getString(R.string.vless_direct_active)
                     else getString(R.string.connecting)

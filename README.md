@@ -39,8 +39,8 @@ WireTurn интегрирует возможности **Turnable** и **olcRTC*
 ## Автоматизация (Intent API)
 
 Управление туннелем из сторонних приложений (например, Tasker):
-- **Запуск:** `com.wireturn.app.START_PROXY`
-- **Остановка:** `com.wireturn.app.STOP_PROXY`
+- **Запуск:** `com.wireturn.app.START_CORE`
+- **Остановка:** `com.wireturn.app.STOP_CORE`
 
 ## Скриншоты
 

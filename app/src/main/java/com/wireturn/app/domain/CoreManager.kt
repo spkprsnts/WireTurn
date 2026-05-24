@@ -2,10 +2,10 @@ package com.wireturn.app.domain
 
 import android.content.Context
 import com.wireturn.app.R
-import com.wireturn.app.ProxyService
-import com.wireturn.app.ProxyServiceState
-import com.wireturn.app.ProxyStatus
-import com.wireturn.app.viewmodel.ProxyState
+import com.wireturn.app.CoreService
+import com.wireturn.app.CoreServiceState
+import com.wireturn.app.CoreStatus
+import com.wireturn.app.viewmodel.CoreState
 import com.wireturn.app.data.ClientConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -20,40 +20,40 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
-class LocalProxyManager(private val context: Context) {
+class CoreManager(private val context: Context) {
 
-    private val _proxyState = MutableStateFlow<ProxyState>(ProxyState.Idle)
-    val proxyState: StateFlow<ProxyState> = _proxyState.asStateFlow()
+    private val _coreState = MutableStateFlow<CoreState>(CoreState.Idle)
+    val coreState: StateFlow<CoreState> = _coreState.asStateFlow()
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var resetJob: kotlinx.coroutines.Job? = null
 
-    suspend fun observeProxyLifecycle() {
-        ProxyServiceState.proxyFailed.collect {
-            setErrorWithAutoReset(context.getString(R.string.error_proxy_crashed, ProxyService.MAX_RESTARTS))
+    suspend fun observeCoreLifecycle() {
+        CoreServiceState.coreFailed.collect {
+            setErrorWithAutoReset(context.getString(R.string.error_core_crashed, CoreService.MAX_RESTARTS))
         }
     }
 
     suspend fun observeCaptchaEvents() {
-        ProxyServiceState.status.collect { status ->
-            if (status is ProxyStatus.CaptchaRequired) {
-                _proxyState.value = ProxyState.CaptchaRequired(status.session.url, status.session.sessionId)
-            } else if (_proxyState.value is ProxyState.CaptchaRequired) {
+        CoreServiceState.status.collect { status ->
+            if (status is CoreStatus.CaptchaRequired) {
+                _coreState.value = CoreState.CaptchaRequired(status.session.url, status.session.sessionId)
+            } else if (_coreState.value is CoreState.CaptchaRequired) {
                 syncStateWithService()
             }
         }
     }
 
-    suspend fun observeProxyServiceStatus() {
-        ProxyServiceState.status.collect { status ->
+    suspend fun observeCoreServiceStatus() {
+        CoreServiceState.status.collect { status ->
             when (status) {
-                is ProxyStatus.Error -> {
+                is CoreStatus.Error -> {
                     setErrorWithAutoReset(status.message)
                 }
-                is ProxyStatus.Idle -> {
+                is CoreStatus.Idle -> {
                     // Если сервис остановился, но у нас висит ошибка, не сбрасываем её сразу.
                     // Она сбросится сама через 4 секунды (resetJob) или при новом запуске.
-                    if (_proxyState.value !is ProxyState.Error) {
+                    if (_coreState.value !is CoreState.Error) {
                         syncStateWithService()
                     }
                 }
@@ -67,15 +67,16 @@ class LocalProxyManager(private val context: Context) {
     }
 
     private fun syncStateWithService() {
-        _proxyState.value = when (val status = ProxyServiceState.status.value) {
-            is ProxyStatus.Idle -> ProxyState.Idle
-            is ProxyStatus.Starting -> ProxyState.Starting
-            is ProxyStatus.Connecting -> ProxyState.Connecting
-            is ProxyStatus.Connected -> ProxyState.Connected
-            is ProxyStatus.Suppressed -> ProxyState.Suppressed
-            is ProxyStatus.WaitingForNetwork -> ProxyState.WaitingForNetwork
-            is ProxyStatus.CaptchaRequired -> ProxyState.CaptchaRequired(status.session.url, status.session.sessionId)
-            is ProxyStatus.Error -> ProxyState.Error(status.message)
+        _coreState.value = when (val status = CoreServiceState.status.value) {
+            is CoreStatus.Idle -> CoreState.Idle
+            is CoreStatus.Starting -> CoreState.Starting
+            is CoreStatus.Connecting -> CoreState.Connecting
+            is CoreStatus.Connected -> CoreState.Connected
+            is CoreStatus.Suppressed -> CoreState.Suppressed
+            is CoreStatus.Stopping -> CoreState.Stopping
+            is CoreStatus.WaitingForNetwork -> CoreState.WaitingForNetwork
+            is CoreStatus.CaptchaRequired -> CoreState.CaptchaRequired(status.session.url, status.session.sessionId)
+            is CoreStatus.Error -> CoreState.Error(status.message)
         }
     }
 
@@ -83,38 +84,38 @@ class LocalProxyManager(private val context: Context) {
         syncStateWithService()
     }
 
-    suspend fun startProxy(cfg: ClientConfig, forceRestart: Boolean = false) {
-        val currentStatus = ProxyServiceState.status.value
+    suspend fun startCore(cfg: ClientConfig, forceRestart: Boolean = false) {
+        val currentStatus = CoreServiceState.status.value
         // Разрешаем запуск, если сервис простаивает ИЛИ находится в состоянии ошибки/ожидания сети.
         // Это позволяет пользователю нажать "Retry" без ожидания.
-        if (!forceRestart && currentStatus !is ProxyStatus.Idle && 
-            currentStatus !is ProxyStatus.Error && currentStatus !is ProxyStatus.WaitingForNetwork) return
+        if (!forceRestart && currentStatus !is CoreStatus.Idle &&
+            currentStatus !is CoreStatus.Error && currentStatus !is CoreStatus.WaitingForNetwork) return
         
         // Сбрасываем локальное состояние ошибки и таймер авто-сброса перед новым запуском
         resetJob?.cancel()
-        if (_proxyState.value is ProxyState.Error) {
-            _proxyState.value = ProxyState.Idle
+        if (_coreState.value is CoreState.Error) {
+            _coreState.value = CoreState.Idle
         }
 
-        ProxyService.start(context, cfg)
+        CoreService.start(context, cfg)
 
         val result = withTimeoutOrNull(20_000L) {
-            ProxyServiceState.status
-                .dropWhile { it is ProxyStatus.Idle || it is ProxyStatus.Starting }
+            CoreServiceState.status
+                .dropWhile { it is CoreStatus.Idle || it is CoreStatus.Starting || it is CoreStatus.Stopping }
                 .first()
         }
 
-        if (_proxyState.value is ProxyState.Error) return
+        if (_coreState.value is CoreState.Error) return
 
         when (result) {
             null -> {
-                ProxyService.stop(context)
-                setErrorWithAutoReset(context.getString(R.string.error_proxy_not_started))
+                CoreService.stop(context)
+                setErrorWithAutoReset(context.getString(R.string.error_core_not_started))
             }
-            is ProxyStatus.Error -> {
+            is CoreStatus.Error -> {
                 // Если сервис вернул ошибку (например, Jitsi недоступен),
                 // останавливаем его и показываем ошибку в UI.
-                ProxyService.stop(context)
+                CoreService.stop(context)
                 setErrorWithAutoReset(result.message)
             }
 
@@ -124,26 +125,26 @@ class LocalProxyManager(private val context: Context) {
         }
     }
 
-    fun stopProxy() {
-        ProxyService.stop(context)
+    fun stopCore() {
+        CoreService.stop(context)
     }
 
     fun dismissCaptcha() {
-        ProxyServiceState.setCaptchaSession(null)
+        CoreServiceState.setCaptchaSession(null)
         syncStateWithService()
     }
 
     fun setErrorWithAutoReset(message: String) {
         resetJob?.cancel()
-        _proxyState.value = ProxyState.Error(message)
+        _coreState.value = CoreState.Error(message)
         resetJob = scope.launch {
             delay(4_000)
-            if (_proxyState.value is ProxyState.Error) syncStateWithService()
+            if (_coreState.value is CoreState.Error) syncStateWithService()
         }
     }
 
     fun clearState() {
-        _proxyState.value = ProxyState.Idle
+        _coreState.value = CoreState.Idle
     }
 
     fun destroy() {

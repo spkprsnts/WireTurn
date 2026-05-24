@@ -63,7 +63,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.HapticUtil
-import com.wireturn.app.ui.components.ProxyToggleButton
+import com.wireturn.app.ui.components.CoreToggleButton
 import com.wireturn.app.ui.theme.extendedColorScheme
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
@@ -72,7 +72,7 @@ import kotlinx.coroutines.launch
 fun LogsScreen(
     viewModel: MainViewModel,
     onBack: () -> Unit,
-    onToggleProxy: () -> Unit,
+    onToggleCore: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -173,12 +173,12 @@ fun LogsScreen(
         floatingActionButton = {
             val profiles by viewModel.profiles.collectAsStateWithLifecycle()
             if (profiles.isNotEmpty()) {
-                ProxyToggleButton(
+                CoreToggleButton(
                     viewModel = viewModel,
                     modifier = Modifier.navigationBarsPadding(),
                     size = 86.dp,
                     shape = RoundedCornerShape(20.dp),
-                    onClick = onToggleProxy,
+                    onClick = onToggleCore,
                     isFloat = true,
                     isVisible = true
                 )

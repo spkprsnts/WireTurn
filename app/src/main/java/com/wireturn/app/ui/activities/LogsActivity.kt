@@ -7,7 +7,7 @@ import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.wireturn.app.ui.ProxyTriggerController
+import com.wireturn.app.ui.CoreTriggerController
 import com.wireturn.app.ui.screens.LogsScreen
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
@@ -26,11 +26,11 @@ class LogsActivity : ComponentActivity() {
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
 
             WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
-                ProxyTriggerController(viewModel = viewModel) { onToggle, _ ->
+                CoreTriggerController(viewModel = viewModel) { onToggle, _ ->
                     LogsScreen(
                         viewModel = viewModel,
                         onBack = { finish() },
-                        onToggleProxy = onToggle
+                        onToggleCore = onToggle
                     )
                 }
             }

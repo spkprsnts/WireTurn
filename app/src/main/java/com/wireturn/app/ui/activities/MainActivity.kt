@@ -18,7 +18,7 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.wireturn.app.ProxyTileService
+import com.wireturn.app.CoreTileService
 import com.wireturn.app.NotificationHelper
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.navigation.AppNavigation
@@ -78,7 +78,7 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
 
         // Синхронизируем состояние плитки при запуске приложения
-        ProxyTileService.requestUpdate(this)
+        CoreTileService.requestUpdate(this)
 
         setContent {
             val isInitialized by viewModel.isInitialized.collectAsStateWithLifecycle()

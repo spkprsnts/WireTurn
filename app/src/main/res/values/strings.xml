@@ -5,22 +5,22 @@
     <string name="app_settings_title">Settings</string>
     <string name="turn_proxy_title" translatable="false">WireTurn</string>
     <string name="info_desc">Info</string>
-    <string name="proxy_active">Tunnel active</string>
-    <string name="proxy_press_to_start">Tap to start</string>
-    <string name="proxy_stop">Stop</string>
-    <string name="proxy_active_stop">Tunnel active — tap to stop</string>
-    <string name="proxy_error_restart">Error — tap to restart</string>
-    <string name="proxy_captcha_required">Captcha required</string>
+    <string name="core_active">Tunnel active</string>
+    <string name="core_press_to_start">Tap to start</string>
+    <string name="core_stop">Stop</string>
+    <string name="core_active_stop">Tunnel active — tap to stop</string>
+    <string name="core_error_restart">Error — tap to restart</string>
+    <string name="core_captcha_required">Captcha required</string>
     <string name="captcha_title">VK Check</string>
     <string name="captcha_desc">Complete the check to continue</string>
-    <string name="start_proxy">Start tunnel</string>
+    <string name="start_core">Start tunnel</string>
     <string name="xray_config_invalid">Invalid config</string>
     <string name="repo_links">Repository links</string>
 
     <string name="idle">Stopped</string>
     <string name="starting">Starting…</string>
     <string name="stopping">Stopping…</string>
-    <string name="proxy_restarting">Restarting…</string>
+    <string name="core_restarting">Restarting…</string>
     <string name="running">Running</string>
     <string name="connecting">Connecting…</string>
     <string name="status_waiting_for_network">Waiting for network…</string>
@@ -224,9 +224,9 @@
     <string name="ping_ms">%1$d ms</string>
 
     <!-- Errors and system messages -->
-    <string name="error_proxy_crashed">Tunnel crashed %1$d times — check settings</string>
+    <string name="error_core_crashed">Tunnel crashed %1$d times — check settings</string>
     <string name="error_settings_empty">Client settings not filled</string>
-    <string name="error_proxy_not_started">Tunnel failed to start</string>
+    <string name="error_core_not_started">Tunnel failed to start</string>
     <string name="log_xray_invalid_config">* [Xray] Invalid or missing config, startup canceled</string>
     <string name="error_update_url_not_found">Update URL not found</string>
     <string name="error_update_file_not_found">Update file not found</string>
@@ -246,6 +246,7 @@
     <string name="log_core_no_network_waiting">* [Core] NO NETWORK — WAITING</string>
     <string name="log_core_stop_ui">* [Core] STOPPED</string>
     <string name="log_core_too_many_remote_not_ready">* [Core] TOO MANY \"REMOTE NOT READY\" / \"OPENSTREAM FAILED\" — restarting</string>
+    <string name="log_core_reconnect_restart">* [Core] Client reconnection detected — restarting</string>
     <string name="log_core_profile_summary">* [Core] Profile summary: Kernel: %1$s, Xray: %2$s</string>
     <string name="log_core_foreground_failed">* [Core] Failed to start foreground: %1$s</string>
     <string name="log_core_dual_route_config_changed">* [Core] Dual-route config changed, suppressing until route is determined</string>
@@ -318,7 +319,7 @@
     <string name="restart_reason_xray">Xray settings changed</string>
     <string name="btn_restart">Restart</string>
 
-    <string name="proxy_auto_launch_active">Auto-launch active</string>
+    <string name="core_auto_launch_active">Auto-launch active</string>
     <string name="settings_auto_launch_title">Auto-launch</string>
     <string name="settings_auto_launch_desc">Start tunnel only when internet is restricted</string>
     <string name="settings_auto_launch_url">Check URL</string>
@@ -344,8 +345,8 @@
     <string name="warn_unsupported_arch_desc">Your device uses an architecture (%1$s) not supported by the built-in binaries. The app may not work correctly or fail to start.\n\nSupported architectures: arm64-v8a, x86_64.</string>
 
     <string name="mismatch_title">Mismatch</string>
-    <string name="warn_proxy_vless_mismatch">Tunnel expects a VLESS connection, but Xray is configured for WireGuard</string>
-    <string name="warn_proxy_wg_mismatch">Tunnel expects a WireGuard connection, but Xray is configured for VLESS</string>
+    <string name="warn_core_vless_mismatch">Tunnel expects a VLESS connection, but Xray is configured for WireGuard</string>
+    <string name="warn_core_wg_mismatch">Tunnel expects a WireGuard connection, but Xray is configured for VLESS</string>
     <string name="warn_vpn_requires_xray">VPN mode requires Xray to be enabled!</string>
 
     <string name="unsaved_changes_title">Unsaved changes</string>

@@ -62,18 +62,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.wireturn.app.ProxyServiceState
+import com.wireturn.app.CoreServiceState
 import com.wireturn.app.R
 import com.wireturn.app.XrayServiceState
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.VerticalAnimatedText
 import com.wireturn.app.viewmodel.MainViewModel
-import com.wireturn.app.viewmodel.ProxyState
+import com.wireturn.app.viewmodel.CoreState
 import com.wireturn.app.viewmodel.XrayState
 import kotlinx.coroutines.delay
 
 @Composable
-fun ProxyToggleButton(
+fun CoreToggleButton(
     viewModel: MainViewModel,
     modifier: Modifier = Modifier,
     size: Dp = 160.dp,
@@ -83,41 +83,53 @@ fun ProxyToggleButton(
     statusAlignment: Alignment.Horizontal = Alignment.End,
     onClick: () -> Unit
 ) {
-    val proxyState by viewModel.proxyState.collectAsStateWithLifecycle()
+    val coreState by viewModel.coreState.collectAsStateWithLifecycle()
     val xrayState by XrayServiceState.state.collectAsStateWithLifecycle()
     val xrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
     val autoLaunchSettings by viewModel.autoLaunchSettings.collectAsStateWithLifecycle()
 
-    val isChangingProfile by ProxyServiceState.isChangingProfile.collectAsStateWithLifecycle()
+    val isRestarting by CoreServiceState.isRestarting.collectAsStateWithLifecycle()
 
     var wasActiveBeforeRestart by remember { mutableStateOf(false) }
-    LaunchedEffect(isChangingProfile, proxyState, xrayState) {
-        val isActive = proxyState !is ProxyState.Idle || xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
-        if (isChangingProfile && isActive) {
-            wasActiveBeforeRestart = true
-        } else if (!isChangingProfile) {
-            wasActiveBeforeRestart = false
+
+    val isXrayWorking = xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
+    val isCoreActuallyConnected = coreState is CoreState.Connected || (coreState is CoreState.Suppressed && isXrayWorking)
+    val actuallyRestarting = isRestarting || (wasActiveBeforeRestart && isCoreActuallyConnected)
+
+    val toggleState = remember(coreState, xrayState, actuallyRestarting, xrayConfig.enabled) {
+        when {
+            actuallyRestarting || 
+            coreState is CoreState.Starting ||
+            coreState is CoreState.Connecting ||
+            coreState is CoreState.Stopping ||
+            coreState is CoreState.CaptchaRequired ||
+            coreState is CoreState.WaitingForNetwork ||
+            (coreState is CoreState.Suppressed && !isXrayWorking) -> "loading"
+            
+            coreState is CoreState.Error -> "error"
+            
+            (xrayConfig.enabled && !isXrayWorking && coreState !is CoreState.Idle) -> "loading"
+
+            isCoreActuallyConnected -> "active"
+            else -> "idle"
         }
     }
 
-    val toggleState = remember(proxyState, xrayState, isChangingProfile, wasActiveBeforeRestart, xrayConfig.enabled) {
-        val isXrayWorking = xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
-        val actuallyRestarting = isChangingProfile && wasActiveBeforeRestart
-        val gapFilling = wasActiveBeforeRestart && proxyState is ProxyState.Idle
-        
-        when {
-            actuallyRestarting || gapFilling || 
-            proxyState is ProxyState.Starting || 
-            proxyState is ProxyState.Connecting || 
-            proxyState is ProxyState.CaptchaRequired || 
-            proxyState is ProxyState.WaitingForNetwork -> "loading"
-            
-            proxyState is ProxyState.Error -> "error"
-            
-            (xrayConfig.enabled && !isXrayWorking && proxyState !is ProxyState.Idle) -> "loading"
-
-            proxyState is ProxyState.Connected || proxyState is ProxyState.Suppressed -> "active"
-            else -> "idle"
+    LaunchedEffect(isRestarting, isCoreActuallyConnected) {
+        if (isRestarting) {
+            if (isCoreActuallyConnected || coreState is CoreState.Starting || coreState is CoreState.Connecting) {
+                wasActiveBeforeRestart = true
+            }
+        } else if (wasActiveBeforeRestart) {
+            if (!isCoreActuallyConnected) {
+                wasActiveBeforeRestart = false
+            } else {
+                // Если мы все еще в состоянии Connected после завершения флага перезапуска,
+                // ждем реального изменения состояния или сбрасываем по таймауту,
+                // чтобы "Перезапуск" не висел вечно.
+                delay(1000)
+                wasActiveBeforeRestart = false
+            }
         }
     }
 
@@ -135,21 +147,22 @@ fun ProxyToggleButton(
     }
 
     val statusText = when {
-        toggleState == "loading" && (isChangingProfile || wasActiveBeforeRestart) -> stringResource(R.string.proxy_restarting)
-        proxyState is ProxyState.Connected -> {
+        actuallyRestarting -> stringResource(R.string.core_restarting)
+        coreState is CoreState.Connected -> {
             if (xrayState == XrayState.DirectRoute) stringResource(R.string.vless_direct_active)
-            else stringResource(R.string.proxy_active)
+            else stringResource(R.string.core_active)
         }
-        proxyState is ProxyState.Starting -> stringResource(R.string.starting)
-        proxyState is ProxyState.Connecting -> stringResource(R.string.connecting)
-        proxyState is ProxyState.Suppressed -> {
+        coreState is CoreState.Starting -> stringResource(R.string.starting)
+        coreState is CoreState.Stopping -> stringResource(R.string.stopping)
+        coreState is CoreState.Connecting -> stringResource(R.string.connecting)
+        coreState is CoreState.Suppressed -> {
             if (xrayState == XrayState.DirectRoute) stringResource(R.string.vless_direct_active)
             else stringResource(R.string.connecting)
         }
-        proxyState is ProxyState.CaptchaRequired -> stringResource(R.string.proxy_captcha_required)
-        proxyState is ProxyState.WaitingForNetwork -> stringResource(R.string.status_waiting_for_network)
-        proxyState is ProxyState.Error -> (proxyState as ProxyState.Error).message
-        else -> if (autoLaunchSettings.enabled) stringResource(R.string.proxy_auto_launch_active) else stringResource(R.string.proxy_press_to_start)
+        coreState is CoreState.CaptchaRequired -> stringResource(R.string.core_captcha_required)
+        coreState is CoreState.WaitingForNetwork -> stringResource(R.string.status_waiting_for_network)
+        coreState is CoreState.Error -> (coreState as CoreState.Error).message
+        else -> if (autoLaunchSettings.enabled) stringResource(R.string.core_auto_launch_active) else stringResource(R.string.core_press_to_start)
     }
 
     val statusColor by animateColorAsState(
@@ -226,7 +239,7 @@ fun ProxyToggleButton(
                 }
             }
 
-            ProxyToggleButtonInternal(
+            CoreToggleButtonInternal(
                 toggleState = toggleState,
                 xrayState = xrayState,
                 isLocked = autoLaunchSettings.enabled,
@@ -241,7 +254,7 @@ fun ProxyToggleButton(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = modifier
         ) {
-            ProxyToggleButtonInternal(
+            CoreToggleButtonInternal(
                 toggleState = toggleState,
                 xrayState = xrayState,
                 isLocked = autoLaunchSettings.enabled,
@@ -262,7 +275,7 @@ fun ProxyToggleButton(
 }
 
 @Composable
-private fun ProxyToggleButtonInternal(
+private fun CoreToggleButtonInternal(
     toggleState: String,
     xrayState: XrayState,
     modifier: Modifier = Modifier,
@@ -412,20 +425,20 @@ private fun ProxyToggleButtonInternal(
                             val icon = if (xrayState == XrayState.DirectRoute) R.drawable.ethernet_24px else R.drawable.check_24px
                             Icon(
                                 painterResource(icon),
-                                stringResource(R.string.proxy_active_stop),
+                                stringResource(R.string.core_active_stop),
                                 Modifier.size(iconSize),
                                 tint = contentColor
                             )
                         }
                         "error" -> Icon(
                             painterResource(R.drawable.error_24px),
-                            stringResource(R.string.proxy_error_restart),
+                            stringResource(R.string.core_error_restart),
                             Modifier.size(iconSize),
                             tint = contentColor
                         )
                         else -> Icon(
                             painterResource(R.drawable.power_24px),
-                            stringResource(R.string.start_proxy),
+                            stringResource(R.string.start_core),
                             Modifier.size(iconSize),
                             tint = contentColor
                         )

@@ -4,22 +4,22 @@
     <!-- Главный экран (Home) -->
     <string name="app_settings_title">Настройки</string>
     <string name="info_desc">Информация</string>
-    <string name="proxy_active">Туннель активен</string>
-    <string name="proxy_press_to_start">Нажмите для запуска</string>
-    <string name="proxy_stop">Остановить</string>
-    <string name="proxy_active_stop">Туннель активен — нажмите для остановки</string>
-    <string name="proxy_error_restart">Ошибка — нажмите для повторного запуска</string>
-    <string name="proxy_captcha_required">Требуется капча</string>
+    <string name="core_active">Туннель активен</string>
+    <string name="core_press_to_start">Нажмите для запуска</string>
+    <string name="core_stop">Остановить</string>
+    <string name="core_active_stop">Туннель активен — нажмите для остановки</string>
+    <string name="core_error_restart">Ошибка — нажмите для повторного запуска</string>
+    <string name="core_captcha_required">Требуется капча</string>
     <string name="captcha_title">Проверка VK</string>
     <string name="captcha_desc">Пройдите проверку для продолжения</string>
-    <string name="start_proxy">Запустить туннель</string>
+    <string name="start_core">Запустить туннель</string>
     <string name="xray_config_invalid">Некорректный конфиг</string>
     <string name="repo_links">Ссылки на репозитории</string>
 
     <string name="idle">Остановлен</string>
     <string name="starting">Запускается…</string>
     <string name="stopping">Остановка…</string>
-    <string name="proxy_restarting">Перезапуск…</string>
+    <string name="core_restarting">Перезапуск…</string>
     <string name="running">Запущен</string>
     <string name="connecting">Подключение…</string>
     <string name="status_waiting_for_network">Ожидание сети…</string>
@@ -193,9 +193,9 @@
     <string name="ping_ms">%1$d мс</string>
 
     <!-- Ошибки и системные сообщения -->
-    <string name="error_proxy_crashed">Туннель упал %1$d раз — проверьте настройки</string>
+    <string name="error_core_crashed">Туннель упал %1$d раз — проверьте настройки</string>
     <string name="error_settings_empty">Не заполнены настройки клиента</string>
-    <string name="error_proxy_not_started">Туннель не запустился</string>
+    <string name="error_core_not_started">Туннель не запустился</string>
     <string name="log_xray_invalid_config">* [Xray] Некорректный или отсутствующий конфиг, запуск отменен</string>
     <string name="error_update_url_not_found">URL обновления не найден</string>
     <string name="error_update_file_not_found">Файл обновления не найден</string>
@@ -215,6 +215,7 @@
     <string name="log_core_no_network_waiting">* [Core] НЕТ СЕТИ — ОЖИДАНИЕ</string>
     <string name="log_core_stop_ui">* [Core] ОСТАНОВКА</string>
     <string name="log_core_too_many_remote_not_ready">* [Core] СЛИШКОМ МНОГО \"REMOTE NOT READY\" / \"OPENSTREAM FAILED\" — перезапуск</string>
+    <string name="log_core_reconnect_restart">* [Core] Обнаружено переподключение клиента — перезапуск</string>
     <string name="log_core_profile_summary">* [Core] Сводка профиля: Ядро: %1$s, Xray: %2$s</string>
     <string name="log_core_foreground_failed">* [Core] Ошибка запуска foreground: %1$s</string>
     <string name="log_core_dual_route_config_changed">* [Core] Конфиг Dual-route изменен, подавление до определения маршрута</string>
@@ -281,7 +282,7 @@
     <string name="restart_reason_xray">Изменены настройки Xray</string>
     <string name="btn_restart">Перезапустить</string>
 
-    <string name="proxy_auto_launch_active">Автозапуск активен</string>
+    <string name="core_auto_launch_active">Автозапуск активен</string>
     <string name="settings_auto_launch_title">Автозапуск</string>
     <string name="settings_auto_launch_desc">Запуск туннеля только при ограничении интернета</string>
     <string name="settings_auto_launch_url">URL для проверки</string>
@@ -306,8 +307,8 @@
     <string name="warn_unsupported_arch_desc">Ваше устройство использует архитектуру (%1$s), которая не поддерживается встроенными бинарными файлами. Приложение может работать некорректно или не запускаться.\n\nПоддерживаемые архитектуры: arm64-v8a, x86_64.</string>
 
     <string name="mismatch_title">Несоответствие</string>
-    <string name="warn_proxy_vless_mismatch">Туннель ожидает VLESS-подключение, а Xray настроен на WireGuard</string>
-    <string name="warn_proxy_wg_mismatch">Туннель ожидает WireGuard-подключение, а Xray настроен на VLESS</string>
+    <string name="warn_core_vless_mismatch">Туннель ожидает VLESS-подключение, а Xray настроен на WireGuard</string>
+    <string name="warn_core_wg_mismatch">Туннель ожидает WireGuard-подключение, а Xray настроен на VLESS</string>
     <string name="warn_vpn_requires_xray">Режим VPN требует включенного Xray!</string>
 
     <string name="unsaved_changes_title">Несохранённые изменения</string>

@@ -158,7 +158,7 @@ class XrayService : Service() {
             val rawWg = prefs.wgConfigFlow.first()
             val rawXray = prefs.xrayConfigFlow.first()
             val rawVless = prefs.vlessConfigFlow.first()
-            val rawClient = ProxyServiceState.session.value?.clientConfig ?: prefs.clientConfigFlow.first()
+            val rawClient = CoreServiceState.session.value?.clientConfig ?: prefs.clientConfigFlow.first()
             val rawXraySettings = prefs.xraySettingsFlow.first()
 
             val wgConfig = rawWg.fillDefaults()
@@ -376,9 +376,9 @@ class XrayService : Service() {
         when {
             line.contains("active route: direct") -> {
                 XrayServiceState.updateStatus(XrayState.DirectRoute)
-                if (ProxyServiceState.isRunning.value && ProxyServiceState.status.value !is ProxyStatus.Suppressed) {
+                if (CoreServiceState.isRunning.value && CoreServiceState.status.value !is CoreStatus.Suppressed) {
                     AppLogsState.addLog(getString(R.string.log_dual_route_direct_established))
-                    ProxyServiceState.setStatus(ProxyStatus.Suppressed)
+                    CoreServiceState.setStatus(CoreStatus.Suppressed)
                 }
             }
             line.contains("active route: local") -> {
@@ -388,20 +388,20 @@ class XrayService : Service() {
                 val bothUnreachable = line.contains("both unreachable")
                 
                 if (directUnreachable || bothUnreachable) {
-                    if (ProxyServiceState.status.value is ProxyStatus.Suppressed) {
+                    if (CoreServiceState.status.value is CoreStatus.Suppressed) {
                         AppLogsState.addLog(getString(R.string.log_dual_route_direct_lost))
-                        ProxyServiceState.setStatus(ProxyStatus.Connecting)
+                        CoreServiceState.setStatus(CoreStatus.Connecting)
                     }
                     
-                    if (!ProxyServiceState.isRunning.value) {
+                    if (!CoreServiceState.isRunning.value) {
                         AppLogsState.addLog(getString(R.string.log_dual_route_unreachable_start_tunnel))
                         serviceScope.launch {
                             val prefs = AppPreferences(applicationContext)
                             val cfg = prefs.clientConfigFlow.first()
-                            ProxyService.start(this@XrayService, cfg)
+                            CoreService.start(this@XrayService, cfg)
                             
                             // Force Xray to check connection after tunnel starts
-                            ProxyServiceState.isWorking.first { it }
+                            CoreServiceState.isWorking.first { it }
                             delay(500)
                             try {
                                 withContext(Dispatchers.IO) {

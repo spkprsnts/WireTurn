@@ -51,7 +51,7 @@
         </activity>
 
         <service
-            android:name=".ProxyService"
+            android:name=".CoreService"
             android:exported="false"
             android:foregroundServiceType="specialUse"
             tools:targetApi="34">
@@ -161,18 +161,18 @@
         </provider>
 
         <receiver
-            android:name=".ProxyReceiver"
+            android:name=".CoreReceiver"
             android:exported="true"
             tools:ignore="ExportedReceiver">
             <intent-filter>
-                <action android:name="${applicationId}.START_PROXY" />
-                <action android:name="${applicationId}.STOP_PROXY" />
+                <action android:name="${applicationId}.START_CORE" />
+                <action android:name="${applicationId}.STOP_CORE" />
                 <action android:name="${applicationId}.CHANGE_PROFILE" />
             </intent-filter>
         </receiver>
 
         <service
-            android:name=".ProxyTileService"
+            android:name=".CoreTileService"
             android:exported="true"
             android:label="${appName}"
             android:icon="@drawable/ic_launcher_small"
