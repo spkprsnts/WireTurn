@@ -1,4 +1,4 @@
-package com.wireturn.app
+﻿package com.wireturn.app
 
 import android.app.Service
 import android.content.Context
@@ -32,6 +32,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.collectLatest
@@ -47,6 +48,7 @@ class ProxyService : Service() {
     private val process = AtomicReference<Process?>()
     private val userStopped = AtomicBoolean(false)
     private val isStarted = AtomicBoolean(false)
+    private val currentRunningCfg = AtomicReference<ClientConfig?>(null)
     private val availablePhysicalNetworks = java.util.concurrent.ConcurrentHashMap.newKeySet<Network>()
     
     private val handler = Handler(Looper.getMainLooper())
@@ -91,7 +93,6 @@ class ProxyService : Service() {
             val prefs = AppPreferences(applicationContext)
             val cfg = prefs.clientConfigFlow.first()
             val profileName = prefs.currentProfileNameFlow.first()
-            val xraySettings = prefs.xraySettingsFlow.first()
             val vlessConfig = prefs.vlessConfigFlow.first()
             val xrayConfig = prefs.xrayConfigFlow.first()
 
@@ -100,6 +101,7 @@ class ProxyService : Service() {
             prefs.saveClientConfig(filledCfg)
             ProxyServiceState.setClientConfigSnapshot(filledCfg)
             ProxyServiceState.setProfileNameSnapshot(profileName)
+            currentRunningCfg.set(filledCfg)
 
             if (!filledCfg.isValid) {
                 val errorRes = filledCfg.getValidationErrorResId() ?: R.string.error_settings_empty
@@ -110,9 +112,10 @@ class ProxyService : Service() {
             }
 
             try {
-                initStartup(vlessConfig, xraySettings, xrayConfig, profileName)
-                mainSupervisor(filledCfg, profileName, xraySettings, vlessConfig, xrayConfig)
+                initStartup(vlessConfig, xrayConfig, profileName)
+                mainSupervisor()
             } finally {
+                currentRunningCfg.set(null)
                 if (!userStopped.get() && isActive) {
                     withContext(Dispatchers.Main) { stopSelf() }
                 }
@@ -124,9 +127,8 @@ class ProxyService : Service() {
 
     private fun initStartup(
         vlessConfig: com.wireturn.app.data.VlessConfig,
-        @Suppress("UNUSED_PARAMETER") xraySettings: com.wireturn.app.data.XraySettings,
         xrayConfig: com.wireturn.app.data.XrayConfig,
-        @Suppress("UNUSED_PARAMETER") profileName: String?
+        profileName: String?
     ) {
         if (AppLogsState.logs.value.isNotEmpty()) {
             AppLogsState.addLog("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -177,32 +179,25 @@ class ProxyService : Service() {
         }
     }
 
-    private suspend fun mainSupervisor(
-        runningCfg: ClientConfig,
-        @Suppress("UNUSED_PARAMETER") profileName: String?,
-        @Suppress("UNUSED_PARAMETER") initialXraySettings: com.wireturn.app.data.XraySettings,
-        @Suppress("UNUSED_PARAMETER") initialVlessConfig: com.wireturn.app.data.VlessConfig,
-        @Suppress("UNUSED_PARAMETER") initialXrayConfig: com.wireturn.app.data.XrayConfig
-    ) = coroutineScope {
+    private suspend fun mainSupervisor() = coroutineScope {
         val prefs = AppPreferences(applicationContext)
 
         // Реактивное управление состоянием паузы (Suppressed)
         launch {
             combine(
                 XrayServiceState.state,
-                prefs.xraySettingsFlow,
                 prefs.xrayConfigFlow,
                 prefs.vlessConfigFlow,
                 XrayServiceState.vlessConfigSnapshot
-            ) { state, _, xray, vless, snapshotVless ->
+            ) { state, xray, vless, snapshotVless ->
                 val isXrayVless = xray.protocol == com.wireturn.app.data.XrayConfiguration.VLESS
-                
+
                 // Используем снапшот работающего конфига Xray для определения режима Dual-route.
                 // Это предотвращает преждевременный запуск бинарника при отключении Dual-route,
                 // пока Xray еще не перезагружен с новыми настройками.
                 val effectiveVless = if (state != XrayState.Idle) (snapshotVless ?: vless) else vless
                 val isDualRoute = xray.enabled && isXrayVless && effectiveVless.isDualRoute
-                
+
                 if (isDualRoute) {
                     when (state) {
                         XrayState.DirectRoute -> {
@@ -235,6 +230,34 @@ class ProxyService : Service() {
             }
         }
 
+        // Hot-reload: следим за изменениями конфига туннельного бинарника
+        launch {
+            prefs.clientConfigFlow
+                .drop(1) // пропускаем начальное значение — уже обработано в onStartCommand
+                .collect { newCfgRaw ->
+                    val runningCfg = currentRunningCfg.get() ?: return@collect
+                    val newCfg = newCfgRaw.fillDefaults()
+                    val binaryChanged = binaryLaunchKey(newCfg) != binaryLaunchKey(runningCfg)
+                    currentRunningCfg.set(newCfg)
+                    ProxyServiceState.setClientConfigSnapshot(newCfg)
+                    ProxyServiceState.setProfileNameSnapshot(prefs.currentProfileNameFlow.first())
+                    if (binaryChanged) {
+                        val xrayConfig = prefs.xrayConfigFlow.first()
+                        val vlessConfig = prefs.vlessConfigFlow.first()
+                        val isDualRoute = xrayConfig.enabled &&
+                            xrayConfig.protocol == com.wireturn.app.data.XrayConfiguration.VLESS &&
+                            vlessConfig.isDualRoute
+                        if (isDualRoute && ProxyServiceState.status.value !is ProxyStatus.Idle) {
+                            AppLogsState.addLog("[DualRoute] Tunnel config changed, suppressing until route is determined")
+                            ProxyServiceState.setStatus(ProxyStatus.Suppressed)
+                        } else {
+                            AppLogsState.addLog("[HotReload] Tunnel config changed, restarting binary")
+                            stopBinaryProcessGracefully()
+                        }
+                    }
+                }
+        }
+
         while (isActive && !userStopped.get()) {
             if (ProxyServiceState.status.value is ProxyStatus.Suppressed) {
                 // Если мы в режиме паузы, просто ждем сигнала к пробуждению
@@ -248,8 +271,9 @@ class ProxyService : Service() {
                 continue
             }
 
+            val cfg = currentRunningCfg.get() ?: break
             val startTime = System.currentTimeMillis()
-            val startupSuccessful = runBinary(runningCfg)
+            val startupSuccessful = runBinary(cfg)
             val duration = System.currentTimeMillis() - startTime
             
             if (userStopped.get()) break
@@ -633,70 +657,76 @@ class ProxyService : Service() {
                 )
             }
             KernelVariant.OLCRTC -> {
-                val o = cfg.olcrtcConfig
-                val configFile = java.io.File(filesDir, "olcrtc.yaml")
                 val dataDir = java.io.File(filesDir, "data")
                 if (!dataDir.exists()) dataDir.mkdirs()
-
-                val yaml = buildString {
-                    appendLine("mode: cnc")
-                    appendLine("data: data")
-                    appendLine("ffmpeg: \"${applicationInfo.nativeLibraryDir}/libffmpeg.so\"")
-                    appendLine("auth:")
-                    appendLine("  provider: ${o.provider}")
-                    appendLine("room:")
-                    appendLine("  id: \"${o.id}\"")
-                    appendLine("crypto:")
-                    appendLine("  key: \"${o.key}\"")
-                    appendLine("net:")
-                    appendLine("  transport: ${o.transport}")
-                    appendLine("  dns: \"${o.dns}\"")
-                    appendLine("socks:")
-                    appendLine("  host: \"${cfg.socksAddr.substringBefore(':').ifBlank { "127.0.0.1" }}\"")
-                    appendLine("  port: ${cfg.socksAddr.substringAfter(':', "9001").ifBlank { "9001" }}")
-                    if (cfg.isSocksAuthEnabled) {
-                        appendLine("  user: \"${cfg.socksUser}\"")
-                        appendLine("  pass: \"${cfg.socksPass}\"")
-                    }
-
-                    when (o.transport) {
-                        "vp8channel" -> {
-                            appendLine("vp8:")
-                            appendLine("  fps: ${o.vp8Fps}")
-                            appendLine("  batch_size: ${o.vp8Batch}")
-                        }
-                        "seichannel" -> {
-                            appendLine("sei:")
-                            appendLine("  fps: ${o.seiFps}")
-                            appendLine("  batch_size: ${o.seiBatch}")
-                            appendLine("  fragment_size: ${o.seiFrag}")
-                            appendLine("  ack_timeout_ms: ${o.seiAckMs}")
-                        }
-                        "videochannel" -> {
-                            appendLine("video:")
-                            appendLine("  codec: ${o.videoCodec}")
-                            appendLine("  width: ${o.videoW}")
-                            appendLine("  height: ${o.videoH}")
-                            appendLine("  fps: ${o.videoFps}")
-                            appendLine("  bitrate: \"${o.videoBitrate}\"")
-                            appendLine("  hw: ${o.videoHw}")
-                            if (o.videoCodec == "qrcode") {
-                                appendLine("  qr_recovery: ${o.videoQrRecovery}")
-                                appendLine("  qr_size: ${o.videoQrSize}")
-                            } else if (o.videoCodec == "tile") {
-                                appendLine("  tile_module: ${o.videoTileModule}")
-                                appendLine("  tile_rs: ${o.videoTileRs}")
-                            }
-                        }
-                    }
-                }
-                configFile.writeText(yaml)
+                val configFile = java.io.File(filesDir, "olcrtc.yaml")
+                configFile.writeText(buildOlcrtcYaml(cfg))
                 cmdArgs.add(configFile.absolutePath)
                 return cmdArgs
             }
         }
-        
+
         return cmdArgs
+    }
+
+    private fun buildOlcrtcYaml(cfg: ClientConfig): String {
+        val o = cfg.olcrtcConfig
+        return buildString {
+            appendLine("mode: cnc")
+            appendLine("data: data")
+            appendLine("ffmpeg: \"${applicationInfo.nativeLibraryDir}/libffmpeg.so\"")
+            appendLine("auth:")
+            appendLine("  provider: ${o.provider}")
+            appendLine("room:")
+            appendLine("  id: \"${o.id}\"")
+            appendLine("crypto:")
+            appendLine("  key: \"${o.key}\"")
+            appendLine("net:")
+            appendLine("  transport: ${o.transport}")
+            appendLine("  dns: \"${o.dns}\"")
+            appendLine("socks:")
+            appendLine("  host: \"${cfg.socksAddr.substringBefore(':').ifBlank { "127.0.0.1" }}\"")
+            appendLine("  port: ${cfg.socksAddr.substringAfter(':', "9001").ifBlank { "9001" }}")
+            if (cfg.isSocksAuthEnabled) {
+                appendLine("  user: \"${cfg.socksUser}\"")
+                appendLine("  pass: \"${cfg.socksPass}\"")
+            }
+            when (o.transport) {
+                "vp8channel" -> {
+                    appendLine("vp8:")
+                    appendLine("  fps: ${o.vp8Fps}")
+                    appendLine("  batch_size: ${o.vp8Batch}")
+                }
+                "seichannel" -> {
+                    appendLine("sei:")
+                    appendLine("  fps: ${o.seiFps}")
+                    appendLine("  batch_size: ${o.seiBatch}")
+                    appendLine("  fragment_size: ${o.seiFrag}")
+                    appendLine("  ack_timeout_ms: ${o.seiAckMs}")
+                }
+                "videochannel" -> {
+                    appendLine("video:")
+                    appendLine("  codec: ${o.videoCodec}")
+                    appendLine("  width: ${o.videoW}")
+                    appendLine("  height: ${o.videoH}")
+                    appendLine("  fps: ${o.videoFps}")
+                    appendLine("  bitrate: \"${o.videoBitrate}\"")
+                    appendLine("  hw: ${o.videoHw}")
+                    if (o.videoCodec == "qrcode") {
+                        appendLine("  qr_recovery: ${o.videoQrRecovery}")
+                        appendLine("  qr_size: ${o.videoQrSize}")
+                    } else if (o.videoCodec == "tile") {
+                        appendLine("  tile_module: ${o.videoTileModule}")
+                        appendLine("  tile_rs: ${o.videoTileRs}")
+                    }
+                }
+            }
+        }
+    }
+
+    private fun binaryLaunchKey(cfg: ClientConfig): String = when (cfg.kernelVariant) {
+        KernelVariant.OLCRTC -> buildOlcrtcYaml(cfg)
+        KernelVariant.TURNABLE -> "${cfg.listenAddr.ifBlank { ClientConfig.DEFAULT_LISTEN_ADDR }}|${cfg.turnableConfig.toUri(true)}"
     }
 
     private fun handleProcessException(e: Exception) {
@@ -732,36 +762,53 @@ class ProxyService : Service() {
         xraySupervisorJob?.cancel()
         xraySupervisorJob = serviceScope.launch {
             val prefs = AppPreferences(applicationContext)
-            combine(
+            val configFlow = combine(
                 prefs.xrayConfigFlow,
+                prefs.vlessConfigFlow,
+                prefs.wgConfigFlow,
+                prefs.xraySettingsFlow
+            ) { xray, vless, wg, settings ->
+                XrayConfigSignals(xray, vless.fillDefaults(), wg.fillDefaults(), settings.fillDefaults())
+            }
+            combine(
+                configFlow,
                 ProxyServiceState.status,
                 XrayServiceState.state,
                 ProxyServiceState.clientConfigSnapshot
-            ) { xrayConfig, status, xrayState, clientConfig ->
+            ) { signals, status, xrayState, clientConfig ->
                 if (clientConfig == null) return@combine null
 
-                val shouldBeRunning = xrayConfig.enabled &&
-                        status !is ProxyStatus.Idle && 
-                        status !is ProxyStatus.Error && 
+                val shouldBeRunning = signals.xrayConfig.enabled &&
+                        status !is ProxyStatus.Idle &&
+                        status !is ProxyStatus.Error &&
                         status !is ProxyStatus.WaitingForNetwork
-                
+
                 val connectionTarget = when (clientConfig.kernelVariant) {
                     KernelVariant.OLCRTC -> clientConfig.socksAddr
                     else -> clientConfig.listenAddr
                 }
+                val connectionAuth = if (clientConfig.kernelVariant == KernelVariant.OLCRTC) {
+                    Triple(clientConfig.isSocksAuthEnabled, clientConfig.socksUser, clientConfig.socksPass)
+                } else null
 
                 XraySupervisorBundle(
                     shouldBeRunning = shouldBeRunning,
                     xrayState = xrayState,
+                    signals = signals,
                     kernelVariant = clientConfig.kernelVariant,
-                    connectionTarget = connectionTarget
+                    connectionTarget = connectionTarget,
+                    connectionAuth = connectionAuth
                 )
-            }.filterNotNull()
-            .distinctUntilChanged { old: XraySupervisorBundle, new: XraySupervisorBundle ->
-                old.shouldBeRunning == new.shouldBeRunning &&
-                old.kernelVariant == new.kernelVariant &&
-                old.connectionTarget == new.connectionTarget &&
-                (if (new.shouldBeRunning) new.xrayState != XrayState.Idle else new.xrayState == XrayState.Idle)
+            }
+            .filterNotNull()
+            .distinctUntilChanged { old, new ->
+                if (old.shouldBeRunning != new.shouldBeRunning) return@distinctUntilChanged false
+                if (!new.shouldBeRunning) return@distinctUntilChanged new.xrayState == XrayState.Idle
+                return@distinctUntilChanged new.xrayState != XrayState.Idle &&
+                    old.signals == new.signals &&
+                    old.kernelVariant == new.kernelVariant &&
+                    old.connectionTarget == new.connectionTarget &&
+                    old.connectionAuth == new.connectionAuth
             }
             .collectLatest { data: XraySupervisorBundle ->
                 val needsStart = data.shouldBeRunning && data.xrayState == XrayState.Idle
@@ -769,7 +816,16 @@ class ProxyService : Service() {
                 val needsRestart = data.shouldBeRunning && data.xrayState != XrayState.Idle
 
                 if (needsRestart) {
-                    AppLogsState.addLog("[Xray] Restarting due to kernel or proxy settings change")
+                    // При переходе в dual-route режим подавляем бинарник до тех пор,
+                    // пока Xray не определит, работает ли прямой VLESS.
+                    // Это предотвращает лишний запуск туннеля если прямой маршрут доступен.
+                    if (data.signals.vless.isDualRoute &&
+                        ProxyServiceState.status.value !is ProxyStatus.Suppressed &&
+                        ProxyServiceState.status.value !is ProxyStatus.Idle) {
+                        AppLogsState.addLog("[DualRoute] Switching to dual-route, suppressing binary until route is determined")
+                        ProxyServiceState.setStatus(ProxyStatus.Suppressed)
+                    }
+                    AppLogsState.addLog("[Xray] Restarting due to config change")
                     withContext(Dispatchers.Main) {
                         stopService(Intent(this@ProxyService, XrayService::class.java))
                         delay(500)
@@ -793,12 +849,22 @@ class ProxyService : Service() {
         }
     }
 
+    private data class XrayConfigSignals(
+        val xrayConfig: com.wireturn.app.data.XrayConfig,
+        val vless: com.wireturn.app.data.VlessConfig,
+        val wg: com.wireturn.app.data.WgConfig,
+        val settings: com.wireturn.app.data.XraySettings
+    )
+
     private data class XraySupervisorBundle(
         val shouldBeRunning: Boolean,
         val xrayState: XrayState,
+        val signals: XrayConfigSignals,
         val kernelVariant: KernelVariant,
-        val connectionTarget: String?
+        val connectionTarget: String?,
+        val connectionAuth: Triple<Boolean, String, String>?
     )
+
 
     private fun observeErrorForNotification() {
         serviceScope.launch {
@@ -997,6 +1063,7 @@ class ProxyService : Service() {
         super.onDestroy()
         isStarted.set(false)
         userStopped.set(true)
+        currentRunningCfg.set(null)
         
         ProxyServiceState.setStatus(ProxyStatus.Idle)
         

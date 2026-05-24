@@ -251,10 +251,6 @@ fun HomeScreen(
 
     val proxyTransfer by viewModel.proxyTransfer.collectAsStateWithLifecycle()
 
-    val configChanged by viewModel.isConfigChanged.collectAsStateWithLifecycle()
-    val mainConfigChanged by viewModel.isMainConfigChanged.collectAsStateWithLifecycle()
-    val xrayConfigChanged by viewModel.isXrayConfigChanged.collectAsStateWithLifecycle()
-
     val snackbarHostState = remember { SnackbarHostState() }
     val homeScrollState = rememberScrollState()
 
@@ -833,7 +829,7 @@ fun HomeScreen(
             // --- Profiles Section ---
             val showProfilesDialog = rememberSaveable { mutableStateOf(false) }
             SectionItem(
-                position = if (configChanged && proxyState !is ProxyState.Idle) ItemPosition.Top else ItemPosition.Single,
+                position = ItemPosition.Single,
                 onClick = {
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     showProfilesDialog.value = true
@@ -850,90 +846,6 @@ fun HomeScreen(
                         )
                     }
                 )
-            }
-
-            // --- Permissions & Optimization Banner ---
-            AnimatedVisibility(
-                visible = proxyState !is ProxyState.Idle && configChanged,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                Column {
-                    Spacer(Modifier.height(2.dp))
-                    SectionItem(
-                        position = ItemPosition.Bottom
-                    ) {
-                        Column {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                StandardLeadingIcon {
-                                    Icon(
-                                        painter = painterResource(R.drawable.refresh_24px),
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                                Column(modifier = Modifier.weight(1f)) {
-                                    RowLabel(stringResource(R.string.restart_required))
-                                    Spacer(Modifier.height(2.dp))
-                                    SupportingText(
-                                        when {
-                                            mainConfigChanged && xrayConfigChanged -> "${
-                                                stringResource(
-                                                    R.string.restart_reason_client
-                                                )
-                                            } • ${stringResource(R.string.restart_reason_xray)}"
-
-                                            mainConfigChanged -> stringResource(R.string.restart_reason_client)
-                                            else -> stringResource(R.string.restart_reason_xray)
-                                        }
-                                    )
-                                }
-                            }
-
-                            Spacer(Modifier.height(16.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.End,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.reset),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier
-                                        .clip(MaterialTheme.shapes.small)
-                                        .clickable {
-                                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                            viewModel.revertToSnapshotConfigs()
-                                        }
-                                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    text = stringResource(R.string.btn_restart),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier
-                                        .clip(MaterialTheme.shapes.small)
-                                        .clickable {
-                                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                            if (mainConfigChanged) {
-                                                viewModel.restartProxy()
-                                            } else if (xrayConfigChanged) {
-                                                viewModel.restartXray()
-                                            }
-                                        }
-                                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                                )
-                            }
-                        }
-                    }
-                }
             }
 
             Spacer(Modifier.height(24.dp))

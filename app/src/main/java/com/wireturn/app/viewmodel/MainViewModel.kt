@@ -682,39 +682,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun selectProfileAndRestart(id: String, profile: Profile? = null, onCompletion: (() -> Unit)? = null) {
         val target = profile ?: profiles.value.find { it.id == id } ?: return
-        if (ProxyServiceState.isRunning.value) ProxyServiceState.setRestarting(true)
+        if (ProxyServiceState.isRunning.value) ProxyServiceState.setChangingProfile(true)
         profileManager.selectProfile(id, target) { p ->
             viewModelScope.launch {
                 try {
                     prefs.saveFullProfile(p.id, p)
-                    val isRunning = ProxyServiceState.isRunning.value
-                    if (!isRunning) return@launch
-                    val clientSnap = ProxyServiceState.clientConfigSnapshot.value
-                    
-                    val mainChanged = clientSnap != null && (
-                        p.kernelVariant != clientSnap.kernelVariant ||
-                        (p.kernelVariant == KernelVariant.TURNABLE && p.turnableConfig.sanitize() != clientSnap.turnableConfig) ||
-                        (p.kernelVariant == KernelVariant.OLCRTC && p.olcrtcConfig.fillDefaults() != clientSnap.olcrtcConfig)
-                    )
-
-                    if (mainChanged) {
-                        restartProxyInternal()
-                    } else {
-                        val wgSnap = XrayServiceState.wgConfigSnapshot.value
-                        val vlessSnap = XrayServiceState.vlessConfigSnapshot.value
-                        val xraySnap = XrayServiceState.xrayConfigSnapshot.value
-                        
-                        val xrayChanged = (wgSnap != null && p.wgConfig.fillDefaults() != wgSnap) ||
-                                (vlessSnap != null && p.vlessConfig.fillDefaults() != vlessSnap) ||
-                                (xraySnap != null && (p.xrayEnabled != xraySnap.enabled || p.xrayProtocol != xraySnap.protocol))
-
-                        if (xrayChanged) {
-                            getApplication<Application>().stopService(Intent(getApplication(), XrayService::class.java))
-                        }
-                    }
-                } finally { 
-                    delay(300)
-                    ProxyServiceState.setRestarting(false) 
+                    // ProxyService hot-reload реактивно определит что изменилось
+                    // и перезапустит только те компоненты, чьи флаги запуска изменились
+                } finally {
+                    delay(500)
+                    ProxyServiceState.setChangingProfile(false)
                 }
             }
             onCompletion?.invoke()
