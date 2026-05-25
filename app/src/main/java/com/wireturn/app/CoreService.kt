@@ -212,15 +212,20 @@ class CoreService : Service() {
 
                 if (isDualRoute) {
                     when (state) {
-                        XrayState.DirectRoute, XrayState.Running -> {
+                        XrayState.DirectRoute -> {
                             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                                 AppLogsState.addLog(getString(R.string.log_core_suppressed))
                                 CoreServiceState.setStatus(CoreStatus.Suppressed)
                             }
-                            if (state == XrayState.DirectRoute) {
-                                updateNotification(getString(R.string.vless_direct_active))
-                            }
+                            updateNotification(getString(R.string.vless_direct_active))
                             CoreServiceState.setRestarting(false)
+                        }
+                        // XrayState.Running в режиме Dual-route означает использование туннеля (local route).
+                        // Если мы были в паузе (Suppressed), пробуждаем бинарник.
+                        XrayState.Running -> {
+                            if (CoreServiceState.status.value is CoreStatus.Suppressed) {
+                                CoreServiceState.setStatus(CoreStatus.Connecting)
+                            }
                         }
                         // Starting, Connecting — пробуждение туннеля при потере прямого
                         // маршрута обрабатывается в XrayService.handleDualRouteLog
