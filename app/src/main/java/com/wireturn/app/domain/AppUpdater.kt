@@ -79,7 +79,7 @@ class AppUpdater(private val context: Context) {
                 
                 // Извлекаем версию и хеш из названия: "Unstable Build v6.1.1-a1b2c3d" -> "6.1.1-unstable-a1b2c3d"
                 val remoteVersion = if (remoteTag == "unstable-latest" && remoteName.isNotBlank()) {
-                    val versionRegex = """v(\d+\.\d+\.\d+)(?:-([a-f0-9]+))?""".toRegex()
+                    val versionRegex = """v(\d+(?:\.\d+)*)(?:-([a-f0-9]+))?""".toRegex()
                     val match = versionRegex.find(remoteName)
                     if (match != null) {
                         val ver = match.groupValues[1]
