@@ -109,7 +109,6 @@
     <string name="force_turn_desc">TURN-сервер для всех соединений</string>
     <string name="history_label">История</string>
     <string name="olcrtc_id_label">ID комнаты</string>
-    <string name="olcrtc_client_id_label">ID клиента</string>
     <string name="olcrtc_key_label">Ключ авторизации</string>
     <string name="olcrtc_dns_label">DNS-сервер</string>
     <string name="olcrtc_carrier_label">Платформа</string>
@@ -287,10 +286,6 @@
     <!-- Элементы интерфейса и форматирование -->
     <string name="clipboard_label_socks5">Xray SOCKS5</string>
     <string name="clipboard_label_http">Xray HTTP</string>
-    <string name="restart_required">Настройки изменены</string>
-    <string name="restart_reason_client">Изменён конфиг клиента</string>
-    <string name="restart_reason_xray">Изменены настройки Xray</string>
-    <string name="btn_restart">Перезапустить</string>
 
     <string name="core_auto_launch_active">Автозапуск активен</string>
     <string name="settings_auto_launch_title">Автозапуск</string>
@@ -369,7 +364,6 @@
     <string name="profile_import_qr">Сканировать QR-код</string>
     <string name="profile_import_clipboard">Вставить URI конфигурации</string>
     <string name="profile_import_file">Импорт из файла</string>
-    <string name="profile_turnable_manual_disabled">Ручная настройка недоступна без первоначального конфига. Пожалуйста, выполните импорт.</string>
     <string name="guide_turnable">Инструкция по настройке сервера Turnable</string>
     <string name="guide_olcrtc">Инструкция по настройке сервера olcRTC</string>
 </resources>

@@ -139,7 +139,6 @@
     <string name="kernel_turnable" translatable="false">Turnable</string>
     <string name="kernel_olcrtc" translatable="false">olcRTC</string>
     <string name="olcrtc_id_label">Room ID</string>
-    <string name="olcrtc_client_id_label">Client ID</string>
     <string name="olcrtc_key_label">Auth Key</string>
     <string name="olcrtc_dns_label">DNS Server</string>
     <string name="olcrtc_carrier_label">Carrier</string>
@@ -324,10 +323,6 @@
     <string name="version_format" translatable="false">v%1$s</string>
     <string name="clipboard_label_socks5">Xray SOCKS5</string>
     <string name="clipboard_label_http">Xray HTTP</string>
-    <string name="restart_required">Settings changed</string>
-    <string name="restart_reason_client">Client config changed</string>
-    <string name="restart_reason_xray">Xray settings changed</string>
-    <string name="btn_restart">Restart</string>
 
     <string name="core_auto_launch_active">Auto-launch active</string>
     <string name="settings_auto_launch_title">Auto-launch</string>
@@ -406,7 +401,6 @@
     <string name="profile_import_qr">Scan QR Code</string>
     <string name="profile_import_clipboard">Paste Config URI</string>
     <string name="profile_import_file">Import from File</string>
-    <string name="profile_turnable_manual_disabled">Manual setup unavailable without initial config. Please import to continue.</string>
     <string name="guide_turnable">Server setup guide: Turnable</string>
     <string name="guide_olcrtc">Server setup guide: olcRTC</string>
 </resources>
