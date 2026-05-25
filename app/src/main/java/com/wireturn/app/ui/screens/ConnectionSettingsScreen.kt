@@ -79,6 +79,7 @@ fun ConnectionSettingsScreen(
 
     // Turnable states
     var listenAddr by remember(initialClientConfig.listenAddr) { mutableStateOf(initialClientConfig.listenAddr) }
+    var goDnsGo by remember(initialClientConfig.goDnsGo) { mutableStateOf(initialClientConfig.goDnsGo) }
     
     // olcRTC states
     var olSocks by remember(initialClientConfig.socksAddr) { mutableStateOf(initialClientConfig.socksAddr) }
@@ -97,13 +98,14 @@ fun ConnectionSettingsScreen(
 
     val scrollState = rememberScrollState()
 
-    val currentClientConfig = remember(listenAddr, olSocks, olAuth, olUser, olPass, initialClientConfig) {
+    val currentClientConfig = remember(listenAddr, olSocks, olAuth, olUser, olPass, goDnsGo, initialClientConfig) {
         initialClientConfig.copy(
             listenAddr = listenAddr,
             socksAddr = olSocks,
             isSocksAuthEnabled = olAuth,
             socksUser = olUser,
-            socksPass = olPass
+            socksPass = olPass,
+            goDnsGo = goDnsGo
         )
     }
     
@@ -119,6 +121,7 @@ fun ConnectionSettingsScreen(
 
     val isModified = remember(currentClientConfig, initialClientConfig, currentXraySettings, initialXraySettings) {
         currentClientConfig.listenAddr != initialClientConfig.listenAddr ||
+        currentClientConfig.goDnsGo != initialClientConfig.goDnsGo ||
         currentClientConfig.socksAddr != initialClientConfig.socksAddr ||
         currentClientConfig.isSocksAuthEnabled != initialClientConfig.isSocksAuthEnabled ||
         currentClientConfig.socksUser != initialClientConfig.socksUser ||
@@ -233,6 +236,28 @@ fun ConnectionSettingsScreen(
                 .padding(bottom = 80.dp),
             verticalArrangement = Arrangement.spacedBy(19.dp)
         ) {
+            // General
+            SectionGroup(title = stringResource(R.string.network_settings_title)) {
+                SectionItem(
+                    position = ItemPosition.Single,
+                    onClick = {
+                        goDnsGo = !goDnsGo
+                        HapticUtil.perform(
+                            context,
+                            if (goDnsGo) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                        )
+                    }
+                ) {
+                    SwitchRow(
+                        label = stringResource(R.string.go_internal_dns_title),
+                        supportingText = stringResource(R.string.go_internal_dns_desc),
+                        checked = goDnsGo,
+                        onCheckedChange = { goDnsGo = it },
+                        isModified = goDnsGo != initialClientConfig.goDnsGo,
+                    )
+                }
+            }
+
             // Turnable
             SectionGroup(title = stringResource(R.string.settings_group_turnable)) {
                 SectionItem(position = ItemPosition.Single) {

@@ -408,13 +408,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     
     fun saveClientConfig(config: ClientConfig) {
         viewModelScope.launch {
-            prefs.saveClientListenAddr(config.listenAddr)
-            prefs.saveOlcrtcSocks(
-                config.socksAddr, 
-                config.isSocksAuthEnabled, 
-                config.socksUser, 
-                config.socksPass
-            )
+            prefs.saveClientConfig(config)
             val profile = profiles.value.find { it.id == currentProfileId.value } ?: return@launch
             val updatedProfile = when (val k = config.kernelConfig) {
                 is KernelConfig.Turnable -> profile.copy(kernelVariant = KernelVariant.TURNABLE, turnableConfig = k.config)

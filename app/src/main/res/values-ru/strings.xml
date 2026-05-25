@@ -186,6 +186,9 @@
     <string name="restart_on_network_change_title">Перезапуск при смене сети</string>
     <string name="restart_on_network_change_desc">Автоматически перезапускать туннель при переключении между Wi-Fi и мобильной сетью</string>
 
+    <string name="go_internal_dns_title">Внутренний резолвер Go</string>
+    <string name="go_internal_dns_desc">Принудительно использовать встроенный резолвер Go. Может помочь при проблемах с IPv6.</string>
+
     <string name="network_settings_title">Сеть</string>
 
     <!-- Настройка Капчи -->

@@ -371,6 +371,7 @@ data class ClientConfig(
     val isSocksAuthEnabled: Boolean = true,
     val socksUser: String = "",
     val socksPass: String = "",
+    val goDnsGo: Boolean = false,
     val kernelConfig: KernelConfig = KernelConfig.Turnable()
 ) {
     val kernelVariant: KernelVariant get() = when (kernelConfig) {
@@ -389,7 +390,8 @@ data class ClientConfig(
             listenAddr = validListen,
             socksAddr = validSocks,
             socksUser = cleanedUser,
-            socksPass = cleanedPass
+            socksPass = cleanedPass,
+            goDnsGo = goDnsGo
         )
 
         if (current.isSocksAuthEnabled && (current.socksUser.isBlank() || current.socksPass.isBlank())) {
@@ -684,6 +686,7 @@ class AppPreferences(val context: Context) {
         val CAPTCHA_STYLE_MOD = booleanPreferencesKey("captcha_style_mod")
         val CAPTCHA_FORCE_TINT = booleanPreferencesKey("captcha_force_tint")
         val PRIVACY_MODE = booleanPreferencesKey("privacy_mode")
+        val GO_DNS_GO = booleanPreferencesKey("go_dns_go")
 
         val CLIENT_LISTEN_ADDR = stringPreferencesKey("client_listen_addr")
         val OLCRTC_SOCKS_ADDR = stringPreferencesKey("olcrtc_socks_addr")
@@ -815,6 +818,7 @@ class AppPreferences(val context: Context) {
                 isSocksAuthEnabled = p[OLCRTC_SOCKS_AUTH_ENABLED] ?: true,
                 socksUser = p[OLCRTC_SOCKS_USER] ?: "",
                 socksPass = p[OLCRTC_SOCKS_PASS] ?: "",
+                goDnsGo = p[GO_DNS_GO] ?: false,
                 kernelConfig = kernelConfig
             )
         }.distinctUntilChanged()
@@ -865,19 +869,6 @@ class AppPreferences(val context: Context) {
             p[ACTIVE_VLESS_JSON] = gson.toJson(profile.vlessConfig)
             p.remove(LEGACY_KERNEL_VARIANT); p.remove(LEGACY_TURNABLE_JSON); p.remove(LEGACY_OLCRTC_JSON)
         }
-    }
-
-    suspend fun saveOlcrtcSocks(addr: String, auth: Boolean, user: String, pass: String) {
-        appCtx.internalDataStore.edit { p ->
-            p[OLCRTC_SOCKS_ADDR] = addr
-            p[OLCRTC_SOCKS_AUTH_ENABLED] = auth
-            p[OLCRTC_SOCKS_USER] = user
-            p[OLCRTC_SOCKS_PASS] = pass
-        }
-    }
-
-    suspend fun saveClientListenAddr(addr: String) {
-        appCtx.internalDataStore.edit { it[CLIENT_LISTEN_ADDR] = addr }
     }
 
     suspend fun saveProfiles(list: List<Profile>) {
@@ -1005,6 +996,7 @@ class AppPreferences(val context: Context) {
             it[OLCRTC_SOCKS_AUTH_ENABLED] = c.isSocksAuthEnabled
             it[OLCRTC_SOCKS_USER] = c.socksUser
             it[OLCRTC_SOCKS_PASS] = c.socksPass
+            it[GO_DNS_GO] = c.goDnsGo
             it[ACTIVE_KERNEL_JSON] = gson.toJson(when (val k = c.kernelConfig) {
                 is KernelConfig.Turnable -> KernelSnapshot(variant = KernelVariant.TURNABLE.name, turnable = k.config)
                 is KernelConfig.Olcrtc -> KernelSnapshot(variant = KernelVariant.OLCRTC.name, olcrtc = k.config)

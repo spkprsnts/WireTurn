@@ -217,6 +217,9 @@
     <string name="restart_on_network_change_title">Restart on network change</string>
     <string name="restart_on_network_change_desc">Automatically restart tunnel when switching between Wi-Fi and mobile network</string>
 
+    <string name="go_internal_dns_title">Go internal resolver</string>
+    <string name="go_internal_dns_desc">Force Go core to use its internal resolver. Can help with IPv6 issues.</string>
+
     <string name="network_settings_title">Network</string>
 
     <!-- Captcha Setup -->
