@@ -549,16 +549,16 @@ data class WgConfig(
     }
 }
 
-private data class KernelSnapshot(
+internal data class KernelSnapshot(
     @SerializedName("variant") val variant: String = KernelVariant.TURNABLE.name,
     @SerializedName("turnable") val turnable: TurnableConfig? = null,
     @SerializedName("olcrtc") val olcrtc: OlcrtcConfig? = null
 )
 
-private data class OldClientConfig(
-    val kernelVariant: KernelVariant = KernelVariant.TURNABLE,
-    val turnableConfig: TurnableConfig = TurnableConfig(),
-    val olcrtcConfig: OlcrtcConfig = OlcrtcConfig()
+internal data class OldClientConfig(
+    @SerializedName("kernelVariant") val kernelVariant: KernelVariant = KernelVariant.TURNABLE,
+    @SerializedName("turnableConfig") val turnableConfig: TurnableConfig = TurnableConfig(),
+    @SerializedName("olcrtcConfig") val olcrtcConfig: OlcrtcConfig = OlcrtcConfig()
 )
 
 data class Profile(
@@ -746,9 +746,22 @@ class AppPreferences(val context: Context) {
         .map { p ->
             val json = p[PROFILES_JSON] ?: "[]"
             try {
-                val list = gson.fromJson<List<Profile>>(json, object : TypeToken<List<Profile>>() {}.type) ?: emptyList()
+                val list = gson.fromJson<List<Any>>(json, object : TypeToken<List<Any>>() {}.type) ?: emptyList()
                 val defaultName = appCtx.getString(R.string.profile_default_name)
-                list.map { it.sanitize(defaultName) }
+                
+                list.mapNotNull { item ->
+                    when (item) {
+                        is Profile -> item.sanitize(defaultName)
+                        is Map<*, *> -> {
+                            // If TypeToken failed and we got a Map, try to convert it back to Profile
+                            try {
+                                val itemJson = gson.toJson(item)
+                                gson.fromJson(itemJson, Profile::class.java)?.sanitize(defaultName)
+                            } catch (_: Exception) { null }
+                        }
+                        else -> null
+                    }
+                }
             } catch (e: Exception) {
                 com.wireturn.app.AppLogsState.addLog("Error loading profiles: ${e.message}")
                 emptyList()
