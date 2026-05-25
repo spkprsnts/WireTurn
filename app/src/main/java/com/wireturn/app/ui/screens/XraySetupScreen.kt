@@ -135,13 +135,14 @@ fun XraySetupScreen(
     val currentWg = remember(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive) {
         WgConfig(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive)
     }
-    val currentVless = remember(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, initialVlessConfig.vlessUseLocalAddress) {
+    val currentVless = remember(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, initialVlessConfig) {
         VlessConfig(vlessLink, initialVlessConfig.vlessUseLocalAddress, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval)
     }
 
-    val isModified by remember(xrayConfiguration, currentWg, currentVless) {
+    val isModified by remember(xrayConfiguration, currentWg, currentVless, initialXrayConfig, initialWgConfig, initialVlessConfig, canChangeProtocol) {
         derivedStateOf {
-            xrayConfiguration != initialXrayConfig.protocol ||
+            val baseProtocol = if (!canChangeProtocol) XrayConfiguration.VLESS else initialXrayConfig.protocol
+            xrayConfiguration != baseProtocol ||
             currentWg != initialWgConfig ||
             currentVless != initialVlessConfig
         }

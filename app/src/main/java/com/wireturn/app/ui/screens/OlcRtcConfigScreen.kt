@@ -85,7 +85,7 @@ fun OlcRtcConfigScreen(
 ) {
     val isPrivacyActive = privacyMode && isEditMode
     
-    var config by remember { mutableStateOf(initialConfig) }
+    var config by remember(initialConfig) { mutableStateOf(initialConfig) }
 
     val isModified = config != initialConfig
 
@@ -282,6 +282,17 @@ fun OlcRtcConfigScreen(
                             Spacer(Modifier.height(2.dp))
                             SupportingText(currentLabel)
                         }
+                        if (getCompatibility(config.provider, config.transport) != Compatibility.SUPPORTED) {
+                            Icon(
+                                painter = painterResource(R.drawable.info_24px),
+                                contentDescription = null,
+                                tint = if (getCompatibility(config.provider, config.transport) == Compatibility.UNSUPPORTED)
+                                    MaterialTheme.colorScheme.error
+                                else
+                                    MaterialTheme.colorScheme.tertiary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
 
@@ -291,6 +302,7 @@ fun OlcRtcConfigScreen(
                         value = config.id.redact(isPrivacyActive),
                         onValueChange = { if (!isPrivacyActive) config = config.copy(id = it) },
                         readOnly = isPrivacyActive,
+                        isError = config.id.isBlank(),
                         isModified = isEditMode && config.id != initialConfig.id,
                         privacyMode = isPrivacyActive
                     )
@@ -315,6 +327,7 @@ fun OlcRtcConfigScreen(
                         value = config.key.redact(isPrivacyActive),
                         onValueChange = { if (!isPrivacyActive) config = config.copy(key = it) },
                         readOnly = isPrivacyActive,
+                        isError = config.key.isBlank(),
                         isModified = isEditMode && config.key != initialConfig.key,
                         privacyMode = isPrivacyActive
                     )
@@ -531,6 +544,7 @@ fun OlcRtcConfigScreen(
 
     if (showTransportDialog.value) {
         OlcrtcTransportDialog(
+            currentProvider = config.provider,
             currentTransport = config.transport,
             onSelect = {
                 config = config.copy(transport = it)
@@ -538,6 +552,29 @@ fun OlcRtcConfigScreen(
             },
             onDismiss = { showTransportDialog.value = false }
         )
+    }
+}
+
+private enum class Compatibility {
+    SUPPORTED, UNSTABLE, UNSUPPORTED
+}
+
+private fun getCompatibility(provider: String, transport: String): Compatibility {
+    return when (provider) {
+        "telemost" -> when (transport) {
+            "vp8channel" -> Compatibility.SUPPORTED
+            "videochannel" -> Compatibility.UNSTABLE
+            else -> Compatibility.UNSUPPORTED
+        }
+        "wbstream" -> when (transport) {
+            "datachannel" -> Compatibility.UNSTABLE
+            else -> Compatibility.SUPPORTED
+        }
+        "jitsi" -> when (transport) {
+            "datachannel" -> Compatibility.SUPPORTED
+            else -> Compatibility.UNSTABLE
+        }
+        else -> Compatibility.SUPPORTED
     }
 }
 
@@ -595,6 +632,7 @@ fun OlcrtcProviderDialog(
 
 @Composable
 fun OlcrtcTransportDialog(
+    currentProvider: String,
     currentTransport: String,
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
@@ -627,6 +665,17 @@ fun OlcrtcTransportDialog(
                 text = OlcrtcConfig.getTransportDisplayName(value),
                 modifier = Modifier.weight(1f)
             )
+            if (getCompatibility(currentProvider, value) != Compatibility.SUPPORTED) {
+                Icon(
+                    painter = painterResource(R.drawable.info_24px),
+                    contentDescription = null,
+                    tint = if (getCompatibility(currentProvider, value) == Compatibility.UNSUPPORTED)
+                        MaterialTheme.colorScheme.error
+                    else
+                        MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }
