@@ -1,6 +1,5 @@
 package com.wireturn.app.domain
 
-import com.wireturn.app.CoreServiceState
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.Profile
 import com.wireturn.app.R
@@ -32,10 +31,6 @@ class ProfileManager(
     fun selectProfile(id: String, profile: Profile? = null, onConfigLoaded: (Profile) -> Unit) {
         val targetProfile = profile ?: profiles.value.find { it.id == id } ?: return
         scope.launch {
-            if (CoreServiceState.isRunning.value) {
-                CoreServiceState.setStatusText(null)
-                CoreServiceState.setRestarting(true)
-            }
             onConfigLoaded(targetProfile)
         }
     }

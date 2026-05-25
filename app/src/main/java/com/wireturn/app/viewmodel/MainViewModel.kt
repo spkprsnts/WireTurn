@@ -584,27 +584,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun selectProfileAndRestart(id: String, profile: Profile? = null, onCompletion: (() -> Unit)? = null) {
         val target = profile ?: profiles.value.find { it.id == id } ?: return
-        val wasRunning = CoreServiceState.isRunning.value || XrayServiceState.state.value != XrayState.Idle
-        if (wasRunning) {
-            CoreServiceState.setStatusText(null)
-            CoreServiceState.setRestarting(true)
-        }
         
         profileManager.selectProfile(id, target) { p ->
             viewModelScope.launch {
-                try {
-                    prefs.saveFullProfile(p.id, p)
-                } finally {
-                    if (!wasRunning) {
-                        CoreServiceState.setRestarting(false)
-                    } else {
-                        // Safety timeout reset for isRestarting
-                        delay(2000)
-                        if (CoreServiceState.isRestarting.value) {
-                            CoreServiceState.setRestarting(false)
-                        }
-                    }
-                }
+                prefs.saveFullProfile(p.id, p)
             }
             onCompletion?.invoke()
         }
