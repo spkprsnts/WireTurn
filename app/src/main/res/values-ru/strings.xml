@@ -80,12 +80,19 @@
 
     <!-- Настройка клиента (Backend/Proxy) -->
     <string name="route_title">Маршрут</string>
+    <string name="route_add">Добавить маршрут</string>
+    <string name="route_delete">Удалить маршрут</string>
+    <string name="route_edit">Изменить маршрут</string>
+    <string name="route_id_label">ID маршрута</string>
+    <string name="route_name_label">Название маршрута</string>
+    <string name="route_socket_label">Сокет</string>
+    <string name="route_transport_label">Транспорт</string>
     <string name="user_uuid_label">UUID пользователя</string>
     <string name="user_uuid_desc">Авторизация пользователя на сервере Turnable</string>
     <string name="username_label">Имя участника звонка</string>
     <string name="username_desc">Вход в звонок на платформе</string>
     <string name="call_id_label">ID звонка</string>
-    <string name="call_id_desc">Берется из ссылки на звонок.\nVK: Звонки «https://vk.com/call/join/[ID]»</string>
+    <string name="call_id_desc">VK: Звонки «https://vk.com/call/join/[ID]»</string>
     <string name="connection_type_label">Тип подключения</string>
     <string name="connection_type_desc">Direct крайне не рекомендуется</string>
     <string name="encryption_label">Режим шифрования</string>

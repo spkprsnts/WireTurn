@@ -100,17 +100,18 @@ class CoreService : Service() {
 
             // Сразу фиксируем работающий конфиг для UI (с заполненными дефолтами)
             val filledCfg = cfg.fillDefaults()
-            prefs.saveClientConfig(filledCfg)
-            CoreServiceState.setSession(CoreServiceState.RunningSession(filledCfg, profileName))
-            currentRunningCfg.set(filledCfg)
-
+            
             if (!filledCfg.isValid) {
                 val errorRes = filledCfg.getValidationErrorResId() ?: R.string.error_settings_empty
                 CoreServiceState.setStatus(CoreStatus.Error(getString(errorRes)))
-                delay(500)
+                delay(3000)
                 withContext(Dispatchers.Main) { stopSelf() }
                 return@launch
             }
+
+            prefs.saveClientConfig(filledCfg)
+            CoreServiceState.setSession(CoreServiceState.RunningSession(filledCfg, profileName))
+            currentRunningCfg.set(filledCfg)
 
             try {
                 initStartup(vlessConfig, xrayConfig, profileName)
@@ -247,6 +248,21 @@ class CoreService : Service() {
                 .collect { newCfgRaw ->
                     val runningCfg = currentRunningCfg.get() ?: return@collect
                     val newCfg = newCfgRaw.fillDefaults()
+                    
+                    if (!newCfg.isValid) {
+                        val errorRes = newCfg.getValidationErrorResId() ?: R.string.error_settings_empty
+                        CoreServiceState.setStatus(CoreStatus.Error(getString(errorRes)))
+                        
+                        // Stop current binary as we are moving to an invalid state
+                        stopBinaryProcessGracefully()
+
+                        delay(3000)
+                        if (isActive && !userStopped.get()) {
+                            withContext(Dispatchers.Main) { stopSelf() }
+                        }
+                        return@collect
+                    }
+
                     val binaryChanged = requiresBinaryRestart(runningCfg, newCfg)
                     currentRunningCfg.set(newCfg)
                     CoreServiceState.setSession(CoreServiceState.RunningSession(newCfg, prefs.currentProfileNameFlow.first().orEmpty()))
@@ -311,7 +327,7 @@ class CoreService : Service() {
                     AppLogsState.addLog(getString(R.string.log_core_startup_failed))
                     CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_kernel_or_settings)))
                 }
-                delay(500)
+                delay(3000)
                 if (isActive && !userStopped.get()) {
                     withContext(Dispatchers.Main) { stopSelf() }
                 }

@@ -17,6 +17,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,6 +26,7 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -34,12 +36,16 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberTopAppBarState
@@ -76,6 +82,7 @@ import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SupportingText
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
+import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.selectableButtonItem
 import com.wireturn.app.ui.ModifiedIndicator
 import com.wireturn.app.ui.redact
@@ -93,9 +100,15 @@ fun TurnableConfigScreen(
     var config by remember(initialConfig) { mutableStateOf(initialConfig) }
     val showRoutesDialog = remember { mutableStateOf(false) }
     val showPlatformDialog = remember { mutableStateOf(false) }
+    val editingRoute = remember { mutableStateOf<TurnableRoute?>(null) }
+    val isAddingRoute = remember { mutableStateOf(false) }
 
     val isModified by remember(config) {
         derivedStateOf { config != initialConfig }
+    }
+
+    val isRoutesModified by remember(config.routes) {
+        derivedStateOf { config.routes != initialConfig.routes }
     }
 
     val showExitDialog = remember { mutableStateOf(false) }
@@ -229,24 +242,48 @@ fun TurnableConfigScreen(
                 .padding(bottom = 80.dp),
             verticalArrangement = Arrangement.spacedBy(19.dp)
         ) {
-            // connection details
-            SectionGroup(title = stringResource(R.string.connection_details)) {
-                if (config.routes.isNotEmpty()) {
-                    SectionItem(
-                        position = ItemPosition.Top,
-                        onClick = {
-                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                            showRoutesDialog.value = true
-                        }
-                    ) {
+            SectionGroup(
+                title = stringResource(R.string.route_title),
+                isModified = isEditMode && isRoutesModified
+            ) {
+                SectionItem(
+                    position = ItemPosition.Single,
+                    onClick = {
+                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                        showRoutesDialog.value = true
+                    }
+                ) {
+                    if (config.routes.isNotEmpty()) {
                         RoutesBlock(
                             config = config,
                             isModified = isEditMode && config.selectedRouteId != initialConfig.selectedRouteId
                         )
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            LargeLeadingIcon {
+                                Icon(
+                                    painter = painterResource(R.drawable.route_24px),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(32.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Text(
+                                text = stringResource(R.string.route_add),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
+            }
+            // connection details
+            SectionGroup(title = stringResource(R.string.connection_details)) {
                 SectionItem(
-                    position = if (config.routes.isEmpty()) ItemPosition.Top else ItemPosition.Middle
+                    position = ItemPosition.Top
                 ) {
                     com.wireturn.app.ui.SliderRow(
                         label = stringResource(R.string.peers_label),
@@ -268,6 +305,7 @@ fun TurnableConfigScreen(
                         readOnly = isPrivacyActive,
                         supportingText = stringResource(R.string.username_desc),
                         isModified = isEditMode && config.username != initialConfig.username,
+                        isError = config.username.isBlank(),
                         privacyMode = isPrivacyActive
                     )
                 }
@@ -279,6 +317,7 @@ fun TurnableConfigScreen(
                         readOnly = isPrivacyActive,
                         supportingText = stringResource(R.string.call_id_desc),
                         isModified = isEditMode && config.callId != initialConfig.callId,
+                        isError = config.callId.isBlank(),
                         privacyMode = isPrivacyActive
                     )
                 }
@@ -287,6 +326,8 @@ fun TurnableConfigScreen(
             // server settings
             SectionGroup(title = stringResource(R.string.server_settings_title)) {
                 SectionItem(position = ItemPosition.Top) {
+                    val invalidUuid = config.userUuid?.let { it.isNotBlank() && !ValidatorUtils.isValidUuid4(it) } ?: false
+
                     TextFieldRow(
                         label = stringResource(R.string.user_uuid_label),
                         value = (config.userUuid ?: "").redact(isPrivacyActive),
@@ -294,6 +335,7 @@ fun TurnableConfigScreen(
                         readOnly = isPrivacyActive,
                         supportingText = stringResource(R.string.user_uuid_desc),
                         isModified = isEditMode && config.userUuid != initialConfig.userUuid,
+                        isError = config.userUuid.isNullOrBlank() || invalidUuid,
                         privacyMode = isPrivacyActive
                     )
                 }
@@ -312,7 +354,7 @@ fun TurnableConfigScreen(
                                 painter = painterResource(getPlatformIcon(config.platformId)),
                                 contentDescription = null,
                                 modifier = Modifier.size(32.dp),
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = if (config.platformId.isBlank()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                             )
                         }
                         Column(modifier = Modifier.weight(1f)) {
@@ -322,7 +364,10 @@ fun TurnableConfigScreen(
                             )
                             val currentLabel = config.platformDisplayName
                             Spacer(Modifier.height(2.dp))
-                            SupportingText(currentLabel)
+                            SupportingText(
+                                text = currentLabel,
+                                color = if (config.platformId.isBlank()) MaterialTheme.colorScheme.error else Color.Unspecified
+                            )
                         }
                     }
                 }
@@ -352,6 +397,7 @@ fun TurnableConfigScreen(
                         readOnly = isPrivacyActive,
                         supportingText = stringResource(R.string.pub_key_desc),
                         isModified = isEditMode && config.pubKey != initialConfig.pubKey,
+                        isError = config.pubKey.isNullOrBlank(),
                         privacyMode = isPrivacyActive
                     )
                 }
@@ -381,6 +427,7 @@ fun TurnableConfigScreen(
                         readOnly = isPrivacyActive,
                         supportingText = stringResource(R.string.gateway_desc),
                         isModified = isEditMode && config.gateway != initialConfig.gateway,
+                        isError = !ValidatorUtils.isValidHostPort(config.gateway),
                         privacyMode = isPrivacyActive
                     )
                 }
@@ -430,7 +477,59 @@ fun TurnableConfigScreen(
                 config = config.copy(selectedRouteId = routeId)
                 showRoutesDialog.value = false
             },
+            onAdd = {
+                showRoutesDialog.value = false
+                isAddingRoute.value = true
+            },
+            onEdit = { route ->
+                showRoutesDialog.value = false
+                editingRoute.value = route
+            },
+            onDelete = { route ->
+                val newRoutes = config.routes.filter { it.routeId != route.routeId }
+                config = config.copy(
+                    routes = newRoutes,
+                    selectedRouteId = if (config.selectedRouteId == route.routeId) {
+                        newRoutes.firstOrNull()?.routeId ?: ""
+                    } else {
+                        config.selectedRouteId
+                    }
+                )
+            },
             onDismiss = { showRoutesDialog.value = false }
+        )
+    }
+
+    if (isAddingRoute.value || editingRoute.value != null) {
+        val routeToEdit = editingRoute.value
+        RouteEditDialog(
+            route = routeToEdit,
+            onSave = { newRoute ->
+                if (routeToEdit != null) {
+                    // Update
+                    val newRoutes = config.routes.map {
+                        if (it.routeId == routeToEdit.routeId) newRoute else it
+                    }
+                    config = config.copy(
+                        routes = newRoutes,
+                        selectedRouteId = if (config.selectedRouteId == routeToEdit.routeId) newRoute.routeId else config.selectedRouteId
+                    )
+                } else {
+                    // Add
+                    config = config.copy(
+                        routes = config.routes + newRoute,
+                        selectedRouteId = if (config.routes.isEmpty()) newRoute.routeId else config.selectedRouteId
+                    )
+                }
+                editingRoute.value = null
+                isAddingRoute.value = false
+                showRoutesDialog.value = true
+            },
+            onDismiss = {
+                editingRoute.value = null
+                isAddingRoute.value = false
+                showRoutesDialog.value = true
+            }
         )
     }
 
@@ -513,39 +612,222 @@ fun RoutesBlock(
 fun RoutesDialog(
     config: TurnableConfig,
     onSelect: (String) -> Unit,
+    onAdd: () -> Unit,
+    onEdit: (TurnableRoute) -> Unit,
+    onDelete: (TurnableRoute) -> Unit,
     onDismiss: () -> Unit
 ) {
-    SelectionDialog(
-        title = stringResource(R.string.route_title),
-        items = config.routes,
-        isSelected = { it.routeId == config.selectedRouteId },
-        onSelect = { route -> onSelect(route.routeId) },
-        onDismiss = onDismiss
-    ) { route, _ ->
-        val iconRes = when (route.socket.lowercase()) {
-            "tcp" -> R.drawable.compare_arrows_24px
-            "udp" -> R.drawable.arrow_forward_24px
-            else -> R.drawable.route_24px
-        }
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+    androidx.compose.material3.BasicAlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.fillMaxWidth(0.9f)
+    ) {
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh
         ) {
-            StandardLeadingIcon {
-                Icon(
-                    painter = painterResource(iconRes),
-                    contentDescription = null
-                )
-            }
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .padding(vertical = 24.dp, horizontal = 12.dp)
+                    .heightIn(max = 600.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 Text(
-                    text = route.name.ifBlank { route.routeId },
-                    maxLines = 1
+                    text = stringResource(R.string.route_title),
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
-                RouteSummary(route = route)
+
+                config.routes.forEach { route ->
+                    val isSelected = route.routeId == config.selectedRouteId
+                    val iconRes = when (route.socket.lowercase()) {
+                        "tcp" -> R.drawable.compare_arrows_24px
+                        "udp" -> R.drawable.arrow_forward_24px
+                        else -> R.drawable.route_24px
+                    }
+
+                    Surface(
+                        onClick = { onSelect(route.routeId) },
+                        shape = MaterialTheme.shapes.medium,
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            StandardLeadingIcon {
+                                Icon(
+                                    painter = painterResource(iconRes),
+                                    contentDescription = null,
+                                    tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = route.name.ifBlank { route.routeId },
+                                    maxLines = 1,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                )
+                                RouteSummary(
+                                    route = route,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f) else Color.Unspecified
+                                )
+                            }
+                            
+                            var showMenu by remember { mutableStateOf(false) }
+                            Box {
+                                IconButton(onClick = { showMenu = true }) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.more_vert_24px),
+                                        contentDescription = stringResource(R.string.profile_actions),
+                                        tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = showMenu,
+                                    onDismissRequest = { showMenu = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.route_edit)) },
+                                        onClick = {
+                                            showMenu = false
+                                            onEdit(route)
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                painterResource(R.drawable.edit_24px),
+                                                contentDescription = null
+                                            )
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.route_delete)) },
+                                        onClick = {
+                                            showMenu = false
+                                            onDelete(route)
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                painterResource(R.drawable.delete_24px),
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Surface(
+                    onClick = onAdd,
+                    shape = MaterialTheme.shapes.medium,
+                    color = Color.Transparent
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        StandardLeadingIcon {
+                            Icon(
+                                painter = painterResource(R.drawable.add_24px),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Text(
+                            text = stringResource(R.string.route_add),
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+                }
             }
         }
     }
+}
+
+@Composable
+fun RouteEditDialog(
+    route: TurnableRoute?,
+    onSave: (TurnableRoute) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var id by remember { mutableStateOf(route?.routeId ?: "") }
+    var name by remember { mutableStateOf(route?.name ?: "") }
+    var socket by remember { mutableStateOf(route?.socket ?: "udp") }
+    var transport by remember { mutableStateOf(route?.transport ?: "") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (route == null) stringResource(R.string.route_add) else stringResource(R.string.route_edit)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(stringResource(R.string.route_name_label)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = id,
+                    onValueChange = { id = it },
+                    label = { Text(stringResource(R.string.route_id_label)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = id.isBlank(),
+                    singleLine = true
+                )
+                
+                SectionGroup(title = stringResource(R.string.route_socket_label)) {
+                    LabeledButtonGroup {
+                        val options = listOf("tcp", "udp")
+                        options.forEachIndexed { index, s ->
+                            selectableButtonItem(
+                                selected = socket == s,
+                                onSelect = { socket = s },
+                                label = s.uppercase(),
+                                index = index,
+                                count = options.size
+                            )
+                        }
+                    }
+                }
+
+                SectionGroup(title = stringResource(R.string.route_transport_label)) {
+                    LabeledButtonGroup {
+                        val options = listOf("kcp", "none")
+                        options.forEachIndexed { index, t ->
+                            val isNone = t == "none"
+                            selectableButtonItem(
+                                selected = if (isNone) transport.isBlank() else transport == t,
+                                onSelect = { transport = if (isNone) "" else t },
+                                label = t.uppercase(),
+                                index = index,
+                                count = options.size
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onSave(TurnableRoute(routeId = id, name = name.ifBlank { id }, socket = socket, transport = transport.ifBlank { null }))
+                },
+                enabled = id.isNotBlank() && socket.isNotBlank()
+            ) {
+                Text(stringResource(R.string.btn_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
 }
 
 @Composable

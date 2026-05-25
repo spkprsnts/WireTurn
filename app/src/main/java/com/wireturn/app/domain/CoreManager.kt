@@ -50,17 +50,17 @@ class CoreManager(private val context: Context) {
                 is CoreStatus.Error -> {
                     setErrorWithAutoReset(status.message)
                 }
-                is CoreStatus.Idle -> {
-                    // Если сервис остановился, но у нас висит ошибка, не сбрасываем её сразу.
-                    // Она сбросится сама через 4 секунды (resetJob) или при новом запуске.
+                is CoreStatus.Starting -> {
+                    // New attempt always resets error
+                    resetJob?.cancel()
+                    syncStateWithService()
+                }
+                else -> {
+                    // Ignore transient/idle statuses if we are currently showing an error.
+                    // The error will be cleared by resetJob or a new start attempt.
                     if (_coreState.value !is CoreState.Error) {
                         syncStateWithService()
                     }
-                }
-                else -> {
-                    // Для всех остальных состояний (Starting, Connecting, Connected и т.д.)
-                    // синхронизируем состояние немедленно.
-                    syncStateWithService()
                 }
             }
         }
@@ -139,7 +139,14 @@ class CoreManager(private val context: Context) {
         _coreState.value = CoreState.Error(message)
         resetJob = scope.launch {
             delay(4_000)
-            if (_coreState.value is CoreState.Error) syncStateWithService()
+            if (_coreState.value is CoreState.Error) {
+                // Force reset local state to Idle
+                _coreState.value = CoreState.Idle
+                // If the global status is still an Error, clear it too
+                if (CoreServiceState.status.value is CoreStatus.Error) {
+                    CoreServiceState.setStatus(CoreStatus.Idle)
+                }
+            }
         }
     }
 

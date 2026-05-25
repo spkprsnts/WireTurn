@@ -180,14 +180,9 @@ fun CreateProfileScreen(
             SectionGroup(title = stringResource(R.string.profile_manual_setup)) {
                 SectionItem(
                     position = ItemPosition.Top,
-                    enabled = false,
                     onClick = { onSelectType("Turnable", null, profileName) }
                 ) {
-                    Column {
-                        RowLabel(text = stringResource(R.string.kernel_turnable))
-                        Spacer(Modifier.height(2.dp))
-                        SupportingText(stringResource(R.string.profile_turnable_manual_disabled), style = MaterialTheme.typography.bodySmall)
-                    }
+                    RowLabel(text = stringResource(R.string.kernel_turnable))
                 }
 
                 SectionItem(

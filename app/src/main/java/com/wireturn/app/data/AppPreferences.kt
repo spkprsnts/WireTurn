@@ -83,12 +83,12 @@ data class TurnableConfig(
     @SerializedName("platform_id") val platformId: String = "vk.com",
     @SerializedName("call_id") val callId: String = "",
     @SerializedName("type") val type: String = "relay",
-    @SerializedName("encryption") val encryption: String? = null,
+    @SerializedName("encryption") val encryption: String? = "handshake",
     @SerializedName("pub_key") val pubKey: String? = null,
     @SerializedName("peers") val peers: Int = 1,
     @SerializedName("forceturn") val forceTurn: Boolean = false,
     @SerializedName("gateway") val gateway: String = "",
-    @SerializedName("proto") val proto: String? = null,
+    @SerializedName("proto") val proto: String? = "srtp",
     @SerializedName("routes") val routes: List<TurnableRoute> = emptyList(),
     @SerializedName("selected_route_id") val selectedRouteId: String = ""
 ) {
@@ -98,10 +98,10 @@ data class TurnableConfig(
         platformId = (platformId as Any?)?.toString()?.take(200) ?: "vk.com",
         callId = (callId as Any?)?.toString()?.take(200) ?: "",
         type = (type as Any?)?.toString()?.take(100) ?: "relay",
-        encryption = (encryption as Any?)?.toString()?.take(100),
+        encryption = (encryption as Any?)?.toString()?.take(100) ?: "handshake",
         pubKey = (pubKey as Any?)?.toString()?.take(4096),
         gateway = (gateway as Any?)?.toString()?.take(500) ?: "",
-        proto = (proto as Any?)?.toString()?.take(100),
+        proto = (proto as Any?)?.toString()?.take(100) ?: "srtp",
         selectedRouteId = (selectedRouteId as Any?)?.toString()?.take(100) ?: "",
         routes = (routes as List<TurnableRoute>?)?.map { it.sanitize() } ?: emptyList()
     )
@@ -110,7 +110,8 @@ data class TurnableConfig(
             platformId.isNotBlank() &&
             callId.isNotBlank() &&
             gateway.isNotBlank() &&
-            routes.isNotEmpty()
+            routes.isNotEmpty() &&
+            (userUuid.isNullOrBlank() || ValidatorUtils.isValidUuid4(userUuid))
 
 
     val platformDisplayName: String

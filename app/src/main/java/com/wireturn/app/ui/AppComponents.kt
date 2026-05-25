@@ -284,14 +284,19 @@ fun Modifier.privacySpoiler(
 }
 
 @Composable
-fun SectionHeader(title: String, modifier: Modifier = Modifier) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.bodyMedium,
-        fontWeight = FontWeight.Medium,
-        color = MaterialTheme.colorScheme.primary,
+fun SectionHeader(title: String, modifier: Modifier = Modifier, isModified: Boolean = false) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
         modifier = modifier.padding(bottom = 12.dp, top = 8.dp)
-    )
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        ModifiedIndicator(isModified)
+    }
 }
 
 /**
@@ -420,12 +425,13 @@ fun ExpandableSection(
 fun SectionGroup(
     modifier: Modifier = Modifier,
     title: String? = null,
+    isModified: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Column(modifier = modifier) {
         if (!title.isNullOrBlank()) {
             Box(modifier = Modifier.padding(start = 8.dp)) {
-                SectionHeader(title = title)
+                SectionHeader(title = title, isModified = isModified)
             }
         }
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {

@@ -108,12 +108,19 @@
 
     <!-- Client Setup (Backend/Proxy) -->
     <string name="route_title">Route</string>
+    <string name="route_add">Add Route</string>
+    <string name="route_delete">Delete Route</string>
+    <string name="route_edit">Edit Route</string>
+    <string name="route_id_label">Route ID</string>
+    <string name="route_name_label">Route Name</string>
+    <string name="route_socket_label">Socket</string>
+    <string name="route_transport_label">Transport</string>
     <string name="user_uuid_label">User UUID</string>
     <string name="user_uuid_desc">User authorization on the Turnable server</string>
     <string name="username_label">Call participant name</string>
     <string name="username_desc">Join the call on the platform</string>
     <string name="call_id_label">Call ID</string>
-    <string name="call_id_desc">Extracted from the call link.\nVK: «https://vk.com/call/join/[ID]»</string>
+    <string name="call_id_desc">VK: «https://vk.com/call/join/[ID]»</string>
     <string name="connection_type_label">Connection type</string>
     <string name="connection_type_desc">Direct mode is highly discouraged</string>
     <string name="encryption_label">Encryption mode</string>
