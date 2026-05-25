@@ -5,7 +5,6 @@
 
 package com.wireturn.app.ui.screens
 
-import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
@@ -19,6 +18,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -72,6 +72,8 @@ import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SupportingText
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.redact
+import com.wireturn.app.ui.ShareDropdownMenu
+import com.wireturn.app.ui.QrCodeDialog
 import kotlin.math.roundToInt
 
 @Composable
@@ -90,6 +92,8 @@ fun OlcRtcConfigScreen(
     val isModified = config != initialConfig
 
     val showExitDialog = remember { mutableStateOf(false) }
+    val showQrDialog = remember { mutableStateOf(false) }
+    val showMenu = remember { mutableStateOf(false) }
 
     val handleBack = {
         if (isEditMode && isModified) {
@@ -145,16 +149,19 @@ fun OlcRtcConfigScreen(
                 scrollBehavior = scrollBehavior,
                 actions = {
                     if (isEditMode) {
-                        IconButton(onClick = {
-                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, config.toUri(profileName))
+                        Box {
+                            IconButton(onClick = { showMenu.value = true }) {
+                                Icon(
+                                    painter = painterResource(R.drawable.share_24px),
+                                    contentDescription = stringResource(R.string.share)
+                                )
                             }
-                            context.startActivity(Intent.createChooser(intent, null))
-                        }) {
-                            Icon(
-                                painter = painterResource(R.drawable.share_24px),
-                                contentDescription = stringResource(R.string.share)
+                            
+                            ShareDropdownMenu(
+                                expanded = showMenu.value,
+                                onDismissRequest = { showMenu.value = false },
+                                textToShare = config.toUri(profileName),
+                                onShowQr = { showQrDialog.value = true }
                             )
                         }
                     }
@@ -551,6 +558,13 @@ fun OlcRtcConfigScreen(
                 showTransportDialog.value = false
             },
             onDismiss = { showTransportDialog.value = false }
+        )
+    }
+
+    if (showQrDialog.value) {
+        QrCodeDialog(
+            text = config.toUri(profileName),
+            onDismiss = { showQrDialog.value = false }
         )
     }
 }

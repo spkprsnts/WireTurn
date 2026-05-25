@@ -173,6 +173,8 @@
     <string name="logs_title">Logs</string>
     <string name="copy">Copy</string>
     <string name="share">Share</string>
+    <string name="share_profile">Share</string>
+    <string name="show_qr_code">Show QR Code</string>
     <string name="clear">Clear</string>
     <string name="no_logs">No logs</string>
     <string name="new_logs">New logs</string>

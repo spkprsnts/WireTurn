@@ -6,6 +6,8 @@
 package com.wireturn.app.ui
 
 import android.annotation.SuppressLint
+import android.content.Intent
+import android.graphics.Bitmap
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
@@ -36,6 +38,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -94,6 +97,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
@@ -103,6 +107,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarData
+import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -127,11 +132,15 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.qrcode.QRCodeWriter
 import com.wireturn.app.R
 import com.wireturn.app.viewmodel.UpdateState
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.set
 
 /**
  * Local provider for interaction source to coordinate ripples between parent blocks and children.
@@ -1648,5 +1657,124 @@ fun AppSnackbar(
         }
     ) {
         Text(data.visuals.message)
+    }
+}
+
+@Composable
+fun ShareDropdownMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    textToShare: String,
+    onShowQr: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    AppDropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest,
+        modifier = modifier
+    ) {
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.show_qr_code)) },
+            onClick = {
+                onDismissRequest()
+                onShowQr()
+            },
+            leadingIcon = {
+                Icon(
+                    painter = painterResource(R.drawable.qr_code_24px),
+                    contentDescription = null
+                )
+            }
+        )
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.share_profile)) },
+            onClick = {
+                onDismissRequest()
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, textToShare)
+                }
+                context.startActivity(Intent.createChooser(intent, null))
+            },
+            leadingIcon = {
+                Icon(
+                    painter = painterResource(R.drawable.share_24px),
+                    contentDescription = null
+                )
+            }
+        )
+    }
+}
+
+@Composable
+fun QrCodeDialog(
+    text: String,
+    onDismiss: () -> Unit,
+    title: String = stringResource(R.string.qr_import)
+) {
+    val bitmap = remember(text) { generateQrCode(text) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.btn_close))
+            }
+        },
+        title = {
+            Text(
+                text = title,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                if (bitmap != null) {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color.White,
+                        modifier = Modifier
+                            .size(260.dp)
+                            .padding(8.dp)
+                    ) {
+                        Image(
+                            bitmap = bitmap.asImageBitmap(),
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    )
+}
+
+private fun generateQrCode(text: String, size: Int = 512): Bitmap? {
+    return try {
+        val bitMatrix = QRCodeWriter().encode(text, BarcodeFormat.QR_CODE, size, size)
+        val bitmap = createBitmap(size, size, Bitmap.Config.RGB_565)
+        for (x in 0 until size) {
+            for (y in 0 until size) {
+                bitmap[x, y] =
+                    if (bitMatrix[x, y]) android.graphics.Color.BLACK else android.graphics.Color.WHITE
+            }
+        }
+        bitmap
+    } catch (_: Exception) {
+        null
     }
 }

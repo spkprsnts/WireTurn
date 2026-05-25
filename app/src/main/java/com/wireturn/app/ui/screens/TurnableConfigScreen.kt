@@ -5,7 +5,6 @@
 
 package com.wireturn.app.ui.screens
 
-import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
@@ -86,6 +85,8 @@ import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.selectableButtonItem
 import com.wireturn.app.ui.ModifiedIndicator
 import com.wireturn.app.ui.redact
+import com.wireturn.app.ui.ShareDropdownMenu
+import com.wireturn.app.ui.QrCodeDialog
 import kotlin.math.roundToInt
 
 @Composable
@@ -112,6 +113,8 @@ fun TurnableConfigScreen(
     }
 
     val showExitDialog = remember { mutableStateOf(false) }
+    val showQrDialog = remember { mutableStateOf(false) }
+    val showMenu = remember { mutableStateOf(false) }
 
     val handleBack = {
         if (isEditMode && isModified) {
@@ -165,16 +168,19 @@ fun TurnableConfigScreen(
                 scrollBehavior = scrollBehavior,
                 actions = {
                     if (isEditMode) {
-                        IconButton(onClick = {
-                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, config.toUri())
+                        Box {
+                            IconButton(onClick = { showMenu.value = true }) {
+                                Icon(
+                                    painter = painterResource(R.drawable.share_24px),
+                                    contentDescription = stringResource(R.string.share)
+                                )
                             }
-                            context.startActivity(Intent.createChooser(intent, null))
-                        }) {
-                            Icon(
-                                painter = painterResource(R.drawable.share_24px),
-                                contentDescription = stringResource(R.string.share)
+
+                            ShareDropdownMenu(
+                                expanded = showMenu.value,
+                                onDismissRequest = { showMenu.value = false },
+                                textToShare = config.toUri(),
+                                onShowQr = { showQrDialog.value = true }
                             )
                         }
                     }
@@ -541,6 +547,13 @@ fun TurnableConfigScreen(
                 showPlatformDialog.value = false
             },
             onDismiss = { showPlatformDialog.value = false }
+        )
+    }
+
+    if (showQrDialog.value) {
+        QrCodeDialog(
+            text = config.toUri(),
+            onDismiss = { showQrDialog.value = false }
         )
     }
 }

@@ -143,6 +143,8 @@
     <string name="logs_title">Логи</string>
     <string name="copy">Копировать</string>
     <string name="share">Поделиться</string>
+    <string name="share_profile">Поделиться</string>
+    <string name="show_qr_code">Показать QR-код</string>
     <string name="clear">Очистить</string>
     <string name="no_logs">Нет логов</string>
     <string name="new_logs">Новые логи</string>

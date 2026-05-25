@@ -5,7 +5,6 @@
 
 package com.wireturn.app.ui.screens
 
-import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,6 +17,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -73,6 +73,8 @@ import androidx.compose.material3.rememberTopAppBarState
 import com.wireturn.app.ui.AppSnackbar
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.AppDropdownMenu
+import com.wireturn.app.ui.ShareDropdownMenu
+import com.wireturn.app.ui.QrCodeDialog
 import com.wireturn.app.ui.RowLabel
 import com.wireturn.app.ui.FieldTrailingIcons
 import com.wireturn.app.ui.HapticUtil
@@ -168,6 +170,8 @@ fun XraySetupScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     val showQrScanner = remember { mutableStateOf(false) }
+    val showQrDialog = remember { mutableStateOf(false) }
+    val showShareMenu = remember { mutableStateOf(false) }
 
     val topAppBarState = rememberTopAppBarState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
@@ -314,24 +318,28 @@ fun XraySetupScreen(
                             XrayConfiguration.WIREGUARD -> currentWg.isValid()
                             XrayConfiguration.VLESS -> currentVless.isValid()
                         }
+                        
+                        val textToShare = when (xrayConfiguration) {
+                            XrayConfiguration.WIREGUARD -> currentWg.toWgString()
+                            XrayConfiguration.VLESS -> currentVless.vlessLink
+                        }
 
-                        IconButton(
-                            onClick = {
-                                val textToShare = when (xrayConfiguration) {
-                                    XrayConfiguration.WIREGUARD -> currentWg.toWgString()
-                                    XrayConfiguration.VLESS -> currentVless.vlessLink
-                                }
-                                val intent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, textToShare)
-                                }
-                                context.startActivity(Intent.createChooser(intent, null))
-                            },
-                            enabled = canShare
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.share_24px),
-                                contentDescription = stringResource(R.string.share)
+                        Box {
+                            IconButton(
+                                onClick = { showShareMenu.value = true },
+                                enabled = canShare
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.share_24px),
+                                    contentDescription = stringResource(R.string.share)
+                                )
+                            }
+                            
+                            ShareDropdownMenu(
+                                expanded = showShareMenu.value,
+                                onDismissRequest = { showShareMenu.value = false },
+                                textToShare = textToShare,
+                                onShowQr = { showQrDialog.value = true }
                             )
                         }
                     }
@@ -503,6 +511,17 @@ fun XraySetupScreen(
                     scope.launch { snackbarHostState.showExclusiveSnackbar(importErrorMessage) }
                 }
             }
+        )
+    }
+
+    if (showQrDialog.value) {
+        val textToShare = when (xrayConfiguration) {
+            XrayConfiguration.WIREGUARD -> currentWg.toWgString()
+            XrayConfiguration.VLESS -> currentVless.vlessLink
+        }
+        QrCodeDialog(
+            text = textToShare,
+            onDismiss = { showQrDialog.value = false }
         )
     }
 }
