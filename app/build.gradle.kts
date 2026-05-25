@@ -172,7 +172,9 @@ tasks.register<Exec>("buildCBinaries") {
     description = "Compiles hev-socks5-tunnel (C/Makefile) for Android"
     workingDir = rootDir
     doNotTrackState("hev-socks5-tunnel contains symlinks that Gradle cannot snapshot on Windows")
-    outputs.dir(file("${projectDir}/src/main/jniLibs"))
+    listOf("arm64-v8a", "x86_64").forEach { abi ->
+        outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libhevsocks5.so"))
+    }
     configureNdk()
     wslOrBash("./build.sh cmake")
 }
@@ -182,11 +184,14 @@ tasks.register<Exec>("buildFfmpegBinaries") {
     group = "build"
     description = "Compiles FFmpeg for Android using ffmpeg-android-maker"
     workingDir = rootDir
-    inputs.files(file("${rootDir}/external/ffmpeg-android-maker"))
-        .withPathSensitivity(PathSensitivity.RELATIVE)
-        .optional()
+    inputs.files(fileTree("${rootDir}/external/ffmpeg-android-maker") {
+        exclude("build/**")
+        exclude(".git/**")
+    }).withPathSensitivity(PathSensitivity.RELATIVE).optional()
     inputs.file(file("${rootDir}/build.sh")).withPathSensitivity(PathSensitivity.RELATIVE)
-    outputs.dir(file("${projectDir}/src/main/jniLibs"))
+    listOf("arm64-v8a", "x86_64").forEach { abi ->
+        outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libffmpeg.so"))
+    }
     configureNdk()
     wslOrBash("./build.sh ffmpeg")
 }
@@ -206,7 +211,12 @@ tasks.register<Exec>("buildGoBinaries") {
         .withPathSensitivity(PathSensitivity.RELATIVE)
         .optional()
     inputs.file(file("${rootDir}/build.sh")).withPathSensitivity(PathSensitivity.RELATIVE)
-    outputs.dir(file("${projectDir}/src/main/jniLibs"))
+    
+    listOf("arm64-v8a", "x86_64").forEach { abi ->
+        outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libolcrtc.so"))
+        outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libxray.so"))
+        outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libturnable.so"))
+    }
     configureNdk()
     wslOrBash("./build.sh go")
 }
