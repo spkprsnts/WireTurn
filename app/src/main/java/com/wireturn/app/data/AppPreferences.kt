@@ -43,6 +43,10 @@ class SafeEnumTypeAdapterFactory : TypeAdapterFactory {
                     reader.nextNull()
                     return null
                 }
+                if (reader.peek() != JsonToken.STRING) {
+                    reader.skipValue()
+                    return constants.firstOrNull()
+                }
                 val name = reader.nextString()
                 return try {
                     delegate.read(JsonReader(StringReader("\"$name\"")))
@@ -578,14 +582,17 @@ data class Profile(
             !vlessConfig.isValid()
 
     fun sanitize(defaultName: String = "Profile"): Profile {
-        var kv = kernelVariant ?: KernelVariant.TURNABLE
-        var tc = turnableConfig ?: TurnableConfig()
-        var oc = olcrtcConfig ?: OlcrtcConfig()
-        var prot = xrayProtocol ?: XrayConfiguration.WIREGUARD
-        var en = xrayEnabled ?: false
+        val safeId = (id as Any?) as? String ?: java.util.UUID.randomUUID().toString()
+        val safeName = (name as Any?) as? String ?: defaultName
+        
+        var kv = (kernelVariant as Any?) as? KernelVariant ?: KernelVariant.TURNABLE
+        var tc = (turnableConfig as Any?) as? TurnableConfig ?: TurnableConfig()
+        var oc = (olcrtcConfig as Any?) as? OlcrtcConfig ?: OlcrtcConfig()
+        var prot = (xrayProtocol as Any?) as? XrayConfiguration ?: XrayConfiguration.WIREGUARD
+        var en = (xrayEnabled as Any?) as? Boolean ?: false
 
         // Migration from old nested ClientConfig format
-        if (oldClientConfig != null && (tc.routes.isEmpty()) && !oc.isValid()) {
+        if (oldClientConfig != null && (tc.routes?.isEmpty() ?: true) && !oc.isValid()) {
             kv = oldClientConfig.kernelVariant
             tc = oldClientConfig.turnableConfig
             oc = oldClientConfig.olcrtcConfig
@@ -601,16 +608,16 @@ data class Profile(
         }
 
         // Deep safety for WG and VLESS
-        val wc = (wgConfig ?: WgConfig()).fillDefaults()
-        val vc = (vlessConfig ?: VlessConfig()).sanitize()
+        val wc = (wgConfig as Any? as? WgConfig ?: WgConfig()).fillDefaults()
+        val vc = (vlessConfig as Any? as? VlessConfig ?: VlessConfig()).sanitize()
 
-        val finalName = name.takeIf { it.isNotBlank() }?.take(100) ?: defaultName
+        val finalName = safeName.takeIf { it.isNotBlank() }?.take(100) ?: defaultName
         val finalOc = oc.sanitize().let {
             if (it.mimo.isBlank()) it.copy(mimo = finalName) else it
         }
 
         return copy(
-            id = id.ifBlank { java.util.UUID.randomUUID().toString() },
+            id = safeId,
             name = finalName,
             kernelVariant = kv,
             turnableConfig = tc.sanitize(),
@@ -738,13 +745,14 @@ class AppPreferences(val context: Context) {
     val profilesFlow: Flow<List<Profile>> = appCtx.internalDataStore.data
         .map { p ->
             val json = p[PROFILES_JSON] ?: "[]"
-            val list = try {
-                gson.fromJson<List<Profile>>(json, object : TypeToken<List<Profile>>() {}.type) ?: emptyList()
-            } catch (_: Exception) {
+            try {
+                val list = gson.fromJson<List<Profile>>(json, object : TypeToken<List<Profile>>() {}.type) ?: emptyList()
+                val defaultName = appCtx.getString(R.string.profile_default_name)
+                list.map { it.sanitize(defaultName) }
+            } catch (e: Exception) {
+                com.wireturn.app.AppLogsState.addLog("Error loading profiles: ${e.message}")
                 emptyList()
             }
-            val defaultName = appCtx.getString(R.string.profile_default_name)
-            list.map { it.sanitize(defaultName) }
         }.distinctUntilChanged()
 
     val currentProfileIdFlow: Flow<String> = appCtx.internalDataStore.data.mapPref(CURRENT_PROFILE_ID, "default")
