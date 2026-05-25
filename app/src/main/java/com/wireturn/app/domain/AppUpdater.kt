@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.content.FileProvider
+import com.wireturn.app.AppLogsState
 import com.wireturn.app.R
 import com.wireturn.app.viewmodel.UpdateState
 import kotlinx.coroutines.Dispatchers
@@ -49,6 +50,7 @@ class AppUpdater(private val context: Context) {
         lastCheckTime = now
         
         withWorker {
+            AppLogsState.addLog("Checking for updates...")
             _state.value = UpdateState.Checking
             try {
                 var release = withContext(Dispatchers.IO) { 
@@ -66,6 +68,7 @@ class AppUpdater(private val context: Context) {
                 }
 
                 if (release == null) {
+                    AppLogsState.addLog("Failed to fetch release info from GitHub")
                     _state.value = if (silent) UpdateState.Idle
                     else UpdateState.Error(context.getString(R.string.error_release_info_failed))
                     return@withWorker
@@ -94,16 +97,20 @@ class AppUpdater(private val context: Context) {
                 if (isNewer(remoteVersion, getCurrentVersion(), remoteBody)) {
                     latestApkUrl = findApkUrl(release)
                     if (latestApkUrl != null) {
+                        AppLogsState.addLog("Update available: $remoteVersion")
                         val changelog = release.optString("body", "").trim()
                         _state.value = UpdateState.Available(remoteVersion, changelog)
                     } else {
+                        AppLogsState.addLog("Update available ($remoteVersion), but no suitable APK found")
                         _state.value = if (silent) UpdateState.Idle
                         else UpdateState.Error(context.getString(R.string.error_apk_not_found))
                     }
                 } else {
+                    AppLogsState.addLog("No update found (current: ${getCurrentVersion()}, remote: $remoteVersion)")
                     _state.value = UpdateState.NoUpdate
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                AppLogsState.addLog("Update check failed: ${e.message}")
                 _state.value = if (silent) UpdateState.Idle
                 else UpdateState.Error(context.getString(R.string.error_no_connection))
             }
@@ -119,12 +126,14 @@ class AppUpdater(private val context: Context) {
         cancelOngoingWork()
         
         withWorker {
+            AppLogsState.addLog("Downloading update...")
             _state.value = UpdateState.Downloading
             _downloadProgress.value = 0
             try {
                 val apkFile = File(context.cacheDir, "update.apk")
                 withContext(Dispatchers.IO) {
                     val proxy = getXrayIfRunning()
+                    AppLogsState.addLog("Starting download from: $url" + (if (proxy != null) " (via proxy)" else ""))
                     val connection = if (proxy != null) {
                         URL(url).openConnection(proxy)
                     } else {
@@ -156,9 +165,11 @@ class AppUpdater(private val context: Context) {
                         }
                     }
                 }
+                AppLogsState.addLog("Update downloaded successfully")
                 _state.value = UpdateState.ReadyToInstall
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
+                AppLogsState.addLog("Download failed: ${e.message}")
                 File(context.cacheDir, "update.apk").delete()
                 _state.value = UpdateState.Error(context.getString(R.string.error_download_failed, e.message))
             }
@@ -166,6 +177,7 @@ class AppUpdater(private val context: Context) {
     }
 
     fun installUpdate() {
+        AppLogsState.addLog("Launching APK installer")
         val apkFile = File(context.cacheDir, "update.apk")
         if (!apkFile.exists()) {
             _state.value = UpdateState.Error(context.getString(R.string.error_update_file_not_found))
