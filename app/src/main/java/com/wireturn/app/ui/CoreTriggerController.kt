@@ -19,8 +19,8 @@ import com.wireturn.app.R
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.XrayConfiguration
-import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.CoreState
+import com.wireturn.app.viewmodel.MainViewModel
 
 @Composable
 fun CoreTriggerController(

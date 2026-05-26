@@ -7,8 +7,8 @@ import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import com.wireturn.app.data.AppPreferences
-import com.wireturn.app.viewmodel.XrayState
 import com.wireturn.app.viewmodel.VpnState
+import com.wireturn.app.viewmodel.XrayState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

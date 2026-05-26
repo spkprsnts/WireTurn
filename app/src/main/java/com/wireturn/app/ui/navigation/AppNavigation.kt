@@ -4,6 +4,7 @@
 
 package com.wireturn.app.ui.navigation
 
+import android.content.Intent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,9 +18,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import android.content.Intent
-import com.wireturn.app.ui.activities.AppExceptionsActivity
 import com.wireturn.app.ui.CoreTriggerController
+import com.wireturn.app.ui.activities.AppExceptionsActivity
 import com.wireturn.app.ui.screens.CaptchaWebViewDialog
 import com.wireturn.app.ui.screens.HomeScreen
 import com.wireturn.app.viewmodel.CoreState

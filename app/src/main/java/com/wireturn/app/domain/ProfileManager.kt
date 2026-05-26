@@ -1,8 +1,8 @@
 package com.wireturn.app.domain
 
+import com.wireturn.app.R
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.Profile
-import com.wireturn.app.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow

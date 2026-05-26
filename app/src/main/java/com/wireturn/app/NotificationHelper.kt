@@ -6,14 +6,14 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import com.wireturn.app.ui.activities.ProfileDialogActivity
 import androidx.core.app.NotificationCompat
-import com.wireturn.app.viewmodel.XrayState
+import com.wireturn.app.ui.activities.ProfileDialogActivity
 import com.wireturn.app.viewmodel.VpnState
+import com.wireturn.app.viewmodel.XrayState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 object NotificationHelper {

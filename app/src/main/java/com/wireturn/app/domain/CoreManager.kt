@@ -1,24 +1,24 @@
 package com.wireturn.app.domain
 
 import android.content.Context
-import com.wireturn.app.R
 import com.wireturn.app.CoreService
 import com.wireturn.app.CoreServiceState
 import com.wireturn.app.CoreStatus
-import com.wireturn.app.viewmodel.CoreState
+import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
+import com.wireturn.app.viewmodel.CoreState
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.dropWhile
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 class CoreManager(private val context: Context) {
 

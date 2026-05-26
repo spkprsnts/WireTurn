@@ -1,9 +1,9 @@
 @file:OptIn(
-    androidx.compose.material3.ExperimentalMaterial3Api::class,
-    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class
+    ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3ExpressiveApi::class
 )
 
-package com.wireturn.app.ui.screens
+package com.wireturn.app.ui.screens.cores
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -35,8 +35,11 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,9 +50,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.material3.TopAppBarDefaults
-import com.wireturn.app.ui.AppTopAppBar
+import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -69,24 +71,26 @@ import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
 import com.wireturn.app.data.TurnableConfig
 import com.wireturn.app.data.TurnableRoute
-import com.wireturn.app.ui.RowLabel
+import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LabeledButtonGroup
 import com.wireturn.app.ui.LargeLeadingIcon
-import com.wireturn.app.ui.ItemPosition
-import com.wireturn.app.ui.SelectionDialog
+import com.wireturn.app.ui.ModifiedIndicator
+import com.wireturn.app.ui.QrCodeDialog
+import com.wireturn.app.ui.RowLabel
 import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
+import com.wireturn.app.ui.SelectionDialog
+import com.wireturn.app.ui.ShareDropdownMenu
+import com.wireturn.app.ui.SliderRow
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SupportingText
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.ValidatorUtils
-import com.wireturn.app.ui.selectableButtonItem
-import com.wireturn.app.ui.ModifiedIndicator
 import com.wireturn.app.ui.redact
-import com.wireturn.app.ui.ShareDropdownMenu
-import com.wireturn.app.ui.QrCodeDialog
+import com.wireturn.app.ui.selectableButtonItem
 import kotlin.math.roundToInt
 
 @Composable
@@ -291,7 +295,7 @@ fun TurnableConfigScreen(
                 SectionItem(
                     position = ItemPosition.Top
                 ) {
-                    com.wireturn.app.ui.SliderRow(
+                    SliderRow(
                         label = stringResource(R.string.peers_label),
                         value = config.peers.toFloat(),
                         onValueChange = {
@@ -630,7 +634,7 @@ fun RoutesDialog(
     onDelete: (TurnableRoute) -> Unit,
     onDismiss: () -> Unit
 ) {
-    androidx.compose.material3.BasicAlertDialog(
+    BasicAlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.fillMaxWidth(0.9f)
     ) {

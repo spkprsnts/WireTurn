@@ -16,9 +16,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -33,12 +33,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.DropdownMenuGroup
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Scaffold
@@ -87,8 +87,8 @@ import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LabeledButtonGroup
 import com.wireturn.app.ui.MainSwitchItem
-import com.wireturn.app.ui.SectionHeader
 import com.wireturn.app.ui.SectionGroup
+import com.wireturn.app.ui.SectionHeader
 import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.selectableButtonItem

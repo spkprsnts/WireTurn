@@ -1,9 +1,9 @@
 package com.wireturn.app.ui
 
+import androidx.core.net.toUri
 import androidx.core.util.PatternsCompat
 import com.google.common.net.HostAndPort
 import com.google.common.net.InetAddresses
-import androidx.core.net.toUri
 
 object ValidatorUtils {
     fun isValidHost(input: String): Boolean {

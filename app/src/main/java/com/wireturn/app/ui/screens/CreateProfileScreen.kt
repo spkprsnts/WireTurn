@@ -28,23 +28,23 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.google.gson.Gson
 import com.wireturn.app.R
+import com.wireturn.app.data.OlcrtcConfig
+import com.wireturn.app.data.TurnableConfig
 import com.wireturn.app.ui.AppTopAppBar
-import com.wireturn.app.ui.RowLabel
+import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
+import com.wireturn.app.ui.RowLabel
 import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.TextFieldRow
-import com.wireturn.app.data.TurnableConfig
-import com.wireturn.app.data.OlcrtcConfig
-import com.google.gson.Gson
-import com.wireturn.app.ui.HapticUtil
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import kotlinx.coroutines.launch
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)

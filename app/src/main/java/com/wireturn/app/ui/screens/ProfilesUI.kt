@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -44,9 +45,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -59,14 +62,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.SheetValue
-import androidx.compose.material3.rememberBottomSheetState
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -80,11 +80,13 @@ import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.OlcrtcConfig.Companion.getTransportDisplayName
 import com.wireturn.app.data.Profile
 import com.wireturn.app.data.XrayConfiguration
-import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.AppDropdownMenu
+import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.VerticalAnimatedText
+import com.wireturn.app.ui.activities.cores.OlcRtcConfigActivity
+import com.wireturn.app.ui.activities.cores.TurnableConfigActivity
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -206,12 +208,12 @@ fun ProfilesBlock(
                 val intent = when (currentProfile.kernelVariant) {
                     KernelVariant.TURNABLE -> android.content.Intent(
                         context,
-                        com.wireturn.app.ui.activities.TurnableConfigActivity::class.java
+                        TurnableConfigActivity::class.java
                     )
 
                     KernelVariant.OLCRTC -> android.content.Intent(
                         context,
-                        com.wireturn.app.ui.activities.OlcRtcConfigActivity::class.java
+                        OlcRtcConfigActivity::class.java
                     )
                 }
                 intent.putExtra("EXTRA_EDIT_MODE", true)

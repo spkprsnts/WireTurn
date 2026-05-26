@@ -64,6 +64,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.data.ThemeMode
 import com.wireturn.app.ui.AppTopAppBar
+import com.wireturn.app.ui.ExpandableSection
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LabeledButtonGroup
@@ -73,7 +74,6 @@ import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.UpdateBlock
 import com.wireturn.app.ui.selectableButtonItem
-import com.wireturn.app.ui.ExpandableSection
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.UpdateState
 import kotlinx.coroutines.delay

@@ -1,5 +1,6 @@
-package com.wireturn.app.ui.activities
+package com.wireturn.app.ui.activities.cores
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -11,7 +12,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.gson.Gson
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.TurnableConfig
-import com.wireturn.app.ui.screens.TurnableConfigScreen
+import com.wireturn.app.data.XrayConfiguration
+import com.wireturn.app.ui.activities.XraySetupActivity
+import com.wireturn.app.ui.screens.cores.TurnableConfigScreen
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
 
@@ -60,11 +63,11 @@ class TurnableConfigActivity : ComponentActivity() {
                             val selectedRoute = config.routes.find { it.routeId == config.selectedRouteId } ?: config.routes.firstOrNull()
                             val isTcp = selectedRoute?.socket?.lowercase() == "tcp"
 
-                            val intent = android.content.Intent(this, XraySetupActivity::class.java).apply {
+                            val intent = Intent(this, XraySetupActivity::class.java).apply {
                                 putExtra("SHOW_PROTOCOL_SELECTION", true)
                                 putExtra("EXTRA_PROFILE_NAME", profileName)
                                 if (isTcp) {
-                                    putExtra("EXTRA_DEFAULT_PROTOCOL", com.wireturn.app.data.XrayConfiguration.VLESS.name)
+                                    putExtra("EXTRA_DEFAULT_PROTOCOL", XrayConfiguration.VLESS.name)
                                 }
                                 putExtra("EXTRA_KERNEL_VARIANT", "TURNABLE")
                                 putExtra("EXTRA_TURNABLE_CONFIG_JSON", Gson().toJson(config))

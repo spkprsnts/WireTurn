@@ -17,8 +17,8 @@ import com.wireturn.app.CoreService
 import com.wireturn.app.CoreServiceState
 import com.wireturn.app.CoreStatus
 import com.wireturn.app.CoreTileService
-import com.wireturn.app.XrayService
 import com.wireturn.app.R
+import com.wireturn.app.XrayService
 import com.wireturn.app.XrayServiceState
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.AutoLaunchSettings
@@ -26,11 +26,11 @@ import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.OlcrtcConfig
-import com.wireturn.app.data.TurnableConfig
-import com.wireturn.app.data.VpnSettings
 import com.wireturn.app.data.Profile
 import com.wireturn.app.data.ThemeMode
+import com.wireturn.app.data.TurnableConfig
 import com.wireturn.app.data.VlessConfig
+import com.wireturn.app.data.VpnSettings
 import com.wireturn.app.data.WgConfig
 import com.wireturn.app.data.XrayConfig
 import com.wireturn.app.data.XraySettings

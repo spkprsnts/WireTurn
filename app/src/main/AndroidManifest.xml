@@ -111,12 +111,12 @@
             android:windowSoftInputMode="adjustResize" />
 
         <activity
-            android:name=".ui.activities.TurnableConfigActivity"
+            android:name=".ui.activities.cores.TurnableConfigActivity"
             android:theme="@style/Theme.wireturn"
             android:windowSoftInputMode="adjustResize" />
 
         <activity
-            android:name=".ui.activities.OlcRtcConfigActivity"
+            android:name=".ui.activities.cores.OlcRtcConfigActivity"
             android:theme="@style/Theme.wireturn"
             android:windowSoftInputMode="adjustResize" />
 

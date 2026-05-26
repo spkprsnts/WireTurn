@@ -1,5 +1,6 @@
-package com.wireturn.app.ui.activities
+package com.wireturn.app.ui.activities.cores
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -11,7 +12,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.gson.Gson
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.OlcrtcConfig
-import com.wireturn.app.ui.screens.OlcRtcConfigScreen
+import com.wireturn.app.ui.activities.XraySetupActivity
+import com.wireturn.app.ui.screens.cores.OlcRtcConfigScreen
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
 
@@ -61,7 +63,7 @@ class OlcRtcConfigActivity : ComponentActivity() {
                             ))
                             finish()
                         } else {
-                            val intent = android.content.Intent(this, XraySetupActivity::class.java).apply {
+                            val intent = Intent(this, XraySetupActivity::class.java).apply {
                                 putExtra("SHOW_PROTOCOL_SELECTION", false)
                                 putExtra("EXTRA_PROFILE_NAME", profileName)
                                 putExtra("EXTRA_KERNEL_VARIANT", "OLCRTC")

@@ -2,20 +2,21 @@ package com.wireturn.app
 
 import android.app.Service
 import android.content.Intent
-import android.os.Build
-import android.os.IBinder
 import android.net.LocalSocket
 import android.net.LocalSocketAddress
-import com.wireturn.app.viewmodel.XrayState
-import com.wireturn.app.viewmodel.VpnState
+import android.os.Build
+import android.os.IBinder
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelVariant
+import com.wireturn.app.data.VlessConfig
+import com.wireturn.app.data.VpnSettings
+import com.wireturn.app.data.WgConfig
 import com.wireturn.app.data.XrayConfig
 import com.wireturn.app.data.XraySettings
-import com.wireturn.app.data.VpnSettings
-import com.wireturn.app.data.VlessConfig
-import com.wireturn.app.data.WgConfig
+import com.wireturn.app.viewmodel.VpnState
+import com.wireturn.app.viewmodel.XrayState
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -26,7 +27,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.CancellationException
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.InterruptedIOException

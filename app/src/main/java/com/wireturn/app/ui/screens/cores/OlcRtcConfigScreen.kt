@@ -1,9 +1,9 @@
 @file:OptIn(
-    androidx.compose.material3.ExperimentalMaterial3Api::class,
-    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class,
+    ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3ExpressiveApi::class,
 )
 
-package com.wireturn.app.ui.screens
+package com.wireturn.app.ui.screens.cores
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -37,15 +37,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.material3.TopAppBarDefaults
-import com.wireturn.app.ui.AppTopAppBar
+import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,19 +63,21 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
 import com.wireturn.app.data.OlcrtcConfig
-import com.wireturn.app.ui.RowLabel
+import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.HapticUtil
-import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.ItemPosition
-import com.wireturn.app.ui.SelectionDialog
+import com.wireturn.app.ui.LargeLeadingIcon
+import com.wireturn.app.ui.QrCodeDialog
+import com.wireturn.app.ui.RowLabel
 import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
+import com.wireturn.app.ui.SelectionDialog
+import com.wireturn.app.ui.ShareDropdownMenu
+import com.wireturn.app.ui.SliderRow
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SupportingText
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.redact
-import com.wireturn.app.ui.ShareDropdownMenu
-import com.wireturn.app.ui.QrCodeDialog
 import kotlin.math.roundToInt
 
 @Composable
@@ -186,7 +190,7 @@ fun OlcRtcConfigScreen(
                     )
                 ) + fadeOut(animationSpec = tween(150))
             ) {
-                androidx.compose.material3.ExtendedFloatingActionButton(
+                ExtendedFloatingActionButton(
                     modifier = Modifier.navigationBarsPadding(),
                     onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -364,7 +368,7 @@ fun OlcRtcConfigScreen(
             ) {
                 SectionGroup(title = stringResource(R.string.olcrtc_vp8_settings_title)) {
                     SectionItem(position = ItemPosition.Top) {
-                        com.wireturn.app.ui.SliderRow(
+                        SliderRow(
                             label = stringResource(R.string.olcrtc_vp8_fps),
                             value = config.vp8Fps.toFloat(),
                             onValueChange = { config = config.copy(vp8Fps = it.roundToInt()) },
@@ -374,7 +378,7 @@ fun OlcRtcConfigScreen(
                         )
                     }
                     SectionItem(position = ItemPosition.Bottom) {
-                        com.wireturn.app.ui.SliderRow(
+                        SliderRow(
                             label = stringResource(R.string.olcrtc_vp8_batch),
                             value = config.vp8Batch.toFloat(),
                             onValueChange = { config = config.copy(vp8Batch = it.roundToInt()) },
@@ -393,7 +397,7 @@ fun OlcRtcConfigScreen(
             ) {
                 SectionGroup(title = stringResource(R.string.olcrtc_sei_settings_title)) {
                     SectionItem(position = ItemPosition.Top) {
-                        com.wireturn.app.ui.SliderRow(
+                        SliderRow(
                             label = stringResource(R.string.olcrtc_sei_fps),
                             value = config.seiFps.toFloat(),
                             onValueChange = { config = config.copy(seiFps = it.roundToInt()) },
@@ -403,7 +407,7 @@ fun OlcRtcConfigScreen(
                         )
                     }
                     SectionItem {
-                        com.wireturn.app.ui.SliderRow(
+                        SliderRow(
                             label = stringResource(R.string.olcrtc_sei_batch),
                             value = config.seiBatch.toFloat(),
                             onValueChange = { config = config.copy(seiBatch = it.roundToInt()) },
@@ -413,7 +417,7 @@ fun OlcRtcConfigScreen(
                         )
                     }
                     SectionItem {
-                        com.wireturn.app.ui.SliderRow(
+                        SliderRow(
                             label = stringResource(R.string.olcrtc_sei_frag),
                             value = config.seiFrag.toFloat(),
                             onValueChange = { config = config.copy(seiFrag = it.roundToInt()) },
@@ -423,7 +427,7 @@ fun OlcRtcConfigScreen(
                         )
                     }
                     SectionItem(position = ItemPosition.Bottom) {
-                        com.wireturn.app.ui.SliderRow(
+                        SliderRow(
                             label = stringResource(R.string.olcrtc_sei_ack_ms),
                             value = config.seiAckMs.toFloat(),
                             onValueChange = { config = config.copy(seiAckMs = it.roundToInt()) },
@@ -470,7 +474,7 @@ fun OlcRtcConfigScreen(
                         }
                     }
                     SectionItem {
-                        com.wireturn.app.ui.SliderRow(
+                        SliderRow(
                             label = stringResource(R.string.olcrtc_video_fps),
                             value = config.videoFps.toFloat(),
                             onValueChange = { config = config.copy(videoFps = it.roundToInt()) },
@@ -504,7 +508,7 @@ fun OlcRtcConfigScreen(
                         )
                     }
                     SectionItem {
-                        com.wireturn.app.ui.SliderRow(
+                        SliderRow(
                             label = stringResource(R.string.olcrtc_video_qr_size),
                             value = config.videoQrSize.toFloat(),
                             onValueChange = { config = config.copy(videoQrSize = it.roundToInt()) },
@@ -514,7 +518,7 @@ fun OlcRtcConfigScreen(
                         )
                     }
                     SectionItem {
-                        com.wireturn.app.ui.SliderRow(
+                        SliderRow(
                             label = stringResource(R.string.olcrtc_video_tile_module),
                             value = config.videoTileModule.toFloat(),
                             onValueChange = { config = config.copy(videoTileModule = it.roundToInt()) },
@@ -524,7 +528,7 @@ fun OlcRtcConfigScreen(
                         )
                     }
                     SectionItem(position = ItemPosition.Bottom) {
-                        com.wireturn.app.ui.SliderRow(
+                        SliderRow(
                             label = stringResource(R.string.olcrtc_video_tile_rs),
                             value = config.videoTileRs.toFloat(),
                             onValueChange = { config = config.copy(videoTileRs = it.roundToInt()) },

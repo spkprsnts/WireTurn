@@ -56,6 +56,7 @@ import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.XraySettings
 import com.wireturn.app.ui.AppTopAppBar
+import com.wireturn.app.ui.ExpandableSection
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.SectionGroup
@@ -64,7 +65,6 @@ import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.redact
-import com.wireturn.app.ui.ExpandableSection
 
 @Composable
 fun ConnectionSettingsScreen(
