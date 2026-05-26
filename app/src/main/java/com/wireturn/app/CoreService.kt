@@ -601,6 +601,15 @@ class CoreService : Service() {
             }
         }
 
+        if (lower.contains("webdav: connection failed")) {
+            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_webdav_unavailable)))
+                updateNotification(getString(R.string.error_connecting))
+            }
+            state.startupFailed = true
+            return true
+        }
+
         if (lower.contains("mux ready")) {
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                 CoreServiceState.setStatus(CoreStatus.Connected)
