@@ -241,6 +241,7 @@
     <string name="log_core_stop_ui">* [Core] ОСТАНОВКА</string>
     <string name="log_core_too_many_remote_not_ready">* [Core] СЛИШКОМ МНОГО \"REMOTE NOT READY\" / \"OPENSTREAM FAILED\" — перезапуск</string>
     <string name="log_core_reconnect_restart">* [Core] Обнаружено переподключение клиента — перезапуск</string>
+    <string name="log_core_webdav_too_many_refused">* [Core] СЛИШКОМ МНОГО \"CONNECTION REFUSED\" — перезапуск</string>
     <string name="log_core_profile_summary">* [Core] Сводка профиля: Ядро: %1$s, Xray: %2$s</string>
     <string name="log_core_foreground_failed">* [Core] Ошибка запуска foreground: %1$s</string>
     <string name="log_core_dual_route_config_changed">* [Core] Конфиг Dual-route изменен, подавление до определения маршрута</string>

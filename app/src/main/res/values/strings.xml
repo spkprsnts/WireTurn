@@ -273,6 +273,7 @@
     <string name="log_core_stop_ui">* [Core] STOPPED</string>
     <string name="log_core_too_many_remote_not_ready">* [Core] TOO MANY \"REMOTE NOT READY\" / \"OPENSTREAM FAILED\" — restarting</string>
     <string name="log_core_reconnect_restart">* [Core] Client reconnection detected — restarting</string>
+    <string name="log_core_webdav_too_many_refused">* [Core] TOO MANY \"CONNECTION REFUSED\" — restarting</string>
     <string name="log_core_profile_summary">* [Core] Profile summary: Kernel: %1$s, Xray: %2$s</string>
     <string name="log_core_foreground_failed">* [Core] Failed to start foreground: %1$s</string>
     <string name="log_core_dual_route_config_changed">* [Core] Dual-route config changed, suppressing until route is determined</string>

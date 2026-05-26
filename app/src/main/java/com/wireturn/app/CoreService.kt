@@ -642,6 +642,21 @@ class CoreService : Service() {
             return true
         }
 
+        if (lower.contains("connection refused")) {
+            val now = System.currentTimeMillis()
+            if (now - state.lastWebdavConnRefusedTime > 5_000) {
+                state.webdavConnRefusedCount = 1
+                state.lastWebdavConnRefusedTime = now
+            } else {
+                state.webdavConnRefusedCount++
+                if (state.webdavConnRefusedCount >= 10) {
+                    AppLogsState.addLog(getString(R.string.log_core_webdav_too_many_refused))
+                    state.startupEmitted = true // Trigger watchdog
+                    return true
+                }
+            }
+        }
+
         return false
     }
 
@@ -694,6 +709,12 @@ class CoreService : Service() {
             return true
         }
 
+        if (lower.contains("panic") || lower.contains("fatal") || lower.contains("error starting socks5")) {
+            CoreServiceState.setStatus(CoreStatus.Error(line))
+            state.startupFailed = true
+            return true
+        }
+
         return false
     }
 
@@ -737,6 +758,8 @@ class CoreService : Service() {
         var connectingSince = 0L
         var remoteNotReadyCount = 0
         var lastRemoteNotReadyTime = 0L
+        var webdavConnRefusedCount = 0
+        var lastWebdavConnRefusedTime = 0L
     }
 
     private fun buildCommandArgs(cfg: ClientConfig): List<String> {
