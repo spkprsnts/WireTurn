@@ -2,15 +2,15 @@
   <img src="docs/ic_launcher.webp" width="192" alt="WireTurn Logo" />
 </p>
 
-# WireTurn — Android WebRTC Tunnel
+# WireTurn — Android WebRTC & WebDAV Tunnel
 
-Android-клиент для [Turnable](https://github.com/TheAirBlow/Turnable) и [olcRTC](https://github.com/openlibrecommunity/olcrtc) — туннелирование трафика через WebRTC-транспорт.
+Android-клиент для [Turnable](https://github.com/TheAirBlow/Turnable), [olcRTC](https://github.com/openlibrecommunity/olcrtc) и [WebDAV](https://github.com/spkprsnts/webdav-tunnel) — туннелирование трафика через WebRTC и WebDAV.
 
 > **Disclaimer:** Проект предназначен исключительно для образовательных и исследовательских целей.
 
 ## Принцип работы
 
-WireTurn интегрирует возможности **Turnable** и **olcRTC** в Android, позволяя упаковывать трафик в стандартные протоколы WebRTC (**DTLS** или **SRTP**).
+WireTurn интегрирует возможности **Turnable**, **olcRTC** и **WebDAV** в Android, позволяя упаковывать трафик в стандартные протоколы WebRTC (**DTLS** или **SRTP**) или передавать его через облачные хранилища.
 
 ### Turnable
 Обеспечивает туннелирование TCP/UDP трафика через TURN-серверы или SFU-платформы.
@@ -25,6 +25,12 @@ WireTurn интегрирует возможности **Turnable** и **olcRTC*
 - **VP8Channel**: Стеганография внутри видеопотока VP8. Пакеты маскируются под валидные ключевые кадры видео и передаются с использованием надежного протокола KCP поверх них.
 - **SEIChannel**: Упаковка данных в метаданные видеопотока H.264. Использует Supplemental Enhancement Information (SEI) сообщения для скрытой передачи пакетов.
 - **VideoChannel**: Визуальная стеганография. Данные кодируются в QR-коды или специальные графические тайлы и транслируются как реальный видеопоток.
+
+### WebDAV
+Туннелирование трафика через любое WebDAV-совместимое облачное хранилище.
+- **Polling:** Работает через периодические запросы к серверу для получения и отправки данных.
+- **Скрытность:** Трафик полностью имитирует работу с облачным диском по протоколу HTTPS.
+- **Универсальность:** Поддержка большинства популярных WebDAV-провайдеров.
 
 ## Возможности
 
@@ -58,7 +64,7 @@ WireTurn интегрирует возможности **Turnable** и **olcRTC*
 ### Требования
 - Android 8.0+ (API 26)
 - Архитектуры: `arm64-v8a`, `x86_64`
-- VPS для размещения серверной части (сервер Turnable или olcRTC)
+- VPS для размещения серверной части (сервер Turnable, olcRTC или WebDAV) или аккаунт в облачном сервисе с поддержкой WebDAV.
 
 ### Настройка
 Подробные инструкции по настройке серверной части и клиента WireTurn доступны в следующих руководствах:
@@ -72,6 +78,7 @@ WireTurn интегрирует возможности **Turnable** и **olcRTC*
 - **Native Components (C/Go)** (автоматическая сборка из исходников через Git-субмодули):
     - `libturnable.so` — реализация Turnable ([TheAirBlow/Turnable](https://github.com/TheAirBlow/Turnable)).
     - `libolcrtc.so` — реализация olcRTC ([openlibrecommunity/olcrtc](https://github.com/openlibrecommunity/olcrtc)).
+    - `libwebdav.so` — реализация WebDAV ([spkprsnts/webdav-tunnel](https://github.com/spkprsnts/webdav-tunnel)).
     - `libxray.so` — движок Xray ([spkprsnts/vless-client](https://github.com/spkprsnts/vless-client)).
     - `libhevsocks5.so` — сетевой стек для VPN-режима ([heiher/hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel)).
     - `libffmpeg.so` — библиотека FFmpeg ([Javernaut/ffmpeg-android-maker](https://github.com/Javernaut/ffmpeg-android-maker)).
@@ -107,6 +114,7 @@ git clone --recursive https://github.com/spkprsnts/WireTurn.git
 
 - [TheAirBlow/Turnable](https://github.com/TheAirBlow/Turnable) — проект Turnable.
 - [openlibrecommunity/olcrtc](https://github.com/openlibrecommunity/olcrtc) — проект olcRTC.
+- [spkprsnts/webdav-tunnel](https://github.com/spkprsnts/webdav-tunnel) — проект WebDAV Tunnel.
 - [samosvalishe/turn-proxy-android](https://github.com/samosvalishe/turn-proxy-android) — база UI и логики.
 - [XTLS/Xray-core](https://github.com/XTLS/Xray-core) — кодовая база Xray.
 - [heiher/hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel) — реализация сетевого стека для VPN-режима.
