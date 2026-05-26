@@ -362,6 +362,8 @@
     <string name="vless_direct_address">Direct server address</string>
     <string name="vless_direct_address_placeholder" translatable="false">292.313.32.45:443</string>
     <string name="vless_hc_interval">Health check interval (sec)</string>
+    <string name="vless_mux">Mux concurrency</string>
+    <string name="vless_mux_desc">Enable Mux multiplexing. 0 disables, >0 sets concurrency. Incompatible with XTLS Vision.</string>
     <string name="vless_parse_from_link">Parse from link</string>
     <string name="vless_direct_active">Direct VLESS</string>
 

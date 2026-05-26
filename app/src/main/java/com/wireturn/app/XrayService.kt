@@ -286,6 +286,11 @@ class XrayService : Service() {
                     cmdArgs.addAll(listOf("-link", vlessConfig.vlessLink))
                 }
 
+                if (vlessConfig.mux != "0" && vlessConfig.mux.isNotBlank()) {
+                    cmdArgs.add("-mux")
+                    cmdArgs.add(vlessConfig.mux)
+                }
+
                 if (vlessConfig.isDualRoute && vlessConfig.directAddress.isNotBlank()) {
                     cmdArgs.add("-direct-address")
                     cmdArgs.add(vlessConfig.directAddress)

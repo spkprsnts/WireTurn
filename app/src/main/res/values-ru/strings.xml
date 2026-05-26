@@ -323,6 +323,8 @@
     <string name="vless_dual_route_desc">Предпочитать прямое подключение к VLESS-серверу, используя локальный туннель только при ограничении прямого доступа</string>
     <string name="vless_direct_address">Прямой адрес сервера</string>
     <string name="vless_hc_interval">Интервал проверки (сек)</string>
+    <string name="vless_mux">Mux concurrency</string>
+    <string name="vless_mux_desc">Включает мультиплексирование Mux. 0 — выключено, >0 — количество соединений. Несовместимо с XTLS Vision.</string>
     <string name="vless_parse_from_link">Взять из ссылки</string>
     <string name="vless_direct_active">Прямой VLESS</string>
 

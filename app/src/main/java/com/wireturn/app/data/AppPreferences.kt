@@ -617,16 +617,21 @@ data class VlessConfig(
     @SerializedName("vlessUseLocalAddress") val vlessUseLocalAddress: Boolean = true,
     @SerializedName("isDualRoute") val isDualRoute: Boolean = false,
     @SerializedName("directAddress") val directAddress: String = "",
-    @SerializedName("hcInterval") val hcInterval: String = "30"
+    @SerializedName("hcInterval") val hcInterval: String = "30",
+    @SerializedName("mux") val mux: String = "0"
 ) {
     fun isValid(): Boolean = ValidatorUtils.isValidVlessLink(vlessLink)
     fun sanitize(): VlessConfig = copy(
         vlessLink = (vlessLink as Any?)?.toString()?.take(4096) ?: "",
         directAddress = (directAddress as Any?)?.toString()?.take(500) ?: "",
-        hcInterval = (hcInterval as Any?)?.toString()?.take(20) ?: "30"
+        hcInterval = (hcInterval as Any?)?.toString()?.take(20) ?: "30",
+        mux = (mux as Any?)?.toString()?.take(20) ?: "0"
     )
 
-    fun fillDefaults(): VlessConfig = copy(hcInterval = hcInterval.ifBlank { "30" })
+    fun fillDefaults(): VlessConfig = copy(
+        hcInterval = hcInterval.ifBlank { "30" },
+        mux = mux.ifBlank { "0" }
+    )
 }
 
 data class WgConfig(

@@ -133,12 +133,13 @@ fun XraySetupScreen(
     var vlessIsDualRoute by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.isDualRoute) }
     var vlessDirectAddress by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.directAddress) }
     var vlessHcInterval by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.hcInterval) }
+    var vlessMux by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.mux) }
 
     val currentWg = remember(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive) {
         WgConfig(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive)
     }
-    val currentVless = remember(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, initialVlessConfig) {
-        VlessConfig(vlessLink, initialVlessConfig.vlessUseLocalAddress, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval)
+    val currentVless = remember(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessMux, initialVlessConfig) {
+        VlessConfig(vlessLink, initialVlessConfig.vlessUseLocalAddress, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessMux)
     }
 
     val isModified by remember(xrayConfiguration, currentWg, currentVless, initialXrayConfig, initialWgConfig, initialVlessConfig, canChangeProtocol) {
@@ -223,7 +224,7 @@ fun XraySetupScreen(
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     showExitDialog.value = false
                     val wg = WgConfig(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive)
-                    val vless = VlessConfig(vlessLink, initialVlessConfig.vlessUseLocalAddress, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval)
+                    val vless = VlessConfig(vlessLink, initialVlessConfig.vlessUseLocalAddress, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessMux)
                     onSave(xrayConfiguration, wg, vless)
                 }) {
                     Text(stringResource(R.string.btn_save))
@@ -369,7 +370,7 @@ fun XraySetupScreen(
                     onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         val wg = WgConfig(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive)
-                        val vless = VlessConfig(vlessLink, initialVlessConfig.vlessUseLocalAddress, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval)
+                        val vless = VlessConfig(vlessLink, initialVlessConfig.vlessUseLocalAddress, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessMux)
                         onSave(xrayConfiguration, wg, vless)
                     },
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -475,6 +476,8 @@ fun XraySetupScreen(
                         onVlessDirectAddressChange = { if (!isPrivacyActive) vlessDirectAddress = it },
                         vlessHcInterval = vlessHcInterval,
                         onVlessHcIntervalChange = { vlessHcInterval = it },
+                        vlessMux = vlessMux,
+                        onVlessMuxChange = { vlessMux = it },
                         vlessLinkHistory = vlessLinkHistory,
                         onRemoveHistoryItem = onRemoveHistoryItem,
                         initialVlessConfig = initialVlessConfig,
@@ -647,6 +650,7 @@ private fun VlessSettingsBlock(
     vlessIsDualRoute: Boolean, onVlessIsDualRouteChange: (Boolean) -> Unit,
     vlessDirectAddress: String, onVlessDirectAddressChange: (String) -> Unit,
     vlessHcInterval: String, onVlessHcIntervalChange: (String) -> Unit,
+    vlessMux: String, onVlessMuxChange: (String) -> Unit,
     vlessLinkHistory: List<String>,
     onRemoveHistoryItem: (String) -> Unit,
     initialVlessConfig: VlessConfig,
@@ -692,6 +696,21 @@ private fun VlessSettingsBlock(
                             privacyMode = isPrivacyActive
                         )
                     }
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            SectionItem(position = ItemPosition.Single) {
+                TextFieldRow(
+                    label = stringResource(R.string.vless_mux),
+                    supportingText = stringResource(R.string.vless_mux_desc),
+                    value = vlessMux,
+                    onValueChange = onVlessMuxChange,
+                    placeholder = "0",
+                    isError = vlessMux.isNotEmpty() && vlessMux.toIntOrNull() == null,
+                    isModified = isEditMode && vlessMux != initialVlessConfig.mux,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
             }
 
