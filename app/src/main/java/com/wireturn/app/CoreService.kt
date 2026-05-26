@@ -614,7 +614,7 @@ class CoreService : Service() {
             return true
         }
 
-        if (lower.contains("remote disconnected or unreachable")) {
+        if (lower.contains("server connection lost") || lower.contains("server has not picked up the session")) {
             if (getNetworkQuality() == NetworkQuality.FAST) {
                 if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                     CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_webdav_server_unavailable)))
