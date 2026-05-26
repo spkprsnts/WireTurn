@@ -72,6 +72,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -559,19 +560,39 @@ fun ProfilesDialog(
                 if (draggedItemId != null && source == NestedScrollSource.UserInput) {
                     return available
                 }
+                
                 return Offset.Zero
             }
 
-            @Suppress("UNUSED_PARAMETER")
             override fun onPostScroll(
                 consumed: Offset,
                 available: Offset,
                 source: NestedScrollSource
             ): Offset {
+                // Если мы перетаскиваем профиль (reorder), полностью блокируем шторку
                 if (draggedItemId != null && source == NestedScrollSource.UserInput) {
                     return available
                 }
+                
                 return Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                // Вместо полного гашения, оставляем 5% энергии.
+                // Это заставит шторку слегка "вздрогнуть" при резком свайпе, 
+                // но этой энергии не хватит для её закрытия.
+                if (available.y > 0 && !lazyListState.canScrollBackward) {
+                    return available * 0.95f
+                }
+                return Velocity.Zero
+            }
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                // Прокидываем чуть-чуть остаточной энергии вниз
+                if (available.y > 0) {
+                    return available * 0.95f
+                }
+                return Velocity.Zero
             }
         }
     }
