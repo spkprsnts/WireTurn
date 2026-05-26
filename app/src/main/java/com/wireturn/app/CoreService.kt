@@ -627,7 +627,7 @@ class CoreService : Service() {
             return true
         }
 
-        if (lower.contains("mux ready")) {
+        if (lower.contains("server connected")) {
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                 CoreServiceState.setStatus(CoreStatus.Connected)
                 updateNotification(getString(R.string.core_active))
