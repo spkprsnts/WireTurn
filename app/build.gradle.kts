@@ -210,12 +210,16 @@ tasks.register<Exec>("buildGoBinaries") {
     inputs.files(file("${rootDir}/external/turnable"))
         .withPathSensitivity(PathSensitivity.RELATIVE)
         .optional()
+    inputs.files(file("${rootDir}/external/webdav-tunnel"))
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+        .optional()
     inputs.file(file("${rootDir}/build.sh")).withPathSensitivity(PathSensitivity.RELATIVE)
     
     listOf("arm64-v8a", "x86_64").forEach { abi ->
         outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libolcrtc.so"))
         outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libxray.so"))
         outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libturnable.so"))
+        outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libwebdav.so"))
     }
     configureNdk()
     wslOrBash("./build.sh go")
