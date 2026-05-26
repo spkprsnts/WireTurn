@@ -593,7 +593,7 @@ class CoreService : Service() {
         return false
     }
 
-    private fun handleWebdavLog(line: String, lower: String, state: BinaryOutputState): Boolean {
+    private suspend fun handleWebdavLog(line: String, lower: String, state: BinaryOutputState): Boolean {
         if (lower.contains("webdav: connecting to")) {
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                 CoreServiceState.setStatus(CoreStatus.Connecting)
@@ -602,11 +602,28 @@ class CoreService : Service() {
         }
 
         if (lower.contains("webdav: connection failed")) {
-            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
-                CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_webdav_unavailable)))
-                updateNotification(getString(R.string.error_connecting))
+            if (getNetworkQuality() == NetworkQuality.FAST) {
+                if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                    CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_webdav_unavailable)))
+                    updateNotification(getString(R.string.error_connecting))
+                }
+                state.startupFailed = true
+            } else {
+                state.startupEmitted = true
             }
-            state.startupFailed = true
+            return true
+        }
+
+        if (lower.contains("remote disconnected or unreachable")) {
+            if (getNetworkQuality() == NetworkQuality.FAST) {
+                if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                    CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_webdav_server_unavailable)))
+                    updateNotification(getString(R.string.error_connecting))
+                }
+                state.startupFailed = true
+            } else {
+                state.startupEmitted = true
+            }
             return true
         }
 

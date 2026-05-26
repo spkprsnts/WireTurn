@@ -285,7 +285,8 @@
     <string name="error_connecting">Ошибка подключения</string>
     <string name="error_platform_unavailable">Платформа недоступна</string>
     <string name="error_kernel_or_settings">Проблема с ядром или настройками</string>
-    <string name="error_webdav_unavailable">Сервер WebDAV недоступен</string>
+    <string name="error_webdav_unavailable">Хостинг WebDAV недоступен</string>
+    <string name="error_webdav_server_unavailable">Сервер туннеля WebDAV недоступен</string>
 
     <!-- Уведомления -->
     <string name="notification_channel_description">Уведомление о состоянии и для управления</string>

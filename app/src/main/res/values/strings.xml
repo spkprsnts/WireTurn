@@ -317,7 +317,8 @@
     <string name="error_connecting">Connection error</string>
     <string name="error_platform_unavailable">Platform unavailable</string>
     <string name="error_kernel_or_settings">Problem with core or settings</string>
-    <string name="error_webdav_unavailable">WebDAV server is unavailable</string>
+    <string name="error_webdav_unavailable">WebDAV hosting is unavailable</string>
+    <string name="error_webdav_server_unavailable">WebDAV tunnel server is unavailable</string>
 
     <!-- Notifications -->
     <string name="notification_title" translatable="false">WireTurn</string>
