@@ -47,6 +47,7 @@ import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.TextFieldRow
 import kotlinx.coroutines.launch
+import androidx.core.net.toUri
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
@@ -281,15 +282,24 @@ private fun handleImportText(
     val olcrtcParsed = OlcrtcConfig.parse(text)
     val webdavParsed = WebdavConfig.parse(text)
 
+    val uriFragment = try { text.toUri().fragment } catch (_: Exception) { null }
+    val olcrtcMimo = if (text.startsWith("olcrtc://") && text.contains("$")) text.substringAfterLast("$") else null
+    
+    val finalName = enteredName.ifBlank { 
+        if (webdavParsed != null) uriFragment ?: ""
+        else if (olcrtcParsed != null) olcrtcMimo ?: ""
+        else ""
+    }
+
     if (turnableParsed != null) {
         HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
-        onSelectType("Turnable", Gson().toJson(turnableParsed), enteredName)
+        onSelectType("Turnable", Gson().toJson(turnableParsed), finalName)
     } else if (olcrtcParsed != null) {
         HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
-        onSelectType("olcRTC", Gson().toJson(olcrtcParsed), enteredName)
+        onSelectType("olcRTC", Gson().toJson(olcrtcParsed), finalName)
     } else if (webdavParsed != null) {
         HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
-        onSelectType("WebDAV", Gson().toJson(webdavParsed), enteredName)
+        onSelectType("WebDAV", Gson().toJson(webdavParsed), finalName)
     } else {
         HapticUtil.perform(context, HapticUtil.Pattern.ERROR)
     }

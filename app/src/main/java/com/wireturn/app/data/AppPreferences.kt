@@ -428,7 +428,7 @@ data class WebdavConfig(
         builder.appendQueryParameter("read-max", readMax)
         
         if (!profileName.isNullOrBlank()) {
-            builder.appendQueryParameter("name", profileName)
+            builder.fragment(profileName)
         }
         
         return builder.build().toString()

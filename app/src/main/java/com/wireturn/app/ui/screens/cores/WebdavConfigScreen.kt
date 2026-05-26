@@ -47,6 +47,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,6 +56,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
 import com.wireturn.app.data.WebdavConfig
@@ -86,6 +89,7 @@ fun WebdavConfigScreen(
     val showExitDialog = remember { mutableStateOf(false) }
     val showQrDialog = remember { mutableStateOf(false) }
     val showMenu = remember { mutableStateOf(false) }
+    var passwordVisible by rememberSaveable { mutableStateOf(false) }
 
     val handleBack = {
         if (isEditMode && isModified) {
@@ -250,7 +254,22 @@ fun WebdavConfigScreen(
                         onValueChange = { if (!isPrivacyActive) config = config.copy(password = it) },
                         readOnly = isPrivacyActive,
                         isModified = isEditMode && config.password != initialConfig.password,
-                        privacyMode = isPrivacyActive
+                        privacyMode = isPrivacyActive,
+                        trailingIcon = {
+                            if (!isPrivacyActive) {
+                                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                    Icon(
+                                        painter = painterResource(
+                                            if (passwordVisible) R.drawable.visibility_24px 
+                                            else R.drawable.visibility_off_24px
+                                        ),
+                                        contentDescription = null
+                                    )
+                                }
+                            }
+                        },
+                        visualTransformation = if (passwordVisible || isPrivacyActive) VisualTransformation.None 
+                                             else PasswordVisualTransformation()
                     )
                 }
             }
