@@ -113,7 +113,10 @@ fun ProfileSummary(
         }
 
         KernelVariant.WEBDAV -> {
-            // Nothing extra for now
+            val login = profile.webdavConfig.login
+            if (login.isNotBlank()) {
+                parts.add(login.substringBefore('@'))
+            }
         }
     }
 
@@ -1094,7 +1097,7 @@ private fun getProfileIcon(profile: Profile, outlined: Boolean): Int {
         }
 
         KernelVariant.WEBDAV -> {
-            if (outlined) R.drawable.mobile_outlined_24px else R.drawable.mobile_24px
+            R.drawable.ic_dav
         }
     }
 }

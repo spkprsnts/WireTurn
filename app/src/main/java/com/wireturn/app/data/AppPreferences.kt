@@ -470,6 +470,25 @@ data class WebdavConfig(
                 return null
             }
         }
+
+        fun formatHost(webdavUrl: String): String {
+            val uri = try { Uri.parse(webdavUrl) } catch (_: Exception) { return webdavUrl.take(20) }
+            val host = uri.host ?: return webdavUrl.take(20)
+            val port = if (uri.port != -1) ":${uri.port}" else ""
+
+            // Simple check for IPv4 or IPv6
+            val isIp = host.all { it.isDigit() || it == '.' || it == ':' || it.lowercaseChar() in 'a'..'f' || it == '[' || it == ']' }
+
+            if (isIp) return "$host$port"
+
+            val parts = host.split('.')
+            return if (parts.size >= 2) {
+                // webdav.yandex.ru -> Yandex
+                parts[parts.size - 2].replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() } + port
+            } else {
+                host.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() } + port
+            }
+        }
     }
 }
 
@@ -536,7 +555,7 @@ data class ClientConfig(
             context.getString(R.string.kernel_turnable) + " r:" + routeName
         }
         is KernelConfig.Olcrtc -> context.getString(R.string.kernel_olcrtc) + " " + k.config.providerDisplayName
-        is KernelConfig.Webdav -> context.getString(R.string.kernel_webdav) + " " + k.config.webdav.replace("https://", "").replace("http://", "").take(20)
+        is KernelConfig.Webdav -> context.getString(R.string.kernel_webdav) + " " + WebdavConfig.formatHost(k.config.webdav)
     }
 
     companion object {
@@ -758,7 +777,7 @@ data class Profile(
         }
 
         KernelVariant.OLCRTC -> context.getString(R.string.kernel_olcrtc) + " " + olcrtcConfig.providerDisplayName
-        KernelVariant.WEBDAV -> context.getString(R.string.kernel_webdav) + " " + webdavConfig.webdav.replace("https://", "").replace("http://", "").take(20)
+        KernelVariant.WEBDAV -> context.getString(R.string.kernel_webdav) + " " + WebdavConfig.formatHost(webdavConfig.webdav)
     }
 }
 
