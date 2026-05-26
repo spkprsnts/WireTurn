@@ -703,7 +703,7 @@ class CoreService : Service() {
             }
         }
 
-        if (lower.contains("client reconnect attempt=1")) {// reason=carrier
+        if (lower.contains("client reconnect attempt=2")) {// reason=carrier
             AppLogsState.addLog(getString(R.string.log_core_reconnect_restart))
             state.startupEmitted = true
             return true
