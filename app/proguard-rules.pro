@@ -24,6 +24,7 @@
 -keep class com.wireturn.app.data.TurnableConfig { *; }
 -keep class com.wireturn.app.data.TurnableRoute { *; }
 -keep class com.wireturn.app.data.OlcrtcConfig { *; }
+-keep class com.wireturn.app.data.WebdavConfig { *; }
 -keep class com.wireturn.app.data.WgConfig { *; }
 -keep class com.wireturn.app.data.VlessConfig { *; }
 -keep class com.wireturn.app.data.ClientConfig { *; }

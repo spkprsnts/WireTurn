@@ -35,6 +35,7 @@
     <string name="android_client_original">Android-клиент (оригинал)</string>
     <string name="turnable_core">Ядро туннеля (Turnable)</string>
     <string name="olcrtc_core">Ядро туннеля (olcRTC)</string>
+    <string name="webdav_core">Ядро туннеля (WebDAV)</string>
     <!-- Кнопки и общие действия -->
     <string name="btn_open">Открыть</string>
     <string name="btn_start">Запустить</string>
@@ -117,6 +118,18 @@
     <string name="olcrtc_sei_settings_title">Параметры SEIChannel</string>
     <string name="olcrtc_video_settings_title">Параметры VideoChannel</string>
     <string name="olcrtc_vp8_fps">VP8 FPS</string>
+    <string name="webdav_url_label">WebDAV URL</string>
+    <string name="webdav_login_label">Логин</string>
+    <string name="webdav_password_label">Пароль</string>
+    <string name="webdav_advanced_settings">Расширенные настройки</string>
+    <string name="webdav_poll_min">Poll min</string>
+    <string name="webdav_poll_max">Poll max</string>
+    <string name="webdav_chunk_size">Chunk size</string>
+    <string name="webdav_puts">Puts</string>
+    <string name="webdav_read_min">Read min</string>
+    <string name="webdav_read_max">Read max</string>
+    <string name="webdav_coalesce">Coalesce</string>
+    <string name="webdav_timeout">Timeout</string>
     <string name="olcrtc_vp8_batch">VP8 Batch</string>
     <string name="olcrtc_sei_fps">SEI FPS</string>
     <string name="olcrtc_sei_batch">SEI Batch</string>
@@ -135,7 +148,7 @@
     <string name="local_listen_address">Локальный адрес прослушивания</string>
     <string name="local_port_help_text">Это сетевой адрес и порт, на которых приложение запустит локальную точку входа для туннеля.</string>
     <string name="local_port_help_secondary">К этому адресу должен подключаться встроенный Xray или сторонние VPN-клиенты (WireGuard, v2RayTun и др.), чтобы трафик шел через созданный туннель.</string>
-    <string name="olcrtc_socks_help_text">Ядро olcRTC не использует традиционные VPN-протоколы. Оно запускает локальный SOCKS5-прокси, который служит точкой входа для трафика.</string>
+    <string name="olcrtc_socks_help_text">Это ядро не использует традиционные VPN-протоколы. Оно запускает локальный SOCKS5-прокси, который служит точкой входа для трафика.</string>
     <string name="olcrtc_socks_help_secondary">Встроенный Xray направляет трафик через этот адрес, что позволяет работать через VLESS в режиме Dual-route и/или направлять весь трафик устройства через VPN.</string>
 
     <!-- Экран логов (Logs) -->
@@ -327,7 +340,7 @@
     <string name="qr_import">QR-код</string>
     <string name="qr_scan_desc">Наведите камеру на QR-код конфигурации для импорта</string>
     <string name="settings_group_turnable">Настройки Turnable</string>
-    <string name="settings_group_olcrtc">Настройки olcRTC</string>
+    <string name="settings_group_olcrtc">Настройки olcRTC / WebDAV</string>
     <string name="settings_group_xray">Настройки Xray</string>
     <string name="xray_proxy_auth">Авторизация прокси</string>
     <string name="xray_proxy_auth_desc">Защитить прокси логином и паролем</string>

@@ -13,3 +13,6 @@
 [submodule "external/olcrtc"]
 	path = external/olcrtc
 	url = https://github.com/openlibrecommunity/olcrtc
+[submodule "external/webdav-tunnel"]
+	path = external/webdav-tunnel
+	url = https://github.com/spkprsnts/webdav-tunnel

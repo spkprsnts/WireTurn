@@ -37,6 +37,7 @@ import com.google.gson.Gson
 import com.wireturn.app.R
 import com.wireturn.app.data.OlcrtcConfig
 import com.wireturn.app.data.TurnableConfig
+import com.wireturn.app.data.WebdavConfig
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
@@ -183,10 +184,16 @@ fun CreateProfileScreen(
                 }
 
                 SectionItem(
-                    position = ItemPosition.Bottom,
                     onClick = { onSelectType("olcRTC", null, profileName) }
                 ) {
                     RowLabel(text = stringResource(R.string.kernel_olcrtc))
+                }
+
+                SectionItem(
+                    position = ItemPosition.Bottom,
+                    onClick = { onSelectType("WebDAV", null, profileName) }
+                ) {
+                    RowLabel(text = stringResource(R.string.kernel_webdav))
                 }
             }
 
@@ -272,6 +279,7 @@ private fun handleImportText(
 ) {
     val turnableParsed = TurnableConfig.parse(text)
     val olcrtcParsed = OlcrtcConfig.parse(text)
+    val webdavParsed = WebdavConfig.parse(text)
 
     if (turnableParsed != null) {
         HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
@@ -279,6 +287,9 @@ private fun handleImportText(
     } else if (olcrtcParsed != null) {
         HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
         onSelectType("olcRTC", Gson().toJson(olcrtcParsed), enteredName)
+    } else if (webdavParsed != null) {
+        HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
+        onSelectType("WebDAV", Gson().toJson(webdavParsed), enteredName)
     } else {
         HapticUtil.perform(context, HapticUtil.Pattern.ERROR)
     }

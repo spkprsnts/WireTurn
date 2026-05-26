@@ -14,6 +14,7 @@ import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.OlcrtcConfig
 import com.wireturn.app.data.TurnableConfig
+import com.wireturn.app.data.WebdavConfig
 import com.wireturn.app.ui.screens.XraySetupScreen
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
@@ -39,6 +40,11 @@ class XraySetupActivity : ComponentActivity() {
                 val json = intent.getStringExtra("EXTRA_OLCRTC_CONFIG_JSON")
                 val olcrtc = if (json != null) Gson().fromJson(json, OlcrtcConfig::class.java) ?: OlcrtcConfig() else OlcrtcConfig()
                 ClientConfig(kernelConfig = KernelConfig.Olcrtc(olcrtc))
+            }
+            KernelVariant.WEBDAV.name -> {
+                val json = intent.getStringExtra("EXTRA_WEBDAV_CONFIG_JSON")
+                val webdav = if (json != null) Gson().fromJson(json, WebdavConfig::class.java) ?: WebdavConfig() else WebdavConfig()
+                ClientConfig(kernelConfig = KernelConfig.Webdav(webdav))
             }
             else -> {
                 val json = intent.getStringExtra("EXTRA_TURNABLE_CONFIG_JSON")

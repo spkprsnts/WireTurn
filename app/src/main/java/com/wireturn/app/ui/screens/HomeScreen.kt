@@ -842,13 +842,15 @@ fun HomeScreen(
                 )
             }
 
+            val isSocks5Core = activeConfig.kernelVariant == KernelVariant.OLCRTC || activeConfig.kernelVariant == KernelVariant.WEBDAV
+
             // --- Xray & VPN Settings ---
-            val isSettingsValid = if (activeConfig.kernelVariant == KernelVariant.OLCRTC) {
-                // For OLCRTC, link is only required if DualRoute is enabled
+            val isSettingsValid = if (isSocks5Core) {
+                // For OLCRTC/WebDAV, link is only required if DualRoute is enabled
                 if (activeXrayConfig.protocol == XrayConfiguration.VLESS && activeVlessConfig.isDualRoute) {
                     activeVlessConfig.isValid()
                 } else {
-                    true // WG or VLESS solo mode just uses olcrtc SOCKS5
+                    true // WG or VLESS solo mode just uses SOCKS5 from core
                 }
             } else {
                 if (activeXrayConfig.protocol == XrayConfiguration.VLESS) activeVlessConfig.isValid() else activeWgConfig.isValid()
@@ -856,7 +858,7 @@ fun HomeScreen(
             val configValid = isSettingsValid || xrayState != XrayState.Idle || isRestarting
 
             val xrayProtocol = when {
-                activeConfig.kernelVariant == KernelVariant.OLCRTC -> {
+                isSocks5Core -> {
                     when (xrayState) {
                         XrayState.DirectRoute -> stringResource(R.string.vless)
                         XrayState.Running -> stringResource(R.string.socks5)
@@ -1032,7 +1034,7 @@ fun HomeScreen(
 
             Spacer(Modifier.height(12.dp))
 
-            val isOlcrtc = activeConfig.kernelVariant == KernelVariant.OLCRTC
+            val isOlcrtc = activeConfig.kernelVariant == KernelVariant.OLCRTC || activeConfig.kernelVariant == KernelVariant.WEBDAV
             val showXray = xrayConfig.enabled
 
             fun formatProxyAddr(

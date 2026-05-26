@@ -36,6 +36,7 @@
     <string name="android_client_original">Android client (original)</string>
     <string name="turnable_core">Tunnel core (Turnable)</string>
     <string name="olcrtc_core">Tunnel core (olcRTC)</string>
+    <string name="webdav_core">Tunnel core (WebDAV)</string>
     <string name="xray_core_name" translatable="false">vless-client</string>
     <string name="xray_core_original" translatable="false">Xray-core</string>
     <string name="hev_socks5_tunnel" translatable="false">hev-socks5-tunnel</string>
@@ -138,6 +139,19 @@
     <string name="history_label">History</string>
     <string name="kernel_turnable" translatable="false">Turnable</string>
     <string name="kernel_olcrtc" translatable="false">olcRTC</string>
+    <string name="kernel_webdav" translatable="false">WebDAV</string>
+    <string name="webdav_url_label">WebDAV URL</string>
+    <string name="webdav_login_label">Login</string>
+    <string name="webdav_password_label">Password</string>
+    <string name="webdav_advanced_settings">Advanced Settings</string>
+    <string name="webdav_poll_min">Poll min</string>
+    <string name="webdav_poll_max">Poll max</string>
+    <string name="webdav_chunk_size">Chunk size</string>
+    <string name="webdav_puts">Puts</string>
+    <string name="webdav_read_min">Read min</string>
+    <string name="webdav_read_max">Read max</string>
+    <string name="webdav_coalesce">Coalesce</string>
+    <string name="webdav_timeout">Timeout</string>
     <string name="olcrtc_id_label">Room ID</string>
     <string name="olcrtc_key_label">Auth Key</string>
     <string name="olcrtc_dns_label">DNS Server</string>
@@ -165,7 +179,7 @@
     <string name="local_listen_address">Local listen address</string>
     <string name="local_port_help_text">This is the network address and port where the app will start a local tunnel entry point.</string>
     <string name="local_port_help_secondary">The built-in Xray or third-party VPN clients (WireGuard, v2RayTun, etc.) must connect to this address to route traffic through the created tunnel.</string>
-    <string name="olcrtc_socks_help_text">The olcRTC core does not use traditional VPN protocols. Instead, it starts a local SOCKS5 proxy that serves as an entry point for traffic.</string>
+    <string name="olcrtc_socks_help_text">This core does not use traditional VPN protocols. Instead, it starts a local SOCKS5 proxy that serves as an entry point for traffic.</string>
     <string name="olcrtc_socks_help_secondary">The built-in Xray engine routes traffic through this address, enabling VLESS Dual-route mode and/or tunneling all device traffic via VPN.</string>
 
     <!-- Logs Screen (Logs) -->
@@ -365,7 +379,7 @@
     <string name="qr_import">QR Code</string>
     <string name="qr_scan_desc">Point the camera at the configuration QR code to import</string>
     <string name="settings_group_turnable">Turnable settings</string>
-    <string name="settings_group_olcrtc">olcRTC settings</string>
+    <string name="settings_group_olcrtc">olcRTC / WebDAV settings</string>
     <string name="settings_group_xray">Xray settings</string>
     <string name="xray_protocol_desc">Choose protocol for Xray-core</string>
     <string name="vless_settings">VLESS Settings</string>

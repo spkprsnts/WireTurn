@@ -30,6 +30,7 @@ import com.wireturn.app.data.Profile
 import com.wireturn.app.data.ThemeMode
 import com.wireturn.app.data.TurnableConfig
 import com.wireturn.app.data.VlessConfig
+import com.wireturn.app.data.WebdavConfig
 import com.wireturn.app.data.VpnSettings
 import com.wireturn.app.data.WgConfig
 import com.wireturn.app.data.XrayConfig
@@ -413,6 +414,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val updatedProfile = when (val k = config.kernelConfig) {
                 is KernelConfig.Turnable -> profile.copy(kernelVariant = KernelVariant.TURNABLE, turnableConfig = k.config)
                 is KernelConfig.Olcrtc -> profile.copy(kernelVariant = KernelVariant.OLCRTC, olcrtcConfig = k.config)
+                is KernelConfig.Webdav -> profile.copy(kernelVariant = KernelVariant.WEBDAV, webdavConfig = k.config)
             }
             prefs.saveActiveProfilePart(updatedProfile)
             updateCurrentProfileInList()
@@ -573,6 +575,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val withKernel = when (val k = _clientConfig.value.kernelConfig) {
             is KernelConfig.Turnable -> profile.copy(kernelVariant = KernelVariant.TURNABLE, turnableConfig = k.config)
             is KernelConfig.Olcrtc -> profile.copy(kernelVariant = KernelVariant.OLCRTC, olcrtcConfig = k.config)
+            is KernelConfig.Webdav -> profile.copy(kernelVariant = KernelVariant.WEBDAV, webdavConfig = k.config)
         }
         profileManager.updateCurrentProfile(withKernel.copy(
             xrayProtocol = _xrayConfig.value.protocol,
@@ -605,12 +608,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val kernelVariant = clientConfig.kernelVariant
         val turnableConfig = (clientConfig.kernelConfig as? KernelConfig.Turnable)?.config ?: TurnableConfig()
         val olcrtcConfig = (clientConfig.kernelConfig as? KernelConfig.Olcrtc)?.config ?: OlcrtcConfig()
+        val webdavConfig = (clientConfig.kernelConfig as? KernelConfig.Webdav)?.config ?: WebdavConfig()
         val newProfile = Profile(
             id = id,
             name = name,
             kernelVariant = kernelVariant,
             turnableConfig = turnableConfig,
             olcrtcConfig = olcrtcConfig,
+            webdavConfig = webdavConfig,
             xrayProtocol = xrayConfig.protocol,
             xrayEnabled = xrayConfig.enabled,
             wgConfig = wgConfig,

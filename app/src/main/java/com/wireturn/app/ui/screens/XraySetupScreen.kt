@@ -109,7 +109,7 @@ fun XraySetupScreen(
 ) {
     val isPrivacyActive = privacyMode && isEditMode
     val canChangeProtocol = remember(kernelVariant, showProtocolSelection) {
-        kernelVariant != KernelVariant.OLCRTC && showProtocolSelection
+        kernelVariant != KernelVariant.OLCRTC && kernelVariant != KernelVariant.WEBDAV && showProtocolSelection
     }
 
     var xrayConfiguration by remember(initialXrayConfig, kernelVariant, canChangeProtocol) {
@@ -540,7 +540,7 @@ private fun WireGuardSettingsBlock(
     isEditMode: Boolean
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(19.dp)) {
-        if (kernelVariant == KernelVariant.OLCRTC) {
+        if (kernelVariant == KernelVariant.OLCRTC || kernelVariant == KernelVariant.WEBDAV) {
             SectionItem(position = ItemPosition.Single) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -555,7 +555,11 @@ private fun WireGuardSettingsBlock(
                         )
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        RowLabel(stringResource(R.string.wg_not_used_with_olcrtc))
+                        val msg = if (kernelVariant == KernelVariant.OLCRTC) 
+                            stringResource(R.string.wg_not_used_with_olcrtc)
+                        else 
+                            stringResource(R.string.kernel_webdav) + " - WireGuard is not used"
+                        RowLabel(msg)
                     }
                 }
             }
@@ -659,7 +663,7 @@ private fun VlessSettingsBlock(
         }
     }
 
-    val vlessLinkError = if (kernelVariant == KernelVariant.OLCRTC) {
+    val vlessLinkError = if (kernelVariant == KernelVariant.OLCRTC || kernelVariant == KernelVariant.WEBDAV) {
         vlessLink.isNotBlank() && !ValidatorUtils.isValidVlessLink(vlessLink)
     } else {
         !ValidatorUtils.isValidVlessLink(vlessLink)

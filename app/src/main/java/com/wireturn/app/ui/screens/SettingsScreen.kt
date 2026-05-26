@@ -783,6 +783,17 @@ private fun RepoLinksContent(
 
             item {
                 RepoLinkItem(
+                    title = stringResource(R.string.webdav_core),
+                    subtitle = "spkprsnts/webdav-tunnel",
+                    url = "https://github.com/spkprsnts/webdav-tunnel",
+                    containerColor = containerColor,
+                    onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
+                    onOpen = { uriHandler.openUri(it) }
+                )
+            }
+
+            item {
+                RepoLinkItem(
                     title = stringResource(R.string.xray_core_name),
                     subtitle = "spkprsnts/vless-client",
                     url = "https://github.com/spkprsnts/vless-client",

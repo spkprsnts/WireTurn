@@ -111,6 +111,10 @@ fun ProfileSummary(
         KernelVariant.OLCRTC -> {
             parts.add(getTransportDisplayName(profile.olcrtcConfig.transport, short = true))
         }
+
+        KernelVariant.WEBDAV -> {
+            // Nothing extra for now
+        }
     }
 
 
@@ -214,6 +218,11 @@ fun ProfilesBlock(
                     KernelVariant.OLCRTC -> android.content.Intent(
                         context,
                         OlcRtcConfigActivity::class.java
+                    )
+
+                    KernelVariant.WEBDAV -> android.content.Intent(
+                        context,
+                        com.wireturn.app.ui.activities.cores.WebdavConfigActivity::class.java
                     )
                 }
                 intent.putExtra("EXTRA_EDIT_MODE", true)
@@ -1082,6 +1091,10 @@ private fun getProfileIcon(profile: Profile, outlined: Boolean): Int {
                 "jitsi" -> R.drawable.ic_jitsi
                 else -> if (outlined) R.drawable.mobile_outlined_24px else R.drawable.mobile_24px
             }
+        }
+
+        KernelVariant.WEBDAV -> {
+            if (outlined) R.drawable.mobile_outlined_24px else R.drawable.mobile_24px
         }
     }
 }

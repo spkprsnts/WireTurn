@@ -141,6 +141,7 @@ class CoreService : Service() {
         val kernelInfo = when (val k = currentRunningCfg.get()?.kernelConfig) {
             is KernelConfig.Turnable -> "Turnable (${k.config.selectedRouteId})"
             is KernelConfig.Olcrtc -> "Olcrtc (${k.config.provider})"
+            is KernelConfig.Webdav -> "WebDAV (${k.config.webdav.take(20)})"
             else -> "-"
         }
         val xrayInfo = if (xrayConfig.enabled) {
@@ -482,10 +483,10 @@ class CoreService : Service() {
     private suspend fun processOutputLine(line: String, state: BinaryOutputState, kernel: KernelVariant): Boolean {
         val lower = line.lowercase()
 
-        return if (kernel == KernelVariant.TURNABLE) {
-            handleTurnableLog(line, lower, state)
-        } else {
-            handleOlcrtcLog(line, lower, state)
+        return when (kernel) {
+            KernelVariant.TURNABLE -> handleTurnableLog(line, lower, state)
+            KernelVariant.OLCRTC -> handleOlcrtcLog(line, lower, state)
+            KernelVariant.WEBDAV -> handleWebdavLog(line, lower, state)
         }
     }
 
@@ -588,6 +589,32 @@ class CoreService : Service() {
 
         // 4. Captcha
         handleCaptchaEvents(line, lower, state)
+
+        return false
+    }
+
+    private fun handleWebdavLog(line: String, lower: String, state: BinaryOutputState): Boolean {
+        if (lower.contains("webdav: connecting to")) {
+            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                CoreServiceState.setStatus(CoreStatus.Connecting)
+                updateNotification(getString(R.string.connecting))
+            }
+        }
+
+        if (lower.contains("mux ready")) {
+            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                CoreServiceState.setStatus(CoreStatus.Connected)
+                updateNotification(getString(R.string.core_active))
+                state.startupEmitted = true
+                CoreServiceState.setRestarting(false)
+            }
+        }
+
+        if (lower.contains("panic") || lower.contains("fatal") || lower.contains("error starting socks5")) {
+            CoreServiceState.setStatus(CoreStatus.Error(line))
+            state.startupFailed = true
+            return true
+        }
 
         return false
     }
@@ -705,6 +732,31 @@ class CoreService : Service() {
                 configFile.writeText(buildOlcrtcYaml(cfg))
                 cmdArgs.add(configFile.absolutePath)
             }
+            is KernelConfig.Webdav -> {
+                val o = k.config
+                cmdArgs.add("${applicationInfo.nativeLibraryDir}/libwebdav.so")
+                cmdArgs.addAll(listOf(
+                    "-mode", "client",
+                    "-webdav", o.webdav,
+                    "-login", o.login,
+                    "-password", o.password,
+                    "-timeout", o.timeout,
+                    "-poll-max", o.pollMax,
+                    "-poll-min", o.pollMin,
+                    "-coalesce", o.coalesce,
+                    "-chunk-size", o.chunkSize,
+                    "-puts", o.puts,
+                    "-read-min", o.readMin,
+                    "-read-max", o.readMax,
+                    "-socks-listen", cfg.socksAddr.ifBlank { ClientConfig.DEFAULT_SOCKS_ADDR }
+                ))
+                if (cfg.isSocksAuthEnabled) {
+                    cmdArgs.add("-socks-user")
+                    cmdArgs.add(cfg.socksUser)
+                    cmdArgs.add("-socks-pass")
+                    cmdArgs.add(cfg.socksPass)
+                }
+            }
         }
         return cmdArgs
     }
@@ -774,6 +826,11 @@ class CoreService : Service() {
                 old.isSocksAuthEnabled != new.isSocksAuthEnabled ||
                 old.socksUser != new.socksUser ||
                 old.socksPass != new.socksPass
+            is KernelConfig.Webdav ->
+                old.socksAddr != new.socksAddr ||
+                old.isSocksAuthEnabled != new.isSocksAuthEnabled ||
+                old.socksUser != new.socksUser ||
+                old.socksPass != new.socksPass
         }
     }
 
@@ -833,9 +890,10 @@ class CoreService : Service() {
 
                 val connectionTarget = when (clientConfig.kernelVariant) {
                     KernelVariant.OLCRTC -> clientConfig.socksAddr
+                    KernelVariant.WEBDAV -> clientConfig.socksAddr
                     else -> clientConfig.listenAddr
                 }
-                val connectionAuth = if (clientConfig.kernelVariant == KernelVariant.OLCRTC) {
+                val connectionAuth = if (clientConfig.kernelVariant == KernelVariant.OLCRTC || clientConfig.kernelVariant == KernelVariant.WEBDAV) {
                     Triple(clientConfig.isSocksAuthEnabled, clientConfig.socksUser, clientConfig.socksPass)
                 } else null
 

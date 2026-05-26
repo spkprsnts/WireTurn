@@ -205,8 +205,10 @@ class XrayService : Service() {
             
             val isXrayVless = xrayConfig.protocol == com.wireturn.app.data.XrayConfiguration.VLESS
 
-            val isConfigValid = if (runningClientConfig.kernelVariant == KernelVariant.OLCRTC) {
-                // For OLCRTC, VLESS/WG config is optional, unless DualRoute is enabled
+            val isSocks5Core = runningClientConfig.kernelVariant == KernelVariant.OLCRTC || runningClientConfig.kernelVariant == KernelVariant.WEBDAV
+
+            val isConfigValid = if (isSocks5Core) {
+                // For OLCRTC/WebDAV, VLESS/WG config is optional, unless DualRoute is enabled
                 if (isXrayVless && vlessConfig.isDualRoute) {
                     vlessConfig.isValid()
                 } else {
@@ -255,7 +257,7 @@ class XrayService : Service() {
                 cmdArgs.add(xraySettings.proxyPass)
             }
             
-            if (runningClientConfig.kernelVariant == KernelVariant.OLCRTC) {
+            if (isSocks5Core) {
                 cmdArgs.add("-local-socks5")
                 val socksAddr = if (runningClientConfig.isSocksAuthEnabled && runningClientConfig.socksUser.isNotBlank()) {
                     "${runningClientConfig.socksUser}:${runningClientConfig.socksPass}@${runningClientConfig.socksAddr}"
@@ -274,7 +276,7 @@ class XrayService : Service() {
                     prefs.addVlessLinkToHistory(vlessConfig.vlessLink)
                 }
                 
-                val shouldAddLink = if (runningClientConfig.kernelVariant == KernelVariant.OLCRTC) {
+                val shouldAddLink = if (isSocks5Core) {
                     vlessConfig.isDualRoute && vlessConfig.vlessLink.isNotBlank()
                 } else {
                     true
@@ -290,7 +292,7 @@ class XrayService : Service() {
                     cmdArgs.add("-hc-interval")
                     cmdArgs.add(vlessConfig.hcInterval)
                 }
-            } else if (runningClientConfig.kernelVariant != KernelVariant.OLCRTC) {
+            } else if (!isSocks5Core) {
                 cmdArgs.addAll(listOf(
                     "-wg-private-key", wgConfig.privateKey,
                     "-wg-public-key", wgConfig.publicKey,
