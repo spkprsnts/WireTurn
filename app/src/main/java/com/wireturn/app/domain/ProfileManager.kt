@@ -117,14 +117,23 @@ class ProfileManager(
             ZipInputStream(inputStream).use { zis ->
                 var entry: ZipEntry? = zis.nextEntry
                 while (entry != null) {
-                    if (!entry.isDirectory && entry.name.endsWith(".json")) {
-                        extractedData.add(entry.name to zis.readBytes().toString(Charsets.UTF_8))
+                    if (!entry.isDirectory && entry.name.lowercase().endsWith(".json")) {
+                        // Read only current entry into memory
+                        val bos = ByteArrayOutputStream()
+                        val buffer = ByteArray(4096)
+                        var read: Int
+                        while (zis.read(buffer).also { read = it } != -1) {
+                            bos.write(buffer, 0, read)
+                        }
+                        extractedData.add(entry.name to bos.toString("UTF-8"))
                     }
                     entry = zis.nextEntry
                 }
             }
             if (extractedData.isNotEmpty()) importProfiles(extractedData, onAutoSelect)
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            com.wireturn.app.AppLogsState.addLog("ZIP Import Error: ${e.message}")
+        }
     }
 
     fun importProfiles(data: List<Pair<String?, String>>, onAutoSelect: ((Profile) -> Unit)? = null) {

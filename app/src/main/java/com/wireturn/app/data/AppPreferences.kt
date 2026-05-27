@@ -765,14 +765,14 @@ data class Profile(
     @SerializedName("wgConfig") val wgConfig: WgConfig = WgConfig(),
     @SerializedName("vlessConfig") val vlessConfig: VlessConfig = VlessConfig()
 ) {
-    // Migration fields — set by Gson via reflection, not part of data class equality/copy
+    // Migration fields — moved out of constructor so they are not serialized back to JSON
     @SerializedName("kernelVariant") private val mKernelVariant: KernelVariant? = null
     @SerializedName("turnableConfig") private val mTurnableConfig: TurnableConfig? = null
     @SerializedName("olcrtcConfig") private val mOlcrtcConfig: OlcrtcConfig? = null
     @SerializedName("webdavConfig") private val mWebdavConfig: WebdavConfig? = null
-    @SerializedName("clientConfig") private val oldClientConfig: OldClientConfig? = null
-    @SerializedName("xraySettings") private val oldXraySettings: Any? = null
-    @SerializedName("xrayConfig") private val oldXrayConfig: Any? = null
+    @SerializedName("clientConfig") private val oldClientConfig: JsonElement? = null
+    @SerializedName("xraySettings") private val oldXraySettings: JsonElement? = null
+    @SerializedName("xrayConfig") private val oldXrayConfig: JsonElement? = null
     @SerializedName("turnableUrl") private val turnableUrl: String? = null
     @SerializedName("olcrtcUrl") private val olcrtcUrl: String? = null
     @SerializedName("webdavUrl") private val webdavUrl: String? = null
@@ -794,14 +794,17 @@ data class Profile(
     } && !wgConfig.isValid() && !vlessConfig.isValid()
 
     fun sanitize(defaultName: String = "Profile"): Profile {
-        val safeId = (id as Any?) as? String ?: java.util.UUID.randomUUID().toString()
-        val safeName = (name as Any?) as? String ?: defaultName
+        // GSON can bypass Kotlin's null-safety, so we must handle nulls manually
+        val safeId = (id as String?) ?: java.util.UUID.randomUUID().toString()
+        val safeName = (name as String?) ?: defaultName
         
-        var currentKc = kernelConfig
-        var prot = (xrayProtocol as Any?) as? XrayConfiguration ?: XrayConfiguration.WIREGUARD
-        var en = (xrayEnabled as Any?) as? Boolean ?: false
+        var currentKc = (kernelConfig as KernelConfig?) ?: KernelConfig.Turnable()
+        var prot = (xrayProtocol as XrayConfiguration?) ?: XrayConfiguration.WIREGUARD
+        var en = (xrayEnabled as Boolean?) ?: false
 
-        // Migration from URLs
+        val gson = GsonBuilder().registerTypeAdapterFactory(SafeEnumTypeAdapterFactory()).create()
+
+        // 1. Migration from URLs
         if (turnableUrl?.isNotBlank() == true) {
             TurnableConfig.parse(turnableUrl)?.let { currentKc = KernelConfig.Turnable(it) }
         } else if (olcrtcUrl?.isNotBlank() == true) {
@@ -810,7 +813,7 @@ data class Profile(
             WebdavConfig.parse(webdavUrl)?.let { currentKc = KernelConfig.Webdav(it) }
         }
 
-        // Migration from old fields
+        // 2. Migration from old top-level fields
         if (mKernelVariant != null && (mTurnableConfig != null || mOlcrtcConfig != null || mWebdavConfig != null)) {
              currentKc = when(mKernelVariant) {
                  KernelVariant.TURNABLE -> KernelConfig.Turnable(mTurnableConfig ?: TurnableConfig())
@@ -819,21 +822,43 @@ data class Profile(
              }
         }
 
-        // Migration from old nested ClientConfig format
-        if (oldClientConfig != null && (currentKc as? KernelConfig.Turnable)?.config?.routes?.isEmpty() == true) {
-            currentKc = when (oldClientConfig.kernelVariant) {
-                KernelVariant.TURNABLE -> KernelConfig.Turnable(oldClientConfig.turnableConfig)
-                KernelVariant.OLCRTC -> KernelConfig.Olcrtc(oldClientConfig.olcrtcConfig)
-                KernelVariant.WEBDAV -> KernelConfig.Webdav(oldClientConfig.webdavConfig)
-            }
+        // 3. Migration from old nested ClientConfig format (the most common case)
+        if (oldClientConfig != null && oldClientConfig.isJsonObject && 
+            (currentKc !is KernelConfig.Turnable || currentKc.config.routes.isEmpty())) {
+            try {
+                val obj = oldClientConfig.asJsonObject
+                val variantStr = obj.get("kernelVariant")?.asString
+                val variant = try { KernelVariant.valueOf(variantStr ?: "") } catch (_: Exception) { KernelVariant.TURNABLE }
+                
+                currentKc = when (variant) {
+                    KernelVariant.TURNABLE -> {
+                        val tcElement = obj.get("turnableConfig")
+                        KernelConfig.Turnable(gson.fromJson(tcElement, TurnableConfig::class.java) ?: TurnableConfig())
+                    }
+                    KernelVariant.OLCRTC -> {
+                        val ocElement = obj.get("olcrtcConfig")
+                        KernelConfig.Olcrtc(gson.fromJson(ocElement, OlcrtcConfig::class.java) ?: OlcrtcConfig())
+                    }
+                    KernelVariant.WEBDAV -> {
+                        val wdcElement = obj.get("webdavConfig")
+                        KernelConfig.Webdav(gson.fromJson(wdcElement, WebdavConfig::class.java) ?: WebdavConfig())
+                    }
+                }
+            } catch (_: Exception) { }
         }
 
-        // Migration from old nested Xray format (objects)
-        if (oldXraySettings != null && !en) {
-            en = (oldXraySettings as? Map<*, *>)?.get("xrayEnabled") as? Boolean ?: false
+        // 4. Migration from old nested Xray format (xraySettings object)
+        if (oldXraySettings != null && oldXraySettings.isJsonObject) {
+            val obj = oldXraySettings.asJsonObject
+            if (!en) {
+                en = try { obj.get("xrayEnabled")?.asBoolean ?: obj.get("enabled")?.asBoolean ?: false } catch (_: Exception) { false }
+            }
         }
-        if (oldXrayConfig != null && prot == XrayConfiguration.WIREGUARD) {
-            val oldType = (oldXrayConfig as? Map<*, *>)?.get("xrayConfiguration")?.toString()
+        
+        // 5. Migration from old nested Xray format (xrayConfig object)
+        if (oldXrayConfig != null && oldXrayConfig.isJsonObject && (prot == null || prot == XrayConfiguration.WIREGUARD)) {
+            val obj = oldXrayConfig.asJsonObject
+            val oldType = try { obj.get("xrayConfiguration")?.asString ?: obj.get("protocol")?.asString } catch (_: Exception) { null }
             if (oldType != null) try { prot = XrayConfiguration.valueOf(oldType) } catch(_: Exception) {}
         }
 
@@ -856,7 +881,7 @@ data class Profile(
             id = safeId,
             name = finalName,
             kernelConfig = sanitizedKc,
-            xrayProtocol = prot,
+            xrayProtocol = prot ?: XrayConfiguration.WIREGUARD,
             xrayEnabled = en,
             vlessConfig = vc,
             wgConfig = wgc
