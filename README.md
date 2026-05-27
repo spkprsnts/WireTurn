@@ -71,6 +71,7 @@ WireTurn интегрирует возможности **Turnable**, **olcRTC** 
 
 - **[Настройка сервера Turnable](docs/guides/turnable.md)**
 - **[Настройка сервера olcRTC](docs/guides/olcrtc.md)**
+- **[Спецификация генерации профилей (JSON)](docs/generate_profiles.md)**
 
 ## Стек технологий
 
