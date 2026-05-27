@@ -78,6 +78,8 @@ jobs:
             app/src/main/jniLibs/*/libsw*.so
             app/src/main/jniLibs/*/libpostproc.so
           key: ${{ runner.os }}-ffmpeg-${{ steps.vars.outputs.ndk_version }}-${{ hashFiles('build.sh', 'external/ffmpeg-android-maker/**') }}
+          restore-keys: |
+            ${{ runner.os }}-ffmpeg-${{ steps.vars.outputs.ndk_version }}-
 
       - name: Cache Native Binaries (Go/C)
         uses: actions/cache@v5
@@ -88,7 +90,10 @@ jobs:
             app/src/main/jniLibs/*/libxray.so
             app/src/main/jniLibs/*/libturnable.so
             app/src/main/jniLibs/*/libhevsocks5.so
-          key: ${{ runner.os }}-native-${{ steps.vars.outputs.ndk_version }}-${{ hashFiles('build.sh', 'external/olcrtc/**', 'external/vless-client/**', 'external/turnable/**', 'external/hev-socks5-tunnel/**') }}
+            app/src/main/jniLibs/*/libwebdav.so
+          key: ${{ runner.os }}-native-${{ steps.vars.outputs.ndk_version }}-${{ hashFiles('build.sh', 'external/olcrtc/**', 'external/vless-client/**', 'external/turnable/**', 'external/hev-socks5-tunnel/**', 'external/webdav-tunnel/**') }}
+          restore-keys: |
+            ${{ runner.os }}-native-${{ steps.vars.outputs.ndk_version }}-
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
