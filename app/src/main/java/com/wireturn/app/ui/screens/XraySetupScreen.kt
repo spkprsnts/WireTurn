@@ -139,7 +139,7 @@ fun XraySetupScreen(
         WgConfig(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive)
     }
     val currentVless = remember(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessMux, initialVlessConfig) {
-        VlessConfig(vlessLink, initialVlessConfig.vlessUseLocalAddress, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessMux)
+        VlessConfig(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessMux)
     }
 
     val isModified by remember(xrayConfiguration, currentWg, currentVless, initialXrayConfig, initialWgConfig, initialVlessConfig, canChangeProtocol) {
@@ -224,7 +224,7 @@ fun XraySetupScreen(
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     showExitDialog.value = false
                     val wg = WgConfig(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive)
-                    val vless = VlessConfig(vlessLink, initialVlessConfig.vlessUseLocalAddress, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessMux)
+                    val vless = VlessConfig(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessMux)
                     onSave(xrayConfiguration, wg, vless)
                 }) {
                     Text(stringResource(R.string.btn_save))
@@ -370,7 +370,7 @@ fun XraySetupScreen(
                     onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         val wg = WgConfig(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive)
-                        val vless = VlessConfig(vlessLink, initialVlessConfig.vlessUseLocalAddress, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessMux)
+                        val vless = VlessConfig(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessMux)
                         onSave(xrayConfiguration, wg, vless)
                     },
                     containerColor = MaterialTheme.colorScheme.primaryContainer,

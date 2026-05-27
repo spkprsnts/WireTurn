@@ -669,7 +669,6 @@ data class XrayConfig(
 
 data class VlessConfig(
     @SerializedName("vlessLink") val vlessLink: String = "",
-    @SerializedName("vlessUseLocalAddress") val vlessUseLocalAddress: Boolean = true,
     @SerializedName("isDualRoute") val isDualRoute: Boolean = false,
     @SerializedName("directAddress") val directAddress: String = "",
     @SerializedName("hcInterval") val hcInterval: String = "30",
@@ -765,7 +764,13 @@ data class Profile(
     @SerializedName("wgConfig") val wgConfig: WgConfig = WgConfig(),
     @SerializedName("vlessConfig") val vlessConfig: VlessConfig = VlessConfig()
 ) {
-    // Migration fields — moved out of constructor so they are not serialized back to JSON
+    // --- STABLE INPUT FIELDS (Used for profile generation and deep linking) ---
+    @SerializedName("turnableUrl") private val turnableUrl: String? = null
+    @SerializedName("olcrtcUrl") private val olcrtcUrl: String? = null
+    @SerializedName("webdavUrl") private val webdavUrl: String? = null
+    // --- END STABLE INPUT FIELDS ---
+
+    // --- TEMPORARY MIGRATION FIELDS (Will be removed in future versions) ---
     @SerializedName("kernelVariant") private val mKernelVariant: KernelVariant? = null
     @SerializedName("turnableConfig") private val mTurnableConfig: TurnableConfig? = null
     @SerializedName("olcrtcConfig") private val mOlcrtcConfig: OlcrtcConfig? = null
@@ -773,9 +778,7 @@ data class Profile(
     @SerializedName("clientConfig") private val oldClientConfig: JsonElement? = null
     @SerializedName("xraySettings") private val oldXraySettings: JsonElement? = null
     @SerializedName("xrayConfig") private val oldXrayConfig: JsonElement? = null
-    @SerializedName("turnableUrl") private val turnableUrl: String? = null
-    @SerializedName("olcrtcUrl") private val olcrtcUrl: String? = null
-    @SerializedName("webdavUrl") private val webdavUrl: String? = null
+    // --- END TEMPORARY MIGRATION FIELDS ---
 
     val kernelVariant: KernelVariant get() = when (kernelConfig) {
         is KernelConfig.Turnable -> KernelVariant.TURNABLE
@@ -804,7 +807,7 @@ data class Profile(
 
         val gson = GsonBuilder().registerTypeAdapterFactory(SafeEnumTypeAdapterFactory()).create()
 
-        // 1. Migration from URLs
+        // 1. INPUT: Profile generation from URLs (STABLE)
         if (turnableUrl?.isNotBlank() == true) {
             TurnableConfig.parse(turnableUrl)?.let { currentKc = KernelConfig.Turnable(it) }
         } else if (olcrtcUrl?.isNotBlank() == true) {
@@ -812,8 +815,9 @@ data class Profile(
         } else if (webdavUrl?.isNotBlank() == true) {
             WebdavConfig.parse(webdavUrl)?.let { currentKc = KernelConfig.Webdav(it) }
         }
+        // --- END INPUT ---
 
-        // 2. Migration from old top-level fields
+        // 2. MIGRATION: Old top-level fields (TEMPORARY)
         if (mKernelVariant != null && (mTurnableConfig != null || mOlcrtcConfig != null || mWebdavConfig != null)) {
              currentKc = when(mKernelVariant) {
                  KernelVariant.TURNABLE -> KernelConfig.Turnable(mTurnableConfig ?: TurnableConfig())
@@ -821,8 +825,9 @@ data class Profile(
                  KernelVariant.WEBDAV -> KernelConfig.Webdav(mWebdavConfig ?: WebdavConfig())
              }
         }
+        // --- END MIGRATION 2 ---
 
-        // 3. Migration from old nested ClientConfig format (the most common case)
+        // 3. MIGRATION: Old nested ClientConfig format (TEMPORARY)
         if (oldClientConfig != null && oldClientConfig.isJsonObject && 
             (currentKc !is KernelConfig.Turnable || currentKc.config.routes.isEmpty())) {
             try {
@@ -846,21 +851,24 @@ data class Profile(
                 }
             } catch (_: Exception) { }
         }
+        // --- END MIGRATION 3 ---
 
-        // 4. Migration from old nested Xray format (xraySettings object)
+        // 4. MIGRATION: Old nested Xray format - xraySettings (TEMPORARY)
         if (oldXraySettings != null && oldXraySettings.isJsonObject) {
             val obj = oldXraySettings.asJsonObject
             if (!en) {
                 en = try { obj.get("xrayEnabled")?.asBoolean ?: obj.get("enabled")?.asBoolean ?: false } catch (_: Exception) { false }
             }
         }
+        // --- END MIGRATION 4 ---
         
-        // 5. Migration from old nested Xray format (xrayConfig object)
+        // 5. MIGRATION: Old nested Xray format - xrayConfig (TEMPORARY)
         if (oldXrayConfig != null && oldXrayConfig.isJsonObject && (prot == null || prot == XrayConfiguration.WIREGUARD)) {
             val obj = oldXrayConfig.asJsonObject
             val oldType = try { obj.get("xrayConfiguration")?.asString ?: obj.get("protocol")?.asString } catch (_: Exception) { null }
             if (oldType != null) try { prot = XrayConfiguration.valueOf(oldType) } catch(_: Exception) {}
         }
+        // --- END MIGRATION 5 ---
 
         // Deep safety for WG and VLESS
         val wgc = (wgConfig as Any? as? WgConfig ?: WgConfig()).fillDefaults()
