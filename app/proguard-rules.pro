@@ -21,6 +21,8 @@
 # We keep members to ensure GSON can access fields via reflection
 # and that field names match JSON keys where @SerializedName is missing.
 -keep class com.wireturn.app.data.Profile { *; }
+-keep class com.wireturn.app.data.KernelConfig { *; }
+-keep class com.wireturn.app.data.KernelConfig$* { *; }
 -keep class com.wireturn.app.data.TurnableConfig { *; }
 -keep class com.wireturn.app.data.TurnableRoute { *; }
 -keep class com.wireturn.app.data.OlcrtcConfig { *; }
@@ -35,7 +37,8 @@
 -keep class com.wireturn.app.data.KernelSnapshot { *; }
 -keep class com.wireturn.app.data.OldClientConfig { *; }
 
-# Keep enums and their members
+# Keep enums and their members for GSON and reflection (valueOf)
+-keep enum com.wireturn.app.data.** { *; }
 -keepclassmembers enum com.wireturn.app.data.** { *; }
 
 # ── JNI / Native ──────────────────────────────────────────────────────────────
