@@ -411,11 +411,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             prefs.saveClientConfig(config)
             val profile = profiles.value.find { it.id == currentProfileId.value } ?: return@launch
-            val updatedProfile = when (val k = config.kernelConfig) {
-                is KernelConfig.Turnable -> profile.copy(kernelVariant = KernelVariant.TURNABLE, turnableConfig = k.config)
-                is KernelConfig.Olcrtc -> profile.copy(kernelVariant = KernelVariant.OLCRTC, olcrtcConfig = k.config)
-                is KernelConfig.Webdav -> profile.copy(kernelVariant = KernelVariant.WEBDAV, webdavConfig = k.config)
-            }
+            val updatedProfile = profile.copy(kernelConfig = config.kernelConfig)
             prefs.saveActiveProfilePart(updatedProfile)
             updateCurrentProfileInList()
         }
@@ -572,11 +568,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun updateCurrentProfileInList() {
         val curId = currentProfileId.value
         val profile = profiles.value.find { it.id == curId } ?: return
-        val withKernel = when (val k = _clientConfig.value.kernelConfig) {
-            is KernelConfig.Turnable -> profile.copy(kernelVariant = KernelVariant.TURNABLE, turnableConfig = k.config)
-            is KernelConfig.Olcrtc -> profile.copy(kernelVariant = KernelVariant.OLCRTC, olcrtcConfig = k.config)
-            is KernelConfig.Webdav -> profile.copy(kernelVariant = KernelVariant.WEBDAV, webdavConfig = k.config)
-        }
+        val withKernel = profile.copy(kernelConfig = _clientConfig.value.kernelConfig)
         profileManager.updateCurrentProfile(withKernel.copy(
             xrayProtocol = _xrayConfig.value.protocol,
             xrayEnabled = _xrayConfig.value.enabled,
@@ -605,17 +597,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         val id = java.util.UUID.randomUUID().toString()
         val defaultName = getApplication<Application>().getString(R.string.profile_default_name)
-        val kernelVariant = clientConfig.kernelVariant
-        val turnableConfig = (clientConfig.kernelConfig as? KernelConfig.Turnable)?.config ?: TurnableConfig()
-        val olcrtcConfig = (clientConfig.kernelConfig as? KernelConfig.Olcrtc)?.config ?: OlcrtcConfig()
-        val webdavConfig = (clientConfig.kernelConfig as? KernelConfig.Webdav)?.config ?: WebdavConfig()
         val newProfile = Profile(
             id = id,
             name = name,
-            kernelVariant = kernelVariant,
-            turnableConfig = turnableConfig,
-            olcrtcConfig = olcrtcConfig,
-            webdavConfig = webdavConfig,
+            kernelConfig = clientConfig.kernelConfig,
             xrayProtocol = xrayConfig.protocol,
             xrayEnabled = xrayConfig.enabled,
             wgConfig = wgConfig,

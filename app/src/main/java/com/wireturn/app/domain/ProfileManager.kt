@@ -26,6 +26,7 @@ class ProfileManager(
 
     private val gson = com.google.gson.GsonBuilder()
         .registerTypeAdapterFactory(com.wireturn.app.data.SafeEnumTypeAdapterFactory())
+        .registerTypeAdapter(com.wireturn.app.data.KernelConfig::class.java, com.wireturn.app.data.KernelConfigAdapter())
         .create()
 
     fun selectProfile(id: String, profile: Profile? = null, onConfigLoaded: (Profile) -> Unit) {

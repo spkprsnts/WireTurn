@@ -12,6 +12,12 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonDeserializer
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
+import com.google.gson.JsonSerializationContext
+import com.google.gson.JsonSerializer
 import com.google.gson.TypeAdapter
 import com.google.gson.TypeAdapterFactory
 import com.google.gson.annotations.SerializedName
@@ -55,6 +61,39 @@ class SafeEnumTypeAdapterFactory : TypeAdapterFactory {
                 }
             }
         }.nullSafe()
+    }
+}
+
+class KernelConfigAdapter : JsonDeserializer<KernelConfig>, JsonSerializer<KernelConfig> {
+    override fun serialize(src: KernelConfig, typeOfSrc: java.lang.reflect.Type, context: JsonSerializationContext): JsonElement {
+        val jsonObject = JsonObject()
+        when (src) {
+            is KernelConfig.Turnable -> {
+                jsonObject.addProperty("type", "turnable")
+                jsonObject.add("config", context.serialize(src.config))
+            }
+            is KernelConfig.Olcrtc -> {
+                jsonObject.addProperty("type", "olcrtc")
+                jsonObject.add("config", context.serialize(src.config))
+            }
+            is KernelConfig.Webdav -> {
+                jsonObject.addProperty("type", "webdav")
+                jsonObject.add("config", context.serialize(src.config))
+            }
+        }
+        return jsonObject
+    }
+
+    override fun deserialize(json: JsonElement, typeOfT: java.lang.reflect.Type, context: JsonDeserializationContext): KernelConfig {
+        val jsonObject = try { json.asJsonObject } catch(_: Exception) { return KernelConfig.Turnable() }
+        val type = jsonObject.get("type")?.asString ?: "turnable"
+        val configElement = jsonObject.get("config")
+        return when (type) {
+            "turnable" -> KernelConfig.Turnable(context.deserialize(configElement, TurnableConfig::class.java) ?: TurnableConfig())
+            "olcrtc" -> KernelConfig.Olcrtc(context.deserialize(configElement, OlcrtcConfig::class.java) ?: OlcrtcConfig())
+            "webdav" -> KernelConfig.Webdav(context.deserialize(configElement, WebdavConfig::class.java) ?: WebdavConfig())
+            else -> KernelConfig.Turnable()
+        }
     }
 }
 
@@ -499,7 +538,10 @@ data class ClientConfig(
     val socksUser: String = "",
     val socksPass: String = "",
     val goDnsGo: Boolean = false,
-    val kernelConfig: KernelConfig = KernelConfig.Turnable()
+    val kernelConfig: KernelConfig = KernelConfig.Turnable(),
+    @SerializedName("turnableUrl") val turnableUrl: String = "",
+    @SerializedName("olcrtcUrl") val olcrtcUrl: String = "",
+    @SerializedName("webdavUrl") val webdavUrl: String = ""
 ) {
     val kernelVariant: KernelVariant get() = when (kernelConfig) {
         is KernelConfig.Turnable -> KernelVariant.TURNABLE
@@ -514,12 +556,25 @@ data class ClientConfig(
         val validListen = if (ValidatorUtils.isValidHostPort(listenAddr)) listenAddr else DEFAULT_LISTEN_ADDR
         val validSocks = if (ValidatorUtils.isValidHostPort(socksAddr)) socksAddr else DEFAULT_SOCKS_ADDR
 
+        var currentKc = kernelConfig
+        if (turnableUrl.isNotBlank()) {
+            TurnableConfig.parse(turnableUrl)?.let { currentKc = KernelConfig.Turnable(it) }
+        } else if (olcrtcUrl.isNotBlank()) {
+            OlcrtcConfig.parse(olcrtcUrl)?.let { currentKc = KernelConfig.Olcrtc(it) }
+        } else if (webdavUrl.isNotBlank()) {
+            WebdavConfig.parse(webdavUrl)?.let { currentKc = KernelConfig.Webdav(it) }
+        }
+
         var current = this.copy(
             listenAddr = validListen,
             socksAddr = validSocks,
             socksUser = cleanedUser,
             socksPass = cleanedPass,
-            goDnsGo = goDnsGo
+            goDnsGo = goDnsGo,
+            kernelConfig = currentKc,
+            turnableUrl = "",
+            olcrtcUrl = "",
+            webdavUrl = ""
         )
 
         if (current.isSocksAuthEnabled && (current.socksUser.isBlank() || current.socksPass.isBlank())) {
@@ -530,7 +585,7 @@ data class ClientConfig(
             )
         }
         return current.copy(
-            kernelConfig = when (val k = kernelConfig) {
+            kernelConfig = when (val k = current.kernelConfig) {
                 is KernelConfig.Turnable -> KernelConfig.Turnable(k.config.sanitize())
                 is KernelConfig.Olcrtc -> KernelConfig.Olcrtc(k.config.fillDefaults())
                 is KernelConfig.Webdav -> KernelConfig.Webdav(k.config.fillDefaults())
@@ -704,42 +759,73 @@ internal data class OldClientConfig(
 data class Profile(
     @SerializedName("id") val id: String,
     @SerializedName("name") val name: String,
-    @SerializedName("kernelVariant") val kernelVariant: KernelVariant = KernelVariant.TURNABLE,
-    @SerializedName("turnableConfig") val turnableConfig: TurnableConfig = TurnableConfig(),
-    @SerializedName("olcrtcConfig") val olcrtcConfig: OlcrtcConfig = OlcrtcConfig(),
-    @SerializedName("webdavConfig") val webdavConfig: WebdavConfig = WebdavConfig(),
+    @SerializedName("kernelConfig") val kernelConfig: KernelConfig = KernelConfig.Turnable(),
     @SerializedName("xrayProtocol", alternate = ["protocol", "xrayConfiguration"]) val xrayProtocol: XrayConfiguration = XrayConfiguration.WIREGUARD,
     @SerializedName("xrayEnabled", alternate = ["enabled"]) val xrayEnabled: Boolean = false,
     @SerializedName("wgConfig") val wgConfig: WgConfig = WgConfig(),
     @SerializedName("vlessConfig") val vlessConfig: VlessConfig = VlessConfig()
 ) {
     // Migration fields — set by Gson via reflection, not part of data class equality/copy
+    @SerializedName("kernelVariant") private val mKernelVariant: KernelVariant? = null
+    @SerializedName("turnableConfig") private val mTurnableConfig: TurnableConfig? = null
+    @SerializedName("olcrtcConfig") private val mOlcrtcConfig: OlcrtcConfig? = null
+    @SerializedName("webdavConfig") private val mWebdavConfig: WebdavConfig? = null
     @SerializedName("clientConfig") private val oldClientConfig: OldClientConfig? = null
     @SerializedName("xraySettings") private val oldXraySettings: Any? = null
     @SerializedName("xrayConfig") private val oldXrayConfig: Any? = null
-    fun isEmpty(): Boolean = !turnableConfig.isValid() &&
-            !olcrtcConfig.isValid() &&
-            !webdavConfig.isValid() &&
-            !wgConfig.isValid() &&
-            !vlessConfig.isValid()
+    @SerializedName("turnableUrl") private val turnableUrl: String? = null
+    @SerializedName("olcrtcUrl") private val olcrtcUrl: String? = null
+    @SerializedName("webdavUrl") private val webdavUrl: String? = null
+
+    val kernelVariant: KernelVariant get() = when (kernelConfig) {
+        is KernelConfig.Turnable -> KernelVariant.TURNABLE
+        is KernelConfig.Olcrtc -> KernelVariant.OLCRTC
+        is KernelConfig.Webdav -> KernelVariant.WEBDAV
+    }
+
+    val turnableConfig: TurnableConfig get() = (kernelConfig as? KernelConfig.Turnable)?.config ?: TurnableConfig()
+    val olcrtcConfig: OlcrtcConfig get() = (kernelConfig as? KernelConfig.Olcrtc)?.config ?: OlcrtcConfig()
+    val webdavConfig: WebdavConfig get() = (kernelConfig as? KernelConfig.Webdav)?.config ?: WebdavConfig()
+
+    fun isEmpty(): Boolean = when (val k = kernelConfig) {
+        is KernelConfig.Turnable -> !k.config.isValid()
+        is KernelConfig.Olcrtc -> !k.config.isValid()
+        is KernelConfig.Webdav -> !k.config.isValid()
+    } && !wgConfig.isValid() && !vlessConfig.isValid()
 
     fun sanitize(defaultName: String = "Profile"): Profile {
         val safeId = (id as Any?) as? String ?: java.util.UUID.randomUUID().toString()
         val safeName = (name as Any?) as? String ?: defaultName
         
-        var kv = (kernelVariant as Any?) as? KernelVariant ?: KernelVariant.TURNABLE
-        var tc = (turnableConfig as Any?) as? TurnableConfig ?: TurnableConfig()
-        var oc = (olcrtcConfig as Any?) as? OlcrtcConfig ?: OlcrtcConfig()
-        var wdc = (webdavConfig as Any?) as? WebdavConfig ?: WebdavConfig()
+        var currentKc = kernelConfig
         var prot = (xrayProtocol as Any?) as? XrayConfiguration ?: XrayConfiguration.WIREGUARD
         var en = (xrayEnabled as Any?) as? Boolean ?: false
 
+        // Migration from URLs
+        if (turnableUrl?.isNotBlank() == true) {
+            TurnableConfig.parse(turnableUrl)?.let { currentKc = KernelConfig.Turnable(it) }
+        } else if (olcrtcUrl?.isNotBlank() == true) {
+            OlcrtcConfig.parse(olcrtcUrl)?.let { currentKc = KernelConfig.Olcrtc(it) }
+        } else if (webdavUrl?.isNotBlank() == true) {
+            WebdavConfig.parse(webdavUrl)?.let { currentKc = KernelConfig.Webdav(it) }
+        }
+
+        // Migration from old fields
+        if (mKernelVariant != null && (mTurnableConfig != null || mOlcrtcConfig != null || mWebdavConfig != null)) {
+             currentKc = when(mKernelVariant) {
+                 KernelVariant.TURNABLE -> KernelConfig.Turnable(mTurnableConfig ?: TurnableConfig())
+                 KernelVariant.OLCRTC -> KernelConfig.Olcrtc(mOlcrtcConfig ?: OlcrtcConfig())
+                 KernelVariant.WEBDAV -> KernelConfig.Webdav(mWebdavConfig ?: WebdavConfig())
+             }
+        }
+
         // Migration from old nested ClientConfig format
-        if (oldClientConfig != null && (tc.routes?.isEmpty() ?: true) && !oc.isValid() && !wdc.isValid()) {
-            kv = oldClientConfig.kernelVariant
-            tc = oldClientConfig.turnableConfig
-            oc = oldClientConfig.olcrtcConfig
-            wdc = oldClientConfig.webdavConfig
+        if (oldClientConfig != null && (currentKc as? KernelConfig.Turnable)?.config?.routes?.isEmpty() == true) {
+            currentKc = when (oldClientConfig.kernelVariant) {
+                KernelVariant.TURNABLE -> KernelConfig.Turnable(oldClientConfig.turnableConfig)
+                KernelVariant.OLCRTC -> KernelConfig.Olcrtc(oldClientConfig.olcrtcConfig)
+                KernelVariant.WEBDAV -> KernelConfig.Webdav(oldClientConfig.webdavConfig)
+            }
         }
 
         // Migration from old nested Xray format (objects)
@@ -756,17 +842,20 @@ data class Profile(
         val vc = (vlessConfig as Any? as? VlessConfig ?: VlessConfig()).sanitize()
 
         val finalName = safeName.takeIf { it.isNotBlank() }?.take(100) ?: defaultName
-        val finalOc = oc.sanitize().let {
-            if (it.mimo.isBlank()) it.copy(mimo = finalName) else it
+        
+        val sanitizedKc = when (currentKc) {
+            is KernelConfig.Turnable -> KernelConfig.Turnable(currentKc.config.sanitize())
+            is KernelConfig.Olcrtc -> {
+                val sc = currentKc.config.sanitize()
+                KernelConfig.Olcrtc(if (sc.mimo.isBlank()) sc.copy(mimo = finalName) else sc)
+            }
+            is KernelConfig.Webdav -> KernelConfig.Webdav(currentKc.config.fillDefaults())
         }
 
         return copy(
             id = safeId,
             name = finalName,
-            kernelVariant = kv,
-            turnableConfig = tc.sanitize(),
-            olcrtcConfig = finalOc,
-            webdavConfig = wdc.fillDefaults(),
+            kernelConfig = sanitizedKc,
             xrayProtocol = prot,
             xrayEnabled = en,
             vlessConfig = vc,
@@ -774,15 +863,15 @@ data class Profile(
         )
     }
 
-    fun getKernelDescription(context: Context): String = when (kernelVariant) {
-        KernelVariant.TURNABLE -> {
-            val route = turnableConfig.routes.find { it.routeId == turnableConfig.selectedRouteId }
-            val routeName = route?.name?.ifBlank { route.routeId } ?: turnableConfig.selectedRouteId
+    fun getKernelDescription(context: Context): String = when (val k = kernelConfig) {
+        is KernelConfig.Turnable -> {
+            val route = k.config.routes.find { it.routeId == k.config.selectedRouteId }
+            val routeName = route?.name?.ifBlank { route.routeId } ?: k.config.selectedRouteId
             context.getString(R.string.kernel_turnable) + " r:" + routeName
         }
 
-        KernelVariant.OLCRTC -> context.getString(R.string.kernel_olcrtc) + " " + olcrtcConfig.providerDisplayName
-        KernelVariant.WEBDAV -> context.getString(R.string.kernel_webdav) + " " + WebdavConfig.formatHost(webdavConfig.webdav)
+        is KernelConfig.Olcrtc -> context.getString(R.string.kernel_olcrtc) + " " + k.config.providerDisplayName
+        is KernelConfig.Webdav -> context.getString(R.string.kernel_webdav) + " " + WebdavConfig.formatHost(k.config.webdav)
     }
 }
 
@@ -803,7 +892,10 @@ data class AutoLaunchSettings(
 
 class AppPreferences(val context: Context) {
     private val appCtx = context.applicationContext
-    private val gson = GsonBuilder().registerTypeAdapterFactory(SafeEnumTypeAdapterFactory()).create()
+    private val gson = GsonBuilder()
+        .registerTypeAdapterFactory(SafeEnumTypeAdapterFactory())
+        .registerTypeAdapter(KernelConfig::class.java, KernelConfigAdapter())
+        .create()
 
     companion object {
         val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
@@ -1000,10 +1092,10 @@ class AppPreferences(val context: Context) {
         .map { (gson.fromJson(it[ACTIVE_VLESS_JSON] ?: "{}", VlessConfig::class.java) ?: VlessConfig()) }
         .distinctUntilChanged()
 
-    private fun kernelSnapshotOf(profile: Profile): KernelSnapshot = when (profile.kernelVariant) {
-        KernelVariant.TURNABLE -> KernelSnapshot(variant = KernelVariant.TURNABLE.name, turnable = profile.turnableConfig)
-        KernelVariant.OLCRTC -> KernelSnapshot(variant = KernelVariant.OLCRTC.name, olcrtc = profile.olcrtcConfig)
-        KernelVariant.WEBDAV -> KernelSnapshot(variant = KernelVariant.WEBDAV.name, webdav = profile.webdavConfig)
+    private fun kernelSnapshotOf(profile: Profile): KernelSnapshot = when (val k = profile.kernelConfig) {
+        is KernelConfig.Turnable -> KernelSnapshot(variant = KernelVariant.TURNABLE.name, turnable = k.config)
+        is KernelConfig.Olcrtc -> KernelSnapshot(variant = KernelVariant.OLCRTC.name, olcrtc = k.config)
+        is KernelConfig.Webdav -> KernelSnapshot(variant = KernelVariant.WEBDAV.name, webdav = k.config)
     }
 
     suspend fun saveFullProfile(id: String, profile: Profile) {
