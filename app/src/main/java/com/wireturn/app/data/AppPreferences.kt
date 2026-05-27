@@ -682,10 +682,18 @@ data class VlessConfig(
         mux = (mux as Any?)?.toString()?.take(20) ?: "0"
     )
 
-    fun fillDefaults(): VlessConfig = copy(
-        hcInterval = hcInterval.ifBlank { "30" },
-        mux = mux.ifBlank { "0" }
-    )
+    fun fillDefaults(): VlessConfig {
+        var current = this.copy(
+            hcInterval = hcInterval.ifBlank { "30" },
+            mux = mux.ifBlank { "0" }
+        )
+        if (current.isDualRoute && current.directAddress.isBlank()) {
+            ValidatorUtils.parseVlessAddress(current.vlessLink)?.let {
+                current = current.copy(directAddress = it)
+            }
+        }
+        return current
+    }
 }
 
 data class WgConfig(
@@ -872,7 +880,7 @@ data class Profile(
 
         // Deep safety for WG and VLESS
         val wgc = (wgConfig as Any? as? WgConfig ?: WgConfig()).fillDefaults()
-        val vc = (vlessConfig as Any? as? VlessConfig ?: VlessConfig()).sanitize()
+        val vc = (vlessConfig as Any? as? VlessConfig ?: VlessConfig()).sanitize().fillDefaults()
 
         val finalName = safeName.takeIf { it.isNotBlank() }?.take(100) ?: defaultName
         
