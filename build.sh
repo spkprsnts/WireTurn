@@ -38,7 +38,7 @@ needs_rebuild() {
     # В CI среде (GitHub Actions) файлы всегда "новые" после checkout.
     # Мы доверяем ключу кэша и не проверяем дату изменения.
     [ "$CI" = "true" ] && return 1
-    [ -n "$(find "$1" -maxdepth 5 -name "*.go" -newer "$2" -print -quit)" ] && return 0
+    [ -n "$(find "$1" -maxdepth 5 \( -name "*.go" -o -name "go.mod" -o -name "go.sum" \) -newer "$2" -print -quit)" ] && return 0
     return 1
 }
 
@@ -79,7 +79,7 @@ build_hev_tunnel() {
     for abi in arm64-v8a x86_64; do
         [ ! -f "$JNI_LIBS_DIR/$abi/$out_name" ] && needs_build=1 && break
         if [ "$CI" != "true" ]; then
-            [ -n "$(find src third-part -maxdepth 6 -name "*.c" -newer "$JNI_LIBS_DIR/$abi/$out_name" -print -quit 2>/dev/null)" ] && needs_build=1 && break
+            [ -n "$(find src third-part -maxdepth 6 -type f -newer "$JNI_LIBS_DIR/$abi/$out_name" -print -quit 2>/dev/null)" ] && needs_build=1 && break
         fi
     done
     [ "$needs_build" = "0" ] && return 0
