@@ -6,6 +6,8 @@
 package com.wireturn.app.ui.screens.cores
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.Spring
@@ -37,6 +39,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -44,6 +47,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -52,10 +57,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -63,6 +70,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
 import com.wireturn.app.data.OlcrtcConfig
+import com.wireturn.app.ui.AppDropdownMenu
+import com.wireturn.app.ui.AppSnackbar
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
@@ -78,6 +87,9 @@ import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SupportingText
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.redact
+import com.wireturn.app.ui.screens.QrScannerDialog
+import com.wireturn.app.ui.showExclusiveSnackbar
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @Composable
@@ -97,6 +109,7 @@ fun OlcRtcConfigScreen(
 
     val showExitDialog = remember { mutableStateOf(false) }
     val showQrDialog = remember { mutableStateOf(false) }
+    val showQrScanner = remember { mutableStateOf(false) }
     val showMenu = remember { mutableStateOf(false) }
 
     val handleBack = {
@@ -113,10 +126,38 @@ fun OlcRtcConfigScreen(
     val showTransportDialog = remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
     val context = LocalContext.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val topAppBarState = rememberTopAppBarState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
         state = topAppBarState
+    )
+
+    val importSuccessMessage = stringResource(R.string.import_success)
+    val importErrorMessage = stringResource(R.string.import_error)
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+        onResult = { uri ->
+            uri?.let {
+                try {
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        val text = input.bufferedReader().use { r -> r.readText() }.trim()
+                        val parsed = OlcrtcConfig.parse(text)
+                        if (parsed != null) {
+                            config = parsed
+                            scope.launch { snackbarHostState.showExclusiveSnackbar(importSuccessMessage) }
+                        } else {
+                            scope.launch { snackbarHostState.showExclusiveSnackbar(importErrorMessage) }
+                        }
+                    }
+                } catch (_: Exception) {
+                    scope.launch { snackbarHostState.showExclusiveSnackbar(importErrorMessage) }
+                }
+            }
+        }
     )
 
     if (showExitDialog.value) {
@@ -146,12 +187,66 @@ fun OlcRtcConfigScreen(
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        snackbarHost = {
+            SnackbarHost(
+                hostState = snackbarHostState
+            ) { data ->
+                AppSnackbar(data)
+            }
+        },
         topBar = {
             AppTopAppBar(
                 title = stringResource(R.string.kernel_olcrtc),
                 onBack = handleBack,
                 scrollBehavior = scrollBehavior,
                 actions = {
+                    IconButton(onClick = { showQrScanner.value = true }) {
+                        Icon(
+                            painter = painterResource(R.drawable.qr_code_24px),
+                            contentDescription = stringResource(R.string.qr_import)
+                        )
+                    }
+
+                    var showImportMenu by remember { mutableStateOf(false) }
+                    IconButton(onClick = { showImportMenu = true }) {
+                        Icon(
+                            painter = painterResource(R.drawable.note_add_24px),
+                            contentDescription = stringResource(R.string.profile_import_group)
+                        )
+                        AppDropdownMenu(
+                            expanded = showImportMenu,
+                            onDismissRequest = { showImportMenu = false },
+                            title = stringResource(R.string.profile_import_group)
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.import_clipboard)) },
+                                leadingIcon = { Icon(painterResource(R.drawable.content_paste_24px), null) },
+                                onClick = {
+                                    showImportMenu = false
+                                    scope.launch {
+                                        val clipEntry = clipboard.getClipEntry()
+                                        val text = clipEntry?.clipData?.getItemAt(0)?.text?.toString() ?: ""
+                                        val parsed = OlcrtcConfig.parse(text)
+                                        if (parsed != null) {
+                                            config = parsed
+                                            snackbarHostState.showExclusiveSnackbar(importSuccessMessage)
+                                        } else if (text.isNotBlank()) {
+                                            snackbarHostState.showExclusiveSnackbar(importErrorMessage)
+                                        }
+                                    }
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.import_file)) },
+                                leadingIcon = { Icon(painterResource(R.drawable.file_open_24px), null) },
+                                onClick = {
+                                    showImportMenu = false
+                                    filePickerLauncher.launch("*/*")
+                                }
+                            )
+                        }
+                    }
+
                     if (isEditMode) {
                         Box {
                             IconButton(onClick = { showMenu.value = true }) {
@@ -569,6 +664,23 @@ fun OlcRtcConfigScreen(
         QrCodeDialog(
             text = config.toUri(profileName),
             onDismiss = { showQrDialog.value = false }
+        )
+    }
+
+    if (showQrScanner.value) {
+        QrScannerDialog(
+            title = stringResource(R.string.qr_import),
+            message = stringResource(R.string.qr_scan_desc),
+            onDismiss = { showQrScanner.value = false },
+            onResult = { result: String ->
+                val parsed = OlcrtcConfig.parse(result)
+                if (parsed != null) {
+                    config = parsed
+                    scope.launch { snackbarHostState.showExclusiveSnackbar(importSuccessMessage) }
+                } else {
+                    scope.launch { snackbarHostState.showExclusiveSnackbar(importErrorMessage) }
+                }
+            }
         )
     }
 }
