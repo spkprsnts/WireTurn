@@ -741,7 +741,7 @@ fun HomeScreen(
                                                         lastSuccessPing!!.ms
                                                     ),
                                                     style = MaterialTheme.typography.labelMedium,
-                                                    color = (if (lastSuccessPing!!.ms < 300) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error).copy(
+                                                    color = (if (lastSuccessPing!!.ms < 1100) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error).copy(
                                                         alpha = pulseAlpha
                                                     ),
                                                     fontWeight = FontWeight.Bold,
@@ -769,7 +769,7 @@ fun HomeScreen(
                                                     currentPing.ms
                                                 ),
                                                 style = MaterialTheme.typography.labelMedium,
-                                                color = if (currentPing.ms < 300) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
+                                                color = if (currentPing.ms < 1100) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
                                                 fontWeight = FontWeight.Bold,
                                                 contentAlignment = Alignment.Center
                                             )
