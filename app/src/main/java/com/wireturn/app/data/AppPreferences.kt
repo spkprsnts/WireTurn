@@ -155,7 +155,7 @@ data class TurnableConfig(
             callId.isNotBlank() &&
             gateway.isNotBlank() &&
             routes.isNotEmpty() &&
-            userUuid.isNullOrBlank()
+            !userUuid.isNullOrBlank()
 
 
     val platformDisplayName: String

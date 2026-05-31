@@ -430,6 +430,7 @@ fun TurnableConfigScreen(
             // server settings
             SectionGroup(title = stringResource(R.string.server_settings_title)) {
                 SectionItem(position = ItemPosition.Top) {
+                    val isUuidEmpty = config.userUuid.isNullOrBlank()
                     val invalidUuid = config.userUuid?.let { it.isNotBlank() && !ValidatorUtils.isValidUuid4(it) } ?: false
 
                     TextFieldRow(
@@ -439,7 +440,7 @@ fun TurnableConfigScreen(
                         readOnly = isPrivacyActive,
                         supportingText = stringResource(R.string.user_uuid_desc),
                         isModified = isEditMode && config.userUuid != initialConfig.userUuid,
-                        isError = config.userUuid.isNullOrBlank() || invalidUuid,
+                        isError = isUuidEmpty || invalidUuid,
                         privacyMode = isPrivacyActive
                     )
                 }
