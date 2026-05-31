@@ -492,6 +492,15 @@ class CoreService : Service() {
 
     private suspend fun handleTurnableLog(line: String, lower: String, state: BinaryOutputState): Boolean {
         // 1. Hard Errors (Watchdog won't help, needs manual fix)
+        if (lower.contains("call not found") || lower.contains("join link is not valid")) {
+            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_room_not_found)))
+                updateNotification(getString(R.string.error_connecting))
+            }
+            state.startupFailed = true
+            return true
+        }
+
         if (lower.contains("vk signaling connect rejected: not authorized") ||
             lower.contains("failed to validate connection url") ||
             lower.contains("second shutdown signal received") ||
@@ -506,6 +515,11 @@ class CoreService : Service() {
         }
 
         // 2. Soft Errors (Transient network issues, watchdog will restart)
+//        if (lower.contains("delay=30s")) {
+//            state.startupEmitted = true
+//            return true
+//        }
+
         val isSignalingLoopTerminated = lower.contains("vk signaling loop terminated")
         val isNormalClose = lower.contains("close 1000 (normal)")
 
@@ -661,6 +675,15 @@ class CoreService : Service() {
     }
 
     private suspend fun handleOlcrtcLog(line: String, lower: String, state: BinaryOutputState): Boolean {
+        if (lower.contains("join room failed: status 404") || lower.contains("guests cannot create rooms")) {
+            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_room_not_found)))
+                updateNotification(getString(R.string.error_connecting))
+            }
+            state.startupFailed = true
+            return true
+        }
+
         if (lower.contains("socks5 server listening on")) {
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                 CoreServiceState.setStatus(CoreStatus.Connected)

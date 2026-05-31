@@ -311,6 +311,7 @@
     <string name="error_invalid_auth_key">Invalid authorization key</string>
     <string name="log_core_slow_network_watchdog">* [Core] SLOW NETWORK DETECTED — increasing watchdog delay</string>
     <string name="error_turnable_failed">Turnable error: %1$s</string>
+    <string name="error_room_not_found">Room not found</string>
 
     <string name="error_release_info_failed">Could not get release information</string>
     <string name="error_process_no_output">Process finished with no output (code: %1$d)</string>

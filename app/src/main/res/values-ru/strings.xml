@@ -279,6 +279,7 @@
     <string name="error_invalid_auth_key">Неверный ключ авторизации</string>
     <string name="log_core_slow_network_watchdog">* [Core] МЕДЛЕННАЯ СЕТЬ — увеличение задержки перезапуска</string>
     <string name="error_turnable_failed">Ошибка Turnable: %1$s</string>
+    <string name="error_room_not_found">Комната не найдена</string>
 
     <string name="error_release_info_failed">Не удалось получить информацию о релизе</string>
     <string name="error_process_no_output">Процесс завершился без вывода (код: %1$d)</string>
