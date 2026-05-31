@@ -137,7 +137,7 @@ data class TurnableConfig(
     @SerializedName("selected_route_id") val selectedRouteId: String = ""
 ) {
     fun sanitize(): TurnableConfig = copy(
-        userUuid = (userUuid as Any?)?.toString()?.take(200),
+        userUuid = (userUuid as Any?)?.toString()?.trim()?.take(200),
         username = (username as Any?)?.toString()?.take(200) ?: "",
         platformId = (platformId as Any?)?.toString()?.take(200) ?: "vk.com",
         callId = (callId as Any?)?.toString()?.take(200) ?: "",
@@ -155,7 +155,7 @@ data class TurnableConfig(
             callId.isNotBlank() &&
             gateway.isNotBlank() &&
             routes.isNotEmpty() &&
-            (userUuid.isNullOrBlank() || ValidatorUtils.isValidUuid4(userUuid))
+            userUuid.isNullOrBlank()
 
 
     val platformDisplayName: String
