@@ -131,8 +131,8 @@ object MarkdownUtils {
     }
 
     private fun shortenGithubUrl(url: String): String {
-        val githubCommitRegex = Regex("https?://github\\.com/[\\w\\d\\-_]+/[\\w\\d\\-_]+/commit/([a-f0-9]{7,40})")
-        val githubCompareRegex = Regex("https?://github\\.com/[\\w\\d\\-_]+/[\\w\\d\\-_]+/compare/([^/?#]+)")
+        val githubCommitRegex = Regex("https?://github\\.com/[\\w\\-_]+/[\\w\\-_]+/commit/([a-f0-9]{7,40})")
+        val githubCompareRegex = Regex("https?://github\\.com/[\\w\\-_]+/[\\w\\-_]+/compare/([^/?#]+)")
 
         githubCommitRegex.find(url)?.let {
             val hash = it.groupValues[1]

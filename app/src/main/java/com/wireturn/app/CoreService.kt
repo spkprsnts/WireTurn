@@ -42,6 +42,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import java.util.regex.Pattern
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.milliseconds
 
 
 class CoreService : Service() {
@@ -104,7 +105,7 @@ class CoreService : Service() {
             if (!filledCfg.isValid) {
                 val errorRes = filledCfg.getValidationErrorResId() ?: R.string.error_settings_empty
                 CoreServiceState.setStatus(CoreStatus.Error(getString(errorRes)))
-                delay(3000)
+                delay(3_000.milliseconds)
                 withContext(Dispatchers.Main) { stopSelf() }
                 return@launch
             }
@@ -262,7 +263,7 @@ class CoreService : Service() {
                         // Stop current binary as we are moving to an invalid state
                         stopBinaryProcessGracefully()
 
-                        delay(3000)
+                        delay(3_000.milliseconds)
                         if (isActive && !userStopped.get()) {
                             withContext(Dispatchers.Main) { stopSelf() }
                         }
@@ -296,13 +297,13 @@ class CoreService : Service() {
         while (isActive && !userStopped.get()) {
             if (CoreServiceState.status.value is CoreStatus.Suppressed) {
                 // Если мы в режиме паузы, просто ждем сигнала к пробуждению
-                delay(1000)
+                delay(1_000.milliseconds)
                 continue
             }
 
             if (CoreServiceState.status.value is CoreStatus.WaitingForNetwork) {
                 // В режиме ожидания сети мы ничего не делаем, пока NetworkCallback не перезапустит нас
-                delay(1000)
+                delay(1_000.milliseconds)
                 continue
             }
 
@@ -333,7 +334,7 @@ class CoreService : Service() {
                     AppLogsState.addLog(getString(R.string.log_core_startup_failed))
                     CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_kernel_or_settings)))
                 }
-                delay(3000)
+                delay(3_000.milliseconds)
                 if (isActive && !userStopped.get()) {
                     withContext(Dispatchers.Main) { stopSelf() }
                 }
@@ -369,7 +370,7 @@ class CoreService : Service() {
             updateNotification(getString(R.string.notification_restart, restartCount, MAX_RESTARTS))
             
             CoreServiceState.setRestarting(true)
-            delay(delayMs)
+            delay(delayMs.milliseconds)
         }
     }
 
@@ -434,7 +435,7 @@ class CoreService : Service() {
                     } else {
                         state.connectingSince = 0L
                     }
-                    delay(1000)
+                    delay(1_000.milliseconds)
                 }
             }
 
@@ -997,11 +998,11 @@ class CoreService : Service() {
                     AppLogsState.addLog(getString(R.string.log_xray_config_change_restart))
                     withContext(Dispatchers.Main) {
                         stopService(Intent(this@CoreService, XrayService::class.java))
-                        delay(500)
+                        delay(500.milliseconds)
                         startForegroundService(Intent(this@CoreService, XrayService::class.java))
                     }
                 } else if (needsStart) {
-                    delay(500) // Debounce during profile switches
+                    delay(500.milliseconds) // Debounce during profile switches
                     withContext(Dispatchers.Main) {
                         val currentXrayState = XrayServiceState.state.value
                         val currentStatus = CoreServiceState.status.value
@@ -1061,7 +1062,7 @@ class CoreService : Service() {
                 session to isForeground
             }.collect { (session, isForeground) ->
                 if (session != null && !isForeground) {
-                    delay(1000)
+                    delay(1_000.milliseconds)
                     if (CoreServiceState.captchaSession.value != null && !AppLifecycleState.isAppInForeground.value) {
                         NotificationHelper.notifyCaptcha(this@CoreService, session.url, session.sessionId.toString())
                     }
@@ -1099,7 +1100,7 @@ class CoreService : Service() {
                     val prefs = AppPreferences(applicationContext)
                     if (!prefs.restartOnNetworkChangeFlow.first()) return@launch
 
-                    delay(2000)
+                    delay(2_000.milliseconds)
                     if (!userStopped.get() && process.get() != null) {
                         AppLogsState.addLog(getString(R.string.log_core_network_change))
                         updateNotification(getString(R.string.notification_network_change))

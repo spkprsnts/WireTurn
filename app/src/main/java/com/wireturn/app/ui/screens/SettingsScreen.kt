@@ -77,6 +77,7 @@ import com.wireturn.app.ui.selectableButtonItem
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.UpdateState
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun SettingsScreen(
@@ -318,7 +319,7 @@ fun SettingsScreen(
 
                 LaunchedEffect(localUrl, isUrlValid) {
                     if (isUrlValid && localUrl != autoLaunchSettings.checkUrl) {
-                        delay(200)
+                        delay(200.milliseconds)
                         if (localUrl != autoLaunchSettings.checkUrl) {
                             viewModel.updateAutoLaunchSettings(
                                 autoLaunchSettings.copy(
@@ -332,7 +333,7 @@ fun SettingsScreen(
 
                 LaunchedEffect(localInterval, isIntervalValid) {
                     if (isIntervalValid && minutesInt != autoLaunchSettings.intervalMinutes) {
-                        delay(600)
+                        delay(600.milliseconds)
                         viewModel.updateAutoLaunchSettings(autoLaunchSettings.copy(intervalMinutes = minutesInt))
                     }
                 }

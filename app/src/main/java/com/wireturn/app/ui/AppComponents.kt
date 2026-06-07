@@ -141,6 +141,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Local provider for interaction source to coordinate ripples between parent blocks and children.
@@ -1194,7 +1195,7 @@ fun HistoryDropdownMenu(
                         awaitFirstDown(requireUnconsumed = false)
                         var isLongPress = false
                         val job = scope.launch {
-                            delay(1500)
+                            delay(1500.milliseconds)
                             HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
                             isLongPress = true
                             HapticUtil.perform(context, HapticUtil.Pattern.ERROR)

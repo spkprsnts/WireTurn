@@ -71,6 +71,7 @@ import com.wireturn.app.viewmodel.CoreState
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.XrayState
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun CoreToggleButton(
@@ -127,7 +128,7 @@ fun CoreToggleButton(
                 // Если мы все еще в состоянии Connected после завершения флага перезапуска,
                 // ждем реального изменения состояния или сбрасываем по таймауту,
                 // чтобы "Перезапуск" не висел вечно.
-                delay(1000)
+                delay(1000.milliseconds)
                 wasActiveBeforeRestart = false
             }
         }
@@ -198,7 +199,7 @@ fun CoreToggleButton(
         previousToggleState = toggleState
 
         if (showTooltip) {
-            delay(5000)
+            delay(5000.milliseconds)
             showTooltip = false
         }
     }

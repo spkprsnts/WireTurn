@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.dropWhile
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Duration.Companion.milliseconds
 
 class CoreManager(private val context: Context) {
 
@@ -99,7 +100,7 @@ class CoreManager(private val context: Context) {
 
         CoreService.start(context, cfg)
 
-        val result = withTimeoutOrNull(20_000L) {
+        val result = withTimeoutOrNull(20_000L.milliseconds) {
             CoreServiceState.status
                 .dropWhile { it is CoreStatus.Idle || it is CoreStatus.Starting || it is CoreStatus.Stopping }
                 .first()
@@ -138,7 +139,7 @@ class CoreManager(private val context: Context) {
         resetJob?.cancel()
         _coreState.value = CoreState.Error(message)
         resetJob = scope.launch {
-            delay(4_000)
+            delay(4_000.milliseconds)
             if (_coreState.value is CoreState.Error) {
                 // Force reset local state to Idle
                 _coreState.value = CoreState.Idle

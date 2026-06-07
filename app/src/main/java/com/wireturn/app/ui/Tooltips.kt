@@ -17,6 +17,7 @@ import androidx.compose.ui.res.stringResource
 import com.wireturn.app.R
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun AppExclusionTooltip(
@@ -29,7 +30,7 @@ fun AppExclusionTooltip(
 
     LaunchedEffect(Unit) {
         if (!hintShown) {
-            delay(1000)
+            delay(1_000.milliseconds)
             launch {
                 tooltipState.show()
             }

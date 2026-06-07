@@ -91,6 +91,7 @@ import com.wireturn.app.ui.activities.cores.TurnableConfigActivity
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun ProfileSummary(
@@ -440,7 +441,7 @@ fun ProfilesDialog(
                 if (newIds.isNotEmpty()) {
                     highlightedIds.addAll(newIds)
                     scope.launch {
-                        delay(1000)
+                        delay(1_000.milliseconds)
                         highlightedIds.removeAll(newIds)
                     }
                 }
@@ -448,7 +449,7 @@ fun ProfilesDialog(
 
             // Scroll logic
             scope.launch {
-                delay(150) // Wait for layout update
+                delay(150.milliseconds) // Wait for layout update
                 if (isFirstLoad) {
                     val currentIndex = profiles.indexOfFirst { it.id == currentId }
                     if (currentIndex != -1) {
@@ -548,7 +549,7 @@ fun ProfilesDialog(
                     }
                 }
                 updateAutoScrollSpeed()
-                delay(8) // Немного быстрее цикл
+                delay(8.milliseconds) // Немного быстрее цикл
             }
         }
     }

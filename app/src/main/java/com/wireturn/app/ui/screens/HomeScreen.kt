@@ -132,6 +132,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.ln
 import kotlin.math.pow
+import kotlin.time.Duration.Companion.milliseconds
 
 @SuppressLint("BatteryLife")
 @Composable
@@ -222,9 +223,9 @@ fun HomeScreen(
             if (proxyPing is MainViewModel.PingResult.Success || proxyPing is MainViewModel.PingResult.Error) {
                 if (!isControlPingScheduled) {
                     isControlPingScheduled = true
-                    delay(1000)
+                    delay(1_000.milliseconds)
                 } else {
-                    delay(15000)
+                    delay(15_000.milliseconds)
                 }
 
                 if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
@@ -899,7 +900,7 @@ fun HomeScreen(
                         currentProfileId,
                         autoLaunchSettings.enabled
                     ) {
-                        delay(300)
+                        delay(300.milliseconds)
                         if (!configValid && xrayConfig.enabled && !autoLaunchSettings.enabled) {
                             viewModel.updateXrayConfig(viewModel.xrayConfig.value.copy(enabled = false))
                         }
@@ -1126,7 +1127,7 @@ fun HomeScreen(
                 var socksCopied by remember { mutableStateOf(false) }
                 LaunchedEffect(socksCopied) {
                     if (socksCopied) {
-                        delay(1500)
+                        delay(1_500.milliseconds)
                         socksCopied = false
                     }
                 }
@@ -1173,7 +1174,7 @@ fun HomeScreen(
                     var httpCopied by remember { mutableStateOf(false) }
                     LaunchedEffect(httpCopied) {
                         if (httpCopied) {
-                            delay(1500)
+                            delay(1_500.milliseconds)
                             httpCopied = false
                         }
                     }

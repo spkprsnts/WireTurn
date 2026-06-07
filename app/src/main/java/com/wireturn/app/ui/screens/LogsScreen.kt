@@ -67,6 +67,7 @@ import com.wireturn.app.ui.components.CoreToggleButton
 import com.wireturn.app.ui.theme.extendedColorScheme
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun LogsScreen(
@@ -131,7 +132,7 @@ fun LogsScreen(
                     var isCopied by remember { mutableStateOf(false) }
                     LaunchedEffect(isCopied) {
                         if (isCopied) {
-                            kotlinx.coroutines.delay(1500)
+                            kotlinx.coroutines.delay(1_500.milliseconds)
                             isCopied = false
                         }
                     }

@@ -31,6 +31,7 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.InterruptedIOException
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.time.Duration.Companion.milliseconds
 
 class XrayService : Service() {
 
@@ -409,7 +410,7 @@ class XrayService : Service() {
                             
                             // Force Xray to check connection after tunnel starts
                             CoreServiceState.isWorking.first { it }
-                            delay(500)
+                            delay(500.milliseconds)
                             try {
                                 withContext(Dispatchers.IO) {
                                     val socket = LocalSocket()

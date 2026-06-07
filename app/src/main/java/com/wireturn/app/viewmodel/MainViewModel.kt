@@ -48,6 +48,7 @@ import kotlinx.coroutines.withContext
 import java.net.InetSocketAddress
 import java.net.Proxy
 import kotlin.system.measureTimeMillis
+import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(kotlinx.coroutines.FlowPreview::class)
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -232,7 +233,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch {
                 var isFirstEmission = true
                 allowUnstableUpdates
-                    .debounce(2000)
+                    .debounce(2_000.milliseconds)
                     .collect { 
                         appUpdater.checkForUpdate(silent = true, allowUnstable = it, force = !isFirstEmission)
                         isFirstEmission = false
@@ -249,7 +250,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { coreManager.observeCoreServiceStatus() }
         viewModelScope.launch { coreManager.observeCaptchaEvents() }
         viewModelScope.launch {
-            delay(1500)
+            delay(1_500.milliseconds)
             XrayServiceState.state.collect { state ->
                 if (state == XrayState.Running || state == XrayState.DirectRoute) {
                     checkProxyPing(delayFirst = true)
@@ -278,7 +279,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         _proxyTransfer.value = null
                     }
                 }
-                delay(1000)
+                delay(1_000.milliseconds)
             }
         }
     }
@@ -364,7 +365,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 if (code in 200..399) return true
             } catch (_: Exception) {}
-            if (it < 2) delay(300)
+            if (it < 2) delay(300.milliseconds)
         }
         return false
     }
@@ -383,7 +384,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             CoreService.stop(getApplication(), byUser = false)
                         }
                     }
-                    delay(settings.intervalMinutes * 60 * 1000L)
+                    delay((settings.intervalMinutes * 60 * 1_000L).milliseconds)
                 }
             }
         }
@@ -476,7 +477,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     _proxyPing.value = null
                     return@launch 
                 }
-                if (delayFirst && attempt == 0) delay(1000)
+                if (delayFirst && attempt == 0) delay(1_000.milliseconds)
                 val res = withContext(Dispatchers.IO) {
                     try {
                         val parts = addr.split(":")
@@ -495,7 +496,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     _proxyPing.value = res
                     return@launch 
                 }
-                delay(1000)
+                delay(1_000.milliseconds)
             }
             _proxyPing.value = PingResult.Error
         }

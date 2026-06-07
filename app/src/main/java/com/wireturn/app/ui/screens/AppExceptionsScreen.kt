@@ -98,6 +98,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.time.Duration.Companion.milliseconds
 
 private object AppExceptionsDefaults {
     val IconSize = 32.dp
@@ -134,7 +135,7 @@ fun AppExceptionsScreen(
             isSearching = false
         } else if (searchQuery != appliedSearchQuery) {
             isSearching = true
-            delay(700)
+            delay(700.milliseconds)
             appliedSearchQuery = searchQuery
             isSearching = false
         }
@@ -151,7 +152,7 @@ fun AppExceptionsScreen(
             searchBarZIndex = 5f
             isSearchBarVisible = true
         } else {
-            delay(300)
+            delay(300.milliseconds)
             searchBarZIndex = 2f
         }
     }
@@ -258,7 +259,7 @@ fun AppExceptionsScreen(
     var newlyAddedPackages by remember { mutableStateOf(emptySet<String>()) }
     LaunchedEffect(newlyAddedPackages) {
         if (newlyAddedPackages.isNotEmpty()) {
-            delay(1500)
+            delay(1_500.milliseconds)
             newlyAddedPackages = emptySet()
         }
     }
