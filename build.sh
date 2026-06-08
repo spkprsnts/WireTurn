@@ -35,9 +35,19 @@ declare -A ARCH_MAP=( ["arm64-v8a"]="arm64;aarch64-linux-android" ["x86_64"]="am
 
 needs_rebuild() {
     [ ! -f "$2" ] && return 0
-    # В CI среде (GitHub Actions) файлы всегда "новые" после checkout.
-    # Мы доверяем ключу кэша и не проверяем дату изменения.
-    [ "$CI" = "true" ] && return 1
+
+    # В CI проверяем по хэшу коммита сабмодуля
+    if [ "$CI" = "true" ]; then
+        local submodule_hash_file="$1/.git_hash"
+        local current_hash=$(git -C "$1" rev-parse HEAD 2>/dev/null)
+        if [ -f "$submodule_hash_file" ] && [ "$(cat "$submodule_hash_file")" = "$current_hash" ]; then
+            return 1
+        else
+            echo "$current_hash" > "$submodule_hash_file"
+            return 0
+        fi
+    fi
+
     [ -n "$(find "$1" -maxdepth 5 \( -name "*.go" -o -name "go.mod" -o -name "go.sum" \) -newer "$2" -print -quit)" ] && return 0
     return 1
 }
