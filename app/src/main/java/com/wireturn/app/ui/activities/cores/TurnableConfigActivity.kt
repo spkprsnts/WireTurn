@@ -30,16 +30,20 @@ class TurnableConfigActivity : ComponentActivity() {
         val isEditMode = intent.getBooleanExtra("EXTRA_EDIT_MODE", false)
         val profileName = intent.getStringExtra("EXTRA_PROFILE_NAME") ?: ""
         val configJson = intent.getStringExtra("EXTRA_CONFIG_JSON")
+        val profileId = intent.getStringExtra("EXTRA_PROFILE_ID")
 
         setContent {
             val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
             val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
             val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
+            val profiles by viewModel.profiles.collectAsStateWithLifecycle()
 
-            val initialConfig = remember(clientConfig) {
+            val initialConfig = remember(clientConfig, profiles) {
                 if (configJson != null) {
                     try { Gson().fromJson(configJson, TurnableConfig::class.java) } catch (_: Exception) { TurnableConfig() }
+                } else if (profileId != null) {
+                    profiles.find { it.id == profileId }?.turnableConfig ?: TurnableConfig()
                 } else if (isEditMode) {
                     (clientConfig.kernelConfig as? KernelConfig.Turnable)?.config ?: TurnableConfig()
                 } else {
@@ -51,13 +55,16 @@ class TurnableConfigActivity : ComponentActivity() {
                 TurnableConfigScreen(
                     isEditMode = isEditMode,
                     initialConfig = initialConfig,
+                    profileName = profileName.ifBlank { null },
                     privacyMode = privacyMode,
                     onBack = { finish() },
                     onSave = { config ->
                         if (isEditMode) {
-                            viewModel.saveClientConfig(clientConfig.copy(
-                                kernelConfig = KernelConfig.Turnable(config)
-                            ))
+                            if (profileId != null) {
+                                viewModel.updateProfileById(profileId) { it.copy(kernelConfig = KernelConfig.Turnable(config)) }
+                            } else {
+                                viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Turnable(config)))
+                            }
                             finish()
                         } else {
                             val selectedRoute = config.routes.find { it.routeId == config.selectedRouteId } ?: config.routes.firstOrNull()

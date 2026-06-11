@@ -593,9 +593,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         val id = java.util.UUID.randomUUID().toString()
         val defaultName = getApplication<Application>().getString(R.string.profile_default_name)
+        val finalName = if (name.isBlank() || name == defaultName) profileManager.nextDefaultProfileName() else name
         val newProfile = Profile(
             id = id,
-            name = name,
+            name = finalName,
             kernelConfig = clientConfig.kernelConfig,
             xrayProtocol = xrayConfig.protocol,
             xrayEnabled = xrayConfig.enabled,
@@ -609,6 +610,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 selectProfileAndRestart(id, newProfile)
             }
         }
+    }
+
+    fun updateProfileById(profileId: String, update: (Profile) -> Profile) {
+        val profile = profiles.value.find { it.id == profileId } ?: return
+        profileManager.updateCurrentProfile(update(profile))
     }
 
     fun cloneProfile(id: String, name: String) = profileManager.cloneProfile(id, name)

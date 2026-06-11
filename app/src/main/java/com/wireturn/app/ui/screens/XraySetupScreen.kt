@@ -103,12 +103,19 @@ fun XraySetupScreen(
     initialXrayConfig: XrayConfig = XrayConfig(),
     privacyMode: Boolean = false,
     kernelVariant: KernelVariant = KernelVariant.TURNABLE,
+    profileName: String? = null,
     vlessLinkHistory: List<String> = emptyList(),
     onRemoveHistoryItem: (String) -> Unit = {},
     onBack: () -> Unit,
     onSave: (XrayConfiguration, WgConfig, VlessConfig) -> Unit
 ) {
     val isPrivacyActive = privacyMode && isEditMode
+    val kernelName = when (kernelVariant) {
+        KernelVariant.TURNABLE -> stringResource(R.string.kernel_turnable)
+        KernelVariant.OLCRTC -> stringResource(R.string.kernel_olcrtc)
+        KernelVariant.WEBDAV -> stringResource(R.string.kernel_webdav)
+    }
+    val xraySubtitle = if (isEditMode && profileName != null) "$kernelName: $profileName" else null
     val canChangeProtocol = remember(kernelVariant, showProtocolSelection) {
         kernelVariant != KernelVariant.OLCRTC && kernelVariant != KernelVariant.WEBDAV && showProtocolSelection
     }
@@ -256,6 +263,7 @@ fun XraySetupScreen(
         topBar = {
             AppTopAppBar(
                 title = stringResource(R.string.xray_title),
+                subtitle = xraySubtitle,
                 onBack = handleBack,
                 scrollBehavior = scrollBehavior,
                 actions = {

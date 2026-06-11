@@ -368,6 +368,8 @@
     <string name="profile_create">Создать профиль</string>
     <string name="profile_new">Новый профиль</string>
     <string name="profile_clone">Клонировать</string>
+    <string name="profile_edit">Редактировать</string>
+    <string name="profile_edit_config">Конфигурация</string>
     <string name="profile_rename">Переименовать</string>
     <string name="profile_delete">Удалить</string>
     <string name="profile_export">Экспортировать</string>

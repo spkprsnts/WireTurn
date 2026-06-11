@@ -107,6 +107,7 @@ import kotlin.math.roundToInt
 fun TurnableConfigScreen(
     isEditMode: Boolean = false,
     initialConfig: TurnableConfig = TurnableConfig(),
+    profileName: String? = null,
     privacyMode: Boolean = false,
     onBack: () -> Unit,
     onSave: (TurnableConfig) -> Unit
@@ -215,6 +216,7 @@ fun TurnableConfigScreen(
         topBar = {
             AppTopAppBar(
                 title = stringResource(R.string.kernel_turnable),
+                subtitle = if (isEditMode) profileName else null,
                 onBack = handleBack,
                 scrollBehavior = scrollBehavior,
                 actions = {

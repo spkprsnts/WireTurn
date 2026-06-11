@@ -36,11 +36,18 @@ class ProfileManager(
         }
     }
 
+    fun nextDefaultProfileName(existing: List<Profile> = profiles.value): String {
+        val base = prefs.context.getString(R.string.profile_default_name)
+        val names = existing.map { it.name }.toSet()
+        var n = 1
+        while ("$base #$n" in names) n++
+        return "$base #$n"
+    }
+
     fun cloneProfile(id: String, newName: String) {
         val currentList = profiles.value
         val profile = currentList.find { it.id == id } ?: return
-        val defaultName = prefs.context.getString(R.string.profile_default_name)
-        val validatedName = newName.takeIf { it.isNotBlank() } ?: defaultName
+        val validatedName = newName.takeIf { it.isNotBlank() } ?: nextDefaultProfileName(currentList)
         val clonedProfile = profile.copy(
             id = UUID.randomUUID().toString(),
             name = validatedName
@@ -67,8 +74,7 @@ class ProfileManager(
     }
 
     fun renameProfile(id: String, newName: String) {
-        val defaultName = prefs.context.getString(R.string.profile_default_name)
-        val validatedName = newName.takeIf { it.isNotBlank() } ?: defaultName
+        val validatedName = newName.takeIf { it.isNotBlank() } ?: nextDefaultProfileName()
         val newList = profiles.value.map { if (it.id == id) it.copy(name = validatedName) else it }
         scope.launch { prefs.saveProfiles(newList) }
     }
@@ -139,18 +145,21 @@ class ProfileManager(
     fun importProfiles(data: List<Pair<String?, String>>, onAutoSelect: ((Profile) -> Unit)? = null) {
         try {
             val defaultName = prefs.context.getString(R.string.profile_default_name)
+            val currentProfiles = profiles.value
+            val accumulating = currentProfiles.toMutableList()
             val newProfiles = data.mapNotNull { (fileName, json) ->
                 try {
                     val p = gson.fromJson(json, Profile::class.java) ?: return@mapNotNull null
                     val nameFromFile = fileName?.removeSuffix(".json")?.removePrefix("wt_")
-                    p.sanitize(defaultName).copy(
-                        id = UUID.randomUUID().toString(),
-                        name = (p.name as String?)?.takeIf { it.isNotBlank() } ?: nameFromFile?.takeIf { it.isNotBlank() }?.take(100) ?: defaultName
-                    )
+                    val name = (p.name as String?)?.takeIf { it.isNotBlank() }
+                        ?: nameFromFile?.takeIf { it.isNotBlank() }?.take(100)
+                        ?: nextDefaultProfileName(accumulating)
+                    val profile = p.sanitize(defaultName).copy(id = UUID.randomUUID().toString(), name = name)
+                    accumulating.add(profile)
+                    profile
                 } catch (_: Exception) { null }
             }
             if (newProfiles.isEmpty()) return
-            val currentProfiles = profiles.value
             val wasEmpty = currentProfiles.isEmpty()
             val newList = currentProfiles + newProfiles
             scope.launch {

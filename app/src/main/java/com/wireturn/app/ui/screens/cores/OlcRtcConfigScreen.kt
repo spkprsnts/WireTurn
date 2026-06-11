@@ -199,6 +199,7 @@ fun OlcRtcConfigScreen(
         topBar = {
             AppTopAppBar(
                 title = stringResource(R.string.kernel_olcrtc),
+                subtitle = if (isEditMode) profileName else null,
                 onBack = handleBack,
                 scrollBehavior = scrollBehavior,
                 actions = {

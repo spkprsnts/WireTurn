@@ -49,6 +49,7 @@ fun AppNavigation(
                     },
                     onNavigateToXrayConfig = {
                         val intent = Intent(context, com.wireturn.app.ui.activities.XrayEditActivity::class.java)
+                        intent.putExtra("EXTRA_PROFILE_ID", viewModel.currentProfileId.value)
                         context.startActivity(intent)
                     },
                     onNavigateToConnectionSettings = {

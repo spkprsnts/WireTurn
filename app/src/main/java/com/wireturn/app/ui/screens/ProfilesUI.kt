@@ -786,6 +786,7 @@ fun ProfilesDialog(
                         val isSelected = profile.id == (optimisticSelectedId ?: currentId)
                         val isSelectedInMode = selectedIds.contains(profile.id)
                         var menuExpanded by remember { mutableStateOf(false) }
+                        var editMenuExpanded by remember { mutableStateOf(false) }
 
                         val itemShape = when {
                             isDragged -> RoundedCornerShape(12.dp)
@@ -953,6 +954,24 @@ fun ProfilesDialog(
                                                 }
                                             )
                                             DropdownMenuItem(
+                                                text = { Text(stringResource(R.string.profile_edit)) },
+                                                leadingIcon = {
+                                                    Icon(
+                                                        painterResource(R.drawable.edit_square_24px),
+                                                        null,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                },
+                                                onClick = {
+                                                    menuExpanded = false
+                                                    HapticUtil.perform(
+                                                        context,
+                                                        HapticUtil.Pattern.CLICK
+                                                    )
+                                                    editMenuExpanded = true
+                                                }
+                                            )
+                                            DropdownMenuItem(
                                                 text = { Text(stringResource(R.string.profile_rename)) },
                                                 leadingIcon = {
                                                     Icon(
@@ -1018,6 +1037,52 @@ fun ProfilesDialog(
                                                     textColor = MaterialTheme.colorScheme.error,
                                                     leadingIconColor = MaterialTheme.colorScheme.error
                                                 )
+                                            )
+                                        }
+                                        AppDropdownMenu(
+                                            expanded = editMenuExpanded,
+                                            onDismissRequest = { editMenuExpanded = false },
+                                            title = stringResource(R.string.profile_edit)
+                                        ) {
+                                            DropdownMenuItem(
+                                                text = { Text(stringResource(R.string.profile_edit_config)) },
+                                                leadingIcon = {
+                                                    Icon(
+                                                        painterResource(R.drawable.edit_square_24px),
+                                                        null,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                },
+                                                onClick = {
+                                                    editMenuExpanded = false
+                                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                                    val intent = when (profile.kernelVariant) {
+                                                        KernelVariant.TURNABLE -> android.content.Intent(context, TurnableConfigActivity::class.java)
+                                                        KernelVariant.OLCRTC -> android.content.Intent(context, OlcRtcConfigActivity::class.java)
+                                                        KernelVariant.WEBDAV -> android.content.Intent(context, com.wireturn.app.ui.activities.cores.WebdavConfigActivity::class.java)
+                                                    }
+                                                    intent.putExtra("EXTRA_EDIT_MODE", true)
+                                                    intent.putExtra("EXTRA_PROFILE_NAME", profile.name)
+                                                    intent.putExtra("EXTRA_PROFILE_ID", profile.id)
+                                                    context.startActivity(intent)
+                                                }
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text(stringResource(R.string.xray_title)) },
+                                                leadingIcon = {
+                                                    Icon(
+                                                        painterResource(R.drawable.ic_xray_24px),
+                                                        null,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                },
+                                                onClick = {
+                                                    editMenuExpanded = false
+                                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                                    val intent = android.content.Intent(context, com.wireturn.app.ui.activities.XrayEditActivity::class.java)
+                                                    intent.putExtra("EXTRA_PROFILE_ID", profile.id)
+                                                    context.startActivity(intent)
+                                                }
                                             )
                                         }
                                     }

@@ -29,6 +29,7 @@ class WebdavConfigActivity : ComponentActivity() {
         val isEditMode = intent.getBooleanExtra("EXTRA_EDIT_MODE", false)
         val profileName = intent.getStringExtra("EXTRA_PROFILE_NAME") ?: ""
         val configJson = intent.getStringExtra("EXTRA_CONFIG_JSON")
+        val profileId = intent.getStringExtra("EXTRA_PROFILE_ID")
 
         setContent {
             val isInitialized by viewModel.isInitialized.collectAsStateWithLifecycle()
@@ -38,10 +39,13 @@ class WebdavConfigActivity : ComponentActivity() {
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
             val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
             val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
+            val profiles by viewModel.profiles.collectAsStateWithLifecycle()
 
-            val initialConfig = remember(clientConfig) {
+            val initialConfig = remember(clientConfig, profiles) {
                 if (configJson != null) {
                     try { Gson().fromJson(configJson, WebdavConfig::class.java) } catch (_: Exception) { WebdavConfig() }
+                } else if (profileId != null) {
+                    profiles.find { it.id == profileId }?.webdavConfig ?: WebdavConfig()
                 } else if (isEditMode) {
                     (clientConfig.kernelConfig as? KernelConfig.Webdav)?.config ?: WebdavConfig()
                 } else {
@@ -58,9 +62,11 @@ class WebdavConfigActivity : ComponentActivity() {
                     onBack = { finish() },
                     onSave = { config ->
                         if (isEditMode) {
-                            viewModel.saveClientConfig(clientConfig.copy(
-                                kernelConfig = KernelConfig.Webdav(config)
-                            ))
+                            if (profileId != null) {
+                                viewModel.updateProfileById(profileId) { it.copy(kernelConfig = KernelConfig.Webdav(config)) }
+                            } else {
+                                viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Webdav(config)))
+                            }
                             finish()
                         } else {
                             val intent = Intent(this, XraySetupActivity::class.java).apply {

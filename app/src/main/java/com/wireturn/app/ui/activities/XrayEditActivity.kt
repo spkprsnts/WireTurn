@@ -5,8 +5,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.wireturn.app.data.XrayConfig
 import com.wireturn.app.ui.screens.XraySetupScreen
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
@@ -20,34 +22,51 @@ class XrayEditActivity : ComponentActivity() {
 
         splashScreen.setKeepOnScreenCondition { !viewModel.isInitialized.value }
 
+        val profileId = intent.getStringExtra("EXTRA_PROFILE_ID")
+
         setContent {
             val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
-            
             val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
             val savedWgConfig by viewModel.wgConfig.collectAsStateWithLifecycle()
             val savedVlessConfig by viewModel.vlessConfig.collectAsStateWithLifecycle()
             val savedXrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
             val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
             val vlessLinkHistory by viewModel.vlessLinkHistory.collectAsStateWithLifecycle()
+            val profiles by viewModel.profiles.collectAsStateWithLifecycle()
+
+            val targetProfile = remember(profiles) {
+                if (profileId != null) profiles.find { it.id == profileId } else null
+            }
+            val initialWgConfig = targetProfile?.wgConfig ?: savedWgConfig
+            val initialVlessConfig = targetProfile?.vlessConfig ?: savedVlessConfig
+            val initialXrayConfig = if (targetProfile != null) {
+                XrayConfig(enabled = targetProfile.xrayEnabled, protocol = targetProfile.xrayProtocol)
+            } else savedXrayConfig
 
             WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
                 XraySetupScreen(
                     isEditMode = true,
                     showProtocolSelection = true,
-                    initialWgConfig = savedWgConfig,
-                    initialVlessConfig = savedVlessConfig,
-                    initialXrayConfig = savedXrayConfig,
+                    initialWgConfig = initialWgConfig,
+                    initialVlessConfig = initialVlessConfig,
+                    initialXrayConfig = initialXrayConfig,
                     privacyMode = privacyMode,
-                    kernelVariant = clientConfig.kernelVariant,
+                    kernelVariant = targetProfile?.kernelVariant ?: clientConfig.kernelVariant,
+                    profileName = targetProfile?.name,
                     vlessLinkHistory = vlessLinkHistory,
                     onRemoveHistoryItem = { viewModel.removeVlessLinkFromHistory(it) },
                     onBack = { finish() },
                     onSave = { type, wg, vless ->
-                        val currentXray = savedXrayConfig.copy(protocol = type)
-                        viewModel.updateXrayConfig(currentXray)
-                        viewModel.updateWgConfig(wg)
-                        viewModel.updateVlessConfig(vless)
+                        if (profileId != null) {
+                            viewModel.updateProfileById(profileId) { p ->
+                                p.copy(xrayProtocol = type, wgConfig = wg, vlessConfig = vless)
+                            }
+                        } else {
+                            viewModel.updateXrayConfig(savedXrayConfig.copy(protocol = type))
+                            viewModel.updateWgConfig(wg)
+                            viewModel.updateVlessConfig(vless)
+                        }
                         finish()
                     }
                 )

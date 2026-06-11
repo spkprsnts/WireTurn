@@ -406,6 +406,8 @@
     <string name="profile_create">Create profile</string>
     <string name="profile_new">New profile</string>
     <string name="profile_clone">Clone</string>
+    <string name="profile_edit">Edit</string>
+    <string name="profile_edit_config">Configuration</string>
     <string name="profile_rename">Rename</string>
     <string name="profile_delete">Delete</string>
     <string name="profile_export">Export</string>
