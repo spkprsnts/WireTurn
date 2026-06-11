@@ -1586,7 +1586,9 @@ fun <T> SelectionDialog(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     description: String? = null,
+    dismissOnSelect: Boolean = true,
     isSelected: (T) -> Boolean,
+    footer: (@Composable ColumnScope.() -> Unit)? = null,
     itemContent: @Composable (T, Boolean) -> Unit
 ) {
     val context = LocalContext.current
@@ -1634,7 +1636,7 @@ fun <T> SelectionDialog(
                         onClick = {
                             HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                             onSelect(item)
-                            onDismiss()
+                            if (dismissOnSelect) onDismiss()
                         },
                         shape = shape,
                         color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else Color.Transparent,
@@ -1652,6 +1654,7 @@ fun <T> SelectionDialog(
                         }
                     }
                 }
+                footer?.invoke(this)
             }
         }
     }
