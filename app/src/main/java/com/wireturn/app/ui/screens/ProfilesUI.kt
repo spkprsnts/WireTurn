@@ -307,8 +307,8 @@ fun ProfileListItem(
         targetValue = when {
             isDragged -> MaterialTheme.colorScheme.surfaceContainerHighest
             isSelected -> MaterialTheme.colorScheme.secondaryContainer
-            isHighlighted -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
-            else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            isHighlighted -> MaterialTheme.colorScheme.primaryContainer
+            else -> MaterialTheme.colorScheme.surfaceContainerHigh
         },
         animationSpec = tween(durationMillis = if (isHighlighted) 200 else 1000),
         label = "profile_item_bg"
@@ -341,7 +341,7 @@ fun ProfileListItem(
                 ProfileSummary(
                     profile = profile,
                     color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer
-                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    else MaterialTheme.colorScheme.outline,
                     modifier = Modifier.basicMarquee()
                 )
             }
@@ -770,7 +770,7 @@ fun ProfilesDialog(
                                 painter = painterResource(R.drawable.mobile_outlined_24px),
                                 contentDescription = null,
                                 modifier = Modifier.size(48.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                                tint = MaterialTheme.colorScheme.outlineVariant
                             )
                             Spacer(Modifier.height(16.dp))
                             Text(
@@ -847,7 +847,7 @@ fun ProfilesDialog(
                                     ),
                                     contentDescription = null,
                                     tint = if (isSelected) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                    else MaterialTheme.colorScheme.outline
                                 )
                             },
                             modifier = Modifier
