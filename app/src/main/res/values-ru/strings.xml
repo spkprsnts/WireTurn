@@ -130,6 +130,8 @@
     <string name="webdav_read_max">Read max</string>
     <string name="webdav_coalesce">Coalesce</string>
     <string name="webdav_timeout">Timeout</string>
+    <string name="webdav_encrypt">Шифрование (AES-256-GCM)</string>
+    <string name="webdav_encrypt_desc">Должно быть включено и на стороне сервера</string>
     <string name="olcrtc_vp8_batch">VP8 Batch</string>
     <string name="olcrtc_sei_fps">SEI FPS</string>
     <string name="olcrtc_sei_batch">SEI Batch</string>

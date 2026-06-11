@@ -416,7 +416,8 @@ data class WebdavConfig(
     @SerializedName("chunk_size") val chunkSize: String = "131071",
     @SerializedName("puts") val puts: String = "8",
     @SerializedName("read_min") val readMin: String = "3",
-    @SerializedName("read_max") val readMax: String = "8"
+    @SerializedName("read_max") val readMax: String = "8",
+    @SerializedName("encrypt") val encrypt: Boolean = false
 ) {
     fun isValid(): Boolean = webdav.isNotBlank()
     fun fillDefaults(): WebdavConfig = copy(
@@ -465,7 +466,8 @@ data class WebdavConfig(
         builder.appendQueryParameter("puts", puts)
         builder.appendQueryParameter("read-min", readMin)
         builder.appendQueryParameter("read-max", readMax)
-        
+        if (encrypt) builder.appendQueryParameter("enc", "1")
+
         if (!profileName.isNullOrBlank()) {
             builder.fragment(profileName)
         }
@@ -503,7 +505,8 @@ data class WebdavConfig(
                     chunkSize = uri.getQueryParameter("chunk-size") ?: current.chunkSize,
                     puts = uri.getQueryParameter("puts") ?: current.puts,
                     readMin = uri.getQueryParameter("read-min") ?: current.readMin,
-                    readMax = uri.getQueryParameter("read-max") ?: current.readMax
+                    readMax = uri.getQueryParameter("read-max") ?: current.readMax,
+                    encrypt = uri.getQueryParameter("enc") == "1"
                 )
             } catch (_: Exception) {
                 return null

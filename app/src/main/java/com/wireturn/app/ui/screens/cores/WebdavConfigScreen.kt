@@ -74,6 +74,7 @@ import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.QrCodeDialog
 import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
+import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.ShareDropdownMenu
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.redact
@@ -363,6 +364,25 @@ fun WebdavConfigScreen(
                         },
                         visualTransformation = if (passwordVisible || isPrivacyActive) VisualTransformation.None 
                                              else PasswordVisualTransformation()
+                    )
+                }
+            }
+
+            SectionGroup {
+                SectionItem(
+                    position = ItemPosition.Single,
+                    onClick = {
+                        val next = !config.encrypt
+                        HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                        config = config.copy(encrypt = next)
+                    }
+                ) {
+                    SwitchRow(
+                        label = stringResource(R.string.webdav_encrypt),
+                        checked = config.encrypt,
+                        onCheckedChange = { config = config.copy(encrypt = it) },
+                        supportingText = stringResource(R.string.webdav_encrypt_desc),
+                        isModified = isEditMode && config.encrypt != initialConfig.encrypt
                     )
                 }
             }

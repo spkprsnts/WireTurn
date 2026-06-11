@@ -823,6 +823,7 @@ class CoreService : Service() {
                     "-read-max", o.readMax,
                     "-socks-listen", cfg.socksAddr.ifBlank { ClientConfig.DEFAULT_SOCKS_ADDR }
                 ))
+                if (o.encrypt) cmdArgs.add("-enc")
                 if (cfg.isSocksAuthEnabled) {
                     cmdArgs.add("-socks-user")
                     cmdArgs.add(cfg.socksUser)
