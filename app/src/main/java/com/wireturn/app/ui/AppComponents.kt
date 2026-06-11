@@ -127,8 +127,11 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.set
@@ -1418,6 +1421,25 @@ private fun truncateUrlParameters(url: String): String {
         builder.build().toString()
     } catch (_: Exception) {
         url
+    }
+}
+
+@Composable
+fun TopAppBarScrollBehavior.noFlingExpandConnection(): NestedScrollConnection {
+    val inner = nestedScrollConnection
+    return remember(inner) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset =
+                if (source == NestedScrollSource.SideEffect && available.y > 0f) Offset.Zero
+                else inner.onPreScroll(available, source)
+
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset =
+                if (source == NestedScrollSource.SideEffect && available.y > 0f) Offset.Zero
+                else inner.onPostScroll(consumed, available, source)
+
+            override suspend fun onPreFling(available: Velocity): Velocity = inner.onPreFling(available)
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity = inner.onPostFling(consumed, available)
+        }
     }
 }
 

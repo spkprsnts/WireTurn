@@ -56,6 +56,7 @@ import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.XraySettings
 import com.wireturn.app.ui.AppTopAppBar
+import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.ExpandableSection
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
@@ -150,7 +151,8 @@ fun ConnectionSettingsScreen(
 
     val topAppBarState = rememberTopAppBarState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
-        state = topAppBarState
+        state = topAppBarState,
+        flingAnimationSpec = null
     )
 
     if (showExitDialog.value) {
@@ -179,7 +181,7 @@ fun ConnectionSettingsScreen(
     }
 
     Scaffold(
-        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = modifier.nestedScroll(scrollBehavior.noFlingExpandConnection()),
         topBar = {
             AppTopAppBar(
                 title = stringResource(R.string.connection_settings_title),

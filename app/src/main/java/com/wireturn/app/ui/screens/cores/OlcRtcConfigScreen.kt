@@ -73,6 +73,7 @@ import com.wireturn.app.data.OlcrtcConfig
 import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.AppSnackbar
 import com.wireturn.app.ui.AppTopAppBar
+import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LargeLeadingIcon
@@ -132,7 +133,8 @@ fun OlcRtcConfigScreen(
 
     val topAppBarState = rememberTopAppBarState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
-        state = topAppBarState
+        state = topAppBarState,
+        flingAnimationSpec = null
     )
 
     val importSuccessMessage = stringResource(R.string.import_success)
@@ -186,7 +188,7 @@ fun OlcRtcConfigScreen(
     }
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = Modifier.nestedScroll(scrollBehavior.noFlingExpandConnection()),
         snackbarHost = {
             SnackbarHost(
                 hostState = snackbarHostState

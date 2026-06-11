@@ -83,6 +83,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.ui.AppSnackbar
 import com.wireturn.app.ui.AppTopAppBar
+import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LabeledButtonGroup
@@ -323,7 +324,8 @@ fun AppExceptionsScreen(
     val topAppBarState = rememberTopAppBarState()
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
-        state = topAppBarState
+        state = topAppBarState,
+        flingAnimationSpec = null
     )
 
     val searchScrollConnection = remember {
@@ -380,7 +382,7 @@ fun AppExceptionsScreen(
             modifier = modifier
                 .fillMaxSize()
                 .nestedScroll(searchScrollConnection)
-                .nestedScroll(scrollBehavior.nestedScrollConnection),
+                .nestedScroll(scrollBehavior.noFlingExpandConnection()),
             snackbarHost = {
                 SnackbarHost(
                     hostState = snackbarHostState

@@ -73,6 +73,7 @@ import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.AppSnackbar
 import com.wireturn.app.ui.AppTopAppBar
+import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.ExpandableSection
 import com.wireturn.app.ui.FieldTrailingIcons
 import com.wireturn.app.ui.HapticUtil
@@ -176,7 +177,8 @@ fun XraySetupScreen(
 
     val topAppBarState = rememberTopAppBarState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
-        state = topAppBarState
+        state = topAppBarState,
+        flingAnimationSpec = null
     )
 
     val importSuccessMessage = stringResource(R.string.import_success)
@@ -243,7 +245,7 @@ fun XraySetupScreen(
 
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = Modifier.nestedScroll(scrollBehavior.noFlingExpandConnection()),
         snackbarHost = {
             SnackbarHost(
                 hostState = snackbarHostState

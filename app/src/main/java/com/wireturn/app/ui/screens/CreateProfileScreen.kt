@@ -39,6 +39,7 @@ import com.wireturn.app.data.OlcrtcConfig
 import com.wireturn.app.data.TurnableConfig
 import com.wireturn.app.data.WebdavConfig
 import com.wireturn.app.ui.AppTopAppBar
+import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.RowLabel
@@ -62,7 +63,8 @@ fun CreateProfileScreen(
 
     val topAppBarState = rememberTopAppBarState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
-        state = topAppBarState
+        state = topAppBarState,
+        flingAnimationSpec = null
     )
     
     var profileName by remember { mutableStateOf("") }
@@ -83,7 +85,7 @@ fun CreateProfileScreen(
     )
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = Modifier.nestedScroll(scrollBehavior.noFlingExpandConnection()),
         topBar = {
             AppTopAppBar(
                 title = stringResource(R.string.profile_new),

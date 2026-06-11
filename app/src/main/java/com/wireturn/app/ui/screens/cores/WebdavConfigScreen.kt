@@ -69,6 +69,7 @@ import com.wireturn.app.data.WebdavConfig
 import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.AppSnackbar
 import com.wireturn.app.ui.AppTopAppBar
+import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.QrCodeDialog
@@ -121,7 +122,8 @@ fun WebdavConfigScreen(
 
     val topAppBarState = rememberTopAppBarState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
-        state = topAppBarState
+        state = topAppBarState,
+        flingAnimationSpec = null
     )
 
     val importSuccessMessage = stringResource(R.string.import_success)
@@ -175,7 +177,7 @@ fun WebdavConfigScreen(
     }
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = Modifier.nestedScroll(scrollBehavior.noFlingExpandConnection()),
         snackbarHost = {
             SnackbarHost(
                 hostState = snackbarHostState
