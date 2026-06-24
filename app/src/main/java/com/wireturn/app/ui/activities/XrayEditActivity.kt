@@ -62,6 +62,11 @@ class XrayEditActivity : ComponentActivity() {
                             viewModel.updateProfileById(profileId) { p ->
                                 p.copy(xrayProtocol = type, wgConfig = wg, vlessConfig = vless)
                             }
+                            if (profileId == viewModel.currentProfileId.value) {
+                                viewModel.updateXrayConfig(savedXrayConfig.copy(protocol = type))
+                                viewModel.updateWgConfig(wg)
+                                viewModel.updateVlessConfig(vless)
+                            }
                         } else {
                             viewModel.updateXrayConfig(savedXrayConfig.copy(protocol = type))
                             viewModel.updateWgConfig(wg)
