@@ -71,6 +71,15 @@ sudo chmod +x /opt/olcrtc/build/olcrtc-linux-amd64
 sudo mv /opt/olcrtc/build/olcrtc-linux-amd64 /opt/olcrtc/build/olcrtc
 ```
 
+> `go.mod` в репозитории может быть изменён сборкой (`go run`/`go build` правит версии зависимостей), поэтому `git pull` может упасть с ошибкой `Your local changes to the following files would be overwritten by merge: go.mod`. В этом случае спрятать локальные изменения перед обновлением и затем повторить `pull`:
+>
+> ```bash
+> sudo git stash
+> sudo git pull --recurse-submodules
+> ```
+>
+> Файл `go.mod` после `git stash` снова перезапишется сборкой, поэтому возвращать его из stash (`git stash pop`) не нужно.
+
 После пересборки перезапустите активные службы:
 
 ```bash
