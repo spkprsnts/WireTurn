@@ -487,8 +487,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         conn.readTimeout = 3000
                         conn.instanceFollowRedirects = false
                         PingResult.Success(measureTimeMillis { conn.responseCode })
-                    } catch (e: Exception) { 
-                        AppLogsState.addLog("* [Ping] Error: ${e.message}")
+                    } catch (_: Exception) {
+                        // AppLogsState.addLog("* [Ping] Error: ${e.message}")
                         null 
                     }
                 }
