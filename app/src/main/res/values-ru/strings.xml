@@ -114,6 +114,8 @@
     <string name="olcrtc_dns_label">DNS-сервер</string>
     <string name="olcrtc_carrier_label">Платформа</string>
     <string name="olcrtc_transport_label">Транспорт</string>
+    <string name="olcrtc_restart_on_connection_errors_label">Перезапуск при ошибках</string>
+    <string name="olcrtc_restart_on_connection_errors_desc">Перезапускать соединение после повторяющихся ошибок \"remote not ready\"</string>
     <string name="olcrtc_vp8_settings_title">Параметры VP8Channel</string>
     <string name="olcrtc_sei_settings_title">Параметры SEIChannel</string>
     <string name="olcrtc_video_settings_title">Параметры VideoChannel</string>

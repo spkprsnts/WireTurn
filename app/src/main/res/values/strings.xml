@@ -159,6 +159,8 @@
     <string name="olcrtc_dns_label">DNS Server</string>
     <string name="olcrtc_carrier_label">Carrier</string>
     <string name="olcrtc_transport_label">Transport</string>
+    <string name="olcrtc_restart_on_connection_errors_label">Restart on errors</string>
+    <string name="olcrtc_restart_on_connection_errors_desc">Restart the connection after repeated \"remote not ready\" errors</string>
     <string name="olcrtc_vp8_settings_title">VP8Channel Parameters</string>
     <string name="olcrtc_sei_settings_title">SEIChannel Parameters</string>
     <string name="olcrtc_video_settings_title">VideoChannel Parameters</string>

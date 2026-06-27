@@ -268,7 +268,8 @@ data class OlcrtcConfig(
     @SerializedName("video_qr_recovery") val videoQrRecovery: String = "low",
     @SerializedName("video_qr_size") val videoQrSize: Int = 0,
     @SerializedName("video_tile_module") val videoTileModule: Int = 4,
-    @SerializedName("video_tile_rs") val videoTileRs: Int = 20
+    @SerializedName("video_tile_rs") val videoTileRs: Int = 20,
+    @SerializedName("restart_on_connection_errors") val restartOnConnectionErrors: Boolean = true
 ) {
     val providerDisplayName: String
         get() = when (provider) {

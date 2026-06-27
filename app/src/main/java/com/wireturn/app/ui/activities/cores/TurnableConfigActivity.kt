@@ -62,6 +62,12 @@ class TurnableConfigActivity : ComponentActivity() {
                         if (isEditMode) {
                             if (profileId != null) {
                                 viewModel.updateProfileById(profileId) { it.copy(kernelConfig = KernelConfig.Turnable(config)) }
+                                if (profileId == viewModel.currentProfileId.value) {
+                                    // The edited profile is the active one: also push the change
+                                    // into the live config, otherwise CoreService keeps using the
+                                    // stale config until the profile is reselected.
+                                    viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Turnable(config)))
+                                }
                             } else {
                                 viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Turnable(config)))
                             }

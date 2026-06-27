@@ -15,6 +15,7 @@ import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
+import com.wireturn.app.data.OlcrtcConfig
 import com.wireturn.app.viewmodel.AppLifecycleState
 import com.wireturn.app.viewmodel.XrayState
 import kotlinx.coroutines.CancellationException
@@ -448,7 +449,7 @@ class CoreService : Service() {
                             AppLogsState.addLog(line)
                             // Process was intentionally killed (hot-reload/stop) — log but don't update status
                             if (process.get() == null) continue
-                            if (processOutputLine(line, state, cfg.kernelVariant)) break
+                            if (processOutputLine(line, state, cfg)) break
                         }
                     }
                 }
@@ -481,12 +482,12 @@ class CoreService : Service() {
         }
     }
 
-    private suspend fun processOutputLine(line: String, state: BinaryOutputState, kernel: KernelVariant): Boolean {
+    private suspend fun processOutputLine(line: String, state: BinaryOutputState, cfg: ClientConfig): Boolean {
         val lower = line.lowercase()
 
-        return when (kernel) {
+        return when (cfg.kernelVariant) {
             KernelVariant.TURNABLE -> handleTurnableLog(line, lower, state)
-            KernelVariant.OLCRTC -> handleOlcrtcLog(line, lower, state)
+            KernelVariant.OLCRTC -> handleOlcrtcLog(line, lower, state, (cfg.kernelConfig as? KernelConfig.Olcrtc)?.config ?: OlcrtcConfig())
             KernelVariant.WEBDAV -> handleWebdavLog(line, lower, state)
         }
     }
@@ -675,7 +676,7 @@ class CoreService : Service() {
         return false
     }
 
-    private suspend fun handleOlcrtcLog(line: String, lower: String, state: BinaryOutputState): Boolean {
+    private suspend fun handleOlcrtcLog(line: String, lower: String, state: BinaryOutputState, olcrtcConfig: OlcrtcConfig): Boolean {
         if (lower.contains("join room failed: status 404") || lower.contains("guests cannot create rooms")) {
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                 CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_room_not_found)))
@@ -712,7 +713,7 @@ class CoreService : Service() {
             return true
         }
 
-        if (lower.contains("remote not ready") || lower.contains("openstream failed")) {
+        if (olcrtcConfig.restartOnConnectionErrors && (lower.contains("remote not ready") || lower.contains("openstream failed"))) {
             val now = System.currentTimeMillis()
             if (now - state.lastRemoteNotReadyTime > 10_000) {
                 state.remoteNotReadyCount = 1

@@ -86,6 +86,7 @@ import com.wireturn.app.ui.ShareDropdownMenu
 import com.wireturn.app.ui.SliderRow
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SupportingText
+import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.redact
 import com.wireturn.app.ui.screens.QrScannerDialog
@@ -416,7 +417,7 @@ fun OlcRtcConfigScreen(
                         privacyMode = isPrivacyActive
                     )
                 }
-                SectionItem(position = ItemPosition.Bottom) {
+                SectionItem {
                     TextFieldRow(
                         label = stringResource(R.string.olcrtc_dns_label),
                         value = config.dns.redact(isPrivacyActive),
@@ -424,6 +425,15 @@ fun OlcRtcConfigScreen(
                         readOnly = isPrivacyActive,
                         isModified = isEditMode && config.dns != initialConfig.dns,
                         privacyMode = isPrivacyActive
+                    )
+                }
+                SectionItem(position = ItemPosition.Bottom) {
+                    SwitchRow(
+                        label = stringResource(R.string.olcrtc_restart_on_connection_errors_label),
+                        checked = config.restartOnConnectionErrors,
+                        onCheckedChange = { config = config.copy(restartOnConnectionErrors = it) },
+                        supportingText = stringResource(R.string.olcrtc_restart_on_connection_errors_desc),
+                        isModified = isEditMode && config.restartOnConnectionErrors != initialConfig.restartOnConnectionErrors
                     )
                 }
             }
