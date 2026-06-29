@@ -123,22 +123,20 @@ data class TurnableRoute(
 
 data class TurnableConfig(
     @SerializedName("user_uuid") val userUuid: String? = null,
-    @SerializedName("username") val username: String = "",
     @SerializedName("platform_id") val platformId: String = "vk.com",
     @SerializedName("call_id") val callId: String = "",
     @SerializedName("type") val type: String = "relay",
     @SerializedName("encryption") val encryption: String? = "handshake",
     @SerializedName("pub_key") val pubKey: String? = null,
     @SerializedName("peers") val peers: Int = 1,
-    @SerializedName("forceturn") val forceTurn: Boolean = false,
     @SerializedName("gateway") val gateway: String = "",
     @SerializedName("proto") val proto: String? = "srtp",
+    @SerializedName("cloak") val cloak: String? = "none",
     @SerializedName("routes") val routes: List<TurnableRoute> = emptyList(),
     @SerializedName("selected_route_id") val selectedRouteId: String = ""
 ) {
     fun sanitize(): TurnableConfig = copy(
         userUuid = (userUuid as Any?)?.toString()?.trim()?.take(200),
-        username = (username as Any?)?.toString()?.take(200) ?: "",
         platformId = (platformId as Any?)?.toString()?.take(200) ?: "vk.com",
         callId = (callId as Any?)?.toString()?.take(200) ?: "",
         type = (type as Any?)?.toString()?.take(100) ?: "relay",
@@ -146,12 +144,12 @@ data class TurnableConfig(
         pubKey = (pubKey as Any?)?.toString()?.take(4096),
         gateway = (gateway as Any?)?.toString()?.take(500) ?: "",
         proto = (proto as Any?)?.toString()?.take(100) ?: "srtp",
+        cloak = (cloak as Any?)?.toString()?.take(100) ?: "none",
         selectedRouteId = (selectedRouteId as Any?)?.toString()?.take(100) ?: "",
         routes = (routes as List<TurnableRoute>?)?.map { it.sanitize() } ?: emptyList()
     )
 
-    fun isValid(): Boolean = username.isNotBlank() &&
-            platformId.isNotBlank() &&
+    fun isValid(): Boolean = platformId.isNotBlank() &&
             callId.isNotBlank() &&
             gateway.isNotBlank() &&
             routes.isNotEmpty() &&
@@ -168,34 +166,21 @@ data class TurnableConfig(
             routes
         }
         val builder = Uri.Builder().scheme("turnable")
-        val userInfo = if (!userUuid.isNullOrBlank()) {
-            "${Uri.encode(userUuid)}:${Uri.encode(callId)}"
-        } else {
-            Uri.encode(callId)
-        }
+        val userInfo = "${Uri.encode(userUuid ?: "")}:${Uri.encode(callId)}"
         builder.encodedAuthority("$userInfo@$platformId")
-        targetRoutes.forEach { builder.appendPath(it.routeId) }
-        builder.appendQueryParameter("username", username)
-        builder.appendQueryParameter("gateway", gateway)
+        // Each route is a single dash-joined path segment: route_id-socket-transport
+        targetRoutes.forEach { builder.appendPath("${it.routeId}-${it.socket}-${it.transport ?: ""}") }
         builder.appendQueryParameter("type", type)
+        builder.appendQueryParameter("gateway", gateway)
+        proto?.let { builder.appendQueryParameter("proto", it) }
+        cloak?.let { builder.appendQueryParameter("cloak", it) }
+        builder.appendQueryParameter("peers", peers.toString())
         encryption?.let { builder.appendQueryParameter("encryption", it) }
         pubKey?.let { builder.appendQueryParameter("pub_key", it) }
-        proto?.let { builder.appendQueryParameter("proto", it) }
-        builder.appendQueryParameter("peers", peers.toString())
-        builder.appendQueryParameter("forceturn", forceTurn.toString())
-        if (targetRoutes.size == 1) {
-            val r = targetRoutes[0]
-            builder.appendQueryParameter("socket", r.socket)
-            r.transport?.let { builder.appendQueryParameter("transport", it) }
-        } else {
-            targetRoutes.forEachIndexed { index, r ->
-                val idx = index + 1
-                builder.appendQueryParameter("socket[$idx]", r.socket)
-                r.transport?.let { builder.appendQueryParameter("transport[$idx]", it) }
-            }
-        }
         if (selectedRouteId.isNotBlank()) builder.appendQueryParameter("selected_route_id", selectedRouteId)
-        if (targetRoutes.isNotEmpty()) builder.encodedFragment(targetRoutes.joinToString(",") { Uri.encode(it.name) })
+        if (targetRoutes.isNotEmpty()) {
+            builder.fragment(targetRoutes.joinToString(", ") { it.name.ifBlank { it.routeId } })
+        }
         return builder.build().toString()
     }
 
@@ -209,32 +194,43 @@ data class TurnableConfig(
             return try {
                 val uri = Uri.parse(url)
                 val userParts = (uri.encodedUserInfo ?: "").split(":").map { Uri.decode(it) }
-                val userUuid = if (userParts.size > 1) userParts[0] else null
+                val userUuid = if (userParts.size > 1) userParts[0].takeIf { it.isNotBlank() } else null
                 val callId = if (userParts.size > 1) userParts[1] else userParts.getOrNull(0) ?: ""
                 val pathParts = (uri.encodedPath ?: "").split("/").filter { it.isNotBlank() }.map { Uri.decode(it) }
-                val routeNames = (uri.encodedFragment ?: "").split(",").map { Uri.decode(it) }
-                val routes = pathParts.mapIndexed { index, routeId ->
+                // Each path segment is route_id-socket-transport; only route_id may itself contain dashes
+                val routeNames = (uri.fragment ?: "").split(",").map { it.trim() }.filter { it.isNotBlank() }
+                val routes = pathParts.mapIndexed { index, segment ->
+                    val parts = segment.split("-")
+                    val routeId: String
+                    val socket: String
+                    val transport: String?
+                    if (parts.size >= 3) {
+                        transport = parts.last().ifBlank { null }
+                        socket = parts[parts.size - 2]
+                        routeId = parts.subList(0, parts.size - 2).joinToString("-")
+                    } else {
+                        routeId = segment
+                        socket = "udp"
+                        transport = null
+                    }
                     TurnableRoute(
                         routeId = routeId,
-                        name = routeNames.getOrNull(index)?.trim()?.takeIf { it.isNotBlank() } ?: routeId,
-                        socket = uri.getQueryParameter("socket[${index + 1}]")
-                            ?: (if (index == 0) uri.getQueryParameter("socket") else null) ?: "udp",
-                        transport = uri.getQueryParameter("transport[${index + 1}]")
-                            ?: (if (index == 0) uri.getQueryParameter("transport") else null)
+                        name = routeNames.getOrNull(index)?.takeIf { it.isNotBlank() } ?: routeId,
+                        socket = socket,
+                        transport = transport
                     )
                 }
                 base.copy(
                     userUuid = userUuid ?: base.userUuid,
                     callId = callId.ifBlank { base.callId },
                     platformId = uri.host ?: base.platformId,
-                    username = uri.getQueryParameter("username") ?: base.username,
-                    type = uri.getQueryParameter("type") ?: "relay",
+                    type = uri.getQueryParameter("type") ?: base.type,
                     encryption = uri.getQueryParameter("encryption") ?: base.encryption,
                     pubKey = uri.getQueryParameter("pub_key") ?: base.pubKey,
                     peers = uri.getQueryParameter("peers")?.toIntOrNull() ?: base.peers,
-                    forceTurn = uri.getQueryParameter("forceturn")?.toBoolean() ?: base.forceTurn,
                     gateway = uri.getQueryParameter("gateway") ?: base.gateway,
                     proto = uri.getQueryParameter("proto") ?: base.proto,
+                    cloak = uri.getQueryParameter("cloak") ?: base.cloak,
                     routes = routes.ifEmpty { base.routes },
                     selectedRouteId = uri.getQueryParameter("selected_route_id")
                         ?: (if (routes.isNotEmpty()) routes.firstOrNull()?.routeId ?: "" else base.selectedRouteId)

@@ -118,8 +118,6 @@
     <string name="route_transport_label">Transport</string>
     <string name="user_uuid_label">User UUID</string>
     <string name="user_uuid_desc">User authorization on the Turnable server</string>
-    <string name="username_label">Call participant name</string>
-    <string name="username_desc">Join the call on the platform</string>
     <string name="call_id_label">Call ID</string>
     <string name="call_id_desc">VK: «https://vk.com/call/join/[ID]»</string>
     <string name="connection_type_label">Connection type</string>
@@ -134,8 +132,6 @@
     <string name="gateway_desc">Server IP and port from the Turnable configuration</string>
     <string name="proto_label">Transport protocol</string>
     <string name="proto_desc">Required for Relay type. SRTP is highly recommended</string>
-    <string name="force_turn_label">Force TURN</string>
-    <string name="force_turn_desc">TURN server for all connections</string>
     <string name="history_label">History</string>
     <string name="kernel_turnable" translatable="false">Turnable</string>
     <string name="kernel_olcrtc" translatable="false">olcRTC</string>

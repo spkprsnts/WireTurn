@@ -93,7 +93,6 @@ import com.wireturn.app.ui.ShareDropdownMenu
 import com.wireturn.app.ui.SliderRow
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SupportingText
-import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.redact
@@ -403,18 +402,6 @@ fun TurnableConfigScreen(
                         isModified = isEditMode && config.peers != initialConfig.peers
                     )
                 }
-                SectionItem {
-                    TextFieldRow(
-                        label = stringResource(R.string.username_label),
-                        value = config.username.redact(isPrivacyActive),
-                        onValueChange = { if (!isPrivacyActive) config = config.copy(username = it) },
-                        readOnly = isPrivacyActive,
-                        supportingText = stringResource(R.string.username_desc),
-                        isModified = isEditMode && config.username != initialConfig.username,
-                        isError = config.username.isBlank(),
-                        privacyMode = isPrivacyActive
-                    )
-                }
                 SectionItem(position = ItemPosition.Bottom) {
                     TextFieldRow(
                         label = stringResource(R.string.call_id_label),
@@ -538,7 +525,7 @@ fun TurnableConfigScreen(
                         privacyMode = isPrivacyActive
                     )
                 }
-                SectionItem {
+                SectionItem(position = ItemPosition.Bottom) {
                     LabeledButtonGroup(
                         label = stringResource(R.string.proto_label),
                         supportingText = stringResource(R.string.proto_desc),
@@ -556,22 +543,6 @@ fun TurnableConfigScreen(
                             )
                         }
                     }
-                }
-                SectionItem(
-                    position = ItemPosition.Bottom,
-                    onClick = {
-                        val next = !config.forceTurn
-                        HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
-                        config = config.copy(forceTurn = next)
-                    }
-                ) {
-                    SwitchRow(
-                        label = stringResource(R.string.force_turn_label),
-                        supportingText = stringResource(R.string.force_turn_desc),
-                        checked = config.forceTurn,
-                        onCheckedChange = { config = config.copy(forceTurn = it) },
-                        isModified = isEditMode && config.forceTurn != initialConfig.forceTurn
-                    )
                 }
             }
         }

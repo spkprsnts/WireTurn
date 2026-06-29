@@ -90,8 +90,6 @@
     <string name="route_transport_label">Транспорт</string>
     <string name="user_uuid_label">UUID пользователя</string>
     <string name="user_uuid_desc">Авторизация пользователя на сервере Turnable</string>
-    <string name="username_label">Имя участника звонка</string>
-    <string name="username_desc">Вход в звонок на платформе</string>
     <string name="call_id_label">ID звонка</string>
     <string name="call_id_desc">VK: Звонки «https://vk.com/call/join/[ID]»</string>
     <string name="connection_type_label">Тип подключения</string>
@@ -106,8 +104,6 @@
     <string name="gateway_desc">IP и порт сервера, указанные в конфиге Turnable</string>
     <string name="proto_label">Транспортный протокол</string>
     <string name="proto_desc">Необходим для типа Relay. Рекомендуется SRTP</string>
-    <string name="force_turn_label">Принудительный TURN</string>
-    <string name="force_turn_desc">TURN-сервер для всех соединений</string>
     <string name="history_label">История</string>
     <string name="olcrtc_id_label">ID комнаты</string>
     <string name="olcrtc_key_label">Ключ авторизации</string>
