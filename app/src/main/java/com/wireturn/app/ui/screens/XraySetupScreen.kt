@@ -114,6 +114,7 @@ fun XraySetupScreen(
         KernelVariant.TURNABLE -> stringResource(R.string.kernel_turnable)
         KernelVariant.OLCRTC -> stringResource(R.string.kernel_olcrtc)
         KernelVariant.WEBDAV -> stringResource(R.string.kernel_webdav)
+        KernelVariant.FREETURN -> stringResource(R.string.kernel_freeturn)
     }
     val xraySubtitle = if (isEditMode && profileName != null) "$kernelName: $profileName" else null
     val canChangeProtocol = remember(kernelVariant, showProtocolSelection) {
@@ -677,7 +678,7 @@ private fun VlessSettingsBlock(
         }
     }
 
-    val vlessLinkError = if (kernelVariant == KernelVariant.OLCRTC || kernelVariant == KernelVariant.WEBDAV) {
+    val vlessLinkError = if (kernelVariant == KernelVariant.OLCRTC || kernelVariant == KernelVariant.WEBDAV || kernelVariant == KernelVariant.FREETURN) {
         vlessLink.isNotBlank() && !ValidatorUtils.isValidVlessLink(vlessLink)
     } else {
         !ValidatorUtils.isValidVlessLink(vlessLink)

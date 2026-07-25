@@ -212,16 +212,23 @@ object NotificationHelper {
         return builder.build()
     }
 
-    fun notifyCaptcha(context: Context, @Suppress("UNUSED_PARAMETER") url: String, @Suppress("UNUSED_PARAMETER") sessionId: String) {
-        val openAppIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.let {
-            PendingIntent.getActivity(context, 1, it, PendingIntent.FLAG_IMMUTABLE)
+    fun notifyCaptcha(context: Context, url: String, @Suppress("UNUSED_PARAMETER") sessionId: String) {
+        val captchaIntent = Intent(context, com.wireturn.app.ui.activities.CaptchaActivity::class.java).apply {
+            putExtra("CAPTCHA_URL", url)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            1,
+            captchaIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
 
         val builder = NotificationCompat.Builder(context, CAPTCHA_CHANNEL_ID)
             .setContentTitle(context.getString(R.string.captcha_notification_title))
             .setContentText(context.getString(R.string.captcha_notification_text))
             .setSmallIcon(R.drawable.ic_launcher_small)
-            .setContentIntent(openAppIntent)
+            .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setAutoCancel(true)

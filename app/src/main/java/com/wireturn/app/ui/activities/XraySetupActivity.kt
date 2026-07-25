@@ -46,6 +46,11 @@ class XraySetupActivity : ComponentActivity() {
                 val webdav = if (json != null) Gson().fromJson(json, WebdavConfig::class.java) ?: WebdavConfig() else WebdavConfig()
                 ClientConfig(kernelConfig = KernelConfig.Webdav(webdav))
             }
+            KernelVariant.FREETURN.name -> {
+                val json = intent.getStringExtra("EXTRA_FREETURN_CONFIG_JSON")
+                val freeturn = if (json != null) Gson().fromJson(json, com.wireturn.app.data.FreeTurnConfig::class.java) ?: com.wireturn.app.data.FreeTurnConfig() else com.wireturn.app.data.FreeTurnConfig()
+                ClientConfig(kernelConfig = KernelConfig.FreeTurn(freeturn))
+            }
             else -> {
                 val json = intent.getStringExtra("EXTRA_TURNABLE_CONFIG_JSON")
                 val turnable = if (json != null) Gson().fromJson(json, TurnableConfig::class.java) ?: TurnableConfig() else TurnableConfig()

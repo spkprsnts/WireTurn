@@ -120,6 +120,10 @@ fun ProfileSummary(
                 parts.add(login.substringBefore('@'))
             }
         }
+
+        KernelVariant.FREETURN -> {
+            parts.add(profile.freeturnConfig.peer.take(15))
+        }
     }
 
 
@@ -228,6 +232,11 @@ fun ProfilesBlock(
                     KernelVariant.WEBDAV -> android.content.Intent(
                         context,
                         com.wireturn.app.ui.activities.cores.WebdavConfigActivity::class.java
+                    )
+
+                    KernelVariant.FREETURN -> android.content.Intent(
+                        context,
+                        com.wireturn.app.ui.activities.cores.FreeTurnConfigActivity::class.java
                     )
                 }
                 intent.putExtra("EXTRA_EDIT_MODE", true)
@@ -1060,6 +1069,7 @@ fun ProfilesDialog(
                                                         KernelVariant.TURNABLE -> android.content.Intent(context, TurnableConfigActivity::class.java)
                                                         KernelVariant.OLCRTC -> android.content.Intent(context, OlcRtcConfigActivity::class.java)
                                                         KernelVariant.WEBDAV -> android.content.Intent(context, com.wireturn.app.ui.activities.cores.WebdavConfigActivity::class.java)
+                                                        KernelVariant.FREETURN -> android.content.Intent(context, com.wireturn.app.ui.activities.cores.FreeTurnConfigActivity::class.java)
                                                     }
                                                     intent.putExtra("EXTRA_EDIT_MODE", true)
                                                     intent.putExtra("EXTRA_PROFILE_NAME", profile.name)
@@ -1185,6 +1195,10 @@ private fun getProfileIcon(profile: Profile, outlined: Boolean): Int {
 
         KernelVariant.WEBDAV -> {
             R.drawable.ic_dav
+        }
+
+        KernelVariant.FREETURN -> {
+            R.drawable.ic_vk
         }
     }
 }

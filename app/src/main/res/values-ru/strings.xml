@@ -36,6 +36,7 @@
     <string name="turnable_core">Ядро туннеля (Turnable)</string>
     <string name="olcrtc_core">Ядро туннеля (olcRTC)</string>
     <string name="webdav_core">Ядро туннеля (WebDAV)</string>
+    <string name="freeturn_core">Ядро туннеля (FreeTurn)</string>
     <!-- Кнопки и общие действия -->
     <string name="btn_open">Открыть</string>
     <string name="btn_start">Запустить</string>
@@ -105,6 +106,7 @@
     <string name="proto_label">Транспортный протокол</string>
     <string name="proto_desc">Необходим для типа Relay. Рекомендуется SRTP</string>
     <string name="history_label">История</string>
+    <string name="kernel_freeturn">FreeTurn</string>
     <string name="olcrtc_id_label">ID комнаты</string>
     <string name="olcrtc_key_label">Ключ авторизации</string>
     <string name="olcrtc_dns_label">DNS-сервер</string>
@@ -145,6 +147,30 @@
     <string name="olcrtc_video_qr_size">Размер QR</string>
     <string name="olcrtc_video_tile_module">Tile Module</string>
     <string name="olcrtc_video_tile_rs">Tile RS</string>
+    <string name="freeturn_links_label">Ссылки VK (через запятую)</string>
+    <string name="freeturn_links_desc">Коды из ссылок на звонки ВК</string>
+    <string name="freeturn_sub_label">URL подписки</string>
+    <string name="freeturn_sub_desc">Ссылка для авто-обновления серверов</string>
+    <string name="freeturn_peer_label">Адрес сервера (host:port)</string>
+    <string name="freeturn_peer_desc">Адрес вашего VPS сервера</string>
+    <string name="freeturn_n_label">Потоков TURN</string>
+    <string name="freeturn_n_desc">Больше потоков — выше потенциальная скорость</string>
+    <string name="freeturn_spc_label">Потоков на кеш</string>
+    <string name="freeturn_spc_desc">Количество TURN-аллокаций на аккаунт</string>
+    <string name="freeturn_obf_profile_label">Профиль обфускации</string>
+    <string name="freeturn_obf_key_label">Ключ обфускации (hex)</string>
+    <string name="freeturn_obf_key_desc">32 байта hex (64 символа)</string>
+    <string name="freeturn_dns_mode_label">Режим DNS</string>
+    <string name="freeturn_dns_servers_label">DNS-серверы</string>
+    <string name="freeturn_dns_servers_desc">UDP-резолверы через запятую</string>
+    <string name="freeturn_client_id_label">ID клиента</string>
+    <string name="freeturn_client_id_desc">Уникальный ID для allowlist сервера</string>
+    <string name="freeturn_bond_label">Бондинг (только TCP)</string>
+    <string name="freeturn_bond_desc">Распределение трафика по всем сессиям</string>
+    <string name="freeturn_transport_label">Транспорт</string>
+    <string name="freeturn_mode_label">Режим туннеля</string>
+    <string name="freeturn_manual_captcha_label">Ручная капча</string>
+    <string name="freeturn_manual_captcha_desc">Решать капчу ВК во встроенном браузере</string>
     <string name="local_listen_address">Локальный адрес прослушивания</string>
     <string name="local_port_help_text">Это сетевой адрес и порт, на которых приложение запустит локальную точку входа для туннеля.</string>
     <string name="local_port_help_secondary">К этому адресу должен подключаться встроенный Xray или сторонние VPN-клиенты (WireGuard, v2RayTun и др.), чтобы трафик шел через созданный туннель.</string>

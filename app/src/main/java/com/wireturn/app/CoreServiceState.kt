@@ -101,6 +101,8 @@ object CoreServiceState {
         _captchaSession.value = session
         if (session != null) {
             setStatus(CoreStatus.CaptchaRequired(session))
+        } else if (_status.value is CoreStatus.CaptchaRequired) {
+            setStatus(CoreStatus.Connecting)
         }
     }
 }

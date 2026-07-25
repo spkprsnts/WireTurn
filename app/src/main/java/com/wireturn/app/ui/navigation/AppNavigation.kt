@@ -11,25 +11,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.ui.CoreTriggerController
 import com.wireturn.app.ui.activities.AppExceptionsActivity
-import com.wireturn.app.ui.screens.CaptchaWebViewDialog
 import com.wireturn.app.ui.screens.HomeScreen
-import com.wireturn.app.viewmodel.CoreState
 import com.wireturn.app.viewmodel.MainViewModel
 
 @Composable
 fun AppNavigation(
     viewModel: MainViewModel
 ) {
-    val proxyState by viewModel.coreState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     
     Scaffold(
@@ -65,22 +57,6 @@ fun AppNavigation(
                     onCheckMismatch = onCheckMismatch
                 )
             }
-        }
-    }
-
-    val captchaState = proxyState as? CoreState.CaptchaRequired
-    val showCaptcha = remember(captchaState?.sessionId) {
-        mutableStateOf(captchaState != null)
-    }
-
-    if (showCaptcha.value && captchaState != null) {
-        key(captchaState.sessionId) {
-            CaptchaWebViewDialog(
-                viewModel = viewModel,
-                captchaUrl = captchaState.url,
-                onDismiss = { viewModel.dismissCaptcha() },
-                onSuccess = { showCaptcha.value = false }
-            )
         }
     }
 }

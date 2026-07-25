@@ -144,6 +144,7 @@ class CoreService : Service() {
             is KernelConfig.Turnable -> "Turnable (${k.config.selectedRouteId})"
             is KernelConfig.Olcrtc -> "Olcrtc (${k.config.provider})"
             is KernelConfig.Webdav -> "WebDAV (${k.config.webdav.take(20)})"
+            is KernelConfig.FreeTurn -> "FreeTurn (${k.config.peer})"
             else -> "-"
         }
         val xrayInfo = if (xrayConfig.enabled) {
@@ -304,6 +305,12 @@ class CoreService : Service() {
 
             if (CoreServiceState.status.value is CoreStatus.WaitingForNetwork) {
                 // В режиме ожидания сети мы ничего не делаем, пока NetworkCallback не перезапустит нас
+                delay(1_000.milliseconds)
+                continue
+            }
+
+            if (CoreServiceState.status.value is CoreStatus.CaptchaRequired) {
+                // Ждем решения капчи, не перезапуская бинарник
                 delay(1_000.milliseconds)
                 continue
             }
@@ -489,7 +496,55 @@ class CoreService : Service() {
             KernelVariant.TURNABLE -> handleTurnableLog(line, lower, state)
             KernelVariant.OLCRTC -> handleOlcrtcLog(line, lower, state, (cfg.kernelConfig as? KernelConfig.Olcrtc)?.config ?: OlcrtcConfig())
             KernelVariant.WEBDAV -> handleWebdavLog(line, lower, state)
+            KernelVariant.FREETURN -> handleFreeTurnLog(line, lower, state)
         }
+    }
+
+    private fun handleFreeTurnLog(line: String, lower: String, state: BinaryOutputState): Boolean {
+        // 1. Hard Errors
+        if (lower.startsWith("panic:") || lower.startsWith("fatal error:") || 
+            lower.contains("all vk credentials failed") || lower.contains("fatal_captcha")) {
+            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                CoreServiceState.setStatus(CoreStatus.Error(line))
+                updateNotification(getString(R.string.error_connecting))
+            }
+            state.startupFailed = true
+            return true
+        }
+
+        // 2. Connected
+        val streamEstMatch = STREAM_ESTABLISHED_REGEX.matcher(line)
+        val tcpActiveMatch = TCP_ACTIVE_REGEX.matcher(line)
+        
+        if (streamEstMatch.find() || (tcpActiveMatch.find() && (tcpActiveMatch.group(1)?.toIntOrNull() ?: 0) > 0)) {
+            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                CoreServiceState.setStatus(CoreStatus.Connected)
+                updateNotification(getString(R.string.core_active))
+                state.startupEmitted = true
+                CoreServiceState.setRestarting(false)
+            }
+        }
+
+        // 3. Captcha
+        handleCaptchaEvents(line, lower, state)
+
+        if (state.captchaActive && (
+                lower.contains("[vk auth] failed") ||
+                lower.contains("[vk auth] success") ||
+                (lower.contains("[captcha]") && lower.contains("failed"))
+            )) {
+            CoreServiceState.setCaptchaSession(null)
+            updateNotification(getString(R.string.core_active))
+            state.captchaActive = false
+        }
+
+        // 4. Soft Errors / Progress
+        if (lower.contains("quota")) {
+            // Log it but keep running or let watchdog handles it if it exits
+            state.startupEmitted = true
+        }
+
+        return false
     }
 
     private suspend fun handleTurnableLog(line: String, lower: String, state: BinaryOutputState): Boolean {
@@ -592,7 +647,8 @@ class CoreService : Service() {
             lower.contains("quota") ||
             (onlineCount != null && onlineCount == 0 && lower.contains("peer offline"))
         ) {
-            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+            val currentStatus = CoreServiceState.status.value
+            if (currentStatus !is CoreStatus.Suppressed && currentStatus !is CoreStatus.CaptchaRequired) {
                 if (isNetworkMissingAndHandled()) {
                     state.startupFailed = true
                     return true
@@ -750,17 +806,33 @@ class CoreService : Service() {
 
     private fun handleCaptchaEvents(line: String, lower: String, state: BinaryOutputState) {
         if (line.contains("Triggering manual captcha fallback")) {
-            state.startupEmitted = true
+            if (CoreServiceState.status.value !is CoreStatus.CaptchaRequired) {
+                state.startupEmitted = true
+            }
         }
 
         val captchaMatcher = CAPTCHA_URL_REGEX.matcher(line)
-        if (captchaMatcher.find()) {
-            val captchaUrl = captchaMatcher.group(1)!!
+        val freeTurnMatcher = FREE_TURN_CAPTCHA_REGEX.matcher(line)
+        val finalMatcher = if (freeTurnMatcher.find()) freeTurnMatcher else if (captchaMatcher.find()) captchaMatcher else null
+
+        if (finalMatcher != null) {
+            val captchaUrl = finalMatcher.group(1)!!
+            if (CoreServiceState.captchaSession.value?.url == captchaUrl) return
+
             state.captchaSessionCounter += 1
-            CoreServiceState.setCaptchaSession(CaptchaSession(captchaUrl, state.captchaSessionCounter))
+            val session = CaptchaSession(captchaUrl, state.captchaSessionCounter)
+            CoreServiceState.setCaptchaSession(session)
             state.captchaActive = true
             updateNotification(getString(R.string.core_captcha_required))
-            state.startupEmitted = true
+            
+            // Автоматически открываем окно капчи, если приложение активно
+            if (AppLifecycleState.isAppInForeground.value) {
+                val intent = Intent(this, com.wireturn.app.ui.activities.CaptchaActivity::class.java).apply {
+                    putExtra("CAPTCHA_URL", captchaUrl)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                }
+                startActivity(intent)
+            }
         }
 
         if (state.captchaActive && (
@@ -831,6 +903,45 @@ class CoreService : Service() {
                     cmdArgs.add("-socks-pass")
                     cmdArgs.add(cfg.socksPass)
                 }
+            }
+            is KernelConfig.FreeTurn -> {
+                val o = k.config
+                cmdArgs.add("${applicationInfo.nativeLibraryDir}/libfreeturn.so")
+                cmdArgs.addAll(listOf(
+                    "-listen", cfg.listenAddr.ifBlank { ClientConfig.DEFAULT_LISTEN_ADDR },
+                    "-peer", o.peer,
+                    "-n", o.n.toString(),
+                    "-transport", o.transport,
+                    "-mode", o.mode,
+                    "-obf-profile", o.obfProfile,
+                    "-streams-per-cred", o.streamsPerCred.toString(),
+                    "-dns-mode", o.dnsMode,
+                    "-browser", o.browser,
+                    "-platform", o.platform
+                ))
+                if (o.links.isNotBlank()) {
+                    cmdArgs.add("-links")
+                    cmdArgs.add(o.links)
+                }
+                if (o.sub.isNotBlank()) {
+                    cmdArgs.add("-sub")
+                    cmdArgs.add(o.sub)
+                }
+                if (o.bond && o.mode == "tcp") cmdArgs.add("-bond")
+                if (o.obfProfile != "none" && o.obfKey.isNotBlank()) {
+                    cmdArgs.add("-obf-key")
+                    cmdArgs.add(o.obfKey)
+                }
+                if (o.dnsServers.isNotBlank()) {
+                    cmdArgs.add("-dns-servers")
+                    cmdArgs.add(o.dnsServers)
+                }
+                if (o.clientId.isNotBlank()) {
+                    cmdArgs.add("-client-id")
+                    cmdArgs.add(o.clientId)
+                }
+                if (o.manualCaptcha) cmdArgs.add("-manual-captcha")
+                if (o.debug) cmdArgs.add("-debug")
             }
         }
         return cmdArgs
@@ -906,6 +1017,7 @@ class CoreService : Service() {
                 old.isSocksAuthEnabled != new.isSocksAuthEnabled ||
                 old.socksUser != new.socksUser ||
                 old.socksPass != new.socksPass
+            is KernelConfig.FreeTurn -> old.listenAddr != new.listenAddr
         }
     }
 
@@ -1261,6 +1373,9 @@ class CoreService : Service() {
         const val ACTION_STOP_BY_USER = "ACTION_STOP_BY_USER"
         const val MAX_RESTARTS = 10
         private val CAPTCHA_URL_REGEX = Pattern.compile("""Open this URL in your browser:\s*(https?://\S+)""")
+        private val FREE_TURN_CAPTCHA_REGEX = Pattern.compile("""(?:manually open this URL|Open this URL in your browser):\s*(https?://\S+)""")
+        private val STREAM_ESTABLISHED_REGEX = Pattern.compile("""\[STREAM (\d+)\] Established DTLS connection""")
+        private val TCP_ACTIVE_REGEX = Pattern.compile("""\[session \d+\] (?:connected|disconnected) \(active: (\d+)\)""")
         private val ONLINE_COUNT_REGEX = Pattern.compile("""online=(\d+)""")
 
         fun start(context: Context, cfg: ClientConfig) {

@@ -63,10 +63,11 @@ fun CaptchaWebViewDialog(
     var isLoading by remember { mutableStateOf(true) }
     val isContentVisible = remember { mutableStateOf(false) }
     var webViewHeight by remember { mutableIntStateOf(0) }
-    
+
     val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val primaryColor = MaterialTheme.colorScheme.primary
-    
+
+    val isViewModelInitialized by viewModel.isInitialized.collectAsStateWithLifecycle()
     val captchaStyleMod by viewModel.captchaStyleMod.collectAsStateWithLifecycle()
     val captchaForceTint by viewModel.captchaForceTint.collectAsStateWithLifecycle()
 
@@ -166,6 +167,7 @@ fun CaptchaWebViewDialog(
                         }
                         .clip(RoundedCornerShape(16.dp))
                 ) {
+                    if (isViewModelInitialized) {
                     AndroidView(
                         factory = { ctx ->
                             WebView(ctx).apply {
@@ -206,23 +208,23 @@ fun CaptchaWebViewDialog(
 
                                     override fun onPageFinished(view: WebView?, url: String?) {
                                         super.onPageFinished(view, url)
-                                        
+
                                         view?.evaluateJavascript(
                                             """
                                             (function() {
-                                                const isDark = $isDarkTheme;
-                                                const styleModEnabled = $captchaStyleMod;
-                                                
+                                                window.__wireturnCaptcha = { isDark: $isDarkTheme, styleModEnabled: $captchaStyleMod };
+
                                                 const applyTheme = function() {
-                                                    if (!styleModEnabled) return;
+                                                    if (!window.__wireturnCaptcha.styleModEnabled) return;
                                                     const appRoot = document.querySelector('.vkc__AppRoot-module__host');
                                                     if (!appRoot) return;
 
+                                                    const isDark = window.__wireturnCaptcha.isDark;
                                                     const target = isDark ? 'vkui--vkAccessibilityIOS--dark' : 'vkui--vkAccessibilityIOS--light';
-                                                    const others = isDark ? 
-                                                        ['vkui--vkAccessibility--dark', 'vkui--vkAccessibilityIOS--light', 'vkui--vkAccessibility--light'] : 
+                                                    const others = isDark ?
+                                                        ['vkui--vkAccessibility--dark', 'vkui--vkAccessibilityIOS--light', 'vkui--vkAccessibility--light'] :
                                                         ['vkui--vkAccessibility--dark', 'vkui--vkAccessibilityIOS--dark', 'vkui--vkAccessibility--light'];
-                                                    
+
                                                     let needsUpdate = !appRoot.classList.contains(target);
                                                     if (!needsUpdate) {
                                                         for (let i = 0; i < others.length; i++) {
@@ -240,16 +242,42 @@ fun CaptchaWebViewDialog(
                                                     }
                                                 };
 
-                                                const style = document.createElement('style');
-                                                style.innerHTML = `$captchaCss`;
-                                                document.head.appendChild(style);
-                                                
-                                                if (styleModEnabled) applyTheme();
+                                                window.__wireturnApplyCaptchaStyle = function(css, styleModEnabled, isDark) {
+                                                    window.__wireturnCaptcha.styleModEnabled = styleModEnabled;
+                                                    window.__wireturnCaptcha.isDark = isDark;
 
-                                                const checkCaptcha = function() {
+                                                    let style = document.getElementById('__wireturn_captcha_style__');
+                                                    if (!style) {
+                                                        style = document.createElement('style');
+                                                        style.id = '__wireturn_captcha_style__';
+                                                        document.head.appendChild(style);
+                                                    }
+                                                    style.innerHTML = css;
+
                                                     if (styleModEnabled) applyTheme();
-                                                    if (document.body.innerText.includes('Done! You can close the page.')) {
+                                                };
+
+                                                window.__wireturnApplyCaptchaStyle(`$captchaCss`, $captchaStyleMod, $isDarkTheme);
+
+                                                let isSuccessCalled = false;
+                                                const checkCaptcha = function() {
+                                                    if (isSuccessCalled) return true;
+                                                    if (window.__wireturnCaptcha.styleModEnabled) applyTheme();
+
+                                                    const text = document.body.innerText;
+                                                    if (text.includes('Done! You can close the page.') || 
+                                                        text.includes('Проверка пройдена') || 
+                                                        text.includes('Captcha solved') ||
+                                                        text.includes('Проверка завершена') ||
+                                                        text.includes('Success') ||
+                                                        (text.includes('free turn proxy') && text.includes('gg')) ||
+                                                        document.querySelector('.vkc__Captcha-module__success') ||
+                                                        document.querySelector('.vkc__NotRobotCaptcha-module__checkmark') ||
+                                                        document.querySelector('.vkuiIcon--done')) {
+                                                        isSuccessCalled = true;
                                                         AndroidBridge.onCaptchaSuccess();
+                                                        // Hide content immediately to feel like it closed
+                                                        document.body.style.display = 'none';
                                                         return true;
                                                     }
                                                     
@@ -326,10 +354,17 @@ fun CaptchaWebViewDialog(
                                 loadUrl(captchaUrl)
                             }
                         },
+                        update = { webView ->
+                            webView.evaluateJavascript(
+                                "if (window.__wireturnApplyCaptchaStyle) { window.__wireturnApplyCaptchaStyle(`$captchaCss`, $captchaStyleMod, $isDarkTheme); }",
+                                null
+                            )
+                        },
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer { alpha = contentAlpha }
                     )
+                    }
 
                     if (isLoading) {
                         CircularWavyProgressIndicator(

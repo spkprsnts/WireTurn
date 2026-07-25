@@ -80,6 +80,10 @@ class KernelConfigAdapter : JsonDeserializer<KernelConfig>, JsonSerializer<Kerne
                 jsonObject.addProperty("type", "webdav")
                 jsonObject.add("config", context.serialize(src.config))
             }
+            is KernelConfig.FreeTurn -> {
+                jsonObject.addProperty("type", "freeturn")
+                jsonObject.add("config", context.serialize(src.config))
+            }
         }
         return jsonObject
     }
@@ -92,12 +96,13 @@ class KernelConfigAdapter : JsonDeserializer<KernelConfig>, JsonSerializer<Kerne
             "turnable" -> KernelConfig.Turnable(context.deserialize(configElement, TurnableConfig::class.java) ?: TurnableConfig())
             "olcrtc" -> KernelConfig.Olcrtc(context.deserialize(configElement, OlcrtcConfig::class.java) ?: OlcrtcConfig())
             "webdav" -> KernelConfig.Webdav(context.deserialize(configElement, WebdavConfig::class.java) ?: WebdavConfig())
+            "freeturn" -> KernelConfig.FreeTurn(context.deserialize(configElement, FreeTurnConfig::class.java) ?: FreeTurnConfig())
             else -> KernelConfig.Turnable()
         }
     }
 }
 
-enum class KernelVariant { TURNABLE, OLCRTC, WEBDAV }
+enum class KernelVariant { TURNABLE, OLCRTC, WEBDAV, FREETURN }
 enum class XrayConfiguration { WIREGUARD, VLESS }
 enum class ThemeMode { DARK, LIGHT, SYSTEM }
 
@@ -105,6 +110,7 @@ sealed class KernelConfig {
     data class Turnable(val config: TurnableConfig = TurnableConfig()) : KernelConfig()
     data class Olcrtc(val config: OlcrtcConfig = OlcrtcConfig()) : KernelConfig()
     data class Webdav(val config: WebdavConfig = WebdavConfig()) : KernelConfig()
+    data class FreeTurn(val config: FreeTurnConfig = FreeTurnConfig()) : KernelConfig()
 }
 
 data class TurnableRoute(
@@ -531,6 +537,93 @@ data class WebdavConfig(
     }
 }
 
+data class FreeTurnConfig(
+    @SerializedName("peer") val peer: String = "",
+    @SerializedName("links") val links: String = "",
+    @SerializedName("n") val n: Int = 10,
+    @SerializedName("transport") val transport: String = "tcp",
+    @SerializedName("mode") val mode: String = "udp",
+    @SerializedName("bond") val bond: Boolean = false,
+    @SerializedName("obf_profile") val obfProfile: String = "none",
+    @SerializedName("obf_key") val obfKey: String = "",
+    @SerializedName("obf_timing") val obfTiming: String = "0",
+    @SerializedName("streams_per_cred") val streamsPerCred: Int = 10,
+    @SerializedName("manual_captcha") val manualCaptcha: Boolean = false,
+    @SerializedName("browser") val browser: String = "firefox",
+    @SerializedName("platform") val platform: String = "desktop",
+    @SerializedName("dns_mode") val dnsMode: String = "auto",
+    @SerializedName("dns_servers") val dnsServers: String = "",
+    @SerializedName("client_id") val clientId: String = "",
+    @SerializedName("sub") val sub: String = "",
+    @SerializedName("debug") val debug: Boolean = false
+) {
+    fun isValid(): Boolean = peer.isNotBlank() && (links.isNotBlank() || sub.isNotBlank())
+
+    fun sanitize(): FreeTurnConfig = copy(
+        peer = (peer as Any?)?.toString()?.trim()?.take(500) ?: "",
+        links = (links as Any?)?.toString()?.trim()?.take(4096) ?: "",
+        obfKey = (obfKey as Any?)?.toString()?.trim()?.take(64) ?: "",
+        dnsServers = (dnsServers as Any?)?.toString()?.trim()?.take(500) ?: "",
+        clientId = (clientId as Any?)?.toString()?.trim()?.take(100) ?: "",
+        sub = (sub as Any?)?.toString()?.trim()?.take(1000) ?: ""
+    )
+
+    fun toUri(profileName: String? = null): String {
+        val json = JsonObject().apply {
+            addProperty("v", 1)
+            addProperty("provider", "vk")
+            addProperty("peer", peer)
+            if (transport != "tcp") addProperty("transport", transport)
+            if (mode != "udp") addProperty("mode", mode)
+            if (bond) addProperty("bond", true)
+            if (obfProfile != "none") {
+                addProperty("obf", obfProfile)
+                addProperty("key", obfKey)
+            }
+            if (n != 10) addProperty("n", n)
+            if (streamsPerCred != 10) addProperty("spc", streamsPerCred)
+            if (clientId.isNotBlank()) addProperty("cid", clientId)
+            if (dnsMode != "auto") addProperty("dns", dnsMode)
+            if (dnsServers.isNotBlank()) addProperty("dnss", dnsServers)
+            if (manualCaptcha) addProperty("mcap", true)
+            if (!profileName.isNullOrBlank()) addProperty("name", profileName)
+        }
+        val bytes = json.toString().toByteArray()
+        val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING)
+        return "freeturn://$base64"
+    }
+
+    companion object {
+        fun parse(url: String, current: FreeTurnConfig = FreeTurnConfig()): FreeTurnConfig? {
+            if (!url.startsWith("freeturn://", ignoreCase = true)) return null
+            return try {
+                val base64 = url.substringAfter("freeturn://")
+                val jsonStr = String(android.util.Base64.decode(base64, android.util.Base64.URL_SAFE))
+                val json = Gson().fromJson(jsonStr, JsonObject::class.java)
+                
+                if (json.get("v")?.asInt != 1) return null
+
+                FreeTurnConfig(
+                    peer = json.get("peer")?.asString ?: current.peer,
+                    obfProfile = json.get("obf")?.asString ?: "none",
+                    obfKey = json.get("key")?.asString ?: "",
+                    n = json.get("n")?.asInt ?: 10,
+                    transport = json.get("transport")?.asString ?: "tcp",
+                    mode = json.get("mode")?.asString ?: "udp",
+                    bond = json.get("bond")?.asBoolean ?: false,
+                    streamsPerCred = json.get("spc")?.asInt ?: 10,
+                    clientId = json.get("cid")?.asString ?: "",
+                    dnsMode = json.get("dns")?.asString ?: "auto",
+                    dnsServers = json.get("dnss")?.asString ?: "",
+                    manualCaptcha = json.get("mcap")?.asBoolean ?: false
+                )
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+}
+
 data class ClientConfig(
     val listenAddr: String = DEFAULT_LISTEN_ADDR,
     val socksAddr: String = DEFAULT_SOCKS_ADDR,
@@ -541,12 +634,14 @@ data class ClientConfig(
     val kernelConfig: KernelConfig = KernelConfig.Turnable(),
     @SerializedName("turnableUrl") val turnableUrl: String = "",
     @SerializedName("olcrtcUrl") val olcrtcUrl: String = "",
-    @SerializedName("webdavUrl") val webdavUrl: String = ""
+    @SerializedName("webdavUrl") val webdavUrl: String = "",
+    @SerializedName("freeturnUrl") val freeturnUrl: String = ""
 ) {
     val kernelVariant: KernelVariant get() = when (kernelConfig) {
         is KernelConfig.Turnable -> KernelVariant.TURNABLE
         is KernelConfig.Olcrtc -> KernelVariant.OLCRTC
         is KernelConfig.Webdav -> KernelVariant.WEBDAV
+        is KernelConfig.FreeTurn -> KernelVariant.FREETURN
     }
 
     fun fillDefaults(): ClientConfig {
@@ -563,6 +658,8 @@ data class ClientConfig(
             OlcrtcConfig.parse(olcrtcUrl)?.let { currentKc = KernelConfig.Olcrtc(it) }
         } else if (webdavUrl.isNotBlank()) {
             WebdavConfig.parse(webdavUrl)?.let { currentKc = KernelConfig.Webdav(it) }
+        } else if (freeturnUrl.isNotBlank()) {
+            FreeTurnConfig.parse(freeturnUrl)?.let { currentKc = KernelConfig.FreeTurn(it) }
         }
 
         var current = this.copy(
@@ -589,6 +686,7 @@ data class ClientConfig(
                 is KernelConfig.Turnable -> KernelConfig.Turnable(k.config.sanitize())
                 is KernelConfig.Olcrtc -> KernelConfig.Olcrtc(k.config.fillDefaults())
                 is KernelConfig.Webdav -> KernelConfig.Webdav(k.config.fillDefaults())
+                is KernelConfig.FreeTurn -> KernelConfig.FreeTurn(k.config.sanitize())
             }
         )
     }
@@ -599,6 +697,7 @@ data class ClientConfig(
         is KernelConfig.Turnable -> if (!k.config.isValid()) R.string.error_settings_empty else null
         is KernelConfig.Olcrtc -> if (!k.config.isValid()) R.string.error_settings_empty else null
         is KernelConfig.Webdav -> if (!k.config.isValid()) R.string.error_settings_empty else null
+        is KernelConfig.FreeTurn -> if (!k.config.isValid()) R.string.error_settings_empty else null
     }
 
     val isValid: Boolean get() = getValidationErrorResId() == null
@@ -611,6 +710,7 @@ data class ClientConfig(
         }
         is KernelConfig.Olcrtc -> context.getString(R.string.kernel_olcrtc) + " " + k.config.providerDisplayName
         is KernelConfig.Webdav -> context.getString(R.string.kernel_webdav) + " " + WebdavConfig.formatHost(k.config.webdav)
+        is KernelConfig.FreeTurn -> context.getString(R.string.kernel_freeturn) + " " + k.config.peer.take(15)
     }
 
     companion object {
@@ -753,7 +853,8 @@ internal data class KernelSnapshot(
     @SerializedName("variant") val variant: String = KernelVariant.TURNABLE.name,
     @SerializedName("turnable") val turnable: TurnableConfig? = null,
     @SerializedName("olcrtc") val olcrtc: OlcrtcConfig? = null,
-    @SerializedName("webdav") val webdav: WebdavConfig? = null
+    @SerializedName("webdav") val webdav: WebdavConfig? = null,
+    @SerializedName("freeturn") val freeturn: FreeTurnConfig? = null
 )
 
 internal data class OldClientConfig(
@@ -776,6 +877,7 @@ data class Profile(
     @SerializedName("turnableUrl") private val turnableUrl: String? = null
     @SerializedName("olcrtcUrl") private val olcrtcUrl: String? = null
     @SerializedName("webdavUrl") private val webdavUrl: String? = null
+    @SerializedName("freeturnUrl") private val freeturnUrl: String? = null
     // --- END STABLE INPUT FIELDS ---
 
     // --- TEMPORARY MIGRATION FIELDS (Will be removed in future versions) ---
@@ -792,16 +894,19 @@ data class Profile(
         is KernelConfig.Turnable -> KernelVariant.TURNABLE
         is KernelConfig.Olcrtc -> KernelVariant.OLCRTC
         is KernelConfig.Webdav -> KernelVariant.WEBDAV
+        is KernelConfig.FreeTurn -> KernelVariant.FREETURN
     }
 
     val turnableConfig: TurnableConfig get() = (kernelConfig as? KernelConfig.Turnable)?.config ?: TurnableConfig()
     val olcrtcConfig: OlcrtcConfig get() = (kernelConfig as? KernelConfig.Olcrtc)?.config ?: OlcrtcConfig()
     val webdavConfig: WebdavConfig get() = (kernelConfig as? KernelConfig.Webdav)?.config ?: WebdavConfig()
+    val freeturnConfig: FreeTurnConfig get() = (kernelConfig as? KernelConfig.FreeTurn)?.config ?: FreeTurnConfig()
 
     fun isEmpty(): Boolean = when (val k = kernelConfig) {
         is KernelConfig.Turnable -> !k.config.isValid()
         is KernelConfig.Olcrtc -> !k.config.isValid()
         is KernelConfig.Webdav -> !k.config.isValid()
+        is KernelConfig.FreeTurn -> !k.config.isValid()
     } && !wgConfig.isValid() && !vlessConfig.isValid()
 
     fun sanitize(defaultName: String = "Profile"): Profile {
@@ -822,6 +927,8 @@ data class Profile(
             OlcrtcConfig.parse(olcrtcUrl)?.let { currentKc = KernelConfig.Olcrtc(it) }
         } else if (webdavUrl?.isNotBlank() == true) {
             WebdavConfig.parse(webdavUrl)?.let { currentKc = KernelConfig.Webdav(it) }
+        } else if (freeturnUrl?.isNotBlank() == true) {
+            FreeTurnConfig.parse(freeturnUrl)?.let { currentKc = KernelConfig.FreeTurn(it) }
         }
         // --- END INPUT ---
 
@@ -831,6 +938,7 @@ data class Profile(
                  KernelVariant.TURNABLE -> KernelConfig.Turnable(mTurnableConfig ?: TurnableConfig())
                  KernelVariant.OLCRTC -> KernelConfig.Olcrtc(mOlcrtcConfig ?: OlcrtcConfig())
                  KernelVariant.WEBDAV -> KernelConfig.Webdav(mWebdavConfig ?: WebdavConfig())
+                 KernelVariant.FREETURN -> currentKc // Not migrated from top-level
              }
         }
         // --- END MIGRATION 2 ---
@@ -855,6 +963,10 @@ data class Profile(
                     KernelVariant.WEBDAV -> {
                         val wdcElement = obj.get("webdavConfig")
                         KernelConfig.Webdav(gson.fromJson(wdcElement, WebdavConfig::class.java) ?: WebdavConfig())
+                    }
+                    KernelVariant.FREETURN -> {
+                        val ftcElement = obj.get("freeturnConfig")
+                        KernelConfig.FreeTurn(gson.fromJson(ftcElement, FreeTurnConfig::class.java) ?: FreeTurnConfig())
                     }
                 }
             } catch (_: Exception) { }
@@ -891,6 +1003,7 @@ data class Profile(
                 KernelConfig.Olcrtc(if (sc.mimo.isBlank()) sc.copy(mimo = finalName) else sc)
             }
             is KernelConfig.Webdav -> KernelConfig.Webdav(currentKc.config.fillDefaults())
+            is KernelConfig.FreeTurn -> KernelConfig.FreeTurn(currentKc.config.sanitize())
         }
 
         return copy(
@@ -913,6 +1026,7 @@ data class Profile(
 
         is KernelConfig.Olcrtc -> context.getString(R.string.kernel_olcrtc) + " " + k.config.providerDisplayName
         is KernelConfig.Webdav -> context.getString(R.string.kernel_webdav) + " " + WebdavConfig.formatHost(k.config.webdav)
+        is KernelConfig.FreeTurn -> context.getString(R.string.kernel_freeturn) + " " + k.config.peer.take(15)
     }
 }
 
@@ -1081,6 +1195,7 @@ class AppPreferences(val context: Context) {
                     KernelVariant.TURNABLE -> KernelConfig.Turnable(snap.turnable ?: TurnableConfig())
                     KernelVariant.OLCRTC -> KernelConfig.Olcrtc(snap.olcrtc ?: OlcrtcConfig())
                     KernelVariant.WEBDAV -> KernelConfig.Webdav(snap.webdav ?: WebdavConfig())
+                    KernelVariant.FREETURN -> KernelConfig.FreeTurn(snap.freeturn ?: FreeTurnConfig())
                 }
             } ?: run {
                 // Migration from legacy keys
@@ -1089,6 +1204,7 @@ class AppPreferences(val context: Context) {
                     KernelVariant.TURNABLE -> KernelConfig.Turnable(gson.fromJson(p[LEGACY_TURNABLE_JSON] ?: "{}", TurnableConfig::class.java) ?: TurnableConfig())
                     KernelVariant.OLCRTC -> KernelConfig.Olcrtc(gson.fromJson(p[LEGACY_OLCRTC_JSON] ?: "{}", OlcrtcConfig::class.java) ?: OlcrtcConfig())
                     KernelVariant.WEBDAV -> KernelConfig.Webdav(WebdavConfig())
+                    KernelVariant.FREETURN -> KernelConfig.FreeTurn(FreeTurnConfig())
                 }
             }
             ClientConfig(
@@ -1137,6 +1253,7 @@ class AppPreferences(val context: Context) {
         is KernelConfig.Turnable -> KernelSnapshot(variant = KernelVariant.TURNABLE.name, turnable = k.config)
         is KernelConfig.Olcrtc -> KernelSnapshot(variant = KernelVariant.OLCRTC.name, olcrtc = k.config)
         is KernelConfig.Webdav -> KernelSnapshot(variant = KernelVariant.WEBDAV.name, webdav = k.config)
+        is KernelConfig.FreeTurn -> KernelSnapshot(variant = KernelVariant.FREETURN.name, freeturn = k.config)
     }
 
     suspend fun saveFullProfile(id: String, profile: Profile) {
@@ -1281,6 +1398,7 @@ class AppPreferences(val context: Context) {
                 is KernelConfig.Turnable -> KernelSnapshot(variant = KernelVariant.TURNABLE.name, turnable = k.config)
                 is KernelConfig.Olcrtc -> KernelSnapshot(variant = KernelVariant.OLCRTC.name, olcrtc = k.config)
                 is KernelConfig.Webdav -> KernelSnapshot(variant = KernelVariant.WEBDAV.name, webdav = k.config)
+                is KernelConfig.FreeTurn -> KernelSnapshot(variant = KernelVariant.FREETURN.name, freeturn = k.config)
             })
             it.remove(LEGACY_KERNEL_VARIANT); it.remove(LEGACY_TURNABLE_JSON); it.remove(LEGACY_OLCRTC_JSON)
         }

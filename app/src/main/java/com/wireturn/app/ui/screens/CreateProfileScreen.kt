@@ -193,10 +193,16 @@ fun CreateProfileScreen(
                 }
 
                 SectionItem(
-                    position = ItemPosition.Bottom,
                     onClick = { onSelectType("WebDAV", null, profileName) }
                 ) {
                     RowLabel(text = stringResource(R.string.kernel_webdav))
+                }
+
+                SectionItem(
+                    position = ItemPosition.Bottom,
+                    onClick = { onSelectType("FreeTurn", null, profileName) }
+                ) {
+                    RowLabel(text = stringResource(R.string.kernel_freeturn))
                 }
             }
 
@@ -283,6 +289,7 @@ private fun handleImportText(
     val turnableParsed = TurnableConfig.parse(text)
     val olcrtcParsed = OlcrtcConfig.parse(text)
     val webdavParsed = WebdavConfig.parse(text)
+    val freeturnParsed = com.wireturn.app.data.FreeTurnConfig.parse(text)
 
     val uriFragment = try { text.toUri().fragment } catch (_: Exception) { null }
     val olcrtcMimo = if (text.startsWith("olcrtc://") && text.contains("$")) text.substringAfterLast("$") else null
@@ -290,6 +297,7 @@ private fun handleImportText(
     val finalName = enteredName.ifBlank { 
         if (webdavParsed != null) uriFragment ?: ""
         else if (olcrtcParsed != null) olcrtcMimo ?: ""
+        else if (freeturnParsed != null) uriFragment ?: ""
         else ""
     }
 
@@ -302,6 +310,9 @@ private fun handleImportText(
     } else if (webdavParsed != null) {
         HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
         onSelectType("WebDAV", Gson().toJson(webdavParsed), finalName)
+    } else if (freeturnParsed != null) {
+        HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
+        onSelectType("FreeTurn", Gson().toJson(freeturnParsed), finalName)
     } else {
         HapticUtil.perform(context, HapticUtil.Pattern.ERROR)
     }

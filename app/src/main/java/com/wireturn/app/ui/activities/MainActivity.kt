@@ -12,6 +12,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.DefaultLifecycleObserver
@@ -88,6 +91,19 @@ class MainActivity : AppCompatActivity() {
             val captchaUrl = intent?.getStringExtra("CAPTCHA_URL")
 
             val onboardingDone by viewModel.onboardingDone.collectAsStateWithLifecycle()
+            val captchaSession by com.wireturn.app.CoreServiceState.captchaSession.collectAsStateWithLifecycle()
+            var lastHandledCaptchaSessionId by remember { mutableStateOf(-1L) }
+
+            LaunchedEffect(captchaSession) {
+                if (captchaSession != null && captchaSession?.sessionId != lastHandledCaptchaSessionId) {
+                    lastHandledCaptchaSessionId = captchaSession?.sessionId ?: -1L
+                    val intent = Intent(this@MainActivity, CaptchaActivity::class.java).apply {
+                        putExtra("CAPTCHA_URL", captchaSession?.url)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    }
+                    startActivity(intent)
+                }
+            }
 
             WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
                 Surface(

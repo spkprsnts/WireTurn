@@ -35,6 +35,7 @@ class CreateProfileActivity : ComponentActivity() {
                             "Turnable" -> android.content.Intent(this, TurnableConfigActivity::class.java)
                             "olcRTC" -> android.content.Intent(this, OlcRtcConfigActivity::class.java)
                             "WebDAV" -> android.content.Intent(this, WebdavConfigActivity::class.java)
+                            "FreeTurn" -> android.content.Intent(this, com.wireturn.app.ui.activities.cores.FreeTurnConfigActivity::class.java)
                             else -> null
                         }
                         intent?.let {

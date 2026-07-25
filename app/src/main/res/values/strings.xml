@@ -37,6 +37,7 @@
     <string name="turnable_core">Tunnel core (Turnable)</string>
     <string name="olcrtc_core">Tunnel core (olcRTC)</string>
     <string name="webdav_core">Tunnel core (WebDAV)</string>
+    <string name="freeturn_core">Tunnel core (FreeTurn)</string>
     <string name="xray_core_name" translatable="false">vless-client</string>
     <string name="xray_core_original" translatable="false">Xray-core</string>
     <string name="hev_socks5_tunnel" translatable="false">hev-socks5-tunnel</string>
@@ -136,6 +137,7 @@
     <string name="kernel_turnable" translatable="false">Turnable</string>
     <string name="kernel_olcrtc" translatable="false">olcRTC</string>
     <string name="kernel_webdav" translatable="false">WebDAV</string>
+    <string name="kernel_freeturn" translatable="false">FreeTurn</string>
     <string name="webdav_url_label">WebDAV URL</string>
     <string name="webdav_login_label">Login</string>
     <string name="webdav_password_label">Password</string>
@@ -176,6 +178,30 @@
     <string name="olcrtc_video_qr_size">QR Size</string>
     <string name="olcrtc_video_tile_module">Tile Module</string>
     <string name="olcrtc_video_tile_rs">Tile RS</string>
+    <string name="freeturn_links_label">VK Links (comma separated)</string>
+    <string name="freeturn_links_desc">Extracted from VK Calls join links</string>
+    <string name="freeturn_sub_label">Subscription URL</string>
+    <string name="freeturn_sub_desc">URL to fetch servers automatically</string>
+    <string name="freeturn_peer_label">Server address (host:port)</string>
+    <string name="freeturn_peer_desc">Address of your VPS server</string>
+    <string name="freeturn_n_label">TURN Streams</string>
+    <string name="freeturn_n_desc">Higher value = potentially better speed</string>
+    <string name="freeturn_spc_label">Streams per cache</string>
+    <string name="freeturn_spc_desc">TURN allocations per account</string>
+    <string name="freeturn_obf_profile_label">Obf Profile</string>
+    <string name="freeturn_obf_key_label">Obf Key (hex)</string>
+    <string name="freeturn_obf_key_desc">32 bytes hex key (64 characters)</string>
+    <string name="freeturn_dns_mode_label">DNS Mode</string>
+    <string name="freeturn_dns_servers_label">DNS Servers</string>
+    <string name="freeturn_dns_servers_desc">Custom UDP resolvers (comma separated)</string>
+    <string name="freeturn_client_id_label">Client ID</string>
+    <string name="freeturn_client_id_desc">Unique identifier for server allowlist</string>
+    <string name="freeturn_bond_label">Bonding (TCP mode only)</string>
+    <string name="freeturn_bond_desc">Striping traffic across sessions</string>
+    <string name="freeturn_transport_label">Transport</string>
+    <string name="freeturn_mode_label">Tunnel Mode</string>
+    <string name="freeturn_manual_captcha_label">Manual Captcha</string>
+    <string name="freeturn_manual_captcha_desc">Solve VK captcha in app browser</string>
     <string name="local_listen_address">Local listen address</string>
     <string name="local_port_help_text">This is the network address and port where the app will start a local tunnel entry point.</string>
     <string name="local_port_help_secondary">The built-in Xray or third-party VPN clients (WireGuard, v2RayTun, etc.) must connect to this address to route traffic through the created tunnel.</string>
