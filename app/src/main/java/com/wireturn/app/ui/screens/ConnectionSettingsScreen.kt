@@ -79,22 +79,22 @@ fun ConnectionSettingsScreen(
     val context = LocalContext.current
 
     // Turnable states
-    var listenAddr by remember(initialClientConfig.listenAddr) { mutableStateOf(initialClientConfig.listenAddr) }
-    var goDnsGo by remember(initialClientConfig.goDnsGo) { mutableStateOf(initialClientConfig.goDnsGo) }
-    
+    var listenAddr by remember { mutableStateOf(initialClientConfig.listenAddr) }
+    var goDnsGo by remember { mutableStateOf(initialClientConfig.goDnsGo) }
+
     // olcRTC states
-    var olSocks by remember(initialClientConfig.socksAddr) { mutableStateOf(initialClientConfig.socksAddr) }
-    var olAuth by remember(initialClientConfig.isSocksAuthEnabled) { mutableStateOf(initialClientConfig.isSocksAuthEnabled) }
-    var olUser by remember(initialClientConfig.socksUser) { mutableStateOf(initialClientConfig.socksUser) }
-    var olPass by remember(initialClientConfig.socksPass) { mutableStateOf(initialClientConfig.socksPass) }
+    var olSocks by remember { mutableStateOf(initialClientConfig.socksAddr) }
+    var olAuth by remember { mutableStateOf(initialClientConfig.isSocksAuthEnabled) }
+    var olUser by remember { mutableStateOf(initialClientConfig.socksUser) }
+    var olPass by remember { mutableStateOf(initialClientConfig.socksPass) }
     var olPassVisible by rememberSaveable { mutableStateOf(false) }
-    
+
     // Xray states
-    var xraySocks by remember(initialXraySettings.socksBindAddress) { mutableStateOf(initialXraySettings.socksBindAddress) }
-    var xrayHttp by remember(initialXraySettings.httpBindAddress) { mutableStateOf(initialXraySettings.httpBindAddress) }
-    var xrayAuth by remember(initialXraySettings.isProxyAuthEnabled) { mutableStateOf(initialXraySettings.isProxyAuthEnabled) }
-    var xrayUser by remember(initialXraySettings.proxyUser) { mutableStateOf(initialXraySettings.proxyUser) }
-    var xrayPass by remember(initialXraySettings.proxyPass) { mutableStateOf(initialXraySettings.proxyPass) }
+    var xraySocks by remember { mutableStateOf(initialXraySettings.socksBindAddress) }
+    var xrayHttp by remember { mutableStateOf(initialXraySettings.httpBindAddress) }
+    var xrayAuth by remember { mutableStateOf(initialXraySettings.isProxyAuthEnabled) }
+    var xrayUser by remember { mutableStateOf(initialXraySettings.proxyUser) }
+    var xrayPass by remember { mutableStateOf(initialXraySettings.proxyPass) }
     var xrayPassVisible by rememberSaveable { mutableStateOf(false) }
 
     val scrollState = rememberScrollState()
