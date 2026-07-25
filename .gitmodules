@@ -16,3 +16,6 @@
 [submodule "external/webdav-tunnel"]
 	path = external/webdav-tunnel
 	url = https://github.com/spkprsnts/webdav-tunnel
+[submodule "external/free-turn-proxy"]
+	path = external/free-turn-proxy
+	url = https://github.com/samosvalishe/free-turn-proxy

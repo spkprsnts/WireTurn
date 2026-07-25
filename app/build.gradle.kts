@@ -44,6 +44,8 @@ android {
             keepDebugSymbols += "**/libolcrtc.so"
             keepDebugSymbols += "**/libxray.so"
             keepDebugSymbols += "**/libffmpeg.so"
+            keepDebugSymbols += "**/libwebdav.so"
+            keepDebugSymbols += "**/libfreeturn.so"
         }
     }
 
@@ -213,6 +215,9 @@ tasks.register<Exec>("buildGoBinaries") {
     inputs.files(file("${rootDir}/external/webdav-tunnel"))
         .withPathSensitivity(PathSensitivity.RELATIVE)
         .optional()
+    inputs.files(file("${rootDir}/external/free-turn-proxy"))
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+        .optional()
     inputs.file(file("${rootDir}/build.sh")).withPathSensitivity(PathSensitivity.RELATIVE)
     
     listOf("arm64-v8a", "x86_64").forEach { abi ->
@@ -220,6 +225,7 @@ tasks.register<Exec>("buildGoBinaries") {
         outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libxray.so"))
         outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libturnable.so"))
         outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libwebdav.so"))
+        outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libfreeturn.so"))
     }
     configureNdk()
     wslOrBash("./build.sh go")
