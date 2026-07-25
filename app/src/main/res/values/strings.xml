@@ -178,12 +178,12 @@
     <string name="olcrtc_video_qr_size">QR Size</string>
     <string name="olcrtc_video_tile_module">Tile Module</string>
     <string name="olcrtc_video_tile_rs">Tile RS</string>
-    <string name="freeturn_links_label">VK Links (comma separated)</string>
-    <string name="freeturn_links_desc">Extracted from VK Calls join links</string>
+    <string name="freeturn_links_label">Call ID</string>
+    <string name="freeturn_links_desc">VK: «https://vk.com/call/join/[ID]». Multiple IDs can be separated by commas.</string>
     <string name="freeturn_sub_label">Subscription URL</string>
     <string name="freeturn_sub_desc">URL to fetch servers automatically</string>
-    <string name="freeturn_peer_label">Server address (host:port)</string>
-    <string name="freeturn_peer_desc">Address of your VPS server</string>
+    <string name="freeturn_peer_label">Server address</string>
+    <string name="freeturn_peer_desc">Address of your VPS server (host:port)</string>
     <string name="freeturn_n_label">TURN Streams</string>
     <string name="freeturn_n_desc">Higher value = potentially better speed</string>
     <string name="freeturn_spc_label">Streams per cache</string>

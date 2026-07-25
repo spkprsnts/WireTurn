@@ -147,12 +147,12 @@
     <string name="olcrtc_video_qr_size">Размер QR</string>
     <string name="olcrtc_video_tile_module">Tile Module</string>
     <string name="olcrtc_video_tile_rs">Tile RS</string>
-    <string name="freeturn_links_label">Ссылки VK (через запятую)</string>
-    <string name="freeturn_links_desc">Коды из ссылок на звонки ВК</string>
+    <string name="freeturn_links_label">ID звонка</string>
+    <string name="freeturn_links_desc">VK: Звонки «https://vk.com/call/join/[ID]». Можно указать несколько через запятую.</string>
     <string name="freeturn_sub_label">URL подписки</string>
     <string name="freeturn_sub_desc">Ссылка для авто-обновления серверов</string>
-    <string name="freeturn_peer_label">Адрес сервера (host:port)</string>
-    <string name="freeturn_peer_desc">Адрес вашего VPS сервера</string>
+    <string name="freeturn_peer_label">Адрес сервера</string>
+    <string name="freeturn_peer_desc">Адрес вашего VPS сервера (host:port)</string>
     <string name="freeturn_n_label">Потоков TURN</string>
     <string name="freeturn_n_desc">Больше потоков — выше потенциальная скорость</string>
     <string name="freeturn_spc_label">Потоков на кеш</string>
