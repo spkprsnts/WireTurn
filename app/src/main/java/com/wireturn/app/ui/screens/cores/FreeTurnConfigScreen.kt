@@ -332,6 +332,23 @@ fun FreeTurnConfigScreen(
             // connection details
             SectionGroup(title = stringResource(R.string.connection_details)) {
                 SectionItem(position = ItemPosition.Top) {
+                    LabeledButtonGroup(
+                        label = stringResource(R.string.freeturn_mode_label),
+                        isModified = isEditMode && config.mode != initialConfig.mode
+                    ) {
+                        val options = listOf("udp", "tcp")
+                        options.forEachIndexed { index, m ->
+                            selectableButtonItem(
+                                selected = config.mode == m,
+                                onSelect = { config = config.copy(mode = m) },
+                                label = m.uppercase(),
+                                index = index,
+                                count = options.size
+                            )
+                        }
+                    }
+                }
+                SectionItem {
                     TextFieldRow(
                         label = stringResource(R.string.freeturn_peer_label),
                         supportingText = stringResource(R.string.freeturn_peer_desc),
@@ -355,7 +372,7 @@ fun FreeTurnConfigScreen(
                         privacyMode = isPrivacyActive
                     )
                 }
-                SectionItem(position = ItemPosition.Bottom) {
+                SectionItem {
                     TextFieldRow(
                         label = stringResource(R.string.freeturn_sub_label),
                         supportingText = stringResource(R.string.freeturn_sub_desc),
@@ -364,6 +381,27 @@ fun FreeTurnConfigScreen(
                         readOnly = isPrivacyActive,
                         isModified = isEditMode && config.sub != initialConfig.sub,
                         privacyMode = isPrivacyActive
+                    )
+                }
+                SectionItem(
+                    position = ItemPosition.Bottom,
+                    onClick = {
+                        val isBondEnabled = config.mode == "tcp"
+                        if (isBondEnabled) {
+                            val next = !config.bond
+                            HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                            config = config.copy(bond = next)
+                        }
+                    }
+                ) {
+                    val isBondEnabled = config.mode == "tcp"
+                    SwitchRow(
+                        label = stringResource(R.string.freeturn_bond_label),
+                        supportingText = stringResource(R.string.freeturn_bond_desc),
+                        checked = config.bond,
+                        onCheckedChange = { config = config.copy(bond = it) },
+                        isModified = isEditMode && config.bond != initialConfig.bond,
+                        enabled = isBondEnabled
                     )
                 }
             }
@@ -407,34 +445,6 @@ fun FreeTurnConfigScreen(
                             )
                         }
                     }
-                }
-                SectionItem {
-                    LabeledButtonGroup(
-                        label = stringResource(R.string.freeturn_mode_label),
-                        isModified = isEditMode && config.mode != initialConfig.mode
-                    ) {
-                        val options = listOf("udp", "tcp")
-                        options.forEachIndexed { index, m ->
-                            selectableButtonItem(
-                                selected = config.mode == m,
-                                onSelect = { config = config.copy(mode = m) },
-                                label = m.uppercase(),
-                                index = index,
-                                count = options.size
-                            )
-                        }
-                    }
-                }
-                SectionItem(position = ItemPosition.Bottom) {
-                    val isBondEnabled = config.mode == "tcp"
-                    SwitchRow(
-                        label = stringResource(R.string.freeturn_bond_label),
-                        supportingText = stringResource(R.string.freeturn_bond_desc),
-                        checked = config.bond,
-                        onCheckedChange = { if (isBondEnabled) config = config.copy(bond = it) },
-                        isModified = isEditMode && config.bond != initialConfig.bond,
-                        enabled = isBondEnabled
-                    )
                 }
             }
 
@@ -518,7 +528,14 @@ fun FreeTurnConfigScreen(
                         privacyMode = isPrivacyActive
                     )
                 }
-                SectionItem(position = ItemPosition.Bottom) {
+                SectionItem(
+                    position = ItemPosition.Bottom,
+                    onClick = {
+                        val next = !config.manualCaptcha
+                        HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                        config = config.copy(manualCaptcha = next)
+                    }
+                ) {
                     SwitchRow(
                         label = stringResource(R.string.freeturn_manual_captcha_label),
                         supportingText = stringResource(R.string.freeturn_manual_captcha_desc),
