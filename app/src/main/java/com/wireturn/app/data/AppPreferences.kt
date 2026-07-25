@@ -1026,7 +1026,7 @@ data class Profile(
 
         is KernelConfig.Olcrtc -> context.getString(R.string.kernel_olcrtc) + " " + k.config.providerDisplayName
         is KernelConfig.Webdav -> context.getString(R.string.kernel_webdav) + " " + WebdavConfig.formatHost(k.config.webdav)
-        is KernelConfig.FreeTurn -> context.getString(R.string.kernel_freeturn) + " " + k.config.peer.take(15)
+        is KernelConfig.FreeTurn -> context.getString(R.string.kernel_freeturn) + " m:" + k.config.mode.uppercase()
     }
 }
 

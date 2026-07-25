@@ -121,9 +121,7 @@ fun ProfileSummary(
             }
         }
 
-        KernelVariant.FREETURN -> {
-            parts.add(profile.freeturnConfig.peer.take(15))
-        }
+        else -> {}
     }
 
 
