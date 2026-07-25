@@ -7,10 +7,7 @@ package com.wireturn.app.ui.screens
 
 import android.content.pm.ApplicationInfo
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,9 +30,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.input.clearText
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExpandedFullScreenSearchBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
@@ -44,10 +44,12 @@ import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.SearchBarValue
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberSearchBarState
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -103,6 +105,7 @@ import kotlin.time.Duration.Companion.milliseconds
 
 private object AppExceptionsDefaults {
     val IconSize = 32.dp
+    val SearchBarTopGap = 8.dp
 }
 
 data class AppInfo(
@@ -124,11 +127,12 @@ fun AppExceptionsScreen(
     
     var isAppsLoading by remember { mutableStateOf(true) }
     var appList by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
-    var searchQuery by rememberSaveable { mutableStateOf("") }
+    val textFieldState = rememberTextFieldState()
+    val searchQuery = textFieldState.text.toString()
     var isSearching by remember { mutableStateOf(false) }
-    
+
     var sortSnapshot by remember { mutableStateOf(emptySet<String>()) }
-    
+
     var appliedSearchQuery by rememberSaveable { mutableStateOf("") }
     LaunchedEffect(searchQuery) {
         if (searchQuery.isBlank()) {
@@ -142,19 +146,14 @@ fun AppExceptionsScreen(
         }
     }
 
-    var expanded by rememberSaveable { mutableStateOf(false) }
+    val searchBarState = rememberSearchBarState()
     var showMenu by remember { mutableStateOf(false) }
 
     var isSearchBarVisible by rememberSaveable { mutableStateOf(true) }
-    var searchBarZIndex by remember { mutableFloatStateOf(1f) }
 
-    LaunchedEffect(expanded) {
-        if (expanded) {
-            searchBarZIndex = 5f
+    LaunchedEffect(searchBarState.targetValue) {
+        if (searchBarState.targetValue == SearchBarValue.Expanded) {
             isSearchBarVisible = true
-        } else {
-            delay(300.milliseconds)
-            searchBarZIndex = 2f
         }
     }
 
@@ -225,7 +224,7 @@ fun AppExceptionsScreen(
         loadApps()
     }
 
-    val searchDisplayList = remember(appliedSearchQuery, expanded, appList, vpnSettings.hideSystemApps, sortSnapshot, excludedApps) {
+    val searchDisplayList = remember(appliedSearchQuery, searchBarState.currentValue, appList, vpnSettings.hideSystemApps, sortSnapshot, excludedApps) {
         val filtered = if (vpnSettings.hideSystemApps) {
             appList.filter { !it.isSystem || excludedApps.contains(it.packageName) }
         } else {
@@ -335,7 +334,9 @@ fun AppExceptionsScreen(
                 available: Offset,
                 source: NestedScrollSource
             ): Offset {
-                if (expanded) return super.onPostScroll(consumed, available, source)
+                if (searchBarState.currentValue == SearchBarValue.Expanded) {
+                    return super.onPostScroll(consumed, available, source)
+                }
                 val delta = consumed.y + available.y
                 if (delta < -24f && scrollBehavior.state.collapsedFraction == 1f) {
                     isSearchBarVisible = false
@@ -352,16 +353,6 @@ fun AppExceptionsScreen(
             isSearchBarVisible = true
         }
     }
-
-    // Анимируем коэффициент прогресса (0 = закрыто, 1 = открыто)
-    val searchProgress by animateFloatAsState(
-        targetValue = if (expanded) 1f else 0f,
-        animationSpec = tween(
-            durationMillis = 300,
-            easing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
-        ),
-        label = "search_expansion_progress"
-    )
 
     val searchBarHideOffset by animateDpAsState(
         targetValue = if (isSearchBarVisible) 0.dp else (-SearchBarDefaults.InputFieldHeight - 16.dp),
@@ -393,14 +384,14 @@ fun AppExceptionsScreen(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             containerColor = screenBackgroundColor
         ) { innerPadding ->
-            val finalTopPadding by remember(appBarHeightPx, searchProgress, searchBarHideOffset) {
-                derivedStateOf { (lerp(appBarHeightDp, 0.dp, searchProgress) + searchBarHideOffset).coerceAtLeast(0.dp) }
-            }
-            val finalHorizontalPadding by remember(searchProgress, scrollBehavior.state.collapsedFraction) {
+            val finalTopPadding by remember(appBarHeightPx, searchBarHideOffset) {
                 derivedStateOf {
-                    val basePadding = lerp(16.dp, 24.dp, scrollBehavior.state.collapsedFraction)
-                    lerp(basePadding, 0.dp, searchProgress)
+                    (appBarHeightDp + AppExceptionsDefaults.SearchBarTopGap + searchBarHideOffset)
+                        .coerceAtLeast(0.dp)
                 }
+            }
+            val finalHorizontalPadding by remember(scrollBehavior.state.collapsedFraction) {
+                derivedStateOf { lerp(16.dp, 24.dp, scrollBehavior.state.collapsedFraction) }
             }
 
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
@@ -560,70 +551,76 @@ fun AppExceptionsScreen(
                     }
                 }
 
-                SearchBar(
-                    modifier = Modifier
-                        .widthIn(max = lerp(840.dp, 2400.dp, searchProgress))
-                        .fillMaxWidth()
-                        .zIndex(searchBarZIndex)
-                        .padding(top = finalTopPadding)
-                        .padding(horizontal = finalHorizontalPadding),
-                    inputField = {
-                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
-                            SearchBarDefaults.InputField(
-                                modifier = Modifier
-                                    .widthIn(max = 840.dp)
-                                    .fillMaxWidth()
-                                    .padding(top = statusBarPadding * searchProgress),
-                                query = searchQuery,
-                                onQueryChange = { searchQuery = it },
-                                onSearch = {
-                                    isSearching = false
-                                    expanded = false
-                                },
-                                expanded = expanded,
-                                onExpandedChange = { expanded = it },
-                                placeholder = { Text(stringResource(R.string.search_apps)) },
-                                leadingIcon = {
-                                    if (expanded) {
-                                        IconButton(onClick = { expanded = false }) {
-                                            Icon(
-                                                painterResource(R.drawable.arrow_back_24px),
-                                                contentDescription = null
-                                            )
-                                        }
-                                    } else {
+                val inputField: @Composable () -> Unit = {
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+                        SearchBarDefaults.InputField(
+                            modifier = Modifier
+                                .widthIn(max = 840.dp)
+                                .fillMaxWidth()
+                                .padding(top = statusBarPadding * searchBarState.progress),
+                            textFieldState = textFieldState,
+                            searchBarState = searchBarState,
+                            onSearch = {
+                                isSearching = false
+                                scope.launch { searchBarState.animateToCollapsed() }
+                            },
+                            placeholder = { Text(stringResource(R.string.search_apps)) },
+                            leadingIcon = {
+                                if (searchBarState.currentValue == SearchBarValue.Expanded) {
+                                    IconButton(onClick = {
+                                        scope.launch { searchBarState.animateToCollapsed() }
+                                    }) {
                                         Icon(
-                                            painterResource(R.drawable.search_24px),
+                                            painterResource(R.drawable.arrow_back_24px),
                                             contentDescription = null
                                         )
                                     }
-                                },
-                                trailingIcon = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        if (searchQuery.isNotEmpty()) {
-                                            IconButton(onClick = { searchQuery = "" }) {
-                                                Icon(
-                                                    painterResource(R.drawable.close_24px),
-                                                    contentDescription = null
-                                                )
-                                            }
-                                        }
-                                        if (expanded) {
-                                            IconButton(onClick = { onImportFromClipboard() }) {
-                                                Icon(
-                                                    painterResource(R.drawable.content_paste_24px),
-                                                    contentDescription = null
-                                                )
-                                            }
+                                } else {
+                                    Icon(
+                                        painterResource(R.drawable.search_24px),
+                                        contentDescription = null
+                                    )
+                                }
+                            },
+                            trailingIcon = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (textFieldState.text.isNotEmpty()) {
+                                        IconButton(onClick = { textFieldState.clearText() }) {
+                                            Icon(
+                                                painterResource(R.drawable.close_24px),
+                                                contentDescription = null
+                                            )
                                         }
                                     }
-                                },
-                            )
-                        }
-                    },
-                    expanded = expanded,
-                    onExpandedChange = { expanded = it },
-                    windowInsets = WindowInsets(0, 0, 0, 0)
+                                    if (searchBarState.currentValue == SearchBarValue.Expanded) {
+                                        IconButton(onClick = { onImportFromClipboard() }) {
+                                            Icon(
+                                                painterResource(R.drawable.content_paste_24px),
+                                                contentDescription = null
+                                            )
+                                        }
+                                    }
+                                }
+                            },
+                        )
+                    }
+                }
+
+                SearchBar(
+                    state = searchBarState,
+                    inputField = inputField,
+                    modifier = Modifier
+                        .widthIn(max = 840.dp)
+                        .fillMaxWidth()
+                        .zIndex(2f)
+                        .padding(top = finalTopPadding)
+                        .padding(horizontal = finalHorizontalPadding)
+                )
+
+                ExpandedFullScreenSearchBar(
+                    state = searchBarState,
+                    inputField = inputField,
+                    windowInsets = { WindowInsets(0, 0, 0, 0) }
                 ) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                         LazyColumn(
