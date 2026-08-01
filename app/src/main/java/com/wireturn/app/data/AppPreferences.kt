@@ -195,7 +195,7 @@ data class TurnableConfig(
             "vk.com" -> "VK"
             else -> platformId
         }
-        fun parse(url: String, base: TurnableConfig = TurnableConfig()): TurnableConfig? {
+        fun parse(url: String, current: TurnableConfig = TurnableConfig()): TurnableConfig? {
             if (!url.startsWith("turnable://", ignoreCase = true)) return null
             return try {
                 val uri = Uri.parse(url)
@@ -226,20 +226,20 @@ data class TurnableConfig(
                         transport = transport
                     )
                 }
-                base.copy(
-                    userUuid = userUuid ?: base.userUuid,
-                    callId = callId.ifBlank { base.callId },
-                    platformId = uri.host ?: base.platformId,
-                    type = uri.getQueryParameter("type") ?: base.type,
-                    encryption = uri.getQueryParameter("encryption") ?: base.encryption,
-                    pubKey = uri.getQueryParameter("pub_key") ?: base.pubKey,
-                    peers = uri.getQueryParameter("peers")?.toIntOrNull() ?: base.peers,
-                    gateway = uri.getQueryParameter("gateway") ?: base.gateway,
-                    proto = uri.getQueryParameter("proto") ?: base.proto,
-                    cloak = uri.getQueryParameter("cloak") ?: base.cloak,
-                    routes = routes.ifEmpty { base.routes },
+                current.copy(
+                    userUuid = userUuid ?: current.userUuid,
+                    callId = callId.ifBlank { current.callId },
+                    platformId = uri.host ?: current.platformId,
+                    type = uri.getQueryParameter("type") ?: current.type,
+                    encryption = uri.getQueryParameter("encryption") ?: current.encryption,
+                    pubKey = uri.getQueryParameter("pub_key") ?: current.pubKey,
+                    peers = uri.getQueryParameter("peers")?.toIntOrNull() ?: current.peers,
+                    gateway = uri.getQueryParameter("gateway") ?: current.gateway,
+                    proto = uri.getQueryParameter("proto") ?: current.proto,
+                    cloak = uri.getQueryParameter("cloak") ?: current.cloak,
+                    routes = routes.ifEmpty { current.routes },
                     selectedRouteId = uri.getQueryParameter("selected_route_id")
-                        ?: (if (routes.isNotEmpty()) routes.firstOrNull()?.routeId ?: "" else base.selectedRouteId)
+                        ?: (if (routes.isNotEmpty()) routes.firstOrNull()?.routeId ?: "" else current.selectedRouteId)
                 )
             } catch (_: Exception) {
                 null
@@ -354,7 +354,7 @@ data class OlcrtcConfig(
             else -> transport
         }
 
-        fun parse(url: String, base: OlcrtcConfig = OlcrtcConfig()): OlcrtcConfig? {
+        fun parse(url: String, current: OlcrtcConfig = OlcrtcConfig()): OlcrtcConfig? {
             if (!url.startsWith("olcrtc://", ignoreCase = true)) return null
             return try {
                 val provider = url.substringAfter("olcrtc://").substringBefore("?")
@@ -365,7 +365,7 @@ data class OlcrtcConfig(
                 val id = rest.substringBefore("#").substringBefore("$")
                 val key = if (rest.contains("#")) rest.substringAfter("#").substringBefore("$") else ""
                 val mimo = if (rest.contains("$")) rest.substringAfter("$") else ""
-                var cfg = base.copy(
+                var cfg = current.copy(
                     provider = provider,
                     transport = transport,
                     id = id,
@@ -607,22 +607,22 @@ data class FreeTurnConfig(
                 if (json.get("v")?.asInt != 1) return null
 
                 FreeTurnConfig(
-                    peer = json.get("peer")?.asString ?: "",
-                    links = json.get("links")?.asString ?: json.get("link")?.asString ?: "",
-                    sub = json.get("sub")?.asString ?: "",
-                    obfProfile = json.get("obf")?.asString ?: "none",
-                    obfKey = json.get("key")?.asString ?: "",
-                    obfTiming = json.get("obft")?.asString ?: "0",
-                    n = json.get("n")?.asInt ?: 10,
-                    transport = json.get("transport")?.asString ?: "tcp",
-                    mode = json.get("mode")?.asString ?: "udp",
-                    bond = json.get("bond")?.asBoolean ?: false,
-                    streamsPerCred = json.get("spc")?.asInt ?: 10,
-                    clientId = json.get("cid")?.asString ?: "",
-                    dnsMode = json.get("dns")?.asString ?: "auto",
-                    dnsServers = json.get("dnss")?.asString ?: "",
-                    manualCaptcha = json.get("mcap")?.asBoolean ?: false,
-                    platform = json.get("plt")?.asString ?: "desktop"
+                    peer = json.get("peer")?.asString ?: current.peer,
+                    links = json.get("links")?.asString ?: json.get("link")?.asString ?: current.links,
+                    sub = json.get("sub")?.asString ?: current.sub,
+                    obfProfile = json.get("obf")?.asString ?: current.obfProfile,
+                    obfKey = json.get("key")?.asString ?: current.obfKey,
+                    obfTiming = json.get("obft")?.asString ?: current.obfTiming,
+                    n = json.get("n")?.asInt ?: current.n,
+                    transport = json.get("transport")?.asString ?: current.transport,
+                    mode = json.get("mode")?.asString ?: current.mode,
+                    bond = json.get("bond")?.asBoolean ?: current.bond,
+                    streamsPerCred = json.get("spc")?.asInt ?: current.streamsPerCred,
+                    clientId = json.get("cid")?.asString ?: current.clientId,
+                    dnsMode = json.get("dns")?.asString ?: current.dnsMode,
+                    dnsServers = json.get("dnss")?.asString ?: current.dnsServers,
+                    manualCaptcha = json.get("mcap")?.asBoolean ?: current.manualCaptcha,
+                    platform = json.get("plt")?.asString ?: current.platform
                 )
             } catch (_: Exception) {
                 null
