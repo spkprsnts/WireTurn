@@ -93,9 +93,25 @@ build_hev_tunnel() {
 
     local needs_build=0
     for abi in arm64-v8a x86_64; do
-        [ ! -f "$JNI_LIBS_DIR/$abi/$out_name" ] && needs_build=1 && break
-        if [ "$CI" != "true" ]; then
-            [ -n "$(find src third-part -maxdepth 6 -type f -newer "$JNI_LIBS_DIR/$abi/$out_name" -print -quit 2>/dev/null)" ] && needs_build=1 && break
+        local out="$JNI_LIBS_DIR/$abi/$out_name"
+        if [ ! -f "$out" ]; then
+            needs_build=1
+            break
+        fi
+        if [ "$CI" = "true" ]; then
+            # actions/cache falls back to an older cache entry (restore-keys prefix
+            # match) on a key miss, which can restore a stale .so that still passes
+            # the plain existence check above. Same git-hash guard as needs_rebuild()
+            # so a submodule bump always forces a rebuild in CI regardless of cache.
+            local submodule_hash_file=".git_hash"
+            local current_hash=$(git rev-parse HEAD 2>/dev/null)
+            if [ ! -f "$submodule_hash_file" ] || [ "$(cat "$submodule_hash_file")" != "$current_hash" ]; then
+                echo "$current_hash" > "$submodule_hash_file"
+                needs_build=1
+                break
+            fi
+        else
+            [ -n "$(find src third-part -maxdepth 6 -type f -newer "$out" -print -quit 2>/dev/null)" ] && needs_build=1 && break
         fi
     done
     [ "$needs_build" = "0" ] && return 0
