@@ -41,6 +41,7 @@ class XrayService : Service() {
     private val userStopped = java.util.concurrent.atomic.AtomicBoolean(false)
     private var restartCount = 0
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    @Volatile private var caBundlePath: String? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -49,6 +50,23 @@ class XrayService : Service() {
         NotificationHelper.createChannel(this)
         NotificationHelper.observeStates(this, serviceScope)
         startXraySupervisor()
+        caBundlePath = ensureCaBundle()
+    }
+
+    // See CoreService.ensureCaBundle() — same rationale: don't depend on the
+    // device's (possibly stale) system CA trust store for TLS verification.
+    private fun ensureCaBundle(): String? {
+        val target = java.io.File(filesDir, "cacert.pem")
+        return try {
+            val assetBytes = assets.open("cacert.pem").use { it.readBytes() }
+            if (!target.exists() || target.length() != assetBytes.size.toLong()) {
+                target.writeBytes(assetBytes)
+            }
+            target.absolutePath
+        } catch (e: Exception) {
+            AppLogsState.addLog("CA bundle extract failed: ${e.message}")
+            null
+        }
     }
 
     // Removed observeLifecycle() to prevent race conditions during ProxyService restarts.
@@ -311,9 +329,9 @@ class XrayService : Service() {
 
             AppLogsState.addLog(getString(R.string.log_xray_starting, cmdArgs.joinToString(" ")))
             val proc = withContext(Dispatchers.IO) {
-                ProcessBuilder(cmdArgs)
-                    .redirectErrorStream(true)
-                    .start()
+                val builder = ProcessBuilder(cmdArgs).redirectErrorStream(true)
+                caBundlePath?.let { builder.environment()["SSL_CERT_FILE"] = it }
+                builder.start()
             }
             process.set(proc)
             XrayServiceState.updateStatsSocketName(socketName)

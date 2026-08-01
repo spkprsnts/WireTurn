@@ -25,6 +25,12 @@ fi
 
 TOOLCHAIN="$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin"
 
+# Native libs must target the same API level as project.minSdk, otherwise they
+# link against symbols (e.g. android_get_device_api_level) that don't exist in
+# libc.so on older devices and fail with "CANNOT LINK EXECUTABLE" at runtime.
+MIN_SDK=$(grep -oP '(?<=project\.minSdk=)\d+' "$ROOT_DIR/gradle.properties" 2>/dev/null)
+[ -z "$MIN_SDK" ] && MIN_SDK=26
+
 # 3. Setup Go
 if ! command -v go &> /dev/null; then
     export PATH="/usr/local/go/bin:$HOME/go/bin:$PATH"
@@ -66,9 +72,9 @@ build_go_project() {
             if needs_rebuild "." "$OUT"; then
                 echo "  → Building $abi..."
                 mkdir -p "$(dirname "$OUT")"
-                CGO_ENABLED=1 GOOS=android GOARCH=$goarch CC="$TOOLCHAIN/${target}30-clang" \
-                CGO_CFLAGS="-target ${target}30 -fPIC" \
-                CGO_LDFLAGS="-target ${target}30 -Wl,--no-undefined -Wl,-z,max-page-size=16384" \
+                CGO_ENABLED=1 GOOS=android GOARCH=$goarch CC="$TOOLCHAIN/${target}${MIN_SDK}-clang" \
+                CGO_CFLAGS="-target ${target}${MIN_SDK} -fPIC" \
+                CGO_LDFLAGS="-target ${target}${MIN_SDK} -Wl,--no-undefined -Wl,-z,max-page-size=16384" \
                 go build -trimpath -ldflags="-s -w -checklinkname=0" -o "$OUT" "$sub_pkg"
             fi
         ) &

@@ -58,6 +58,7 @@ class CoreService : Service() {
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     @Volatile private var networkInitialized = false
     private var lastNetworkHandle: Long = -1
+    @Volatile private var caBundlePath: String? = null
     private var restartCount = 0
 
     private lateinit var serviceScope: CoroutineScope
@@ -75,6 +76,26 @@ class CoreService : Service() {
         observeCaptchaForNotification()
         observeErrorForNotification()
         startXraySupervisor()
+        caBundlePath = ensureCaBundle()
+    }
+
+    /**
+     * Go binaries on Android only trust /system/etc/security/cacerts, which on old/unpatched
+     * devices (no OTA updates, no GMS) may be missing CAs that sites rotated in since. Bundling
+     * our own up-to-date root store and pointing SSL_CERT_FILE at it sidesteps that entirely.
+     */
+    private fun ensureCaBundle(): String? {
+        val target = java.io.File(filesDir, "cacert.pem")
+        return try {
+            val assetBytes = assets.open("cacert.pem").use { it.readBytes() }
+            if (!target.exists() || target.length() != assetBytes.size.toLong()) {
+                target.writeBytes(assetBytes)
+            }
+            target.absolutePath
+        } catch (e: Exception) {
+            AppLogsState.addLog("CA bundle extract failed: ${e.message}")
+            null
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -414,7 +435,11 @@ class CoreService : Service() {
                 if (cfg.goDnsGo) {
                     env["GODEBUG"] = "netdns=go"
                 }
-                
+
+                // Bundled CA store so TLS verification doesn't depend on the device's
+                // (possibly stale) system trust store — see ensureCaBundle().
+                caBundlePath?.let { env["SSL_CERT_FILE"] = it }
+
                 builder.start()
             }
             process.set(proc)
