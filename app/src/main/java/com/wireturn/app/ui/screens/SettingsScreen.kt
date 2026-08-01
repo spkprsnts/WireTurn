@@ -775,6 +775,17 @@ private fun RepoLinksContent(
 
             item {
                 RepoLinkItem(
+                    title = stringResource(R.string.freeturn_core),
+                    subtitle = "samosvalishe/free-turn-proxy",
+                    url = "https://github.com/samosvalishe/free-turn-proxy",
+                    containerColor = containerColor,
+                    onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
+                    onOpen = { uriHandler.openUri(it) }
+                )
+            }
+
+            item {
+                RepoLinkItem(
                     title = stringResource(R.string.olcrtc_core),
                     subtitle = "openlibrecommunity/olcrtc",
                     url = "https://github.com/openlibrecommunity/olcrtc",

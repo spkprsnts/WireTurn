@@ -4,13 +4,13 @@
 
 # WireTurn — Android WebRTC & WebDAV Tunnel
 
-Android-клиент для [Turnable](https://github.com/TheAirBlow/Turnable), [olcRTC](https://github.com/openlibrecommunity/olcrtc) и [WebDAV](https://github.com/spkprsnts/webdav-tunnel) — туннелирование трафика через WebRTC и WebDAV.
+Android-клиент для [Turnable](https://github.com/TheAirBlow/Turnable), [olcRTC](https://github.com/openlibrecommunity/olcrtc), [WebDAV](https://github.com/spkprsnts/webdav-tunnel) и [FreeTurn](https://github.com/samosvalishe/free-turn-proxy) — туннелирование трафика через WebRTC и WebDAV.
 
 > **Disclaimer:** Проект предназначен исключительно для образовательных и исследовательских целей.
 
 ## Принцип работы
 
-WireTurn интегрирует возможности **Turnable**, **olcRTC** и **WebDAV** в Android, позволяя упаковывать трафик в стандартные протоколы WebRTC (**DTLS** или **SRTP**) или передавать его через облачные хранилища.
+WireTurn интегрирует возможности **Turnable**, **olcRTC**, **WebDAV** и **FreeTurn** в Android, позволяя упаковывать трафик в стандартные протоколы WebRTC (**DTLS** или **SRTP**) или передавать его через облачные хранилища.
 
 ### Turnable
 Обеспечивает туннелирование TCP/UDP трафика через TURN-серверы или SFU-платформы.
@@ -31,6 +31,12 @@ WireTurn интегрирует возможности **Turnable**, **olcRTC** 
 - **Polling:** Работает через периодические запросы к серверу для получения и отправки данных.
 - **Скрытность:** Трафик полностью имитирует работу с облачным диском по протоколу HTTPS.
 - **Универсальность:** Поддержка большинства популярных WebDAV-провайдеров.
+
+### FreeTurn
+Улучшенная версия протоколов туннелирования через WebRTC.
+- **Подписки:** Поддержка URL-адресов подписок для автоматического обновления списка серверов.
+- **Масштабируемость:** Оптимизированная работа с большим количеством параллельных потоков и гибкая настройка обфускации.
+- **Интеграция:** Поддержка ручного решения капчи через встроенный браузер для бесперебойной работы.
 
 ## Возможности
 
@@ -64,7 +70,7 @@ WireTurn интегрирует возможности **Turnable**, **olcRTC** 
 ### Требования
 - Android 8.0+ (API 26)
 - Архитектуры: `arm64-v8a`, `x86_64`
-- VPS для размещения серверной части (сервер Turnable, olcRTC или WebDAV) или аккаунт в облачном сервисе с поддержкой WebDAV.
+- VPS для размещения серверной части (сервер Turnable, olcRTC, FreeTurn или WebDAV) или аккаунт в облачном сервисе с поддержкой WebDAV.
 
 ### Настройка
 Подробные инструкции по настройке серверной части и клиента WireTurn доступны в следующих руководствах:
@@ -80,6 +86,7 @@ WireTurn интегрирует возможности **Turnable**, **olcRTC** 
     - `libturnable.so` — реализация Turnable ([TheAirBlow/Turnable](https://github.com/TheAirBlow/Turnable)).
     - `libolcrtc.so` — реализация olcRTC ([openlibrecommunity/olcrtc](https://github.com/openlibrecommunity/olcrtc)).
     - `libwebdav.so` — реализация WebDAV ([spkprsnts/webdav-tunnel](https://github.com/spkprsnts/webdav-tunnel)).
+    - `libfreeturn.so` — реализация FreeTurn ([samosvalishe/free-turn-proxy](https://github.com/samosvalishe/free-turn-proxy)).
     - `libxray.so` — движок Xray ([spkprsnts/vless-client](https://github.com/spkprsnts/vless-client)).
     - `libhevsocks5.so` — сетевой стек для VPN-режима ([heiher/hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel)).
     - `libffmpeg.so` — библиотека FFmpeg ([Javernaut/ffmpeg-android-maker](https://github.com/Javernaut/ffmpeg-android-maker)).
@@ -116,6 +123,7 @@ git clone --recursive https://github.com/spkprsnts/WireTurn.git
 - [TheAirBlow/Turnable](https://github.com/TheAirBlow/Turnable) — проект Turnable.
 - [openlibrecommunity/olcrtc](https://github.com/openlibrecommunity/olcrtc) — проект olcRTC.
 - [spkprsnts/webdav-tunnel](https://github.com/spkprsnts/webdav-tunnel) — проект WebDAV Tunnel.
+- [samosvalishe/free-turn-proxy](https://github.com/samosvalishe/free-turn-proxy) — проект FreeTurn.
 - [samosvalishe/turn-proxy-android](https://github.com/samosvalishe/turn-proxy-android) — база UI и логики.
 - [XTLS/Xray-core](https://github.com/XTLS/Xray-core) — кодовая база Xray.
 - [heiher/hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel) — реализация сетевого стека для VPN-режима.
