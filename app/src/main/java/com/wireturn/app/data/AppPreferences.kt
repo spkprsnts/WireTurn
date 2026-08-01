@@ -557,7 +557,7 @@ data class FreeTurnConfig(
     @SerializedName("sub") val sub: String = "",
     @SerializedName("debug") val debug: Boolean = false
 ) {
-    fun isValid(): Boolean = peer.isNotBlank() && (links.isNotBlank() || sub.isNotBlank())
+    fun isValid(): Boolean = links.isNotBlank() && (peer.isNotBlank() || sub.isNotBlank())
 
     fun sanitize(): FreeTurnConfig = copy(
         peer = (peer as Any?)?.toString()?.trim()?.take(500) ?: "",

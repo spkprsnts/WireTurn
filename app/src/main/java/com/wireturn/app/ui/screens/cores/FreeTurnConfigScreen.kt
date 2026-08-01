@@ -356,7 +356,7 @@ fun FreeTurnConfigScreen(
                         onValueChange = { if (!isPrivacyActive) config = config.copy(peer = it) },
                         readOnly = isPrivacyActive,
                         isModified = isEditMode && config.peer != initialConfig.peer,
-                        isError = !ValidatorUtils.isValidHostPort(config.peer),
+                        isError = (config.peer.isBlank() && config.sub.isBlank()) || (config.peer.isNotBlank() && !ValidatorUtils.isValidHostPort(config.peer)),
                         privacyMode = isPrivacyActive
                     )
                 }
@@ -368,7 +368,7 @@ fun FreeTurnConfigScreen(
                         onValueChange = { if (!isPrivacyActive) config = config.copy(links = it) },
                         readOnly = isPrivacyActive,
                         isModified = isEditMode && config.links != initialConfig.links,
-                        isError = config.links.isBlank() && config.sub.isBlank(),
+                        isError = config.links.isBlank(),
                         privacyMode = isPrivacyActive
                     )
                 }
@@ -380,6 +380,7 @@ fun FreeTurnConfigScreen(
                         onValueChange = { if (!isPrivacyActive) config = config.copy(sub = it) },
                         readOnly = isPrivacyActive,
                         isModified = isEditMode && config.sub != initialConfig.sub,
+                        isError = config.peer.isBlank() && config.sub.isBlank(),
                         privacyMode = isPrivacyActive
                     )
                 }
