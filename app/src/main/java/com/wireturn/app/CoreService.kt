@@ -438,7 +438,9 @@ class CoreService : Service() {
 
                 // Bundled CA store so TLS verification doesn't depend on the device's
                 // (possibly stale) system trust store — see ensureCaBundle().
-                caBundlePath?.let { env["SSL_CERT_FILE"] = it }
+                if (cfg.useCustomCerts) {
+                    caBundlePath?.let { env["SSL_CERT_FILE"] = it }
+                }
 
                 builder.start()
             }
@@ -1030,6 +1032,7 @@ class CoreService : Service() {
     private fun requiresBinaryRestart(old: ClientConfig, new: ClientConfig): Boolean {
         if (old.kernelConfig != new.kernelConfig) return true
         if (old.goDnsGo != new.goDnsGo) return true
+        if (old.useCustomCerts != new.useCustomCerts) return true
         return when (new.kernelConfig) {
             is KernelConfig.Turnable -> old.listenAddr != new.listenAddr
             is KernelConfig.Olcrtc ->

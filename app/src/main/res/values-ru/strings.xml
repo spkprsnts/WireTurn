@@ -228,6 +228,9 @@
     <string name="go_internal_dns_title">Внутренний резолвер Go</string>
     <string name="go_internal_dns_desc">Принудительно использовать встроенный резолвер Go. Может помочь при проблемах с IPv6.</string>
 
+    <string name="custom_certs_title">Встроенный набор сертификатов</string>
+    <string name="custom_certs_desc">Обеспечивает работу SSL на старых устройствах. Отключите, если хотите использовать сертификаты, установленные в систему Android.</string>
+
     <string name="network_settings_title">Сеть</string>
 
     <!-- Настройка Капчи -->

@@ -260,6 +260,9 @@
     <string name="go_internal_dns_title">Go internal resolver</string>
     <string name="go_internal_dns_desc">Force Go core to use its internal resolver. Can help with IPv6 issues.</string>
 
+    <string name="custom_certs_title">Built-in certificate set</string>
+    <string name="custom_certs_desc">Ensures SSL works on older devices. Disable if you want to use only certificates installed in the Android system.</string>
+
     <string name="network_settings_title">Network</string>
 
     <!-- Captcha Setup -->

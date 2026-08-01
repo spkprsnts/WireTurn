@@ -631,6 +631,7 @@ data class ClientConfig(
     val socksUser: String = "",
     val socksPass: String = "",
     val goDnsGo: Boolean = false,
+    val useCustomCerts: Boolean = true,
     val kernelConfig: KernelConfig = KernelConfig.Turnable(),
     @SerializedName("turnableUrl") val turnableUrl: String = "",
     @SerializedName("olcrtcUrl") val olcrtcUrl: String = "",
@@ -1078,6 +1079,7 @@ class AppPreferences(val context: Context) {
         val CAPTCHA_FORCE_TINT = booleanPreferencesKey("captcha_force_tint")
         val PRIVACY_MODE = booleanPreferencesKey("privacy_mode")
         val GO_DNS_GO = booleanPreferencesKey("go_dns_go")
+        val USE_CUSTOM_CERTS = booleanPreferencesKey("use_custom_certs")
 
         val CLIENT_LISTEN_ADDR = stringPreferencesKey("client_listen_addr")
         val OLCRTC_SOCKS_ADDR = stringPreferencesKey("olcrtc_socks_addr")
@@ -1214,6 +1216,7 @@ class AppPreferences(val context: Context) {
                 socksUser = p[OLCRTC_SOCKS_USER] ?: "",
                 socksPass = p[OLCRTC_SOCKS_PASS] ?: "",
                 goDnsGo = p[GO_DNS_GO] ?: false,
+                useCustomCerts = p[USE_CUSTOM_CERTS] ?: true,
                 kernelConfig = kernelConfig
             )
         }.distinctUntilChanged()
@@ -1394,6 +1397,7 @@ class AppPreferences(val context: Context) {
             it[OLCRTC_SOCKS_USER] = c.socksUser
             it[OLCRTC_SOCKS_PASS] = c.socksPass
             it[GO_DNS_GO] = c.goDnsGo
+            it[USE_CUSTOM_CERTS] = c.useCustomCerts
             it[ACTIVE_KERNEL_JSON] = gson.toJson(when (val k = c.kernelConfig) {
                 is KernelConfig.Turnable -> KernelSnapshot(variant = KernelVariant.TURNABLE.name, turnable = k.config)
                 is KernelConfig.Olcrtc -> KernelSnapshot(variant = KernelVariant.OLCRTC.name, olcrtc = k.config)

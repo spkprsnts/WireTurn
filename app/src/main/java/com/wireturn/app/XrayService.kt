@@ -330,7 +330,9 @@ class XrayService : Service() {
             AppLogsState.addLog(getString(R.string.log_xray_starting, cmdArgs.joinToString(" ")))
             val proc = withContext(Dispatchers.IO) {
                 val builder = ProcessBuilder(cmdArgs).redirectErrorStream(true)
-                caBundlePath?.let { builder.environment()["SSL_CERT_FILE"] = it }
+                if (snapshot.client.useCustomCerts) {
+                    caBundlePath?.let { builder.environment()["SSL_CERT_FILE"] = it }
+                }
                 builder.start()
             }
             process.set(proc)

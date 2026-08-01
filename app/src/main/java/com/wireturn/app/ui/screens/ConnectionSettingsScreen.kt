@@ -81,6 +81,7 @@ fun ConnectionSettingsScreen(
     // Turnable states
     var listenAddr by remember { mutableStateOf(initialClientConfig.listenAddr) }
     var goDnsGo by remember { mutableStateOf(initialClientConfig.goDnsGo) }
+    var useCustomCerts by remember { mutableStateOf(initialClientConfig.useCustomCerts) }
 
     // olcRTC states
     var olSocks by remember { mutableStateOf(initialClientConfig.socksAddr) }
@@ -99,14 +100,15 @@ fun ConnectionSettingsScreen(
 
     val scrollState = rememberScrollState()
 
-    val currentClientConfig = remember(listenAddr, olSocks, olAuth, olUser, olPass, goDnsGo, initialClientConfig) {
+    val currentClientConfig = remember(listenAddr, olSocks, olAuth, olUser, olPass, goDnsGo, useCustomCerts, initialClientConfig) {
         initialClientConfig.copy(
             listenAddr = listenAddr,
             socksAddr = olSocks,
             isSocksAuthEnabled = olAuth,
             socksUser = olUser,
             socksPass = olPass,
-            goDnsGo = goDnsGo
+            goDnsGo = goDnsGo,
+            useCustomCerts = useCustomCerts
         )
     }
     
@@ -123,6 +125,7 @@ fun ConnectionSettingsScreen(
     val isModified = remember(currentClientConfig, initialClientConfig, currentXraySettings, initialXraySettings) {
         currentClientConfig.listenAddr != initialClientConfig.listenAddr ||
         currentClientConfig.goDnsGo != initialClientConfig.goDnsGo ||
+        currentClientConfig.useCustomCerts != initialClientConfig.useCustomCerts ||
         currentClientConfig.socksAddr != initialClientConfig.socksAddr ||
         currentClientConfig.isSocksAuthEnabled != initialClientConfig.isSocksAuthEnabled ||
         currentClientConfig.socksUser != initialClientConfig.socksUser ||
@@ -241,7 +244,7 @@ fun ConnectionSettingsScreen(
             // General
             SectionGroup(title = stringResource(R.string.network_settings_title)) {
                 SectionItem(
-                    position = ItemPosition.Single,
+                    position = ItemPosition.Top,
                     onClick = {
                         goDnsGo = !goDnsGo
                         HapticUtil.perform(
@@ -256,6 +259,25 @@ fun ConnectionSettingsScreen(
                         checked = goDnsGo,
                         onCheckedChange = { goDnsGo = it },
                         isModified = goDnsGo != initialClientConfig.goDnsGo,
+                    )
+                }
+
+                SectionItem(
+                    position = ItemPosition.Bottom,
+                    onClick = {
+                        useCustomCerts = !useCustomCerts
+                        HapticUtil.perform(
+                            context,
+                            if (useCustomCerts) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                        )
+                    }
+                ) {
+                    SwitchRow(
+                        label = stringResource(R.string.custom_certs_title),
+                        supportingText = stringResource(R.string.custom_certs_desc),
+                        checked = useCustomCerts,
+                        onCheckedChange = { useCustomCerts = it },
+                        isModified = useCustomCerts != initialClientConfig.useCustomCerts,
                     )
                 }
             }
