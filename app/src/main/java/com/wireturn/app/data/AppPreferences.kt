@@ -549,13 +549,11 @@ data class FreeTurnConfig(
     @SerializedName("obf_timing") val obfTiming: String = "0",
     @SerializedName("streams_per_cred") val streamsPerCred: Int = 10,
     @SerializedName("manual_captcha") val manualCaptcha: Boolean = false,
-    @SerializedName("browser") val browser: String = "firefox",
     @SerializedName("platform") val platform: String = "desktop",
     @SerializedName("dns_mode") val dnsMode: String = "auto",
     @SerializedName("dns_servers") val dnsServers: String = "",
     @SerializedName("client_id") val clientId: String = "",
-    @SerializedName("sub") val sub: String = "",
-    @SerializedName("debug") val debug: Boolean = false
+    @SerializedName("sub") val sub: String = ""
 ) {
     fun isValid(): Boolean = links.isNotBlank() && (peer.isNotBlank() || sub.isNotBlank())
 
@@ -563,6 +561,7 @@ data class FreeTurnConfig(
         peer = (peer as Any?)?.toString()?.trim()?.take(500) ?: "",
         links = (links as Any?)?.toString()?.trim()?.take(4096) ?: "",
         obfKey = (obfKey as Any?)?.toString()?.trim()?.take(64) ?: "",
+        obfTiming = (obfTiming as Any?)?.toString()?.trim()?.take(20) ?: "0",
         dnsServers = (dnsServers as Any?)?.toString()?.trim()?.take(500) ?: "",
         clientId = (clientId as Any?)?.toString()?.trim()?.take(100) ?: "",
         sub = (sub as Any?)?.toString()?.trim()?.take(1000) ?: ""
@@ -572,13 +571,16 @@ data class FreeTurnConfig(
         val json = JsonObject().apply {
             addProperty("v", 1)
             addProperty("provider", "vk")
-            addProperty("peer", peer)
+            if (peer.isNotBlank()) addProperty("peer", peer)
+            if (links.isNotBlank()) addProperty("links", links)
+            if (sub.isNotBlank()) addProperty("sub", sub)
             if (transport != "tcp") addProperty("transport", transport)
             if (mode != "udp") addProperty("mode", mode)
             if (bond) addProperty("bond", true)
             if (obfProfile != "none") {
                 addProperty("obf", obfProfile)
                 addProperty("key", obfKey)
+                if (obfTiming != "0") addProperty("obft", obfTiming)
             }
             if (n != 10) addProperty("n", n)
             if (streamsPerCred != 10) addProperty("spc", streamsPerCred)
@@ -586,6 +588,7 @@ data class FreeTurnConfig(
             if (dnsMode != "auto") addProperty("dns", dnsMode)
             if (dnsServers.isNotBlank()) addProperty("dnss", dnsServers)
             if (manualCaptcha) addProperty("mcap", true)
+            if (platform != "desktop") addProperty("plt", platform)
             if (!profileName.isNullOrBlank()) addProperty("name", profileName)
         }
         val bytes = json.toString().toByteArray()
@@ -604,9 +607,12 @@ data class FreeTurnConfig(
                 if (json.get("v")?.asInt != 1) return null
 
                 FreeTurnConfig(
-                    peer = json.get("peer")?.asString ?: current.peer,
+                    peer = json.get("peer")?.asString ?: "",
+                    links = json.get("links")?.asString ?: json.get("link")?.asString ?: "",
+                    sub = json.get("sub")?.asString ?: "",
                     obfProfile = json.get("obf")?.asString ?: "none",
                     obfKey = json.get("key")?.asString ?: "",
+                    obfTiming = json.get("obft")?.asString ?: "0",
                     n = json.get("n")?.asInt ?: 10,
                     transport = json.get("transport")?.asString ?: "tcp",
                     mode = json.get("mode")?.asString ?: "udp",
@@ -615,7 +621,8 @@ data class FreeTurnConfig(
                     clientId = json.get("cid")?.asString ?: "",
                     dnsMode = json.get("dns")?.asString ?: "auto",
                     dnsServers = json.get("dnss")?.asString ?: "",
-                    manualCaptcha = json.get("mcap")?.asBoolean ?: false
+                    manualCaptcha = json.get("mcap")?.asBoolean ?: false,
+                    platform = json.get("plt")?.asString ?: "desktop"
                 )
             } catch (_: Exception) {
                 null

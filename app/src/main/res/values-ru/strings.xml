@@ -167,6 +167,10 @@
     <string name="freeturn_client_id_desc">Уникальный ID для allowlist сервера</string>
     <string name="freeturn_bond_label">Бондинг (только TCP)</string>
     <string name="freeturn_bond_desc">Распределение трафика по всем сессиям</string>
+    <string name="freeturn_obf_timing_label">Задержка обфускации</string>
+    <string name="freeturn_obf_timing_desc">Межпакетная задержка для RTP-мимикрии (напр. 20ms); 0=выкл</string>
+    <string name="freeturn_platform_label">Платформа</string>
+    <string name="freeturn_platform_desc">Класс устройства для авторизации VK</string>
     <string name="freeturn_transport_label">Транспорт</string>
     <string name="freeturn_mode_label">Режим туннеля</string>
     <string name="freeturn_manual_captcha_label">Ручная капча</string>

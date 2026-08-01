@@ -432,6 +432,23 @@ fun FreeTurnConfigScreen(
                 }
                 SectionItem {
                     LabeledButtonGroup(
+                        label = stringResource(R.string.freeturn_platform_label),
+                        isModified = isEditMode && config.platform != initialConfig.platform
+                    ) {
+                        val options = listOf("desktop", "mobile")
+                        options.forEachIndexed { index, p ->
+                            selectableButtonItem(
+                                selected = config.platform == p,
+                                onSelect = { config = config.copy(platform = p) },
+                                label = p.replaceFirstChar { it.uppercase() },
+                                index = index,
+                                count = options.size
+                            )
+                        }
+                    }
+                }
+                SectionItem {
+                    LabeledButtonGroup(
                         label = stringResource(R.string.freeturn_transport_label),
                         isModified = isEditMode && config.transport != initialConfig.transport
                     ) {
@@ -487,6 +504,17 @@ fun FreeTurnConfigScreen(
                         readOnly = isPrivacyActive,
                         isModified = isEditMode && config.obfKey != initialConfig.obfKey,
                         isError = config.obfProfile != "none" && config.obfKey.length != 64,
+                        privacyMode = isPrivacyActive
+                    )
+                }
+                SectionItem {
+                    TextFieldRow(
+                        label = stringResource(R.string.freeturn_obf_timing_label),
+                        supportingText = stringResource(R.string.freeturn_obf_timing_desc),
+                        value = config.obfTiming.redact(isPrivacyActive),
+                        onValueChange = { if (!isPrivacyActive) config = config.copy(obfTiming = it) },
+                        readOnly = isPrivacyActive,
+                        isModified = isEditMode && config.obfTiming != initialConfig.obfTiming,
                         privacyMode = isPrivacyActive
                     )
                 }

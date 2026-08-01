@@ -552,7 +552,25 @@ class CoreService : Service() {
             }
         }
 
-        // 3. Captcha
+        // 3. Connecting / Progress — the gap between process launch and the first
+        // established stream (VK auth, TURN allocation, provider backoff) can easily
+        // exceed CoreManager's startup timeout with no status update otherwise, since
+        // the binary never leaves CoreStatus.Starting on its own.
+        if (lower.contains("provider=") ||
+            lower.contains("[vk auth] connecting identity") ||
+            lower.contains("[vk auth] trying credentials") ||
+            lower.contains("backing off for") ||
+            (lower.contains("[session ") && lower.contains("disconnected") && lower.contains("reconnecting"))
+        ) {
+            val currentStatus = CoreServiceState.status.value
+            if (currentStatus !is CoreStatus.Suppressed && currentStatus !is CoreStatus.CaptchaRequired) {
+                CoreServiceState.setStatus(CoreStatus.Connecting)
+                updateNotification(getString(R.string.connecting))
+                state.startupEmitted = true
+            }
+        }
+
+        // 4. Captcha
         handleCaptchaEvents(line, lower, state)
 
         if (state.captchaActive && (
@@ -565,7 +583,7 @@ class CoreService : Service() {
             state.captchaActive = false
         }
 
-        // 4. Soft Errors / Progress
+        // 5. Soft Errors / Progress
         if (lower.contains("quota")) {
             // Log it but keep running or let watchdog handles it if it exits
             state.startupEmitted = true
@@ -943,9 +961,12 @@ class CoreService : Service() {
                     "-obf-profile", o.obfProfile,
                     "-streams-per-cred", o.streamsPerCred.toString(),
                     "-dns-mode", o.dnsMode,
-                    "-browser", o.browser,
                     "-platform", o.platform
                 ))
+                if (o.obfTiming != "0" && o.obfTiming.isNotBlank()) {
+                    cmdArgs.add("-obf-timing")
+                    cmdArgs.add(o.obfTiming)
+                }
                 if (o.links.isNotBlank()) {
                     cmdArgs.add("-links")
                     cmdArgs.add(o.links)
@@ -968,7 +989,6 @@ class CoreService : Service() {
                     cmdArgs.add(o.clientId)
                 }
                 if (o.manualCaptcha) cmdArgs.add("-manual-captcha")
-                if (o.debug) cmdArgs.add("-debug")
             }
         }
         return cmdArgs

@@ -198,6 +198,10 @@
     <string name="freeturn_client_id_desc">Unique identifier for server allowlist</string>
     <string name="freeturn_bond_label">Bonding (TCP mode only)</string>
     <string name="freeturn_bond_desc">Striping traffic across sessions</string>
+    <string name="freeturn_obf_timing_label">Obf Timing</string>
+    <string name="freeturn_obf_timing_desc">Packet delay for RTP mimicry (e.g. 20ms); 0=off</string>
+    <string name="freeturn_platform_label">Platform</string>
+    <string name="freeturn_platform_desc">VK device class for authorization</string>
     <string name="freeturn_transport_label">Transport</string>
     <string name="freeturn_mode_label">Tunnel Mode</string>
     <string name="freeturn_manual_captcha_label">Manual Captcha</string>
