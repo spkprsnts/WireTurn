@@ -410,7 +410,7 @@
     <!-- QR Import and Advanced Parameters -->
     <string name="qr_import">QR Code</string>
     <string name="qr_scan_desc">Point the camera at the configuration QR code to import</string>
-    <string name="settings_group_turnable">Turnable settings</string>
+    <string name="settings_group_turnable">Turnable / FreeTurn settings</string>
     <string name="settings_group_olcrtc">olcRTC / WebDAV settings</string>
     <string name="settings_group_xray">Xray settings</string>
     <string name="xray_protocol_desc">Choose protocol for Xray-core</string>

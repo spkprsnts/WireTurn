@@ -371,7 +371,7 @@
     <!-- Импорт через QR и расширенные параметры -->
     <string name="qr_import">QR-код</string>
     <string name="qr_scan_desc">Наведите камеру на QR-код конфигурации для импорта</string>
-    <string name="settings_group_turnable">Настройки Turnable</string>
+    <string name="settings_group_turnable">Настройки Turnable / FreeTurn</string>
     <string name="settings_group_olcrtc">Настройки olcRTC / WebDAV</string>
     <string name="settings_group_xray">Настройки Xray</string>
     <string name="xray_proxy_auth">Авторизация прокси</string>
