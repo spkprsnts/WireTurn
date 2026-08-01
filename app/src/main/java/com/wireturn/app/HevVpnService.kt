@@ -21,8 +21,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 @Suppress("unused")
 internal class HevSocks5Tunnel {
-    external fun TProxyStartService(configPath: String, fd: Int)
-    external fun TProxyStopService()
+    external fun TProxyStartService(configPath: String, fd: Int): Boolean
+    external fun TProxyStopService(): Boolean
+    external fun TProxyIsRunning(): Boolean
     external fun TProxyGetStats(): LongArray
 
     companion object {
@@ -207,8 +208,12 @@ misc:
                 }
 
                 AppLogsState.addLog(getString(R.string.log_vpn_starting, tunFd, socks5Addr))
-                withContext(Dispatchers.IO) {
+                val success = withContext(Dispatchers.IO) {
                     hevTunnel.TProxyStartService(configFile.absolutePath, tunFd)
+                }
+                
+                if (!success) {
+                    throw RuntimeException("Native hev-socks5-tunnel failed to start")
                 }
                 
                 hevRunning.set(true)
