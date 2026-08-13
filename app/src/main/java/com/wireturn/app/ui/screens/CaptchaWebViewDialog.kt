@@ -8,10 +8,11 @@ package com.wireturn.app.ui.screens
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.view.ViewGroup
-import android.webkit.JavascriptInterface
+import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.core.net.toUri
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
@@ -32,6 +33,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -51,6 +53,39 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.suspendCancellableCoroutine
+import org.json.JSONObject
+import org.json.JSONTokener
+
+/**
+ * Опрашивает состояние капчи из Kotlin (evaluateJavascript = pull), вместо
+ * addJavascriptInterface (push): нативный JS-мост виден в window.* как
+ * Java-backed объект и является одним из самых надёжных сигналов
+ * автоматизации для антибот-скриптов на странице.
+ */
+private suspend fun WebView.evalJs(script: String): String? =
+    suspendCancellableCoroutine { cont ->
+        evaluateJavascript(script) { result ->
+            if (cont.isActive) cont.resume(result) { _, _, _ -> }
+        }
+    }
+
+/** Только локальный captcha-прокси ядра допускается к загрузке в WebView. */
+private fun isLocalCaptchaUrl(url: String): Boolean {
+    val uri = url.toUri()
+    val host = uri.host ?: return false
+    return uri.scheme?.lowercase() == "http" && (host == "127.0.0.1" || host == "localhost")
+}
+
+private const val CAPTCHA_POLL_SCRIPT = """
+    JSON.stringify({
+        s: !!(window.__wireturnCaptcha && window.__wireturnCaptcha.success),
+        h: (window.__wireturnCaptcha && window.__wireturnCaptcha.height) || 0,
+        v: !!(window.__wireturnCaptcha && window.__wireturnCaptcha.visible)
+    })
+"""
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -63,6 +98,7 @@ fun CaptchaWebViewDialog(
     var isLoading by remember { mutableStateOf(true) }
     val isContentVisible = remember { mutableStateOf(false) }
     var webViewHeight by remember { mutableIntStateOf(0) }
+    val webViewRef = remember { mutableStateOf<WebView?>(null) }
 
     val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -118,6 +154,27 @@ fun CaptchaWebViewDialog(
         animationSpec = tween(durationMillis = 400),
         label = "CaptchaVisibility"
     )
+
+    LaunchedEffect(webViewRef.value) {
+        val webView = webViewRef.value ?: return@LaunchedEffect
+        while (isActive) {
+            delay(300)
+            val raw = webView.evalJs(CAPTCHA_POLL_SCRIPT) ?: continue
+            val json = (JSONTokener(raw).nextValue() as? String) ?: continue
+            val state = runCatching { JSONObject(json) }.getOrNull() ?: continue
+
+            val height = state.optInt("h")
+            if (height > 0) webViewHeight = height
+            if (state.optBoolean("v")) {
+                isLoading = false
+                isContentVisible.value = true
+            }
+            if (state.optBoolean("s")) {
+                onSuccess?.invoke()
+                break
+            }
+        }
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -188,8 +245,13 @@ fun CaptchaWebViewDialog(
                                     builtInZoomControls = false
                                     displayZoomControls = false
                                     mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                                    userAgentString =
-                                        "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
+
+                                    // Снимаем только маркер "; wv)" с настоящей UA-строки, вместо
+                                    // подмены на выдуманную версию Chrome: реальный UA остаётся
+                                    // согласован с реальным движком/Client Hints устройства, без
+                                    // риска рассинхрона версии, которую видит антибот через
+                                    // feature-detection.
+                                    userAgentString = userAgentString.replace("; wv)", ")")
                                 }
 
                                 setBackgroundColor(android.graphics.Color.TRANSPARENT)
@@ -206,13 +268,18 @@ fun CaptchaWebViewDialog(
                                         view?.setBackgroundColor(android.graphics.Color.TRANSPARENT)
                                     }
 
+                                    override fun shouldOverrideUrlLoading(
+                                        view: WebView,
+                                        request: WebResourceRequest
+                                    ): Boolean = !isLocalCaptchaUrl(request.url.toString())
+
                                     override fun onPageFinished(view: WebView?, url: String?) {
                                         super.onPageFinished(view, url)
 
                                         view?.evaluateJavascript(
                                             """
                                             (function() {
-                                                window.__wireturnCaptcha = { isDark: $isDarkTheme, styleModEnabled: $captchaStyleMod };
+                                                window.__wireturnCaptcha = { isDark: $isDarkTheme, styleModEnabled: $captchaStyleMod, success: false, height: 0, visible: false };
 
                                                 const applyTheme = function() {
                                                     if (!window.__wireturnCaptcha.styleModEnabled) return;
@@ -236,7 +303,6 @@ fun CaptchaWebViewDialog(
                                                     }
 
                                                     if (needsUpdate) {
-                                                        AndroidBridge.logDebug('Updating theme classes on .vkc__AppRoot-module__host');
                                                         others.forEach(function(c) { appRoot.classList.remove(c); });
                                                         appRoot.classList.add(target);
                                                     }
@@ -259,58 +325,79 @@ fun CaptchaWebViewDialog(
 
                                                 window.__wireturnApplyCaptchaStyle(`$captchaCss`, $captchaStyleMod, $isDarkTheme);
 
-                                                let isSuccessCalled = false;
-                                                const checkCaptcha = function() {
-                                                    if (isSuccessCalled) return true;
+                                                // Единственный источник истины - ответ captchaNotRobot.check с
+                                                // success_token (тот же сигнал, на который смотрят Go-сторона
+                                                // free-turn-proxy и её собственный inject.js). Текст/иконки на
+                                                // странице ("Success", чекмарк чекбокса) ненадёжны: чекмарк
+                                                // рисуется сразу при клике, до завершения проверки на сервере.
+                                                const CHECK_PATH = 'captchaNotRobot.check';
+                                                const markSuccess = function(data) {
+                                                    if (data && data.response && data.response.success_token) {
+                                                        window.__wireturnCaptcha.success = true;
+                                                        document.body.style.display = 'none';
+                                                    }
+                                                };
+
+                                                const origFetch = window.fetch;
+                                                window.fetch = function(...args) {
+                                                    const urlStr = typeof args[0] === 'object' ? args[0]?.url : args[0];
+                                                    const promise = origFetch.apply(this, args);
+                                                    if (typeof urlStr === 'string' && urlStr.includes(CHECK_PATH)) {
+                                                        promise.then(function(res) { return res.clone().json(); })
+                                                            .then(markSuccess)
+                                                            .catch(function() {});
+                                                    }
+                                                    return promise;
+                                                };
+
+                                                const xhrOpen = XMLHttpRequest.prototype.open;
+                                                XMLHttpRequest.prototype.open = function(...args) {
+                                                    this._wtUrl = typeof args[1] === 'string' ? args[1] : '';
+                                                    return xhrOpen.apply(this, args);
+                                                };
+                                                const xhrSend = XMLHttpRequest.prototype.send;
+                                                XMLHttpRequest.prototype.send = function(...args) {
+                                                    if (this._wtUrl && this._wtUrl.includes(CHECK_PATH)) {
+                                                        this.addEventListener('load', function() {
+                                                            try { markSuccess(JSON.parse(this.responseText)); } catch (e) {}
+                                                        });
+                                                    }
+                                                    return xhrSend.apply(this, args);
+                                                };
+
+                                                // Опрос виден только для авторазмера/показа диалога, к успеху
+                                                // отношения не имеет.
+                                                const checkVisibility = function() {
                                                     if (window.__wireturnCaptcha.styleModEnabled) applyTheme();
 
-                                                    const text = document.body.innerText;
-                                                    if (text.includes('Done! You can close the page.') || 
-                                                        text.includes('Проверка пройдена') || 
-                                                        text.includes('Captcha solved') ||
-                                                        text.includes('Проверка завершена') ||
-                                                        text.includes('Success') ||
-                                                        (text.includes('free turn proxy') && text.includes('gg')) ||
-                                                        document.querySelector('.vkc__Captcha-module__success') ||
-                                                        document.querySelector('.vkc__NotRobotCaptcha-module__checkmark') ||
-                                                        document.querySelector('.vkuiIcon--done')) {
-                                                        isSuccessCalled = true;
-                                                        AndroidBridge.onCaptchaSuccess();
-                                                        // Hide content immediately to feel like it closed
-                                                        document.body.style.display = 'none';
-                                                        return true;
-                                                    }
-                                                    
-                                                    const dialog = document.querySelector('[role="dialog"]') || 
-                                                                 document.querySelector('.vkc__ModalCardBase-module__container') || 
-                                                                 document.querySelector('.vkc__Captcha-module__container') || 
+                                                    const dialog = document.querySelector('[role="dialog"]') ||
+                                                                 document.querySelector('.vkc__ModalCardBase-module__container') ||
+                                                                 document.querySelector('.vkc__Captcha-module__container') ||
                                                                  document.querySelector('body > div');
-                                                    
+
                                                     if (dialog) {
                                                         const height = dialog.offsetHeight || dialog.getBoundingClientRect().height;
                                                         if (height > 0) {
-                                                            AndroidBridge.updateSize(Math.ceil(height));
-                                                            AndroidBridge.showContent();
+                                                            window.__wireturnCaptcha.height = Math.ceil(height);
+                                                            window.__wireturnCaptcha.visible = true;
                                                         }
                                                     }
-                                                    return false;
                                                 };
-                                        
-                                                if (!checkCaptcha()) {
-                                                    const observer = new MutationObserver(function(mutations) {
-                                                        checkCaptcha();
-                                                    });
-                                                    observer.observe(document.body, { 
-                                                        childList: true, 
-                                                        subtree: true, 
-                                                        characterData: true,
-                                                        attributes: true 
-                                                    });
-                                                }
-                                                
+
+                                                checkVisibility();
+                                                const observer = new MutationObserver(function(mutations) {
+                                                    checkVisibility();
+                                                });
+                                                observer.observe(document.body, {
+                                                    childList: true,
+                                                    subtree: true,
+                                                    characterData: true,
+                                                    attributes: true
+                                                });
+
                                                 // На всякий случай показываем через небольшую задержку, если высота не определилась
                                                 setTimeout(function() {
-                                                    AndroidBridge.showContent();
+                                                    window.__wireturnCaptcha.visible = true;
                                                 }, 500);
                                             })();
                                             """.trimIndent(), null
@@ -318,40 +405,8 @@ fun CaptchaWebViewDialog(
                                     }
                                 }
 
-                                addJavascriptInterface(object {
-                                    @JavascriptInterface
-                                    @Suppress("unused")
-                                    fun onCaptchaSuccess() {
-                                        post {
-                                            onSuccess?.invoke()
-                                        }
-                                    }
-
-                                    @JavascriptInterface
-                                    @Suppress("unused")
-                                    fun updateSize(height: Int) {
-                                        post {
-                                            webViewHeight = height
-                                        }
-                                    }
-
-                                    @JavascriptInterface
-                                    @Suppress("unused")
-                                    fun showContent() {
-                                        post {
-                                            isLoading = false
-                                            isContentVisible.value = true
-                                        }
-                                    }
-
-                                    @JavascriptInterface
-                                    @Suppress("unused")
-                                    fun logDebug(message: String) {
-                                        android.util.Log.d("CaptchaWebView", message)
-                                    }
-                                }, "AndroidBridge")
-
                                 loadUrl(captchaUrl)
+                                webViewRef.value = this
                             }
                         },
                         update = { webView ->
