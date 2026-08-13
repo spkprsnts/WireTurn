@@ -447,7 +447,9 @@ fun FreeTurnConfigScreen(
                         }
                     }
                 }
-                SectionItem {
+                SectionItem(
+                    position = ItemPosition.Bottom
+                ) {
                     LabeledButtonGroup(
                         label = stringResource(R.string.freeturn_transport_label),
                         isModified = isEditMode && config.transport != initialConfig.transport
