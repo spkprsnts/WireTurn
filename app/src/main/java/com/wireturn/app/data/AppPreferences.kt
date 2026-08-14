@@ -295,7 +295,19 @@ data class OlcrtcConfig(
         )
     }
 
-    fun isValid(): Boolean = id.isNotBlank() && key.isNotBlank() && dns.isNotBlank()
+    fun isValid(): Boolean {
+        if (id.isBlank() || key.isBlank() || dns.isBlank()) return false
+        if (transport == "videochannel") {
+            if (videoW !in VIDEO_MIN_DIMENSION..VIDEO_MAX_DIMENSION) return false
+            if (videoH !in VIDEO_MIN_DIMENSION..VIDEO_MAX_DIMENSION) return false
+            if (videoCodec == "qrcode" && videoQrRecovery.isNotBlank() &&
+                videoQrRecovery !in VIDEO_QR_RECOVERY_LEVELS
+            ) {
+                return false
+            }
+        }
+        return true
+    }
     fun fillDefaults(): OlcrtcConfig = sanitize()
 
     fun toUri(profileName: String? = null): String {
@@ -342,6 +354,11 @@ data class OlcrtcConfig(
     }
 
     companion object {
+        // Значения, которые понимает визуальный кодек olcrtc; всё остальное отклоняется при старте.
+        val VIDEO_QR_RECOVERY_LEVELS = listOf("low", "medium", "high", "highest")
+        const val VIDEO_MIN_DIMENSION = 16
+        const val VIDEO_MAX_DIMENSION = 8192
+
         fun getTransportDisplayName(transport: String, short: Boolean = false): String = when (transport) {
             "datachannel" -> if (short) "DC" else "DataChannel"
             "vp8channel" -> if (short) "VP8C" else "VP8Channel"

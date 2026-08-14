@@ -569,6 +569,8 @@ fun OlcRtcConfigScreen(
                                 onValueChange = { config = config.copy(videoW = it.toIntOrNull() ?: 0) },
                                 modifier = Modifier.weight(1f),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                isError = config.videoW != 0 &&
+                                        config.videoW !in OlcrtcConfig.VIDEO_MIN_DIMENSION..OlcrtcConfig.VIDEO_MAX_DIMENSION,
                                 isModified = isEditMode && config.videoW != initialConfig.videoW
                             )
                             TextFieldRow(
@@ -577,6 +579,8 @@ fun OlcRtcConfigScreen(
                                 onValueChange = { config = config.copy(videoH = it.toIntOrNull() ?: 0) },
                                 modifier = Modifier.weight(1f),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                isError = config.videoH != 0 &&
+                                        config.videoH !in OlcrtcConfig.VIDEO_MIN_DIMENSION..OlcrtcConfig.VIDEO_MAX_DIMENSION,
                                 isModified = isEditMode && config.videoH != initialConfig.videoH
                             )
                         }
@@ -596,6 +600,8 @@ fun OlcRtcConfigScreen(
                             label = stringResource(R.string.olcrtc_video_qr_recovery),
                             value = config.videoQrRecovery,
                             onValueChange = { config = config.copy(videoQrRecovery = it) },
+                            isError = config.videoQrRecovery.isNotBlank() &&
+                                    config.videoQrRecovery !in OlcrtcConfig.VIDEO_QR_RECOVERY_LEVELS,
                             isModified = isEditMode && config.videoQrRecovery != initialConfig.videoQrRecovery
                         )
                     }
