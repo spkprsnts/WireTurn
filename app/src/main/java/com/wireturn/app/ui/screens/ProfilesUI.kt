@@ -620,7 +620,8 @@ fun ProfilesDialog(
         } else {
             if (exportAsJson) {
                 val json = viewModel.getProfilesJson(exportTargetIds)
-                shareText(context, json, exportTitle)
+                val encoded = com.wireturn.app.domain.ProfileEncoder.encode(json)
+                shareText(context, "wireturn://$encoded", exportTitle)
             } else {
                 val bytes = viewModel.exportProfilesToZip(exportTargetIds)
                 shareFile(context, bytes, "wt_profiles.zip", "application/zip")

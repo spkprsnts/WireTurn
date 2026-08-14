@@ -635,6 +635,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun exportProfilesToZip(ids: List<String>) = profileManager.exportProfilesToZip(ids)
     fun importProfilesFromZip(s: java.io.InputStream) = profileManager.importProfilesFromZip(s) { selectProfileAndRestart(it.id, it) }
     fun importProfiles(data: List<Pair<String?, String>>) = profileManager.importProfiles(data) { selectProfileAndRestart(it.id, it) }
+
+    fun importProfileFromLink(link: String) {
+        val encoded = link.substringAfter("://")
+        val json = com.wireturn.app.domain.ProfileEncoder.decode(encoded)
+        if (json != null) {
+            importProfiles(listOf(null to json))
+        }
+    }
     
     fun resetAllSettings(c: Context) {
         viewModelScope.launch {

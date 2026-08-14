@@ -427,6 +427,9 @@
     <string name="profile_import_group">Импорт конфигурации</string>
     <string name="profile_manual_setup">Ручная настройка</string>
     <string name="profile_import_qr">Сканировать QR-код</string>
+    <string name="profile_import_link">Вставить ссылку</string>
+    <string name="profile_import_link_label">Ссылка (wireturn:// или wt://)</string>
+    <string name="profile_import_link_placeholder">wireturn://…</string>
     <string name="profile_import_clipboard">Вставить URI конфигурации</string>
     <string name="profile_import_file">Импорт из файла</string>
     <string name="guide_turnable">Инструкция по настройке сервера Turnable</string>

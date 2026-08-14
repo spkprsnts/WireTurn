@@ -17,14 +17,22 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.ui.AppTopAppBar
@@ -33,6 +41,7 @@ import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.StandardLeadingIcon
+import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.Dispatchers
@@ -49,6 +58,7 @@ class AddProfileActivity : ComponentActivity() {
             val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
             val scope = rememberCoroutineScope()
+            val clipboard = LocalClipboard.current
 
             val profileImportLauncher = rememberLauncherForActivityResult(
                 ActivityResultContracts.OpenMultipleDocuments()
@@ -103,7 +113,7 @@ class AddProfileActivity : ComponentActivity() {
                     ) {
                         SectionGroup(title = stringResource(R.string.profile_import_title)) {
                             SectionItem(
-                                position = ItemPosition.Single,
+                                position = ItemPosition.Top,
                                 onClick = {
                                     HapticUtil.perform(
                                         this@AddProfileActivity,
@@ -131,6 +141,40 @@ class AddProfileActivity : ComponentActivity() {
                                     }
                                     Text(
                                         text = stringResource(R.string.profile_import_json_zip),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                            SectionItem(
+                                position = ItemPosition.Bottom,
+                                onClick = {
+                                    HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.CLICK)
+                                    scope.launch {
+                                        val clipEntry = clipboard.getClipEntry()
+                                        val text = clipEntry?.clipData?.getItemAt(0)?.text?.toString() ?: ""
+                                        if (text.startsWith("wireturn://") || text.startsWith("wt://")) {
+                                            viewModel.importProfileFromLink(text)
+                                            finish()
+                                        } else {
+                                            HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
+                                        }
+                                    }
+                                }
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    StandardLeadingIcon {
+                                        Icon(
+                                            painterResource(R.drawable.content_paste_24px),
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                    Text(
+                                        text = stringResource(R.string.profile_import_link),
                                         style = MaterialTheme.typography.bodyLarge,
                                         fontWeight = FontWeight.Medium
                                     )

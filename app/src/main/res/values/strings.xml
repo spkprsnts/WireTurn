@@ -465,6 +465,9 @@
     <string name="profile_import_group">Import configuration</string>
     <string name="profile_manual_setup">Manual setup</string>
     <string name="profile_import_qr">Scan QR Code</string>
+    <string name="profile_import_link">Paste Link</string>
+    <string name="profile_import_link_label">Link (wireturn:// or wt://)</string>
+    <string name="profile_import_link_placeholder">wireturn://…</string>
     <string name="profile_import_clipboard">Paste Config URI</string>
     <string name="profile_import_file">Import from File</string>
     <string name="guide_turnable">Server setup guide: Turnable</string>
