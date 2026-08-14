@@ -917,8 +917,6 @@ class CoreService : Service() {
             }
             is KernelConfig.Olcrtc -> {
                 cmdArgs.add("${applicationInfo.nativeLibraryDir}/libolcrtc.so")
-                val dataDir = java.io.File(filesDir, "data")
-                if (!dataDir.exists()) dataDir.mkdirs()
                 val configFile = java.io.File(filesDir, "olcrtc.yaml")
                 configFile.writeText(buildOlcrtcYaml(cfg))
                 cmdArgs.add(configFile.absolutePath)
@@ -998,7 +996,6 @@ class CoreService : Service() {
         val o = (cfg.kernelConfig as KernelConfig.Olcrtc).config
         return buildString {
             appendLine("mode: cnc")
-            appendLine("data: data")
             appendLine("auth:")
             appendLine("  provider: ${o.provider}")
             appendLine("room:")
