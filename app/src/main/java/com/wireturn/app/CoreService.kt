@@ -422,7 +422,7 @@ class CoreService : Service() {
                 val env = builder.environment()
                 val nativeLibDir = applicationInfo.nativeLibraryDir
                 
-                // Essential for ffmpeg to find its shared libraries (libavcodec, etc.)
+                // Lets the spawned binary find shared libraries bundled as jniLibs.
                 env["LD_LIBRARY_PATH"] = nativeLibDir
                 
                 // Add native libs to PATH just in case
@@ -999,7 +999,6 @@ class CoreService : Service() {
         return buildString {
             appendLine("mode: cnc")
             appendLine("data: data")
-            appendLine("ffmpeg: \"${applicationInfo.nativeLibraryDir}/libffmpeg.so\"")
             appendLine("auth:")
             appendLine("  provider: ${o.provider}")
             appendLine("room:")

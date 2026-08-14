@@ -89,7 +89,6 @@ WireTurn интегрирует возможности **Turnable**, **olcRTC**,
     - `libfreeturn.so` — реализация FreeTurn ([samosvalishe/free-turn-proxy](https://github.com/samosvalishe/free-turn-proxy)).
     - `libxray.so` — движок Xray ([spkprsnts/vless-client](https://github.com/spkprsnts/vless-client)).
     - `libhevsocks5.so` — сетевой стек для VPN-режима ([heiher/hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel)).
-    - `libffmpeg.so` — библиотека FFmpeg ([Javernaut/ffmpeg-android-maker](https://github.com/Javernaut/ffmpeg-android-maker)).
 
 ## Для разработчиков
 
@@ -99,21 +98,19 @@ WireTurn интегрирует возможности **Turnable**, **olcRTC**,
 Для сборки нативных библиотек (`.so`) рекомендуется использовать **Linux** (Ubuntu/Debian) или **Windows + WSL2**.
 
 В системе должны быть установлены следующие зависимости:
-- **Инструменты сборки**: `build-essential`, `cmake`, `ninja-build`, `meson`, `pkg-config`.
-- **Ассемблеры**: `nasm`, `yasm` (необходимы для FFmpeg, x264, libvpx).
-- **Автоматизация**: `autoconf`, `automake`, `libtool`.
+- **Инструменты сборки**: `build-essential`, `pkg-config`.
 - **Языки и окружение**: `golang` (1.23+), `openjdk-21-jdk`, `python3`, `git`, `curl`.
 
 Команда для установки всех зависимостей в Ubuntu/Debian:
 ```bash
-sudo apt update && sudo apt install -y build-essential cmake ninja-build meson nasm yasm pkg-config git curl autoconf automake libtool golang-go openjdk-21-jdk python3
+sudo apt update && sudo apt install -y build-essential pkg-config git curl golang-go openjdk-21-jdk python3
 ```
 
 ### Сборка
 ```bash
 git clone --recursive https://github.com/spkprsnts/WireTurn.git
 # Сборка всех нативных компонентов (займет время)
-./gradlew buildCBinaries buildGoBinaries buildFfmpegBinaries
+./gradlew buildCBinaries buildGoBinaries
 # Сборка APK
 ./gradlew assembleDebug
 ```

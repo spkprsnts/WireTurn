@@ -66,20 +66,7 @@ jobs:
       - name: Install native build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y nasm yasm build-essential python3 pkg-config autoconf automake libtool
-
-      - name: Cache FFmpeg Binaries
-        uses: actions/cache@v5
-        id: ffmpeg_cache
-        with:
-          path: |
-            app/src/main/jniLibs/*/libffmpeg.so
-            app/src/main/jniLibs/*/libav*.so
-            app/src/main/jniLibs/*/libsw*.so
-            app/src/main/jniLibs/*/libpostproc.so
-          key: ${{ runner.os }}-ffmpeg-${{ steps.vars.outputs.ndk_version }}-${{ hashFiles('build.sh', 'external/ffmpeg-android-maker/**') }}
-          restore-keys: |
-            ${{ runner.os }}-ffmpeg-${{ steps.vars.outputs.ndk_version }}-
+          sudo apt-get install -y build-essential python3 pkg-config
 
       - name: Cache Native Binaries (Go/C)
         uses: actions/cache@v5

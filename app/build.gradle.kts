@@ -43,7 +43,6 @@ android {
             keepDebugSymbols += "**/libturnable.so"
             keepDebugSymbols += "**/libolcrtc.so"
             keepDebugSymbols += "**/libxray.so"
-            keepDebugSymbols += "**/libffmpeg.so"
             keepDebugSymbols += "**/libwebdav.so"
             keepDebugSymbols += "**/libfreeturn.so"
         }
@@ -181,23 +180,6 @@ tasks.register<Exec>("buildCBinaries") {
     wslOrBash("./build.sh cmake")
 }
 
-// FFmpeg binaries
-tasks.register<Exec>("buildFfmpegBinaries") {
-    group = "build"
-    description = "Compiles FFmpeg for Android using ffmpeg-android-maker"
-    workingDir = rootDir
-    inputs.files(fileTree("${rootDir}/external/ffmpeg-android-maker") {
-        exclude("build/**")
-        exclude(".git/**")
-    }).withPathSensitivity(PathSensitivity.RELATIVE).optional()
-    inputs.file(file("${rootDir}/build.sh")).withPathSensitivity(PathSensitivity.RELATIVE)
-    listOf("arm64-v8a", "x86_64").forEach { abi ->
-        outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libffmpeg.so"))
-    }
-    configureNdk()
-    wslOrBash("./build.sh ffmpeg")
-}
-
 // Go binaries — proper incremental tracking (no symlinks in Go submodules)
 tasks.register<Exec>("buildGoBinaries") {
     group = "build"
@@ -232,5 +214,5 @@ tasks.register<Exec>("buildGoBinaries") {
 }
 
 tasks.named("preBuild") {
-    dependsOn("buildCBinaries", "buildFfmpegBinaries", "buildGoBinaries")
+    dependsOn("buildCBinaries", "buildGoBinaries")
 }
