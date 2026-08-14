@@ -251,6 +251,7 @@
     <!-- Ошибки и системные сообщения -->
     <string name="error_core_crashed">Туннель упал %1$d раз — проверьте настройки</string>
     <string name="error_settings_empty">Не заполнены настройки клиента</string>
+    <string name="error_olcrtc_socks_public_requires_auth">Если адрес SOCKS5 не localhost, необходима аутентификация</string>
     <string name="error_core_not_started">Туннель не запустился</string>
     <string name="log_xray_invalid_config">* [Xray] Некорректный или отсутствующий конфиг, запуск отменен</string>
     <string name="error_update_url_not_found">URL обновления не найден</string>

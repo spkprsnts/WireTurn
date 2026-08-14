@@ -34,6 +34,20 @@ object ValidatorUtils {
     }
 
     /**
+     * Проверяет, что host в строке host:port — loopback (127.0.0.0/8, ::1 или "localhost").
+     * Небезопасные значения (например 0.0.0.0 или адрес в локальной сети) возвращают false.
+     */
+    fun isLoopbackHostPort(input: String): Boolean {
+        return try {
+            val host = HostAndPort.fromString(input).host
+            host.equals("localhost", ignoreCase = true) ||
+                    (InetAddresses.isInetAddress(host) && InetAddresses.forString(host).isLoopbackAddress)
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
      * Проверяет, является ли строка валидной VLESS-ссылкой. Пустая строка считается невалидной.
      */
     fun isValidVlessLink(input: String): Boolean {

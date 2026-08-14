@@ -283,6 +283,7 @@
     <!-- Errors and system messages -->
     <string name="error_core_crashed">Tunnel crashed %1$d times — check settings</string>
     <string name="error_settings_empty">Client settings not filled</string>
+    <string name="error_olcrtc_socks_public_requires_auth">SOCKS5 auth is required when the listen address is not localhost</string>
     <string name="error_core_not_started">Tunnel failed to start</string>
     <string name="log_xray_invalid_config">* [Xray] Invalid or missing config, startup canceled</string>
     <string name="error_update_url_not_found">Update URL not found</string>

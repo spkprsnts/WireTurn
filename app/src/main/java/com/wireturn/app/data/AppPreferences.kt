@@ -697,7 +697,11 @@ data class ClientConfig(
 
     fun getValidationErrorResId(): Int? = when (val k = kernelConfig) {
         is KernelConfig.Turnable -> if (!k.config.isValid()) R.string.error_settings_empty else null
-        is KernelConfig.Olcrtc -> if (!k.config.isValid()) R.string.error_settings_empty else null
+        is KernelConfig.Olcrtc -> when {
+            !k.config.isValid() -> R.string.error_settings_empty
+            !isSocksAuthEnabled && !ValidatorUtils.isLoopbackHostPort(socksAddr) -> R.string.error_olcrtc_socks_public_requires_auth
+            else -> null
+        }
         is KernelConfig.Webdav -> if (!k.config.isValid()) R.string.error_settings_empty else null
         is KernelConfig.FreeTurn -> if (!k.config.isValid()) R.string.error_settings_empty else null
     }

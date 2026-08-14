@@ -300,6 +300,8 @@ fun ConnectionSettingsScreen(
             }
 
             // olcRTC
+            val olSocksPublicNeedsAuth = !olAuth && olSocks.isNotEmpty() &&
+                    ValidatorUtils.isValidHostPort(olSocks) && !ValidatorUtils.isLoopbackHostPort(olSocks)
             SectionGroup(title = stringResource(R.string.settings_group_olcrtc)) {
                 SectionItem(position = ItemPosition.Top) {
                     TextFieldRow(
@@ -307,7 +309,8 @@ fun ConnectionSettingsScreen(
                         value = olSocks.redact(privacyMode),
                         onValueChange = { if (!privacyMode) olSocks = it },
                         placeholder = ClientConfig.DEFAULT_SOCKS_ADDR,
-                        isError = olSocks.isNotEmpty() && !ValidatorUtils.isValidHostPort(olSocks),
+                        isError = (olSocks.isNotEmpty() && !ValidatorUtils.isValidHostPort(olSocks)) || olSocksPublicNeedsAuth,
+                        supportingText = if (olSocksPublicNeedsAuth) stringResource(R.string.error_olcrtc_socks_public_requires_auth) else null,
                         readOnly = privacyMode,
                         isModified = olSocks != initialClientConfig.socksAddr,
                         onHelpClick = { showSocksHelp.value = true },
