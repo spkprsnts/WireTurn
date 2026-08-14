@@ -101,7 +101,7 @@ class AddProfileActivity : ComponentActivity() {
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(19.dp)
                     ) {
-                        SectionGroup {
+                        SectionGroup(title = stringResource(R.string.profile_import_title)) {
                             SectionItem(
                                 position = ItemPosition.Single,
                                 onClick = {
@@ -130,14 +130,14 @@ class AddProfileActivity : ComponentActivity() {
                                         )
                                     }
                                     Text(
-                                        text = stringResource(R.string.profile_import),
+                                        text = stringResource(R.string.profile_import_json_zip),
                                         style = MaterialTheme.typography.bodyLarge,
                                         fontWeight = FontWeight.Medium
                                     )
                                 }
                             }
                         }
-                        SectionGroup {
+                        SectionGroup(title = stringResource(R.string.profile_create_title)) {
                             SectionItem(
                                 position = ItemPosition.Single,
                                 onClick = {

@@ -397,6 +397,7 @@
     <string name="profile_actions">Действия с профилем</string>
     <string name="notification_btn_change_profile">Профиль</string>
     <string name="profile_create">Создать профиль</string>
+    <string name="profile_create_title">Создать</string>
     <string name="profile_add">Добавить профиль</string>
     <string name="profile_new">Новый профиль</string>
     <string name="profile_clone">Клонировать</string>
@@ -407,6 +408,8 @@
     <string name="profile_export">Экспортировать</string>
     <string name="profile_export_all">Экспортировать всё (zip)</string>
     <string name="profile_import">Импортировать</string>
+    <string name="profile_import_title">Импорт</string>
+    <string name="profile_import_json_zip">Импортировать JSON/ZIP</string>
     <string name="profile_name_label">Название профиля</string>
     <string name="profile_delete_confirm">Удалить профиль %1$s?</string>
     <string name="profile_delete_desc">Все настройки этого профиля будут удалены.</string>
