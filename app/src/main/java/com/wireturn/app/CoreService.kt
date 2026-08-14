@@ -635,6 +635,26 @@ class CoreService : Service() {
             return true
         }
 
+        // Turnable's own PoW-captcha retry loop has no attempt cap and keeps hammering
+        // the same broken request forever (~every 0.5-5s) instead of giving up — without
+        // this, the only thing that ever stops it is the generic 120s connecting-timeout
+        // watchdog, silently restarting the whole process for up to 10 attempts. Surface a
+        // clear captcha error after a few failures instead of hanging that long.
+        // Gated on network being up so a dropped connection isn't misreported as a captcha
+        // failure — these attempts only happen after the challenge page was fetched
+        // successfully, but skip counting them if the network has since gone away.
+        if (lower.contains("captcha solve attempt failed") && isNetworkAvailable()) {
+            state.vkCaptchaSolveFailCount++
+            if (state.vkCaptchaSolveFailCount >= 3) {
+                if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                    CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_turnable_vk_captcha_failed)))
+                    updateNotification(getString(R.string.error_connecting))
+                }
+                state.startupFailed = true
+                return true
+            }
+        }
+
         if (lower.contains("failed to start vpn client")) {
             val errorPart = line.substringAfterLast(":").trim()
             val lowerError = errorPart.lowercase()
@@ -902,6 +922,7 @@ class CoreService : Service() {
         var lastRemoteNotReadyTime = 0L
         var webdavConnRefusedCount = 0
         var lastWebdavConnRefusedTime = 0L
+        var vkCaptchaSolveFailCount = 0
     }
 
     private fun buildCommandArgs(cfg: ClientConfig): List<String> {
