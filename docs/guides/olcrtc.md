@@ -80,6 +80,11 @@ sudo mv /opt/olcrtc/build/olcrtc-linux-amd64 /opt/olcrtc/build/olcrtc
 >
 > Файл `go.mod` после `git stash` снова перезапишется сборкой, поэтому возвращать его из stash (`git stash pop`) не нужно.
 
+> Если конфиг сервера (`server-wbstream.yaml` / `server-telemost.yaml`) содержит строку `data: data` — удалите её. В версиях olcRTC до 48cae63 это поле было нерабочим и молча игнорировалось; начиная с этой версии отсутствие папки `data/names` и `data/surnames` по указанному пути приводит к фатальной ошибке при старте (`exit code 1`). `git pull` существующие конфиги не трогает, поэтому правку нужно внести вручную:
+> ```bash
+> sudo sed -i '/^data: data$/d' /opt/olcrtc/server-wbstream.yaml /opt/olcrtc/server-telemost.yaml
+> ```
+
 После пересборки перезапустите активные службы:
 
 ```bash
@@ -161,7 +166,6 @@ net:
 vp8:
   fps: 60
   batch_size: 64
-data: data
 EOF
 sudo chown olcrtc:olcrtc /opt/olcrtc/server-wbstream.yaml
 ```
@@ -218,7 +222,6 @@ net:
 vp8:
   fps: 60
   batch_size: 64
-data: data
 EOF
 sudo chown olcrtc:olcrtc /opt/olcrtc/server-telemost.yaml
 ```
