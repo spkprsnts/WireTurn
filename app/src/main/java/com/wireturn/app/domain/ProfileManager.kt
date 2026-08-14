@@ -3,6 +3,7 @@ package com.wireturn.app.domain
 import com.wireturn.app.R
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.Profile
+import com.google.gson.JsonParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -96,6 +97,11 @@ class ProfileManager(
         return gson.toJson(profile)
     }
 
+    fun getProfilesJson(ids: List<String>): String {
+        val selected = profiles.value.filter { it.id in ids }
+        return gson.toJson(selected)
+    }
+
     fun exportAllProfilesToZip(): ByteArray = exportProfilesToZip(null)
 
     fun exportProfilesToZip(ids: List<String>?): ByteArray {
@@ -147,25 +153,36 @@ class ProfileManager(
             val defaultName = prefs.context.getString(R.string.profile_default_name)
             val currentProfiles = profiles.value
             val accumulating = currentProfiles.toMutableList()
-            val newProfiles = data.mapNotNull { (fileName, json) ->
+            val importedList = mutableListOf<Profile>()
+
+            data.forEach { (fileName, json) ->
                 try {
-                    val p = gson.fromJson(json, Profile::class.java) ?: return@mapNotNull null
-                    val nameFromFile = fileName?.removeSuffix(".json")?.removePrefix("wt_")
-                    val name = (p.name as String?)?.takeIf { it.isNotBlank() }
-                        ?: nameFromFile?.takeIf { it.isNotBlank() }?.take(100)
-                        ?: nextDefaultProfileName(accumulating)
-                    val profile = p.sanitize(defaultName).copy(id = UUID.randomUUID().toString(), name = name)
-                    accumulating.add(profile)
-                    profile
-                } catch (_: Exception) { null }
+                    val element = JsonParser.parseString(json)
+                    val profilesToImport = if (element.isJsonArray) {
+                        gson.fromJson(element, Array<Profile>::class.java)?.toList() ?: emptyList()
+                    } else {
+                        listOf(gson.fromJson(element, Profile::class.java))
+                    }
+
+                    profilesToImport.filterNotNull().forEach { p ->
+                        val nameFromFile = fileName?.removeSuffix(".json")?.removePrefix("wt_")
+                        val name = (p.name as String?)?.takeIf { it.isNotBlank() }
+                            ?: nameFromFile?.takeIf { it.isNotBlank() }?.take(100)
+                            ?: nextDefaultProfileName(accumulating)
+                        val profile = p.sanitize(defaultName).copy(id = UUID.randomUUID().toString(), name = name)
+                        accumulating.add(profile)
+                        importedList.add(profile)
+                    }
+                } catch (_: Exception) {}
             }
-            if (newProfiles.isEmpty()) return
+
+            if (importedList.isEmpty()) return
             val wasEmpty = currentProfiles.isEmpty()
-            val newList = currentProfiles + newProfiles
+            val newList = currentProfiles + importedList
             scope.launch {
                 prefs.saveProfiles(newList)
                 if (wasEmpty) {
-                    onAutoSelect?.invoke(newProfiles.first())
+                    onAutoSelect?.invoke(importedList.first())
                 }
             }
         } catch (_: Exception) {}

@@ -4,6 +4,8 @@
 
 package com.wireturn.app.ui.screens
 
+import android.content.Context
+import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
@@ -216,22 +218,22 @@ fun ProfilesBlock(
             FilledTonalIconButton(onClick = {
                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                 val intent = when (currentProfile.kernelVariant) {
-                    KernelVariant.TURNABLE -> android.content.Intent(
+                    KernelVariant.TURNABLE -> Intent(
                         context,
                         TurnableConfigActivity::class.java
                     )
 
-                    KernelVariant.OLCRTC -> android.content.Intent(
+                    KernelVariant.OLCRTC -> Intent(
                         context,
                         OlcRtcConfigActivity::class.java
                     )
 
-                    KernelVariant.WEBDAV -> android.content.Intent(
+                    KernelVariant.WEBDAV -> Intent(
                         context,
                         com.wireturn.app.ui.activities.cores.WebdavConfigActivity::class.java
                     )
 
-                    KernelVariant.FREETURN -> android.content.Intent(
+                    KernelVariant.FREETURN -> Intent(
                         context,
                         com.wireturn.app.ui.activities.cores.FreeTurnConfigActivity::class.java
                     )
@@ -272,7 +274,7 @@ fun ProfilesBlock(
                 FilledTonalIconButton(onClick = {
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     context.startActivity(
-                        android.content.Intent(
+                        Intent(
                             context,
                             com.wireturn.app.ui.activities.AddProfileActivity::class.java
                         )
@@ -374,6 +376,11 @@ fun ProfilesDialog(
     var dragOffset by remember { mutableFloatStateOf(0f) }
     var autoScrollSpeed by remember { mutableFloatStateOf(0f) }
     var optimisticSelectedId by remember { mutableStateOf<String?>(null) }
+
+    var exportFormatMenuExpanded by remember { mutableStateOf(false) }
+    var exportActionMenuExpanded by remember { mutableStateOf(false) }
+    var exportTargetIds by remember { mutableStateOf<List<String>>(emptyList()) }
+    var exportAsJson by remember { mutableStateOf(true) }
 
     val showRenameDialog = remember { mutableStateOf<Profile?>(null) }
     val showDeleteConfirm = remember { mutableStateOf<Profile?>(null) }
@@ -593,6 +600,45 @@ fun ProfilesDialog(
         }
     }
 
+    val exportTitle = stringResource(R.string.profile_export)
+    val onExportActionSelected = { save: Boolean ->
+        exportActionMenuExpanded = false
+        if (save) {
+            if (exportAsJson) {
+                val json = viewModel.getProfilesJson(exportTargetIds)
+                jsonToExport.value = json
+                val fileName = if (exportTargetIds.size == 1) {
+                    val profile = profiles.find { it.id == exportTargetIds[0] }
+                    val safeName = profile?.name?.replace(Regex("[\\\\/:*?\"<>| ]"), "_") ?: "profile"
+                    "wt_$safeName.json"
+                } else "wt_profiles.json"
+                exportLauncher.launch(fileName)
+            } else {
+                zipToExport.value = viewModel.exportProfilesToZip(exportTargetIds)
+                zipExportLauncher.launch("wt_profiles.zip")
+            }
+        } else {
+            if (exportAsJson) {
+                val json = viewModel.getProfilesJson(exportTargetIds)
+                shareText(context, json, exportTitle)
+            } else {
+                val bytes = viewModel.exportProfilesToZip(exportTargetIds)
+                shareFile(context, bytes, "wt_profiles.zip", "application/zip")
+            }
+        }
+    }
+
+    val onExportClick = { targets: List<String> ->
+        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+        exportTargetIds = targets
+        if (exportTargetIds.size > 1) {
+            exportFormatMenuExpanded = true
+        } else {
+            exportAsJson = true
+            exportActionMenuExpanded = true
+        }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -624,15 +670,24 @@ fun ProfilesDialog(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         if (isSelectionMode) {
-                            FilledTonalIconButton(onClick = {
-                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                zipToExport.value =
-                                    viewModel.exportProfilesToZip(selectedIds.toList())
-                                zipExportLauncher.launch("wt_profiles_selected.zip")
-                            }) {
-                                Icon(
-                                    painterResource(R.drawable.ios_share_24px),
-                                    contentDescription = null
+                            Box {
+                                FilledTonalIconButton(onClick = { onExportClick(selectedIds.toList()) }) {
+                                    Icon(
+                                        painterResource(R.drawable.ios_share_24px),
+                                        contentDescription = null
+                                    )
+                                }
+                                ExportDropdownMenus(
+                                    expandedFormat = exportFormatMenuExpanded,
+                                    onDismissFormat = { exportFormatMenuExpanded = false },
+                                    expandedAction = exportActionMenuExpanded,
+                                    onDismissAction = { exportActionMenuExpanded = false },
+                                    onFormatSelected = { asJson ->
+                                        exportAsJson = asJson
+                                        exportFormatMenuExpanded = false
+                                        exportActionMenuExpanded = true
+                                    },
+                                    onActionSelected = onExportActionSelected
                                 )
                             }
                             FilledTonalIconButton(onClick = {
@@ -665,14 +720,24 @@ fun ProfilesDialog(
                             }
                         } else {
                             if (profiles.isNotEmpty()) {
-                                FilledTonalIconButton(onClick = {
-                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                    zipToExport.value = viewModel.exportAllProfilesToZip()
-                                    zipExportLauncher.launch("wt_profiles_backup.zip")
-                                }) {
-                                    Icon(
-                                        painterResource(R.drawable.ios_share_24px),
-                                        contentDescription = stringResource(R.string.profile_export_all)
+                                Box {
+                                    FilledTonalIconButton(onClick = { onExportClick(profiles.map { it.id }) }) {
+                                        Icon(
+                                            painterResource(R.drawable.ios_share_24px),
+                                            contentDescription = stringResource(R.string.profile_export_all)
+                                        )
+                                    }
+                                    ExportDropdownMenus(
+                                        expandedFormat = exportFormatMenuExpanded,
+                                        onDismissFormat = { exportFormatMenuExpanded = false },
+                                        expandedAction = exportActionMenuExpanded,
+                                        onDismissAction = { exportActionMenuExpanded = false },
+                                        onFormatSelected = { asJson ->
+                                            exportAsJson = asJson
+                                            exportFormatMenuExpanded = false
+                                            exportActionMenuExpanded = true
+                                        },
+                                        onActionSelected = onExportActionSelected
                                     )
                                 }
                             }
@@ -680,7 +745,7 @@ fun ProfilesDialog(
                                 FilledTonalIconButton(onClick = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                     context.startActivity(
-                                        android.content.Intent(
+                                        Intent(
                                             context,
                                             com.wireturn.app.ui.activities.AddProfileActivity::class.java
                                         )
@@ -746,6 +811,7 @@ fun ProfilesDialog(
                         val isSelectedInMode = selectedIds.contains(profile.id)
                         var menuExpanded by remember { mutableStateOf(false) }
                         var editMenuExpanded by remember { mutableStateOf(false) }
+                        var itemExportActionMenuExpanded by remember { mutableStateOf(false) }
 
                         val itemShape = when {
                             isDragged -> RoundedCornerShape(12.dp)
@@ -963,15 +1029,9 @@ fun ProfilesDialog(
                                                         context,
                                                         HapticUtil.Pattern.CLICK
                                                     )
-                                                    viewModel.getProfileJson(profile.id)
-                                                        ?.let { json ->
-                                                            jsonToExport.value = json
-                                                            val safeName = profile.name.replace(
-                                                                Regex("[\\\\/:*?\"<>| ]"),
-                                                                "_"
-                                                            )
-                                                            exportLauncher.launch("wt_$safeName.json")
-                                                        }
+                                                    exportTargetIds = listOf(profile.id)
+                                                    exportAsJson = true
+                                                    itemExportActionMenuExpanded = true
                                                 }
                                             )
                                             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
@@ -1016,10 +1076,10 @@ fun ProfilesDialog(
                                                     editMenuExpanded = false
                                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                                     val intent = when (profile.kernelVariant) {
-                                                        KernelVariant.TURNABLE -> android.content.Intent(context, TurnableConfigActivity::class.java)
-                                                        KernelVariant.OLCRTC -> android.content.Intent(context, OlcRtcConfigActivity::class.java)
-                                                        KernelVariant.WEBDAV -> android.content.Intent(context, com.wireturn.app.ui.activities.cores.WebdavConfigActivity::class.java)
-                                                        KernelVariant.FREETURN -> android.content.Intent(context, com.wireturn.app.ui.activities.cores.FreeTurnConfigActivity::class.java)
+                                                        KernelVariant.TURNABLE -> Intent(context, TurnableConfigActivity::class.java)
+                                                        KernelVariant.OLCRTC -> Intent(context, OlcRtcConfigActivity::class.java)
+                                                        KernelVariant.WEBDAV -> Intent(context, com.wireturn.app.ui.activities.cores.WebdavConfigActivity::class.java)
+                                                        KernelVariant.FREETURN -> Intent(context, com.wireturn.app.ui.activities.cores.FreeTurnConfigActivity::class.java)
                                                     }
                                                     intent.putExtra("EXTRA_EDIT_MODE", true)
                                                     intent.putExtra("EXTRA_PROFILE_NAME", profile.name)
@@ -1039,12 +1099,23 @@ fun ProfilesDialog(
                                                 onClick = {
                                                     editMenuExpanded = false
                                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                                    val intent = android.content.Intent(context, com.wireturn.app.ui.activities.XrayEditActivity::class.java)
+                                                    val intent = Intent(context, com.wireturn.app.ui.activities.XrayEditActivity::class.java)
                                                     intent.putExtra("EXTRA_PROFILE_ID", profile.id)
                                                     context.startActivity(intent)
                                                 }
                                             )
                                         }
+                                        ExportDropdownMenus(
+                                            expandedFormat = false,
+                                            onDismissFormat = { },
+                                            expandedAction = itemExportActionMenuExpanded,
+                                            onDismissAction = { itemExportActionMenuExpanded = false },
+                                            onFormatSelected = { },
+                                            onActionSelected = { save ->
+                                                itemExportActionMenuExpanded = false
+                                                onExportActionSelected(save)
+                                            }
+                                        )
                                     }
                                 }
                             }
@@ -1123,6 +1194,100 @@ fun ProfilesDialog(
             }
         )
     }
+}
+
+@Composable
+private fun ExportDropdownMenus(
+    expandedFormat: Boolean,
+    onDismissFormat: () -> Unit,
+    expandedAction: Boolean,
+    onDismissAction: () -> Unit,
+    onFormatSelected: (Boolean) -> Unit,
+    onActionSelected: (Boolean) -> Unit // true = save, false = share
+) {
+    AppDropdownMenu(
+        expanded = expandedFormat,
+        onDismissRequest = onDismissFormat,
+        title = stringResource(R.string.profile_export)
+    ) {
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.profile_export_json)) },
+            onClick = { onFormatSelected(true) },
+            leadingIcon = {
+                Icon(
+                    painterResource(R.drawable.data_array_24px),
+                    null,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        )
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.profile_export_zip)) },
+            onClick = { onFormatSelected(false) },
+            leadingIcon = {
+                Icon(
+                    painterResource(R.drawable.abc_24px),
+                    null,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        )
+    }
+
+    AppDropdownMenu(
+        expanded = expandedAction,
+        onDismissRequest = onDismissAction,
+        title = stringResource(R.string.profile_export)
+    ) {
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.profile_export_save)) },
+            onClick = { onActionSelected(true) },
+            leadingIcon = {
+                Icon(
+                    painterResource(R.drawable.save_24px),
+                    null,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        )
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.profile_export_share)) },
+            onClick = { onActionSelected(false) },
+            leadingIcon = {
+                Icon(
+                    painterResource(R.drawable.share_24px),
+                    null,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        )
+    }
+}
+
+private fun shareFile(context: Context, bytes: ByteArray, fileName: String, mimeType: String) {
+    try {
+        val file = java.io.File(context.cacheDir, fileName)
+        file.writeBytes(bytes)
+        val uri = androidx.core.content.FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = mimeType
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(intent, null))
+    } catch (_: Exception) {}
+}
+
+private fun shareText(context: Context, text: String, title: String) {
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, text)
+    }
+    context.startActivity(Intent.createChooser(intent, title))
 }
 
 private fun getProfileIcon(profile: Profile, outlined: Boolean): Int {

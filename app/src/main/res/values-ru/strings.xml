@@ -406,7 +406,11 @@
     <string name="profile_rename">Переименовать</string>
     <string name="profile_delete">Удалить</string>
     <string name="profile_export">Экспортировать</string>
-    <string name="profile_export_all">Экспортировать всё (zip)</string>
+    <string name="profile_export_all">Экспортировать всё</string>
+    <string name="profile_export_save">Сохранить в файл</string>
+    <string name="profile_export_share">Поделиться</string>
+    <string name="profile_export_json">JSON</string>
+    <string name="profile_export_zip">ZIP (Архив)</string>
     <string name="profile_import">Импортировать</string>
     <string name="profile_import_title">Импорт</string>
     <string name="profile_import_json_zip">Импортировать JSON/ZIP</string>

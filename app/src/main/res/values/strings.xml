@@ -444,7 +444,11 @@
     <string name="profile_rename">Rename</string>
     <string name="profile_delete">Delete</string>
     <string name="profile_export">Export</string>
-    <string name="profile_export_all">Export all (zip)</string>
+    <string name="profile_export_all">Export all</string>
+    <string name="profile_export_save">Save to file</string>
+    <string name="profile_export_share">Share</string>
+    <string name="profile_export_json">JSON</string>
+    <string name="profile_export_zip">ZIP (Archive)</string>
     <string name="profile_import">Import</string>
     <string name="profile_import_title">Import</string>
     <string name="profile_import_json_zip">Import JSON/ZIP</string>

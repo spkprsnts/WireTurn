@@ -630,6 +630,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun renameProfile(id: String, name: String) = profileManager.renameProfile(id, name)
     fun reorderProfiles(list: List<Profile>) = profileManager.reorderProfiles(list)
     fun getProfileJson(id: String) = profileManager.getProfileJson(id)
+    fun getProfilesJson(ids: List<String>) = profileManager.getProfilesJson(ids)
     fun exportAllProfilesToZip() = profileManager.exportAllProfilesToZip()
     fun exportProfilesToZip(ids: List<String>) = profileManager.exportProfilesToZip(ids)
     fun importProfilesFromZip(s: java.io.InputStream) = profileManager.importProfilesFromZip(s) { selectProfileAndRestart(it.id, it) }
