@@ -552,7 +552,7 @@ fun HomeScreen(
                             context.startActivity(
                                 Intent(
                                     context,
-                                    com.wireturn.app.ui.activities.CreateProfileActivity::class.java
+                                    com.wireturn.app.ui.activities.AddProfileActivity::class.java
                                 )
                             )
                         } else {
