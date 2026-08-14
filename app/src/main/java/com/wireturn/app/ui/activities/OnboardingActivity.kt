@@ -36,7 +36,7 @@ class OnboardingActivity : ComponentActivity() {
                         onSkip = {
                             viewModel.setOnboardingDone()
                             startActivity(Intent(this@OnboardingActivity, MainActivity::class.java))
-                            startActivity(Intent(this@OnboardingActivity, CreateProfileActivity::class.java))
+                            startActivity(Intent(this@OnboardingActivity, AddProfileActivity::class.java))
                             finish()
                         }
                     )

@@ -127,7 +127,6 @@ import com.wireturn.app.viewmodel.UpdateState
 import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.viewmodel.XrayState
 import com.wireturn.app.viewmodel.isImportant
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.ln
@@ -272,41 +271,6 @@ fun HomeScreen(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         hasNotificationPermission = isGranted
-    }
-
-    val profileImportLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenMultipleDocuments()
-    ) { uris ->
-        if (uris.isEmpty()) return@rememberLauncherForActivityResult
-
-        scope.launch(Dispatchers.IO) {
-            val jsonFiles = mutableListOf<Pair<String?, String>>()
-            uris.forEach { uri ->
-                try {
-                    val fileName =
-                        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                            val index =
-                                cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-                            if (index != -1 && cursor.moveToFirst()) cursor.getString(index) else null
-                        } ?: uri.lastPathSegment
-
-                    if (fileName?.endsWith(".zip", ignoreCase = true) == true) {
-                        context.contentResolver.openInputStream(uri)?.use { stream ->
-                            viewModel.importProfilesFromZip(stream)
-                        }
-                    } else {
-                        val json = context.contentResolver.openInputStream(uri)?.use { stream ->
-                            stream.bufferedReader().readText()
-                        }
-                        if (json != null) jsonFiles.add(fileName to json)
-                    }
-                } catch (_: Exception) {
-                }
-            }
-            if (jsonFiles.isNotEmpty()) {
-                viewModel.importProfiles(jsonFiles)
-            }
-        }
     }
 
     DisposableEffect(lifecycleOwner) {
@@ -814,15 +778,7 @@ fun HomeScreen(
                 }
             ) {
                 ProfilesBlock(
-                    viewModel = viewModel,
-                    onImport = {
-                        profileImportLauncher.launch(
-                            arrayOf(
-                                "application/json",
-                                "application/zip"
-                            )
-                        )
-                    }
+                    viewModel = viewModel
                 )
             }
 
@@ -831,14 +787,6 @@ fun HomeScreen(
             if (showProfilesDialog.value) {
                 ProfilesDialog(
                     viewModel = viewModel,
-                    onImport = {
-                        profileImportLauncher.launch(
-                            arrayOf(
-                                "application/json",
-                                "application/zip"
-                            )
-                        )
-                    },
                     onDismiss = { showProfilesDialog.value = false }
                 )
             }

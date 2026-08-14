@@ -397,6 +397,7 @@
     <string name="profile_actions">Действия с профилем</string>
     <string name="notification_btn_change_profile">Профиль</string>
     <string name="profile_create">Создать профиль</string>
+    <string name="profile_add">Добавить профиль</string>
     <string name="profile_new">Новый профиль</string>
     <string name="profile_clone">Клонировать</string>
     <string name="profile_edit">Редактировать</string>

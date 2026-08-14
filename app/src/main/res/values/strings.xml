@@ -435,6 +435,7 @@
     <string name="profile_actions">Profile actions</string>
     <string name="notification_btn_change_profile">Profile</string>
     <string name="profile_create">Create profile</string>
+    <string name="profile_add">Add profile</string>
     <string name="profile_new">New profile</string>
     <string name="profile_clone">Clone</string>
     <string name="profile_edit">Edit</string>

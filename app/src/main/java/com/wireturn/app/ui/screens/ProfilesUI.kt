@@ -172,7 +172,6 @@ fun ProfileSummary(
 @Composable
 fun ProfilesBlock(
     viewModel: MainViewModel,
-    onImport: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
@@ -272,19 +271,10 @@ fun ProfilesBlock(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilledTonalIconButton(onClick = {
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                    onImport()
-                }) {
-                    Icon(
-                        painter = painterResource(R.drawable.file_open_24px),
-                        contentDescription = stringResource(R.string.profile_import)
-                    )
-                }
-                FilledTonalIconButton(onClick = {
-                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     context.startActivity(
                         android.content.Intent(
                             context,
-                            com.wireturn.app.ui.activities.CreateProfileActivity::class.java
+                            com.wireturn.app.ui.activities.AddProfileActivity::class.java
                         )
                     )
                 }) {
@@ -363,7 +353,6 @@ fun ProfileListItem(
 @Composable
 fun ProfilesDialog(
     viewModel: MainViewModel,
-    onImport: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val profilesSource by viewModel.profiles.collectAsStateWithLifecycle()
@@ -386,7 +375,6 @@ fun ProfilesDialog(
     var autoScrollSpeed by remember { mutableFloatStateOf(0f) }
     var optimisticSelectedId by remember { mutableStateOf<String?>(null) }
 
-    var addMenuExpanded by remember { mutableStateOf(false) }
     val showRenameDialog = remember { mutableStateOf<Profile?>(null) }
     val showDeleteConfirm = remember { mutableStateOf<Profile?>(null) }
     val showBulkDeleteConfirm = remember { mutableStateOf<List<String>?>(null) }
@@ -691,52 +679,16 @@ fun ProfilesDialog(
                             Box {
                                 FilledTonalIconButton(onClick = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                    addMenuExpanded = true
+                                    context.startActivity(
+                                        android.content.Intent(
+                                            context,
+                                            com.wireturn.app.ui.activities.AddProfileActivity::class.java
+                                        )
+                                    )
                                 }) {
                                     Icon(
                                         painterResource(R.drawable.add_24px),
                                         contentDescription = stringResource(R.string.profile_create)
-                                    )
-                                }
-                                AppDropdownMenu(
-                                    expanded = addMenuExpanded,
-                                    onDismissRequest = { addMenuExpanded = false },
-                                    title = stringResource(R.string.profile_new)
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.profile_import)) },
-                                        leadingIcon = {
-                                            Icon(
-                                                painterResource(R.drawable.file_open_24px),
-                                                contentDescription = null,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                        },
-                                        onClick = {
-                                            addMenuExpanded = false
-                                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                            onImport()
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.profile_create)) },
-                                        leadingIcon = {
-                                            Icon(
-                                                painterResource(R.drawable.add_24px),
-                                                contentDescription = null,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                        },
-                                        onClick = {
-                                            addMenuExpanded = false
-                                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                            context.startActivity(
-                                                android.content.Intent(
-                                                    context,
-                                                    com.wireturn.app.ui.activities.CreateProfileActivity::class.java
-                                                )
-                                            )
-                                        }
                                     )
                                 }
                             }
