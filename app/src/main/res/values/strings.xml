@@ -78,6 +78,9 @@
     <string name="import_clipboard">From clipboard</string>
     <string name="import_success">Configuration imported</string>
     <string name="import_error">Import error</string>
+    <string name="import_error_no_link">No valid link found in clipboard</string>
+    <string name="import_error_invalid_profile">Invalid profile format</string>
+    <string name="import_error_invalid_config">Invalid configuration format</string>
 
     <!-- WireGuard Setup -->
     <string name="xray_import_config">Xray configuration import</string>

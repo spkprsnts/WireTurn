@@ -629,19 +629,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun renameProfile(id: String, name: String) = profileManager.renameProfile(id, name)
     fun reorderProfiles(list: List<Profile>) = profileManager.reorderProfiles(list)
-    fun getProfileJson(id: String) = profileManager.getProfileJson(id)
     fun getProfilesJson(ids: List<String>) = profileManager.getProfilesJson(ids)
-    fun exportAllProfilesToZip() = profileManager.exportAllProfilesToZip()
     fun exportProfilesToZip(ids: List<String>) = profileManager.exportProfilesToZip(ids)
     fun importProfilesFromZip(s: java.io.InputStream) = profileManager.importProfilesFromZip(s) { selectProfileAndRestart(it.id, it) }
     fun importProfiles(data: List<Pair<String?, String>>) = profileManager.importProfiles(data) { selectProfileAndRestart(it.id, it) }
 
-    fun importProfileFromLink(link: String) {
+    fun importProfileFromLink(link: String): Boolean {
         val encoded = link.substringAfter("://")
         val json = com.wireturn.app.domain.ProfileEncoder.decode(encoded)
-        if (json != null) {
+        return if (json != null) {
             importProfiles(listOf(null to json))
-        }
+            true
+        } else false
     }
     
     fun resetAllSettings(c: Context) {

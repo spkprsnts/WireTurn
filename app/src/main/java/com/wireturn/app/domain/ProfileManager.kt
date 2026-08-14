@@ -123,7 +123,7 @@ class ProfileManager(
         return bos.toByteArray()
     }
 
-    fun importProfilesFromZip(inputStream: java.io.InputStream, onAutoSelect: ((Profile) -> Unit)? = null) {
+    fun importProfilesFromZip(inputStream: java.io.InputStream, onAutoSelect: ((Profile) -> Unit)? = null): Int {
         try {
             val extractedData = mutableListOf<Pair<String?, String>>()
             ZipInputStream(inputStream).use { zis ->
@@ -142,13 +142,14 @@ class ProfileManager(
                     entry = zis.nextEntry
                 }
             }
-            if (extractedData.isNotEmpty()) importProfiles(extractedData, onAutoSelect)
+            return if (extractedData.isNotEmpty()) importProfiles(extractedData, onAutoSelect) else 0
         } catch (e: Exception) {
             com.wireturn.app.AppLogsState.addLog("ZIP Import Error: ${e.message}")
+            return 0
         }
     }
 
-    fun importProfiles(data: List<Pair<String?, String>>, onAutoSelect: ((Profile) -> Unit)? = null) {
+    fun importProfiles(data: List<Pair<String?, String>>, onAutoSelect: ((Profile) -> Unit)? = null): Int {
         try {
             val defaultName = prefs.context.getString(R.string.profile_default_name)
             val currentProfiles = profiles.value
@@ -176,7 +177,7 @@ class ProfileManager(
                 } catch (_: Exception) {}
             }
 
-            if (importedList.isEmpty()) return
+            if (importedList.isEmpty()) return 0
             val wasEmpty = currentProfiles.isEmpty()
             val newList = currentProfiles + importedList
             scope.launch {
@@ -185,6 +186,9 @@ class ProfileManager(
                     onAutoSelect?.invoke(importedList.first())
                 }
             }
-        } catch (_: Exception) {}
+            return importedList.size
+        } catch (_: Exception) {
+            return 0
+        }
     }
 }

@@ -74,6 +74,9 @@
     <string name="import_clipboard">Из буфера</string>
     <string name="import_success">Конфигурация импортирована</string>
     <string name="import_error">Ошибка импорта</string>
+    <string name="import_error_no_link">В буфере обмена не найдена подходящая ссылка</string>
+    <string name="import_error_invalid_profile">Некорректный формат профиля</string>
+    <string name="import_error_invalid_config">Некорректный формат конфигурации</string>
 
     <!-- Настройка WireGuard -->
     <string name="xray_import_config">Импорт конфигурации Xray</string>

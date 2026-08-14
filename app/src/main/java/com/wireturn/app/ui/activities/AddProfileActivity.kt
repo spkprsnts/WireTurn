@@ -16,6 +16,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
@@ -35,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
+import com.wireturn.app.ui.AppSnackbar
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
@@ -42,6 +45,7 @@ import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.TextFieldRow
+import com.wireturn.app.ui.showExclusiveSnackbar
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.Dispatchers
@@ -59,6 +63,9 @@ class AddProfileActivity : ComponentActivity() {
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
             val scope = rememberCoroutineScope()
             val clipboard = LocalClipboard.current
+            val snackbarHostState = remember { SnackbarHostState() }
+            val errorNoLink = stringResource(R.string.import_error_no_link)
+            val errorInvalidProfile = stringResource(R.string.import_error_invalid_profile)
 
             val profileImportLauncher = rememberLauncherForActivityResult(
                 ActivityResultContracts.OpenMultipleDocuments()
@@ -66,7 +73,7 @@ class AddProfileActivity : ComponentActivity() {
                 if (uris.isEmpty()) return@rememberLauncherForActivityResult
                 
                 scope.launch(Dispatchers.IO) {
-                    val jsonFiles = mutableListOf<Pair<String?, String>>()
+                    var totalImported = 0
                     uris.forEach { uri ->
                         try {
                             val fileName = contentResolver.query(uri, null, null, null, null)?.use { cursor ->
@@ -76,21 +83,26 @@ class AddProfileActivity : ComponentActivity() {
 
                             if (fileName?.endsWith(".zip", ignoreCase = true) == true) {
                                 contentResolver.openInputStream(uri)?.use { stream ->
-                                    viewModel.importProfilesFromZip(stream)
+                                    totalImported += viewModel.importProfilesFromZip(stream)
                                 }
                             } else {
                                 val json = contentResolver.openInputStream(uri)?.use { stream ->
                                     stream.bufferedReader().readText()
                                 }
-                                if (json != null) jsonFiles.add(fileName to json)
+                                if (json != null) {
+                                    totalImported += viewModel.importProfiles(listOf(fileName to json))
+                                }
                             }
                         } catch (_: Exception) {}
                     }
-                    if (jsonFiles.isNotEmpty()) {
-                        viewModel.importProfiles(jsonFiles)
-                    }
+                    
                     launch(Dispatchers.Main) {
-                        finish()
+                        if (totalImported > 0) {
+                            finish()
+                        } else {
+                            HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
+                            snackbarHostState.showExclusiveSnackbar(errorInvalidProfile)
+                        }
                     }
                 }
             }
@@ -102,6 +114,11 @@ class AddProfileActivity : ComponentActivity() {
                             title = stringResource(R.string.profile_add),
                             onBack = { finish() }
                         )
+                    },
+                    snackbarHost = {
+                        SnackbarHost(hostState = snackbarHostState) { data ->
+                            AppSnackbar(data)
+                        }
                     }
                 ) { padding ->
                     Column(
@@ -154,10 +171,17 @@ class AddProfileActivity : ComponentActivity() {
                                         val clipEntry = clipboard.getClipEntry()
                                         val text = clipEntry?.clipData?.getItemAt(0)?.text?.toString() ?: ""
                                         if (text.startsWith("wireturn://") || text.startsWith("wt://")) {
-                                            viewModel.importProfileFromLink(text)
-                                            finish()
+                                            if (viewModel.importProfileFromLink(text)) {
+                                                finish()
+                                            } else {
+                                                HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
+                                                snackbarHostState.showExclusiveSnackbar(errorInvalidProfile)
+                                            }
                                         } else {
                                             HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
+                                            scope.launch {
+                                                snackbarHostState.showExclusiveSnackbar(errorNoLink)
+                                            }
                                         }
                                     }
                                 }

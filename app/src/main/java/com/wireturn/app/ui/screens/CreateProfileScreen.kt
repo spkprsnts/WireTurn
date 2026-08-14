@@ -17,6 +17,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -25,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +41,7 @@ import com.wireturn.app.R
 import com.wireturn.app.data.OlcrtcConfig
 import com.wireturn.app.data.TurnableConfig
 import com.wireturn.app.data.WebdavConfig
+import com.wireturn.app.ui.AppSnackbar
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.HapticUtil
@@ -47,6 +51,7 @@ import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.TextFieldRow
+import com.wireturn.app.ui.showExclusiveSnackbar
 import kotlinx.coroutines.launch
 import androidx.core.net.toUri
 
@@ -69,6 +74,8 @@ fun CreateProfileScreen(
     
     var profileName by remember { mutableStateOf("") }
     val showQrScanner = remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val errorInvalidConfig = stringResource(R.string.import_error_invalid_config)
 
     val filePickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent(),
@@ -77,9 +84,14 @@ fun CreateProfileScreen(
                 try {
                     context.contentResolver.openInputStream(uri)?.use { input ->
                         val text = input.bufferedReader().use { r -> r.readText() }.trim()
-                        handleImportText(text, profileName, context, onSelectType)
+                        val success = handleImportText(text, profileName, context, onSelectType)
+                        if (!success) {
+                            scope.launch { snackbarHostState.showExclusiveSnackbar(errorInvalidConfig) }
+                        }
                     }
-                } catch (_: Exception) { }
+                } catch (_: Exception) {
+                    scope.launch { snackbarHostState.showExclusiveSnackbar(errorInvalidConfig) }
+                }
             }
         }
     )
@@ -92,6 +104,11 @@ fun CreateProfileScreen(
                 onBack = onBack,
                 scrollBehavior = scrollBehavior
             )
+        },
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                AppSnackbar(data)
+            }
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { padding ->
@@ -143,7 +160,10 @@ fun CreateProfileScreen(
                             val clipEntry = clipboard.getClipEntry()
                             val text = clipEntry?.clipData?.getItemAt(0)?.text?.toString() ?: ""
                             if (text.isNotBlank()) {
-                                handleImportText(text, profileName, context, onSelectType)
+                                val success = handleImportText(text, profileName, context, onSelectType)
+                                if (!success) {
+                                    snackbarHostState.showExclusiveSnackbar(errorInvalidConfig)
+                                }
                             }
                         }
                     }
@@ -243,8 +263,12 @@ fun CreateProfileScreen(
             message = stringResource(R.string.qr_scan_desc),
             onDismiss = { showQrScanner.value = false },
             onResult = { result ->
-                handleImportText(result, profileName, context, onSelectType)
-                showQrScanner.value = false
+                val success = handleImportText(result, profileName, context, onSelectType)
+                if (success) {
+                    showQrScanner.value = false
+                } else {
+                    scope.launch { snackbarHostState.showExclusiveSnackbar(errorInvalidConfig) }
+                }
             }
         )
     }
@@ -285,7 +309,7 @@ private fun handleImportText(
     enteredName: String,
     context: android.content.Context,
     onSelectType: (String, String?, String) -> Unit
-) {
+): Boolean {
     val turnableParsed = TurnableConfig.parse(text)
     val olcrtcParsed = OlcrtcConfig.parse(text)
     val webdavParsed = WebdavConfig.parse(text)
@@ -301,19 +325,24 @@ private fun handleImportText(
         else ""
     }
 
-    if (turnableParsed != null) {
+    return if (turnableParsed != null) {
         HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
         onSelectType("Turnable", Gson().toJson(turnableParsed), finalName)
+        true
     } else if (olcrtcParsed != null) {
         HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
         onSelectType("olcRTC", Gson().toJson(olcrtcParsed), finalName)
+        true
     } else if (webdavParsed != null) {
         HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
         onSelectType("WebDAV", Gson().toJson(webdavParsed), finalName)
+        true
     } else if (freeturnParsed != null) {
         HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
         onSelectType("FreeTurn", Gson().toJson(freeturnParsed), finalName)
+        true
     } else {
         HapticUtil.perform(context, HapticUtil.Pattern.ERROR)
+        false
     }
 }
