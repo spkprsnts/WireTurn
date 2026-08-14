@@ -1034,8 +1034,6 @@ class CoreService : Service() {
                     appendLine("  width: ${o.videoW}")
                     appendLine("  height: ${o.videoH}")
                     appendLine("  fps: ${o.videoFps}")
-                    appendLine("  bitrate: \"${o.videoBitrate}\"")
-                    appendLine("  hw: ${o.videoHw}")
                     if (o.videoCodec == "qrcode") {
                         appendLine("  qr_recovery: ${o.videoQrRecovery}")
                         appendLine("  qr_size: ${o.videoQrSize}")

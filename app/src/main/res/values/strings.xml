@@ -172,8 +172,6 @@
     <string name="olcrtc_video_width">Video Width</string>
     <string name="olcrtc_video_height">Video Height</string>
     <string name="olcrtc_video_fps">Video FPS</string>
-    <string name="olcrtc_video_bitrate">Video Bitrate</string>
-    <string name="olcrtc_video_hw">Video HW</string>
     <string name="olcrtc_video_qr_recovery">QR Recovery</string>
     <string name="olcrtc_video_qr_size">QR Size</string>
     <string name="olcrtc_video_tile_module">Tile Module</string>

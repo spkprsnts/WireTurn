@@ -141,8 +141,6 @@
     <string name="olcrtc_video_width">Ширина видео</string>
     <string name="olcrtc_video_height">Высота видео</string>
     <string name="olcrtc_video_fps">FPS видео</string>
-    <string name="olcrtc_video_bitrate">Битрейт видео</string>
-    <string name="olcrtc_video_hw">Видео HW</string>
     <string name="olcrtc_video_qr_recovery">QR Recovery</string>
     <string name="olcrtc_video_qr_size">Размер QR</string>
     <string name="olcrtc_video_tile_module">Tile Module</string>

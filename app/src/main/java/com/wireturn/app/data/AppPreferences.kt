@@ -265,8 +265,6 @@ data class OlcrtcConfig(
     @SerializedName("video_w") val videoW: Int = 1080,
     @SerializedName("video_h") val videoH: Int = 1080,
     @SerializedName("video_fps") val videoFps: Int = 60,
-    @SerializedName("video_bitrate") val videoBitrate: String = "5000k",
-    @SerializedName("video_hw") val videoHw: String = "none",
     @SerializedName("video_qr_recovery") val videoQrRecovery: String = "low",
     @SerializedName("video_qr_size") val videoQrSize: Int = 0,
     @SerializedName("video_tile_module") val videoTileModule: Int = 4,
@@ -318,8 +316,6 @@ data class OlcrtcConfig(
                 params.add("video-w=$videoW")
                 params.add("video-h=$videoH")
                 params.add("video-fps=$videoFps")
-                params.add("video-bitrate=$videoBitrate")
-                params.add("video-hw=$videoHw")
                 params.add("video-codec=$videoCodec")
                 if (videoCodec == "qrcode") {
                     params.add("video-qr-size=$videoQrSize")
@@ -389,8 +385,6 @@ data class OlcrtcConfig(
                             videoW = p["video-w"]?.toIntOrNull() ?: cfg.videoW,
                             videoH = p["video-h"]?.toIntOrNull() ?: cfg.videoH,
                             videoFps = p["video-fps"]?.toIntOrNull() ?: cfg.videoFps,
-                            videoBitrate = p["video-bitrate"] ?: cfg.videoBitrate,
-                            videoHw = p["video-hw"] ?: cfg.videoHw,
                             videoCodec = p["video-codec"] ?: cfg.videoCodec,
                             videoQrSize = p["video-qr-size"]?.toIntOrNull() ?: cfg.videoQrSize,
                             videoQrRecovery = p["video-qr-recovery"] ?: cfg.videoQrRecovery,

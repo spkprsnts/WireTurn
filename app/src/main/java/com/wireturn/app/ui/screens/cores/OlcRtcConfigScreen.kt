@@ -593,22 +593,6 @@ fun OlcRtcConfigScreen(
                     }
                     SectionItem {
                         TextFieldRow(
-                            label = stringResource(R.string.olcrtc_video_bitrate),
-                            value = config.videoBitrate,
-                            onValueChange = { config = config.copy(videoBitrate = it) },
-                            isModified = isEditMode && config.videoBitrate != initialConfig.videoBitrate
-                        )
-                    }
-                    SectionItem {
-                        TextFieldRow(
-                            label = stringResource(R.string.olcrtc_video_hw),
-                            value = config.videoHw,
-                            onValueChange = { config = config.copy(videoHw = it) },
-                            isModified = isEditMode && config.videoHw != initialConfig.videoHw
-                        )
-                    }
-                    SectionItem {
-                        TextFieldRow(
                             label = stringResource(R.string.olcrtc_video_qr_recovery),
                             value = config.videoQrRecovery,
                             onValueChange = { config = config.copy(videoQrRecovery = it) },
