@@ -929,7 +929,7 @@ fun ProfilesDialog(
                     bottom = 8.dp + bottomPadding + 24.dp
                 )
             ) {
-                if (profiles.isEmpty()) {
+                if (profiles.isEmpty() && subscriptions.isEmpty()) {
                     item {
                         Column(
                             modifier = Modifier
@@ -1048,6 +1048,12 @@ fun ProfilesDialog(
                                     )
                                 )
                             )
+                        }
+
+                        if (subProfiles.isEmpty()) {
+                            item(key = "sub_empty_${sub.id}") {
+                                SubscriptionEmptyRow()
+                            }
                         }
                     }
                 }
@@ -1442,6 +1448,26 @@ private fun SubscriptionHeaderRow(
                     tint = if (isHighlighted) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun SubscriptionEmptyRow() {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 16.dp, bottomEnd = 16.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Box(
+            modifier = Modifier.padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = stringResource(R.string.profiles_empty),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.outline
+            )
         }
     }
 }
