@@ -549,8 +549,11 @@ fun HomeScreen(
             Spacer(Modifier.height(22.dp))
 
             // --- Ping & Transfer Stats ---
+            // Works off Xray when it's running, or off VPN mode's own hev-socks5-tunnel counters
+            // when VPN is up without Xray (e.g. straight OLCRTC/WEBDAV) - see MainViewModel.
             AnimatedVisibility(
-                visible = (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute) && (proxyState is CoreState.Connected || proxyState is CoreState.Suppressed),
+                visible = (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute || vpnServiceState == VpnState.Running) &&
+                    (proxyState is CoreState.Connected || proxyState is CoreState.Suppressed),
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
@@ -848,7 +851,9 @@ fun HomeScreen(
                                     if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
                                 )
 
-                                if (!next && vpnEnabled) {
+                                // OLCRTC/WEBDAV run their own socks5, so VPN mode keeps working
+                                // without Xray for those - only warn when it truly can't.
+                                if (!next && vpnEnabled && !isSocks5Core) {
                                     showVpnWarning()
                                 }
 
@@ -895,7 +900,7 @@ fun HomeScreen(
                         if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
                     )
 
-                    if (next && !xrayConfig.enabled) {
+                    if (next && !xrayConfig.enabled && !isSocks5Core) {
                         showVpnWarning()
                     }
 

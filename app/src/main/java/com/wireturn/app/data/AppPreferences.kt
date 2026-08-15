@@ -1063,7 +1063,7 @@ data class Profile(
 }
 
 data class VpnSettings(
-    val enabled: Boolean = false,
+    val enabled: Boolean = true,
     val hideSystemApps: Boolean = true,
     val bypassMode: Boolean = true,
     val filteringEnabled: Boolean = true,
@@ -1178,7 +1178,7 @@ class AppPreferences(val context: Context) {
     val vpnSettingsFlow: Flow<VpnSettings> = appCtx.internalDataStore.data
         .map {
             VpnSettings(
-                enabled = it[VPN_ENABLED] ?: false,
+                enabled = it[VPN_ENABLED] ?: true,
                 hideSystemApps = it[VPN_HIDE_SYSTEM_APPS] ?: true,
                 bypassMode = it[VPN_BYPASS_MODE] ?: true,
                 filteringEnabled = it[VPN_FILTERING_ENABLED] ?: true,

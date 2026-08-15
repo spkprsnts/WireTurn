@@ -16,7 +16,9 @@ import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.OlcrtcConfig
+import com.wireturn.app.data.VpnSettings
 import com.wireturn.app.viewmodel.AppLifecycleState
+import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.viewmodel.XrayState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -64,6 +66,7 @@ class CoreService : Service() {
     private lateinit var serviceScope: CoroutineScope
     private var coreJob: Job? = null
     private var xraySupervisorJob: Job? = null
+    private var vpnSupervisorJob: Job? = null
     private var networkDebounceJob: Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -76,6 +79,7 @@ class CoreService : Service() {
         observeCaptchaForNotification()
         observeErrorForNotification()
         startXraySupervisor()
+        startVpnSupervisor()
         caBundlePath = ensureCaBundle()
     }
 
@@ -1204,6 +1208,109 @@ class CoreService : Service() {
         }
     }
 
+    /**
+     * VPN mode used to be reachable only through Xray. OLCRTC/WEBDAV run their own local SOCKS5
+     * listener (ClientConfig.socksAddr) that hev-socks5-tunnel can point at just as well, so VPN
+     * mode should work with those cores directly when Xray isn't in the picture. Xray keeps
+     * priority when it IS running - it may itself be wrapping an OLCRTC/WEBDAV core as a front
+     * proxy (see startXraySupervisor() above), so its socks address is always the hop actually
+     * closest to the outside world.
+     */
+    private data class VpnTarget(val addr: String, val user: String?, val pass: String?)
+
+    private data class VpnSupervisorBundle(
+        val target: VpnTarget?,
+        val vpnSettings: VpnSettings,
+        val vpnState: VpnState
+    )
+
+    private fun startVpnSupervisor() {
+        vpnSupervisorJob?.cancel()
+        vpnSupervisorJob = serviceScope.launch {
+            val prefs = AppPreferences(applicationContext)
+            var lastVpnSettings: VpnSettings? = null
+            var lastTarget: VpnTarget? = null
+
+            val targetFlow = combine(
+                XrayServiceState.state,
+                XrayServiceState.session,
+                CoreServiceState.status,
+                CoreServiceState.session
+            ) { xrayState, xraySession, coreStatus, coreSession ->
+                if (xrayState != XrayState.Idle && xraySession != null) {
+                    val s = xraySession.settings
+                    VpnTarget(
+                        s.connectableAddress,
+                        s.proxyUser.takeIf { s.isProxyAuthEnabled && it.isNotBlank() },
+                        s.proxyPass
+                    )
+                } else if (coreSession != null &&
+                    (coreSession.clientConfig.kernelVariant == KernelVariant.OLCRTC ||
+                        coreSession.clientConfig.kernelVariant == KernelVariant.WEBDAV) &&
+                    coreStatus !is CoreStatus.Idle && coreStatus !is CoreStatus.Error && coreStatus !is CoreStatus.WaitingForNetwork
+                ) {
+                    val cc = coreSession.clientConfig
+                    VpnTarget(
+                        // socksAddr can be bound to 0.0.0.0 (e.g. to also serve LAN clients) - hev
+                        // connects to this as a literal destination, so it needs the loopback form,
+                        // same normalization activeLocalSocksProxy() applies for HTTP requests.
+                        cc.socksAddr.replace("0.0.0.0:", "127.0.0.1:"),
+                        cc.socksUser.takeIf { cc.isSocksAuthEnabled && it.isNotBlank() },
+                        cc.socksPass
+                    )
+                } else null
+            }
+
+            combine(targetFlow, prefs.vpnSettingsFlow, VpnServiceState.state) { target, vpnSettings, vpnState ->
+                VpnSupervisorBundle(target, vpnSettings, vpnState)
+            }.collect { bundle ->
+                withContext(Dispatchers.Main) {
+                    val settingsChanged = lastVpnSettings != null && lastVpnSettings != bundle.vpnSettings
+                    val targetChanged = lastTarget != null && lastTarget != bundle.target
+                    lastVpnSettings = bundle.vpnSettings
+                    lastTarget = bundle.target
+
+                    val shouldVpnBeActive = bundle.vpnSettings.enabled && bundle.target != null
+
+                    if (shouldVpnBeActive) {
+                        val target = bundle.target
+                        val vpnRunning = bundle.vpnState == VpnState.Running
+                        val vpnError = bundle.vpnState is VpnState.Error
+                        // Start if VPN isn't up yet, or restart if settings/target changed while
+                        // running/errored (e.g. Xray started or stopped, switching who VPN follows).
+                        val needsStart = bundle.vpnState == VpnState.Idle ||
+                            ((settingsChanged || targetChanged) && (vpnRunning || vpnError))
+
+                        if (needsStart) {
+                            if (vpnRunning || vpnError) {
+                                AppLogsState.addLog(getString(R.string.log_vpn_restarting_config))
+                                startService(Intent(this@CoreService, HevVpnService::class.java).apply {
+                                    action = HevVpnService.ACTION_STOP
+                                })
+                            }
+
+                            if (VpnServiceState.state.value != VpnState.Starting) {
+                                startService(Intent(this@CoreService, HevVpnService::class.java).apply {
+                                    putExtra(HevVpnService.EXTRA_SOCKS5_ADDR, target.addr)
+                                    if (target.user != null) {
+                                        putExtra(HevVpnService.EXTRA_SOCKS5_USER, target.user)
+                                        putExtra(HevVpnService.EXTRA_SOCKS5_PASS, target.pass)
+                                    }
+                                })
+                            }
+                        }
+                    } else {
+                        if (bundle.vpnState != VpnState.Idle) {
+                            startService(Intent(this@CoreService, HevVpnService::class.java).apply {
+                                action = HevVpnService.ACTION_STOP
+                            })
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private data class XrayConfigSignals(
         val xrayConfig: com.wireturn.app.data.XrayConfig,
         val vless: com.wireturn.app.data.VlessConfig,
@@ -1334,6 +1441,8 @@ class CoreService : Service() {
         if (userStopped.getAndSet(true)) return
         xraySupervisorJob?.cancel()
         xraySupervisorJob = null
+        vpnSupervisorJob?.cancel()
+        vpnSupervisorJob = null
         NotificationHelper.cancelErrorNotification(this)
         CoreServiceState.setRestarting(false)
         CoreServiceState.setStatus(CoreStatus.Stopping)
@@ -1347,9 +1456,14 @@ class CoreService : Service() {
                 }
             }
             
-            // Explicitly stop Xray when tunnel stops
+            // Explicitly stop Xray and VPN mode when tunnel stops
             withContext(Dispatchers.Main) {
                 stopService(Intent(this@CoreService, XrayService::class.java))
+                if (VpnServiceState.state.value != VpnState.Idle) {
+                    startService(Intent(this@CoreService, HevVpnService::class.java).apply {
+                        action = HevVpnService.ACTION_STOP
+                    })
+                }
             }
 
             stopBinaryProcessGracefully()

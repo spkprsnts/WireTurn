@@ -42,34 +42,69 @@ sealed class ImportStatus {
     object InvalidFormat : ImportStatus()
 }
 
+private data class ActiveSocksTarget(val addr: String, val user: String?, val pass: String?)
+
 /**
  * SOCKS proxy for whichever local core (Xray, or OLCRTC/WEBDAV via CoreService) is currently
- * running, or [java.net.Proxy.NO_PROXY] if none is. Shared by [ProfileManager.fetchSubscription]
- * and [AppUpdater] so update/subscription HTTP requests route through the active tunnel.
+ * running, or [java.net.Proxy.NO_PROXY] if none is. Shared by [ProfileManager.fetchSubscription],
+ * [AppUpdater] and [com.wireturn.app.viewmodel.MainViewModel]'s ping check so update/subscription/
+ * ping requests route through the active tunnel.
+ *
+ * Also brings the JVM-wide SOCKS5 [java.net.Authenticator] in line with whichever target this
+ * resolves to. XrayServiceState.setSession() already does this reactively for the Xray case; the
+ * OLCRTC/WEBDAV-direct case has no equivalent hook (CoreServiceState.setSession() only stores the
+ * session), so it's covered here at the point of use instead - callers like the ping check that
+ * poll this every second keep it correct even as the active source changes underneath them.
  */
 fun activeLocalSocksProxy(): java.net.Proxy {
-    val proxyAddr = try {
+    val target = try {
         val xraySess = com.wireturn.app.XrayServiceState.session.value
         val xrayState = com.wireturn.app.XrayServiceState.state.value
         val coreSess = com.wireturn.app.CoreServiceState.session.value
         val coreIsWorking = com.wireturn.app.CoreServiceState.isWorking.value
 
         when {
-            xrayState == com.wireturn.app.viewmodel.XrayState.Running && xraySess != null ->
-                xraySess.settings.connectableAddress
+            xrayState == com.wireturn.app.viewmodel.XrayState.Running && xraySess != null -> {
+                val s = xraySess.settings
+                ActiveSocksTarget(
+                    s.connectableAddress,
+                    s.proxyUser.takeIf { s.isProxyAuthEnabled && it.isNotBlank() },
+                    s.proxyPass
+                )
+            }
             coreIsWorking && coreSess != null &&
                 (coreSess.clientConfig.kernelVariant == com.wireturn.app.data.KernelVariant.OLCRTC ||
-                 coreSess.clientConfig.kernelVariant == com.wireturn.app.data.KernelVariant.WEBDAV) ->
-                coreSess.clientConfig.socksAddr.replace("0.0.0.0:", "127.0.0.1:")
+                 coreSess.clientConfig.kernelVariant == com.wireturn.app.data.KernelVariant.WEBDAV) -> {
+                val cc = coreSess.clientConfig
+                ActiveSocksTarget(
+                    cc.socksAddr.replace("0.0.0.0:", "127.0.0.1:"),
+                    cc.socksUser.takeIf { cc.isSocksAuthEnabled && it.isNotBlank() },
+                    cc.socksPass
+                )
+            }
             else -> null
         }
     } catch (_: Exception) {
         null
     } ?: return java.net.Proxy.NO_PROXY
 
+    if (target.user != null) {
+        val user = target.user
+        val pass = target.pass ?: ""
+        System.setProperty("java.net.socks.username", user)
+        System.setProperty("java.net.socks.password", pass)
+        java.net.Authenticator.setDefault(object : java.net.Authenticator() {
+            override fun getPasswordAuthentication() = java.net.PasswordAuthentication(user, pass.toCharArray())
+        })
+    } else {
+        System.clearProperty("java.net.socks.username")
+        System.clearProperty("java.net.socks.password")
+        java.net.Authenticator.setDefault(null)
+    }
+
     return try {
-        val host = proxyAddr.substringBeforeLast(':')
-        val port = proxyAddr.substringAfterLast(':').toIntOrNull() ?: 1080
+        val host = target.addr.substringBeforeLast(':')
+        val port = target.addr.substringAfterLast(':').toIntOrNull() ?: 1080
         java.net.Proxy(java.net.Proxy.Type.SOCKS, java.net.InetSocketAddress.createUnresolved(host, port))
     } catch (_: Exception) {
         java.net.Proxy.NO_PROXY

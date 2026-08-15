@@ -17,7 +17,9 @@ import com.wireturn.app.CoreService
 import com.wireturn.app.CoreServiceState
 import com.wireturn.app.CoreStatus
 import com.wireturn.app.CoreTileService
+import com.wireturn.app.HevSocks5Tunnel
 import com.wireturn.app.R
+import com.wireturn.app.VpnServiceState
 import com.wireturn.app.XrayService
 import com.wireturn.app.XrayServiceState
 import com.wireturn.app.data.AppPreferences
@@ -33,6 +35,7 @@ import com.wireturn.app.data.XraySettings
 import com.wireturn.app.domain.AppUpdater
 import com.wireturn.app.domain.CoreManager
 import com.wireturn.app.domain.ProfileManager
+import com.wireturn.app.domain.activeLocalSocksProxy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -40,12 +43,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.net.InetSocketAddress
 import java.net.Proxy
 import kotlin.system.measureTimeMillis
 import kotlin.time.Duration.Companion.milliseconds
@@ -172,6 +176,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var lastTx = 0L
     private var lastMetricsTime = 0L
 
+    // Used to read hev-socks5-tunnel's own traffic counters when VPN mode is active without Xray -
+    // native state is process-global, so any instance works regardless of which service created it.
+    private val hevTunnel by lazy { HevSocks5Tunnel() }
+
     private val _olcrtcSocksAddr = MutableStateFlow("")
     private val _olcrtcSocksAuthEnabled = MutableStateFlow(true)
     private val _olcrtcSocksUser = MutableStateFlow("")
@@ -255,8 +263,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { coreManager.observeCaptchaEvents() }
         viewModelScope.launch {
             delay(1_500.milliseconds)
-            XrayServiceState.state.collect { state ->
-                if (state == XrayState.Running || state == XrayState.DirectRoute) {
+            // Ping/stats work off Xray when it's running, or off VPN mode's own hev-socks5-tunnel
+            // counters when VPN is up without Xray (e.g. straight OLCRTC/WEBDAV). Either source
+            // switching mid-flight is handled per-tick inside startMetricsPoller()/checkProxyPing(),
+            // so this only needs to fire on the false->true / true->false edge.
+            combine(XrayServiceState.state, VpnServiceState.state) { xrayState, vpnState ->
+                xrayState == XrayState.Running || xrayState == XrayState.DirectRoute || vpnState == VpnState.Running
+            }.distinctUntilChanged().collect { active ->
+                if (active) {
                     checkProxyPing(delayFirst = true)
                     startMetricsPoller()
                 } else {
@@ -276,11 +290,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         metricsJob = viewModelScope.launch {
             while (true) {
                 if (_isHomeScreenActive.value) {
-                    val state = XrayServiceState.state.value
-                    if (state == XrayState.Running || state == XrayState.DirectRoute) {
-                        XrayServiceState.statsSocketName.value?.let { updateMetrics(it) }
-                    } else {
-                        _proxyTransfer.value = null
+                    val xrayState = XrayServiceState.state.value
+                    when {
+                        xrayState == XrayState.Running || xrayState == XrayState.DirectRoute ->
+                            XrayServiceState.statsSocketName.value?.let { updateXrayMetrics(it) }
+                        VpnServiceState.state.value == VpnState.Running -> updateHevMetrics()
+                        else -> _proxyTransfer.value = null
                     }
                 }
                 delay(1_000.milliseconds)
@@ -297,7 +312,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         lastMetricsTime = 0L
     }
 
-    private suspend fun updateMetrics(socketName: String) = withContext(Dispatchers.IO) {
+    /** rx/tx are cumulative byte counters; this turns a new sample into a TransferResult with speed. */
+    private fun applyTransferSample(rx: Long, tx: Long) {
+        val now = System.currentTimeMillis()
+        var rxSpeed = 0L
+        var txSpeed = 0L
+        if (lastMetricsTime in 1..<now) {
+            val dt = (now - lastMetricsTime) / 1000.0
+            if (dt > 0) {
+                rxSpeed = ((rx - lastRx).coerceAtLeast(0) / dt).toLong()
+                txSpeed = ((tx - lastTx).coerceAtLeast(0) / dt).toLong()
+            }
+        }
+        lastRx = rx
+        lastTx = tx
+        lastMetricsTime = now
+        _proxyTransfer.value = TransferResult(rx, tx, rxSpeed, txSpeed)
+    }
+
+    private suspend fun updateXrayMetrics(socketName: String) = withContext(Dispatchers.IO) {
         try {
             val socket = LocalSocket()
             socket.connect(LocalSocketAddress(socketName, LocalSocketAddress.Namespace.ABSTRACT))
@@ -308,20 +341,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val json = com.google.gson.JsonParser.parseString(content).asJsonObject
             val rx = json.get("rx_bytes")?.asLong ?: 0L
             val tx = json.get("tx_bytes")?.asLong ?: 0L
-            val now = System.currentTimeMillis()
-            var rxSpeed = 0L
-            var txSpeed = 0L
-            if (lastMetricsTime in 1..<now) {
-                val dt = (now - lastMetricsTime) / 1000.0
-                if (dt > 0) {
-                    rxSpeed = ((rx - lastRx).coerceAtLeast(0) / dt).toLong()
-                    txSpeed = ((tx - lastTx).coerceAtLeast(0) / dt).toLong()
-                }
-            }
-            lastRx = rx
-            lastTx = tx
-            lastMetricsTime = now
-            _proxyTransfer.value = TransferResult(rx, tx, rxSpeed, txSpeed)
+            applyTransferSample(rx, tx)
+        } catch (_: Exception) {}
+    }
+
+    /** TProxyGetStats() -> [tx_packets, tx_bytes, rx_packets, rx_bytes], see hev-jni.c. */
+    private suspend fun updateHevMetrics() = withContext(Dispatchers.IO) {
+        try {
+            val stats = hevTunnel.TProxyGetStats()
+            if (stats.size < 4) return@withContext
+            applyTransferSample(rx = stats[3], tx = stats[1])
         } catch (_: Exception) {}
     }
 
@@ -470,34 +499,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun checkProxyPing(delayFirst: Boolean = false) {
-        val addr = XrayServiceState.session.value?.settings?.connectableAddress ?: return
-        if (addr.isBlank() || !com.wireturn.app.ui.ValidatorUtils.isValidHostPort(addr)) return
         pingJob?.cancel()
         pingJob = viewModelScope.launch {
             _proxyPing.value = PingResult.Loading
             repeat(10) { attempt ->
-                if (XrayServiceState.state.value !in listOf(XrayState.Running, XrayState.DirectRoute)) { 
+                // Re-resolved every attempt: works for Xray or VPN-mode-without-Xray alike, and
+                // naturally follows the active source if it changes mid-sequence (Xray priority).
+                val proxy = activeLocalSocksProxy()
+                if (proxy == Proxy.NO_PROXY) {
                     _proxyPing.value = null
-                    return@launch 
+                    return@launch
                 }
                 if (delayFirst && attempt == 0) delay(1_000.milliseconds)
                 val res = withContext(Dispatchers.IO) {
                     try {
-                        val parts = addr.split(":")
-                        val p = Proxy(Proxy.Type.SOCKS, InetSocketAddress.createUnresolved(parts[0], parts[1].toInt()))
-                        val conn = java.net.URL("https://1.1.1.1/").openConnection(p) as java.net.HttpURLConnection
+                        val conn = java.net.URL("https://1.1.1.1/").openConnection(proxy) as java.net.HttpURLConnection
                         conn.connectTimeout = 3000
                         conn.readTimeout = 3000
                         conn.instanceFollowRedirects = false
                         PingResult.Success(measureTimeMillis { conn.responseCode })
                     } catch (_: Exception) {
                         // AppLogsState.addLog("* [Ping] Error: ${e.message}")
-                        null 
+                        null
                     }
                 }
-                if (res is PingResult.Success) { 
+                if (res is PingResult.Success) {
                     _proxyPing.value = res
-                    return@launch 
+                    return@launch
                 }
                 delay(1_000.milliseconds)
             }
