@@ -9,8 +9,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.ui.screens.ProfilesDialog
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 class ProfileDialogActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()

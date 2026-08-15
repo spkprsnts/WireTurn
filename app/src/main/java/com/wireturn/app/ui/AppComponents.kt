@@ -76,8 +76,6 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Snackbar
-import androidx.compose.material3.SnackbarData
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -1657,32 +1655,6 @@ fun <T> SelectionDialog(
                 footer?.invoke(this)
             }
         }
-    }
-}
-
-@Composable
-fun AppSnackbar(
-    data: SnackbarData,
-    modifier: Modifier = Modifier
-) {
-    Snackbar(
-        modifier = modifier
-            .padding(12.dp)
-            .padding(bottom = 16.dp),
-        action = data.visuals.actionLabel?.let { label ->
-            {
-                TextButton(onClick = { data.performAction() }) {
-                    Text(label)
-                }
-            }
-        },
-        dismissAction = {
-            IconButton(onClick = { data.dismiss() }) {
-                Icon(painterResource(R.drawable.close_24px), contentDescription = null)
-            }
-        }
-    ) {
-        Text(data.visuals.message)
     }
 }
 

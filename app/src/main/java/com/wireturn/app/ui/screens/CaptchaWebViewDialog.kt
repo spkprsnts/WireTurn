@@ -58,6 +58,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.json.JSONObject
 import org.json.JSONTokener
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Опрашивает состояние капчи из Kotlin (evaluateJavascript = pull), вместо
@@ -158,7 +159,7 @@ fun CaptchaWebViewDialog(
     LaunchedEffect(webViewRef.value) {
         val webView = webViewRef.value ?: return@LaunchedEffect
         while (isActive) {
-            delay(300)
+            delay(300.milliseconds)
             val raw = webView.evalJs(CAPTCHA_POLL_SCRIPT) ?: continue
             val json = (JSONTokener(raw).nextValue() as? String) ?: continue
             val state = runCatching { JSONObject(json) }.getOrNull() ?: continue
