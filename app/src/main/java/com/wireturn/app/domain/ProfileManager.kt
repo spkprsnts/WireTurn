@@ -42,6 +42,40 @@ sealed class ImportStatus {
     object InvalidFormat : ImportStatus()
 }
 
+/**
+ * SOCKS proxy for whichever local core (Xray, or OLCRTC/WEBDAV via CoreService) is currently
+ * running, or [java.net.Proxy.NO_PROXY] if none is. Shared by [ProfileManager.fetchSubscription]
+ * and [AppUpdater] so update/subscription HTTP requests route through the active tunnel.
+ */
+fun activeLocalSocksProxy(): java.net.Proxy {
+    val proxyAddr = try {
+        val xraySess = com.wireturn.app.XrayServiceState.session.value
+        val xrayState = com.wireturn.app.XrayServiceState.state.value
+        val coreSess = com.wireturn.app.CoreServiceState.session.value
+        val coreIsWorking = com.wireturn.app.CoreServiceState.isWorking.value
+
+        when {
+            xrayState == com.wireturn.app.viewmodel.XrayState.Running && xraySess != null ->
+                xraySess.settings.connectableAddress
+            coreIsWorking && coreSess != null &&
+                (coreSess.clientConfig.kernelVariant == com.wireturn.app.data.KernelVariant.OLCRTC ||
+                 coreSess.clientConfig.kernelVariant == com.wireturn.app.data.KernelVariant.WEBDAV) ->
+                coreSess.clientConfig.socksAddr.replace("0.0.0.0:", "127.0.0.1:")
+            else -> null
+        }
+    } catch (_: Exception) {
+        null
+    } ?: return java.net.Proxy.NO_PROXY
+
+    return try {
+        val host = proxyAddr.substringBeforeLast(':')
+        val port = proxyAddr.substringAfterLast(':').toIntOrNull() ?: 1080
+        java.net.Proxy(java.net.Proxy.Type.SOCKS, java.net.InetSocketAddress.createUnresolved(host, port))
+    } catch (_: Exception) {
+        java.net.Proxy.NO_PROXY
+    }
+}
+
 /** Android 17+ blocks TCP to LAN/loopback addresses without the ACCESS_LOCAL_NETWORK runtime permission. */
 fun isLocalNetworkHost(url: String): Boolean {
     val host = try { java.net.URI(url).host } catch (_: Exception) { null } ?: return false
@@ -103,9 +137,9 @@ class ProfileManager(
                         val shouldUpdate = !sub.onlyUpdateIfSelected || isSelected
                         
                         if (shouldUpdate) {
-                            val intervalMs = sub.updateIntervalMinutes * 60 * 1000L
+                            val intervalMs = sub.updateIntervalMinutes.toLong() * 60_000L
                             if (now - sub.updatedAt >= intervalMs) {
-                                fetchSubscription(sub.url, forceId = sub.id)
+                                launch { fetchSubscription(sub.url, forceId = sub.id) }
                             }
                         }
                     }
@@ -154,7 +188,8 @@ class ProfileManager(
             name = validatedName,
             // A clone is a standalone copy, not a member of the source subscription - keeping the
             // subscriptionId would make the next subscription sync silently delete it as a stale entry.
-            subscriptionId = null
+            subscriptionId = null,
+            subscriptionSourceId = null
         )
         val newList = currentList + clonedProfile
         scope.launch { prefs.saveProfiles(newList) }
@@ -253,75 +288,109 @@ class ProfileManager(
         serverActiveId: String? = null,
         onAutoSelect: ((Profile) -> Unit)? = null
     ): Triple<ImportResult, List<Profile>, String?> {
+        val parsed = data.flatMap { (fileName, json) ->
+            try {
+                val element = JsonParser.parseString(json)
+                val profilesToImport = if (element.isJsonArray) {
+                    gson.fromJson(element, Array<Profile>::class.java)?.toList() ?: emptyList()
+                } else {
+                    listOf(gson.fromJson(element, Profile::class.java))
+                }
+                profilesToImport.map { fileName to it }
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+        return importParsedProfiles(parsed, subscriptionId, serverActiveId, onAutoSelect)
+    }
+
+    /**
+     * Same as [importProfiles] but takes already-deserialized profiles (e.g. from a subscription's
+     * JSON bundle), skipping a redundant serialize-to-JSON-then-reparse round trip.
+     * (Named distinctly rather than overloaded: List<Pair<String?, String>> and List<Profile> erase
+     * to the same JVM signature.)
+     */
+    fun importProfileObjects(
+        importedProfiles: List<Profile>,
+        subscriptionId: String? = null,
+        serverActiveId: String? = null,
+        onAutoSelect: ((Profile) -> Unit)? = null
+    ): Triple<ImportResult, List<Profile>, String?> =
+        importParsedProfiles(importedProfiles.map { null to it }, subscriptionId, serverActiveId, onAutoSelect)
+
+    private fun importParsedProfiles(
+        data: List<Pair<String?, Profile>>,
+        subscriptionId: String?,
+        serverActiveId: String?,
+        onAutoSelect: ((Profile) -> Unit)?
+    ): Triple<ImportResult, List<Profile>, String?> {
         try {
             val defaultName = prefs.context.getString(R.string.profile_default_name)
             val currentProfiles = profiles.value
             val currentSelectedId = currentProfileId.value
             val wasSelectedFromThisSub = currentProfiles.find { it.id == currentSelectedId }?.subscriptionId == subscriptionId
-            
+
             val existingSubProfiles = if (subscriptionId != null) {
                 currentProfiles.filter { it.subscriptionId == subscriptionId }
             } else emptyList()
 
             val accumulating = currentProfiles.toMutableList()
             val importedList = mutableListOf<Profile>()
-            
+
             var addedCount = 0
             var updatedCount = 0
             var resolvedRecommendedLocalId: String? = null
-            
+
             val matchedExistingIds = mutableSetOf<String>()
             val usedInThisBatchIds = mutableSetOf<String>()
 
-            data.forEach { (fileName, json) ->
-                try {
-                    val element = JsonParser.parseString(json)
-                    val profilesToImport = if (element.isJsonArray) {
-                        gson.fromJson(element, Array<Profile>::class.java)?.toList() ?: emptyList()
-                    } else {
-                        listOf(gson.fromJson(element, Profile::class.java))
-                    }
+            data.forEach { (fileName, p) ->
+                val nameFromFile = fileName?.removeSuffix(".json")?.removePrefix("wt_")
+                val name = (p.name as String?)?.takeIf { it.isNotBlank() }
+                    ?: nameFromFile?.takeIf { it.isNotBlank() }?.take(100)
+                    ?: nextDefaultProfileName(accumulating)
 
-                    profilesToImport.forEach { p ->
-                        val nameFromFile = fileName?.removeSuffix(".json")?.removePrefix("wt_")
-                        val name = (p.name as String?)?.takeIf { it.isNotBlank() }
-                            ?: nameFromFile?.takeIf { it.isNotBlank() }?.take(100)
-                            ?: nextDefaultProfileName(accumulating)
+                // 1. Try to preserve local ID by matching the server's own stable per-profile id first
+                // (survives renames and doesn't collide when two entries share a display name). Only
+                // fall back to matching by name for OLD profiles that never got a source id recorded
+                // (pre-migration data) - an old profile that HAS a source id must never be re-matched
+                // by name alone, or a same-named-but-different new entry would silently steal its
+                // local id (and with it, "is this still selected" continuity) out from under it.
+                val sourceId = p.id.takeIf { it.isNotBlank() }
+                val existing = (sourceId?.let { sid ->
+                    existingSubProfiles.find { it.subscriptionSourceId == sid && it.id !in usedInThisBatchIds }
+                }) ?: existingSubProfiles.find { it.subscriptionSourceId == null && it.name == name && it.id !in usedInThisBatchIds }
+                val matchedOldId = existing?.id
 
-                        // 1. Try to preserve local ID by matching name within the same subscription
-                        val existing = existingSubProfiles.find { it.name == name && it.id !in usedInThisBatchIds }
-                        val matchedOldId = existing?.id
-                        
-                        val newId = if (matchedOldId != null && matchedOldId !in usedInThisBatchIds) {
-                            matchedOldId
-                        } else {
-                            UUID.randomUUID().toString()
-                        }
-                        
-                        // 2. Map ID: check if it's the server's recommendation
-                        if (p.id == serverActiveId) {
-                            resolvedRecommendedLocalId = newId
-                        }
-                        
-                        usedInThisBatchIds.add(newId)
+                val newId = if (matchedOldId != null && matchedOldId !in usedInThisBatchIds) {
+                    matchedOldId
+                } else {
+                    UUID.randomUUID().toString()
+                }
 
-                        val profile = p.sanitize(defaultName).copy(
-                            id = newId,
-                            name = name,
-                            subscriptionId = subscriptionId
-                        )
-                        
-                        if (existing != null) {
-                            matchedExistingIds.add(existing.id)
-                            if (existing != profile) updatedCount++
-                        } else {
-                            addedCount++
-                        }
-                        
-                        accumulating.add(profile)
-                        importedList.add(profile)
-                    }
-                } catch (_: Exception) {}
+                // 2. Map ID: check if it's the server's recommendation
+                if (p.id == serverActiveId) {
+                    resolvedRecommendedLocalId = newId
+                }
+
+                usedInThisBatchIds.add(newId)
+
+                val profile = p.sanitize(defaultName).copy(
+                    id = newId,
+                    name = name,
+                    subscriptionId = subscriptionId,
+                    subscriptionSourceId = subscriptionId?.let { sourceId }
+                )
+
+                if (existing != null) {
+                    matchedExistingIds.add(existing.id)
+                    if (existing != profile) updatedCount++
+                } else {
+                    addedCount++
+                }
+
+                accumulating.add(profile)
+                importedList.add(profile)
             }
 
             if (importedList.isEmpty()) return Triple(ImportResult(), emptyList(), null)
@@ -377,30 +446,7 @@ class ProfileManager(
             return@withContext ImportStatus.NetworkError
         }
 
-        val proxy = try {
-            val xraySess = com.wireturn.app.XrayServiceState.session.value
-            val xrayState = com.wireturn.app.XrayServiceState.state.value
-            val coreSess = com.wireturn.app.CoreServiceState.session.value
-            val coreIsWorking = com.wireturn.app.CoreServiceState.isWorking.value
-
-            val proxyAddr = when {
-                xrayState == com.wireturn.app.viewmodel.XrayState.Running && xraySess != null -> 
-                    xraySess.settings.socksBindAddress
-                coreIsWorking && coreSess != null && 
-                    (coreSess.clientConfig.kernelVariant == com.wireturn.app.data.KernelVariant.OLCRTC || 
-                     coreSess.clientConfig.kernelVariant == com.wireturn.app.data.KernelVariant.WEBDAV) -> 
-                    coreSess.clientConfig.socksAddr
-                else -> null
-            }
-
-            if (proxyAddr != null) {
-                val host = proxyAddr.substringBeforeLast(':').let { if (it == "0.0.0.0") "127.0.0.1" else it }
-                val port = proxyAddr.substringAfterLast(':').toIntOrNull() ?: 1080
-                java.net.Proxy(java.net.Proxy.Type.SOCKS, java.net.InetSocketAddress(host, port))
-            } else java.net.Proxy.NO_PROXY
-        } catch (_: Exception) {
-            java.net.Proxy.NO_PROXY
-        }
+        val proxy = activeLocalSocksProxy()
 
         val connection = try {
             try {
@@ -485,10 +531,9 @@ class ProfileManager(
                             kotlinx.coroutines.yield()
 
                             // 1. Import profiles with the recommendation ID from the server
-                            val bundleJsonList = bundle.profiles.map { null to gson.toJson(it) }
-                            val (importResult, importedProfiles, resolvedActiveId) = importProfiles(
-                                data = bundleJsonList, 
-                                subscriptionId = subId, 
+                            val (importResult, importedProfiles, resolvedActiveId) = importProfileObjects(
+                                importedProfiles = bundle.profiles,
+                                subscriptionId = subId,
                                 serverActiveId = bundle.recommendedProfileId,
                                 onAutoSelect = onAutoSelect
                             )

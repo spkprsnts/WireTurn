@@ -899,7 +899,11 @@ data class Profile(
     @SerializedName("xrayEnabled", alternate = ["enabled"]) val xrayEnabled: Boolean = false,
     @SerializedName("wgConfig") val wgConfig: WgConfig = WgConfig(),
     @SerializedName("vlessConfig") val vlessConfig: VlessConfig = VlessConfig(),
-    @SerializedName("subscriptionId") val subscriptionId: String? = null
+    @SerializedName("subscriptionId") val subscriptionId: String? = null,
+    // The subscription server's own id for this profile entry (its "id" field in the bundle), kept
+    // around so the next refresh can re-match this local profile by stable server identity instead
+    // of by display name - two entries can share a name, but the server's id should stay unique.
+    @SerializedName("subscriptionSourceId") val subscriptionSourceId: String? = null
 ) {
     // --- STABLE INPUT FIELDS (Used for profile generation and deep linking) ---
     @SerializedName("turnableUrl") private val turnableUrl: String? = null

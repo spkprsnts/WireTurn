@@ -64,6 +64,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -447,6 +448,13 @@ fun ProfilesDialog(
     // Local state for reordering
     val profiles = remember { mutableStateListOf<Profile>() }
 
+    // Grouping derived from `profiles`/`subscriptions` - derivedStateOf so it only recomputes when
+    // those actually change, not on every recomposition of this dialog (e.g. drag auto-scroll frames).
+    val standaloneProfiles by remember { derivedStateOf { profiles.filter { it.subscriptionId == null } } }
+    val subscriptionGroups by remember {
+        derivedStateOf { subscriptions.map { sub -> sub to profiles.filter { it.subscriptionId == sub.id } } }
+    }
+
     val lazyListState = rememberLazyListState()
     var autoScrollSpeed by remember { mutableFloatStateOf(0f) }
     var fingerAbsoluteY by remember { mutableFloatStateOf(0f) }
@@ -464,7 +472,6 @@ fun ProfilesDialog(
 
     val showRenameDialog = remember { mutableStateOf<Profile?>(null) }
     val showDeleteConfirm = remember { mutableStateOf<Profile?>(null) }
-    val showDeleteSubConfirm = remember { mutableStateOf<Subscription?>(null) }
     val showBulkDeleteConfirm = remember { mutableStateOf<List<String>?>(null) }
     val showCloneDialog = remember { mutableStateOf<Profile?>(null) }
 
@@ -554,11 +561,7 @@ fun ProfilesDialog(
             // Scroll logic
             scope.launch {
                 delay(150.milliseconds) // Wait for layout update
-                
-                val standaloneProfiles = profiles.filter { it.subscriptionId == null }
-                val subscriptionGroups = subscriptions.map { sub ->
-                    sub to profiles.filter { it.subscriptionId == sub.id }
-                }
+
                 val hasStandaloneGuard = standaloneProfiles.isNotEmpty()
 
                 fun findLazyIndex(targetId: String): Int {
@@ -980,11 +983,6 @@ fun ProfilesDialog(
         ) {
             val bottomPadding =
                 WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-            
-            val standaloneProfiles = profiles.filter { it.subscriptionId == null }
-            val subscriptionGroups = subscriptions.map { sub ->
-                sub to profiles.filter { it.subscriptionId == sub.id }
-            }
 
             LazyColumn(
                 state = lazyListState,
@@ -1064,7 +1062,7 @@ fun ProfilesDialog(
                     }
 
                     // Standalone Profiles
-                    itemsIndexed(standaloneProfiles, key = { index, it -> "standalone_${it.id}_$index" }) { index, profile ->
+                    itemsIndexed(standaloneProfiles, key = { _, it -> it.id }) { index, profile ->
                         ProfileItemRow(
                             profile = profile,
                             index = index,
@@ -1139,7 +1137,7 @@ fun ProfilesDialog(
                             )
                         }
 
-                        itemsIndexed(subProfiles, key = { index, it -> "sub_${sub.id}_${it.id}_$index" }) { index, profile ->
+                        itemsIndexed(subProfiles, key = { _, it -> it.id }) { index, profile ->
                             ProfileItemRow(
                                 profile = profile,
                                 index = index,
@@ -1225,28 +1223,6 @@ fun ProfilesDialog(
             dismissButton = {
                 TextButton(onClick = {
                     showDeleteConfirm.value = null
-                }) { Text(stringResource(R.string.cancel)) }
-            }
-        )
-    }
-
-    showDeleteSubConfirm.value?.let { sub ->
-        AlertDialog(
-            onDismissRequest = { showDeleteSubConfirm.value = null },
-            title = { Text(stringResource(R.string.subscription_delete_confirm, sub.name)) },
-            text = { Text(stringResource(R.string.subscription_delete_desc)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.deleteSubscription(sub.id)
-                        showDeleteSubConfirm.value = null
-                    },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                ) { Text(stringResource(R.string.profile_delete)) }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showDeleteSubConfirm.value = null
                 }) { Text(stringResource(R.string.cancel)) }
             }
         )

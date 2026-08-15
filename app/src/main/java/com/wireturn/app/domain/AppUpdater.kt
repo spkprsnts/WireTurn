@@ -58,11 +58,11 @@ class AppUpdater(private val context: Context) {
                 }
                 
                 if (release == null) {
-                    // Try again with xray if conditions are met
-                    val proxy = getXrayIfRunning()
-                    if (proxy != null) {
-                        release = withContext(Dispatchers.IO) { 
-                            if (allowUnstable) fetchLatestUnstableRelease(proxy) else fetchLatestRelease(proxy) 
+                    // Try again via the active local proxy, if any is running
+                    val proxy = activeLocalSocksProxy()
+                    if (proxy != java.net.Proxy.NO_PROXY) {
+                        release = withContext(Dispatchers.IO) {
+                            if (allowUnstable) fetchLatestUnstableRelease(proxy) else fetchLatestRelease(proxy)
                         }
                     }
                 }
@@ -132,13 +132,9 @@ class AppUpdater(private val context: Context) {
             try {
                 val apkFile = File(context.cacheDir, "update.apk")
                 withContext(Dispatchers.IO) {
-                    val proxy = getXrayIfRunning()
-                    AppLogsState.addLog("Starting download from: $url" + (if (proxy != null) " (via proxy)" else ""))
-                    val connection = if (proxy != null) {
-                        URL(url).openConnection(proxy)
-                    } else {
-                        URL(url).openConnection()
-                    } as HttpURLConnection
+                    val proxy = activeLocalSocksProxy()
+                    AppLogsState.addLog("Starting download from: $url" + (if (proxy != java.net.Proxy.NO_PROXY) " (via proxy)" else ""))
+                    val connection = URL(url).openConnection(proxy) as HttpURLConnection
                     connection.instanceFollowRedirects = true
                     connection.connect()
 
@@ -239,26 +235,6 @@ class AppUpdater(private val context: Context) {
             null
         } finally {
             connection.disconnect()
-        }
-    }
-
-    private fun getXrayIfRunning(): java.net.Proxy? {
-        val settingsSnapshot = com.wireturn.app.XrayServiceState.session.value?.settings ?: return null
-        val state = com.wireturn.app.XrayServiceState.state.value
-        if (state == com.wireturn.app.viewmodel.XrayState.Idle) return null
-
-        return try {
-            val socksAddr = settingsSnapshot.connectableAddress
-            if (socksAddr.isNotBlank()) {
-                val parts = socksAddr.split(":")
-                if (parts.size == 2) {
-                    val host = parts[0]
-                    val port = parts[1].toInt()
-                    java.net.Proxy(java.net.Proxy.Type.SOCKS, java.net.InetSocketAddress.createUnresolved(host, port))
-                } else null
-            } else null
-        } catch (_: Exception) {
-            null
         }
     }
 
