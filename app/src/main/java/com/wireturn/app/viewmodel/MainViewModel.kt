@@ -134,6 +134,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val profiles: StateFlow<List<Profile>> = profileManager.profiles
     val currentProfileId: StateFlow<String> = profileManager.currentProfileId
+    val subscriptions: StateFlow<List<com.wireturn.app.data.Subscription>> = profileManager.subscriptions
 
     val isArchitectureSupported: Boolean = Build.SUPPORTED_ABIS.any { 
         it == "arm64-v8a" || it == "x86_64" 
@@ -579,8 +580,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         profileManager.selectProfile(id, target) { p ->
             viewModelScope.launch {
                 prefs.saveFullProfile(p.id, p)
+                
+                // If service is already running, trigger a restart with new settings
+                if (CoreServiceState.isRunning.value) {
+                    startCoreInternal(forceRestart = true)
+                }
+                
+                onCompletion?.invoke()
             }
-            onCompletion?.invoke()
         }
     }
 
@@ -634,14 +641,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun importProfilesFromZip(s: java.io.InputStream) = profileManager.importProfilesFromZip(s) { selectProfileAndRestart(it.id, it) }
     fun importProfiles(data: List<Pair<String?, String>>) = profileManager.importProfiles(data) { selectProfileAndRestart(it.id, it) }
 
-    fun importProfileFromLink(link: String): Boolean {
-        val encoded = link.substringAfter("://")
+    suspend fun importProfileFromLink(link: String): Boolean {
+        val trimmedLink = link.trim()
+        if (trimmedLink.startsWith("https://") || trimmedLink.startsWith("http://")) {
+            return profileManager.fetchSubscription(trimmedLink) {
+                selectProfileAndRestart(it.id, it)
+            }
+        }
+
+        val encoded = trimmedLink.substringAfter("://")
         val json = com.wireturn.app.domain.ProfileEncoder.decode(encoded)
         return if (json != null) {
             importProfiles(listOf(null to json))
             true
         } else false
     }
+
+    fun updateAllSubscriptions() {
+        viewModelScope.launch {
+            subscriptions.value.forEach { sub ->
+                profileManager.fetchSubscription(sub.url) {
+                    selectProfileAndRestart(it.id, it)
+                }
+            }
+        }
+    }
+
+    fun deleteSubscription(id: String) = profileManager.deleteSubscription(id)
     
     fun resetAllSettings(c: Context) {
         viewModelScope.launch {

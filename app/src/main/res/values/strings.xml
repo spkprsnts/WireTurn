@@ -462,6 +462,8 @@
     <string name="profile_select">Select</string>
     <string name="profile_selected_count">Selected: %1$d</string>
     <string name="profile_delete_selected_confirm">Delete %1$d selected profiles?</string>
+    <string name="subscription_delete_confirm">Delete subscription %1$s?</string>
+    <string name="subscription_delete_desc">All profiles associated with this subscription will be removed.</string>
     <string name="profile_none_selected">No profiles</string>
     <string name="profiles_empty">No profiles yet</string>
 

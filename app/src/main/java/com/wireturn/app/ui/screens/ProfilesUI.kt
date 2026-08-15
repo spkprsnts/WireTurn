@@ -6,6 +6,7 @@ package com.wireturn.app.ui.screens
 
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
@@ -14,7 +15,10 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.basicMarquee
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
+import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -53,6 +57,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -60,7 +65,10 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -70,6 +78,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -82,6 +91,7 @@ import com.wireturn.app.R
 import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.OlcrtcConfig.Companion.getTransportDisplayName
 import com.wireturn.app.data.Profile
+import com.wireturn.app.data.Subscription
 import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.HapticUtil
@@ -306,7 +316,7 @@ fun ProfileListItem(
         targetValue = when {
             isDragged -> MaterialTheme.colorScheme.surfaceContainerHighest
             isSelected -> MaterialTheme.colorScheme.secondaryContainer
-            isHighlighted -> MaterialTheme.colorScheme.primaryContainer
+            isHighlighted -> MaterialTheme.colorScheme.surfaceVariant
             else -> MaterialTheme.colorScheme.surfaceContainerHigh
         },
         animationSpec = tween(durationMillis = if (isHighlighted) 200 else 1000),
@@ -358,13 +368,17 @@ fun ProfilesDialog(
     onDismiss: () -> Unit
 ) {
     val profilesSource by viewModel.profiles.collectAsStateWithLifecycle()
+    val subscriptions by viewModel.subscriptions.collectAsStateWithLifecycle()
     val currentId by viewModel.currentProfileId.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val density = androidx.compose.ui.platform.LocalDensity.current
 
+    var draggedItemId by remember { mutableStateOf<String?>(null) }
+
     val sheetState = rememberBottomSheetState(
         initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+        confirmValueChange = { target -> draggedItemId == null || target == SheetValue.Expanded }
     )
     val scope = rememberCoroutineScope()
 
@@ -372,9 +386,9 @@ fun ProfilesDialog(
     val profiles = remember { mutableStateListOf<Profile>() }
 
     val lazyListState = rememberLazyListState()
-    var draggedItemId by remember { mutableStateOf<String?>(null) }
-    var dragOffset by remember { mutableFloatStateOf(0f) }
     var autoScrollSpeed by remember { mutableFloatStateOf(0f) }
+    var fingerAbsoluteY by remember { mutableFloatStateOf(0f) }
+    var dragAnchorOffset by remember { mutableFloatStateOf(0f) }
     var optimisticSelectedId by remember { mutableStateOf<String?>(null) }
 
     var exportFormatMenuExpanded by remember { mutableStateOf(false) }
@@ -384,6 +398,7 @@ fun ProfilesDialog(
 
     val showRenameDialog = remember { mutableStateOf<Profile?>(null) }
     val showDeleteConfirm = remember { mutableStateOf<Profile?>(null) }
+    val showDeleteSubConfirm = remember { mutableStateOf<Subscription?>(null) }
     val showBulkDeleteConfirm = remember { mutableStateOf<List<String>?>(null) }
     val showCloneDialog = remember { mutableStateOf<Profile?>(null) }
 
@@ -433,19 +448,23 @@ fun ProfilesDialog(
         val isFirstLoad = oldSize == 0 && profilesSource.isNotEmpty()
 
         if (draggedItemId == null && (profiles.size != profilesSource.size || profiles.toList() != profilesSource)) {
+            val updatedOrNewIds = if (oldSize > 0) {
+                profilesSource.filter { newP ->
+                    val oldP = profiles.find { it.id == newP.id }
+                    oldP == null || oldP != newP
+                }.map { it.id }
+            } else emptyList()
+
             androidx.compose.runtime.snapshots.Snapshot.withMutableSnapshot {
                 profiles.clear()
                 profiles.addAll(profilesSource)
             }
 
-            if (oldSize > 0) {
-                val newIds = profilesSource.map { it.id }.filter { it !in oldIds }
-                if (newIds.isNotEmpty()) {
-                    highlightedIds.addAll(newIds)
-                    scope.launch {
-                        delay(1_000.milliseconds)
-                        highlightedIds.removeAll(newIds)
-                    }
+            if (updatedOrNewIds.isNotEmpty()) {
+                highlightedIds.addAll(updatedOrNewIds)
+                scope.launch {
+                    delay(1_000.milliseconds)
+                    highlightedIds.removeAll(updatedOrNewIds)
                 }
             }
 
@@ -453,105 +472,193 @@ fun ProfilesDialog(
             scope.launch {
                 delay(150.milliseconds) // Wait for layout update
                 if (isFirstLoad) {
-                    val currentIndex = profiles.indexOfFirst { it.id == currentId }
-                    if (currentIndex != -1) {
-                        lazyListState.scrollToItem(currentIndex)
+                    val standaloneProfiles = profiles.filter { it.subscriptionId == null }
+                    val subscriptionGroups = subscriptions.map { sub ->
+                        sub to profiles.filter { it.subscriptionId == sub.id }
+                    }
+
+                    var targetLazyIndex = -1
+                    val hasStandaloneGuard = standaloneProfiles.isNotEmpty()
+                    val standaloneIdx = standaloneProfiles.indexOfFirst { it.id == currentId }
+                    
+                    if (standaloneIdx != -1) {
+                        targetLazyIndex = if (hasStandaloneGuard) standaloneIdx + 1 else standaloneIdx
+                    } else {
+                        var runningIndex = if (hasStandaloneGuard) standaloneProfiles.size + 1 else standaloneProfiles.size
+                        for ((sub, subProfiles) in subscriptionGroups) {
+                            val headerIndex = runningIndex
+                            val inSubIdx = subProfiles.indexOfFirst { it.id == currentId }
+                            if (inSubIdx != -1) {
+                                targetLazyIndex = headerIndex + 1 + inSubIdx
+                                break
+                            }
+                            runningIndex += 1 // header
+                            runningIndex += subProfiles.size
+                        }
+                    }
+
+                    if (targetLazyIndex != -1) {
+                        lazyListState.scrollToItem(targetLazyIndex)
                     }
                 } else if (profilesSource.size > oldSize && oldSize > 0) {
                     if (oldSize < profiles.size) {
-                        lazyListState.animateScrollToItem(oldSize)
+                        lazyListState.animateScrollToItem(profiles.size - 1) // Scroll to the newly added item
                     }
                 }
             }
         }
     }
 
-    fun checkAndPerformReorder() {
-        val currentId = draggedItemId ?: return
-        val currentDraggedIdx =
-            profiles.indexOfFirst { it.id == currentId }.takeIf { it != -1 } ?: return
+    fun desiredAbsoluteY(): Float = fingerAbsoluteY + dragAnchorOffset
 
+    fun clampedAbsoluteY(): Float? {
+        val currentId = draggedItemId ?: return null
         val layoutInfo = lazyListState.layoutInfo
-        val visibleItems = layoutInfo.visibleItemsInfo
-        val draggedItemInfo = visibleItems.find { it.key == currentId } ?: return
+        val draggedItem = layoutInfo.visibleItemsInfo.find { it.key == currentId } ?: return null
+        val viewportHeight = layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset
+        val slack = with(density) { 32.dp.toPx() }
+        val minY = -slack
+        val maxY = (viewportHeight - draggedItem.size) + slack
+        return if (maxY >= minY) desiredAbsoluteY().coerceIn(minY, maxY) else desiredAbsoluteY()
+    }
 
-        val draggedVisualCenter = draggedItemInfo.offset + dragOffset + draggedItemInfo.size / 2
-
-        val targetItem = if (dragOffset > 0) {
-            visibleItems.find { it.index > currentDraggedIdx && (it.offset + it.size / 2) < draggedVisualCenter }
-        } else if (dragOffset < 0) {
-            visibleItems.findLast { it.index < currentDraggedIdx && (it.offset + it.size / 2) > draggedVisualCenter }
-        } else null
-
-        if (targetItem != null) {
-            val targetIndex = targetItem.index
-            val delta = (draggedItemInfo.offset - targetItem.offset).toFloat()
-
-            // Захватываем параметры скролла
-            val firstVisibleIndex = lazyListState.firstVisibleItemIndex
-            val firstVisibleOffset = lazyListState.firstVisibleItemScrollOffset
-
-            androidx.compose.runtime.snapshots.Snapshot.withMutableSnapshot {
-                val item = profiles.removeAt(currentDraggedIdx)
-                profiles.add(targetIndex, item)
-                dragOffset += delta
-            }
-
-            // Компенсируем прыжок скролла
-            if (currentDraggedIdx == firstVisibleIndex || targetIndex == firstVisibleIndex) {
-                scope.launch {
-                    lazyListState.scrollToItem(firstVisibleIndex, firstVisibleOffset)
-                }
-            }
-            HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
-        }
+    fun clampedDragOffset(): Float {
+        val currentId = draggedItemId ?: return 0f
+        val draggedItem = lazyListState.layoutInfo.visibleItemsInfo.find { it.key == currentId } ?: return 0f
+        val absY = clampedAbsoluteY() ?: return 0f
+        return absY - draggedItem.offset
     }
 
     fun updateAutoScrollSpeed() {
         val currentId = draggedItemId ?: return
         val layoutInfo = lazyListState.layoutInfo
-        val visibleItems = layoutInfo.visibleItemsInfo
-        val draggedItem = visibleItems.find { it.key == currentId }
+        val draggedItem = layoutInfo.visibleItemsInfo.find { it.key == currentId }
 
         val viewportHeight = layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset
-        val threshold = with(density) { 40.dp.toPx() } // Увеличили порог для стабильности
+        val threshold = with(density) { 60.dp.toPx() }
 
         if (draggedItem != null) {
-            val visualTop = draggedItem.offset + dragOffset
+            val slack = with(density) { 32.dp.toPx() }
+            val minY = -slack
+            val maxY = (viewportHeight - draggedItem.size) + slack
+            val visualTop = if (maxY >= minY) desiredAbsoluteY().coerceIn(minY, maxY) else desiredAbsoluteY()
             val visualBottom = visualTop + draggedItem.size
 
             autoScrollSpeed = when {
                 visualTop < threshold && lazyListState.canScrollBackward -> {
-                    ((visualTop - threshold) / 10f).coerceIn(-20f, 0f)
+                    // Quadratic acceleration for smoother control
+                    val dist = (threshold - visualTop).coerceAtLeast(0f)
+                    val ratio = dist / threshold
+                    -(ratio * ratio * 45f).coerceIn(3f, 45f)
                 }
 
                 visualBottom > viewportHeight - threshold && lazyListState.canScrollForward -> {
-                    ((visualBottom - (viewportHeight - threshold)) / 10f).coerceIn(0f, 20f)
+                    val dist = (visualBottom - (viewportHeight - threshold)).coerceAtLeast(0f)
+                    val ratio = dist / threshold
+                    (ratio * ratio * 45f).coerceIn(3f, 45f)
                 }
 
                 else -> 0f
             }
         } else {
-            // Если элемент на мгновение выпал из видимых, но мы точно знаем куда скроллить
-            // (например, dragOffset экстремально большой), продолжаем скролл
-            autoScrollSpeed = if (dragOffset < -100f && lazyListState.canScrollBackward) -15f
-            else if (dragOffset > 100f && lazyListState.canScrollForward) 15f
-            else 0f
+            autoScrollSpeed = 0f
         }
+    }
+
+    fun checkAndPerformReorder() {
+        val currentId = draggedItemId ?: return
+
+        val layoutInfo = lazyListState.layoutInfo
+        val visibleItems = layoutInfo.visibleItemsInfo
+        val initialInfo = visibleItems.find { it.key == currentId } ?: return
+        val absY = clampedAbsoluteY() ?: return
+
+        val draggedCenter = absY + initialInfo.size / 2
+        val originalCenter = initialInfo.offset + initialInfo.size / 2
+        val goingDown = draggedCenter > originalCenter
+
+        var virtualIndex = initialInfo.index
+        var didSwap = false
+
+        androidx.compose.runtime.snapshots.Snapshot.withMutableSnapshot {
+            while (true) {
+                val currentDraggedIdx =
+                    profiles.indexOfFirst { it.id == currentId }.takeIf { it != -1 } ?: break
+
+                val targetItem = if (goingDown) {
+                    visibleItems.find { item ->
+                        item.index > virtualIndex &&
+                        (item.offset + item.size / 2) < draggedCenter &&
+                        item.key is String && !(item.key as String).startsWith("sub_header_") &&
+                        item.key != "standalone_top_guard"
+                    }
+                } else {
+                    visibleItems.findLast { item ->
+                        item.index < virtualIndex &&
+                        (item.offset + item.size / 2) > draggedCenter &&
+                        item.key is String && !(item.key as String).startsWith("sub_header_") &&
+                        item.key != "standalone_top_guard"
+                    }
+                }
+
+                if (targetItem == null) break
+
+                val targetProfileId = targetItem.key as String
+                val targetProfileIdx = profiles.indexOfFirst { it.id == targetProfileId }.takeIf { it != -1 } ?: break
+
+                // Allow reorder ONLY within the same group (standalone or specific subscription)
+                val draggedProfile = profiles[currentDraggedIdx]
+                val targetProfile = profiles[targetProfileIdx]
+                if (draggedProfile.subscriptionId != targetProfile.subscriptionId) break
+
+                val item = profiles.removeAt(currentDraggedIdx)
+                profiles.add(targetProfileIdx, item)
+
+                virtualIndex = targetItem.index
+                didSwap = true
+            }
+        }
+
+        if (didSwap) {
+            updateAutoScrollSpeed()
+            scope.launch { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) }
+        }
+    }
+
+    fun onProfileDrag(delta: Float) {
+        fingerAbsoluteY += delta
     }
 
     LaunchedEffect(draggedItemId) {
         if (draggedItemId != null) {
             while (true) {
-                if (autoScrollSpeed != 0f) {
-                    val scrolled = lazyListState.scrollBy(autoScrollSpeed)
-                    if (scrolled != 0f) {
-                        dragOffset += scrolled
-                        checkAndPerformReorder()
+                withFrameNanos { }
+                try {
+                    if (autoScrollSpeed != 0f) {
+                        lazyListState.scrollBy(autoScrollSpeed)
                     }
+                    checkAndPerformReorder()
+                    updateAutoScrollSpeed()
+
+                    val currentId = draggedItemId
+                    if (currentId != null &&
+                        lazyListState.layoutInfo.visibleItemsInfo.none { it.key == currentId }
+                    ) {
+                        val trueIdx = profiles.indexOfFirst { it.id == currentId }
+                        if (trueIdx != -1) {
+                            val firstVisible = lazyListState.firstVisibleItemIndex
+                            if (desiredAbsoluteY() < 0f) {
+                                lazyListState.scrollToItem((firstVisible - 1).coerceAtLeast(0))
+                            } else {
+                                lazyListState.scrollToItem(firstVisible + 1)
+                            }
+                            checkAndPerformReorder()
+                            updateAutoScrollSpeed()
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("ProfileDrag", "autoscroll tick failed, draggedItemId=$draggedItemId", e)
                 }
-                updateAutoScrollSpeed()
-                delay(8.milliseconds) // Немного быстрее цикл
             }
         }
     }
@@ -769,12 +876,52 @@ fun ProfilesDialog(
         ) {
             val bottomPadding =
                 WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+            
+            val standaloneProfiles = profiles.filter { it.subscriptionId == null }
+            val subscriptionGroups = subscriptions.map { sub ->
+                sub to profiles.filter { it.subscriptionId == sub.id }
+            }
+
             LazyColumn(
                 state = lazyListState,
+                userScrollEnabled = draggedItemId == null,
                 modifier = Modifier
                     .heightIn(max = 640.dp)
                     .fillMaxWidth()
                     .nestedScroll(noDismissNestedScroll)
+                    .pointerInput(isSelectionMode) {
+                        if (isSelectionMode) return@pointerInput
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            val longPress = awaitLongPressOrCancellation(down.id) ?: return@awaitEachGesture
+
+                            val hitItem = lazyListState.layoutInfo.visibleItemsInfo.firstOrNull { item ->
+                                val key = item.key
+                                key is String &&
+                                    !key.startsWith("sub_header_") &&
+                                    key != "standalone_top_guard" &&
+                                    longPress.position.y >= item.offset &&
+                                    longPress.position.y < item.offset + item.size
+                            } ?: return@awaitEachGesture
+                            val targetId = hitItem.key as String
+
+                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                            draggedItemId = targetId
+                            fingerAbsoluteY = longPress.position.y
+                            dragAnchorOffset = hitItem.offset - longPress.position.y
+
+                            drag(longPress.id) { change ->
+                                val delta = change.positionChange().y
+                                change.consume()
+                                onProfileDrag(delta)
+                            }
+                            if (draggedItemId == targetId) {
+                                draggedItemId = null
+                                autoScrollSpeed = 0f
+                                viewModel.reorderProfiles(profiles.toList())
+                            }
+                        }
+                    }
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
                 contentPadding = PaddingValues(
@@ -806,321 +953,102 @@ fun ProfilesDialog(
                         }
                     }
                 } else {
-                    itemsIndexed(profiles, key = { _, it -> it.id }) { index, profile ->
-                        val isDragged = draggedItemId == profile.id
-                        val isSelected = profile.id == (optimisticSelectedId ?: currentId)
-                        val isSelectedInMode = selectedIds.contains(profile.id)
-                        var menuExpanded by remember { mutableStateOf(false) }
-                        var editMenuExpanded by remember { mutableStateOf(false) }
-                        var itemExportActionMenuExpanded by remember { mutableStateOf(false) }
-
-                        val itemShape = when {
-                            isDragged -> RoundedCornerShape(12.dp)
-                            profiles.size == 1 -> MaterialTheme.shapes.medium
-                            index == 0 -> RoundedCornerShape(
-                                topStart = 16.dp,
-                                topEnd = 16.dp,
-                                bottomStart = 4.dp,
-                                bottomEnd = 4.dp
-                            )
-
-                            index == profiles.size - 1 -> RoundedCornerShape(
-                                topStart = 4.dp,
-                                topEnd = 4.dp,
-                                bottomStart = 16.dp,
-                                bottomEnd = 16.dp
-                            )
-
-                            else -> RoundedCornerShape(4.dp)
+                    if (standaloneProfiles.isNotEmpty()) {
+                        item(key = "standalone_top_guard") {
+                            Spacer(Modifier.height(1.dp))
                         }
+                    }
 
-                        val offsetAnim by animateFloatAsState(
-                            targetValue = if (isDragged) dragOffset else 0f,
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioNoBouncy,
-                                stiffness = if (isDragged) Spring.StiffnessHigh else Spring.StiffnessMedium
-                            ),
-                            label = "drag_offset"
-                        )
-
-                        ProfileListItem(
+                    // Standalone Profiles
+                    itemsIndexed(standaloneProfiles, key = { _, it -> it.id }) { index, profile ->
+                        ProfileItemRow(
                             profile = profile,
-                            isSelected = isSelected,
-                            isHighlighted = highlightedIds.contains(profile.id),
-                            shape = itemShape,
-                            isDragged = isDragged,
-                            onClick = {
-                                if (isSelectionMode) {
-                                    if (isSelectedInMode) selectedIds.remove(profile.id)
-                                    else selectedIds.add(profile.id)
-                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                } else if (draggedItemId == null) {
-                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                    optimisticSelectedId = profile.id
-                                    viewModel.selectProfileAndRestart(profile.id)
-                                    scope.launch {
-                                        sheetState.hide()
-                                        onDismiss()
-                                    }
+                            index = index,
+                            totalInGroup = standaloneProfiles.size,
+                            viewModel = viewModel,
+                            currentId = currentId,
+                            optimisticSelectedId = optimisticSelectedId,
+                            selectedIds = selectedIds,
+                            highlightedIds = highlightedIds,
+                            draggedItemId = draggedItemId,
+                            dragOffset = clampedDragOffset(),
+                            isSelectionMode = isSelectionMode,
+                            onDismiss = onDismiss,
+                            sheetState = sheetState,
+                            scope = scope,
+                            context = context,
+                            onDragEnd = { endedId ->
+                                if (draggedItemId == endedId) {
+                                    draggedItemId = null; autoScrollSpeed = 0f
+                                    viewModel.reorderProfiles(profiles.toList())
                                 }
                             },
-                            leadingContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        getProfileIcon(
-                                            profile,
-                                            outlined = !isSelected
-                                        )
-                                    ),
-                                    contentDescription = null,
-                                    tint = if (isSelected) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.outline
+                            onExportClick = onExportClick,
+                            onExportActionSelected = onExportActionSelected,
+                            onClone = { showCloneDialog.value = it },
+                            onRename = { showRenameDialog.value = it },
+                            onDelete = { showDeleteConfirm.value = it },
+                            onOptimisticSelect = { optimisticSelectedId = it },
+                            modifier = Modifier.animateItem(
+                                placementSpec = if (draggedItemId == profile.id) null else spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = Spring.StiffnessMedium
                                 )
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .animateItem(
-                                    placementSpec = if (isDragged) null else spring(
+                            )
+                        )
+                    }
+
+                    // Subscription Groups
+                    subscriptionGroups.forEach { (sub, subProfiles) ->
+                        val isAnySelected = subProfiles.any { it.id == (optimisticSelectedId ?: currentId) }
+                        
+                        item(key = "sub_header_${sub.id}") {
+                            SubscriptionHeaderRow(
+                                sub = sub,
+                                isAnyChildSelected = isAnySelected,
+                                onUpdate = { scope.launch { viewModel.importProfileFromLink(sub.url) } },
+                                onDelete = { showDeleteSubConfirm.value = sub }
+                            )
+                        }
+
+                        itemsIndexed(subProfiles, key = { _, it -> it.id }) { index, profile ->
+                            ProfileItemRow(
+                                profile = profile,
+                                index = index,
+                                totalInGroup = subProfiles.size,
+                                isInsideSubscription = true,
+                                viewModel = viewModel,
+                                currentId = currentId,
+                                optimisticSelectedId = optimisticSelectedId,
+                                selectedIds = selectedIds,
+                                highlightedIds = highlightedIds,
+                                draggedItemId = draggedItemId,
+                                dragOffset = clampedDragOffset(),
+                                isSelectionMode = isSelectionMode,
+                                onDismiss = onDismiss,
+                                sheetState = sheetState,
+                                scope = scope,
+                                context = context,
+                                onDragEnd = { endedId ->
+                                    if (draggedItemId == endedId) {
+                                        draggedItemId = null; autoScrollSpeed = 0f
+                                        viewModel.reorderProfiles(profiles.toList())
+                                    }
+                                },
+                                onExportClick = onExportClick,
+                                onExportActionSelected = onExportActionSelected,
+                                onClone = { showCloneDialog.value = it },
+                                onRename = { showRenameDialog.value = it },
+                                onDelete = { showDeleteConfirm.value = it },
+                                onOptimisticSelect = { optimisticSelectedId = it },
+                                modifier = Modifier.animateItem(
+                                    placementSpec = if (draggedItemId == profile.id) null else spring(
                                         dampingRatio = Spring.DampingRatioNoBouncy,
                                         stiffness = Spring.StiffnessMedium
                                     )
                                 )
-                                .zIndex(if (isDragged) 10f else 0f)
-                                .pointerInput(isSelectionMode) {
-                                    if (isSelectionMode) return@pointerInput
-                                    detectDragGesturesAfterLongPress(
-                                        onDragStart = {
-                                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                            draggedItemId = profile.id
-                                            dragOffset = 0f
-                                        },
-                                        onDrag = { change, dragAmount ->
-                                            change.consume()
-                                            dragOffset += dragAmount.y
-                                            updateAutoScrollSpeed()
-                                            checkAndPerformReorder()
-                                        },
-                                        onDragEnd = {
-                                            draggedItemId = null
-                                            dragOffset = 0f
-                                            autoScrollSpeed = 0f
-                                            viewModel.reorderProfiles(profiles.toList())
-                                        },
-                                        onDragCancel = {
-                                            draggedItemId = null
-                                            dragOffset = 0f
-                                            autoScrollSpeed = 0f
-                                        }
-                                    )
-                                }
-                                .graphicsLayer {
-                                    translationY = if (isDragged) dragOffset else offsetAnim
-                                    scaleX = if (isDragged) 1.02f else 1f
-                                    scaleY = if (isDragged) 1.02f else 1f
-                                    shadowElevation = if (isDragged) 8.dp.toPx() else 0f
-                                    shape = itemShape
-                                    clip = isDragged
-                                },
-                            trailingContent = {
-                                if (isSelectionMode) {
-                                    Checkbox(
-                                        checked = isSelectedInMode,
-                                        onCheckedChange = null
-                                    )
-                                } else {
-                                    Box {
-                                        IconButton(onClick = {
-                                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                            menuExpanded = true
-                                        }) {
-                                            Icon(
-                                                painterResource(R.drawable.more_vert_24px),
-                                                contentDescription = null
-                                            )
-                                        }
-                                        AppDropdownMenu(
-                                            expanded = menuExpanded,
-                                            onDismissRequest = { menuExpanded = false },
-                                            title = stringResource(R.string.profile_actions)
-                                        ) {
-                                            DropdownMenuItem(
-                                                text = { Text(stringResource(R.string.profile_select)) },
-                                                leadingIcon = {
-                                                    Icon(
-                                                        painterResource(R.drawable.check_circle_24px),
-                                                        null,
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
-                                                },
-                                                onClick = {
-                                                    menuExpanded = false
-                                                    HapticUtil.perform(
-                                                        context,
-                                                        HapticUtil.Pattern.CLICK
-                                                    )
-                                                    selectedIds.add(profile.id)
-                                                }
-                                            )
-                                            DropdownMenuItem(
-                                                text = { Text(stringResource(R.string.profile_clone)) },
-                                                leadingIcon = {
-                                                    Icon(
-                                                        painterResource(R.drawable.content_copy_24px),
-                                                        null,
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
-                                                },
-                                                onClick = {
-                                                    menuExpanded = false
-                                                    HapticUtil.perform(
-                                                        context,
-                                                        HapticUtil.Pattern.CLICK
-                                                    )
-                                                    showCloneDialog.value = profile
-                                                }
-                                            )
-                                            DropdownMenuItem(
-                                                text = { Text(stringResource(R.string.profile_edit)) },
-                                                leadingIcon = {
-                                                    Icon(
-                                                        painterResource(R.drawable.edit_square_24px),
-                                                        null,
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
-                                                },
-                                                onClick = {
-                                                    menuExpanded = false
-                                                    HapticUtil.perform(
-                                                        context,
-                                                        HapticUtil.Pattern.CLICK
-                                                    )
-                                                    editMenuExpanded = true
-                                                }
-                                            )
-                                            DropdownMenuItem(
-                                                text = { Text(stringResource(R.string.profile_rename)) },
-                                                leadingIcon = {
-                                                    Icon(
-                                                        painterResource(R.drawable.edit_24px),
-                                                        null,
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
-                                                },
-                                                onClick = {
-                                                    menuExpanded = false
-                                                    HapticUtil.perform(
-                                                        context,
-                                                        HapticUtil.Pattern.CLICK
-                                                    )
-                                                    showRenameDialog.value = profile
-                                                }
-                                            )
-                                            DropdownMenuItem(
-                                                text = { Text(stringResource(R.string.profile_export)) },
-                                                leadingIcon = {
-                                                    Icon(
-                                                        painterResource(R.drawable.ios_share_24px),
-                                                        null,
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
-                                                },
-                                                onClick = {
-                                                    menuExpanded = false
-                                                    HapticUtil.perform(
-                                                        context,
-                                                        HapticUtil.Pattern.CLICK
-                                                    )
-                                                    exportTargetIds = listOf(profile.id)
-                                                    exportAsJson = true
-                                                    itemExportActionMenuExpanded = true
-                                                }
-                                            )
-                                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                                            DropdownMenuItem(
-                                                text = { Text(stringResource(R.string.profile_delete)) },
-                                                leadingIcon = {
-                                                    Icon(
-                                                        painterResource(R.drawable.delete_24px),
-                                                        null,
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
-                                                },
-                                                onClick = {
-                                                    menuExpanded = false
-                                                    HapticUtil.perform(
-                                                        context,
-                                                        HapticUtil.Pattern.CLICK
-                                                    )
-                                                    showDeleteConfirm.value = profile
-                                                },
-                                                colors = MenuDefaults.itemColors(
-                                                    textColor = MaterialTheme.colorScheme.error,
-                                                    leadingIconColor = MaterialTheme.colorScheme.error
-                                                )
-                                            )
-                                        }
-                                        AppDropdownMenu(
-                                            expanded = editMenuExpanded,
-                                            onDismissRequest = { editMenuExpanded = false },
-                                            title = stringResource(R.string.profile_edit)
-                                        ) {
-                                            DropdownMenuItem(
-                                                text = { Text(stringResource(R.string.profile_edit_config)) },
-                                                leadingIcon = {
-                                                    Icon(
-                                                        painterResource(R.drawable.edit_square_24px),
-                                                        null,
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
-                                                },
-                                                onClick = {
-                                                    editMenuExpanded = false
-                                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                                    val intent = when (profile.kernelVariant) {
-                                                        KernelVariant.TURNABLE -> Intent(context, TurnableConfigActivity::class.java)
-                                                        KernelVariant.OLCRTC -> Intent(context, OlcRtcConfigActivity::class.java)
-                                                        KernelVariant.WEBDAV -> Intent(context, com.wireturn.app.ui.activities.cores.WebdavConfigActivity::class.java)
-                                                        KernelVariant.FREETURN -> Intent(context, com.wireturn.app.ui.activities.cores.FreeTurnConfigActivity::class.java)
-                                                    }
-                                                    intent.putExtra("EXTRA_EDIT_MODE", true)
-                                                    intent.putExtra("EXTRA_PROFILE_NAME", profile.name)
-                                                    intent.putExtra("EXTRA_PROFILE_ID", profile.id)
-                                                    context.startActivity(intent)
-                                                }
-                                            )
-                                            DropdownMenuItem(
-                                                text = { Text(stringResource(R.string.xray_title)) },
-                                                leadingIcon = {
-                                                    Icon(
-                                                        painterResource(R.drawable.ic_xray_24px),
-                                                        null,
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
-                                                },
-                                                onClick = {
-                                                    editMenuExpanded = false
-                                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                                    val intent = Intent(context, com.wireturn.app.ui.activities.XrayEditActivity::class.java)
-                                                    intent.putExtra("EXTRA_PROFILE_ID", profile.id)
-                                                    context.startActivity(intent)
-                                                }
-                                            )
-                                        }
-                                        ExportDropdownMenus(
-                                            expandedFormat = false,
-                                            onDismissFormat = { },
-                                            expandedAction = itemExportActionMenuExpanded,
-                                            onDismissAction = { itemExportActionMenuExpanded = false },
-                                            onFormatSelected = { },
-                                            onActionSelected = { save ->
-                                                itemExportActionMenuExpanded = false
-                                                onExportActionSelected(save)
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        )
+                            )
+                        }
                     }
                 }
             }
@@ -1173,6 +1101,28 @@ fun ProfilesDialog(
         )
     }
 
+    showDeleteSubConfirm.value?.let { sub ->
+        AlertDialog(
+            onDismissRequest = { showDeleteSubConfirm.value = null },
+            title = { Text(stringResource(R.string.subscription_delete_confirm, sub.name)) },
+            text = { Text(stringResource(R.string.subscription_delete_desc)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteSubscription(sub.id)
+                        showDeleteSubConfirm.value = null
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) { Text(stringResource(R.string.profile_delete)) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showDeleteSubConfirm.value = null
+                }) { Text(stringResource(R.string.cancel)) }
+            }
+        )
+    }
+
     showBulkDeleteConfirm.value?.let { ids ->
         AlertDialog(
             onDismissRequest = { showBulkDeleteConfirm.value = null },
@@ -1194,6 +1144,305 @@ fun ProfilesDialog(
                 }) { Text(stringResource(R.string.cancel)) }
             }
         )
+    }
+}
+
+@Composable
+private fun ProfileItemRow(
+    profile: Profile,
+    index: Int,
+    totalInGroup: Int,
+    viewModel: MainViewModel,
+    currentId: String,
+    optimisticSelectedId: String?,
+    selectedIds: SnapshotStateList<String>,
+    highlightedIds: List<String>,
+    draggedItemId: String?,
+    dragOffset: Float,
+    isSelectionMode: Boolean,
+    onDismiss: () -> Unit,
+    sheetState: androidx.compose.material3.SheetState,
+    scope: kotlinx.coroutines.CoroutineScope,
+    context: android.content.Context,
+    onDragEnd: (String) -> Unit,
+    onExportClick: (List<String>) -> Unit,
+    onExportActionSelected: (Boolean) -> Unit,
+    onClone: (Profile) -> Unit,
+    onRename: (Profile) -> Unit,
+    onDelete: (Profile) -> Unit,
+    onOptimisticSelect: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    isInsideSubscription: Boolean = false
+) {
+    val isDragged = draggedItemId == profile.id
+
+    val isDraggedState = rememberUpdatedState(isDragged)
+    val onDragEndState = rememberUpdatedState(onDragEnd)
+    DisposableEffect(profile.id) {
+        onDispose {
+            if (isDraggedState.value) {
+                Log.e("ProfileDrag", "composable disposed mid-drag for profile=${profile.id}, forcing reset")
+                onDragEndState.value(profile.id)
+            }
+        }
+    }
+
+    val isSelected = profile.id == (optimisticSelectedId ?: currentId)
+    val isSelectedInMode = selectedIds.contains(profile.id)
+    var menuExpanded by remember { mutableStateOf(false) }
+    var editMenuExpanded by remember { mutableStateOf(false) }
+    var itemExportActionMenuExpanded by remember { mutableStateOf(false) }
+
+    val itemShape = when {
+        isDragged -> RoundedCornerShape(12.dp)
+        totalInGroup == 1 && !isInsideSubscription -> MaterialTheme.shapes.medium
+        isInsideSubscription -> {
+            if (index == totalInGroup - 1) RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
+            else RoundedCornerShape(4.dp)
+        }
+        index == 0 -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
+        index == totalInGroup - 1 -> RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
+        else -> RoundedCornerShape(4.dp)
+    }
+
+    val offsetAnim by animateFloatAsState(
+        targetValue = if (isDragged) dragOffset else 0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = if (isDragged) Spring.StiffnessHigh else Spring.StiffnessMedium),
+        label = "drag_offset"
+    )
+
+    ProfileListItem(
+        profile = profile,
+        isSelected = isSelected,
+        isHighlighted = highlightedIds.contains(profile.id),
+        shape = itemShape,
+        isDragged = isDragged,
+        onClick = {
+            if (isSelectionMode) {
+                if (isSelectedInMode) selectedIds.remove(profile.id)
+                else selectedIds.add(profile.id)
+                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+            } else if (draggedItemId == null) {
+                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                onOptimisticSelect(profile.id)
+                viewModel.selectProfileAndRestart(profile.id)
+                scope.launch {
+                    sheetState.hide()
+                    onDismiss()
+                }
+            }
+        },
+        leadingContent = {
+            Icon(
+                painter = painterResource(getProfileIcon(profile, outlined = !isSelected)),
+                contentDescription = null,
+                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+            )
+        },
+        modifier = modifier
+            .fillMaxWidth()
+            .zIndex(if (isDragged) 10f else 0f)
+            .graphicsLayer {
+                translationY = if (isDragged) dragOffset else offsetAnim
+                scaleX = if (isDragged) 1.02f else 1f
+                scaleY = if (isDragged) 1.02f else 1f
+                shadowElevation = if (isDragged) 8.dp.toPx() else 0f
+                shape = itemShape
+                clip = isDragged
+            },
+        trailingContent = {
+            if (isSelectionMode) {
+                Checkbox(checked = isSelectedInMode, onCheckedChange = null)
+            } else {
+                Box {
+                    IconButton(onClick = {
+                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                        menuExpanded = true
+                    }) {
+                        Icon(painterResource(R.drawable.more_vert_24px), contentDescription = null)
+                    }
+                    AppDropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }, title = stringResource(R.string.profile_actions)) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.profile_select)) },
+                            leadingIcon = { Icon(painterResource(R.drawable.check_circle_24px), null, modifier = Modifier.size(20.dp)) },
+                            onClick = {
+                                menuExpanded = false
+                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                selectedIds.add(profile.id)
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.profile_clone)) },
+                            leadingIcon = { Icon(painterResource(R.drawable.content_copy_24px), null, modifier = Modifier.size(20.dp)) },
+                            onClick = {
+                                menuExpanded = false
+                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                onClone(profile)
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.profile_edit)) },
+                            leadingIcon = { Icon(painterResource(R.drawable.edit_square_24px), null, modifier = Modifier.size(20.dp)) },
+                            onClick = {
+                                menuExpanded = false
+                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                editMenuExpanded = true
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.profile_rename)) },
+                            leadingIcon = { Icon(painterResource(R.drawable.edit_24px), null, modifier = Modifier.size(20.dp)) },
+                            onClick = {
+                                menuExpanded = false
+                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                onRename(profile)
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.profile_export)) },
+                            leadingIcon = { Icon(painterResource(R.drawable.ios_share_24px), null, modifier = Modifier.size(20.dp)) },
+                            onClick = {
+                                menuExpanded = false
+                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                onExportClick(listOf(profile.id))
+                                itemExportActionMenuExpanded = true
+                            }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.profile_delete)) },
+                            leadingIcon = { Icon(painterResource(R.drawable.delete_24px), null, modifier = Modifier.size(20.dp)) },
+                            onClick = {
+                                menuExpanded = false
+                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                onDelete(profile)
+                            },
+                            colors = MenuDefaults.itemColors(
+                                textColor = MaterialTheme.colorScheme.error,
+                                leadingIconColor = MaterialTheme.colorScheme.error
+                            )
+                        )
+                    }
+                    AppDropdownMenu(
+                        expanded = editMenuExpanded,
+                        onDismissRequest = { editMenuExpanded = false },
+                        title = stringResource(R.string.profile_edit)
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.profile_edit_config)) },
+                            leadingIcon = {
+                                Icon(
+                                    painterResource(R.drawable.edit_square_24px),
+                                    null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            onClick = {
+                                editMenuExpanded = false
+                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                val intent = when (profile.kernelVariant) {
+                                    KernelVariant.TURNABLE -> Intent(context, TurnableConfigActivity::class.java)
+                                    KernelVariant.OLCRTC -> Intent(context, OlcRtcConfigActivity::class.java)
+                                    KernelVariant.WEBDAV -> Intent(context, com.wireturn.app.ui.activities.cores.WebdavConfigActivity::class.java)
+                                    KernelVariant.FREETURN -> Intent(context, com.wireturn.app.ui.activities.cores.FreeTurnConfigActivity::class.java)
+                                }
+                                intent.putExtra("EXTRA_EDIT_MODE", true)
+                                intent.putExtra("EXTRA_PROFILE_NAME", profile.name)
+                                intent.putExtra("EXTRA_PROFILE_ID", profile.id)
+                                context.startActivity(intent)
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.xray_title)) },
+                            leadingIcon = {
+                                Icon(
+                                    painterResource(R.drawable.ic_xray_24px),
+                                    null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            onClick = {
+                                editMenuExpanded = false
+                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                val intent = Intent(context, com.wireturn.app.ui.activities.XrayEditActivity::class.java)
+                                intent.putExtra("EXTRA_PROFILE_ID", profile.id)
+                                context.startActivity(intent)
+                            }
+                        )
+                    }
+                    ExportDropdownMenus(
+                        expandedFormat = false,
+                        onDismissFormat = { },
+                        expandedAction = itemExportActionMenuExpanded,
+                        onDismissAction = { itemExportActionMenuExpanded = false },
+                        onFormatSelected = { },
+                        onActionSelected = { save ->
+                            itemExportActionMenuExpanded = false
+                            onExportActionSelected(save)
+                        }
+                    )
+                }
+            }
+        }
+    )
+}
+
+@Composable
+private fun SubscriptionHeaderRow(
+    sub: Subscription,
+    isAnyChildSelected: Boolean,
+    onUpdate: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val isHighlighted = isAnyChildSelected
+    val backgroundColor by animateColorAsState(
+        targetValue = if (isHighlighted) MaterialTheme.colorScheme.secondaryContainer
+                      else MaterialTheme.colorScheme.surfaceContainerHigh,
+        label = "sub_header_bg"
+    )
+
+    Surface(
+        color = backgroundColor,
+        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 4.dp, bottomEnd = 4.dp),
+        modifier = Modifier.padding(top = 8.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = sub.name, 
+                    style = MaterialTheme.typography.titleMedium,
+                    color = if (isHighlighted) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    modifier = Modifier.basicMarquee()
+                )
+                if (!sub.description.isNullOrBlank()) {
+                    Text(
+                        text = sub.description, 
+                        style = MaterialTheme.typography.bodySmall, 
+                        color = if (isHighlighted) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.outline
+                    )
+                }
+            }
+            IconButton(onClick = onDelete) {
+                Icon(
+                    painter = painterResource(R.drawable.delete_24px), 
+                    contentDescription = null, 
+                    tint = if (isHighlighted) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.error, 
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            IconButton(onClick = onUpdate) {
+                Icon(
+                    painter = painterResource(R.drawable.refresh_24px), 
+                    contentDescription = null, 
+                    modifier = Modifier.size(20.dp),
+                    tint = if (isHighlighted) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
     }
 }
 

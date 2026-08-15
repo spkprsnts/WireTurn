@@ -3,13 +3,19 @@ package com.wireturn.app.domain
 import com.wireturn.app.R
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.Profile
+import com.wireturn.app.data.Subscription
+import com.wireturn.app.data.ProfileBundle
 import com.google.gson.JsonParser
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.UUID
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -24,6 +30,9 @@ class ProfileManager(
 
     val currentProfileId: StateFlow<String> = prefs.currentProfileIdFlow
         .stateIn(scope, SharingStarted.Eagerly, "default")
+
+    val subscriptions: StateFlow<List<Subscription>> = prefs.subscriptionsFlow
+        .stateIn(scope, SharingStarted.Eagerly, emptyList())
 
     private val gson = com.google.gson.GsonBuilder()
         .registerTypeAdapterFactory(com.wireturn.app.data.SafeEnumTypeAdapterFactory())
@@ -142,17 +151,24 @@ class ProfileManager(
                     entry = zis.nextEntry
                 }
             }
-            return if (extractedData.isNotEmpty()) importProfiles(extractedData, onAutoSelect) else 0
+            return if (extractedData.isNotEmpty()) importProfiles(extractedData, onAutoSelect = onAutoSelect) else 0
         } catch (e: Exception) {
             com.wireturn.app.AppLogsState.addLog("ZIP Import Error: ${e.message}")
             return 0
         }
     }
 
-    fun importProfiles(data: List<Pair<String?, String>>, onAutoSelect: ((Profile) -> Unit)? = null): Int {
+    fun importProfiles(data: List<Pair<String?, String>>, subscriptionId: String? = null, onAutoSelect: ((Profile) -> Unit)? = null): Int {
         try {
             val defaultName = prefs.context.getString(R.string.profile_default_name)
             val currentProfiles = profiles.value
+            val currentSelectedId = currentProfileId.value
+            val wasSelectedFromThisSub = currentProfiles.find { it.id == currentSelectedId }?.subscriptionId == subscriptionId
+            
+            val existingSubProfiles = if (subscriptionId != null) {
+                currentProfiles.filter { it.subscriptionId == subscriptionId }
+            } else emptyList()
+
             val accumulating = currentProfiles.toMutableList()
             val importedList = mutableListOf<Profile>()
 
@@ -170,7 +186,16 @@ class ProfileManager(
                         val name = (p.name as String?)?.takeIf { it.isNotBlank() }
                             ?: nameFromFile?.takeIf { it.isNotBlank() }?.take(100)
                             ?: nextDefaultProfileName(accumulating)
-                        val profile = p.sanitize(defaultName).copy(id = UUID.randomUUID().toString(), name = name)
+
+                        // Try to preserve ID by matching name within the same subscription
+                        val matchedOldId = existingSubProfiles.find { it.name == name }?.id
+                        val newId = matchedOldId ?: UUID.randomUUID().toString()
+
+                        val profile = p.sanitize(defaultName).copy(
+                            id = newId,
+                            name = name,
+                            subscriptionId = subscriptionId
+                        )
                         accumulating.add(profile)
                         importedList.add(profile)
                     }
@@ -179,16 +204,116 @@ class ProfileManager(
 
             if (importedList.isEmpty()) return 0
             val wasEmpty = currentProfiles.isEmpty()
-            val newList = currentProfiles + importedList
+            
+            val newList = if (subscriptionId != null) {
+                currentProfiles.filter { it.subscriptionId != subscriptionId } + importedList
+            } else {
+                currentProfiles + importedList
+            }
+
             scope.launch {
                 prefs.saveProfiles(newList)
-                if (wasEmpty) {
+                
+                val updatedVersionOfCurrent = importedList.find { it.id == currentSelectedId }
+                val isStillSelected = newList.any { it.id == currentSelectedId }
+                
+                if (updatedVersionOfCurrent != null) {
+                    // Sync active config if the currently selected profile was updated
+                    onAutoSelect?.invoke(updatedVersionOfCurrent)
+                } else if (wasEmpty || (wasSelectedFromThisSub && !isStillSelected)) {
+                    // Auto-select first from imported if nothing was selected or selected one disappeared
                     onAutoSelect?.invoke(importedList.first())
+                } else if (!isStillSelected && newList.isNotEmpty()) {
+                    // Fallback to first ever if current is gone for some other reason
+                    onAutoSelect?.invoke(newList.first())
                 }
             }
             return importedList.size
         } catch (_: Exception) {
             return 0
+        }
+    }
+
+    suspend fun fetchSubscription(url: String, onAutoSelect: ((Profile) -> Unit)? = null): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val connection = URL(url).openConnection(java.net.Proxy.NO_PROXY) as HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 10000
+            connection.readTimeout = 10000
+            connection.setRequestProperty("User-Agent", "WireTurn/1.0")
+            
+            val responseCode = connection.responseCode
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                com.wireturn.app.AppLogsState.addLog("Subscription HTTP Error: $responseCode")
+                return@withContext false
+            }
+
+            val json = connection.inputStream.bufferedReader().use { it.readText() }
+            if (json.isBlank()) {
+                com.wireturn.app.AppLogsState.addLog("Subscription Error: Empty response")
+                return@withContext false
+            }
+            val bundle = try {
+                gson.fromJson(json, ProfileBundle::class.java)
+            } catch (e: Exception) {
+                // Try if it's a direct array of profiles
+                try {
+                    val profiles = gson.fromJson<List<Profile>>(json, object : com.google.gson.reflect.TypeToken<List<Profile>>() {}.type)
+                    ProfileBundle(profiles = profiles)
+                } catch (e2: Exception) {
+                    // Try if it's a wireturn:// link body
+                    val decoded = ProfileEncoder.decode(json)
+                    if (decoded != null) {
+                        val element = JsonParser.parseString(decoded)
+                        val profiles = if (element.isJsonArray) {
+                            gson.fromJson<List<Profile>>(element, object : com.google.gson.reflect.TypeToken<List<Profile>>() {}.type)
+                        } else {
+                            listOf(gson.fromJson(element, Profile::class.java))
+                        }
+                        ProfileBundle(profiles = profiles)
+                    } else null
+                }
+            } ?: return@withContext false
+
+            val subId = subscriptions.value.find { it.url == url }?.id ?: UUID.randomUUID().toString()
+            val subName = bundle.name ?: connection.getHeaderField("Profile-Title") ?: URL(url).host ?: "Subscription"
+            
+            val newSubscription = Subscription(
+                id = subId,
+                name = subName,
+                url = url,
+                description = bundle.description,
+                updatedAt = bundle.updatedAt ?: System.currentTimeMillis(),
+                bytesUsed = bundle.bytesUsed ?: 0,
+                bytesTotal = bundle.bytesTotal ?: 0
+            )
+
+            // Update subscriptions list preserving order
+            val currentSubs = subscriptions.value
+            val newSubs = if (currentSubs.any { it.id == subId }) {
+                currentSubs.map { if (it.id == subId) newSubscription else it }
+            } else {
+                currentSubs + newSubscription
+            }
+            prefs.saveSubscriptions(newSubs)
+
+            // Import profiles with auto-select support
+            val bundleJsonList = bundle.profiles.map { null to gson.toJson(it) }
+            importProfiles(bundleJsonList, subscriptionId = subId, onAutoSelect = onAutoSelect)
+            true
+        } catch (e: Exception) {
+            com.wireturn.app.AppLogsState.addLog("Subscription Error: ${e.javaClass.simpleName} - ${e.message}")
+            false
+        }
+    }
+
+    fun deleteSubscription(id: String) {
+        scope.launch {
+            val newSubs = subscriptions.value.filter { it.id != id }
+            prefs.saveSubscriptions(newSubs)
+            
+            val newProfiles = profiles.value.filter { it.subscriptionId != id }
+            prefs.saveProfiles(newProfiles)
         }
     }
 }

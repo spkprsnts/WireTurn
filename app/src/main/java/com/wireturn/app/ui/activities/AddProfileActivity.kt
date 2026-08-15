@@ -1,5 +1,7 @@
 package com.wireturn.app.ui.activities
 
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -53,8 +56,23 @@ import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.showExclusiveSnackbar
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+
+private const val ACCESS_LOCAL_NETWORK_PERMISSION = "android.permission.ACCESS_LOCAL_NETWORK"
+
+/** Android 17+ blocks TCP to LAN/loopback addresses without runtime permission; detect that case. */
+private fun isLocalNetworkHost(url: String): Boolean {
+    val host = try { java.net.URI(url).host } catch (_: Exception) { null } ?: return false
+    if (host.equals("localhost", ignoreCase = true)) return true
+    val octets = host.split(".")
+    if (octets.size != 4) return false
+    val nums = octets.map { it.toIntOrNull() ?: return false }
+    if (nums.any { it !in 0..255 }) return false
+    val (a, b) = nums
+    return a == 10 || a == 127 || (a == 172 && b in 16..31) || (a == 192 && b == 168) || (a == 169 && b == 254)
+}
 
 class AddProfileActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
@@ -69,9 +87,30 @@ class AddProfileActivity : ComponentActivity() {
             val scope = rememberCoroutineScope()
             val clipboard = LocalClipboard.current
             val snackbarHostState = remember { SnackbarHostState() }
+            var isImporting by remember { mutableStateOf(false) }
             val errorNoLink = stringResource(R.string.import_error_no_link)
             val errorInvalidProfile = stringResource(R.string.import_error_invalid_profile)
             val scrollState = rememberScrollState()
+
+            var pendingLinkImport by remember { mutableStateOf<String?>(null) }
+            val localNetworkPermissionLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestPermission()
+            ) { _ ->
+                val link = pendingLinkImport
+                pendingLinkImport = null
+                if (link != null) {
+                    isImporting = true
+                    scope.launch {
+                        val success = try { viewModel.importProfileFromLink(link) } catch (e: Exception) { false }
+                        isImporting = false
+                        if (success) finish()
+                        else {
+                            HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
+                            snackbarHostState.showExclusiveSnackbar(errorInvalidProfile)
+                        }
+                    }
+                }
+            }
 
             val topAppBarState = rememberTopAppBarState()
             val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
@@ -180,13 +219,42 @@ class AddProfileActivity : ComponentActivity() {
                             }
                             SectionItem(
                                 position = ItemPosition.Bottom,
+                                enabled = !isImporting,
                                 onClick = {
                                     HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.CLICK)
                                     scope.launch {
                                         val clipEntry = clipboard.getClipEntry()
-                                        val text = clipEntry?.clipData?.getItemAt(0)?.text?.toString() ?: ""
-                                        if (text.startsWith("wireturn://") || text.startsWith("wt://")) {
-                                            if (viewModel.importProfileFromLink(text)) {
+                                        val rawText = clipEntry?.clipData?.getItemAt(0)?.text?.toString() ?: ""
+                                        val text = rawText.trim()
+                                        
+                                        val isValidLink = text.startsWith("wireturn://") || 
+                                                        text.startsWith("wt://") || 
+                                                        text.startsWith("http://") || 
+                                                        text.startsWith("https://")
+                                        
+                                        if (isValidLink) {
+                                            val needsLocalNetworkPermission = Build.VERSION.SDK_INT >= 37 &&
+                                                isLocalNetworkHost(text) &&
+                                                ContextCompat.checkSelfPermission(
+                                                    this@AddProfileActivity,
+                                                    ACCESS_LOCAL_NETWORK_PERMISSION
+                                                ) != PackageManager.PERMISSION_GRANTED
+
+                                            if (needsLocalNetworkPermission) {
+                                                pendingLinkImport = text
+                                                localNetworkPermissionLauncher.launch(ACCESS_LOCAL_NETWORK_PERMISSION)
+                                                return@launch
+                                            }
+
+                                            isImporting = true
+                                            val success = try {
+                                                viewModel.importProfileFromLink(text)
+                                            } catch (e: Exception) {
+                                                false
+                                            }
+                                            isImporting = false
+
+                                            if (success) {
                                                 finish()
                                             } else {
                                                 HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
@@ -194,9 +262,7 @@ class AddProfileActivity : ComponentActivity() {
                                             }
                                         } else {
                                             HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
-                                            scope.launch {
-                                                snackbarHostState.showExclusiveSnackbar(errorNoLink)
-                                            }
+                                            snackbarHostState.showExclusiveSnackbar(errorNoLink)
                                         }
                                     }
                                 }
@@ -206,16 +272,26 @@ class AddProfileActivity : ComponentActivity() {
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     StandardLeadingIcon {
-                                        Icon(
-                                            painterResource(R.drawable.content_paste_24px),
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary
-                                        )
+                                        if (isImporting) {
+                                            androidx.compose.material3.CircularProgressIndicator(
+                                                modifier = Modifier.size(20.dp),
+                                                strokeWidth = 2.dp,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        } else {
+                                            Icon(
+                                                painterResource(R.drawable.content_paste_24px),
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
                                     }
                                     Text(
                                         text = stringResource(R.string.profile_import_link),
                                         style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Medium
+                                        fontWeight = FontWeight.Medium,
+                                        color = if (isImporting) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f) 
+                                                else MaterialTheme.colorScheme.onSurface
                                     )
                                 }
                             }

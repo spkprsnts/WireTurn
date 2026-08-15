@@ -894,7 +894,8 @@ data class Profile(
     @SerializedName("xrayProtocol", alternate = ["protocol", "xrayConfiguration"]) val xrayProtocol: XrayConfiguration = XrayConfiguration.WIREGUARD,
     @SerializedName("xrayEnabled", alternate = ["enabled"]) val xrayEnabled: Boolean = false,
     @SerializedName("wgConfig") val wgConfig: WgConfig = WgConfig(),
-    @SerializedName("vlessConfig") val vlessConfig: VlessConfig = VlessConfig()
+    @SerializedName("vlessConfig") val vlessConfig: VlessConfig = VlessConfig(),
+    @SerializedName("subscriptionId") val subscriptionId: String? = null
 ) {
     // --- STABLE INPUT FIELDS (Used for profile generation and deep linking) ---
     @SerializedName("turnableUrl") private val turnableUrl: String? = null
@@ -1068,6 +1069,26 @@ data class AutoLaunchSettings(
     val intervalMinutes: Int = 15
 )
 
+data class Subscription(
+    @SerializedName("id") val id: String,
+    @SerializedName("name") val name: String,
+    @SerializedName("url") val url: String,
+    @SerializedName("description") val description: String? = null,
+    @SerializedName("updatedAt") val updatedAt: Long = 0,
+    @SerializedName("bytesUsed") val bytesUsed: Long = 0,
+    @SerializedName("bytesTotal") val bytesTotal: Long = 0
+)
+
+data class ProfileBundle(
+    @SerializedName("version") val version: Int = 1,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("description") val description: String? = null,
+    @SerializedName("profiles") val profiles: List<Profile> = emptyList(),
+    @SerializedName("updatedAt") val updatedAt: Long? = null,
+    @SerializedName("bytesUsed") val bytesUsed: Long? = null,
+    @SerializedName("bytesTotal") val bytesTotal: Long? = null
+)
+
 class AppPreferences(val context: Context) {
     private val appCtx = context.applicationContext
     private val gson = GsonBuilder()
@@ -1078,6 +1099,7 @@ class AppPreferences(val context: Context) {
     companion object {
         val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
         val PROFILES_JSON = stringPreferencesKey("profiles_json")
+        val SUBSCRIPTIONS_JSON = stringPreferencesKey("subscriptions_json")
         val CURRENT_PROFILE_ID = stringPreferencesKey("current_profile_id")
         val DYNAMIC_THEME = booleanPreferencesKey("dynamic_theme")
         val THEME_MODE = stringPreferencesKey("theme_mode")
@@ -1182,6 +1204,16 @@ class AppPreferences(val context: Context) {
                 }
             } catch (e: Exception) {
                 com.wireturn.app.AppLogsState.addLog("Error loading profiles: ${e.message}")
+                emptyList()
+            }
+        }.distinctUntilChanged()
+
+    val subscriptionsFlow: Flow<List<Subscription>> = appCtx.internalDataStore.data
+        .map { p ->
+            val json = p[SUBSCRIPTIONS_JSON] ?: "[]"
+            try {
+                gson.fromJson<List<Subscription>>(json, object : TypeToken<List<Subscription>>() {}.type) ?: emptyList()
+            } catch (e: Exception) {
                 emptyList()
             }
         }.distinctUntilChanged()
@@ -1295,6 +1327,10 @@ class AppPreferences(val context: Context) {
 
     suspend fun saveProfiles(list: List<Profile>) {
         appCtx.internalDataStore.edit { it[PROFILES_JSON] = gson.toJson(list) }
+    }
+
+    suspend fun saveSubscriptions(list: List<Subscription>) {
+        appCtx.internalDataStore.edit { it[SUBSCRIPTIONS_JSON] = gson.toJson(list) }
     }
 
     suspend fun setVpnEnabled(v: Boolean) {
