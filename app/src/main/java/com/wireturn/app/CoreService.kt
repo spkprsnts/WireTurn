@@ -644,8 +644,7 @@ class CoreService : Service() {
         // failure — these attempts only happen after the challenge page was fetched
         // successfully, but skip counting them if the network has since gone away.
         if (lower.contains("captcha solve attempt failed") && isNetworkAvailable()) {
-            state.vkCaptchaSolveFailCount++
-            if (state.vkCaptchaSolveFailCount >= 3) {
+            if (state.vkCaptchaSolveFailCounter.recordAndCheckThreshold()) {
                 if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                     CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_turnable_vk_captcha_failed)))
                     updateNotification(getString(R.string.error_connecting))
@@ -780,17 +779,10 @@ class CoreService : Service() {
         }
 
         if (lower.contains("connection refused")) {
-            val now = System.currentTimeMillis()
-            if (now - state.lastWebdavConnRefusedTime > 5_000) {
-                state.webdavConnRefusedCount = 1
-                state.lastWebdavConnRefusedTime = now
-            } else {
-                state.webdavConnRefusedCount++
-                if (state.webdavConnRefusedCount >= 10) {
-                    AppLogsState.addLog(getString(R.string.log_core_webdav_too_many_refused))
-                    state.startupEmitted = true // Trigger watchdog
-                    return true
-                }
+            if (state.webdavConnRefusedCounter.recordAndCheckThreshold()) {
+                AppLogsState.addLog(getString(R.string.log_core_webdav_too_many_refused))
+                state.startupEmitted = true // Trigger watchdog
+                return true
             }
         }
 
@@ -835,17 +827,10 @@ class CoreService : Service() {
         }
 
         if (olcrtcConfig.restartOnConnectionErrors && (lower.contains("remote not ready") || lower.contains("openstream failed"))) {
-            val now = System.currentTimeMillis()
-            if (now - state.lastRemoteNotReadyTime > 10_000) {
-                state.remoteNotReadyCount = 1
-                state.lastRemoteNotReadyTime = now
-            } else {
-                state.remoteNotReadyCount++
-                if (state.remoteNotReadyCount >= 7) {
-                    AppLogsState.addLog(getString(R.string.log_core_too_many_remote_not_ready))
-                    state.startupEmitted = true // Trigger watchdog
-                    return true
-                }
+            if (state.remoteNotReadyCounter.recordAndCheckThreshold()) {
+                AppLogsState.addLog(getString(R.string.log_core_too_many_remote_not_ready))
+                state.startupEmitted = true // Trigger watchdog
+                return true
             }
         }
 
@@ -918,11 +903,33 @@ class CoreService : Service() {
         var captchaSessionCounter = 0L
         var peerConnectFailedCount = 0
         var connectingSince = 0L
-        var remoteNotReadyCount = 0
-        var lastRemoteNotReadyTime = 0L
-        var webdavConnRefusedCount = 0
-        var lastWebdavConnRefusedTime = 0L
-        var vkCaptchaSolveFailCount = 0
+
+        // "Give up after N repeats of this log line" counters for per-core failure patterns that
+        // keep recurring without ever surfacing a terminal error on their own. One shared mechanism
+        // (window + threshold) instead of a bespoke ad hoc counter per pattern, so the next one added
+        // doesn't reinvent this a fourth time with yet another slightly different reset rule.
+        val remoteNotReadyCounter = LogOccurrenceCounter(windowMs = 10_000, threshold = 7)
+        val webdavConnRefusedCounter = LogOccurrenceCounter(windowMs = 5_000, threshold = 10)
+        val vkCaptchaSolveFailCounter = LogOccurrenceCounter(windowMs = Long.MAX_VALUE, threshold = 3)
+    }
+
+    /**
+     * Counts repeated occurrences of a log pattern, resetting back to 1 once more than [windowMs]
+     * has passed since the last occurrence. [windowMs] = [Long.MAX_VALUE] effectively disables the
+     * reset (every occurrence counts, however far apart). Returns true from [recordAndCheckThreshold]
+     * once [threshold] occurrences have piled up inside the window - the caller decides what to do
+     * then (the counter itself keeps counting past threshold, same as the original ad hoc versions).
+     */
+    private class LogOccurrenceCounter(private val windowMs: Long, private val threshold: Int) {
+        private var count = 0
+        private var lastTime = 0L
+
+        fun recordAndCheckThreshold(): Boolean {
+            val now = System.currentTimeMillis()
+            count = if (now - lastTime > windowMs) 1 else count + 1
+            lastTime = now
+            return count >= threshold
+        }
     }
 
     private fun buildCommandArgs(cfg: ClientConfig): List<String> {

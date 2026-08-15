@@ -4,6 +4,7 @@
 
 package com.wireturn.app.ui.screens
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -235,27 +236,7 @@ fun ProfilesBlock(
             }
             FilledTonalIconButton(onClick = {
                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                val intent = when (currentProfile.kernelVariant) {
-                    KernelVariant.TURNABLE -> Intent(
-                        context,
-                        TurnableConfigActivity::class.java
-                    )
-
-                    KernelVariant.OLCRTC -> Intent(
-                        context,
-                        OlcRtcConfigActivity::class.java
-                    )
-
-                    KernelVariant.WEBDAV -> Intent(
-                        context,
-                        com.wireturn.app.ui.activities.cores.WebdavConfigActivity::class.java
-                    )
-
-                    KernelVariant.FREETURN -> Intent(
-                        context,
-                        com.wireturn.app.ui.activities.cores.FreeTurnConfigActivity::class.java
-                    )
-                }
+                val intent = Intent(context, configActivityClassFor(currentProfile.kernelVariant))
                 intent.putExtra("EXTRA_EDIT_MODE", true)
                 intent.putExtra("EXTRA_PROFILE_NAME", currentProfile.name)
                 context.startActivity(intent)
@@ -1444,12 +1425,7 @@ private fun ProfileItemRow(
                             onClick = {
                                 editMenuExpanded = false
                                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                val intent = when (profile.kernelVariant) {
-                                    KernelVariant.TURNABLE -> Intent(context, TurnableConfigActivity::class.java)
-                                    KernelVariant.OLCRTC -> Intent(context, OlcRtcConfigActivity::class.java)
-                                    KernelVariant.WEBDAV -> Intent(context, com.wireturn.app.ui.activities.cores.WebdavConfigActivity::class.java)
-                                    KernelVariant.FREETURN -> Intent(context, com.wireturn.app.ui.activities.cores.FreeTurnConfigActivity::class.java)
-                                }
+                                val intent = Intent(context, configActivityClassFor(profile.kernelVariant))
                                 intent.putExtra("EXTRA_EDIT_MODE", true)
                                 intent.putExtra("EXTRA_PROFILE_NAME", profile.name)
                                 intent.putExtra("EXTRA_PROFILE_ID", profile.id)
@@ -1693,6 +1669,14 @@ private fun shareText(context: Context, text: String, title: String) {
         putExtra(Intent.EXTRA_TEXT, text)
     }
     context.startActivity(Intent.createChooser(intent, title))
+}
+
+/** The config screen Activity for editing a profile of this core type. */
+private fun configActivityClassFor(variant: KernelVariant): Class<out Activity> = when (variant) {
+    KernelVariant.TURNABLE -> TurnableConfigActivity::class.java
+    KernelVariant.OLCRTC -> OlcRtcConfigActivity::class.java
+    KernelVariant.WEBDAV -> com.wireturn.app.ui.activities.cores.WebdavConfigActivity::class.java
+    KernelVariant.FREETURN -> com.wireturn.app.ui.activities.cores.FreeTurnConfigActivity::class.java
 }
 
 private fun getProfileIcon(profile: Profile, outlined: Boolean): Int {
