@@ -1015,6 +1015,14 @@ fun ProfilesDialog(
                                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                     }
                                     context.startActivity(intent)
+                                },
+                                onSelect = {
+                                    val targetId = subProfiles.find { it.id == sub.activeProfileId }?.id 
+                                        ?: subProfiles.firstOrNull()?.id
+                                    if (targetId != null) {
+                                        optimisticSelectedId = targetId
+                                        viewModel.selectProfileAndRestart(targetId)
+                                    }
                                 }
                             )
                         }
@@ -1407,6 +1415,7 @@ private fun SubscriptionHeaderRow(
     isAnyChildSelected: Boolean,
     onUpdate: () -> Unit,
     onSettings: () -> Unit,
+    onSelect: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isHighlighted = isAnyChildSelected
@@ -1419,7 +1428,8 @@ private fun SubscriptionHeaderRow(
     Surface(
         color = backgroundColor,
         shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 4.dp, bottomEnd = 4.dp),
-        onClick = onSettings,
+        onClick = if (!isHighlighted) onSelect else ({ /* Do nothing when already selected */ }),
+        enabled = !isHighlighted,
         modifier = modifier
             .fillMaxWidth()
             .padding(top = 8.dp)

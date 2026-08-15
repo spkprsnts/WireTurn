@@ -43,9 +43,25 @@ class ProfileManager(
 
     fun selectProfile(id: String, profile: Profile? = null, onConfigLoaded: (Profile) -> Unit) {
         val targetProfile = profile ?: profiles.value.find { it.id == id } ?: return
+        
+        targetProfile.subscriptionId?.let { subId ->
+            updateSubscriptionActiveProfile(subId, targetProfile.id)
+        }
+
         scope.launch {
             onConfigLoaded(targetProfile)
         }
+    }
+
+    private fun updateSubscriptionActiveProfile(subId: String, profileId: String) {
+        val currentSubs = subscriptions.value
+        val sub = currentSubs.find { it.id == subId } ?: return
+        if (sub.activeProfileId == profileId) return
+        
+        val newSubs = currentSubs.map { 
+            if (it.id == subId) it.copy(activeProfileId = profileId) else it 
+        }
+        scope.launch { prefs.saveSubscriptions(newSubs) }
     }
 
     fun nextDefaultProfileName(existing: List<Profile> = profiles.value): String {
@@ -223,11 +239,18 @@ class ProfileManager(
                     // Sync active config if the currently selected profile was updated
                     onAutoSelect?.invoke(updatedVersionOfCurrent)
                 } else if (wasEmpty || (wasSelectedFromThisSub && !isStillSelected)) {
-                    // Auto-select first from imported if nothing was selected or selected one disappeared
-                    onAutoSelect?.invoke(importedList.first())
+                    // Auto-select based on subscription preference or first available
+                    val bestToSelect = if (subscriptionId != null) {
+                        val sub = subscriptions.value.find { it.id == subscriptionId }
+                        importedList.find { it.id == sub?.activeProfileId } ?: importedList.firstOrNull()
+                    } else {
+                        importedList.firstOrNull()
+                    }
+                    bestToSelect?.let { onAutoSelect?.invoke(it) }
                 } else if (!isStillSelected && newList.isNotEmpty()) {
-                    // Fallback to first ever if current is gone for some other reason
-                    onAutoSelect?.invoke(newList.first())
+                    // Fallback to first available ever, respecting active subscription profiles
+                    val fallback = findBestFallbackProfile(newList)
+                    fallback?.let { onAutoSelect?.invoke(it) }
                 }
             }
             return importedList.size
@@ -281,8 +304,22 @@ class ProfileManager(
             } ?: return@withContext false
 
             val subId = subscriptions.value.find { it.url == url }?.id ?: UUID.randomUUID().toString()
+            val existingSub = subscriptions.value.find { it.id == subId }
             val subName = bundle.name ?: connection.getHeaderField("Profile-Title") ?: URL(url).host ?: "Subscription"
             
+            // Import profiles first to know what IDs we have
+            val bundleJsonList = bundle.profiles.map { null to gson.toJson(it) }
+            importProfiles(bundleJsonList, subscriptionId = subId, onAutoSelect = onAutoSelect)
+
+            // Determine active profile ID:
+            // 1. From bundle (server-side preference)
+            // 2. Existing local preference if still valid
+            // 3. Fallback to first imported profile
+            val updatedProfiles = profiles.value.filter { it.subscriptionId == subId }
+            val bestActiveId = bundle.activeProfileId 
+                ?: existingSub?.activeProfileId?.takeIf { id -> updatedProfiles.any { it.id == id } }
+                ?: updatedProfiles.firstOrNull()?.id
+
             val newSubscription = Subscription(
                 id = subId,
                 name = subName,
@@ -290,7 +327,10 @@ class ProfileManager(
                 description = bundle.description,
                 updatedAt = bundle.updatedAt ?: System.currentTimeMillis(),
                 bytesUsed = bundle.bytesUsed ?: 0,
-                bytesTotal = bundle.bytesTotal ?: 0
+                bytesTotal = bundle.bytesTotal ?: 0,
+                activeProfileId = bestActiveId,
+                autoUpdate = existingSub?.autoUpdate ?: false,
+                updateIntervalMin = existingSub?.updateIntervalMin ?: 1440
             )
 
             // Update subscriptions list preserving order
@@ -301,10 +341,6 @@ class ProfileManager(
                 currentSubs + newSubscription
             }
             prefs.saveSubscriptions(newSubs)
-
-            // Import profiles with auto-select support
-            val bundleJsonList = bundle.profiles.map { null to gson.toJson(it) }
-            importProfiles(bundleJsonList, subscriptionId = subId, onAutoSelect = onAutoSelect)
             true
         } catch (e: Exception) {
             com.wireturn.app.AppLogsState.addLog("Subscription Error: ${e.javaClass.simpleName} - ${e.message}")
@@ -312,14 +348,45 @@ class ProfileManager(
         }
     }
 
-    fun deleteSubscription(id: String) {
+    fun deleteSubscription(id: String, onFallback: (Profile) -> Unit = {}) {
         scope.launch {
+            val currentSelectedId = currentProfileId.value
+            val isCurrentInDeletedSub = profiles.value.find { it.id == currentSelectedId }?.subscriptionId == id
+
             val newSubs = subscriptions.value.filter { it.id != id }
             prefs.saveSubscriptions(newSubs)
             
             val newProfiles = profiles.value.filter { it.subscriptionId != id }
             prefs.saveProfiles(newProfiles)
+
+            if (isCurrentInDeletedSub && newProfiles.isNotEmpty()) {
+                findBestFallbackProfile(newProfiles, newSubs)?.let { onFallback(it) }
+            }
         }
+    }
+
+    private fun findBestFallbackProfile(
+        allProfiles: List<Profile>,
+        allSubs: List<Subscription> = subscriptions.value
+    ): Profile? {
+        if (allProfiles.isEmpty()) return null
+
+        // 1. Try first standalone profile
+        val standalone = allProfiles.find { it.subscriptionId == null }
+        if (standalone != null) return standalone
+
+        // 2. Try active profile from the first subscription
+        allSubs.firstOrNull()?.let { sub ->
+            val activeInSub = allProfiles.find { it.id == sub.activeProfileId && it.subscriptionId == sub.id }
+            if (activeInSub != null) return activeInSub
+            
+            // 3. Fallback to first profile of that sub
+            val firstInSub = allProfiles.find { it.subscriptionId == sub.id }
+            if (firstInSub != null) return firstInSub
+        }
+
+        // 4. Just first one ever
+        return allProfiles.firstOrNull()
     }
 
     fun updateSubscription(sub: Subscription) {
