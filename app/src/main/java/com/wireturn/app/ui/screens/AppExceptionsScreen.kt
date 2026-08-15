@@ -5,7 +5,6 @@
 
 package com.wireturn.app.ui.screens
 
-import android.widget.Toast
 import android.content.pm.ApplicationInfo
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -85,6 +84,7 @@ import com.wireturn.app.R
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.showExclusiveToast
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LabeledButtonGroup
 import com.wireturn.app.ui.MainSwitchItem
@@ -293,9 +293,9 @@ fun AppExceptionsScreen(
                         
                         listState.animateScrollToItem(0)
                         isAppsLoading = false
-                        Toast.makeText(context, appsImportedFormat.format(newlyAdded.size), Toast.LENGTH_SHORT).show()
+                        context.showExclusiveToast(appsImportedFormat.format(newlyAdded.size))
                     } else {
-                        Toast.makeText(context, noAppsMsg, Toast.LENGTH_SHORT).show()
+                        context.showExclusiveToast(noAppsMsg)
                     }
                 }
             }
@@ -309,7 +309,7 @@ fun AppExceptionsScreen(
             try {
                 val clipData = android.content.ClipData.newPlainText("WireTurn Apps", text)
                 clipboard.setClipEntry(ClipEntry(clipData))
-                Toast.makeText(context, listCopiedMsg, Toast.LENGTH_SHORT).show()
+                context.showExclusiveToast(listCopiedMsg)
             } catch (_: Exception) { }
         }
     }

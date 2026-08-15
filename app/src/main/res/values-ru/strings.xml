@@ -80,6 +80,7 @@
     <string name="import_error_server">Ошибка сервера: %1$d</string>
     <string name="import_error_empty">Сервер вернул пустой ответ</string>
     <string name="import_error_invalid_config">Некорректный формат конфигурации</string>
+    <string name="profile_import_partial_failure">Импортировано, но %1$d из %2$d файлов не удалось обработать</string>
 
     <string name="subscription_update_no_changes">В подписке нет изменений</string>
     <string name="subscription_update_summary">Обновлено: +%1$d, −%2$d (всего %3$d)</string>

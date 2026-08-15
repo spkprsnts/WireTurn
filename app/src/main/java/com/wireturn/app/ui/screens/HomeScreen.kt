@@ -5,7 +5,6 @@
 
 package com.wireturn.app.ui.screens
 
-import android.widget.Toast
 import android.annotation.SuppressLint
 import android.content.ClipData
 import android.content.Intent
@@ -105,6 +104,7 @@ import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.ui.AppExclusionTooltip
 import com.wireturn.app.ui.CompactItem
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.showExclusiveToast
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.ModifiedIndicator
 import com.wireturn.app.ui.RowLabel
@@ -305,7 +305,7 @@ fun HomeScreen(
     val warnVpnRequiresXray = stringResource(R.string.warn_vpn_requires_xray)
 
     val showVpnWarning = {
-        Toast.makeText(context, warnVpnRequiresXray, Toast.LENGTH_SHORT).show()
+        context.showExclusiveToast(warnVpnRequiresXray)
     }
 
 

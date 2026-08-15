@@ -1,6 +1,5 @@
 package com.wireturn.app.ui.screens
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,6 +41,7 @@ import com.wireturn.app.data.WebdavConfig
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.showExclusiveToast
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.RowLabel
 import com.wireturn.app.ui.SectionGroup
@@ -81,11 +81,11 @@ fun CreateProfileScreen(
                         val text = input.bufferedReader().use { r -> r.readText() }.trim()
                         val success = handleImportText(text, profileName, context, onSelectType)
                         if (!success) {
-                            Toast.makeText(context, errorInvalidConfig, Toast.LENGTH_SHORT).show()
+                            context.showExclusiveToast(errorInvalidConfig)
                         }
                     }
                 } catch (_: Exception) {
-                    Toast.makeText(context, errorInvalidConfig, Toast.LENGTH_SHORT).show()
+                    context.showExclusiveToast(errorInvalidConfig)
                 }
             }
         }
@@ -152,7 +152,7 @@ fun CreateProfileScreen(
                             if (text.isNotBlank()) {
                                 val success = handleImportText(text, profileName, context, onSelectType)
                                 if (!success) {
-                                    Toast.makeText(context, errorInvalidConfig, Toast.LENGTH_SHORT).show()
+                                    context.showExclusiveToast(errorInvalidConfig)
                                 }
                             }
                         }
@@ -257,7 +257,7 @@ fun CreateProfileScreen(
                 if (success) {
                     showQrScanner.value = false
                 } else {
-                    Toast.makeText(context, errorInvalidConfig, Toast.LENGTH_SHORT).show()
+                    context.showExclusiveToast(errorInvalidConfig)
                 }
             }
         )

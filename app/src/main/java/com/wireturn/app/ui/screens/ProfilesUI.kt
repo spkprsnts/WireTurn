@@ -9,7 +9,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
@@ -102,6 +101,7 @@ import com.wireturn.app.data.Subscription
 import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.showExclusiveToast
 import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.VerticalAnimatedText
@@ -405,7 +405,7 @@ fun ProfilesDialog(
             is ImportStatus.Success -> return
         }
         HapticUtil.perform(context, HapticUtil.Pattern.ERROR)
-        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        context.showExclusiveToast(message)
     }
 
     suspend fun doRefreshSubscription(url: String) {
@@ -1762,5 +1762,5 @@ private fun showUpdateToast(context: Context, summary: com.wireturn.app.domain.I
     } else {
         appContext.getString(R.string.subscription_update_summary, summary.added, summary.removed, summary.total)
     }
-    Toast.makeText(appContext, message, Toast.LENGTH_SHORT).show()
+    appContext.showExclusiveToast(message)
 }

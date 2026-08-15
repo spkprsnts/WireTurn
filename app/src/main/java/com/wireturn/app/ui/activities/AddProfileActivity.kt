@@ -42,6 +42,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.showExclusiveToast
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
@@ -80,20 +81,20 @@ class AddProfileActivity : ComponentActivity() {
                     is com.wireturn.app.domain.ImportStatus.Success -> finish()
                     is com.wireturn.app.domain.ImportStatus.NetworkError -> {
                         HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
-                        Toast.makeText(this@AddProfileActivity, errorConnection, Toast.LENGTH_SHORT).show()
+                        this@AddProfileActivity.showExclusiveToast(errorConnection)
                     }
                     is com.wireturn.app.domain.ImportStatus.ServerError -> {
                         HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
                         val msg = this@AddProfileActivity.getString(R.string.import_error_server, status.code)
-                        Toast.makeText(this@AddProfileActivity, msg, Toast.LENGTH_SHORT).show()
+                        this@AddProfileActivity.showExclusiveToast(msg)
                     }
                     is com.wireturn.app.domain.ImportStatus.EmptyResponse -> {
                         HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
-                        Toast.makeText(this@AddProfileActivity, errorEmpty, Toast.LENGTH_SHORT).show()
+                        this@AddProfileActivity.showExclusiveToast(errorEmpty)
                     }
                     is com.wireturn.app.domain.ImportStatus.InvalidFormat -> {
                         HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
-                        Toast.makeText(this@AddProfileActivity, errorInvalidProfile, Toast.LENGTH_SHORT).show()
+                        this@AddProfileActivity.showExclusiveToast(errorInvalidProfile)
                     }
                 }
             }
@@ -131,7 +132,9 @@ class AddProfileActivity : ComponentActivity() {
                 
                 scope.launch(Dispatchers.IO) {
                     var totalImported = 0
+                    var filesFailed = 0
                     uris.forEach { uri ->
+                        val importedBefore = totalImported
                         try {
                             val fileName = contentResolver.query(uri, null, null, null, null)?.use { cursor ->
                                 val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
@@ -151,14 +154,26 @@ class AddProfileActivity : ComponentActivity() {
                                 }
                             }
                         } catch (_: Exception) {}
+                        if (totalImported == importedBefore) filesFailed++
                     }
-                    
+
                     launch(Dispatchers.Main) {
-                        if (totalImported > 0) {
-                            finish()
-                        } else {
-                            HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
-                            Toast.makeText(context, errorInvalidProfile, Toast.LENGTH_SHORT).show()
+                        when {
+                            totalImported > 0 && filesFailed == 0 -> finish()
+                            totalImported > 0 -> {
+                                // Partial failure: some files imported fine, others didn't - say so instead
+                                // of silently dropping the failures, but still finish since work was done.
+                                HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
+                                context.showExclusiveToast(
+                                    getString(R.string.profile_import_partial_failure, filesFailed, uris.size),
+                                    Toast.LENGTH_LONG
+                                )
+                                finish()
+                            }
+                            else -> {
+                                HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
+                                context.showExclusiveToast(errorInvalidProfile)
+                            }
                         }
                     }
                 }
@@ -257,7 +272,7 @@ class AddProfileActivity : ComponentActivity() {
                                             handleImportResult(status)
                                         } else {
                                             HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
-                                            Toast.makeText(context, errorNoLink, Toast.LENGTH_SHORT).show()
+                                            context.showExclusiveToast(errorNoLink)
                                         }
                                     }
                                 }

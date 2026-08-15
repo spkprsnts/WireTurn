@@ -5,7 +5,6 @@
 
 package com.wireturn.app.ui.screens.cores
 
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -73,6 +72,7 @@ import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.showExclusiveToast
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.QrCodeDialog
@@ -147,13 +147,13 @@ fun OlcRtcConfigScreen(
                         val parsed = OlcrtcConfig.parse(text)
                         if (parsed != null) {
                             config = parsed
-                            Toast.makeText(context, importSuccessMessage, Toast.LENGTH_SHORT).show()
+                            context.showExclusiveToast(importSuccessMessage)
                         } else {
-                            Toast.makeText(context, importErrorMessage, Toast.LENGTH_SHORT).show()
+                            context.showExclusiveToast(importErrorMessage)
                         }
                     }
                 } catch (_: Exception) {
-                    Toast.makeText(context, importErrorMessage, Toast.LENGTH_SHORT).show()
+                    context.showExclusiveToast(importErrorMessage)
                 }
             }
         }
@@ -222,9 +222,9 @@ fun OlcRtcConfigScreen(
                                         val parsed = OlcrtcConfig.parse(text)
                                         if (parsed != null) {
                                             config = parsed
-                                            Toast.makeText(context, importSuccessMessage, Toast.LENGTH_SHORT).show()
+                                            context.showExclusiveToast(importSuccessMessage)
                                         } else if (text.isNotBlank()) {
-                                            Toast.makeText(context, importErrorMessage, Toast.LENGTH_SHORT).show()
+                                            context.showExclusiveToast(importErrorMessage)
                                         }
                                     }
                                 }
@@ -668,9 +668,9 @@ fun OlcRtcConfigScreen(
                 val parsed = OlcrtcConfig.parse(result)
                 if (parsed != null) {
                     config = parsed
-                    Toast.makeText(context, importSuccessMessage, Toast.LENGTH_SHORT).show()
+                    context.showExclusiveToast(importSuccessMessage)
                 } else {
-                    Toast.makeText(context, importErrorMessage, Toast.LENGTH_SHORT).show()
+                    context.showExclusiveToast(importErrorMessage)
                 }
             }
         )
