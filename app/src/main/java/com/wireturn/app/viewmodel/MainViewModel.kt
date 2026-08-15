@@ -583,14 +583,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         profileManager.selectProfile(id, target) { p ->
             viewModelScope.launch {
                 prefs.saveFullProfile(p.id, p)
-                
-                // If service is already running, trigger a restart ONLY if switching to a DIFFERENT profile.
-                // If switching to the SAME profile (e.g. background update), let CoreService handle 
-                // smart restart via its own Flow observer if the content actually changed.
-                if (CoreServiceState.isRunning.value && !wasAlreadySelected) {
+
+                // Restart when switching to a different profile, or when re-selecting the same id with
+                // an explicit profile object - the latter only happens via callbacks from ProfileManager
+                // after it already determined the content changed (e.g. a background subscription update
+                // to the currently active profile), so the running core would otherwise keep using stale config.
+                if (CoreServiceState.isRunning.value && (!wasAlreadySelected || profile != null)) {
                     startCoreInternal(forceRestart = true)
                 }
-                
+
                 onCompletion?.invoke()
             }
         }
