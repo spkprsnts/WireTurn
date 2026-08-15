@@ -81,11 +81,19 @@ class ProfileManager(
             while (true) {
                 kotlinx.coroutines.delay(60_000) // Check every minute
                 val now = System.currentTimeMillis()
+                val curId = currentProfileId.value
+                val curProfiles = profiles.value
+                
                 subscriptions.value.forEach { sub ->
                     if (sub.autoUpdate) {
-                        val intervalMs = sub.updateIntervalMinutes * 60 * 1000L
-                        if (now - sub.updatedAt >= intervalMs) {
-                            fetchSubscription(sub.url, forceId = sub.id)
+                        val isSelected = curId != "default" && curProfiles.find { it.id == curId }?.subscriptionId == sub.id
+                        val shouldUpdate = !sub.onlyUpdateIfSelected || isSelected
+                        
+                        if (shouldUpdate) {
+                            val intervalMs = sub.updateIntervalMinutes * 60 * 1000L
+                            if (now - sub.updatedAt >= intervalMs) {
+                                fetchSubscription(sub.url, forceId = sub.id)
+                            }
                         }
                     }
                 }
@@ -352,11 +360,52 @@ class ProfileManager(
         subIdToMark?.let { id -> _updatingSubIds.update { it + id } }
         val startTime = System.currentTimeMillis()
 
-        val connection = (URL(url).openConnection(java.net.Proxy.NO_PROXY) as HttpURLConnection).apply {
-            requestMethod = "GET"
-            connectTimeout = 10000
-            readTimeout = 10000
-            setRequestProperty("User-Agent", userAgent)
+        val proxy = try {
+            val xraySess = com.wireturn.app.XrayServiceState.session.value
+            val xrayState = com.wireturn.app.XrayServiceState.state.value
+            val coreSess = com.wireturn.app.CoreServiceState.session.value
+            val coreIsWorking = com.wireturn.app.CoreServiceState.isWorking.value
+
+            val proxyAddr = when {
+                xrayState == com.wireturn.app.viewmodel.XrayState.Running && xraySess != null -> 
+                    xraySess.settings.socksBindAddress
+                coreIsWorking && coreSess != null && 
+                    (coreSess.clientConfig.kernelVariant == com.wireturn.app.data.KernelVariant.OLCRTC || 
+                     coreSess.clientConfig.kernelVariant == com.wireturn.app.data.KernelVariant.WEBDAV) -> 
+                    coreSess.clientConfig.socksAddr
+                else -> null
+            }
+
+            if (proxyAddr != null) {
+                val host = proxyAddr.substringBeforeLast(':').let { if (it == "0.0.0.0") "127.0.0.1" else it }
+                val port = proxyAddr.substringAfterLast(':').toIntOrNull() ?: 1080
+                java.net.Proxy(java.net.Proxy.Type.SOCKS, java.net.InetSocketAddress(host, port))
+            } else java.net.Proxy.NO_PROXY
+        } catch (_: Exception) {
+            java.net.Proxy.NO_PROXY
+        }
+
+        val connection = try {
+            // First attempt with the calculated proxy
+            val conn = (URL(url).openConnection(proxy) as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 10000
+                readTimeout = 10000
+                setRequestProperty("User-Agent", userAgent)
+            }
+            // Trigger connection to check if it works
+            conn.responseCode
+            conn
+        } catch (e: Exception) {
+            // If proxy failed and it wasn't already NO_PROXY, try direct connection
+            if (proxy != java.net.Proxy.NO_PROXY) {
+                (URL(url).openConnection(java.net.Proxy.NO_PROXY) as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    connectTimeout = 10000
+                    readTimeout = 10000
+                    setRequestProperty("User-Agent", userAgent)
+                }
+            } else throw e
         }
         
         try {

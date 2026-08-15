@@ -476,6 +476,8 @@
     <string name="subscription_settings">Subscription settings</string>
     <string name="subscription_info">Subscription info</string>
     <string name="auto_update">Auto-update</string>
+    <string name="auto_update_only_if_selected">Only if selected</string>
+    <string name="auto_update_only_if_selected_desc">Update only if a profile from this subscription is currently active</string>
     <string name="update_interval_min">Update interval (min)</string>
     <string name="update_interval_min_error">Minimum interval is 20 minutes</string>
     <string name="exit_without_saving_title">Exit without saving?</string>

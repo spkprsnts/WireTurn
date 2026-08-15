@@ -97,11 +97,13 @@ class SubscriptionConfigActivity : ComponentActivity() {
 
             var url by remember(sub) { mutableStateOf(sub.url) }
             var autoUpdate by remember(sub) { mutableStateOf(sub.autoUpdate) }
+            var onlyUpdateIfSelected by remember(sub) { mutableStateOf(sub.onlyUpdateIfSelected) }
             var updateIntervalMinutes by remember(sub) { mutableIntStateOf(sub.updateIntervalMinutes) }
 
             val isIntervalValid = !autoUpdate || updateIntervalMinutes >= 20
             val isModified = url != sub.url || 
                              autoUpdate != sub.autoUpdate || 
+                             onlyUpdateIfSelected != sub.onlyUpdateIfSelected ||
                              updateIntervalMinutes != sub.updateIntervalMinutes
 
             val showExitDialog = remember { mutableStateOf(false) }
@@ -152,6 +154,7 @@ class SubscriptionConfigActivity : ComponentActivity() {
                                     viewModel.updateSubscription(sub.copy(
                                         url = url,
                                         autoUpdate = autoUpdate,
+                                        onlyUpdateIfSelected = onlyUpdateIfSelected,
                                         updateIntervalMinutes = updateIntervalMinutes
                                     ))
                                     finish()
@@ -201,6 +204,22 @@ class SubscriptionConfigActivity : ComponentActivity() {
                             }
 
                             if (autoUpdate) {
+                                SectionItem(
+                                    position = ItemPosition.Middle,
+                                    onClick = {
+                                        val next = !onlyUpdateIfSelected
+                                        HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                                        onlyUpdateIfSelected = next
+                                    }
+                                ) {
+                                    SwitchRow(
+                                        label = stringResource(R.string.auto_update_only_if_selected),
+                                        supportingText = stringResource(R.string.auto_update_only_if_selected_desc),
+                                        checked = onlyUpdateIfSelected,
+                                        onCheckedChange = { onlyUpdateIfSelected = it },
+                                        isModified = onlyUpdateIfSelected != sub.onlyUpdateIfSelected
+                                    )
+                                }
                                 SectionItem(position = ItemPosition.Bottom) {
                                     TextFieldRow(
                                         label = stringResource(R.string.update_interval_min),
