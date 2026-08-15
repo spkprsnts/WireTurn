@@ -973,6 +973,7 @@ class CoreService : Service() {
                 cmdArgs.add("${applicationInfo.nativeLibraryDir}/libfreeturn.so")
                 cmdArgs.addAll(listOf(
                     "-listen", cfg.listenAddr.ifBlank { ClientConfig.DEFAULT_LISTEN_ADDR },
+                    "-provider", o.provider,
                     "-peer", o.peer,
                     "-n", o.n.toString(),
                     "-transport", o.transport,

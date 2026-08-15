@@ -5,6 +5,8 @@ import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.Profile
 import com.wireturn.app.data.Subscription
 import com.wireturn.app.data.ProfileBundle
+import com.wireturn.app.data.FreeTurnConfig
+import com.wireturn.app.data.KernelConfig
 import com.google.gson.JsonParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -248,21 +250,21 @@ class ProfileManager(
                 return@withContext false
             }
 
-            val json = connection.inputStream.bufferedReader().use { it.readText() }
-            if (json.isBlank()) {
+            val content = connection.inputStream.bufferedReader().use { it.readText() }
+            if (content.isBlank()) {
                 com.wireturn.app.AppLogsState.addLog("Subscription Error: Empty response")
                 return@withContext false
             }
             val bundle = try {
-                gson.fromJson(json, ProfileBundle::class.java)
+                gson.fromJson(content, ProfileBundle::class.java)
             } catch (e: Exception) {
                 // Try if it's a direct array of profiles
                 try {
-                    val profiles = gson.fromJson<List<Profile>>(json, object : com.google.gson.reflect.TypeToken<List<Profile>>() {}.type)
+                    val profiles = gson.fromJson<List<Profile>>(content, object : com.google.gson.reflect.TypeToken<List<Profile>>() {}.type)
                     ProfileBundle(profiles = profiles)
                 } catch (e2: Exception) {
                     // Try if it's a wireturn:// link body
-                    val decoded = ProfileEncoder.decode(json)
+                    val decoded = ProfileEncoder.decode(content)
                     if (decoded != null) {
                         val element = JsonParser.parseString(decoded)
                         val profiles = if (element.isJsonArray) {
@@ -271,7 +273,10 @@ class ProfileManager(
                             listOf(gson.fromJson(element, Profile::class.java))
                         }
                         ProfileBundle(profiles = profiles)
-                    } else null
+                    } else {
+                        // Try if it's a legacy text subscription format (Free Turn / olcrtc)
+                        tryParseTextSubscription(content)
+                    }
                 }
             } ?: return@withContext false
 
@@ -315,5 +320,139 @@ class ProfileManager(
             val newProfiles = profiles.value.filter { it.subscriptionId != id }
             prefs.saveProfiles(newProfiles)
         }
+    }
+
+    private fun tryParseTextSubscription(text: String): ProfileBundle? {
+        if (!text.contains("freeturn://") && !text.contains("olcrtc://") && 
+            !text.contains("turnable://") && !text.contains("webdav://") && 
+            !text.contains("webdavs://") && !text.contains("#name:")) return null
+
+        val lines = text.lines()
+        var subName: String? = null
+        var subDescription: String? = null
+
+        val profiles = mutableListOf<Profile>()
+        var currentProfile: Profile? = null
+        var currentKernelConfig: KernelConfig? = null
+
+        fun flush() {
+            val p = currentProfile ?: return
+            val kc = currentKernelConfig ?: return
+            profiles.add(p.copy(kernelConfig = kc))
+            currentProfile = null
+            currentKernelConfig = null
+        }
+
+        for (line in lines) {
+            val trimmed = line.trim()
+            if (trimmed.isEmpty()) continue
+
+            if (trimmed.startsWith("freeturn://")) {
+                flush()
+                val config = com.wireturn.app.data.FreeTurnConfig.parse(trimmed) ?: continue
+                
+                // Try to extract name from URI if possible
+                val nameFromUri = try {
+                    val base64 = trimmed.substringAfter("freeturn://")
+                    val jsonStr = String(android.util.Base64.decode(base64, android.util.Base64.URL_SAFE))
+                    JsonParser.parseString(jsonStr).asJsonObject.get("name")?.asString
+                } catch(_: Exception) { null }
+
+                currentKernelConfig = KernelConfig.FreeTurn(config)
+                currentProfile = Profile(
+                    id = UUID.randomUUID().toString(),
+                    name = nameFromUri ?: "FreeTurn Server",
+                    kernelConfig = KernelConfig.FreeTurn(config)
+                )
+            } else if (trimmed.startsWith("olcrtc://")) {
+                flush()
+                val config = com.wireturn.app.data.OlcrtcConfig.parse(trimmed) ?: continue
+                
+                // olcrtc://<Provider>?<Transport>@<RoomID>#<EncryptionKey>$<MIMO>
+                // Use MIMO as name if it's there
+                val nameFromMimo = config.mimo.takeIf { it.isNotBlank() }
+
+                currentKernelConfig = KernelConfig.Olcrtc(config)
+                currentProfile = Profile(
+                    id = UUID.randomUUID().toString(),
+                    name = nameFromMimo ?: "Olcrtc Server",
+                    kernelConfig = KernelConfig.Olcrtc(config)
+                )
+            } else if (trimmed.startsWith("turnable://")) {
+                flush()
+                val config = com.wireturn.app.data.TurnableConfig.parse(trimmed) ?: continue
+                
+                // Use fragment as name if it's there
+                val nameFromUri = try { android.net.Uri.parse(trimmed).fragment?.split(",")?.firstOrNull()?.trim() } catch(_: Exception) { null }
+
+                currentKernelConfig = KernelConfig.Turnable(config)
+                currentProfile = Profile(
+                    id = UUID.randomUUID().toString(),
+                    name = nameFromUri ?: "Turnable Server",
+                    kernelConfig = KernelConfig.Turnable(config)
+                )
+            } else if (trimmed.startsWith("webdav://") || trimmed.startsWith("webdavs://")) {
+                flush()
+                val config = com.wireturn.app.data.WebdavConfig.parse(trimmed) ?: continue
+                
+                // Use fragment as name if it's there
+                val nameFromUri = try { android.net.Uri.parse(trimmed).fragment } catch(_: Exception) { null }
+
+                currentKernelConfig = KernelConfig.Webdav(config)
+                currentProfile = Profile(
+                    id = UUID.randomUUID().toString(),
+                    name = nameFromUri ?: "WebDAV Server",
+                    kernelConfig = KernelConfig.Webdav(config)
+                )
+            } else if (trimmed.startsWith("##")) {
+                if (currentProfile == null) continue
+                val parts = trimmed.substring(2).split(":", limit = 2)
+                if (parts.size == 2) {
+                    val key = parts[0].trim().lowercase()
+                    val value = parts[1].trim()
+                    when (key) {
+                        "name" -> currentProfile = currentProfile?.copy(name = value)
+                        "ip" -> {
+                            val kc = currentKernelConfig
+                            if (kc is KernelConfig.FreeTurn) {
+                                currentKernelConfig = KernelConfig.FreeTurn(kc.config.copy(peer = value))
+                            }
+                        }
+                        "provider" -> {
+                            val kc = currentKernelConfig
+                            if (kc is KernelConfig.FreeTurn) {
+                                currentKernelConfig = KernelConfig.FreeTurn(kc.config.copy(provider = value))
+                            } else if (kc is KernelConfig.Olcrtc) {
+                                currentKernelConfig = KernelConfig.Olcrtc(kc.config.copy(provider = value))
+                            }
+                        }
+                        "comment" -> {
+                            if (currentProfile?.name?.contains("Server") == true) {
+                                currentProfile = currentProfile?.copy(name = value)
+                            }
+                        }
+                    }
+                }
+            } else if (trimmed.startsWith("#")) {
+                val parts = trimmed.substring(1).split(":", limit = 2)
+                if (parts.size == 2) {
+                    val key = parts[0].trim().lowercase()
+                    val value = parts[1].trim()
+                    when (key) {
+                        "name" -> subName = value
+                        "description" -> subDescription = value
+                        "comment" -> if (subDescription == null) subDescription = value
+                    }
+                }
+            }
+        }
+        flush()
+
+        if (profiles.isEmpty()) return null
+        return ProfileBundle(
+            name = subName,
+            description = subDescription,
+            profiles = profiles
+        )
     }
 }

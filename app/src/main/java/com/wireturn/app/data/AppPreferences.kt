@@ -549,6 +549,7 @@ data class WebdavConfig(
 }
 
 data class FreeTurnConfig(
+    @SerializedName("provider") val provider: String = "vk",
     @SerializedName("peer") val peer: String = "",
     @SerializedName("links") val links: String = "",
     @SerializedName("n") val n: Int = 10,
@@ -569,6 +570,7 @@ data class FreeTurnConfig(
     fun isValid(): Boolean = links.isNotBlank() && (peer.isNotBlank() || sub.isNotBlank())
 
     fun sanitize(): FreeTurnConfig = copy(
+        provider = (provider as Any?)?.toString()?.trim()?.take(32) ?: "vk",
         peer = (peer as Any?)?.toString()?.trim()?.take(500) ?: "",
         links = (links as Any?)?.toString()?.trim()?.take(4096) ?: "",
         obfKey = (obfKey as Any?)?.toString()?.trim()?.take(64) ?: "",
@@ -582,7 +584,8 @@ data class FreeTurnConfig(
         val json = JsonObject().apply {
             addProperty("v", 1)
             addProperty("provider", "vk")
-            if (peer.isNotBlank()) addProperty("peer", peer)
+            if (provider != "vk") addProperty("provider", provider)
+        if (peer.isNotBlank()) addProperty("peer", peer)
             if (links.isNotBlank()) addProperty("links", links)
             if (sub.isNotBlank()) addProperty("sub", sub)
             if (transport != "tcp") addProperty("transport", transport)
@@ -618,6 +621,7 @@ data class FreeTurnConfig(
                 if (json.get("v")?.asInt != 1) return null
 
                 FreeTurnConfig(
+                    provider = json.get("provider")?.asString ?: current.provider,
                     peer = json.get("peer")?.asString ?: current.peer,
                     links = json.get("links")?.asString ?: json.get("link")?.asString ?: current.links,
                     sub = json.get("sub")?.asString ?: current.sub,
