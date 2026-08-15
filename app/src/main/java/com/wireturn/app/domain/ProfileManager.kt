@@ -5,7 +5,6 @@ import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.Profile
 import com.wireturn.app.data.Subscription
 import com.wireturn.app.data.ProfileBundle
-import com.wireturn.app.data.FreeTurnConfig
 import com.wireturn.app.data.KernelConfig
 import com.google.gson.JsonParser
 import kotlinx.coroutines.CoroutineScope
@@ -25,6 +24,8 @@ import java.util.UUID
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
+import kotlin.time.Duration.Companion.milliseconds
+import androidx.core.net.toUri
 
 data class ImportResult(
     val added: Int = 0,
@@ -61,7 +62,7 @@ class ProfileManager(
 
     private val gson = com.google.gson.GsonBuilder()
         .registerTypeAdapterFactory(com.wireturn.app.data.SafeEnumTypeAdapterFactory())
-        .registerTypeAdapter(com.wireturn.app.data.KernelConfig::class.java, com.wireturn.app.data.KernelConfigAdapter())
+        .registerTypeAdapter(KernelConfig::class.java, com.wireturn.app.data.KernelConfigAdapter())
         .create()
 
     private val userAgent: String by lazy {
@@ -79,7 +80,7 @@ class ProfileManager(
     private fun startAutoUpdateLoop() {
         scope.launch(Dispatchers.IO) {
             while (true) {
-                kotlinx.coroutines.delay(60_000) // Check every minute
+                kotlinx.coroutines.delay(60_000.milliseconds) // Check every minute
                 val now = System.currentTimeMillis()
                 val curId = currentProfileId.value
                 val curProfiles = profiles.value
@@ -178,17 +179,10 @@ class ProfileManager(
         }
     }
 
-    fun getProfileJson(id: String): String? {
-        val profile = profiles.value.find { it.id == id } ?: return null
-        return gson.toJson(profile)
-    }
-
     fun getProfilesJson(ids: List<String>): String {
         val selected = profiles.value.filter { it.id in ids }
         return gson.toJson(selected)
     }
-
-    fun exportAllProfilesToZip(): ByteArray = exportProfilesToZip(null)
 
     fun exportProfilesToZip(ids: List<String>?): ByteArray {
         val bos = ByteArrayOutputStream()
@@ -273,7 +267,7 @@ class ProfileManager(
                         listOf(gson.fromJson(element, Profile::class.java))
                     }
 
-                    profilesToImport.filterNotNull().forEach { p ->
+                    profilesToImport.forEach { p ->
                         val nameFromFile = fileName?.removeSuffix(".json")?.removePrefix("wt_")
                         val name = (p.name as String?)?.takeIf { it.isNotBlank() }
                             ?: nameFromFile?.takeIf { it.isNotBlank() }?.take(100)
@@ -412,7 +406,7 @@ class ProfileManager(
             // Register cancellation listener to disconnect the connection
             val job = launch {
                 try {
-                    kotlinx.coroutines.delay(Long.MAX_VALUE)
+                    kotlinx.coroutines.delay(Long.MAX_VALUE.milliseconds)
                 } finally {
                     connection.disconnect()
                 }
@@ -432,11 +426,11 @@ class ProfileManager(
                         kotlinx.coroutines.yield() // Check for cancellation
                         val bundle = try {
                             gson.fromJson(content, ProfileBundle::class.java)
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             try {
                                 val profiles = gson.fromJson<List<Profile>>(content, object : com.google.gson.reflect.TypeToken<List<Profile>>() {}.type)
                                 ProfileBundle(profiles = profiles)
-                            } catch (e2: Exception) {
+                            } catch (_: Exception) {
                                 val decoded = ProfileEncoder.decode(content)
                                 if (decoded != null) {
                                     val element = JsonParser.parseString(decoded)
@@ -510,7 +504,7 @@ class ProfileManager(
             // Ensure minimum visible loading time
             val elapsed = System.currentTimeMillis() - startTime
             if (elapsed < 300) {
-                kotlinx.coroutines.delay(300 - elapsed)
+                kotlinx.coroutines.delay((300 - elapsed).milliseconds)
             }
             
             result
@@ -658,7 +652,8 @@ class ProfileManager(
                 val config = com.wireturn.app.data.TurnableConfig.parse(trimmed) ?: continue
                 
                 // Use fragment as name if it's there
-                val nameFromUri = try { android.net.Uri.parse(trimmed).fragment?.split(",")?.firstOrNull()?.trim() } catch(_: Exception) { null }
+                val nameFromUri = try {
+                    trimmed.toUri().fragment?.split(",")?.firstOrNull()?.trim() } catch(_: Exception) { null }
 
                 currentKernelConfig = KernelConfig.Turnable(config)
                 currentProfile = Profile(
@@ -671,7 +666,8 @@ class ProfileManager(
                 val config = com.wireturn.app.data.WebdavConfig.parse(trimmed) ?: continue
                 
                 // Use fragment as name if it's there
-                val nameFromUri = try { android.net.Uri.parse(trimmed).fragment } catch(_: Exception) { null }
+                val nameFromUri = try {
+                    trimmed.toUri().fragment } catch(_: Exception) { null }
 
                 currentKernelConfig = KernelConfig.Webdav(config)
                 currentProfile = Profile(

@@ -326,7 +326,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() { 
-        super.onCleared()
         coreManager.destroy()
     }
 
@@ -661,16 +660,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val result = importProfiles(listOf(null to json))
             com.wireturn.app.domain.ImportStatus.Success(result)
         } else com.wireturn.app.domain.ImportStatus.InvalidFormat
-    }
-
-    fun updateAllSubscriptions() {
-        viewModelScope.launch {
-            subscriptions.value.forEach { sub ->
-                profileManager.fetchSubscription(sub.url) {
-                    selectProfileAndRestart(it.id, it)
-                }
-            }
-        }
     }
 
     fun deleteSubscription(id: String) = profileManager.deleteSubscription(id) {

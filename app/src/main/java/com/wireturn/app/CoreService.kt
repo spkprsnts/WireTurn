@@ -1438,8 +1438,8 @@ class CoreService : Service() {
         const val MAX_RESTARTS = 10
         private val CAPTCHA_URL_REGEX = Pattern.compile("""Open this URL in your browser:\s*(https?://\S+)""")
         private val FREE_TURN_CAPTCHA_REGEX = Pattern.compile("""(?:manually open this URL|Open this URL in your browser):\s*(https?://\S+)""")
-        private val STREAM_ESTABLISHED_REGEX = Pattern.compile("""\[STREAM (\d+)\] Established DTLS connection""")
-        private val TCP_ACTIVE_REGEX = Pattern.compile("""\[session \d+\] (?:connected|disconnected) \(active: (\d+)\)""")
+        private val STREAM_ESTABLISHED_REGEX = Pattern.compile("""\[STREAM (\d+)] Established DTLS connection""")
+        private val TCP_ACTIVE_REGEX = Pattern.compile("""\[session \d+] (?:connected|disconnected) \(active: (\d+)\)""")
         private val ONLINE_COUNT_REGEX = Pattern.compile("""online=(\d+)""")
 
         fun start(context: Context, cfg: ClientConfig) {

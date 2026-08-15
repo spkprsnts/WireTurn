@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -510,7 +509,7 @@ fun ProfilesDialog(
                     }
                     
                     var runningIndex = if (hasStandaloneGuard) standaloneProfiles.size + 1 else standaloneProfiles.size
-                    for ((sub, subProfiles) in subscriptionGroups) {
+                    for ((_, subProfiles) in subscriptionGroups) {
                         val inSubIdx = subProfiles.indexOfFirst { it.id == targetId }
                         if (inSubIdx != -1) {
                             return runningIndex + 1 + inSubIdx
@@ -772,7 +771,12 @@ fun ProfilesDialog(
                 shareText(context, "wireturn://$encoded", exportTitle)
             } else {
                 val bytes = viewModel.exportProfilesToZip(exportTargetIds)
-                shareFile(context, bytes, "wt_profiles.zip", "application/zip")
+                val fileName = if (exportTargetIds.size == 1) {
+                    val profile = profiles.find { it.id == exportTargetIds[0] }
+                    val safeName = profile?.name?.replace(Regex("[\\\\/:*?\"<>| ]"), "_") ?: "profile"
+                    "wt_$safeName.zip"
+                } else "wt_profiles_${exportTargetIds.size}.zip"
+                shareFile(context, bytes, fileName, "application/zip")
             }
         }
     }
@@ -1236,7 +1240,7 @@ private fun ProfileItemRow(
     onDismiss: () -> Unit,
     sheetState: androidx.compose.material3.SheetState,
     scope: kotlinx.coroutines.CoroutineScope,
-    context: android.content.Context,
+    context: Context,
     onDragEnd: (String) -> Unit,
     onExportClick: (List<String>, Boolean) -> Unit,
     onExportActionSelected: (Boolean) -> Unit,
@@ -1473,9 +1477,8 @@ private fun SubscriptionHeaderRow(
     onToggleSelection: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isHighlighted = isAnyChildSelected
     val backgroundColor by animateColorAsState(
-        targetValue = if (isHighlighted) MaterialTheme.colorScheme.secondaryContainer
+        targetValue = if (isAnyChildSelected) MaterialTheme.colorScheme.secondaryContainer
                       else MaterialTheme.colorScheme.surfaceContainerHigh,
         label = "sub_header_bg"
     )
@@ -1485,7 +1488,7 @@ private fun SubscriptionHeaderRow(
         shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 4.dp, bottomEnd = 4.dp),
         onClick = {
             if (isSelectionMode) onToggleSelection()
-            else if (!isHighlighted) onSelect()
+            else if (!isAnyChildSelected) onSelect()
         },
         modifier = modifier
             .fillMaxWidth()
@@ -1506,7 +1509,7 @@ private fun SubscriptionHeaderRow(
                 Text(
                     text = sub.name, 
                     style = MaterialTheme.typography.titleMedium,
-                    color = if (isHighlighted) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+                    color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     modifier = Modifier.basicMarquee()
                 )
@@ -1514,7 +1517,7 @@ private fun SubscriptionHeaderRow(
                     Text(
                         text = sub.description, 
                         style = MaterialTheme.typography.bodySmall, 
-                        color = if (isHighlighted) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.outline
+                        color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.outline
                     )
                 }
             }
@@ -1523,7 +1526,7 @@ private fun SubscriptionHeaderRow(
                     Icon(
                         painter = painterResource(R.drawable.settings_24px), 
                         contentDescription = null, 
-                        tint = if (isHighlighted) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface, 
+                        tint = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -1532,7 +1535,7 @@ private fun SubscriptionHeaderRow(
                         androidx.compose.material3.CircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
                             strokeWidth = 2.dp,
-                            color = if (isHighlighted) MaterialTheme.colorScheme.onSecondaryContainer 
+                            color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer
                                     else MaterialTheme.colorScheme.primary
                         )
                     } else {
@@ -1540,7 +1543,7 @@ private fun SubscriptionHeaderRow(
                             painter = painterResource(R.drawable.refresh_24px), 
                             contentDescription = null, 
                             modifier = Modifier.size(20.dp),
-                            tint = if (isHighlighted) MaterialTheme.colorScheme.onSecondaryContainer 
+                            tint = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer
                                     else MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -1725,10 +1728,11 @@ fun ProfileNameDialog(
 }
 
 private fun showUpdateToast(context: Context, summary: com.wireturn.app.domain.ImportResult) {
+    val appContext = context.applicationContext
     val message = if (summary.added == 0 && summary.updated == 0 && summary.removed == 0) {
-        context.getString(R.string.subscription_update_no_changes)
+        appContext.getString(R.string.subscription_update_no_changes)
     } else {
-        context.getString(R.string.subscription_update_summary, summary.added, summary.removed, summary.total)
+        appContext.getString(R.string.subscription_update_summary, summary.added, summary.removed, summary.total)
     }
-    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+    Toast.makeText(appContext, message, Toast.LENGTH_SHORT).show()
 }

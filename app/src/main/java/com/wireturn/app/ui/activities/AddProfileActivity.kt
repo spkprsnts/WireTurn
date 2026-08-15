@@ -23,11 +23,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,18 +38,14 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
-import com.wireturn.app.ui.AppSnackbar
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.StandardLeadingIcon
-import com.wireturn.app.ui.TextFieldRow
-import com.wireturn.app.ui.showExclusiveSnackbar
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
 import androidx.core.content.ContextCompat
@@ -98,20 +91,20 @@ class AddProfileActivity : ComponentActivity() {
                     is com.wireturn.app.domain.ImportStatus.Success -> finish()
                     is com.wireturn.app.domain.ImportStatus.NetworkError -> {
                         HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
-                        Toast.makeText(context, errorConnection, Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@AddProfileActivity, errorConnection, Toast.LENGTH_SHORT).show()
                     }
                     is com.wireturn.app.domain.ImportStatus.ServerError -> {
                         HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
-                        val msg = context.getString(R.string.import_error_server, status.code)
-                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        val msg = this@AddProfileActivity.getString(R.string.import_error_server, status.code)
+                        Toast.makeText(this@AddProfileActivity, msg, Toast.LENGTH_SHORT).show()
                     }
                     is com.wireturn.app.domain.ImportStatus.EmptyResponse -> {
                         HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
-                        Toast.makeText(context, errorEmpty, Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@AddProfileActivity, errorEmpty, Toast.LENGTH_SHORT).show()
                     }
                     is com.wireturn.app.domain.ImportStatus.InvalidFormat -> {
                         HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
-                        Toast.makeText(context, errorInvalidProfile, Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@AddProfileActivity, errorInvalidProfile, Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -127,7 +120,7 @@ class AddProfileActivity : ComponentActivity() {
                     scope.launch {
                         val status = try { 
                             viewModel.importProfileFromLink(link) 
-                        } catch (e: Exception) { 
+                        } catch (_: Exception) { 
                             com.wireturn.app.domain.ImportStatus.NetworkError 
                         }
                         isImporting = false
@@ -268,7 +261,7 @@ class AddProfileActivity : ComponentActivity() {
                                             isImporting = true
                                             val status = try {
                                                 viewModel.importProfileFromLink(text)
-                                            } catch (e: Exception) {
+                                            } catch (_: Exception) {
                                                 com.wireturn.app.domain.ImportStatus.NetworkError
                                             }
                                             isImporting = false

@@ -585,7 +585,7 @@ data class FreeTurnConfig(
             addProperty("v", 1)
             addProperty("provider", "vk")
             if (provider != "vk") addProperty("provider", provider)
-        if (peer.isNotBlank()) addProperty("peer", peer)
+            if (peer.isNotBlank()) addProperty("peer", peer)
             if (links.isNotBlank()) addProperty("links", links)
             if (sub.isNotBlank()) addProperty("sub", sub)
             if (transport != "tcp") addProperty("transport", transport)
@@ -1011,7 +1011,7 @@ data class Profile(
         // --- END MIGRATION 4 ---
         
         // 5. MIGRATION: Old nested Xray format - xrayConfig (TEMPORARY)
-        if (oldXrayConfig != null && oldXrayConfig.isJsonObject && (prot == null || prot == XrayConfiguration.WIREGUARD)) {
+        if (oldXrayConfig != null && oldXrayConfig.isJsonObject && (prot == XrayConfiguration.WIREGUARD)) {
             val obj = oldXrayConfig.asJsonObject
             val oldType = try { obj.get("xrayConfiguration")?.asString ?: obj.get("protocol")?.asString } catch (_: Exception) { null }
             if (oldType != null) try { prot = XrayConfiguration.valueOf(oldType) } catch(_: Exception) {}
@@ -1038,7 +1038,7 @@ data class Profile(
             id = safeId,
             name = finalName,
             kernelConfig = sanitizedKc,
-            xrayProtocol = prot ?: XrayConfiguration.WIREGUARD,
+            xrayProtocol = prot,
             xrayEnabled = en,
             vlessConfig = vc,
             wgConfig = wgc
@@ -1224,7 +1224,7 @@ class AppPreferences(val context: Context) {
             val json = p[SUBSCRIPTIONS_JSON] ?: "[]"
             try {
                 gson.fromJson<List<Subscription>>(json, object : TypeToken<List<Subscription>>() {}.type) ?: emptyList()
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 emptyList()
             }
         }.distinctUntilChanged()

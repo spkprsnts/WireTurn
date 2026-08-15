@@ -208,7 +208,6 @@
     <string name="freeturn_obf_timing_label">Obf Timing</string>
     <string name="freeturn_obf_timing_desc">Packet delay for RTP mimicry (e.g. 20ms); 0=off</string>
     <string name="freeturn_platform_label">Platform</string>
-    <string name="freeturn_platform_desc">VK device class for authorization</string>
     <string name="freeturn_transport_label">Transport</string>
     <string name="freeturn_mode_label">Tunnel Mode</string>
     <string name="freeturn_manual_captcha_label">Manual Captcha</string>
@@ -458,7 +457,6 @@
     <string name="profile_export_share">Share</string>
     <string name="profile_export_json">JSON</string>
     <string name="profile_export_zip">ZIP (Archive)</string>
-    <string name="profile_import">Import</string>
     <string name="profile_import_title">Import</string>
     <string name="profile_import_json_zip">Import JSON/ZIP</string>
     <string name="profile_name_label">Profile name</string>
@@ -488,8 +486,6 @@
     <string name="profile_manual_setup">Manual setup</string>
     <string name="profile_import_qr">Scan QR Code</string>
     <string name="profile_import_link">Paste Link</string>
-    <string name="profile_import_link_label">Link (wireturn:// or wt://)</string>
-    <string name="profile_import_link_placeholder">wireturn://…</string>
     <string name="profile_import_clipboard">Paste Config URI</string>
     <string name="profile_import_file">Import from File</string>
     <string name="guide_turnable">Server setup guide: Turnable</string>

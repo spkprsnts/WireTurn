@@ -177,7 +177,6 @@
     <string name="freeturn_obf_timing_label">Задержка обфускации</string>
     <string name="freeturn_obf_timing_desc">Межпакетная задержка для RTP-мимикрии (напр. 20ms); 0=выкл</string>
     <string name="freeturn_platform_label">Платформа</string>
-    <string name="freeturn_platform_desc">Класс устройства для авторизации VK</string>
     <string name="freeturn_transport_label">Транспорт</string>
     <string name="freeturn_mode_label">Режим туннеля</string>
     <string name="freeturn_manual_captcha_label">Ручная капча</string>
@@ -420,7 +419,6 @@
     <string name="profile_export_share">Поделиться</string>
     <string name="profile_export_json">JSON</string>
     <string name="profile_export_zip">ZIP (Архив)</string>
-    <string name="profile_import">Импортировать</string>
     <string name="profile_import_title">Импорт</string>
     <string name="profile_import_json_zip">Импортировать JSON/ZIP</string>
     <string name="profile_name_label">Название профиля</string>
@@ -450,8 +448,6 @@
     <string name="profile_manual_setup">Ручная настройка</string>
     <string name="profile_import_qr">Сканировать QR-код</string>
     <string name="profile_import_link">Вставить ссылку</string>
-    <string name="profile_import_link_label">Ссылка (wireturn:// или wt://)</string>
-    <string name="profile_import_link_placeholder">wireturn://…</string>
     <string name="profile_import_clipboard">Вставить URI конфигурации</string>
     <string name="profile_import_file">Импорт из файла</string>
     <string name="guide_turnable">Инструкция по настройке сервера Turnable</string>
