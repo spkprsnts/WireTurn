@@ -529,10 +529,20 @@ fun ProfilesDialog(
                 } else if (profilesSource.size > oldSize && oldSize > 0) {
                     val newIds = profilesSource.map { it.id }.toSet() - oldIds
                     val firstNewId = newIds.firstOrNull()
+                    
                     if (firstNewId != null) {
-                        val targetLazyIndex = findLazyIndex(firstNewId)
-                        if (targetLazyIndex != -1) {
-                            lazyListState.animateScrollToItem(targetLazyIndex)
+                        val newProfile = profilesSource.find { it.id == firstNewId }
+                        val subId = newProfile?.subscriptionId
+                        
+                        // Scroll ONLY if it's a NEW subscription (not previously seen)
+                        // or if it's a new standalone profile.
+                        val isExistingSub = subId != null && profiles.any { it.subscriptionId == subId }
+                        
+                        if (!isExistingSub) {
+                            val targetLazyIndex = findLazyIndex(firstNewId)
+                            if (targetLazyIndex != -1) {
+                                lazyListState.animateScrollToItem(targetLazyIndex)
+                            }
                         }
                     }
                 }
@@ -991,7 +1001,7 @@ fun ProfilesDialog(
                     }
 
                     // Standalone Profiles
-                    itemsIndexed(standaloneProfiles, key = { _, it -> it.id }) { index, profile ->
+                    itemsIndexed(standaloneProfiles, key = { index, it -> "standalone_${it.id}_$index" }) { index, profile ->
                         ProfileItemRow(
                             profile = profile,
                             index = index,
@@ -1073,7 +1083,7 @@ fun ProfilesDialog(
                             )
                         }
 
-                        itemsIndexed(subProfiles, key = { _, it -> it.id }) { index, profile ->
+                        itemsIndexed(subProfiles, key = { index, it -> "sub_${sub.id}_${it.id}_$index" }) { index, profile ->
                             ProfileItemRow(
                                 profile = profile,
                                 index = index,

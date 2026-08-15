@@ -67,7 +67,7 @@ class ProfileManager(
     private val userAgent: String by lazy {
         val version = try {
             val pInfo = prefs.context.packageManager.getPackageInfo(prefs.context.packageName, 0)
-            pInfo.versionName
+            pInfo.versionName ?: "1.0"
         } catch (_: Exception) { "1.0" }
         "WireTurn/$version"
     }
@@ -85,7 +85,7 @@ class ProfileManager(
                     if (sub.autoUpdate) {
                         val intervalMs = sub.updateIntervalMinutes * 60 * 1000L
                         if (now - sub.updatedAt >= intervalMs) {
-                            fetchSubscription(sub.url)
+                            fetchSubscription(sub.url, forceId = sub.id)
                         }
                     }
                 }
@@ -220,14 +220,22 @@ class ProfileManager(
                     entry = zis.nextEntry
                 }
             }
-            return if (extractedData.isNotEmpty()) importProfiles(extractedData, onAutoSelect = onAutoSelect) else ImportResult()
+            return if (extractedData.isNotEmpty()) importProfiles(extractedData, onAutoSelect = onAutoSelect).first else ImportResult()
         } catch (e: Exception) {
             com.wireturn.app.AppLogsState.addLog("ZIP Import Error: ${e.message}")
             return ImportResult()
         }
     }
 
-    fun importProfiles(data: List<Pair<String?, String>>, subscriptionId: String? = null, onAutoSelect: ((Profile) -> Unit)? = null): ImportResult {
+    /**
+     * @return Triple of result summary, List of Profile objects with FINAL local IDs, and the local ID of the recommended profile.
+     */
+    fun importProfiles(
+        data: List<Pair<String?, String>>, 
+        subscriptionId: String? = null, 
+        serverActiveId: String? = null,
+        onAutoSelect: ((Profile) -> Unit)? = null
+    ): Triple<ImportResult, List<Profile>, String?> {
         try {
             val defaultName = prefs.context.getString(R.string.profile_default_name)
             val currentProfiles = profiles.value
@@ -243,7 +251,10 @@ class ProfileManager(
             
             var addedCount = 0
             var updatedCount = 0
+            var resolvedRecommendedLocalId: String? = null
+            
             val matchedExistingIds = mutableSetOf<String>()
+            val usedInThisBatchIds = mutableSetOf<String>()
 
             data.forEach { (fileName, json) ->
                 try {
@@ -260,10 +271,22 @@ class ProfileManager(
                             ?: nameFromFile?.takeIf { it.isNotBlank() }?.take(100)
                             ?: nextDefaultProfileName(accumulating)
 
-                        // Try to preserve ID by matching name within the same subscription
-                        val existing = existingSubProfiles.find { it.name == name }
+                        // 1. Try to preserve local ID by matching name within the same subscription
+                        val existing = existingSubProfiles.find { it.name == name && it.id !in usedInThisBatchIds }
                         val matchedOldId = existing?.id
-                        val newId = matchedOldId ?: UUID.randomUUID().toString()
+                        
+                        val newId = if (matchedOldId != null && matchedOldId !in usedInThisBatchIds) {
+                            matchedOldId
+                        } else {
+                            UUID.randomUUID().toString()
+                        }
+                        
+                        // 2. Map ID: check if it's the server's recommendation
+                        if (p.id == serverActiveId) {
+                            resolvedRecommendedLocalId = newId
+                        }
+                        
+                        usedInThisBatchIds.add(newId)
 
                         val profile = p.sanitize(defaultName).copy(
                             id = newId,
@@ -284,7 +307,7 @@ class ProfileManager(
                 } catch (_: Exception) {}
             }
 
-            if (importedList.isEmpty()) return ImportResult()
+            if (importedList.isEmpty()) return Triple(ImportResult(), emptyList(), null)
             val wasEmpty = currentProfiles.isEmpty()
             
             val newList = if (subscriptionId != null) {
@@ -297,38 +320,36 @@ class ProfileManager(
                 prefs.saveProfiles(newList)
                 
                 val callback = onAutoSelect ?: autoSelectListener
+                val oldVersionOfCurrent = currentProfiles.find { it.id == currentSelectedId }
                 val updatedVersionOfCurrent = importedList.find { it.id == currentSelectedId }
                 val isStillSelected = newList.any { it.id == currentSelectedId }
                 
                 if (updatedVersionOfCurrent != null) {
-                    // Sync active config if the currently selected profile was updated
-                    callback?.invoke(updatedVersionOfCurrent)
-                } else if (wasEmpty || (wasSelectedFromThisSub && !isStillSelected)) {
-                    // Auto-select based on subscription preference or first available
-                    val bestToSelect = if (subscriptionId != null) {
-                        val sub = subscriptions.value.find { it.id == subscriptionId }
-                        importedList.find { it.id == sub?.activeProfileId } ?: importedList.firstOrNull()
-                    } else {
-                        importedList.firstOrNull()
+                    // Only trigger update if content actually changed
+                    if (updatedVersionOfCurrent != oldVersionOfCurrent) {
+                        callback?.invoke(updatedVersionOfCurrent)
                     }
+                } else if (wasEmpty || (wasSelectedFromThisSub && !isStillSelected)) {
+                    // Auto-select based on recommendation OR fallback to first
+                    val bestToSelect = importedList.find { it.id == resolvedRecommendedLocalId } 
+                        ?: importedList.firstOrNull()
                     bestToSelect?.let { callback?.invoke(it) }
                 } else if (!isStillSelected && newList.isNotEmpty()) {
-                    // Fallback to first available ever, respecting active subscription profiles
                     val fallback = findBestFallbackProfile(newList, subscriptions.value)
                     fallback?.let { callback?.invoke(it) }
                 }
             }
             
             val removedCount = if (subscriptionId != null) existingSubProfiles.size - matchedExistingIds.size else 0
-            return ImportResult(addedCount, updatedCount, removedCount, importedList.size)
+            return Triple(ImportResult(addedCount, updatedCount, removedCount, importedList.size), importedList, resolvedRecommendedLocalId)
         } catch (_: Exception) {
-            return ImportResult()
+            return Triple(ImportResult(), emptyList(), null)
         }
     }
 
-    suspend fun fetchSubscription(url: String, onAutoSelect: ((Profile) -> Unit)? = null): ImportStatus = withContext(Dispatchers.IO) {
-        val existingSubId = subscriptions.value.find { it.url == url }?.id
-        existingSubId?.let { id -> _updatingSubIds.update { it + id } }
+    suspend fun fetchSubscription(url: String, forceId: String? = null, onAutoSelect: ((Profile) -> Unit)? = null): ImportStatus = withContext(Dispatchers.IO) {
+        val subIdToMark = forceId ?: subscriptions.value.find { it.url == url }?.id
+        subIdToMark?.let { id -> _updatingSubIds.update { it + id } }
         val startTime = System.currentTimeMillis()
 
         val connection = (URL(url).openConnection(java.net.Proxy.NO_PROXY) as HttpURLConnection).apply {
@@ -383,19 +404,25 @@ class ProfileManager(
                         }
 
                         if (bundle != null) {
-                            val subId = existingSubId ?: subscriptions.value.find { it.url == url }?.id ?: UUID.randomUUID().toString()
+                            val subId = subIdToMark ?: subscriptions.value.find { it.url == url }?.id ?: UUID.randomUUID().toString()
                             val existingSub = subscriptions.value.find { it.id == subId }
                             val subName = bundle.name ?: connection.getHeaderField("Profile-Title") ?: URL(url).host ?: "Subscription"
                             
                             kotlinx.coroutines.yield()
 
+                            // 1. Import profiles with the recommendation ID from the server
                             val bundleJsonList = bundle.profiles.map { null to gson.toJson(it) }
-                            val importResult = importProfiles(bundleJsonList, subscriptionId = subId, onAutoSelect = onAutoSelect)
+                            val (importResult, importedProfiles, resolvedActiveId) = importProfiles(
+                                data = bundleJsonList, 
+                                subscriptionId = subId, 
+                                serverActiveId = bundle.recommendedProfileId,
+                                onAutoSelect = onAutoSelect
+                            )
 
-                            val updatedProfiles = profiles.value.filter { it.subscriptionId == subId }
-                            val bestActiveId = bundle.activeProfileId 
-                                ?: existingSub?.activeProfileId?.takeIf { id -> updatedProfiles.any { it.id == id } }
-                                ?: updatedProfiles.firstOrNull()?.id
+                            // 2. Determine final active profile ID to save in subscription
+                            val bestActiveId = resolvedActiveId ?: 
+                                existingSub?.activeProfileId?.takeIf { id -> importedProfiles.any { it.id == id } } ?:
+                                importedProfiles.firstOrNull()?.id
 
                             val newSubscription = Subscription(
                                 id = subId,
@@ -412,6 +439,7 @@ class ProfileManager(
                                     ?: 1440
                             )
 
+                            // 3. Save subscription info
                             val currentSubs = subscriptions.value
                             val newSubs = if (currentSubs.any { it.id == subId }) {
                                 currentSubs.map { if (it.id == subId) newSubscription else it }
@@ -419,6 +447,7 @@ class ProfileManager(
                                 currentSubs + newSubscription
                             }
                             prefs.saveSubscriptions(newSubs)
+                            
                             ImportStatus.Success(importResult)
                         } else {
                             ImportStatus.InvalidFormat
@@ -441,7 +470,7 @@ class ProfileManager(
             com.wireturn.app.AppLogsState.addLog("Subscription Error: ${e.javaClass.simpleName} - ${e.message}")
             ImportStatus.NetworkError
         } finally {
-            existingSubId?.let { id -> _updatingSubIds.update { it - id } }
+            subIdToMark?.let { id -> _updatingSubIds.update { it - id } }
             connection.disconnect()
         }
     }

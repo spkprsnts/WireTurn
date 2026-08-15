@@ -579,13 +579,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun selectProfileAndRestart(id: String, profile: Profile? = null, onCompletion: (() -> Unit)? = null) {
         val target = profile ?: profiles.value.find { it.id == id } ?: return
-        
+        val wasAlreadySelected = id == currentProfileId.value
+
         profileManager.selectProfile(id, target) { p ->
             viewModelScope.launch {
                 prefs.saveFullProfile(p.id, p)
                 
-                // If service is already running, trigger a restart with new settings
-                if (CoreServiceState.isRunning.value) {
+                // If service is already running, trigger a restart ONLY if switching to a DIFFERENT profile.
+                // If switching to the SAME profile (e.g. background update), let CoreService handle 
+                // smart restart via its own Flow observer if the content actually changed.
+                if (CoreServiceState.isRunning.value && !wasAlreadySelected) {
                     startCoreInternal(forceRestart = true)
                 }
                 
@@ -642,7 +645,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun getProfilesJson(ids: List<String>) = profileManager.getProfilesJson(ids)
     fun exportProfilesToZip(ids: List<String>) = profileManager.exportProfilesToZip(ids)
     fun importProfilesFromZip(s: java.io.InputStream) = profileManager.importProfilesFromZip(s) { selectProfileAndRestart(it.id, it) }
-    fun importProfiles(data: List<Pair<String?, String>>) = profileManager.importProfiles(data) { selectProfileAndRestart(it.id, it) }
+    fun importProfiles(data: List<Pair<String?, String>>) = profileManager.importProfiles(data) { selectProfileAndRestart(it.id, it) }.first
 
     suspend fun importProfileFromLink(link: String): com.wireturn.app.domain.ImportStatus {
         val trimmedLink = link.trim()

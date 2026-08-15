@@ -1094,7 +1094,7 @@ data class ProfileBundle(
     @SerializedName("updatedAt") val updatedAt: Long? = null,
     @SerializedName("bytesUsed") val bytesUsed: Long? = null,
     @SerializedName("bytesTotal") val bytesTotal: Long? = null,
-    @SerializedName("activeProfileId") val activeProfileId: String? = null,
+    @SerializedName("recommendedProfileId", alternate = ["activeProfileId"]) val recommendedProfileId: String? = null,
     @SerializedName("updateIntervalMinutes") val updateIntervalMinutes: Int? = null
 )
 
