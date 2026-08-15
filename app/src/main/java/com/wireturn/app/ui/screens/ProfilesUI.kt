@@ -320,7 +320,7 @@ fun ProfileListItem(
             isHighlighted -> MaterialTheme.colorScheme.surfaceVariant
             else -> MaterialTheme.colorScheme.surfaceContainerHigh
         },
-        animationSpec = tween(durationMillis = if (isHighlighted) 200 else 1000),
+        animationSpec = tween(durationMillis = 200),
         label = "profile_item_bg"
     )
 
@@ -392,6 +392,10 @@ fun ProfilesDialog(
     var dragAnchorOffset by remember { mutableFloatStateOf(0f) }
     var optimisticSelectedId by remember { mutableStateOf<String?>(null) }
 
+    LaunchedEffect(currentId) {
+        optimisticSelectedId = null
+    }
+
     var exportFormatMenuExpanded by remember { mutableStateOf(false) }
     var exportActionMenuExpanded by remember { mutableStateOf(false) }
     var exportTargetIds by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -444,6 +448,10 @@ fun ProfilesDialog(
 
     // Sync local list with source of truth only when NOT dragging
     LaunchedEffect(profilesSource) {
+        if (optimisticSelectedId != null && profilesSource.none { it.id == optimisticSelectedId }) {
+            optimisticSelectedId = null
+        }
+
         val oldSize = profiles.size
         val oldIds = profiles.map { it.id }.toSet()
         val isFirstLoad = oldSize == 0 && profilesSource.isNotEmpty()
