@@ -100,12 +100,12 @@ class SubscriptionConfigActivity : ComponentActivity() {
 
             var url by remember(sub) { mutableStateOf(sub.url) }
             var autoUpdate by remember(sub) { mutableStateOf(sub.autoUpdate) }
-            var updateIntervalMin by remember(sub) { mutableIntStateOf(sub.updateIntervalMin) }
+            var updateIntervalMinutes by remember(sub) { mutableIntStateOf(sub.updateIntervalMinutes) }
 
-            val isIntervalValid = !autoUpdate || updateIntervalMin >= 20
+            val isIntervalValid = !autoUpdate || updateIntervalMinutes >= 20
             val isModified = url != sub.url || 
                              autoUpdate != sub.autoUpdate || 
-                             updateIntervalMin != sub.updateIntervalMin
+                             updateIntervalMinutes != sub.updateIntervalMinutes
 
             val showExitDialog = remember { mutableStateOf(false) }
             val showDeleteConfirm = remember { mutableStateOf(false) }
@@ -155,7 +155,7 @@ class SubscriptionConfigActivity : ComponentActivity() {
                                     viewModel.updateSubscription(sub.copy(
                                         url = url,
                                         autoUpdate = autoUpdate,
-                                        updateIntervalMin = updateIntervalMin
+                                        updateIntervalMinutes = updateIntervalMinutes
                                     ))
                                     finish()
                                 },
@@ -212,12 +212,12 @@ class SubscriptionConfigActivity : ComponentActivity() {
                                 SectionItem(position = ItemPosition.Bottom) {
                                     TextFieldRow(
                                         label = stringResource(R.string.update_interval_min),
-                                        value = if (updateIntervalMin == 0) "" else updateIntervalMin.toString(),
-                                        onValueChange = { updateIntervalMin = it.toIntOrNull() ?: 0 },
+                                        value = if (updateIntervalMinutes == 0) "" else updateIntervalMinutes.toString(),
+                                        onValueChange = { updateIntervalMinutes = it.toIntOrNull() ?: 0 },
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                        isError = updateIntervalMin < 20,
-                                        isModified = updateIntervalMin != sub.updateIntervalMin,
-                                        supportingText = if (updateIntervalMin < 20) stringResource(R.string.update_interval_min_error) else null
+                                        isError = updateIntervalMinutes < 20,
+                                        isModified = updateIntervalMinutes != sub.updateIntervalMinutes,
+                                        supportingText = if (updateIntervalMinutes < 20) stringResource(R.string.update_interval_min_error) else null
                                     )
                                 }
                             }

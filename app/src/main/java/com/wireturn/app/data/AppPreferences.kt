@@ -1082,7 +1082,7 @@ data class Subscription(
     @SerializedName("bytesUsed") val bytesUsed: Long = 0,
     @SerializedName("bytesTotal") val bytesTotal: Long = 0,
     @SerializedName("autoUpdate") val autoUpdate: Boolean = false,
-    @SerializedName("updateIntervalMin") val updateIntervalMin: Int = 1440, // Default 24h
+    @SerializedName("updateIntervalMinutes") val updateIntervalMinutes: Int = 1440, // Default 24h
     @SerializedName("activeProfileId") val activeProfileId: String? = null
 )
 
@@ -1094,7 +1094,8 @@ data class ProfileBundle(
     @SerializedName("updatedAt") val updatedAt: Long? = null,
     @SerializedName("bytesUsed") val bytesUsed: Long? = null,
     @SerializedName("bytesTotal") val bytesTotal: Long? = null,
-    @SerializedName("activeProfileId") val activeProfileId: String? = null
+    @SerializedName("activeProfileId") val activeProfileId: String? = null,
+    @SerializedName("updateIntervalMinutes") val updateIntervalMinutes: Int? = null
 )
 
 class AppPreferences(val context: Context) {

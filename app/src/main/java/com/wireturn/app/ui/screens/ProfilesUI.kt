@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -320,7 +321,7 @@ fun ProfileListItem(
             isHighlighted -> MaterialTheme.colorScheme.surfaceVariant
             else -> MaterialTheme.colorScheme.surfaceContainerHigh
         },
-        animationSpec = tween(durationMillis = 200),
+        animationSpec = tween(durationMillis = if (isHighlighted) 200 else 300),
         label = "profile_item_bg"
     )
 
@@ -446,6 +447,19 @@ fun ProfilesDialog(
 
     val highlightedIds = remember { mutableStateListOf<String>() }
 
+    // Clear temporary UI states when returning to foreground to ensure sync with DataStore
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                optimisticSelectedId = null
+                draggedItemId = null
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     // Sync local list with source of truth only when NOT dragging
     LaunchedEffect(profilesSource) {
         if (optimisticSelectedId != null && profilesSource.none { it.id == optimisticSelectedId }) {
@@ -480,38 +494,44 @@ fun ProfilesDialog(
             // Scroll logic
             scope.launch {
                 delay(150.milliseconds) // Wait for layout update
-                if (isFirstLoad) {
-                    val standaloneProfiles = profiles.filter { it.subscriptionId == null }
-                    val subscriptionGroups = subscriptions.map { sub ->
-                        sub to profiles.filter { it.subscriptionId == sub.id }
-                    }
+                
+                val standaloneProfiles = profiles.filter { it.subscriptionId == null }
+                val subscriptionGroups = subscriptions.map { sub ->
+                    sub to profiles.filter { it.subscriptionId == sub.id }
+                }
+                val hasStandaloneGuard = standaloneProfiles.isNotEmpty()
 
-                    var targetLazyIndex = -1
-                    val hasStandaloneGuard = standaloneProfiles.isNotEmpty()
-                    val standaloneIdx = standaloneProfiles.indexOfFirst { it.id == currentId }
-                    
+                fun findLazyIndex(targetId: String): Int {
+                    val standaloneIdx = standaloneProfiles.indexOfFirst { it.id == targetId }
                     if (standaloneIdx != -1) {
-                        targetLazyIndex = if (hasStandaloneGuard) standaloneIdx + 1 else standaloneIdx
-                    } else {
-                        var runningIndex = if (hasStandaloneGuard) standaloneProfiles.size + 1 else standaloneProfiles.size
-                        for ((sub, subProfiles) in subscriptionGroups) {
-                            val headerIndex = runningIndex
-                            val inSubIdx = subProfiles.indexOfFirst { it.id == currentId }
-                            if (inSubIdx != -1) {
-                                targetLazyIndex = headerIndex + 1 + inSubIdx
-                                break
-                            }
-                            runningIndex += 1 // header
-                            runningIndex += subProfiles.size
-                        }
+                        return if (hasStandaloneGuard) standaloneIdx + 1 else standaloneIdx
                     }
+                    
+                    var runningIndex = if (hasStandaloneGuard) standaloneProfiles.size + 1 else standaloneProfiles.size
+                    for ((sub, subProfiles) in subscriptionGroups) {
+                        val inSubIdx = subProfiles.indexOfFirst { it.id == targetId }
+                        if (inSubIdx != -1) {
+                            return runningIndex + 1 + inSubIdx
+                        }
+                        runningIndex += 1 // header
+                        runningIndex += if (subProfiles.isEmpty()) 1 else subProfiles.size
+                    }
+                    return -1
+                }
 
+                if (isFirstLoad) {
+                    val targetLazyIndex = findLazyIndex(currentId)
                     if (targetLazyIndex != -1) {
                         lazyListState.scrollToItem(targetLazyIndex)
                     }
                 } else if (profilesSource.size > oldSize && oldSize > 0) {
-                    if (oldSize < profiles.size) {
-                        lazyListState.animateScrollToItem(profiles.size - 1) // Scroll to the newly added item
+                    val newIds = profilesSource.map { it.id }.toSet() - oldIds
+                    val firstNewId = newIds.firstOrNull()
+                    if (firstNewId != null) {
+                        val targetLazyIndex = findLazyIndex(firstNewId)
+                        if (targetLazyIndex != -1) {
+                            lazyListState.animateScrollToItem(targetLazyIndex)
+                        }
                     }
                 }
             }
@@ -727,11 +747,11 @@ fun ProfilesDialog(
                     val profile = profiles.find { it.id == exportTargetIds[0] }
                     val safeName = profile?.name?.replace(Regex("[\\\\/:*?\"<>| ]"), "_") ?: "profile"
                     "wt_$safeName.json"
-                } else "wt_profiles.json"
+                } else "wt_profiles_${exportTargetIds.size}.json"
                 exportLauncher.launch(fileName)
             } else {
                 zipToExport.value = viewModel.exportProfilesToZip(exportTargetIds)
-                zipExportLauncher.launch("wt_profiles.zip")
+                zipExportLauncher.launch("wt_profiles_${exportTargetIds.size}.zip")
             }
         } else {
             if (exportAsJson) {
@@ -745,14 +765,14 @@ fun ProfilesDialog(
         }
     }
 
-    val onExportClick = { targets: List<String> ->
-        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+    val onExportClick = { targets: List<String>, showMenu: Boolean ->
+        if (showMenu) HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
         exportTargetIds = targets
-        if (exportTargetIds.size > 1) {
-            exportFormatMenuExpanded = true
+        if (targets.size > 1) {
+            if (showMenu) exportFormatMenuExpanded = true
         } else {
             exportAsJson = true
-            exportActionMenuExpanded = true
+            if (showMenu) exportActionMenuExpanded = true
         }
     }
 
@@ -788,7 +808,7 @@ fun ProfilesDialog(
                     ) {
                         if (isSelectionMode) {
                             Box {
-                                FilledTonalIconButton(onClick = { onExportClick(selectedIds.toList()) }) {
+                                FilledTonalIconButton(onClick = { onExportClick(selectedIds.toList(), true) }) {
                                     Icon(
                                         painterResource(R.drawable.ios_share_24px),
                                         contentDescription = null
@@ -838,7 +858,7 @@ fun ProfilesDialog(
                         } else {
                             if (profiles.isNotEmpty()) {
                                 Box {
-                                    FilledTonalIconButton(onClick = { onExportClick(profiles.map { it.id }) }) {
+                                    FilledTonalIconButton(onClick = { onExportClick(profiles.map { it.id }, true) }) {
                                         Icon(
                                             painterResource(R.drawable.ios_share_24px),
                                             contentDescription = stringResource(R.string.profile_export_all)
@@ -998,12 +1018,7 @@ fun ProfilesDialog(
                             onRename = { showRenameDialog.value = it },
                             onDelete = { showDeleteConfirm.value = it },
                             onOptimisticSelect = { optimisticSelectedId = it },
-                            modifier = Modifier.animateItem(
-                                placementSpec = if (draggedItemId == profile.id) null else spring(
-                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                    stiffness = Spring.StiffnessMedium
-                                )
-                            )
+                            modifier = Modifier.animateItem()
                         )
                     }
 
@@ -1015,6 +1030,8 @@ fun ProfilesDialog(
                             SubscriptionHeaderRow(
                                 sub = sub,
                                 isAnyChildSelected = isAnySelected,
+                                isSelectionMode = isSelectionMode,
+                                isAllSubSelected = subProfiles.isNotEmpty() && subProfiles.all { selectedIds.contains(it.id) },
                                 onUpdate = { scope.launch { viewModel.importProfileFromLink(sub.url) } },
                                 onSettings = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -1031,6 +1048,16 @@ fun ProfilesDialog(
                                         optimisticSelectedId = targetId
                                         viewModel.selectProfileAndRestart(targetId)
                                     }
+                                },
+                                onToggleSelection = {
+                                    val allInSub = subProfiles.map { it.id }
+                                    val isAllInSubSelected = allInSub.all { selectedIds.contains(it) }
+                                    if (isAllInSubSelected) {
+                                        selectedIds.removeAll(allInSub)
+                                    } else {
+                                        selectedIds.addAll(allInSub.filter { it !in selectedIds })
+                                    }
+                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                 }
                             )
                         }
@@ -1065,12 +1092,7 @@ fun ProfilesDialog(
                                 onRename = { showRenameDialog.value = it },
                                 onDelete = { showDeleteConfirm.value = it },
                                 onOptimisticSelect = { optimisticSelectedId = it },
-                                modifier = Modifier.animateItem(
-                                    placementSpec = if (draggedItemId == profile.id) null else spring(
-                                        dampingRatio = Spring.DampingRatioNoBouncy,
-                                        stiffness = Spring.StiffnessMedium
-                                    )
-                                )
+                                modifier = Modifier.animateItem()
                             )
                         }
 
@@ -1195,7 +1217,7 @@ private fun ProfileItemRow(
     scope: kotlinx.coroutines.CoroutineScope,
     context: android.content.Context,
     onDragEnd: (String) -> Unit,
-    onExportClick: (List<String>) -> Unit,
+    onExportClick: (List<String>, Boolean) -> Unit,
     onExportActionSelected: (Boolean) -> Unit,
     onClone: (Profile) -> Unit,
     onRename: (Profile) -> Unit,
@@ -1334,7 +1356,6 @@ private fun ProfileItemRow(
                             onClick = {
                                 menuExpanded = false
                                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                onExportClick(listOf(profile.id))
                                 itemExportActionMenuExpanded = true
                             }
                         )
@@ -1408,6 +1429,7 @@ private fun ProfileItemRow(
                         onFormatSelected = { },
                         onActionSelected = { save ->
                             itemExportActionMenuExpanded = false
+                            onExportClick(listOf(profile.id), false)
                             onExportActionSelected(save)
                         }
                     )
@@ -1421,9 +1443,12 @@ private fun ProfileItemRow(
 private fun SubscriptionHeaderRow(
     sub: Subscription,
     isAnyChildSelected: Boolean,
+    isSelectionMode: Boolean,
+    isAllSubSelected: Boolean,
     onUpdate: () -> Unit,
     onSettings: () -> Unit,
     onSelect: () -> Unit,
+    onToggleSelection: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isHighlighted = isAnyChildSelected
@@ -1436,16 +1461,25 @@ private fun SubscriptionHeaderRow(
     Surface(
         color = backgroundColor,
         shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 4.dp, bottomEnd = 4.dp),
-        onClick = if (!isHighlighted) onSelect else ({ /* Do nothing when already selected */ }),
-        enabled = !isHighlighted,
+        onClick = {
+            if (isSelectionMode) onToggleSelection()
+            else if (!isHighlighted) onSelect()
+        },
         modifier = modifier
             .fillMaxWidth()
             .padding(top = 8.dp)
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 16.dp, end = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            if (isSelectionMode) {
+                Checkbox(
+                    checked = isAllSubSelected,
+                    onCheckedChange = { onToggleSelection() },
+                    modifier = Modifier.padding(end = 16.dp)
+                )
+            }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = sub.name, 
@@ -1462,21 +1496,23 @@ private fun SubscriptionHeaderRow(
                     )
                 }
             }
-            IconButton(onClick = onSettings) {
-                Icon(
-                    painter = painterResource(R.drawable.settings_24px), 
-                    contentDescription = null, 
-                    tint = if (isHighlighted) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            IconButton(onClick = onUpdate) {
-                Icon(
-                    painter = painterResource(R.drawable.refresh_24px), 
-                    contentDescription = null, 
-                    modifier = Modifier.size(20.dp),
-                    tint = if (isHighlighted) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
-                )
+            if (!isSelectionMode) {
+                IconButton(onClick = onSettings) {
+                    Icon(
+                        painter = painterResource(R.drawable.settings_24px), 
+                        contentDescription = null, 
+                        tint = if (isHighlighted) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface, 
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                IconButton(onClick = onUpdate) {
+                    Icon(
+                        painter = painterResource(R.drawable.refresh_24px), 
+                        contentDescription = null, 
+                        modifier = Modifier.size(20.dp),
+                        tint = if (isHighlighted) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
+                    )
+                }
             }
         }
     }

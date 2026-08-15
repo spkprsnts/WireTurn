@@ -80,6 +80,9 @@
     <string name="import_error">Import error</string>
     <string name="import_error_no_link">No valid link found in clipboard</string>
     <string name="import_error_invalid_profile">Invalid profile format</string>
+    <string name="import_error_connection">Connection failed. Check your internet.</string>
+    <string name="import_error_server">Server returned an error: %1$d</string>
+    <string name="import_error_empty">Server returned empty response</string>
     <string name="import_error_invalid_config">Invalid configuration format</string>
 
     <!-- WireGuard Setup -->

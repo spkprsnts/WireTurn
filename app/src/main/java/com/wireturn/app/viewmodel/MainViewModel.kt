@@ -59,7 +59,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val profileManager = ProfileManager(
         prefs = prefs,
         scope = ProcessLifecycleOwner.get().lifecycleScope
-    )
+    ).apply {
+        autoSelectListener = { selectProfileAndRestart(it.id, it) }
+    }
 
     val coreState: StateFlow<CoreState> = coreManager.coreState
     val logs: StateFlow<List<AppLogsState.LogEntry>> = AppLogsState.logs
@@ -632,7 +634,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (CoreServiceState.isRunning.value) stopCore()
             viewModelScope.launch { prefs.clearActiveProfile() }
         }
-        profileManager.deleteProfiles(ids) { nextId, p -> selectProfileAndRestart(nextId, p) }
+        profileManager.deleteProfiles(ids) { p -> selectProfileAndRestart(p.id, p) }
     }
     fun renameProfile(id: String, name: String) = profileManager.renameProfile(id, name)
     fun reorderProfiles(list: List<Profile>) = profileManager.reorderProfiles(list)
@@ -641,7 +643,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun importProfilesFromZip(s: java.io.InputStream) = profileManager.importProfilesFromZip(s) { selectProfileAndRestart(it.id, it) }
     fun importProfiles(data: List<Pair<String?, String>>) = profileManager.importProfiles(data) { selectProfileAndRestart(it.id, it) }
 
-    suspend fun importProfileFromLink(link: String): Boolean {
+    suspend fun importProfileFromLink(link: String): com.wireturn.app.domain.ImportStatus {
         val trimmedLink = link.trim()
         if (trimmedLink.startsWith("https://") || trimmedLink.startsWith("http://")) {
             return profileManager.fetchSubscription(trimmedLink) {
@@ -653,8 +655,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val json = com.wireturn.app.domain.ProfileEncoder.decode(encoded)
         return if (json != null) {
             importProfiles(listOf(null to json))
-            true
-        } else false
+            com.wireturn.app.domain.ImportStatus.Success
+        } else com.wireturn.app.domain.ImportStatus.InvalidFormat
     }
 
     fun updateAllSubscriptions() {

@@ -76,6 +76,9 @@
     <string name="import_error">Ошибка импорта</string>
     <string name="import_error_no_link">В буфере обмена не найдена подходящая ссылка</string>
     <string name="import_error_invalid_profile">Некорректный формат профиля</string>
+    <string name="import_error_connection">Ошибка подключения. Проверьте интернет.</string>
+    <string name="import_error_server">Ошибка сервера: %1$d</string>
+    <string name="import_error_empty">Сервер вернул пустой ответ</string>
     <string name="import_error_invalid_config">Некорректный формат конфигурации</string>
 
     <!-- Настройка WireGuard -->

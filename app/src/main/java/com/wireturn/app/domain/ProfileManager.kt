@@ -23,10 +23,20 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+sealed class ImportStatus {
+    object Success : ImportStatus()
+    object NetworkError : ImportStatus()
+    data class ServerError(val code: Int) : ImportStatus()
+    object EmptyResponse : ImportStatus()
+    object InvalidFormat : ImportStatus()
+}
+
 class ProfileManager(
     private val prefs: AppPreferences,
     private val scope: CoroutineScope
 ) {
+    var autoSelectListener: ((Profile) -> Unit)? = null
+
     val profiles: StateFlow<List<Profile>> = prefs.profilesFlow
         .stateIn(scope, SharingStarted.Eagerly, emptyList())
 
@@ -40,6 +50,35 @@ class ProfileManager(
         .registerTypeAdapterFactory(com.wireturn.app.data.SafeEnumTypeAdapterFactory())
         .registerTypeAdapter(com.wireturn.app.data.KernelConfig::class.java, com.wireturn.app.data.KernelConfigAdapter())
         .create()
+
+    private val userAgent: String by lazy {
+        val version = try {
+            val pInfo = prefs.context.packageManager.getPackageInfo(prefs.context.packageName, 0)
+            pInfo.versionName
+        } catch (_: Exception) { "1.0" }
+        "WireTurn/$version"
+    }
+
+    init {
+        startAutoUpdateLoop()
+    }
+
+    private fun startAutoUpdateLoop() {
+        scope.launch(Dispatchers.IO) {
+            while (true) {
+                kotlinx.coroutines.delay(60_000) // Check every minute
+                val now = System.currentTimeMillis()
+                subscriptions.value.forEach { sub ->
+                    if (sub.autoUpdate) {
+                        val intervalMs = sub.updateIntervalMinutes * 60 * 1000L
+                        if (now - sub.updatedAt >= intervalMs) {
+                            fetchSubscription(sub.url)
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     fun selectProfile(id: String, profile: Profile? = null, onConfigLoaded: (Profile) -> Unit) {
         val targetProfile = profile ?: profiles.value.find { it.id == id } ?: return
@@ -84,19 +123,18 @@ class ProfileManager(
         scope.launch { prefs.saveProfiles(newList) }
     }
 
-    fun deleteProfiles(ids: List<String>, onFallback: (String, Profile?) -> Unit) {
+    fun deleteProfiles(ids: List<String>, onFallback: (Profile) -> Unit) {
         val currentList = profiles.value
-        val isCurrentDeleted = currentProfileId.value in ids
-        val firstDeletedIdx = currentList.indexOfFirst { it.id in ids }
+        val currentProfile = currentList.find { it.id == currentProfileId.value }
+        val isCurrentDeleted = currentProfile?.id in ids
+        val preferredSubId = currentProfile?.subscriptionId
 
         val newList = currentList.filter { it.id !in ids }
 
         scope.launch {
             prefs.saveProfiles(newList)
-            if (isCurrentDeleted) {
-                val targetIndex = if (newList.isEmpty()) -1 else (firstDeletedIdx - 1).coerceAtMost(newList.size - 1).coerceAtLeast(0)
-                val toSelect = if (targetIndex != -1) newList.getOrNull(targetIndex) else null
-                if (toSelect != null) onFallback(toSelect.id, toSelect)
+            if (isCurrentDeleted && newList.isNotEmpty()) {
+                findBestFallbackProfile(newList, subscriptions.value, preferredSubId)?.let { onFallback(it) }
             }
         }
     }
@@ -232,12 +270,13 @@ class ProfileManager(
             scope.launch {
                 prefs.saveProfiles(newList)
                 
+                val callback = onAutoSelect ?: autoSelectListener
                 val updatedVersionOfCurrent = importedList.find { it.id == currentSelectedId }
                 val isStillSelected = newList.any { it.id == currentSelectedId }
                 
                 if (updatedVersionOfCurrent != null) {
                     // Sync active config if the currently selected profile was updated
-                    onAutoSelect?.invoke(updatedVersionOfCurrent)
+                    callback?.invoke(updatedVersionOfCurrent)
                 } else if (wasEmpty || (wasSelectedFromThisSub && !isStillSelected)) {
                     // Auto-select based on subscription preference or first available
                     val bestToSelect = if (subscriptionId != null) {
@@ -246,11 +285,11 @@ class ProfileManager(
                     } else {
                         importedList.firstOrNull()
                     }
-                    bestToSelect?.let { onAutoSelect?.invoke(it) }
+                    bestToSelect?.let { callback?.invoke(it) }
                 } else if (!isStillSelected && newList.isNotEmpty()) {
                     // Fallback to first available ever, respecting active subscription profiles
                     val fallback = findBestFallbackProfile(newList)
-                    fallback?.let { onAutoSelect?.invoke(it) }
+                    fallback?.let { callback?.invoke(it) }
                 }
             }
             return importedList.size
@@ -259,92 +298,111 @@ class ProfileManager(
         }
     }
 
-    suspend fun fetchSubscription(url: String, onAutoSelect: ((Profile) -> Unit)? = null): Boolean = withContext(Dispatchers.IO) {
+    suspend fun fetchSubscription(url: String, onAutoSelect: ((Profile) -> Unit)? = null): ImportStatus = withContext(Dispatchers.IO) {
+        val connection = (URL(url).openConnection(java.net.Proxy.NO_PROXY) as HttpURLConnection).apply {
+            requestMethod = "GET"
+            connectTimeout = 10000
+            readTimeout = 10000
+            setRequestProperty("User-Agent", userAgent)
+        }
+        
         try {
-            val connection = URL(url).openConnection(java.net.Proxy.NO_PROXY) as HttpURLConnection
-            connection.requestMethod = "GET"
-            connection.connectTimeout = 10000
-            connection.readTimeout = 10000
-            connection.setRequestProperty("User-Agent", "WireTurn/1.0")
-            
-            val responseCode = connection.responseCode
-            if (responseCode != HttpURLConnection.HTTP_OK) {
-                com.wireturn.app.AppLogsState.addLog("Subscription HTTP Error: $responseCode")
-                return@withContext false
+            // Register cancellation listener to disconnect the connection
+            val job = launch {
+                try {
+                    kotlinx.coroutines.delay(Long.MAX_VALUE)
+                } finally {
+                    connection.disconnect()
+                }
             }
 
-            val content = connection.inputStream.bufferedReader().use { it.readText() }
-            if (content.isBlank()) {
-                com.wireturn.app.AppLogsState.addLog("Subscription Error: Empty response")
-                return@withContext false
-            }
-            val bundle = try {
-                gson.fromJson(content, ProfileBundle::class.java)
-            } catch (e: Exception) {
-                // Try if it's a direct array of profiles
-                try {
-                    val profiles = gson.fromJson<List<Profile>>(content, object : com.google.gson.reflect.TypeToken<List<Profile>>() {}.type)
-                    ProfileBundle(profiles = profiles)
-                } catch (e2: Exception) {
-                    // Try if it's a wireturn:// link body
-                    val decoded = ProfileEncoder.decode(content)
-                    if (decoded != null) {
-                        val element = JsonParser.parseString(decoded)
-                        val profiles = if (element.isJsonArray) {
-                            gson.fromJson<List<Profile>>(element, object : com.google.gson.reflect.TypeToken<List<Profile>>() {}.type)
-                        } else {
-                            listOf(gson.fromJson(element, Profile::class.java))
-                        }
-                        ProfileBundle(profiles = profiles)
+            val result = try {
+                val responseCode = connection.responseCode
+                if (responseCode != HttpURLConnection.HTTP_OK) {
+                    com.wireturn.app.AppLogsState.addLog("Subscription HTTP Error: $responseCode")
+                    ImportStatus.ServerError(responseCode)
+                } else {
+                    val content = connection.inputStream.bufferedReader().use { it.readText() }
+                    if (content.isBlank()) {
+                        com.wireturn.app.AppLogsState.addLog("Subscription Error: Empty response")
+                        ImportStatus.EmptyResponse
                     } else {
-                        // Try if it's a legacy text subscription format (Free Turn / olcrtc)
-                        tryParseTextSubscription(content)
+                        kotlinx.coroutines.yield() // Check for cancellation
+                        val bundle = try {
+                            gson.fromJson(content, ProfileBundle::class.java)
+                        } catch (e: Exception) {
+                            try {
+                                val profiles = gson.fromJson<List<Profile>>(content, object : com.google.gson.reflect.TypeToken<List<Profile>>() {}.type)
+                                ProfileBundle(profiles = profiles)
+                            } catch (e2: Exception) {
+                                val decoded = ProfileEncoder.decode(content)
+                                if (decoded != null) {
+                                    val element = JsonParser.parseString(decoded)
+                                    val profiles = if (element.isJsonArray) {
+                                        gson.fromJson<List<Profile>>(element, object : com.google.gson.reflect.TypeToken<List<Profile>>() {}.type)
+                                    } else {
+                                        listOf(gson.fromJson(element, Profile::class.java))
+                                    }
+                                    ProfileBundle(profiles = profiles)
+                                } else {
+                                    tryParseTextSubscription(content)
+                                }
+                            }
+                        }
+
+                        if (bundle != null) {
+                            val subId = subscriptions.value.find { it.url == url }?.id ?: UUID.randomUUID().toString()
+                            val existingSub = subscriptions.value.find { it.id == subId }
+                            val subName = bundle.name ?: connection.getHeaderField("Profile-Title") ?: URL(url).host ?: "Subscription"
+                            
+                            kotlinx.coroutines.yield()
+
+                            val bundleJsonList = bundle.profiles.map { null to gson.toJson(it) }
+                            importProfiles(bundleJsonList, subscriptionId = subId, onAutoSelect = onAutoSelect)
+
+                            val updatedProfiles = profiles.value.filter { it.subscriptionId == subId }
+                            val bestActiveId = bundle.activeProfileId 
+                                ?: existingSub?.activeProfileId?.takeIf { id -> updatedProfiles.any { it.id == id } }
+                                ?: updatedProfiles.firstOrNull()?.id
+
+                            val newSubscription = Subscription(
+                                id = subId,
+                                name = subName,
+                                url = url,
+                                description = bundle.description,
+                                updatedAt = System.currentTimeMillis(),
+                                bytesUsed = bundle.bytesUsed ?: 0,
+                                bytesTotal = bundle.bytesTotal ?: 0,
+                                activeProfileId = bestActiveId,
+                                autoUpdate = existingSub?.autoUpdate ?: (bundle.updateIntervalMinutes != null),
+                                updateIntervalMinutes = existingSub?.updateIntervalMinutes 
+                                    ?: bundle.updateIntervalMinutes?.coerceAtLeast(20)
+                                    ?: 1440
+                            )
+
+                            val currentSubs = subscriptions.value
+                            val newSubs = if (currentSubs.any { it.id == subId }) {
+                                currentSubs.map { if (it.id == subId) newSubscription else it }
+                            } else {
+                                currentSubs + newSubscription
+                            }
+                            prefs.saveSubscriptions(newSubs)
+                            ImportStatus.Success
+                        } else {
+                            ImportStatus.InvalidFormat
+                        }
                     }
                 }
-            } ?: return@withContext false
-
-            val subId = subscriptions.value.find { it.url == url }?.id ?: UUID.randomUUID().toString()
-            val existingSub = subscriptions.value.find { it.id == subId }
-            val subName = bundle.name ?: connection.getHeaderField("Profile-Title") ?: URL(url).host ?: "Subscription"
-            
-            // Import profiles first to know what IDs we have
-            val bundleJsonList = bundle.profiles.map { null to gson.toJson(it) }
-            importProfiles(bundleJsonList, subscriptionId = subId, onAutoSelect = onAutoSelect)
-
-            // Determine active profile ID:
-            // 1. From bundle (server-side preference)
-            // 2. Existing local preference if still valid
-            // 3. Fallback to first imported profile
-            val updatedProfiles = profiles.value.filter { it.subscriptionId == subId }
-            val bestActiveId = bundle.activeProfileId 
-                ?: existingSub?.activeProfileId?.takeIf { id -> updatedProfiles.any { it.id == id } }
-                ?: updatedProfiles.firstOrNull()?.id
-
-            val newSubscription = Subscription(
-                id = subId,
-                name = subName,
-                url = url,
-                description = bundle.description,
-                updatedAt = bundle.updatedAt ?: System.currentTimeMillis(),
-                bytesUsed = bundle.bytesUsed ?: 0,
-                bytesTotal = bundle.bytesTotal ?: 0,
-                activeProfileId = bestActiveId,
-                autoUpdate = existingSub?.autoUpdate ?: false,
-                updateIntervalMin = existingSub?.updateIntervalMin ?: 1440
-            )
-
-            // Update subscriptions list preserving order
-            val currentSubs = subscriptions.value
-            val newSubs = if (currentSubs.any { it.id == subId }) {
-                currentSubs.map { if (it.id == subId) newSubscription else it }
-            } else {
-                currentSubs + newSubscription
+            } finally {
+                job.cancel()
             }
-            prefs.saveSubscriptions(newSubs)
-            true
+            result
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             com.wireturn.app.AppLogsState.addLog("Subscription Error: ${e.javaClass.simpleName} - ${e.message}")
-            false
+            ImportStatus.NetworkError
+        } finally {
+            connection.disconnect()
         }
     }
 
@@ -367,22 +425,36 @@ class ProfileManager(
 
     private fun findBestFallbackProfile(
         allProfiles: List<Profile>,
-        allSubs: List<Subscription> = subscriptions.value
+        allSubs: List<Subscription> = subscriptions.value,
+        preferredSubId: String? = null
     ): Profile? {
         if (allProfiles.isEmpty()) return null
 
-        // 1. Try first standalone profile
+        // 1. If we were in a sub, try to stay in it
+        if (preferredSubId != null) {
+            val sub = allSubs.find { it.id == preferredSubId }
+            if (sub != null) {
+                val activeInSub = allProfiles.find { it.id == sub.activeProfileId && it.subscriptionId == sub.id }
+                if (activeInSub != null) return activeInSub
+                
+                val firstInSub = allProfiles.find { it.subscriptionId == sub.id }
+                if (firstInSub != null) return firstInSub
+            }
+        }
+
+        // 2. Try first standalone profile
         val standalone = allProfiles.find { it.subscriptionId == null }
         if (standalone != null) return standalone
 
-        // 2. Try active profile from the first subscription
-        allSubs.firstOrNull()?.let { sub ->
-            val activeInSub = allProfiles.find { it.id == sub.activeProfileId && it.subscriptionId == sub.id }
-            if (activeInSub != null) return activeInSub
-            
-            // 3. Fallback to first profile of that sub
-            val firstInSub = allProfiles.find { it.subscriptionId == sub.id }
-            if (firstInSub != null) return firstInSub
+        // 3. Try active profile from any subscription
+        allSubs.forEach { sub ->
+            if (sub.id != preferredSubId) {
+                val activeInSub = allProfiles.find { it.id == sub.activeProfileId && it.subscriptionId == sub.id }
+                if (activeInSub != null) return activeInSub
+                
+                val firstInSub = allProfiles.find { it.subscriptionId == sub.id }
+                if (firstInSub != null) return firstInSub
+            }
         }
 
         // 4. Just first one ever
@@ -403,10 +475,22 @@ class ProfileManager(
         val lines = text.lines()
         var subName: String? = null
         var subDescription: String? = null
+        var subInterval: Int? = null
 
         val profiles = mutableListOf<Profile>()
         var currentProfile: Profile? = null
         var currentKernelConfig: KernelConfig? = null
+
+        fun parseInterval(v: String): Int? {
+            val num = v.filter { it.isDigit() }.toIntOrNull() ?: return null
+            return when {
+                v.endsWith("s") -> num / 60
+                v.endsWith("m") -> num
+                v.endsWith("h") -> num * 60
+                v.endsWith("d") -> num * 1440
+                else -> num
+            }
+        }
 
         fun flush() {
             val p = currentProfile ?: return
@@ -514,6 +598,7 @@ class ProfileManager(
                     when (key) {
                         "name" -> subName = value
                         "description" -> subDescription = value
+                        "refresh" -> subInterval = parseInterval(value)
                         "comment" -> if (subDescription == null) subDescription = value
                     }
                 }
@@ -525,7 +610,8 @@ class ProfileManager(
         return ProfileBundle(
             name = subName,
             description = subDescription,
-            profiles = profiles
+            profiles = profiles,
+            updateIntervalMinutes = subInterval
         )
     }
 }

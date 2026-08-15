@@ -86,11 +86,37 @@ class AddProfileActivity : ComponentActivity() {
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
             val scope = rememberCoroutineScope()
             val clipboard = LocalClipboard.current
+            val context = androidx.compose.ui.platform.LocalContext.current
             val snackbarHostState = remember { SnackbarHostState() }
             var isImporting by remember { mutableStateOf(false) }
             val errorNoLink = stringResource(R.string.import_error_no_link)
             val errorInvalidProfile = stringResource(R.string.import_error_invalid_profile)
+            val errorConnection = stringResource(R.string.import_error_connection)
+            val errorEmpty = stringResource(R.string.import_error_empty)
             val scrollState = rememberScrollState()
+
+            fun handleImportResult(status: com.wireturn.app.domain.ImportStatus) {
+                when (status) {
+                    com.wireturn.app.domain.ImportStatus.Success -> finish()
+                    com.wireturn.app.domain.ImportStatus.NetworkError -> {
+                        HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
+                        scope.launch { snackbarHostState.showExclusiveSnackbar(errorConnection) }
+                    }
+                    is com.wireturn.app.domain.ImportStatus.ServerError -> {
+                        HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
+                        val msg = context.getString(R.string.import_error_server, status.code)
+                        scope.launch { snackbarHostState.showExclusiveSnackbar(msg) }
+                    }
+                    com.wireturn.app.domain.ImportStatus.EmptyResponse -> {
+                        HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
+                        scope.launch { snackbarHostState.showExclusiveSnackbar(errorEmpty) }
+                    }
+                    com.wireturn.app.domain.ImportStatus.InvalidFormat -> {
+                        HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
+                        scope.launch { snackbarHostState.showExclusiveSnackbar(errorInvalidProfile) }
+                    }
+                }
+            }
 
             var pendingLinkImport by remember { mutableStateOf<String?>(null) }
             val localNetworkPermissionLauncher = rememberLauncherForActivityResult(
@@ -101,13 +127,13 @@ class AddProfileActivity : ComponentActivity() {
                 if (link != null) {
                     isImporting = true
                     scope.launch {
-                        val success = try { viewModel.importProfileFromLink(link) } catch (e: Exception) { false }
-                        isImporting = false
-                        if (success) finish()
-                        else {
-                            HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
-                            snackbarHostState.showExclusiveSnackbar(errorInvalidProfile)
+                        val status = try { 
+                            viewModel.importProfileFromLink(link) 
+                        } catch (e: Exception) { 
+                            com.wireturn.app.domain.ImportStatus.NetworkError 
                         }
+                        isImporting = false
+                        handleImportResult(status)
                     }
                 }
             }
@@ -247,19 +273,13 @@ class AddProfileActivity : ComponentActivity() {
                                             }
 
                                             isImporting = true
-                                            val success = try {
+                                            val status = try {
                                                 viewModel.importProfileFromLink(text)
                                             } catch (e: Exception) {
-                                                false
+                                                com.wireturn.app.domain.ImportStatus.NetworkError
                                             }
                                             isImporting = false
-
-                                            if (success) {
-                                                finish()
-                                            } else {
-                                                HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
-                                                snackbarHostState.showExclusiveSnackbar(errorInvalidProfile)
-                                            }
+                                            handleImportResult(status)
                                         } else {
                                             HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
                                             snackbarHostState.showExclusiveSnackbar(errorNoLink)
