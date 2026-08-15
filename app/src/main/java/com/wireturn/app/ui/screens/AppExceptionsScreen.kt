@@ -5,6 +5,7 @@
 
 package com.wireturn.app.ui.screens
 
+import android.widget.Toast
 import android.content.pm.ApplicationInfo
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -45,8 +46,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SearchBarValue
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberSearchBarState
@@ -83,7 +82,6 @@ import androidx.compose.ui.zIndex
 import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
-import com.wireturn.app.ui.AppSnackbar
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.HapticUtil
@@ -95,7 +93,6 @@ import com.wireturn.app.ui.SectionHeader
 import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.selectableButtonItem
-import com.wireturn.app.ui.showExclusiveSnackbar
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -252,7 +249,6 @@ fun AppExceptionsScreen(
         )
     }
 
-    val snackbarHostState = remember { SnackbarHostState() }
     val clipboard = LocalClipboard.current
     val listState = rememberLazyListState()
 
@@ -297,11 +293,9 @@ fun AppExceptionsScreen(
                         
                         listState.animateScrollToItem(0)
                         isAppsLoading = false
-                        snackbarHostState.showExclusiveSnackbar(
-                            appsImportedFormat.format(newlyAdded.size)
-                        )
+                        Toast.makeText(context, appsImportedFormat.format(newlyAdded.size), Toast.LENGTH_SHORT).show()
                     } else {
-                        snackbarHostState.showExclusiveSnackbar(noAppsMsg)
+                        Toast.makeText(context, noAppsMsg, Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -315,7 +309,7 @@ fun AppExceptionsScreen(
             try {
                 val clipData = android.content.ClipData.newPlainText("WireTurn Apps", text)
                 clipboard.setClipEntry(ClipEntry(clipData))
-                snackbarHostState.showExclusiveSnackbar(listCopiedMsg)
+                Toast.makeText(context, listCopiedMsg, Toast.LENGTH_SHORT).show()
             } catch (_: Exception) { }
         }
     }
@@ -374,13 +368,6 @@ fun AppExceptionsScreen(
                 .fillMaxSize()
                 .nestedScroll(searchScrollConnection)
                 .nestedScroll(scrollBehavior.noFlingExpandConnection()),
-            snackbarHost = {
-                SnackbarHost(
-                    hostState = snackbarHostState
-                ) { data ->
-                    AppSnackbar(data)
-                }
-            },
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             containerColor = screenBackgroundColor
         ) { innerPadding ->

@@ -7,6 +7,7 @@ package com.wireturn.app.ui.screens
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
@@ -1037,7 +1038,10 @@ fun ProfilesDialog(
                                 isUpdating = isUpdating,
                                 onUpdate = {
                                     scope.launch {
-                                        viewModel.importProfileFromLink(sub.url)
+                                        val status = viewModel.importProfileFromLink(sub.url)
+                                        if (status is com.wireturn.app.domain.ImportStatus.Success && status.summary != null) {
+                                            showUpdateToast(context, status.summary)
+                                        }
                                     }
                                 },
                                 onSettings = {
@@ -1708,4 +1712,13 @@ fun ProfileNameDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         }
     )
+}
+
+private fun showUpdateToast(context: Context, summary: com.wireturn.app.domain.ImportResult) {
+    val message = if (summary.added == 0 && summary.updated == 0 && summary.removed == 0) {
+        context.getString(R.string.subscription_update_no_changes)
+    } else {
+        context.getString(R.string.subscription_update_summary, summary.added, summary.removed, summary.total)
+    }
+    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
 }

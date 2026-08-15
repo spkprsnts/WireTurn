@@ -3,6 +3,7 @@ package com.wireturn.app.ui.activities
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -21,8 +22,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
@@ -87,7 +86,6 @@ class AddProfileActivity : ComponentActivity() {
             val scope = rememberCoroutineScope()
             val clipboard = LocalClipboard.current
             val context = androidx.compose.ui.platform.LocalContext.current
-            val snackbarHostState = remember { SnackbarHostState() }
             var isImporting by remember { mutableStateOf(false) }
             val errorNoLink = stringResource(R.string.import_error_no_link)
             val errorInvalidProfile = stringResource(R.string.import_error_invalid_profile)
@@ -97,23 +95,23 @@ class AddProfileActivity : ComponentActivity() {
 
             fun handleImportResult(status: com.wireturn.app.domain.ImportStatus) {
                 when (status) {
-                    com.wireturn.app.domain.ImportStatus.Success -> finish()
-                    com.wireturn.app.domain.ImportStatus.NetworkError -> {
+                    is com.wireturn.app.domain.ImportStatus.Success -> finish()
+                    is com.wireturn.app.domain.ImportStatus.NetworkError -> {
                         HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
-                        scope.launch { snackbarHostState.showExclusiveSnackbar(errorConnection) }
+                        Toast.makeText(context, errorConnection, Toast.LENGTH_SHORT).show()
                     }
                     is com.wireturn.app.domain.ImportStatus.ServerError -> {
                         HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
                         val msg = context.getString(R.string.import_error_server, status.code)
-                        scope.launch { snackbarHostState.showExclusiveSnackbar(msg) }
+                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                     }
-                    com.wireturn.app.domain.ImportStatus.EmptyResponse -> {
+                    is com.wireturn.app.domain.ImportStatus.EmptyResponse -> {
                         HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
-                        scope.launch { snackbarHostState.showExclusiveSnackbar(errorEmpty) }
+                        Toast.makeText(context, errorEmpty, Toast.LENGTH_SHORT).show()
                     }
-                    com.wireturn.app.domain.ImportStatus.InvalidFormat -> {
+                    is com.wireturn.app.domain.ImportStatus.InvalidFormat -> {
                         HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
-                        scope.launch { snackbarHostState.showExclusiveSnackbar(errorInvalidProfile) }
+                        Toast.makeText(context, errorInvalidProfile, Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -160,14 +158,14 @@ class AddProfileActivity : ComponentActivity() {
 
                             if (fileName?.endsWith(".zip", ignoreCase = true) == true) {
                                 contentResolver.openInputStream(uri)?.use { stream ->
-                                    totalImported += viewModel.importProfilesFromZip(stream)
+                                    totalImported += viewModel.importProfilesFromZip(stream).total
                                 }
                             } else {
                                 val json = contentResolver.openInputStream(uri)?.use { stream ->
                                     stream.bufferedReader().readText()
                                 }
                                 if (json != null) {
-                                    totalImported += viewModel.importProfiles(listOf(fileName to json))
+                                    totalImported += viewModel.importProfiles(listOf(fileName to json)).total
                                 }
                             }
                         } catch (_: Exception) {}
@@ -178,7 +176,7 @@ class AddProfileActivity : ComponentActivity() {
                             finish()
                         } else {
                             HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
-                            snackbarHostState.showExclusiveSnackbar(errorInvalidProfile)
+                            Toast.makeText(context, errorInvalidProfile, Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
@@ -193,11 +191,6 @@ class AddProfileActivity : ComponentActivity() {
                             onBack = { finish() },
                             scrollBehavior = scrollBehavior
                         )
-                    },
-                    snackbarHost = {
-                        SnackbarHost(hostState = snackbarHostState) { data ->
-                            AppSnackbar(data)
-                        }
                     }
                 ) { padding ->
                     Column(
@@ -282,7 +275,7 @@ class AddProfileActivity : ComponentActivity() {
                                             handleImportResult(status)
                                         } else {
                                             HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
-                                            snackbarHostState.showExclusiveSnackbar(errorNoLink)
+                                            Toast.makeText(context, errorNoLink, Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 }

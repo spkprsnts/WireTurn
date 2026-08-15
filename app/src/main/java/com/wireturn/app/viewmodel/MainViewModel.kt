@@ -655,8 +655,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val encoded = trimmedLink.substringAfter("://")
         val json = com.wireturn.app.domain.ProfileEncoder.decode(encoded)
         return if (json != null) {
-            importProfiles(listOf(null to json))
-            com.wireturn.app.domain.ImportStatus.Success
+            val result = importProfiles(listOf(null to json))
+            com.wireturn.app.domain.ImportStatus.Success(result)
         } else com.wireturn.app.domain.ImportStatus.InvalidFormat
     }
 

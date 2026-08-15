@@ -26,8 +26,6 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -91,7 +89,6 @@ class SubscriptionConfigActivity : ComponentActivity() {
             }
 
             val context = LocalContext.current
-            val snackbarHostState = remember { SnackbarHostState() }
             val topAppBarState = rememberTopAppBarState()
             val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
                 state = topAppBarState,
@@ -164,11 +161,6 @@ class SubscriptionConfigActivity : ComponentActivity() {
                                 icon = { Icon(painterResource(R.drawable.save_24px), contentDescription = null) },
                                 text = { Text(stringResource(R.string.btn_save)) }
                             )
-                        }
-                    },
-                    snackbarHost = {
-                        SnackbarHost(hostState = snackbarHostState) { data ->
-                            AppSnackbar(data)
                         }
                     }
                 ) { padding ->

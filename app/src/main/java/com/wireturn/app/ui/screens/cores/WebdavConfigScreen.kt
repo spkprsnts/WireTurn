@@ -5,6 +5,7 @@
 
 package com.wireturn.app.ui.screens.cores
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -40,8 +41,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -67,7 +67,6 @@ import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
 import com.wireturn.app.data.WebdavConfig
 import com.wireturn.app.ui.AppDropdownMenu
-import com.wireturn.app.ui.AppSnackbar
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.HapticUtil
@@ -80,7 +79,6 @@ import com.wireturn.app.ui.ShareDropdownMenu
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.redact
 import com.wireturn.app.ui.screens.QrScannerDialog
-import com.wireturn.app.ui.showExclusiveSnackbar
 import kotlinx.coroutines.launch
 
 @Composable
@@ -118,7 +116,6 @@ fun WebdavConfigScreen(
     val context = LocalContext.current
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
 
     val topAppBarState = rememberTopAppBarState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
@@ -139,13 +136,13 @@ fun WebdavConfigScreen(
                         val parsed = WebdavConfig.parse(text)
                         if (parsed != null) {
                             config = parsed
-                            scope.launch { snackbarHostState.showExclusiveSnackbar(importSuccessMessage) }
+                            Toast.makeText(context, importSuccessMessage, Toast.LENGTH_SHORT).show()
                         } else {
-                            scope.launch { snackbarHostState.showExclusiveSnackbar(importErrorMessage) }
+                            Toast.makeText(context, importErrorMessage, Toast.LENGTH_SHORT).show()
                         }
                     }
                 } catch (_: Exception) {
-                    scope.launch { snackbarHostState.showExclusiveSnackbar(importErrorMessage) }
+                    Toast.makeText(context, importErrorMessage, Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -178,13 +175,6 @@ fun WebdavConfigScreen(
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.noFlingExpandConnection()),
-        snackbarHost = {
-            SnackbarHost(
-                hostState = snackbarHostState
-            ) { data ->
-                AppSnackbar(data)
-            }
-        },
         topBar = {
             AppTopAppBar(
                 title = stringResource(R.string.kernel_webdav),
@@ -221,9 +211,9 @@ fun WebdavConfigScreen(
                                         val parsed = WebdavConfig.parse(text)
                                         if (parsed != null) {
                                             config = parsed
-                                            snackbarHostState.showExclusiveSnackbar(importSuccessMessage)
+                                            Toast.makeText(context, importSuccessMessage, Toast.LENGTH_SHORT).show()
                                         } else if (text.isNotBlank()) {
-                                            snackbarHostState.showExclusiveSnackbar(importErrorMessage)
+                                            Toast.makeText(context, importErrorMessage, Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 }
@@ -483,9 +473,9 @@ fun WebdavConfigScreen(
                 val parsed = WebdavConfig.parse(result)
                 if (parsed != null) {
                     config = parsed
-                    scope.launch { snackbarHostState.showExclusiveSnackbar(importSuccessMessage) }
+                    Toast.makeText(context, importSuccessMessage, Toast.LENGTH_SHORT).show()
                 } else {
-                    scope.launch { snackbarHostState.showExclusiveSnackbar(importErrorMessage) }
+                    Toast.makeText(context, importErrorMessage, Toast.LENGTH_SHORT).show()
                 }
             }
         )

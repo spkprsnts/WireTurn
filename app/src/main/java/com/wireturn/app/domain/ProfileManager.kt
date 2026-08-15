@@ -26,8 +26,15 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+data class ImportResult(
+    val added: Int = 0,
+    val updated: Int = 0,
+    val removed: Int = 0,
+    val total: Int = 0
+)
+
 sealed class ImportStatus {
-    object Success : ImportStatus()
+    data class Success(val summary: ImportResult? = null) : ImportStatus()
     object NetworkError : ImportStatus()
     data class ServerError(val code: Int) : ImportStatus()
     object EmptyResponse : ImportStatus()
@@ -194,7 +201,7 @@ class ProfileManager(
         return bos.toByteArray()
     }
 
-    fun importProfilesFromZip(inputStream: java.io.InputStream, onAutoSelect: ((Profile) -> Unit)? = null): Int {
+    fun importProfilesFromZip(inputStream: java.io.InputStream, onAutoSelect: ((Profile) -> Unit)? = null): ImportResult {
         try {
             val extractedData = mutableListOf<Pair<String?, String>>()
             ZipInputStream(inputStream).use { zis ->
@@ -213,14 +220,14 @@ class ProfileManager(
                     entry = zis.nextEntry
                 }
             }
-            return if (extractedData.isNotEmpty()) importProfiles(extractedData, onAutoSelect = onAutoSelect) else 0
+            return if (extractedData.isNotEmpty()) importProfiles(extractedData, onAutoSelect = onAutoSelect) else ImportResult()
         } catch (e: Exception) {
             com.wireturn.app.AppLogsState.addLog("ZIP Import Error: ${e.message}")
-            return 0
+            return ImportResult()
         }
     }
 
-    fun importProfiles(data: List<Pair<String?, String>>, subscriptionId: String? = null, onAutoSelect: ((Profile) -> Unit)? = null): Int {
+    fun importProfiles(data: List<Pair<String?, String>>, subscriptionId: String? = null, onAutoSelect: ((Profile) -> Unit)? = null): ImportResult {
         try {
             val defaultName = prefs.context.getString(R.string.profile_default_name)
             val currentProfiles = profiles.value
@@ -233,6 +240,10 @@ class ProfileManager(
 
             val accumulating = currentProfiles.toMutableList()
             val importedList = mutableListOf<Profile>()
+            
+            var addedCount = 0
+            var updatedCount = 0
+            val matchedExistingIds = mutableSetOf<String>()
 
             data.forEach { (fileName, json) ->
                 try {
@@ -250,7 +261,8 @@ class ProfileManager(
                             ?: nextDefaultProfileName(accumulating)
 
                         // Try to preserve ID by matching name within the same subscription
-                        val matchedOldId = existingSubProfiles.find { it.name == name }?.id
+                        val existing = existingSubProfiles.find { it.name == name }
+                        val matchedOldId = existing?.id
                         val newId = matchedOldId ?: UUID.randomUUID().toString()
 
                         val profile = p.sanitize(defaultName).copy(
@@ -258,13 +270,21 @@ class ProfileManager(
                             name = name,
                             subscriptionId = subscriptionId
                         )
+                        
+                        if (existing != null) {
+                            matchedExistingIds.add(existing.id)
+                            if (existing != profile) updatedCount++
+                        } else {
+                            addedCount++
+                        }
+                        
                         accumulating.add(profile)
                         importedList.add(profile)
                     }
                 } catch (_: Exception) {}
             }
 
-            if (importedList.isEmpty()) return 0
+            if (importedList.isEmpty()) return ImportResult()
             val wasEmpty = currentProfiles.isEmpty()
             
             val newList = if (subscriptionId != null) {
@@ -294,13 +314,15 @@ class ProfileManager(
                     bestToSelect?.let { callback?.invoke(it) }
                 } else if (!isStillSelected && newList.isNotEmpty()) {
                     // Fallback to first available ever, respecting active subscription profiles
-                    val fallback = findBestFallbackProfile(newList)
+                    val fallback = findBestFallbackProfile(newList, subscriptions.value)
                     fallback?.let { callback?.invoke(it) }
                 }
             }
-            return importedList.size
+            
+            val removedCount = if (subscriptionId != null) existingSubProfiles.size - matchedExistingIds.size else 0
+            return ImportResult(addedCount, updatedCount, removedCount, importedList.size)
         } catch (_: Exception) {
-            return 0
+            return ImportResult()
         }
     }
 
@@ -368,7 +390,7 @@ class ProfileManager(
                             kotlinx.coroutines.yield()
 
                             val bundleJsonList = bundle.profiles.map { null to gson.toJson(it) }
-                            importProfiles(bundleJsonList, subscriptionId = subId, onAutoSelect = onAutoSelect)
+                            val importResult = importProfiles(bundleJsonList, subscriptionId = subId, onAutoSelect = onAutoSelect)
 
                             val updatedProfiles = profiles.value.filter { it.subscriptionId == subId }
                             val bestActiveId = bundle.activeProfileId 
@@ -397,7 +419,7 @@ class ProfileManager(
                                 currentSubs + newSubscription
                             }
                             prefs.saveSubscriptions(newSubs)
-                            ImportStatus.Success
+                            ImportStatus.Success(importResult)
                         } else {
                             ImportStatus.InvalidFormat
                         }

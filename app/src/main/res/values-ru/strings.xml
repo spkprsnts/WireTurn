@@ -81,6 +81,9 @@
     <string name="import_error_empty">Сервер вернул пустой ответ</string>
     <string name="import_error_invalid_config">Некорректный формат конфигурации</string>
 
+    <string name="subscription_update_no_changes">В подписке нет изменений</string>
+    <string name="subscription_update_summary">Обновлено: +%1$d, −%2$d (всего %3$d)</string>
+
     <!-- Настройка WireGuard -->
     <string name="xray_import_config">Импорт конфигурации Xray</string>
     <string name="wg_endpoint">Эндпоинт (локальный)</string>

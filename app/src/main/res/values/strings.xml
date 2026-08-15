@@ -85,6 +85,9 @@
     <string name="import_error_empty">Server returned empty response</string>
     <string name="import_error_invalid_config">Invalid configuration format</string>
 
+    <string name="subscription_update_no_changes">No changes in subscription</string>
+    <string name="subscription_update_summary">Updated: +%1$d, −%2$d (%3$d total)</string>
+
     <!-- WireGuard Setup -->
     <string name="xray_import_config">Xray configuration import</string>
     <string name="wg_interface" translatable="false">Interface</string>

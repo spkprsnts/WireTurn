@@ -5,6 +5,7 @@
 
 package com.wireturn.app.ui.screens
 
+import android.widget.Toast
 import android.annotation.SuppressLint
 import android.content.ClipData
 import android.content.Intent
@@ -63,8 +64,6 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -104,7 +103,6 @@ import com.wireturn.app.XrayServiceState
 import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.ui.AppExclusionTooltip
-import com.wireturn.app.ui.AppSnackbar
 import com.wireturn.app.ui.CompactItem
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
@@ -120,7 +118,6 @@ import com.wireturn.app.ui.VerticalAnimatedText
 import com.wireturn.app.ui.components.CoreToggleButton
 import com.wireturn.app.ui.privacySpoiler
 import com.wireturn.app.ui.redact
-import com.wireturn.app.ui.showExclusiveSnackbar
 import com.wireturn.app.viewmodel.CoreState
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.UpdateState
@@ -243,8 +240,6 @@ fun HomeScreen(
     }
 
     val proxyTransfer by viewModel.proxyTransfer.collectAsStateWithLifecycle()
-
-    val snackbarHostState = remember { SnackbarHostState() }
     val homeScrollState = rememberScrollState()
 
     // --- Launchers ---
@@ -310,11 +305,7 @@ fun HomeScreen(
     val warnVpnRequiresXray = stringResource(R.string.warn_vpn_requires_xray)
 
     val showVpnWarning = {
-        scope.launch {
-            snackbarHostState.showExclusiveSnackbar(
-                message = warnVpnRequiresXray
-            )
-        }
+        Toast.makeText(context, warnVpnRequiresXray, Toast.LENGTH_SHORT).show()
     }
 
 
@@ -375,13 +366,6 @@ fun HomeScreen(
                 },
                 expandedHeight = 56.dp
             )
-        },
-        snackbarHost = {
-            SnackbarHost(
-                hostState = snackbarHostState
-            ) { data ->
-                AppSnackbar(data)
-            }
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { padding ->
