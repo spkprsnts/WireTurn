@@ -668,6 +668,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteSubscription(id: String) = profileManager.deleteSubscription(id)
+
+    fun updateSubscription(sub: com.wireturn.app.data.Subscription) = profileManager.updateSubscription(sub)
     
     fun resetAllSettings(c: Context) {
         viewModelScope.launch {

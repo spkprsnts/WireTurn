@@ -98,6 +98,7 @@ import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.VerticalAnimatedText
+import com.wireturn.app.ui.activities.SubscriptionConfigActivity
 import com.wireturn.app.ui.activities.cores.OlcRtcConfigActivity
 import com.wireturn.app.ui.activities.cores.TurnableConfigActivity
 import com.wireturn.app.viewmodel.MainViewModel
@@ -1007,7 +1008,14 @@ fun ProfilesDialog(
                                 sub = sub,
                                 isAnyChildSelected = isAnySelected,
                                 onUpdate = { scope.launch { viewModel.importProfileFromLink(sub.url) } },
-                                onDelete = { showDeleteSubConfirm.value = sub }
+                                onSettings = {
+                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                    val intent = Intent(context, SubscriptionConfigActivity::class.java).apply {
+                                        putExtra("EXTRA_SUB_ID", sub.id)
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(intent)
+                                }
                             )
                         }
 
@@ -1398,7 +1406,8 @@ private fun SubscriptionHeaderRow(
     sub: Subscription,
     isAnyChildSelected: Boolean,
     onUpdate: () -> Unit,
-    onDelete: () -> Unit
+    onSettings: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val isHighlighted = isAnyChildSelected
     val backgroundColor by animateColorAsState(
@@ -1410,7 +1419,10 @@ private fun SubscriptionHeaderRow(
     Surface(
         color = backgroundColor,
         shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 4.dp, bottomEnd = 4.dp),
-        modifier = Modifier.padding(top = 8.dp)
+        onClick = onSettings,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -1432,11 +1444,11 @@ private fun SubscriptionHeaderRow(
                     )
                 }
             }
-            IconButton(onClick = onDelete) {
+            IconButton(onClick = onSettings) {
                 Icon(
-                    painter = painterResource(R.drawable.delete_24px), 
+                    painter = painterResource(R.drawable.settings_24px), 
                     contentDescription = null, 
-                    tint = if (isHighlighted) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.error, 
+                    tint = if (isHighlighted) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(20.dp)
                 )
             }

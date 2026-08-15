@@ -115,6 +115,11 @@
             android:windowSoftInputMode="adjustResize" />
 
         <activity
+            android:name=".ui.activities.SubscriptionConfigActivity"
+            android:theme="@style/Theme.wireturn"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
             android:name=".ui.activities.CreateProfileActivity"
             android:theme="@style/Theme.wireturn"
             android:windowSoftInputMode="adjustResize" />

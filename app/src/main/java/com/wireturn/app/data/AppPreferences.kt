@@ -1080,7 +1080,9 @@ data class Subscription(
     @SerializedName("description") val description: String? = null,
     @SerializedName("updatedAt") val updatedAt: Long = 0,
     @SerializedName("bytesUsed") val bytesUsed: Long = 0,
-    @SerializedName("bytesTotal") val bytesTotal: Long = 0
+    @SerializedName("bytesTotal") val bytesTotal: Long = 0,
+    @SerializedName("autoUpdate") val autoUpdate: Boolean = false,
+    @SerializedName("updateIntervalMin") val updateIntervalMin: Int = 1440 // Default 24h
 )
 
 data class ProfileBundle(

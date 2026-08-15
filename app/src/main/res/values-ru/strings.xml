@@ -429,6 +429,15 @@
     <string name="profile_none_selected">Нет профилей</string>
     <string name="profiles_empty">Профилей пока нет</string>
 
+    <string name="subscription_settings">Настройки подписки</string>
+    <string name="subscription_info">Информация о подписке</string>
+    <string name="auto_update">Автообновление</string>
+    <string name="update_interval_min">Интервал обновления (мин)</string>
+    <string name="update_interval_min_error">Минимальный интервал — 20 минут</string>
+    <string name="exit_without_saving_title">Выйти без сохранения?</string>
+    <string name="exit_without_saving_desc">Все несохраненные изменения будут потеряны.</string>
+    <string name="btn_exit">Выйти</string>
+
     <string name="profile_import_group">Импорт конфигурации</string>
     <string name="profile_manual_setup">Ручная настройка</string>
     <string name="profile_import_qr">Сканировать QR-код</string>

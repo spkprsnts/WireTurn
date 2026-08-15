@@ -322,6 +322,12 @@ class ProfileManager(
         }
     }
 
+    fun updateSubscription(sub: Subscription) {
+        val currentSubs = subscriptions.value
+        val newSubs = currentSubs.map { if (it.id == sub.id) sub else it }
+        scope.launch { prefs.saveSubscriptions(newSubs) }
+    }
+
     private fun tryParseTextSubscription(text: String): ProfileBundle? {
         if (!text.contains("freeturn://") && !text.contains("olcrtc://") && 
             !text.contains("turnable://") && !text.contains("webdav://") && 
