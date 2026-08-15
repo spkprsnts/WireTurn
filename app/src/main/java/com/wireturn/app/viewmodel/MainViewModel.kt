@@ -137,6 +137,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val profiles: StateFlow<List<Profile>> = profileManager.profiles
     val currentProfileId: StateFlow<String> = profileManager.currentProfileId
     val subscriptions: StateFlow<List<com.wireturn.app.data.Subscription>> = profileManager.subscriptions
+    val updatingSubIds: StateFlow<Set<String>> = profileManager.updatingSubIds
 
     val isArchitectureSupported: Boolean = Build.SUPPORTED_ABIS.any { 
         it == "arm64-v8a" || it == "x86_64" 

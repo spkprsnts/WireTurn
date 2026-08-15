@@ -10,9 +10,12 @@ import com.wireturn.app.data.KernelConfig
 import com.google.gson.JsonParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
@@ -45,6 +48,9 @@ class ProfileManager(
 
     val subscriptions: StateFlow<List<Subscription>> = prefs.subscriptionsFlow
         .stateIn(scope, SharingStarted.Eagerly, emptyList())
+
+    private val _updatingSubIds = MutableStateFlow<Set<String>>(emptySet())
+    val updatingSubIds: StateFlow<Set<String>> = _updatingSubIds.asStateFlow()
 
     private val gson = com.google.gson.GsonBuilder()
         .registerTypeAdapterFactory(com.wireturn.app.data.SafeEnumTypeAdapterFactory())
@@ -299,6 +305,10 @@ class ProfileManager(
     }
 
     suspend fun fetchSubscription(url: String, onAutoSelect: ((Profile) -> Unit)? = null): ImportStatus = withContext(Dispatchers.IO) {
+        val existingSubId = subscriptions.value.find { it.url == url }?.id
+        existingSubId?.let { id -> _updatingSubIds.update { it + id } }
+        val startTime = System.currentTimeMillis()
+
         val connection = (URL(url).openConnection(java.net.Proxy.NO_PROXY) as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = 10000
@@ -351,7 +361,7 @@ class ProfileManager(
                         }
 
                         if (bundle != null) {
-                            val subId = subscriptions.value.find { it.url == url }?.id ?: UUID.randomUUID().toString()
+                            val subId = existingSubId ?: subscriptions.value.find { it.url == url }?.id ?: UUID.randomUUID().toString()
                             val existingSub = subscriptions.value.find { it.id == subId }
                             val subName = bundle.name ?: connection.getHeaderField("Profile-Title") ?: URL(url).host ?: "Subscription"
                             
@@ -376,7 +386,7 @@ class ProfileManager(
                                 activeProfileId = bestActiveId,
                                 autoUpdate = existingSub?.autoUpdate ?: (bundle.updateIntervalMinutes != null),
                                 updateIntervalMinutes = existingSub?.updateIntervalMinutes 
-                                    ?: bundle.updateIntervalMinutes?.coerceAtLeast(20)
+                                    ?: bundle.updateIntervalMinutes?.coerceAtLeast(20) 
                                     ?: 1440
                             )
 
@@ -396,12 +406,20 @@ class ProfileManager(
             } finally {
                 job.cancel()
             }
+            
+            // Ensure minimum visible loading time
+            val elapsed = System.currentTimeMillis() - startTime
+            if (elapsed < 300) {
+                kotlinx.coroutines.delay(300 - elapsed)
+            }
+            
             result
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             com.wireturn.app.AppLogsState.addLog("Subscription Error: ${e.javaClass.simpleName} - ${e.message}")
             ImportStatus.NetworkError
         } finally {
+            existingSubId?.let { id -> _updatingSubIds.update { it - id } }
             connection.disconnect()
         }
     }

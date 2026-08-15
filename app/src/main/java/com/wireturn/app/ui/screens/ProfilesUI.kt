@@ -371,6 +371,7 @@ fun ProfilesDialog(
 ) {
     val profilesSource by viewModel.profiles.collectAsStateWithLifecycle()
     val subscriptions by viewModel.subscriptions.collectAsStateWithLifecycle()
+    val updatingSubIds by viewModel.updatingSubIds.collectAsStateWithLifecycle()
     val currentId by viewModel.currentProfileId.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -1025,14 +1026,20 @@ fun ProfilesDialog(
                     // Subscription Groups
                     subscriptionGroups.forEach { (sub, subProfiles) ->
                         val isAnySelected = subProfiles.any { it.id == (optimisticSelectedId ?: currentId) }
-                        
+                        val isUpdating = updatingSubIds.contains(sub.id)
+
                         item(key = "sub_header_${sub.id}") {
                             SubscriptionHeaderRow(
                                 sub = sub,
                                 isAnyChildSelected = isAnySelected,
                                 isSelectionMode = isSelectionMode,
                                 isAllSubSelected = subProfiles.isNotEmpty() && subProfiles.all { selectedIds.contains(it.id) },
-                                onUpdate = { scope.launch { viewModel.importProfileFromLink(sub.url) } },
+                                isUpdating = isUpdating,
+                                onUpdate = {
+                                    scope.launch {
+                                        viewModel.importProfileFromLink(sub.url)
+                                    }
+                                },
                                 onSettings = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                     val intent = Intent(context, SubscriptionConfigActivity::class.java).apply {
@@ -1445,6 +1452,7 @@ private fun SubscriptionHeaderRow(
     isAnyChildSelected: Boolean,
     isSelectionMode: Boolean,
     isAllSubSelected: Boolean,
+    isUpdating: Boolean,
     onUpdate: () -> Unit,
     onSettings: () -> Unit,
     onSelect: () -> Unit,
@@ -1505,13 +1513,23 @@ private fun SubscriptionHeaderRow(
                         modifier = Modifier.size(20.dp)
                     )
                 }
-                IconButton(onClick = onUpdate) {
-                    Icon(
-                        painter = painterResource(R.drawable.refresh_24px), 
-                        contentDescription = null, 
-                        modifier = Modifier.size(20.dp),
-                        tint = if (isHighlighted) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
-                    )
+                IconButton(onClick = onUpdate, enabled = !isUpdating) {
+                    if (isUpdating) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = if (isHighlighted) MaterialTheme.colorScheme.onSecondaryContainer 
+                                    else MaterialTheme.colorScheme.primary
+                        )
+                    } else {
+                        Icon(
+                            painter = painterResource(R.drawable.refresh_24px), 
+                            contentDescription = null, 
+                            modifier = Modifier.size(20.dp),
+                            tint = if (isHighlighted) MaterialTheme.colorScheme.onSecondaryContainer 
+                                    else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
             }
         }
