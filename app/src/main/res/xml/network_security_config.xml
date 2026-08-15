@@ -1,9 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
+    <!--
+        Cleartext is permitted app-wide because subscription servers can live on an
+        arbitrary LAN IP (see AddProfileActivity.isLocalNetworkHost) and Android's
+        network-security-config has no way to match private-IP ranges declaratively.
+        User-installed CAs are intentionally NOT trusted here: unlike cleartext, that
+        would apply to every HTTPS connection the app makes (including public update
+        checks and subscription providers), not just local ones, widening the MITM
+        surface for all remote traffic. ProfileManager.fetchSubscription additionally
+        rejects http:// for any host that isn't local, so cleartext is only ever
+        actually used for local hosts in practice.
+    -->
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
-            <certificates src="user" />
         </trust-anchors>
     </base-config>
 </network-security-config>

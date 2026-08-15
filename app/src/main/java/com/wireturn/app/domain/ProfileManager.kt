@@ -42,6 +42,18 @@ sealed class ImportStatus {
     object InvalidFormat : ImportStatus()
 }
 
+/** Android 17+ blocks TCP to LAN/loopback addresses without the ACCESS_LOCAL_NETWORK runtime permission. */
+fun isLocalNetworkHost(url: String): Boolean {
+    val host = try { java.net.URI(url).host } catch (_: Exception) { null } ?: return false
+    if (host.equals("localhost", ignoreCase = true)) return true
+    val octets = host.split(".")
+    if (octets.size != 4) return false
+    val nums = octets.map { it.toIntOrNull() ?: return false }
+    if (nums.any { it !in 0..255 }) return false
+    val (a, b) = nums
+    return a == 10 || a == 127 || (a == 172 && b in 16..31) || (a == 192 && b == 168) || (a == 169 && b == 254)
+}
+
 class ProfileManager(
     private val prefs: AppPreferences,
     private val scope: CoroutineScope
@@ -354,6 +366,14 @@ class ProfileManager(
         subIdToMark?.let { id -> _updatingSubIds.update { it + id } }
         val startTime = System.currentTimeMillis()
 
+        // Defense in depth: the network security config permits cleartext app-wide (it has to, for
+        // arbitrary LAN subscription servers), so enforce HTTPS for non-local hosts here instead.
+        if (url.startsWith("http://") && !isLocalNetworkHost(url)) {
+            com.wireturn.app.AppLogsState.addLog("Subscription Error: refusing cleartext HTTP to non-local host")
+            subIdToMark?.let { id -> _updatingSubIds.update { it - id } }
+            return@withContext ImportStatus.NetworkError
+        }
+
         val proxy = try {
             val xraySess = com.wireturn.app.XrayServiceState.session.value
             val xrayState = com.wireturn.app.XrayServiceState.state.value
@@ -380,28 +400,36 @@ class ProfileManager(
         }
 
         val connection = try {
-            // First attempt with the calculated proxy
-            val conn = (URL(url).openConnection(proxy) as HttpURLConnection).apply {
-                requestMethod = "GET"
-                connectTimeout = 10000
-                readTimeout = 10000
-                setRequestProperty("User-Agent", userAgent)
-            }
-            // Trigger connection to check if it works
-            conn.responseCode
-            conn
-        } catch (e: Exception) {
-            // If proxy failed and it wasn't already NO_PROXY, try direct connection
-            if (proxy != java.net.Proxy.NO_PROXY) {
-                (URL(url).openConnection(java.net.Proxy.NO_PROXY) as HttpURLConnection).apply {
+            try {
+                // First attempt with the calculated proxy
+                val conn = (URL(url).openConnection(proxy) as HttpURLConnection).apply {
                     requestMethod = "GET"
                     connectTimeout = 10000
                     readTimeout = 10000
                     setRequestProperty("User-Agent", userAgent)
                 }
-            } else throw e
+                // Trigger connection to check if it works
+                conn.responseCode
+                conn
+            } catch (e: Exception) {
+                // If proxy failed and it wasn't already NO_PROXY, try direct connection
+                if (proxy != java.net.Proxy.NO_PROXY) {
+                    (URL(url).openConnection(java.net.Proxy.NO_PROXY) as HttpURLConnection).apply {
+                        requestMethod = "GET"
+                        connectTimeout = 10000
+                        readTimeout = 10000
+                        setRequestProperty("User-Agent", userAgent)
+                    }
+                } else throw e
+            }
+        } catch (e: Exception) {
+            // Covers both "no proxy, direct attempt failed" and "proxy failed, direct fallback also failed" -
+            // previously these could throw past this point uncaught, permanently killing the auto-update loop.
+            com.wireturn.app.AppLogsState.addLog("Subscription Error: ${e.javaClass.simpleName} - ${e.message}")
+            subIdToMark?.let { id -> _updatingSubIds.update { it - id } }
+            return@withContext ImportStatus.NetworkError
         }
-        
+
         try {
             // Register cancellation listener to disconnect the connection
             val job = launch {

@@ -48,23 +48,12 @@ import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
+import com.wireturn.app.domain.isLocalNetworkHost
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 private const val ACCESS_LOCAL_NETWORK_PERMISSION = "android.permission.ACCESS_LOCAL_NETWORK"
-
-/** Android 17+ blocks TCP to LAN/loopback addresses without runtime permission; detect that case. */
-private fun isLocalNetworkHost(url: String): Boolean {
-    val host = try { java.net.URI(url).host } catch (_: Exception) { null } ?: return false
-    if (host.equals("localhost", ignoreCase = true)) return true
-    val octets = host.split(".")
-    if (octets.size != 4) return false
-    val nums = octets.map { it.toIntOrNull() ?: return false }
-    if (nums.any { it !in 0..255 }) return false
-    val (a, b) = nums
-    return a == 10 || a == 127 || (a == 172 && b in 16..31) || (a == 192 && b == 168) || (a == 169 && b == 254)
-}
 
 class AddProfileActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()

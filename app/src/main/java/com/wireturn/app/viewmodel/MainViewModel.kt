@@ -662,8 +662,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         } else com.wireturn.app.domain.ImportStatus.InvalidFormat
     }
 
-    fun deleteSubscription(id: String) = profileManager.deleteSubscription(id) {
-        selectProfileAndRestart(it.id, it)
+    fun deleteSubscription(id: String) {
+        val willBeEmpty = profiles.value.count { it.subscriptionId != id } <= 0
+        if (willBeEmpty) {
+            if (CoreServiceState.isRunning.value) stopCore()
+            viewModelScope.launch { prefs.clearActiveProfile() }
+        }
+        profileManager.deleteSubscription(id) { selectProfileAndRestart(it.id, it) }
     }
 
     fun updateSubscription(sub: com.wireturn.app.data.Subscription) = profileManager.updateSubscription(sub)

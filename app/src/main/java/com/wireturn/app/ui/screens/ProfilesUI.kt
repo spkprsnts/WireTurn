@@ -6,10 +6,15 @@ package com.wireturn.app.ui.screens
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import com.wireturn.app.domain.ImportStatus
+import com.wireturn.app.domain.isLocalNetworkHost
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -384,6 +389,60 @@ fun ProfilesDialog(
         confirmValueChange = { target -> draggedItemId == null || target == SheetValue.Expanded }
     )
     val scope = rememberCoroutineScope()
+
+    val errorConnection = stringResource(R.string.import_error_connection)
+    val errorEmpty = stringResource(R.string.import_error_empty)
+    val errorInvalidProfile = stringResource(R.string.import_error_invalid_profile)
+    val errorServerFormat = stringResource(R.string.import_error_server)
+
+    fun showSubUpdateError(status: ImportStatus) {
+        val message = when (status) {
+            is ImportStatus.NetworkError -> errorConnection
+            is ImportStatus.ServerError -> errorServerFormat.format(status.code)
+            is ImportStatus.EmptyResponse -> errorEmpty
+            is ImportStatus.InvalidFormat -> errorInvalidProfile
+            is ImportStatus.Success -> return
+        }
+        HapticUtil.perform(context, HapticUtil.Pattern.ERROR)
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+    }
+
+    suspend fun doRefreshSubscription(url: String) {
+        val status = viewModel.importProfileFromLink(url)
+        if (status is ImportStatus.Success) {
+            status.summary?.let { showUpdateToast(context, it) }
+        } else {
+            showSubUpdateError(status)
+        }
+    }
+
+    var pendingSubUpdateUrl by remember { mutableStateOf<String?>(null) }
+    val localNetworkPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        val url = pendingSubUpdateUrl
+        pendingSubUpdateUrl = null
+        if (url != null) {
+            scope.launch { doRefreshSubscription(url) }
+        }
+    }
+
+    fun refreshSubscription(url: String) {
+        val needsLocalNetworkPermission = Build.VERSION.SDK_INT >= 37 &&
+            isLocalNetworkHost(url) &&
+            ContextCompat.checkSelfPermission(
+                context,
+                "android.permission.ACCESS_LOCAL_NETWORK"
+            ) != PackageManager.PERMISSION_GRANTED
+
+        if (needsLocalNetworkPermission) {
+            pendingSubUpdateUrl = url
+            localNetworkPermissionLauncher.launch("android.permission.ACCESS_LOCAL_NETWORK")
+            return
+        }
+
+        scope.launch { doRefreshSubscription(url) }
+    }
 
     // Local state for reordering
     val profiles = remember { mutableStateListOf<Profile>() }
@@ -1050,14 +1109,7 @@ fun ProfilesDialog(
                                 isSelectionMode = isSelectionMode,
                                 isAllSubSelected = subProfiles.isNotEmpty() && subProfiles.all { selectedIds.contains(it.id) },
                                 isUpdating = isUpdating,
-                                onUpdate = {
-                                    scope.launch {
-                                        val status = viewModel.importProfileFromLink(sub.url)
-                                        if (status is com.wireturn.app.domain.ImportStatus.Success && status.summary != null) {
-                                            showUpdateToast(context, status.summary)
-                                        }
-                                    }
-                                },
+                                onUpdate = { refreshSubscription(sub.url) },
                                 onSettings = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                     val intent = Intent(context, SubscriptionConfigActivity::class.java).apply {
