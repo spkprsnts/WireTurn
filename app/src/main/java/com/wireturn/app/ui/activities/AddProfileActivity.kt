@@ -1,3 +1,8 @@
+@file:OptIn(
+    androidx.compose.material3.ExperimentalMaterial3Api::class,
+    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class
+)
+
 package com.wireturn.app.ui.activities
 
 import android.content.pm.PackageManager
@@ -18,7 +23,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -31,11 +35,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
@@ -49,8 +53,8 @@ import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.domain.isLocalNetworkHost
-import androidx.compose.ui.graphics.Color
 import androidx.core.content.ContextCompat
+import com.wireturn.app.ui.LabelGroup
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -59,7 +63,6 @@ private const val ACCESS_LOCAL_NETWORK_PERMISSION = "android.permission.ACCESS_L
 class AddProfileActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
 
-    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -226,7 +229,7 @@ class AddProfileActivity : ComponentActivity() {
                                             tint = MaterialTheme.colorScheme.primary
                                         )
                                     }
-                                    com.wireturn.app.ui.LabelGroup(
+                                    LabelGroup(
                                         label = stringResource(R.string.profile_import_json_zip),
                                         supportingText = stringResource(R.string.profile_import_file_hint)
                                     )
@@ -282,10 +285,10 @@ class AddProfileActivity : ComponentActivity() {
                                 ) {
                                     StandardLeadingIcon {
                                         if (isImporting) {
-                                            androidx.compose.material3.CircularProgressIndicator(
-                                                modifier = Modifier.size(20.dp),
-                                                strokeWidth = 2.dp,
-                                                color = MaterialTheme.colorScheme.primary
+                                            androidx.compose.material3.LoadingIndicator(
+                                                modifier = Modifier
+                                                    .size(24.dp)
+                                                    .graphicsLayer(scaleX = 1.7f, scaleY = 1.7f)
                                             )
                                         } else {
                                             Icon(
@@ -295,11 +298,9 @@ class AddProfileActivity : ComponentActivity() {
                                             )
                                         }
                                     }
-                                    com.wireturn.app.ui.LabelGroup(
+                                    LabelGroup(
                                         label = stringResource(R.string.profile_import_link),
-                                        supportingText = stringResource(R.string.profile_import_link_hint),
-                                        labelColor = if (isImporting) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f) 
-                                                    else Color.Unspecified
+                                        supportingText = stringResource(R.string.profile_import_link_hint)
                                     )
                                 }
                             }
@@ -325,7 +326,7 @@ class AddProfileActivity : ComponentActivity() {
                                             tint = MaterialTheme.colorScheme.primary
                                         )
                                     }
-                                    com.wireturn.app.ui.LabelGroup(
+                                    LabelGroup(
                                         label = stringResource(R.string.profile_create),
                                         supportingText = stringResource(R.string.profile_create_hint)
                                     )

@@ -569,7 +569,7 @@ fun SectionItem(
                     .fillMaxWidth()
                     .heightIn(min = 72.dp)
                     .padding(horizontal = 16.dp, vertical = 14.dp)
-                    .let { if (!enabled) it.alpha(0.38f) else it },
+                    .let { if (!enabled) it.alpha(0.8f) else it },
                 contentAlignment = Alignment.CenterStart
             ) {
                 content()
