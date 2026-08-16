@@ -3,6 +3,7 @@ package com.wireturn.app.ui.activities
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.getValue
@@ -18,6 +19,7 @@ class CaptchaActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         splashScreen.setKeepOnScreenCondition { !viewModel.isInitialized.value }
         currentUrl.value = intent.getStringExtra("CAPTCHA_URL") ?: ""

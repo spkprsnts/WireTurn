@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.content.FileProvider
+import androidx.core.net.toUri
 import com.wireturn.app.AppLogsState
 import com.wireturn.app.R
 import com.wireturn.app.viewmodel.UpdateState
@@ -174,6 +175,18 @@ class AppUpdater(private val context: Context) {
 
     fun installUpdate() {
         AppLogsState.addLog("Launching APK installer")
+        
+        // Проверка разрешения на установку из неизвестных источников (Android 8.0+)
+        if (!context.packageManager.canRequestPackageInstalls()) {
+            AppLogsState.addLog("Requesting unknown sources permission")
+            val intent = Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                data = "package:${context.packageName}".toUri()
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(intent)
+            return
+        }
+
         val apkFile = File(context.cacheDir, "update.apk")
         if (!apkFile.exists()) {
             _state.value = UpdateState.Error(context.getString(R.string.error_update_file_not_found))
