@@ -111,6 +111,25 @@ sealed class KernelConfig {
     data class Olcrtc(val config: OlcrtcConfig = OlcrtcConfig()) : KernelConfig()
     data class Webdav(val config: WebdavConfig = WebdavConfig()) : KernelConfig()
     data class FreeTurn(val config: FreeTurnConfig = FreeTurnConfig()) : KernelConfig()
+
+    companion object {
+        // The link's own scheme already identifies the kernel, so a single quick-input
+        // field can dispatch to the right parser instead of one field per kernel type.
+        fun parseUri(uri: String): KernelConfig? {
+            val trimmed = uri.trim()
+            return when {
+                trimmed.startsWith("turnable://", ignoreCase = true) ->
+                    TurnableConfig.parse(trimmed)?.let { Turnable(it) }
+                trimmed.startsWith("olcrtc://", ignoreCase = true) ->
+                    OlcrtcConfig.parse(trimmed)?.let { Olcrtc(it) }
+                trimmed.startsWith("webdav://", ignoreCase = true) || trimmed.startsWith("webdavs://", ignoreCase = true) ->
+                    WebdavConfig.parse(trimmed)?.let { Webdav(it) }
+                trimmed.startsWith("freeturn://", ignoreCase = true) ->
+                    FreeTurnConfig.parse(trimmed)?.let { FreeTurn(it) }
+                else -> null
+            }
+        }
+    }
 }
 
 data class TurnableRoute(
@@ -708,10 +727,15 @@ data class ClientConfig(
     val goDnsGo: Boolean = false,
     val useCustomCerts: Boolean = true,
     val kernelConfig: KernelConfig = KernelConfig.Turnable(),
+    // Universal quick-input field: the scheme in the link (turnable://, olcrtc://, webdav(s)://,
+    // freeturn://) already says which kernel it is, so one field replaces the four below.
+    @SerializedName("uri") val uri: String = "",
+    // --- LEGACY: kept only so older exported configs still parse. Prefer `uri` above. ---
     @SerializedName("turnableUrl") val turnableUrl: String = "",
     @SerializedName("olcrtcUrl") val olcrtcUrl: String = "",
     @SerializedName("webdavUrl") val webdavUrl: String = "",
     @SerializedName("freeturnUrl") val freeturnUrl: String = ""
+    // --- END LEGACY ---
 ) {
     val kernelVariant: KernelVariant get() = when (kernelConfig) {
         is KernelConfig.Turnable -> KernelVariant.TURNABLE
@@ -728,7 +752,9 @@ data class ClientConfig(
         val validSocks = if (ValidatorUtils.isValidHostPort(socksAddr)) socksAddr else DEFAULT_SOCKS_ADDR
 
         var currentKc = kernelConfig
-        if (turnableUrl.isNotBlank()) {
+        if (uri.isNotBlank()) {
+            KernelConfig.parseUri(uri)?.let { currentKc = it }
+        } else if (turnableUrl.isNotBlank()) {
             TurnableConfig.parse(turnableUrl)?.let { currentKc = KernelConfig.Turnable(it) }
         } else if (olcrtcUrl.isNotBlank()) {
             OlcrtcConfig.parse(olcrtcUrl)?.let { currentKc = KernelConfig.Olcrtc(it) }
@@ -745,6 +771,7 @@ data class ClientConfig(
             socksPass = cleanedPass,
             goDnsGo = goDnsGo,
             kernelConfig = currentKc,
+            uri = "",
             turnableUrl = "",
             olcrtcUrl = "",
             webdavUrl = ""
@@ -959,6 +986,11 @@ data class Profile(
     @SerializedName("subscriptionSourceId") val subscriptionSourceId: String? = null
 ) {
     // --- STABLE INPUT FIELDS (Used for profile generation and deep linking) ---
+    // Universal quick-input field: the scheme in the link (turnable://, olcrtc://, webdav(s)://,
+    // freeturn://) already identifies the kernel, so this one field replaces the four below.
+    @SerializedName("uri") private val uri: String? = null
+    // Legacy per-kernel fields, kept only so older exported/generated profiles still parse.
+    // Prefer `uri` above for new integrations.
     @SerializedName("turnableUrl") private val turnableUrl: String? = null
     @SerializedName("olcrtcUrl") private val olcrtcUrl: String? = null
     @SerializedName("webdavUrl") private val webdavUrl: String? = null
@@ -1006,7 +1038,9 @@ data class Profile(
         val gson = GsonBuilder().registerTypeAdapterFactory(SafeEnumTypeAdapterFactory()).create()
 
         // 1. INPUT: Profile generation from URLs (STABLE)
-        if (turnableUrl?.isNotBlank() == true) {
+        if (uri?.isNotBlank() == true) {
+            KernelConfig.parseUri(uri)?.let { currentKc = it }
+        } else if (turnableUrl?.isNotBlank() == true) {
             TurnableConfig.parse(turnableUrl)?.let { currentKc = KernelConfig.Turnable(it) }
         } else if (olcrtcUrl?.isNotBlank() == true) {
             OlcrtcConfig.parse(olcrtcUrl)?.let { currentKc = KernelConfig.Olcrtc(it) }
