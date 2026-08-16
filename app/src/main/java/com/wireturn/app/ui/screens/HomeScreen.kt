@@ -145,6 +145,7 @@ fun HomeScreen(
 ) {
     // --- State & Data ---
     val context = LocalContext.current
+    val profiles by viewModel.profiles.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val proxyState by viewModel.coreState.collectAsStateWithLifecycle()
     val xrayState by XrayServiceState.state.collectAsStateWithLifecycle()
@@ -305,7 +306,9 @@ fun HomeScreen(
     val warnVpnRequiresXray = stringResource(R.string.warn_vpn_requires_xray)
 
     val showVpnWarning = {
-        context.showExclusiveToast(warnVpnRequiresXray)
+        if (profiles.isNotEmpty()) {
+            context.showExclusiveToast(warnVpnRequiresXray)
+        }
     }
 
 
@@ -523,7 +526,6 @@ fun HomeScreen(
             }
 
             // --- Proxy Toggle ---
-            val profiles by viewModel.profiles.collectAsStateWithLifecycle()
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
