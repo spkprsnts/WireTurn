@@ -26,6 +26,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -114,8 +115,13 @@ class CoreService : Service() {
         // При каждом явном вызове Start — перезапускаем цикл, чтобы подхватить возможные изменения в конфиге
         userStopped.set(false)
         CoreServiceState.setStatus(CoreStatus.Starting)
-        coreJob?.cancel()
+        val previousJob = coreJob
         coreJob = serviceScope.launch {
+            // Дожидаемся полного завершения предыдущего цикла (включая его finally-очистку) —
+            // иначе он может конкурентно тронуть process (см. runBinary) и убить/потерять
+            // ссылку на только что запущенный новый процесс, из-за чего старый бинарник
+            // не освобождает порт и следующий запуск падает с "address already in use".
+            previousJob?.cancelAndJoin()
             // Очищаем старый процесс перед запуском нового, чтобы избежать конфликтов портов (особенно при мягком перезапуске)
             stopBinaryProcessGracefully()
 
@@ -420,6 +426,7 @@ class CoreService : Service() {
         }
 
         val state = BinaryOutputState()
+        var startedProc: Process? = null
 
         try {
             AppLogsState.addLog(getString(R.string.log_core_command, cmdArgs.joinToString(" ")))
@@ -453,6 +460,7 @@ class CoreService : Service() {
 
                 builder.start()
             }
+            startedProc = proc
             process.set(proc)
 
             if (cfg.kernelVariant == KernelVariant.OLCRTC) {
@@ -521,7 +529,10 @@ class CoreService : Service() {
         } finally {
             CoreServiceState.setCaptchaSession(null)
             stopBinaryProcessGracefully()
-            process.set(null)
+            // compareAndSet, а не set: если это исполнение уже устарело (отменено извне,
+            // пока доигрывал finally) и process успел стать ссылкой на процесс НОВОГО
+            // запуска, безусловный set(null) стёр бы её и оставил новый процесс "потерянным".
+            process.compareAndSet(startedProc, null)
         }
     }
 
