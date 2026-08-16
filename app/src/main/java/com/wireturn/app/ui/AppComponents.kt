@@ -140,10 +140,24 @@ import com.google.zxing.qrcode.QRCodeWriter
 import com.wireturn.app.R
 import com.wireturn.app.viewmodel.UpdateState
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
+
+/**
+ * A simple event bus for transient UI signals across activities.
+ */
+object UIEventBus {
+    private val _scrollRequest = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val scrollRequest = _scrollRequest.asSharedFlow()
+
+    fun requestScroll(id: String) {
+        _scrollRequest.tryEmit(id)
+    }
+}
 
 /**
  * Local provider for interaction source to coordinate ripples between parent blocks and children.

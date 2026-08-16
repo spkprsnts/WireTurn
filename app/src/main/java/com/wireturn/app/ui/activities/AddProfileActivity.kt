@@ -94,7 +94,10 @@ class AddProfileActivity : ComponentActivity() {
 
             fun handleImportResult(status: ImportStatus) {
                 when (status) {
-                    is ImportStatus.Success -> finish()
+                    is ImportStatus.Success -> {
+                        status.id?.let { com.wireturn.app.ui.UIEventBus.requestScroll(it) }
+                        finish()
+                    }
                     is ImportStatus.KernelConfigDetected -> {
                         HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.SUCCESS)
                         detectedKernelConfig.value = status

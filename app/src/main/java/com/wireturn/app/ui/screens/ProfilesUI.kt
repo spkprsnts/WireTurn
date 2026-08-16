@@ -525,6 +525,7 @@ fun ProfilesDialog(
 
         val oldSize = profiles.size
         val oldIds = profiles.map { it.id }.toSet()
+        val oldSubIds = profiles.mapNotNull { it.subscriptionId }.toSet()
         val isFirstLoad = oldSize == 0 && profilesSource.isNotEmpty()
 
         if (draggedItemId == null && (profiles.size != profilesSource.size || profiles.toList() != profilesSource)) {
@@ -561,7 +562,9 @@ fun ProfilesDialog(
                     }
                     
                     var runningIndex = if (hasStandaloneGuard) standaloneProfiles.size + 1 else standaloneProfiles.size
-                    for ((_, subProfiles) in subscriptionGroups) {
+                    for ((sub, subProfiles) in subscriptionGroups) {
+                        if (sub.id == targetId) return runningIndex
+                        
                         val inSubIdx = subProfiles.indexOfFirst { it.id == targetId }
                         if (inSubIdx != -1) {
                             return runningIndex + 1 + inSubIdx
@@ -570,6 +573,20 @@ fun ProfilesDialog(
                         runningIndex += if (subProfiles.isEmpty()) 1 else subProfiles.size
                     }
                     return -1
+                }
+
+                // UI signals processing (internal to the same scope to reuse findLazyIndex)
+                launch {
+                    com.wireturn.app.ui.UIEventBus.scrollRequest.collect { targetId ->
+                        delay(100.milliseconds)
+                        val targetLazyIndex = findLazyIndex(targetId)
+                        if (targetLazyIndex != -1) {
+                            lazyListState.animateScrollToItem(targetLazyIndex)
+                            highlightedIds.add(targetId)
+                            delay(1_000.milliseconds)
+                            highlightedIds.remove(targetId)
+                        }
+                    }
                 }
 
                 if (isFirstLoad) {
@@ -587,7 +604,7 @@ fun ProfilesDialog(
                         
                         // Scroll ONLY if it's a NEW subscription (not previously seen)
                         // or if it's a new standalone profile.
-                        val isExistingSub = subId != null && profiles.any { it.subscriptionId == subId }
+                        val isExistingSub = subId != null && oldSubIds.contains(subId)
                         
                         if (!isExistingSub) {
                             val targetLazyIndex = findLazyIndex(firstNewId)
@@ -1123,7 +1140,8 @@ fun ProfilesDialog(
                                         selectedIds.addAll(allInSub.filter { it !in selectedIds })
                                     }
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                }
+                                },
+                                isHighlighted = highlightedIds.contains(sub.id)
                             )
                         }
 
@@ -1511,11 +1529,16 @@ private fun SubscriptionHeaderRow(
     onSettings: () -> Unit,
     onSelect: () -> Unit,
     onToggleSelection: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isHighlighted: Boolean = false
 ) {
     val backgroundColor by animateColorAsState(
-        targetValue = if (isAnyChildSelected) MaterialTheme.colorScheme.secondaryContainer
-                      else MaterialTheme.colorScheme.surfaceContainerHigh,
+        targetValue = when {
+            isHighlighted -> MaterialTheme.colorScheme.surfaceVariant
+            isAnyChildSelected -> MaterialTheme.colorScheme.secondaryContainer
+            else -> MaterialTheme.colorScheme.surfaceContainerHigh
+        },
+        animationSpec = tween(durationMillis = if (isHighlighted) 200 else 300),
         label = "sub_header_bg"
     )
 

@@ -36,7 +36,7 @@ data class ImportResult(
 )
 
 sealed class ImportStatus {
-    data class Success(val summary: ImportResult? = null) : ImportStatus()
+    data class Success(val id: String? = null, val summary: ImportResult? = null) : ImportStatus()
     data class KernelConfigDetected(val type: String, val json: String, val source: String) : ImportStatus()
     object NetworkError : ImportStatus()
     data class ServerError(val code: Int) : ImportStatus()
@@ -618,7 +618,7 @@ class ProfileManager(
                             }
                             prefs.saveSubscriptions(newSubs)
                             
-                            ImportStatus.Success(importResult)
+                            ImportStatus.Success(subId, importResult)
                         } else {
                             ImportStatus.InvalidFormat
                         }
