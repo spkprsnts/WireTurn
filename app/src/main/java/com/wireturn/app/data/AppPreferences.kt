@@ -1117,7 +1117,7 @@ data class Profile(
 
 data class VpnSettings(
     val enabled: Boolean = true,
-    val hideSystemApps: Boolean = true,
+    val hideSystemApps: Boolean = false,
     val bypassMode: Boolean = true,
     val filteringEnabled: Boolean = true,
     val groupAppsByLetter: Boolean = true,
@@ -1232,7 +1232,7 @@ class AppPreferences(val context: Context) {
         .map {
             VpnSettings(
                 enabled = it[VPN_ENABLED] ?: true,
-                hideSystemApps = it[VPN_HIDE_SYSTEM_APPS] ?: true,
+                hideSystemApps = it[VPN_HIDE_SYSTEM_APPS] ?: false,
                 bypassMode = it[VPN_BYPASS_MODE] ?: true,
                 filteringEnabled = it[VPN_FILTERING_ENABLED] ?: true,
                 groupAppsByLetter = it[VPN_GROUP_APPS_BY_LETTER] ?: true,
