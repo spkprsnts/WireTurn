@@ -1141,7 +1141,8 @@ data class Subscription(
     @SerializedName("autoUpdate") val autoUpdate: Boolean = false,
     @SerializedName("updateIntervalMinutes") val updateIntervalMinutes: Int = 1440, // Default 24h
     @SerializedName("activeProfileId") val activeProfileId: String? = null,
-    @SerializedName("onlyUpdateIfSelected") val onlyUpdateIfSelected: Boolean = false
+    @SerializedName("onlyUpdateIfSelected") val onlyUpdateIfSelected: Boolean = false,
+    @SerializedName("requireTunnelForUpdate") val requireTunnelForUpdate: Boolean = false
 )
 
 data class ProfileBundle(

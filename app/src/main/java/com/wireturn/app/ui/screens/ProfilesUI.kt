@@ -399,6 +399,8 @@ fun ProfilesDialog(
     }
 
     var pendingSubUpdateUrl by remember { mutableStateOf<String?>(null) }
+    val showManualUpdateTunnelWarning = remember { mutableStateOf<Subscription?>(null) }
+
     val localNetworkPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { _ ->
@@ -409,7 +411,14 @@ fun ProfilesDialog(
         }
     }
 
-    fun refreshSubscription(url: String) {
+    fun refreshSubscription(sub: Subscription) {
+        val isTunnelActive = com.wireturn.app.domain.activeLocalSocksProxy() != java.net.Proxy.NO_PROXY
+        if (sub.requireTunnelForUpdate && !isTunnelActive) {
+            showManualUpdateTunnelWarning.value = sub
+            return
+        }
+
+        val url = sub.url
         val needsLocalNetworkPermission = Build.VERSION.SDK_INT >= 37 &&
             isLocalNetworkHost(url) &&
             ContextCompat.checkSelfPermission(
@@ -1088,7 +1097,7 @@ fun ProfilesDialog(
                                 isSelectionMode = isSelectionMode,
                                 isAllSubSelected = subProfiles.isNotEmpty() && subProfiles.all { selectedIds.contains(it.id) },
                                 isUpdating = isUpdating,
-                                onUpdate = { refreshSubscription(sub.url) },
+                                onUpdate = { refreshSubscription(sub) },
                                 onSettings = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                                     val intent = Intent(context, SubscriptionConfigActivity::class.java).apply {
@@ -1227,6 +1236,29 @@ fun ProfilesDialog(
             dismissButton = {
                 TextButton(onClick = {
                     showBulkDeleteConfirm.value = null
+                }) { Text(stringResource(R.string.cancel)) }
+            }
+        )
+    }
+
+    showManualUpdateTunnelWarning.value?.let { sub ->
+        AlertDialog(
+            onDismissRequest = { showManualUpdateTunnelWarning.value = null },
+            title = { Text(stringResource(R.string.update_manual_no_tunnel_title)) },
+            text = { Text(stringResource(R.string.update_manual_no_tunnel_desc)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val url = sub.url
+                        showManualUpdateTunnelWarning.value = null
+                        // Proceed without tunnel check again
+                        scope.launch { doRefreshSubscription(url) }
+                    }
+                ) { Text(stringResource(R.string.btn_proceed)) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showManualUpdateTunnelWarning.value = null
                 }) { Text(stringResource(R.string.cancel)) }
             }
         )

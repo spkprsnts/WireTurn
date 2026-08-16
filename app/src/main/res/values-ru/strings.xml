@@ -43,6 +43,7 @@
     <string name="btn_close">Закрыть</string>
     <string name="btn_save">Сохранить</string>
     <string name="btn_next">Далее</string>
+    <string name="btn_proceed">Продолжить</string>
     <string name="reset_settings">Сбросить настройки</string>
     <string name="reset">Сбросить</string>
     <string name="reset_all_settings_title">Сбросить все настройки?</string>
@@ -445,6 +446,10 @@
     <string name="auto_update_only_if_selected_desc">Обновлять только если профиль из этой подписки активен в данный момент</string>
     <string name="update_interval_min">Интервал обновления (мин)</string>
     <string name="update_interval_min_error">Минимальный интервал — 20 минут</string>
+    <string name="update_require_tunnel">Обновлять только через туннель</string>
+    <string name="update_require_tunnel_desc">Автообновление не будет работать, если туннель отключен</string>
+    <string name="update_manual_no_tunnel_title">Туннель не запущен</string>
+    <string name="update_manual_no_tunnel_desc">Для этой подписки включена настройка «Обновлять только через туннель», но сейчас туннель не активен. Обновление будет выполнено напрямую. Продолжить?</string>
     <string name="exit_without_saving_title">Выйти без сохранения?</string>
     <string name="exit_without_saving_desc">Все несохраненные изменения будут потеряны.</string>
     <string name="btn_exit">Выйти</string>

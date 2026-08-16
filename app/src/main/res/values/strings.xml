@@ -47,6 +47,7 @@
     <string name="btn_close">Close</string>
     <string name="btn_save">Save</string>
     <string name="btn_next">Next</string>
+    <string name="btn_proceed">Proceed</string>
     <string name="reset_settings">Reset settings</string>
     <string name="reset">Reset</string>
     <string name="reset_all_settings_title">Reset all settings?</string>
@@ -483,6 +484,10 @@
     <string name="auto_update_only_if_selected_desc">Update only if a profile from this subscription is currently active</string>
     <string name="update_interval_min">Update interval (min)</string>
     <string name="update_interval_min_error">Minimum interval is 20 minutes</string>
+    <string name="update_require_tunnel">Update only via tunnel</string>
+    <string name="update_require_tunnel_desc">Auto-update will not work if the tunnel is disconnected</string>
+    <string name="update_manual_no_tunnel_title">Tunnel disconnected</string>
+    <string name="update_manual_no_tunnel_desc">The \"Update only via tunnel\" setting is enabled for this subscription, but the tunnel is currently inactive. The update will proceed via direct connection. Continue?</string>
     <string name="exit_without_saving_title">Exit without saving?</string>
     <string name="exit_without_saving_desc">All unsaved changes will be lost.</string>
     <string name="btn_exit">Exit</string>

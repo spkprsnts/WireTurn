@@ -174,7 +174,9 @@ class ProfileManager(
                 subscriptions.value.forEach { sub ->
                     if (sub.autoUpdate) {
                         val isSelected = curId != "default" && curProfiles.find { it.id == curId }?.subscriptionId == sub.id
-                        val shouldUpdate = !sub.onlyUpdateIfSelected || isSelected
+                        val isTunnelActive = activeLocalSocksProxy() != java.net.Proxy.NO_PROXY
+                        val shouldUpdate = (!sub.onlyUpdateIfSelected || isSelected) &&
+                                           (!sub.requireTunnelForUpdate || isTunnelActive)
                         
                         if (shouldUpdate) {
                             val intervalMs = sub.updateIntervalMinutes.toLong() * 60_000L
@@ -602,7 +604,8 @@ class ProfileManager(
                                 updateIntervalMinutes = existingSub?.updateIntervalMinutes
                                     ?: bundle.updateIntervalMinutes?.coerceAtLeast(20)
                                     ?: 1440,
-                                onlyUpdateIfSelected = existingSub?.onlyUpdateIfSelected ?: false
+                                onlyUpdateIfSelected = existingSub?.onlyUpdateIfSelected ?: false,
+                                requireTunnelForUpdate = existingSub?.requireTunnelForUpdate ?: false
                             )
 
                             // 3. Save subscription info

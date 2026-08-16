@@ -97,12 +97,14 @@ class SubscriptionConfigActivity : ComponentActivity() {
             var url by remember(sub) { mutableStateOf(sub.url) }
             var autoUpdate by remember(sub) { mutableStateOf(sub.autoUpdate) }
             var onlyUpdateIfSelected by remember(sub) { mutableStateOf(sub.onlyUpdateIfSelected) }
+            var requireTunnelForUpdate by remember(sub) { mutableStateOf(sub.requireTunnelForUpdate) }
             var updateIntervalMinutes by remember(sub) { mutableIntStateOf(sub.updateIntervalMinutes) }
 
             val isIntervalValid = !autoUpdate || updateIntervalMinutes >= 20
             val isModified = url != sub.url || 
                              autoUpdate != sub.autoUpdate || 
                              onlyUpdateIfSelected != sub.onlyUpdateIfSelected ||
+                             requireTunnelForUpdate != sub.requireTunnelForUpdate ||
                              updateIntervalMinutes != sub.updateIntervalMinutes
 
             val showExitDialog = remember { mutableStateOf(false) }
@@ -154,6 +156,7 @@ class SubscriptionConfigActivity : ComponentActivity() {
                                         url = url,
                                         autoUpdate = autoUpdate,
                                         onlyUpdateIfSelected = onlyUpdateIfSelected,
+                                        requireTunnelForUpdate = requireTunnelForUpdate,
                                         updateIntervalMinutes = updateIntervalMinutes
                                     ))
                                     finish()
@@ -187,7 +190,24 @@ class SubscriptionConfigActivity : ComponentActivity() {
 
                         SectionGroup(title = stringResource(R.string.auto_update)) {
                             SectionItem(
-                                position = if (autoUpdate) ItemPosition.Top else ItemPosition.Single,
+                                position = ItemPosition.Top,
+                                onClick = {
+                                    val next = !requireTunnelForUpdate
+                                    HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                                    requireTunnelForUpdate = next
+                                }
+                            ) {
+                                SwitchRow(
+                                    label = stringResource(R.string.update_require_tunnel),
+                                    supportingText = stringResource(R.string.update_require_tunnel_desc),
+                                    checked = requireTunnelForUpdate,
+                                    onCheckedChange = { requireTunnelForUpdate = it },
+                                    isModified = requireTunnelForUpdate != sub.requireTunnelForUpdate
+                                )
+                            }
+
+                            SectionItem(
+                                position = if (autoUpdate) ItemPosition.Middle else ItemPosition.Bottom,
                                 onClick = {
                                     val next = !autoUpdate
                                     HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
