@@ -64,7 +64,11 @@ fun activeLocalSocksProxy(): java.net.Proxy {
         val coreIsWorking = com.wireturn.app.CoreServiceState.isWorking.value
 
         when {
-            xrayState == com.wireturn.app.viewmodel.XrayState.Running && xraySess != null -> {
+            // Same "is Xray in the picture at all" test CoreService.startVpnSupervisor() uses to pick
+            // VPN's target - Xray keeps priority any time it isn't Idle (Starting/Connecting included),
+            // not just once fully Running, so ping/subscription requests always follow where traffic
+            // is actually routed instead of racing ahead of it during startup.
+            xrayState != com.wireturn.app.viewmodel.XrayState.Idle && xraySess != null -> {
                 val s = xraySess.settings
                 ActiveSocksTarget(
                     s.connectableAddress,

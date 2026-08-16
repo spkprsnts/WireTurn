@@ -292,7 +292,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (_isHomeScreenActive.value) {
                     val xrayState = XrayServiceState.state.value
                     when {
-                        xrayState == XrayState.Running || xrayState == XrayState.DirectRoute ->
+                        // Same "Xray in the picture" test as activeLocalSocksProxy()/startVpnSupervisor() -
+                        // Xray keeps priority from Starting onward, not just once fully Running, so the
+                        // stats don't briefly attribute to VPN's own counters while Xray is still coming up.
+                        xrayState != XrayState.Idle ->
                             XrayServiceState.statsSocketName.value?.let { updateXrayMetrics(it) }
                         VpnServiceState.state.value == VpnState.Running -> updateHevMetrics()
                         else -> _proxyTransfer.value = null
@@ -502,34 +505,38 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         pingJob?.cancel()
         pingJob = viewModelScope.launch {
             _proxyPing.value = PingResult.Loading
+            var sawProxy = false
             repeat(10) { attempt ->
                 // Re-resolved every attempt: works for Xray or VPN-mode-without-Xray alike, and
                 // naturally follows the active source if it changes mid-sequence (Xray priority).
+                // NO_PROXY isn't treated as final here - Xray reports non-Idle (and so counts as the
+                // active source) from Starting onward, before its local socks listener is actually up,
+                // so a NO_PROXY blip right as it's coming up should retry like any other failed attempt
+                // rather than permanently parking the ping indicator on "unknown".
                 val proxy = activeLocalSocksProxy()
-                if (proxy == Proxy.NO_PROXY) {
-                    _proxyPing.value = null
-                    return@launch
-                }
-                if (delayFirst && attempt == 0) delay(1_000.milliseconds)
-                val res = withContext(Dispatchers.IO) {
-                    try {
-                        val conn = java.net.URL("https://1.1.1.1/").openConnection(proxy) as java.net.HttpURLConnection
-                        conn.connectTimeout = 3000
-                        conn.readTimeout = 3000
-                        conn.instanceFollowRedirects = false
-                        PingResult.Success(measureTimeMillis { conn.responseCode })
-                    } catch (_: Exception) {
-                        // AppLogsState.addLog("* [Ping] Error: ${e.message}")
-                        null
+                if (proxy != Proxy.NO_PROXY) {
+                    sawProxy = true
+                    if (delayFirst && attempt == 0) delay(1_000.milliseconds)
+                    val res = withContext(Dispatchers.IO) {
+                        try {
+                            val conn = java.net.URL("https://1.1.1.1/").openConnection(proxy) as java.net.HttpURLConnection
+                            conn.connectTimeout = 3000
+                            conn.readTimeout = 3000
+                            conn.instanceFollowRedirects = false
+                            PingResult.Success(measureTimeMillis { conn.responseCode })
+                        } catch (_: Exception) {
+                            // AppLogsState.addLog("* [Ping] Error: ${e.message}")
+                            null
+                        }
                     }
-                }
-                if (res is PingResult.Success) {
-                    _proxyPing.value = res
-                    return@launch
+                    if (res is PingResult.Success) {
+                        _proxyPing.value = res
+                        return@launch
+                    }
                 }
                 delay(1_000.milliseconds)
             }
-            _proxyPing.value = PingResult.Error
+            _proxyPing.value = if (sawProxy) PingResult.Error else null
         }
     }
 
