@@ -37,6 +37,7 @@ data class ImportResult(
 
 sealed class ImportStatus {
     data class Success(val summary: ImportResult? = null) : ImportStatus()
+    data class KernelConfigDetected(val type: String, val json: String, val source: String) : ImportStatus()
     object NetworkError : ImportStatus()
     data class ServerError(val code: Int) : ImportStatus()
     object EmptyResponse : ImportStatus()

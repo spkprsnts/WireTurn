@@ -383,7 +383,7 @@ fun ProfilesDialog(
             is ImportStatus.ServerError -> errorServerFormat.format(status.code)
             is ImportStatus.EmptyResponse -> errorEmpty
             is ImportStatus.InvalidFormat -> errorInvalidProfile
-            is ImportStatus.Success -> return
+            is ImportStatus.Success, is ImportStatus.KernelConfigDetected -> return
         }
         HapticUtil.perform(context, HapticUtil.Pattern.ERROR)
         context.showExclusiveToast(message)

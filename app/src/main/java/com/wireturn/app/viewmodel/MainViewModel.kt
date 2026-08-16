@@ -687,26 +687,78 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         profileManager.deleteProfiles(ids) { p -> selectProfileAndRestart(p.id, p) }
     }
     fun renameProfile(id: String, name: String) = profileManager.renameProfile(id, name)
+    fun nextDefaultProfileName() = profileManager.nextDefaultProfileName()
+
     fun reorderProfiles(list: List<Profile>) = profileManager.reorderProfiles(list)
     fun getProfilesJson(ids: List<String>) = profileManager.getProfilesJson(ids)
     fun exportProfilesToZip(ids: List<String>) = profileManager.exportProfilesToZip(ids)
     fun importProfilesFromZip(s: java.io.InputStream) = profileManager.importProfilesFromZip(s) { selectProfileAndRestart(it.id, it) }
     fun importProfiles(data: List<Pair<String?, String>>) = profileManager.importProfiles(data) { selectProfileAndRestart(it.id, it) }.first
 
-    suspend fun importProfileFromLink(link: String): com.wireturn.app.domain.ImportStatus {
-        val trimmedLink = link.trim()
-        if (trimmedLink.startsWith("https://") || trimmedLink.startsWith("http://")) {
-            return profileManager.fetchSubscription(trimmedLink) {
+    suspend fun smartImport(text: String): com.wireturn.app.domain.ImportStatus {
+        val trimmed = text.trim()
+
+        // 1. Subscription
+        if (trimmed.startsWith("https://") || trimmed.startsWith("http://")) {
+            return profileManager.fetchSubscription(trimmed) {
                 selectProfileAndRestart(it.id, it)
             }
         }
 
-        val encoded = trimmedLink.substringAfter("://")
-        val json = com.wireturn.app.domain.ProfileEncoder.decode(encoded)
-        return if (json != null) {
-            val result = importProfiles(listOf(null to json))
-            com.wireturn.app.domain.ImportStatus.Success(result)
-        } else com.wireturn.app.domain.ImportStatus.InvalidFormat
+        // 2. Encoded Profile
+        if (trimmed.startsWith("wireturn://") || trimmed.startsWith("wt://")) {
+            val encoded = trimmed.substringAfter("://")
+            val json = com.wireturn.app.domain.ProfileEncoder.decode(encoded)
+            if (json != null) {
+                val result = importProfiles(listOf(null to json))
+                return com.wireturn.app.domain.ImportStatus.Success(result)
+            }
+        }
+
+        // 3. Raw JSON Profile (standalone or array)
+        try {
+            val element = com.google.gson.JsonParser.parseString(trimmed)
+            if (element.isJsonObject || element.isJsonArray) {
+                val result = importProfiles(listOf(null to trimmed))
+                if (result.total > 0) return com.wireturn.app.domain.ImportStatus.Success(result)
+            }
+        } catch (_: Exception) {
+        }
+
+        // 4. Kernel Configs (raw URIs)
+        val turnable = com.wireturn.app.data.TurnableConfig.parse(trimmed)
+        if (turnable != null) return com.wireturn.app.domain.ImportStatus.KernelConfigDetected(
+            "Turnable",
+            com.google.gson.Gson().toJson(turnable),
+            trimmed
+        )
+
+        val olcrtc = com.wireturn.app.data.OlcrtcConfig.parse(trimmed)
+        if (olcrtc != null) return com.wireturn.app.domain.ImportStatus.KernelConfigDetected(
+            "olcRTC",
+            com.google.gson.Gson().toJson(olcrtc),
+            trimmed
+        )
+
+        val webdav = com.wireturn.app.data.WebdavConfig.parse(trimmed)
+        if (webdav != null) return com.wireturn.app.domain.ImportStatus.KernelConfigDetected(
+            "WebDAV",
+            com.google.gson.Gson().toJson(webdav),
+            trimmed
+        )
+
+        val freeturn = com.wireturn.app.data.FreeTurnConfig.parse(trimmed)
+        if (freeturn != null) return com.wireturn.app.domain.ImportStatus.KernelConfigDetected(
+            "FreeTurn",
+            com.google.gson.Gson().toJson(freeturn),
+            trimmed
+        )
+
+        return com.wireturn.app.domain.ImportStatus.InvalidFormat
+    }
+
+    suspend fun importProfileFromLink(link: String): com.wireturn.app.domain.ImportStatus {
+        return smartImport(link)
     }
 
     fun deleteSubscription(id: String) {

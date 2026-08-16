@@ -33,35 +33,24 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.google.gson.Gson
 import com.wireturn.app.R
-import com.wireturn.app.data.OlcrtcConfig
-import com.wireturn.app.data.TurnableConfig
-import com.wireturn.app.data.WebdavConfig
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.noFlingExpandConnection
-import com.wireturn.app.ui.HapticUtil
-import com.wireturn.app.ui.showExclusiveToast
 import com.wireturn.app.ui.ItemPosition
-import com.wireturn.app.ui.LabelGroup
 import com.wireturn.app.ui.RowLabel
 import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
-import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.TextFieldRow
-import kotlinx.coroutines.launch
-import androidx.core.net.toUri
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun CreateProfileScreen(
+    viewModel: com.wireturn.app.viewmodel.MainViewModel,
     onBack: () -> Unit,
     onSelectType: (String, String?, String) -> Unit
 ) {
     val scrollState = rememberScrollState()
     val context = androidx.compose.ui.platform.LocalContext.current
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
-    val clipboard = androidx.compose.ui.platform.LocalClipboard.current
 
     val topAppBarState = rememberTopAppBarState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
@@ -69,28 +58,7 @@ fun CreateProfileScreen(
         flingAnimationSpec = null
     )
     
-    var profileName by remember { mutableStateOf("") }
-    val showQrScanner = remember { mutableStateOf(false) }
-    val errorInvalidConfig = stringResource(R.string.import_error_invalid_config)
-
-    val filePickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent(),
-        onResult = { uri ->
-            uri?.let {
-                try {
-                    context.contentResolver.openInputStream(uri)?.use { input ->
-                        val text = input.bufferedReader().use { r -> r.readText() }.trim()
-                        val success = handleImportText(text, profileName, context, onSelectType)
-                        if (!success) {
-                            context.showExclusiveToast(errorInvalidConfig)
-                        }
-                    }
-                } catch (_: Exception) {
-                    context.showExclusiveToast(errorInvalidConfig)
-                }
-            }
-        }
-    )
+    var profileName by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(viewModel.nextDefaultProfileName()) }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.noFlingExpandConnection()),
@@ -125,76 +93,6 @@ fun CreateProfileScreen(
                     onValueChange = { profileName = it },
                     placeholder = stringResource(R.string.profile_new)
                 )
-            }
-
-            // Import Group
-            SectionGroup(title = stringResource(R.string.profile_import_group)) {
-                SectionItem(
-                    position = ItemPosition.Top,
-                    onClick = { showQrScanner.value = true }
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        StandardLeadingIcon {
-                            Icon(
-                                painter = painterResource(R.drawable.qr_code_24px),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        LabelGroup(
-                            label = stringResource(R.string.profile_import_qr),
-                            supportingText = stringResource(R.string.kernel_import_qr_hint)
-                        )
-                    }
-                }
-
-                SectionItem(
-                    onClick = {
-                        scope.launch {
-                            val clipEntry = clipboard.getClipEntry()
-                            val text = clipEntry?.clipData?.getItemAt(0)?.text?.toString() ?: ""
-                            if (text.isNotBlank()) {
-                                val success = handleImportText(text, profileName, context, onSelectType)
-                                if (!success) {
-                                    context.showExclusiveToast(errorInvalidConfig)
-                                }
-                            }
-                        }
-                    }
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        StandardLeadingIcon {
-                            Icon(
-                                painter = painterResource(R.drawable.content_paste_24px),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        LabelGroup(
-                            label = stringResource(R.string.profile_import_clipboard),
-                            supportingText = stringResource(R.string.kernel_import_clipboard_hint)
-                        )
-                    }
-                }
-
-                SectionItem(
-                    position = ItemPosition.Bottom,
-                    onClick = { filePickerLauncher.launch("*/*") }
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        StandardLeadingIcon {
-                            Icon(
-                                painter = painterResource(R.drawable.file_open_24px),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        LabelGroup(
-                            label = stringResource(R.string.profile_import_file),
-                            supportingText = stringResource(R.string.kernel_import_file_hint)
-                        )
-                    }
-                }
             }
 
             // Manual Setup Group
@@ -256,22 +154,6 @@ fun CreateProfileScreen(
             }
         }
     }
-
-    if (showQrScanner.value) {
-        QrScannerDialog(
-            title = stringResource(R.string.qr_import),
-            message = stringResource(R.string.qr_scan_desc),
-            onDismiss = { showQrScanner.value = false },
-            onResult = { result ->
-                val success = handleImportText(result, profileName, context, onSelectType)
-                if (success) {
-                    showQrScanner.value = false
-                } else {
-                    context.showExclusiveToast(errorInvalidConfig)
-                }
-            }
-        )
-    }
 }
 
 @Composable
@@ -301,48 +183,5 @@ private fun GuideLinkItem(
                 color = MaterialTheme.colorScheme.onSurface
             )
         }
-    }
-}
-
-private fun handleImportText(
-    text: String,
-    enteredName: String,
-    context: android.content.Context,
-    onSelectType: (String, String?, String) -> Unit
-): Boolean {
-    val turnableParsed = TurnableConfig.parse(text)
-    val olcrtcParsed = OlcrtcConfig.parse(text)
-    val webdavParsed = WebdavConfig.parse(text)
-    val freeturnParsed = com.wireturn.app.data.FreeTurnConfig.parse(text)
-
-    val uriFragment = try { text.toUri().fragment } catch (_: Exception) { null }
-    val olcrtcMimo = if (text.startsWith("olcrtc://") && text.contains("$")) text.substringAfterLast("$") else null
-    
-    val finalName = enteredName.ifBlank { 
-        if (webdavParsed != null) uriFragment ?: ""
-        else if (olcrtcParsed != null) olcrtcMimo ?: ""
-        else if (freeturnParsed != null) uriFragment ?: ""
-        else ""
-    }
-
-    return if (turnableParsed != null) {
-        HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
-        onSelectType("Turnable", Gson().toJson(turnableParsed), finalName)
-        true
-    } else if (olcrtcParsed != null) {
-        HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
-        onSelectType("olcRTC", Gson().toJson(olcrtcParsed), finalName)
-        true
-    } else if (webdavParsed != null) {
-        HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
-        onSelectType("WebDAV", Gson().toJson(webdavParsed), finalName)
-        true
-    } else if (freeturnParsed != null) {
-        HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
-        onSelectType("FreeTurn", Gson().toJson(freeturnParsed), finalName)
-        true
-    } else {
-        HapticUtil.perform(context, HapticUtil.Pattern.ERROR)
-        false
     }
 }

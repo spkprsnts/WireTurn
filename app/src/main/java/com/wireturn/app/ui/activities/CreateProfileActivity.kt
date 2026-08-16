@@ -29,6 +29,7 @@ class CreateProfileActivity : ComponentActivity() {
 
             WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
                 CreateProfileScreen(
+                    viewModel = viewModel,
                     onBack = { finish() },
                     onSelectType = { type, configJson, name ->
                         val intent = when (type) {

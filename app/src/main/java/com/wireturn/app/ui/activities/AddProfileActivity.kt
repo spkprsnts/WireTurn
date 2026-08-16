@@ -5,6 +5,7 @@
 
 package com.wireturn.app.ui.activities
 
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -41,20 +42,28 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
+import com.wireturn.app.domain.ImportStatus
+import com.wireturn.app.domain.isLocalNetworkHost
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.HapticUtil
-import com.wireturn.app.ui.showExclusiveToast
 import com.wireturn.app.ui.ItemPosition
+import com.wireturn.app.ui.LabelGroup
 import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.StandardLeadingIcon
+import com.wireturn.app.ui.activities.cores.FreeTurnConfigActivity
+import com.wireturn.app.ui.activities.cores.OlcRtcConfigActivity
+import com.wireturn.app.ui.activities.cores.TurnableConfigActivity
+import com.wireturn.app.ui.activities.cores.WebdavConfigActivity
+import com.wireturn.app.ui.screens.ProfileNameDialog
+import com.wireturn.app.ui.screens.QrScannerDialog
+import com.wireturn.app.ui.showExclusiveToast
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
-import com.wireturn.app.domain.isLocalNetworkHost
-import androidx.core.content.ContextCompat
-import com.wireturn.app.ui.LabelGroup
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -72,30 +81,38 @@ class AddProfileActivity : ComponentActivity() {
             val scope = rememberCoroutineScope()
             val clipboard = LocalClipboard.current
             val context = androidx.compose.ui.platform.LocalContext.current
+            
             var isImporting by remember { mutableStateOf(false) }
+            val showQrScanner = remember { mutableStateOf(false) }
+            val detectedKernelConfig = remember { mutableStateOf<ImportStatus.KernelConfigDetected?>(null) }
+            
             val errorNoLink = stringResource(R.string.import_error_no_link)
             val errorInvalidProfile = stringResource(R.string.import_error_invalid_profile)
             val errorConnection = stringResource(R.string.import_error_connection)
             val errorEmpty = stringResource(R.string.import_error_empty)
             val scrollState = rememberScrollState()
 
-            fun handleImportResult(status: com.wireturn.app.domain.ImportStatus) {
+            fun handleImportResult(status: ImportStatus) {
                 when (status) {
-                    is com.wireturn.app.domain.ImportStatus.Success -> finish()
-                    is com.wireturn.app.domain.ImportStatus.NetworkError -> {
+                    is ImportStatus.Success -> finish()
+                    is ImportStatus.KernelConfigDetected -> {
+                        HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.SUCCESS)
+                        detectedKernelConfig.value = status
+                    }
+                    is ImportStatus.NetworkError -> {
                         HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
                         this@AddProfileActivity.showExclusiveToast(errorConnection)
                     }
-                    is com.wireturn.app.domain.ImportStatus.ServerError -> {
+                    is ImportStatus.ServerError -> {
                         HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
                         val msg = this@AddProfileActivity.getString(R.string.import_error_server, status.code)
                         this@AddProfileActivity.showExclusiveToast(msg)
                     }
-                    is com.wireturn.app.domain.ImportStatus.EmptyResponse -> {
+                    is ImportStatus.EmptyResponse -> {
                         HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
                         this@AddProfileActivity.showExclusiveToast(errorEmpty)
                     }
-                    is com.wireturn.app.domain.ImportStatus.InvalidFormat -> {
+                    is ImportStatus.InvalidFormat -> {
                         HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
                         this@AddProfileActivity.showExclusiveToast(errorInvalidProfile)
                     }
@@ -112,13 +129,45 @@ class AddProfileActivity : ComponentActivity() {
                     isImporting = true
                     scope.launch {
                         val status = try { 
-                            viewModel.importProfileFromLink(link) 
+                            viewModel.smartImport(link) 
                         } catch (_: Exception) { 
-                            com.wireturn.app.domain.ImportStatus.NetworkError 
+                            ImportStatus.NetworkError 
                         }
                         isImporting = false
                         handleImportResult(status)
                     }
+                }
+            }
+
+            fun performSmartImport(text: String) {
+                if (text.isBlank()) {
+                    HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
+                    context.showExclusiveToast(errorNoLink)
+                    return
+                }
+
+                val needsLocalNetworkPermission = Build.VERSION.SDK_INT >= 37 &&
+                        isLocalNetworkHost(text) &&
+                        ContextCompat.checkSelfPermission(
+                            this@AddProfileActivity,
+                            ACCESS_LOCAL_NETWORK_PERMISSION
+                        ) != PackageManager.PERMISSION_GRANTED
+
+                if (needsLocalNetworkPermission) {
+                    pendingLinkImport = text
+                    localNetworkPermissionLauncher.launch(ACCESS_LOCAL_NETWORK_PERMISSION)
+                    return
+                }
+
+                isImporting = true
+                scope.launch {
+                    val status = try {
+                        viewModel.smartImport(text)
+                    } catch (_: Exception) {
+                        ImportStatus.NetworkError
+                    }
+                    isImporting = false
+                    handleImportResult(status)
                 }
             }
 
@@ -164,8 +213,6 @@ class AddProfileActivity : ComponentActivity() {
                         when {
                             totalImported > 0 && filesFailed == 0 -> finish()
                             totalImported > 0 -> {
-                                // Partial failure: some files imported fine, others didn't - say so instead
-                                // of silently dropping the failures, but still finish since work was done.
                                 HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
                                 context.showExclusiveToast(
                                     getString(R.string.profile_import_partial_failure, filesFailed, uris.size),
@@ -205,6 +252,30 @@ class AddProfileActivity : ComponentActivity() {
                             SectionItem(
                                 position = ItemPosition.Top,
                                 onClick = {
+                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                    showQrScanner.value = true
+                                }
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    StandardLeadingIcon {
+                                        Icon(
+                                            painterResource(R.drawable.qr_code_24px),
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                    LabelGroup(
+                                        label = stringResource(R.string.profile_import_qr),
+                                        supportingText = stringResource(R.string.profile_import_qr_hint)
+                                    )
+                                }
+                            }
+
+                            SectionItem(
+                                onClick = {
                                     HapticUtil.perform(
                                         this@AddProfileActivity,
                                         HapticUtil.Pattern.CLICK
@@ -243,39 +314,7 @@ class AddProfileActivity : ComponentActivity() {
                                     scope.launch {
                                         val clipEntry = clipboard.getClipEntry()
                                         val rawText = clipEntry?.clipData?.getItemAt(0)?.text?.toString() ?: ""
-                                        val text = rawText.trim()
-                                        
-                                        val isValidLink = text.startsWith("wireturn://") || 
-                                                        text.startsWith("wt://") || 
-                                                        text.startsWith("http://") || 
-                                                        text.startsWith("https://")
-                                        
-                                        if (isValidLink) {
-                                            val needsLocalNetworkPermission = Build.VERSION.SDK_INT >= 37 &&
-                                                isLocalNetworkHost(text) &&
-                                                ContextCompat.checkSelfPermission(
-                                                    this@AddProfileActivity,
-                                                    ACCESS_LOCAL_NETWORK_PERMISSION
-                                                ) != PackageManager.PERMISSION_GRANTED
-
-                                            if (needsLocalNetworkPermission) {
-                                                pendingLinkImport = text
-                                                localNetworkPermissionLauncher.launch(ACCESS_LOCAL_NETWORK_PERMISSION)
-                                                return@launch
-                                            }
-
-                                            isImporting = true
-                                            val status = try {
-                                                viewModel.importProfileFromLink(text)
-                                            } catch (_: Exception) {
-                                                com.wireturn.app.domain.ImportStatus.NetworkError
-                                            }
-                                            isImporting = false
-                                            handleImportResult(status)
-                                        } else {
-                                            HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
-                                            context.showExclusiveToast(errorNoLink)
-                                        }
+                                        performSmartImport(rawText.trim())
                                     }
                                 }
                             ) {
@@ -310,8 +349,7 @@ class AddProfileActivity : ComponentActivity() {
                                 position = ItemPosition.Single,
                                 onClick = {
                                     HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.CLICK)
-                                    startActivity(android.content.Intent(this@AddProfileActivity, CreateProfileActivity::class.java))
-                                    finish()
+                                    startActivity(Intent(this@AddProfileActivity, CreateProfileActivity::class.java))
                                 }
                             ) {
                                 Row(
@@ -334,6 +372,57 @@ class AddProfileActivity : ComponentActivity() {
                             }
                         }
                     }
+                }
+
+                if (showQrScanner.value) {
+                    QrScannerDialog(
+                        title = stringResource(R.string.qr_import),
+                        message = stringResource(R.string.qr_scan_desc),
+                        onDismiss = { showQrScanner.value = false },
+                        onResult = { result ->
+                            showQrScanner.value = false
+                            performSmartImport(result)
+                        }
+                    )
+                }
+
+                detectedKernelConfig.value?.let { status ->
+                    // Try to extract name from source if possible
+                    val source = status.source
+                    val uriFragment = try { source.toUri().fragment } catch (_: Exception) { null }
+                    val olcrtcMimo = if (source.startsWith("olcrtc://") && source.contains("$")) source.substringAfterLast("$") else null
+                    
+                    val initialNameFromSource = if (status.type == "WebDAV") uriFragment
+                    else if (status.type == "olcRTC") olcrtcMimo
+                    else if (status.type == "FreeTurn") uriFragment
+                    else null
+
+                    val initialName = if (!initialNameFromSource.isNullOrBlank()) {
+                        initialNameFromSource
+                    } else {
+                        viewModel.nextDefaultProfileName()
+                    }
+
+                    ProfileNameDialog(
+                        title = stringResource(R.string.profile_import_name_title),
+                        initialName = initialName,
+                        onDismiss = { detectedKernelConfig.value = null },
+                        onConfirm = { name ->
+                            val intent = when (status.type) {
+                                "Turnable" -> Intent(this@AddProfileActivity, TurnableConfigActivity::class.java)
+                                "olcRTC" -> Intent(this@AddProfileActivity, OlcRtcConfigActivity::class.java)
+                                "WebDAV" -> Intent(this@AddProfileActivity, WebdavConfigActivity::class.java)
+                                "FreeTurn" -> Intent(this@AddProfileActivity, FreeTurnConfigActivity::class.java)
+                                else -> null
+                            }
+                            intent?.let {
+                                it.putExtra("EXTRA_PROFILE_NAME", name)
+                                it.putExtra("EXTRA_CONFIG_JSON", status.json)
+                                startActivity(it)
+                            }
+                            detectedKernelConfig.value = null
+                        }
+                    )
                 }
             }
         }
