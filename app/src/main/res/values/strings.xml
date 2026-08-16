@@ -61,8 +61,8 @@
     <string name="no_apps_found">No apps found</string>
     <string name="hide_system_apps">Hide system apps</string>
     <string name="bypass_mode">Routing mode</string>
-    <string name="vpn_mode_bypass_desc">Selected — bypass</string>
-    <string name="vpn_mode_include_desc">Selected — via VPN</string>
+    <string name="vpn_mode_bypass_desc">Selected apps will work WITHOUT VPN</string>
+    <string name="vpn_mode_include_desc">ONLY selected apps will use VPN</string>
     <string name="filtering_enabled">Use routing</string>
     <string name="group_apps_by_letter">Group by letter</string>
     <string name="clear_list">Deselect all apps</string>
@@ -73,6 +73,7 @@
     <string name="no_apps_imported">No packages found to exclude</string>
     <string name="vpn_start">On VPN</string>
     <string name="vpn_stop">Off VPN</string>
+    <string name="vpn_status_xray_needed">Enable Xray</string>
 
     <string name="import_file">From file</string>
     <string name="import_clipboard">From clipboard</string>

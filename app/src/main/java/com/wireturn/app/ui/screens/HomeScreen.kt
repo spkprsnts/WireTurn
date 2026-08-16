@@ -927,10 +927,11 @@ fun HomeScreen(
                         checked = vpnEnabled,
                         onCheckedChange = toggleVpnAction,
                         isModified = xraySession?.wg != null && vpnEnabled != (vpnServiceState == VpnState.Running),
-                        supportingText = when (vpnServiceState) {
-                            VpnState.Starting -> stringResource(R.string.starting)
-                            VpnState.Running -> stringResource(R.string.running)
-                            is VpnState.Error -> (vpnServiceState as VpnState.Error).message
+                        supportingText = when {
+                            vpnEnabled && !xrayConfig.enabled && !isSocks5Core -> stringResource(R.string.vpn_status_xray_needed)
+                            vpnServiceState == VpnState.Starting -> stringResource(R.string.starting)
+                            vpnServiceState == VpnState.Running -> stringResource(R.string.running)
+                            vpnServiceState is VpnState.Error -> (vpnServiceState as VpnState.Error).message
                             else -> stringResource(R.string.idle)
                         },
                         useLargeIcon = true,

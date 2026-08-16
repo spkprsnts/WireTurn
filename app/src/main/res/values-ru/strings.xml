@@ -57,8 +57,8 @@
     <string name="no_apps_found">Приложения не найдены</string>
     <string name="hide_system_apps">Скрывать системные</string>
     <string name="bypass_mode">Режим маршрутизации</string>
-    <string name="vpn_mode_bypass_desc">Выбранные — в обход</string>
-    <string name="vpn_mode_include_desc">Выбранные — через VPN</string>
+    <string name="vpn_mode_bypass_desc">Выбранные приложения будут работать БЕЗ VPN</string>
+    <string name="vpn_mode_include_desc">ТОЛЬКО выбранные приложения будут использовать VPN</string>
     <string name="filtering_enabled">Использовать маршрутизацию</string>
     <string name="group_apps_by_letter">Группировать по буквам</string>
     <string name="clear_list">Снять выделение со всех</string>
@@ -69,6 +69,7 @@
     <string name="no_apps_imported">Не найдены пакеты для исключения</string>
     <string name="vpn_start">Вкл. VPN</string>
     <string name="vpn_stop">Выкл. VPN</string>
+    <string name="vpn_status_xray_needed">Включите Xray</string>
 
     <string name="import_file">Из файла</string>
     <string name="import_clipboard">Из буфера</string>
