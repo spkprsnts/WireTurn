@@ -68,6 +68,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
@@ -75,6 +76,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.zIndex
@@ -544,7 +546,25 @@ fun AppExceptionsScreen(
                             modifier = Modifier
                                 .widthIn(max = 840.dp)
                                 .fillMaxWidth()
-                                .padding(top = statusBarPadding * searchBarState.progress),
+                                // Equivalent to padding(top = statusBarPadding * progress), but reads
+                                // the frequently-changing animation progress in the layout phase
+                                // instead of composition, so it doesn't recompose every animation frame.
+                                .layout { measurable, constraints ->
+                                    val topPaddingPx = (statusBarPadding * searchBarState.progress).roundToPx()
+                                    val placeable = measurable.measure(
+                                        constraints.copy(
+                                            minHeight = (constraints.minHeight - topPaddingPx).coerceAtLeast(0),
+                                            maxHeight = if (constraints.maxHeight != Constraints.Infinity) {
+                                                (constraints.maxHeight - topPaddingPx).coerceAtLeast(0)
+                                            } else {
+                                                constraints.maxHeight
+                                            }
+                                        )
+                                    )
+                                    layout(placeable.width, placeable.height + topPaddingPx) {
+                                        placeable.placeRelative(0, topPaddingPx)
+                                    }
+                                },
                             textFieldState = textFieldState,
                             searchBarState = searchBarState,
                             onSearch = {

@@ -1527,25 +1527,7 @@ fun AppTopAppBar(
                 )
             }
         },
-        modifier = modifier
-            .fillMaxWidth()
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        // Перехватываем события на начальной фазе (до того, как их увидит AppBar)
-                        val event = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
-                        
-                        event.changes.forEach { change ->
-                            // Если палец движется (драг), поглощаем это движение.
-                            // Мы не трогаем Down и Up, чтобы клики по кнопкам продолжали работать.
-                            val dragAmount = change.position - change.previousPosition
-                            if (dragAmount.getDistanceSquared() > 0.1f) {
-                                change.consume()
-                            }
-                        }
-                    }
-                }
-            },
+        modifier = modifier.fillMaxWidth(),
         navigationIcon = {
             if (onBack != null) {
                 FilledTonalIconButton(
