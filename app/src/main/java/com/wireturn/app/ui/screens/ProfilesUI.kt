@@ -542,10 +542,16 @@ fun ProfilesDialog(
             }
 
             if (updatedOrNewIds.isNotEmpty()) {
-                highlightedIds.addAll(updatedOrNewIds)
+                // Если профили принадлежат подписке, подсвечиваем и её заголовок (даже если подписка не новая).
+                val subIdsToHighlight = updatedOrNewIds.mapNotNull { id ->
+                    profilesSource.find { it.id == id }?.subscriptionId
+                }.distinct()
+                
+                val allToHighlight = (updatedOrNewIds + subIdsToHighlight).distinct()
+                highlightedIds.addAll(allToHighlight)
                 scope.launch {
                     delay(1_000.milliseconds)
-                    highlightedIds.removeAll(updatedOrNewIds)
+                    highlightedIds.removeAll(allToHighlight)
                 }
             }
 
@@ -578,13 +584,22 @@ fun ProfilesDialog(
                 // UI signals processing (internal to the same scope to reuse findLazyIndex)
                 launch {
                     com.wireturn.app.ui.UIEventBus.scrollRequest.collect { targetId ->
+                        // Подсвечиваем цель и всё связанное (профили подписки или заголовок профиля)
+                        val relatedIds = mutableListOf(targetId)
+                        profilesSource.filter { it.subscriptionId == targetId }.forEach { relatedIds.add(it.id) }
+                        profilesSource.find { it.id == targetId }?.subscriptionId?.let { relatedIds.add(it) }
+                        
+                        val uniqueRelated = relatedIds.distinct()
+                        highlightedIds.addAll(uniqueRelated)
+                        scope.launch {
+                            delay(1_000.milliseconds)
+                            highlightedIds.removeAll(uniqueRelated)
+                        }
+
                         delay(100.milliseconds)
                         val targetLazyIndex = findLazyIndex(targetId)
                         if (targetLazyIndex != -1) {
                             lazyListState.animateScrollToItem(targetLazyIndex)
-                            highlightedIds.add(targetId)
-                            delay(1_000.milliseconds)
-                            highlightedIds.remove(targetId)
                         }
                     }
                 }
