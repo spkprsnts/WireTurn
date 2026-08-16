@@ -588,9 +588,10 @@ class ProfileManager(
                                 bytesTotal = bundle.bytesTotal ?: 0,
                                 activeProfileId = bestActiveId,
                                 autoUpdate = existingSub?.autoUpdate ?: (bundle.updateIntervalMinutes != null),
-                                updateIntervalMinutes = existingSub?.updateIntervalMinutes 
-                                    ?: bundle.updateIntervalMinutes?.coerceAtLeast(20) 
-                                    ?: 1440
+                                updateIntervalMinutes = existingSub?.updateIntervalMinutes
+                                    ?: bundle.updateIntervalMinutes?.coerceAtLeast(20)
+                                    ?: 1440,
+                                onlyUpdateIfSelected = existingSub?.onlyUpdateIfSelected ?: false
                             )
 
                             // 3. Save subscription info

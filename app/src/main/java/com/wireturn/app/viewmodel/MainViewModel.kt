@@ -661,10 +661,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun cloneProfile(id: String, name: String) = profileManager.cloneProfile(id, name)
     fun deleteProfile(id: String) = deleteProfiles(listOf(id))
     fun deleteProfiles(ids: List<String>) {
-        val willBeEmpty = (profiles.value.size - ids.size) <= 0
+        // Not (profiles.size - ids.size) <= 0: if ids contains a stale id no longer in profiles
+        // (e.g. a selection made before a background subscription update changed the list), that
+        // arithmetic overcounts and wrongly declares "will be empty" while profiles actually remain -
+        // clearActiveProfile() would then wipe the active selection for no reason.
+        val willBeEmpty = profiles.value.all { it.id in ids }
         if (willBeEmpty) {
-            if (CoreServiceState.isRunning.value) stopCore()
-            viewModelScope.launch { prefs.clearActiveProfile() }
+            val wasRunning = CoreServiceState.isRunning.value
+            if (wasRunning) stopCore()
+            viewModelScope.launch {
+                // Give CoreService's stop intent a moment to register (sets userStopped=true) before
+                // clearing the active config - otherwise clearing it first can race the hot-reload
+                // watcher into reporting a validation error instead of a clean stop.
+                if (wasRunning) delay(150.milliseconds)
+                prefs.clearActiveProfile()
+            }
         }
         profileManager.deleteProfiles(ids) { p -> selectProfileAndRestart(p.id, p) }
     }

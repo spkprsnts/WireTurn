@@ -280,9 +280,14 @@ class CoreService : Service() {
             prefs.clientConfigFlow
                 .drop(1) // пропускаем начальное значение — уже обработано в onStartCommand
                 .collect { newCfgRaw ->
+                    // A deliberate stop (e.g. deleting every profile) clears the active config right
+                    // around when handleStopAction() runs - without this guard, that transient
+                    // "no config" emission races the real stop and gets reported as a validation
+                    // error ("client settings not filled") instead of the clean Idle the user asked for.
+                    if (userStopped.get()) return@collect
                     val runningCfg = currentRunningCfg.get() ?: return@collect
                     val newCfg = newCfgRaw.fillDefaults()
-                    
+
                     if (!newCfg.isValid) {
                         val errorRes = newCfg.getValidationErrorResId() ?: R.string.error_settings_empty
                         CoreServiceState.setStatus(CoreStatus.Error(getString(errorRes)))
