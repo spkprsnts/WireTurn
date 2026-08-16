@@ -120,6 +120,7 @@
     <string name="olcrtc_id_label">ID комнаты</string>
     <string name="olcrtc_key_label">Ключ авторизации</string>
     <string name="olcrtc_dns_label">DNS-сервер</string>
+    <string name="olcrtc_dns_desc">Используется для резолвинга сигнального провайдера до поднятия туннеля — сервер должен быть доступен при ограничениях по белым спискам (БС)</string>
     <string name="olcrtc_carrier_label">Платформа</string>
     <string name="olcrtc_transport_label">Транспорт</string>
     <string name="olcrtc_restart_on_connection_errors_label">Перезапуск при ошибках</string>

@@ -253,7 +253,9 @@ data class OlcrtcConfig(
     @SerializedName("transport") val transport: String = "datachannel",
     @SerializedName("id") val id: String = "",
     @SerializedName("key") val key: String = "",
-    @SerializedName("dns") val dns: String = "1.1.1.1:53",
+    // Yandex DNS: resolves the signaling provider's domain before the tunnel is even up, so it
+    // needs to be reachable under allow-list-only restrictions where 1.1.1.1/8.8.8.8 typically aren't.
+    @SerializedName("dns") val dns: String = "77.88.8.8:53",
     @SerializedName("mimo") val mimo: String = "",
     @SerializedName("vp8_fps") val vp8Fps: Int = 60,
     @SerializedName("vp8_batch") val vp8Batch: Int = 64,
@@ -288,7 +290,7 @@ data class OlcrtcConfig(
             transport = (transport as Any?)?.toString()?.take(100) ?: "datachannel",
             id = (id as Any?)?.toString()?.take(200) ?: "",
             key = (key as Any?)?.toString()?.take(1000) ?: "",
-            dns = (dns as Any?)?.toString()?.take(200) ?: "1.1.1.1:53",
+            dns = (dns as Any?)?.toString()?.take(200) ?: "77.88.8.8:53",
             mimo = (mimo as Any?)?.toString()?.take(500) ?: "",
             videoW = if (videoW <= 0) 1080 else videoW,
             videoH = if (videoH <= 0) 1080 else videoH

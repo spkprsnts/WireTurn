@@ -165,6 +165,7 @@
     <string name="olcrtc_id_label">Room ID</string>
     <string name="olcrtc_key_label">Auth Key</string>
     <string name="olcrtc_dns_label">DNS Server</string>
+    <string name="olcrtc_dns_desc">Used to resolve the signaling provider before the tunnel is up - must stay reachable under allow-list-only restrictions</string>
     <string name="olcrtc_carrier_label">Carrier</string>
     <string name="olcrtc_transport_label">Transport</string>
     <string name="olcrtc_restart_on_connection_errors_label">Restart on errors</string>

@@ -412,6 +412,7 @@ fun OlcRtcConfigScreen(
                         value = config.dns.redact(isPrivacyActive),
                         onValueChange = { if (!isPrivacyActive) config = config.copy(dns = it) },
                         readOnly = isPrivacyActive,
+                        supportingText = stringResource(R.string.olcrtc_dns_desc),
                         isModified = isEditMode && config.dns != initialConfig.dns,
                         privacyMode = isPrivacyActive
                     )
