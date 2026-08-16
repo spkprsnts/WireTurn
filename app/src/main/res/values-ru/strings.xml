@@ -407,6 +407,7 @@
     <string name="profile_actions">Действия с профилем</string>
     <string name="notification_btn_change_profile">Профиль</string>
     <string name="profile_create">Создать профиль</string>
+    <string name="profile_create_hint">Настройте параметры подключения вручную</string>
     <string name="profile_create_title">Создать</string>
     <string name="profile_add">Добавить профиль</string>
     <string name="profile_new">Новый профиль</string>
@@ -421,8 +422,9 @@
     <string name="profile_export_share">Поделиться</string>
     <string name="profile_export_json">JSON</string>
     <string name="profile_export_zip">ZIP (Архив)</string>
-    <string name="profile_import_title">Импорт</string>
+    <string name="profile_import_title">Импорт профиля/подписки</string>
     <string name="profile_import_json_zip">Импортировать JSON/ZIP</string>
+    <string name="profile_import_file_hint">Выберите файл профиля .json или архив .zip</string>
     <string name="profile_name_label">Название профиля</string>
     <string name="profile_delete_confirm">Удалить профиль %1$s?</string>
     <string name="profile_delete_desc">Все настройки этого профиля будут удалены.</string>
@@ -446,12 +448,18 @@
     <string name="exit_without_saving_desc">Все несохраненные изменения будут потеряны.</string>
     <string name="btn_exit">Выйти</string>
 
-    <string name="profile_import_group">Импорт конфигурации</string>
+    <string name="profile_import_group">Импорт конфигурации ядра</string>
     <string name="profile_manual_setup">Ручная настройка</string>
     <string name="profile_import_qr">Сканировать QR-код</string>
+    <string name="profile_import_qr_hint">Сканируйте QR-код со ссылкой</string>
     <string name="profile_import_link">Вставить ссылку</string>
+    <string name="profile_import_link_hint">Поддерживаются ссылки HTTP(S), WT или WireTurn</string>
     <string name="profile_import_clipboard">Вставить URI конфигурации</string>
+    <string name="profile_import_clipboard_hint">Вставьте ссылку на конфигурацию из буфера</string>
     <string name="profile_import_file">Импорт из файла</string>
+    <string name="kernel_import_file_hint">Выберите файл со ссылкой на конфигурацию</string>
+    <string name="kernel_import_qr_hint">Сканируйте QR-код со ссылкой</string>
+    <string name="kernel_import_clipboard_hint">Вставьте ссылку на конфигурацию из буфера</string>
     <string name="guide_turnable">Инструкция по настройке сервера Turnable</string>
     <string name="guide_olcrtc">Инструкция по настройке сервера olcRTC</string>
 </resources>

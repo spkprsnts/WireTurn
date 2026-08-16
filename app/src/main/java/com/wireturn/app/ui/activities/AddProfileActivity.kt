@@ -22,7 +22,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.getValue
@@ -50,6 +49,7 @@ import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.domain.isLocalNetworkHost
+import androidx.compose.ui.graphics.Color
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -226,10 +226,9 @@ class AddProfileActivity : ComponentActivity() {
                                             tint = MaterialTheme.colorScheme.primary
                                         )
                                     }
-                                    Text(
-                                        text = stringResource(R.string.profile_import_json_zip),
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Medium
+                                    com.wireturn.app.ui.LabelGroup(
+                                        label = stringResource(R.string.profile_import_json_zip),
+                                        supportingText = stringResource(R.string.profile_import_file_hint)
                                     )
                                 }
                             }
@@ -296,12 +295,11 @@ class AddProfileActivity : ComponentActivity() {
                                             )
                                         }
                                     }
-                                    Text(
-                                        text = stringResource(R.string.profile_import_link),
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Medium,
-                                        color = if (isImporting) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f) 
-                                                else MaterialTheme.colorScheme.onSurface
+                                    com.wireturn.app.ui.LabelGroup(
+                                        label = stringResource(R.string.profile_import_link),
+                                        supportingText = stringResource(R.string.profile_import_link_hint),
+                                        labelColor = if (isImporting) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f) 
+                                                    else Color.Unspecified
                                     )
                                 }
                             }
@@ -327,10 +325,9 @@ class AddProfileActivity : ComponentActivity() {
                                             tint = MaterialTheme.colorScheme.primary
                                         )
                                     }
-                                    Text(
-                                        text = stringResource(R.string.profile_create),
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Medium
+                                    com.wireturn.app.ui.LabelGroup(
+                                        label = stringResource(R.string.profile_create),
+                                        supportingText = stringResource(R.string.profile_create_hint)
                                     )
                                 }
                             }

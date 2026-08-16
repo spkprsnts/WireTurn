@@ -131,6 +131,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.set
 import androidx.core.net.toUri
@@ -410,6 +411,38 @@ fun SupportingText(
 }
 
 /**
+ * A combined component for a label and its supporting text.
+ */
+@Composable
+fun LabelGroup(
+    label: String,
+    modifier: Modifier = Modifier,
+    supportingText: String? = null,
+    isModified: Boolean = false,
+    labelStyle: TextStyle = MaterialTheme.typography.titleMedium,
+    supportingStyle: TextStyle = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp),
+    labelColor: Color = Color.Unspecified,
+    supportingColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.Center) {
+        RowLabel(
+            text = label,
+            isModified = isModified,
+            style = labelStyle,
+            color = labelColor
+        )
+        if (!supportingText.isNullOrBlank()) {
+            Spacer(Modifier.height(3.dp))
+            SupportingText(
+                text = supportingText,
+                style = supportingStyle,
+                color = supportingColor
+            )
+        }
+    }
+}
+
+/**
  * A reusable container for sections that expand and collapse with a smooth transition.
  * Uses MutableTransitionState to avoid initial flicker on screen start.
  */
@@ -578,20 +611,13 @@ fun MainSwitchItem(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    RowLabel(
-                        text = label,
-                        modifier = Modifier.padding(start = 12.dp),
-                        color = contentColor
-                    )
-                    if (supportingText != null) {
-                        SupportingText(
-                            text = supportingText,
-                            color = contentColor.copy(alpha = 0.7f),
-                            modifier = Modifier.padding(top = 2.dp)
-                        )
-                    }
-                }
+                LabelGroup(
+                    label = label,
+                    modifier = Modifier.padding(start = 12.dp),
+                    labelColor = contentColor,
+                    supportingText = supportingText,
+                    supportingColor = contentColor.copy(alpha = 0.7f)
+                )
 
                 IconSwitch(
                     checked = checked,
@@ -940,11 +966,12 @@ fun SwitchRow(
                     }
                 }
 
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
-                    RowLabel(text = label, isModified = isModified)
-                    Spacer(Modifier.height(2.dp))
-                    SupportingText(text = supportingText)
-                }
+                LabelGroup(
+                    label = label,
+                    modifier = Modifier.weight(1f),
+                    supportingText = supportingText,
+                    isModified = isModified
+                )
 
                 if (trailingContent != null) {
                     Spacer(Modifier.width(16.dp))

@@ -43,6 +43,7 @@ import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.showExclusiveToast
 import com.wireturn.app.ui.ItemPosition
+import com.wireturn.app.ui.LabelGroup
 import com.wireturn.app.ui.RowLabel
 import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
@@ -140,7 +141,10 @@ fun CreateProfileScreen(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
-                        RowLabel(text = stringResource(R.string.profile_import_qr))
+                        LabelGroup(
+                            label = stringResource(R.string.profile_import_qr),
+                            supportingText = stringResource(R.string.kernel_import_qr_hint)
+                        )
                     }
                 }
 
@@ -166,7 +170,10 @@ fun CreateProfileScreen(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
-                        RowLabel(text = stringResource(R.string.profile_import_clipboard))
+                        LabelGroup(
+                            label = stringResource(R.string.profile_import_clipboard),
+                            supportingText = stringResource(R.string.kernel_import_clipboard_hint)
+                        )
                     }
                 }
 
@@ -182,7 +189,10 @@ fun CreateProfileScreen(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
-                        RowLabel(text = stringResource(R.string.profile_import_file))
+                        LabelGroup(
+                            label = stringResource(R.string.profile_import_file),
+                            supportingText = stringResource(R.string.kernel_import_file_hint)
+                        )
                     }
                 }
             }

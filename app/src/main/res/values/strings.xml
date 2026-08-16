@@ -445,6 +445,7 @@
     <string name="profile_actions">Profile actions</string>
     <string name="notification_btn_change_profile">Profile</string>
     <string name="profile_create">Create profile</string>
+    <string name="profile_create_hint">Setup connection parameters manually</string>
     <string name="profile_create_title">Create</string>
     <string name="profile_add">Add profile</string>
     <string name="profile_new">New profile</string>
@@ -459,8 +460,9 @@
     <string name="profile_export_share">Share</string>
     <string name="profile_export_json">JSON</string>
     <string name="profile_export_zip">ZIP (Archive)</string>
-    <string name="profile_import_title">Import</string>
+    <string name="profile_import_title">Import profile/subscription</string>
     <string name="profile_import_json_zip">Import JSON/ZIP</string>
+    <string name="profile_import_file_hint">Select .json profile or .zip archive</string>
     <string name="profile_name_label">Profile name</string>
     <string name="profile_delete_confirm">Delete profile %1$s?</string>
     <string name="profile_delete_desc">All settings for this profile will be deleted.</string>
@@ -484,12 +486,18 @@
     <string name="exit_without_saving_desc">All unsaved changes will be lost.</string>
     <string name="btn_exit">Exit</string>
 
-    <string name="profile_import_group">Import configuration</string>
+    <string name="profile_import_group">Kernel configuration import</string>
     <string name="profile_manual_setup">Manual setup</string>
     <string name="profile_import_qr">Scan QR Code</string>
+    <string name="profile_import_qr_hint">Scan QR code containing link</string>
     <string name="profile_import_link">Paste Link</string>
+    <string name="profile_import_link_hint">Supports HTTP(S), WT or WireTurn links</string>
     <string name="profile_import_clipboard">Paste Config URI</string>
+    <string name="profile_import_clipboard_hint">Paste configuration link from clipboard</string>
     <string name="profile_import_file">Import from File</string>
+    <string name="kernel_import_file_hint">Select file with configuration link</string>
+    <string name="kernel_import_qr_hint">Scan QR code containing link</string>
+    <string name="kernel_import_clipboard_hint">Paste configuration link from clipboard</string>
     <string name="guide_turnable">Server setup guide: Turnable</string>
     <string name="guide_olcrtc">Server setup guide: olcRTC</string>
 </resources>
