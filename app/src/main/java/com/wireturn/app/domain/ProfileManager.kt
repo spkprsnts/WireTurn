@@ -6,6 +6,7 @@ import com.wireturn.app.data.Profile
 import com.wireturn.app.data.Subscription
 import com.wireturn.app.data.ProfileBundle
 import com.wireturn.app.data.KernelConfig
+import com.wireturn.app.data.OlcrtcConfig
 import com.google.gson.JsonParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -391,10 +392,11 @@ class ProfileManager(
 
                 // 1. Try to preserve local ID by matching the server's own stable per-profile id first
                 // (survives renames and doesn't collide when two entries share a display name). Only
-                // fall back to matching by name for OLD profiles that never got a source id recorded
-                // (pre-migration data) - an old profile that HAS a source id must never be re-matched
-                // by name alone, or a same-named-but-different new entry would silently steal its
-                // local id (and with it, "is this still selected" continuity) out from under it.
+                // fall back to matching by name for local profiles that have no recorded source id -
+                // i.e. the subscription didn't send a stable "id" for that entry on a previous sync.
+                // A local profile that HAS a source id must never be re-matched by name alone, or a
+                // same-named-but-different new entry would silently steal its local id (and with it,
+                // "is this still selected" continuity) out from under it.
                 val sourceId = p.id.takeIf { it.isNotBlank() }
                 val existing = (sourceId?.let { sid ->
                     existingSubProfiles.find { it.subscriptionSourceId == sid && it.id !in usedInThisBatchIds }
@@ -541,23 +543,28 @@ class ProfileManager(
                     } else {
                         kotlinx.coroutines.yield() // Check for cancellation
                         val bundle = try {
-                            gson.fromJson(content, ProfileBundle::class.java)
+                            gson.fromJson(content, ProfileBundle::class.java)?.also {
+                                @Suppress("SENSELESS_COMPARISON")
+                                if (it.profiles == null) throw com.google.gson.JsonSyntaxException("missing profiles")
+                            }
                         } catch (_: Exception) {
                             try {
                                 val profiles = gson.fromJson<List<Profile>>(content, object : com.google.gson.reflect.TypeToken<List<Profile>>() {}.type)
                                 ProfileBundle(profiles = profiles)
                             } catch (_: Exception) {
-                                val decoded = ProfileEncoder.decode(content)
-                                if (decoded != null) {
-                                    val element = JsonParser.parseString(decoded)
-                                    val profiles = if (element.isJsonArray) {
-                                        gson.fromJson<List<Profile>>(element, object : com.google.gson.reflect.TypeToken<List<Profile>>() {}.type)
+                                tryParseOlcboxBundle(content) ?: run {
+                                    val decoded = ProfileEncoder.decode(content)
+                                    if (decoded != null) {
+                                        val element = JsonParser.parseString(decoded)
+                                        val profiles = if (element.isJsonArray) {
+                                            gson.fromJson(element, object : com.google.gson.reflect.TypeToken<List<Profile>>() {}.type)
+                                        } else {
+                                            listOf(gson.fromJson(element, Profile::class.java))
+                                        }
+                                        ProfileBundle(profiles = profiles)
                                     } else {
-                                        listOf(gson.fromJson(element, Profile::class.java))
+                                        tryParseTextSubscription(content)
                                     }
-                                    ProfileBundle(profiles = profiles)
-                                } else {
-                                    tryParseTextSubscription(content)
                                 }
                             }
                         }
@@ -695,6 +702,77 @@ class ProfileManager(
         scope.launch { prefs.saveSubscriptions(newSubs) }
     }
 
+    // Reads olcbox's (github.com/alananisimov/olcbox) native LocationBundleV4 JSON subscription/export
+    // format, e.g. {"version":5,"active_location_id":"...","locations":[{"storage_id":"...",
+    // "name":"...","endpoint":{"room_id":"...","key":"..."},"auth_provider":"jitsi",
+    // "transport":{"type":"vp8channel","vp8":{"fps":60,"batch":64}},"dns_server":"..."}]}.
+    // "transport" may also be a bare string (its legacy compact form). Unlike WireTurn's own
+    // ProfileBundle, every field here is olcbox-specific, so this is a distinct entry point rather
+    // than something the OlcrtcConfig/Profile Gson adapters could be taught to also accept.
+    private fun tryParseOlcboxBundle(content: String): ProfileBundle? {
+        val root = try { JsonParser.parseString(content).asJsonObject } catch (_: Exception) { return null }
+        val locationsArray = try { root.getAsJsonArray("locations") } catch (_: Exception) { null } ?: return null
+
+        val profiles = locationsArray.mapNotNull { element ->
+            val item = try { element.asJsonObject } catch (_: Exception) { return@mapNotNull null }
+            parseOlcboxLocationEntry(item)
+        }
+        if (profiles.isEmpty()) return null
+
+        val activeStorageId = (root.get("active_location_id") ?: root.get("activeLocationId"))
+            ?.takeIf { it.isJsonPrimitive }?.asString
+
+        return ProfileBundle(profiles = profiles, recommendedProfileId = activeStorageId)
+    }
+
+    private fun parseOlcboxLocationEntry(item: com.google.gson.JsonObject): Profile? {
+        fun str(vararg keys: String): String? {
+            for (k in keys) {
+                val v = item.get(k)
+                if (v != null && v.isJsonPrimitive) return v.asString
+            }
+            return null
+        }
+        fun obj(key: String): com.google.gson.JsonObject? =
+            item.get(key)?.takeIf { it.isJsonObject }?.asJsonObject
+
+        val endpoint = obj("endpoint")
+        val provider = str("auth_provider", "authProvider", "carrier", "bypass_provider", "bypassProvider", "provider")
+            ?: "wbstream"
+        val roomId = endpoint?.get("room_id")?.takeIf { it.isJsonPrimitive }?.asString
+            ?: str("id", "room_id", "server")
+        val key = endpoint?.get("key")?.takeIf { it.isJsonPrimitive }?.asString
+            ?: str("key", "password")
+        if (roomId.isNullOrBlank() || key.isNullOrBlank()) return null
+
+        val transportElement = item.get("transport")
+        val transportObj = transportElement?.takeIf { it.isJsonObject }?.asJsonObject
+        val transport = when {
+            transportElement != null && transportElement.isJsonPrimitive -> transportElement.asString
+            transportObj != null -> transportObj.get("type")?.takeIf { it.isJsonPrimitive }?.asString
+            else -> null
+        } ?: "datachannel"
+        val vp8 = transportObj?.get("vp8")?.takeIf { it.isJsonObject }?.asJsonObject
+        val vp8Fps = (vp8?.get("fps")?.takeIf { it.isJsonPrimitive }?.asInt)
+            ?: str("vp8_fps", "vp8Fps")?.toIntOrNull()
+        val vp8Batch = (vp8?.get("batch")?.takeIf { it.isJsonPrimitive }?.asInt)
+            ?: str("vp8_batch", "vp8Batch")?.toIntOrNull()
+        val dns = str("dns_server", "dnsServer")
+
+        val storageId = str("storage_id", "storageId") ?: ""
+        val metadataName = obj("metadata")?.get("name")?.takeIf { it.isJsonPrimitive }?.asString
+        val name = str("name")?.takeIf { it.isNotBlank() }
+            ?: metadataName?.takeIf { it.isNotBlank() }
+            ?: roomId
+
+        var config = OlcrtcConfig(provider = provider, transport = transport, id = roomId, key = key)
+        vp8Fps?.let { config = config.copy(vp8Fps = it) }
+        vp8Batch?.let { config = config.copy(vp8Batch = it) }
+        dns?.takeIf { it.isNotBlank() }?.let { config = config.copy(dns = it) }
+
+        return Profile(id = storageId, name = name, kernelConfig = KernelConfig.Olcrtc(config))
+    }
+
     private fun tryParseTextSubscription(text: String): ProfileBundle? {
         if (!text.contains("freeturn://") && !text.contains("olcrtc://") && 
             !text.contains("turnable://") && !text.contains("webdav://") && 
@@ -751,7 +829,7 @@ class ProfileManager(
                 )
             } else if (trimmed.startsWith("olcrtc://")) {
                 flush()
-                val config = com.wireturn.app.data.OlcrtcConfig.parse(trimmed) ?: continue
+                val config = OlcrtcConfig.parse(trimmed) ?: continue
                 
                 // olcrtc://<Provider>?<Transport>@<RoomID>#<EncryptionKey>$<MIMO>
                 // Use MIMO as name if it's there

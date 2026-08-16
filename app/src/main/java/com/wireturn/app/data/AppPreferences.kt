@@ -371,6 +371,18 @@ data class OlcrtcConfig(
 
         fun parse(url: String, current: OlcrtcConfig = OlcrtcConfig()): OlcrtcConfig? {
             if (!url.startsWith("olcrtc://", ignoreCase = true)) return null
+            // The Olcrtc_manager admin panel (https://github.com/Oleglog/Olcrtc_manager) emits its own
+            // bespoke deep-link/QR dialect instead of this project's own documented uri.md grammar.
+            // Its own store.go unconditionally backfills "core=legacy" onto every URI it persists -
+            // including ones an operator pastes in manually without it - specifically so downstream
+            // consumers can recognize its dialect; "core" isn't a real olcrtc config/auth field (absent
+            // from the actual binary), so this can't collide with a native link. Trust that one marker,
+            // the same way olcbox's own parser trusts the native grammar's delimiters without trying to
+            // infer anything from the room id's shape - jitsi's native RoomID is itself a URL, which is
+            // exactly what made an earlier shape-based heuristic here misfire on real links.
+            if (url.contains("core=legacy", ignoreCase = true)) {
+                return parseUrlEmbeddedDialect(url.substringAfter("olcrtc://"), current)
+            }
             return try {
                 val provider = url.substringAfter("olcrtc://").substringBefore("?")
                 val transportPart = url.substringAfter("?").substringBefore("@")
@@ -414,6 +426,45 @@ data class OlcrtcConfig(
                     }
                 }
                 cfg
+            } catch (_: Exception) {
+                null
+            }
+        }
+
+        // olcrtc://<carrier>@<placeholder>/<room, percent-encoded in the QR form>?<params>#<name>
+        //
+        // Two variants come out of that panel, both handled here:
+        //  - subscription line (buildURIWith):        ...@room/<room>?key=...&transport=...&vp8_fps=...&vp8_batch=...&core=legacy[&client_id=...]#<name>
+        //  - QR code (buildCompactURIWith):            ...@r/<room, url.PathEscape'd>?k=...&t=...&f=...&b=...&core=legacy[&c=...][&d=...]#<name, url.QueryEscape'd>
+        //
+        // "core" is hardcoded to the literal "legacy" unconditionally by both builders - it's a
+        // dialect-version tag for the panel's own future use, not a real setting - and "client_id"
+        // only ever reaches that panel's own instance bookkeeping (OLCRTC_CLIENT_ID env var). Neither
+        // exists anywhere in the actual olcrtc core's config or auth packages, so both are dropped.
+        private fun parseUrlEmbeddedDialect(afterScheme: String, current: OlcrtcConfig): OlcrtcConfig? {
+            return try {
+                val provider = afterScheme.substringBefore("@")
+                val afterAt = afterScheme.substringAfter("@")
+                if (!afterAt.contains("/")) return null
+                val afterPlaceholder = afterAt.substringAfter("/")
+                val fragment = if (afterPlaceholder.contains("#")) afterPlaceholder.substringAfter("#") else ""
+                val withoutFragment = afterPlaceholder.substringBefore("#")
+                val idEncoded = withoutFragment.substringBefore("?")
+                val query = if (withoutFragment.contains("?")) withoutFragment.substringAfter("?") else ""
+                val params = if (query.isNotBlank()) {
+                    query.split("&").associate { it.substringBefore("=") to Uri.decode(it.substringAfter("=", "")) }
+                } else emptyMap()
+
+                current.copy(
+                    provider = provider,
+                    id = Uri.decode(idEncoded),
+                    key = params["key"] ?: params["k"] ?: current.key,
+                    transport = params["transport"] ?: params["t"] ?: current.transport,
+                    vp8Fps = (params["vp8_fps"] ?: params["f"])?.toIntOrNull() ?: current.vp8Fps,
+                    vp8Batch = (params["vp8_batch"] ?: params["b"])?.toIntOrNull() ?: current.vp8Batch,
+                    dns = params["dns"] ?: params["d"] ?: current.dns,
+                    mimo = Uri.decode(fragment).ifBlank { current.mimo }
+                )
             } catch (_: Exception) {
                 null
             }
