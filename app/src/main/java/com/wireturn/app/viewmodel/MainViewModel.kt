@@ -695,6 +695,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun importProfilesFromZip(s: java.io.InputStream) = profileManager.importProfilesFromZip(s) { selectProfileAndRestart(it.id, it) }
     fun importProfiles(data: List<Pair<String?, String>>) = profileManager.importProfiles(data) { selectProfileAndRestart(it.id, it) }.first
 
+    /** Like [importProfiles], but also returns the freshly-imported profiles (with their newly
+     * assigned local ids) so a caller can scroll/highlight to what was just added. */
+    fun importProfilesWithResult(data: List<Pair<String?, String>>): Pair<com.wireturn.app.domain.ImportResult, List<Profile>> {
+        val (result, imported, _) = profileManager.importProfiles(data) { selectProfileAndRestart(it.id, it) }
+        return result to imported
+    }
+
     suspend fun smartImport(text: String): com.wireturn.app.domain.ImportStatus {
         val trimmed = text.trim()
 
@@ -705,11 +712,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
-        // 2. Encoded Profile
+        // 2. Encoded Profile (or, if the decoded payload is itself a bare URL, a subscription
+        // wrapped in a wireturn:// container - the container is scheme-agnostic, see ProfileEncoder)
         if (trimmed.startsWith("wireturn://") || trimmed.startsWith("wt://")) {
             val encoded = trimmed.substringAfter("://")
             val json = com.wireturn.app.domain.ProfileEncoder.decode(encoded)
             if (json != null) {
+                val decodedTrimmed = json.trim()
+                if (decodedTrimmed.startsWith("https://") || decodedTrimmed.startsWith("http://")) {
+                    return profileManager.fetchSubscription(decodedTrimmed) {
+                        selectProfileAndRestart(it.id, it)
+                    }
+                }
                 val result = importProfiles(listOf(null to json))
                 val targetId = if (result.added > 0 || result.updated > 0) {
                     // Try to find the first imported profile ID

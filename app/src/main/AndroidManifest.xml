@@ -43,6 +43,7 @@
         <activity
             android:name=".ui.activities.MainActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:theme="@style/Theme.wireturn.Splash"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
@@ -51,6 +52,16 @@
             </intent-filter>
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+            </intent-filter>
+            <!-- wireturn:// / wt:// deep links: opening one from a browser, messenger or QR
+                 scanner brings this task to front (see launchMode above) and MainActivity shows
+                 an import confirmation dialog instead of importing silently. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="wireturn" />
+                <data android:scheme="wt" />
             </intent-filter>
         </activity>
 

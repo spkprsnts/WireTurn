@@ -56,6 +56,7 @@ import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -91,6 +92,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import kotlinx.coroutines.Job
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -778,6 +780,210 @@ fun HomeScreen(
                     viewModel = viewModel,
                     onDismiss = { showProfilesDialog.value = false }
                 )
+            }
+
+            // --- wireturn:// / wt:// deep link import ---
+            // MainActivity forwards ACTION_VIEW links here via DeepLinkBus instead of importing
+            // directly, since the link may have been opened from outside the app with no prior
+            // user action inside WireTurn. The confirmation dialog stands alone (nothing else
+            // competes for the window) - the profile list itself only opens *after* a successful
+            // add, scrolled to and briefly highlighting whatever was just added, so opening it
+            // shows a result rather than an empty backdrop behind the confirmation prompt.
+            var pendingDeepLink by remember { mutableStateOf<com.wireturn.app.ui.DeepLinkRequest?>(null) }
+            var isImportingDeepLink by remember { mutableStateOf(false) }
+            var deepLinkImportJob by remember { mutableStateOf<Job?>(null) }
+
+            val deepLinkPreview = remember(pendingDeepLink) {
+                pendingDeepLink?.let { com.wireturn.app.domain.previewDeepLink(it.link) }
+            }
+
+            LaunchedEffect(Unit) {
+                com.wireturn.app.ui.DeepLinkBus.pendingLink.collect { request ->
+                    pendingDeepLink = request
+                }
+            }
+
+            val importProfilesSuccessMsg = stringResource(R.string.import_profiles_success)
+            val importSubscriptionSuccessMsg = stringResource(R.string.import_subscription_success)
+            val importErrorMsg = stringResource(R.string.import_error)
+
+            fun dismissDeepLink() {
+                deepLinkImportJob?.cancel()
+                deepLinkImportJob = null
+                isImportingDeepLink = false
+                pendingDeepLink = null
+            }
+
+            fun revealInProfilesList(scrollTargetId: String?) {
+                showProfilesDialog.value = true
+                if (scrollTargetId != null) {
+                    scope.launch {
+                        delay(300.milliseconds) // let ProfilesDialog compose and its scroll-request collector attach
+                        com.wireturn.app.ui.UIEventBus.requestScroll(scrollTargetId)
+                    }
+                }
+            }
+
+            var pendingSubscriptionUrl by remember { mutableStateOf<String?>(null) }
+            val deepLinkLocalNetworkPermissionLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestPermission()
+            ) { isGranted ->
+                val url = pendingSubscriptionUrl
+                pendingSubscriptionUrl = null
+                if (isGranted && url != null) {
+                    isImportingDeepLink = true
+                    deepLinkImportJob = scope.launch {
+                        try {
+                            val status = viewModel.smartImport(url)
+                            if (status is com.wireturn.app.domain.ImportStatus.Success) {
+                                context.showExclusiveToast(importSubscriptionSuccessMsg)
+                                revealInProfilesList(status.id)
+                            } else {
+                                context.showExclusiveToast(importErrorMsg)
+                            }
+                        } finally {
+                            isImportingDeepLink = false
+                            deepLinkImportJob = null
+                            pendingDeepLink = null
+                        }
+                    }
+                } else if (url != null) {
+                    pendingDeepLink = null
+                }
+            }
+
+            fun confirmDeepLinkSubscription(url: String) {
+                val needsLocalNetworkPermission = Build.VERSION.SDK_INT >= 37 &&
+                    com.wireturn.app.domain.isLocalNetworkHost(url) &&
+                    ContextCompat.checkSelfPermission(
+                        context,
+                        "android.permission.ACCESS_LOCAL_NETWORK"
+                    ) != PackageManager.PERMISSION_GRANTED
+
+                if (needsLocalNetworkPermission) {
+                    pendingSubscriptionUrl = url
+                    deepLinkLocalNetworkPermissionLauncher.launch("android.permission.ACCESS_LOCAL_NETWORK")
+                    return
+                }
+
+                isImportingDeepLink = true
+                deepLinkImportJob = scope.launch {
+                    try {
+                        val status = viewModel.smartImport(url)
+                        if (status is com.wireturn.app.domain.ImportStatus.Success) {
+                            context.showExclusiveToast(importSubscriptionSuccessMsg)
+                            revealInProfilesList(status.id)
+                        } else {
+                            context.showExclusiveToast(importErrorMsg)
+                        }
+                    } finally {
+                        isImportingDeepLink = false
+                        deepLinkImportJob = null
+                        pendingDeepLink = null
+                    }
+                }
+            }
+
+            when (deepLinkPreview) {
+                is com.wireturn.app.domain.DeepLinkPreview.Profiles -> {
+                    val referrerHost = pendingDeepLink?.referrerHost
+                    val countPhrase = androidx.compose.ui.res.pluralStringResource(
+                        R.plurals.deep_link_import_profiles_count,
+                        deepLinkPreview.count,
+                        deepLinkPreview.count
+                    )
+                    val title = if (referrerHost != null) {
+                        stringResource(R.string.deep_link_import_profiles_title_with_site, countPhrase, referrerHost)
+                    } else {
+                        stringResource(R.string.deep_link_import_profiles_title_no_site, countPhrase)
+                    }
+                    val defaultName = stringResource(R.string.profile_default_name)
+                    AlertDialog(
+                        onDismissRequest = { dismissDeepLink() },
+                        title = { Text(title) },
+                        text = {
+                            Text(
+                                stringResource(
+                                    R.string.deep_link_import_profiles_desc,
+                                    deepLinkPreview.names.joinToString("\n") { "• ${it.ifBlank { defaultName }}" }
+                                )
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    isImportingDeepLink = true
+                                    deepLinkImportJob = scope.launch {
+                                        try {
+                                            val (result, imported) = viewModel.importProfilesWithResult(listOf(null to deepLinkPreview.json))
+                                            if (result.total > 0) {
+                                                context.showExclusiveToast(importProfilesSuccessMsg)
+                                                revealInProfilesList(imported.firstOrNull()?.id)
+                                            } else {
+                                                context.showExclusiveToast(importErrorMsg)
+                                            }
+                                        } finally {
+                                            dismissDeepLink()
+                                        }
+                                    }
+                                },
+                                enabled = !isImportingDeepLink
+                            ) {
+                                if (isImportingDeepLink) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                }
+                                Text(stringResource(R.string.btn_add))
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { dismissDeepLink() }) { Text(stringResource(R.string.cancel)) }
+                        }
+                    )
+                }
+                is com.wireturn.app.domain.DeepLinkPreview.SubscriptionLink -> {
+                    val host = remember(deepLinkPreview.url) {
+                        try {
+                            deepLinkPreview.url.toUri().host } catch (_: Exception) { null } ?: deepLinkPreview.url
+                    }
+                    AlertDialog(
+                        onDismissRequest = { dismissDeepLink() },
+                        title = { Text(stringResource(R.string.deep_link_import_subscription_title, host)) },
+                        text = { Text(stringResource(R.string.deep_link_import_subscription_desc)) },
+                        confirmButton = {
+                            TextButton(
+                                onClick = { confirmDeepLinkSubscription(deepLinkPreview.url) },
+                                enabled = !isImportingDeepLink
+                            ) {
+                                if (isImportingDeepLink) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                }
+                                Text(stringResource(R.string.btn_add))
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { dismissDeepLink() }) { Text(stringResource(R.string.cancel)) }
+                        }
+                    )
+                }
+                com.wireturn.app.domain.DeepLinkPreview.Invalid -> {
+                    AlertDialog(
+                        onDismissRequest = { pendingDeepLink = null },
+                        title = { Text(stringResource(R.string.deep_link_import_invalid_title)) },
+                        text = { Text(stringResource(R.string.deep_link_import_invalid)) },
+                        confirmButton = {
+                            TextButton(onClick = { pendingDeepLink = null }) { Text(stringResource(R.string.btn_close)) }
+                        }
+                    )
+                }
+                null -> {}
             }
 
             val isSocks5Core = activeConfig.kernelVariant == KernelVariant.OLCRTC || activeConfig.kernelVariant == KernelVariant.WEBDAV

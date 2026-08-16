@@ -79,6 +79,8 @@
     <string name="import_file">From file</string>
     <string name="import_clipboard">From clipboard</string>
     <string name="import_success">Configuration imported</string>
+    <string name="import_profiles_success">Profiles imported</string>
+    <string name="import_subscription_success">Subscription added</string>
     <string name="import_error">Import error</string>
     <string name="import_error_no_link">No valid link found in clipboard</string>
     <string name="import_error_invalid_profile">Invalid profile format</string>
@@ -87,6 +89,20 @@
     <string name="import_error_empty">Server returned empty response</string>
     <string name="import_error_invalid_config">Invalid configuration format</string>
     <string name="profile_import_partial_failure">Imported, but %1$d of %2$d files failed</string>
+
+    <!-- wireturn:// / wt:// deep link import confirmation -->
+    <plurals name="deep_link_import_profiles_count">
+        <item quantity="one">%d profile</item>
+        <item quantity="other">%d profiles</item>
+    </plurals>
+    <string name="deep_link_import_profiles_title_with_site">Add %1$s from %2$s?</string>
+    <string name="deep_link_import_profiles_title_no_site">Add %1$s?</string>
+    <string name="deep_link_import_profiles_desc">The following will be added:\n%1$s</string>
+    <string name="deep_link_import_subscription_title">Add subscription \"%1$s\"?</string>
+    <string name="deep_link_import_subscription_desc">It will be added and kept up to date automatically.</string>
+    <string name="deep_link_import_invalid_title">Invalid link</string>
+    <string name="deep_link_import_invalid">This link doesn\'t contain a valid WireTurn profile or subscription</string>
+    <string name="btn_add">Add</string>
 
     <string name="subscription_update_no_changes">No changes in subscription</string>
     <string name="subscription_update_summary">Updated: +%1$d, −%2$d (%3$d total)</string>

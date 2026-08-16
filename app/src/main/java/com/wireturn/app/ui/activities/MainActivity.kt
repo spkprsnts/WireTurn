@@ -12,7 +12,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -40,6 +40,12 @@ class MainActivity : AppCompatActivity() {
 
         // Обработка перехода из плитки (QS Tile)
         val fromTile = intent?.action == "android.service.quicksettings.action.QS_TILE_PREFERENCES"
+
+        // Only handle on a fresh launch, not on a config-change recreation of the same intent -
+        // onNewIntent() covers the case where the app is already running.
+        if (savedInstanceState == null) {
+            handleDeepLinkIntent(intent)
+        }
 
         // Удерживаем системный splash пока ViewModel не инициализируется
         splashScreen.setKeepOnScreenCondition { !viewModel.isInitialized.value }
@@ -92,7 +98,7 @@ class MainActivity : AppCompatActivity() {
 
             val onboardingDone by viewModel.onboardingDone.collectAsStateWithLifecycle()
             val captchaSession by com.wireturn.app.CoreServiceState.captchaSession.collectAsStateWithLifecycle()
-            var lastHandledCaptchaSessionId by remember { mutableStateOf(-1L) }
+            var lastHandledCaptchaSessionId by remember { mutableLongStateOf(-1L) }
 
             LaunchedEffect(captchaSession) {
                 if (captchaSession != null && captchaSession?.sessionId != lastHandledCaptchaSessionId) {
@@ -138,11 +144,23 @@ class MainActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        handleDeepLinkIntent(intent)
         NotificationHelper.cancelCaptchaNotification(this)
     }
 
     override fun onResume() {
         super.onResume()
         NotificationHelper.cancelCaptchaNotification(this)
+    }
+
+    private fun handleDeepLinkIntent(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_VIEW) return
+        val uri = intent.data ?: return
+        if (uri.scheme?.lowercase() !in setOf("wireturn", "wt")) return
+        // Some browsers (e.g. Chrome) pass the referring page/app via getReferrer() when the user
+        // taps a link that resolves to this intent-filter; only worth showing if it's an actual
+        // website and not e.g. "android-app://com.android.chrome" (the browser itself).
+        val referrerHost = referrer?.takeIf { it.scheme == "http" || it.scheme == "https" }?.host
+        com.wireturn.app.ui.DeepLinkBus.submit(com.wireturn.app.ui.DeepLinkRequest(uri.toString(), referrerHost))
     }
 }

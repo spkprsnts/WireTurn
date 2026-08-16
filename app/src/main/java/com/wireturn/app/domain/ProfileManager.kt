@@ -44,6 +44,52 @@ sealed class ImportStatus {
     object InvalidFormat : ImportStatus()
 }
 
+/**
+ * What a `wireturn://`/`wt://` link resolves to, without importing anything yet - used to show a
+ * confirmation dialog before [ProfileManager.importProfiles]/[ProfileManager.fetchSubscription]
+ * actually runs, since deep links can be opened from outside the app (browser, messenger, QR
+ * scanner) with no prior user action inside WireTurn.
+ */
+sealed class DeepLinkPreview {
+    /** [names] may contain blank entries where a bundled profile has no `name` set; [count] never does. */
+    data class Profiles(val count: Int, val names: List<String>, val json: String) : DeepLinkPreview()
+    data class SubscriptionLink(val url: String) : DeepLinkPreview()
+    object Invalid : DeepLinkPreview()
+}
+
+/**
+ * Decodes a `wireturn://`/`wt://` link and classifies its payload. The container itself is
+ * scheme-agnostic (see [ProfileEncoder]): if the decoded text is a bare http(s) URL, the link
+ * is offered as a subscription source; otherwise it's parsed as a Profile/ProfileBundle JSON.
+ */
+fun previewDeepLink(link: String): DeepLinkPreview {
+    val trimmed = link.trim()
+    val encoded = when {
+        trimmed.startsWith("wireturn://", ignoreCase = true) -> trimmed.substringAfter("://")
+        trimmed.startsWith("wt://", ignoreCase = true) -> trimmed.substringAfter("://")
+        else -> return DeepLinkPreview.Invalid
+    }
+    val decoded = ProfileEncoder.decode(encoded)?.trim()?.takeIf { it.isNotEmpty() } ?: return DeepLinkPreview.Invalid
+
+    if (decoded.startsWith("https://", ignoreCase = true) || decoded.startsWith("http://", ignoreCase = true)) {
+        return DeepLinkPreview.SubscriptionLink(decoded)
+    }
+
+    return try {
+        val element = JsonParser.parseString(decoded)
+        val entries = when {
+            element.isJsonArray -> element.asJsonArray.mapNotNull { try { it.asJsonObject } catch (_: Exception) { null } }
+            element.isJsonObject -> listOf(element.asJsonObject)
+            else -> return DeepLinkPreview.Invalid
+        }
+        if (entries.isEmpty()) return DeepLinkPreview.Invalid
+        val names = entries.map { it.get("name")?.asString?.takeIf(String::isNotBlank) ?: "" }
+        DeepLinkPreview.Profiles(entries.size, names, decoded)
+    } catch (_: Exception) {
+        DeepLinkPreview.Invalid
+    }
+}
+
 private data class ActiveSocksTarget(val addr: String, val user: String?, val pass: String?)
 
 /**
