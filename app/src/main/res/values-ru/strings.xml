@@ -206,10 +206,10 @@
     <string name="freeturn_manual_captcha_label">Ручная капча</string>
     <string name="freeturn_manual_captcha_desc">Решать капчу ВК во встроенном браузере</string>
     <string name="local_listen_address">Локальный адрес прослушивания</string>
-    <string name="local_port_help_text">Это сетевой адрес и порт, на которых приложение запустит локальную точку входа для туннеля.</string>
-    <string name="local_port_help_secondary">К этому адресу должен подключаться встроенный Xray или сторонние VPN-клиенты (WireGuard, v2RayTun и др.), чтобы трафик шел через созданный туннель.</string>
-    <string name="olcrtc_socks_help_text">Это ядро не использует традиционные VPN-протоколы. Оно запускает локальный SOCKS5-прокси, который служит точкой входа для трафика.</string>
-    <string name="olcrtc_socks_help_secondary">Встроенный Xray направляет трафик через этот адрес, что позволяет работать через VLESS в режиме Dual-route и/или направлять весь трафик устройства через VPN.</string>
+    <string name="local_port_help_text">Turnable и FreeTurn не создают обычный прокси — они поднимают по этому адресу точку входа сырого туннеля.</string>
+    <string name="local_port_help_secondary">Встроенный Xray сам подключается сюда, чтобы превратить это в VLESS или VPN. Меняйте адрес только если хотите подключить к туннелю напрямую сторонний VPN-клиент (WireGuard, v2RayTun и др.), в обход Xray.</string>
+    <string name="olcrtc_socks_help_text">olcRTC и WebDAV не используют VPN-протокол — они сразу поднимают по этому адресу локальный SOCKS5-прокси.</string>
+    <string name="olcrtc_socks_help_secondary">Xray использует этот адрес как вышестоящий прокси для VLESS в режиме Dual-route. Для маршрутизации всего трафика устройства через VPN Xray не обязателен — VPN может подключаться к этому SOCKS5 напрямую. К тому же адресу можно подключить и любое другое приложение с поддержкой SOCKS5.</string>
 
     <!-- Экран логов (Logs) -->
     <string name="logs_title">Логи</string>

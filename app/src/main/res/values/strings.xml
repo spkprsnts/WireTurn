@@ -235,10 +235,10 @@
     <string name="freeturn_manual_captcha_label">Manual Captcha</string>
     <string name="freeturn_manual_captcha_desc">Solve VK captcha in app browser</string>
     <string name="local_listen_address">Local listen address</string>
-    <string name="local_port_help_text">This is the network address and port where the app will start a local tunnel entry point.</string>
-    <string name="local_port_help_secondary">The built-in Xray or third-party VPN clients (WireGuard, v2RayTun, etc.) must connect to this address to route traffic through the created tunnel.</string>
-    <string name="olcrtc_socks_help_text">This core does not use traditional VPN protocols. Instead, it starts a local SOCKS5 proxy that serves as an entry point for traffic.</string>
-    <string name="olcrtc_socks_help_secondary">The built-in Xray engine routes traffic through this address, enabling VLESS Dual-route mode and/or tunneling all device traffic via VPN.</string>
+    <string name="local_port_help_text">Turnable and FreeTurn don\'t produce a standard proxy - they open a raw tunnel endpoint at this address.</string>
+    <string name="local_port_help_secondary">The app\'s own Xray connects here automatically to turn it into VLESS or a VPN. Change this only if you want to point a separate VPN app (WireGuard, v2RayTun, etc.) at the tunnel directly, bypassing Xray.</string>
+    <string name="olcrtc_socks_help_text">olcRTC and WebDAV don\'t use a VPN protocol - they run a local SOCKS5 proxy directly at this address.</string>
+    <string name="olcrtc_socks_help_secondary">Xray uses this address as the upstream for VLESS Dual-route. Xray isn\'t required for full-device VPN routing - VPN mode can connect to this SOCKS5 proxy directly. You can also point any other app that supports SOCKS5 proxies at the same address.</string>
 
     <!-- Logs Screen (Logs) -->
     <string name="logs_title">Logs</string>
