@@ -677,11 +677,18 @@ class CoreService : Service() {
         // successfully, but skip counting them if the network has since gone away.
         if (lower.contains("captcha solve attempt failed") && isNetworkAvailable()) {
             if (state.vkCaptchaSolveFailCounter.recordAndCheckThreshold()) {
-                if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
-                    CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_turnable_vk_captcha_failed)))
-                    updateNotification(getString(R.string.error_connecting))
+                // "failed to find PoW settings" means the captcha page itself is structurally
+                // broken (e.g. VK changed markup) - restarting Turnable won't fix that, so stop
+                // for good with a clear error. Any other captcha error (e.g. a transient "captcha
+                // init json not found" from a bad page fetch) is more likely to clear up on its
+                // own, so just kill this run and let the normal watchdog restart it fresh.
+                if (lower.contains("failed to find pow settings")) {
+                    if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                        CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_turnable_vk_captcha_failed)))
+                        updateNotification(getString(R.string.error_connecting))
+                    }
+                    state.startupFailed = true
                 }
-                state.startupFailed = true
                 return true
             }
         }
@@ -942,7 +949,7 @@ class CoreService : Service() {
         // doesn't reinvent this a fourth time with yet another slightly different reset rule.
         val remoteNotReadyCounter = LogOccurrenceCounter(windowMs = 10_000, threshold = 7)
         val webdavConnRefusedCounter = LogOccurrenceCounter(windowMs = 5_000, threshold = 10)
-        val vkCaptchaSolveFailCounter = LogOccurrenceCounter(windowMs = Long.MAX_VALUE, threshold = 3)
+        val vkCaptchaSolveFailCounter = LogOccurrenceCounter(windowMs = Long.MAX_VALUE, threshold = 5)
     }
 
     /**
