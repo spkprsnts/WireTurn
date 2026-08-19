@@ -185,6 +185,7 @@
     <string name="olcrtc_key_label">Auth Key</string>
     <string name="olcrtc_dns_label">DNS Server</string>
     <string name="olcrtc_dns_desc">Used to resolve the signaling provider before the tunnel is up - must stay reachable under allow-list-only restrictions</string>
+    <string name="olcrtc_dns_placeholder" translatable="false">77.88.8.8:53</string>
     <string name="olcrtc_carrier_label">Carrier</string>
     <string name="turnable_carrier_label">Carrier</string>
     <string name="olcrtc_transport_label">Transport</string>
@@ -215,20 +216,24 @@
     <string name="freeturn_peer_desc">Address of your VPS server (host:port)</string>
     <string name="freeturn_n_label">TURN Streams</string>
     <string name="freeturn_n_desc">Higher value = potentially better speed</string>
-    <string name="freeturn_spc_label">Streams per cache</string>
-    <string name="freeturn_spc_desc">TURN allocations per account</string>
+    <string name="freeturn_spc_label">Streams per VK persona</string>
+    <string name="freeturn_spc_desc">How many parallel TURN streams share one VK auth before a new one is requested. Fewer auths means lower captcha/ban risk, but they all go down together</string>
     <string name="freeturn_obf_profile_label">Obf Profile</string>
     <string name="freeturn_obf_key_label">Obf Key (hex)</string>
     <string name="freeturn_obf_key_desc">32 bytes hex key (64 characters)</string>
     <string name="freeturn_dns_mode_label">DNS Mode</string>
+    <string name="freeturn_dns_mode_desc">Resolver for the client\'s own VK auth requests before the tunnel is up - not routing for your tunneled traffic. Auto tries UDP first, falls back to DoH</string>
     <string name="freeturn_dns_servers_label">DNS Servers</string>
-    <string name="freeturn_dns_servers_desc">Custom UDP resolvers (comma separated)</string>
+    <string name="freeturn_dns_servers_desc">Custom UDP resolvers for that bootstrap lookup, comma separated - needed if your carrier blocks third-party DNS/DoH</string>
+    <string name="freeturn_dns_servers_placeholder" translatable="false">8.8.8.8,77.88.8.8:53</string>
     <string name="freeturn_client_id_label">Client ID</string>
     <string name="freeturn_client_id_desc">Unique identifier for server allowlist</string>
     <string name="freeturn_obf_timing_label">Obf Timing</string>
     <string name="freeturn_obf_timing_desc">Packet delay for RTP mimicry (e.g. 20ms); 0=off</string>
     <string name="freeturn_platform_label">Platform</string>
-    <string name="freeturn_transport_label">Transport</string>
+    <string name="freeturn_platform_desc">Device class the VK auth persona pretends to be (UA, TLS fingerprint, client hints). Only affects sign-in, not the tunnel itself</string>
+    <string name="freeturn_transport_label">Transport to TURN relay</string>
+    <string name="freeturn_transport_desc">TCP/TLS is more compatible; UDP can be faster but is more often blocked by DPI</string>
     <string name="freeturn_manual_captcha_label">Manual Captcha</string>
     <string name="freeturn_manual_captcha_desc">Solve VK captcha in app browser</string>
     <string name="local_listen_address">Local listen address</string>

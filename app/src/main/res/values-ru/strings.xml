@@ -186,20 +186,23 @@
     <string name="freeturn_peer_desc">Адрес вашего VPS сервера (host:port)</string>
     <string name="freeturn_n_label">Потоков TURN</string>
     <string name="freeturn_n_desc">Больше потоков — выше потенциальная скорость</string>
-    <string name="freeturn_spc_label">Потоков на кеш</string>
-    <string name="freeturn_spc_desc">Количество TURN-аллокаций на аккаунт</string>
+    <string name="freeturn_spc_label">Потоков на VK-персону</string>
+    <string name="freeturn_spc_desc">Сколько параллельных TURN-потоков используют одну VK-авторизацию, прежде чем запросится новая. Меньше авторизаций — ниже риск капчи/бана, но все потоки на ней просядут разом</string>
     <string name="freeturn_obf_profile_label">Профиль обфускации</string>
     <string name="freeturn_obf_key_label">Ключ обфускации (hex)</string>
     <string name="freeturn_obf_key_desc">32 байта hex (64 символа)</string>
     <string name="freeturn_dns_mode_label">Режим DNS</string>
+    <string name="freeturn_dns_mode_desc">Резолвер для собственных запросов авторизации VK клиента до поднятия туннеля — не маршрутизация вашего трафика. Auto сначала пробует UDP, при отказе переключается на DoH</string>
     <string name="freeturn_dns_servers_label">DNS-серверы</string>
-    <string name="freeturn_dns_servers_desc">UDP-резолверы через запятую</string>
+    <string name="freeturn_dns_servers_desc">Свои UDP-резолверы для этого запроса, через запятую — нужны, если оператор блокирует сторонний DNS/DoH</string>
     <string name="freeturn_client_id_label">ID клиента</string>
     <string name="freeturn_client_id_desc">Уникальный ID для allowlist сервера</string>
     <string name="freeturn_obf_timing_label">Задержка обфускации</string>
     <string name="freeturn_obf_timing_desc">Межпакетная задержка для RTP-мимикрии (напр. 20ms); 0=выкл</string>
     <string name="freeturn_platform_label">Платформа</string>
-    <string name="freeturn_transport_label">Транспорт</string>
+    <string name="freeturn_platform_desc">Класс устройства, под который маскируется VK-персона при авторизации (UA, TLS-отпечаток, client hints). На сам туннель не влияет</string>
+    <string name="freeturn_transport_label">Транспорт до TURN-relay</string>
+    <string name="freeturn_transport_desc">TCP/TLS совместимее; UDP может быть быстрее, но чаще режется DPI</string>
     <string name="freeturn_manual_captcha_label">Ручная капча</string>
     <string name="freeturn_manual_captcha_desc">Решать капчу ВК во встроенном браузере</string>
     <string name="local_listen_address">Локальный адрес прослушивания</string>

@@ -385,6 +385,7 @@ fun FreeTurnConfigScreen(
                 SectionItem {
                     LabeledButtonGroup(
                         label = stringResource(R.string.freeturn_platform_label),
+                        supportingText = stringResource(R.string.freeturn_platform_desc),
                         isModified = isEditMode && config.platform != initialConfig.platform
                     ) {
                         val options = listOf("desktop", "mobile")
@@ -404,6 +405,7 @@ fun FreeTurnConfigScreen(
                 ) {
                     LabeledButtonGroup(
                         label = stringResource(R.string.freeturn_transport_label),
+                        supportingText = stringResource(R.string.freeturn_transport_desc),
                         isModified = isEditMode && config.transport != initialConfig.transport
                     ) {
                         val options = listOf("tcp", "udp")
@@ -475,6 +477,7 @@ fun FreeTurnConfigScreen(
                 SectionItem {
                     LabeledButtonGroup(
                         label = stringResource(R.string.freeturn_dns_mode_label),
+                        supportingText = stringResource(R.string.freeturn_dns_mode_desc),
                         isModified = isEditMode && config.dnsMode != initialConfig.dnsMode
                     ) {
                         val options = listOf("auto", "plain", "doh")
@@ -495,6 +498,7 @@ fun FreeTurnConfigScreen(
                         supportingText = stringResource(R.string.freeturn_dns_servers_desc),
                         value = config.dnsServers.redact(isPrivacyActive),
                         onValueChange = { if (!isPrivacyActive) config = config.copy(dnsServers = it) },
+                        placeholder = stringResource(R.string.freeturn_dns_servers_placeholder),
                         readOnly = isPrivacyActive,
                         isModified = isEditMode && config.dnsServers != initialConfig.dnsServers,
                         privacyMode = isPrivacyActive
