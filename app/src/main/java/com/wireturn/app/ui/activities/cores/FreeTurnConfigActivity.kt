@@ -73,7 +73,6 @@ class FreeTurnConfigActivity : ComponentActivity() {
                             finish()
                         } else {
                             val intent = Intent(this, XraySetupActivity::class.java).apply {
-                                putExtra("SHOW_PROTOCOL_SELECTION", true)
                                 putExtra("EXTRA_PROFILE_NAME", profileName)
                                 
                                 val defaultProtocol = if (config.mode == "tcp") {

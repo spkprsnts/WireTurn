@@ -99,7 +99,7 @@ object NotificationHelper {
         
         val xraySession = XrayServiceState.session.value
         val xrayProtocolLabel = when {
-            clientConfig?.kernelConfig is com.wireturn.app.data.KernelConfig.Olcrtc -> {
+            clientConfig?.kernelVariant?.isSocks5Native == true -> {
                 when (xrayState) {
                     XrayState.DirectRoute -> context.getString(R.string.vless)
                     XrayState.Running -> context.getString(R.string.socks5)

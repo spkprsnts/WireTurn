@@ -124,9 +124,7 @@ fun activeLocalSocksProxy(): java.net.Proxy {
                     s.proxyPass
                 )
             }
-            coreIsWorking && coreSess != null &&
-                (coreSess.clientConfig.kernelVariant == com.wireturn.app.data.KernelVariant.OLCRTC ||
-                 coreSess.clientConfig.kernelVariant == com.wireturn.app.data.KernelVariant.WEBDAV) -> {
+            coreIsWorking && coreSess != null && coreSess.clientConfig.kernelVariant.isSocks5Native -> {
                 val cc = coreSess.clientConfig
                 ActiveSocksTarget(
                     cc.socksAddr.replace("0.0.0.0:", "127.0.0.1:"),

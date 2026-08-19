@@ -30,7 +30,6 @@ class XraySetupActivity : ComponentActivity() {
 
         splashScreen.setKeepOnScreenCondition { !viewModel.isInitialized.value }
 
-        val showProtocolSelection = intent.getBooleanExtra("SHOW_PROTOCOL_SELECTION", true)
         val defaultProtocolName = intent.getStringExtra("EXTRA_DEFAULT_PROTOCOL")
         val defaultProtocol = if (defaultProtocolName != null) {
             try { com.wireturn.app.data.XrayConfiguration.valueOf(defaultProtocolName) } catch (_: Exception) { null }
@@ -74,7 +73,6 @@ class XraySetupActivity : ComponentActivity() {
             WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
                 XraySetupScreen(
                     isEditMode = false,
-                    showProtocolSelection = showProtocolSelection,
                     defaultProtocol = defaultProtocol,
                     privacyMode = privacyMode,
                     kernelVariant = clientConfigFromIntent.kernelVariant,

@@ -102,7 +102,13 @@ class KernelConfigAdapter : JsonDeserializer<KernelConfig>, JsonSerializer<Kerne
     }
 }
 
-enum class KernelVariant { TURNABLE, OLCRTC, WEBDAV, FREETURN }
+enum class KernelVariant {
+    TURNABLE, OLCRTC, WEBDAV, FREETURN;
+
+    /** OLCRTC and WEBDAV already speak SOCKS5 themselves - Xray's WireGuard overlay is neither
+     * needed nor offered in the UI for them. */
+    val isSocks5Native: Boolean get() = this == OLCRTC || this == WEBDAV
+}
 enum class XrayConfiguration { WIREGUARD, VLESS }
 enum class ThemeMode { DARK, LIGHT, SYSTEM }
 

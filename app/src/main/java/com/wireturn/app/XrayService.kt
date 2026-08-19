@@ -155,7 +155,7 @@ class XrayService : Service() {
             
             val isXrayVless = xrayConfig.protocol == com.wireturn.app.data.XrayConfiguration.VLESS
 
-            val isSocks5Core = runningClientConfig.kernelVariant == KernelVariant.OLCRTC || runningClientConfig.kernelVariant == KernelVariant.WEBDAV
+            val isSocks5Core = runningClientConfig.kernelVariant.isSocks5Native
 
             val isConfigValid = if (isSocks5Core) {
                 // For OLCRTC/WebDAV, VLESS/WG config is optional, unless DualRoute is enabled

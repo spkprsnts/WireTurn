@@ -1166,12 +1166,8 @@ class CoreService : Service() {
                         status !is CoreStatus.Error &&
                         status !is CoreStatus.WaitingForNetwork
 
-                val connectionTarget = when (clientConfig.kernelVariant) {
-                    KernelVariant.OLCRTC -> clientConfig.socksAddr
-                    KernelVariant.WEBDAV -> clientConfig.socksAddr
-                    else -> clientConfig.listenAddr
-                }
-                val connectionAuth = if (clientConfig.kernelVariant == KernelVariant.OLCRTC || clientConfig.kernelVariant == KernelVariant.WEBDAV) {
+                val connectionTarget = if (clientConfig.kernelVariant.isSocks5Native) clientConfig.socksAddr else clientConfig.listenAddr
+                val connectionAuth = if (clientConfig.kernelVariant.isSocks5Native) {
                     Triple(clientConfig.isSocksAuthEnabled, clientConfig.socksUser, clientConfig.socksPass)
                 } else null
 
@@ -1261,8 +1257,7 @@ class CoreService : Service() {
                         s.proxyPass
                     )
                 } else if (coreSession != null &&
-                    (coreSession.clientConfig.kernelVariant == KernelVariant.OLCRTC ||
-                        coreSession.clientConfig.kernelVariant == KernelVariant.WEBDAV) &&
+                    coreSession.clientConfig.kernelVariant.isSocks5Native &&
                     coreStatus !is CoreStatus.Idle && coreStatus !is CoreStatus.Error && coreStatus !is CoreStatus.WaitingForNetwork
                 ) {
                     val cc = coreSession.clientConfig

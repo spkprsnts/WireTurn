@@ -109,6 +109,7 @@
     <string name="xray_import_config">Импорт конфигурации Xray</string>
     <string name="wg_endpoint">Эндпоинт (локальный)</string>
     <string name="wg_not_used_with_olcrtc">WireGuard не используется с olcRTC</string>
+    <string name="wg_not_used_with_webdav">WireGuard не используется с WebDAV</string>
 
     <!-- Настройка клиента (Backend/Proxy) -->
     <string name="route_title">Маршрут</string>

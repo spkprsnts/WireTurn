@@ -79,7 +79,6 @@ class TurnableConfigActivity : ComponentActivity() {
                             val isTcp = selectedRoute?.socket?.lowercase() == "tcp"
 
                             val intent = Intent(this, XraySetupActivity::class.java).apply {
-                                putExtra("SHOW_PROTOCOL_SELECTION", true)
                                 putExtra("EXTRA_PROFILE_NAME", profileName)
                                 if (isTcp) {
                                     putExtra("EXTRA_DEFAULT_PROTOCOL", XrayConfiguration.VLESS.name)

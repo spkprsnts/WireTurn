@@ -93,7 +93,6 @@ import kotlinx.coroutines.launch
 @Composable
 fun XraySetupScreen(
     isEditMode: Boolean,
-    showProtocolSelection: Boolean,
     defaultProtocol: XrayConfiguration? = null,
     initialWgConfig: WgConfig = WgConfig(),
     initialVlessConfig: VlessConfig = VlessConfig(),
@@ -114,8 +113,8 @@ fun XraySetupScreen(
         KernelVariant.FREETURN -> stringResource(R.string.kernel_freeturn)
     }
     val xraySubtitle = if (isEditMode && profileName != null) "$kernelName: $profileName" else null
-    val canChangeProtocol = remember(kernelVariant, showProtocolSelection) {
-        kernelVariant != KernelVariant.OLCRTC && kernelVariant != KernelVariant.WEBDAV && showProtocolSelection
+    val canChangeProtocol = remember(kernelVariant) {
+        !kernelVariant.isSocks5Native
     }
 
     var xrayConfiguration by remember(initialXrayConfig, kernelVariant, canChangeProtocol) {
@@ -543,7 +542,7 @@ private fun WireGuardSettingsBlock(
     isEditMode: Boolean
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(19.dp)) {
-        if (kernelVariant == KernelVariant.OLCRTC || kernelVariant == KernelVariant.WEBDAV) {
+        if (kernelVariant.isSocks5Native) {
             SectionItem(position = ItemPosition.Single) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -558,10 +557,10 @@ private fun WireGuardSettingsBlock(
                         )
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        val msg = if (kernelVariant == KernelVariant.OLCRTC) 
+                        val msg = if (kernelVariant == KernelVariant.OLCRTC)
                             stringResource(R.string.wg_not_used_with_olcrtc)
-                        else 
-                            stringResource(R.string.kernel_webdav) + " - WireGuard is not used"
+                        else
+                            stringResource(R.string.wg_not_used_with_webdav)
                         RowLabel(msg)
                     }
                 }

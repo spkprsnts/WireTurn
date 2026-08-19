@@ -49,7 +49,6 @@ class XrayEditActivity : ComponentActivity() {
             WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
                 XraySetupScreen(
                     isEditMode = true,
-                    showProtocolSelection = true,
                     initialWgConfig = initialWgConfig,
                     initialVlessConfig = initialVlessConfig,
                     initialXrayConfig = initialXrayConfig,

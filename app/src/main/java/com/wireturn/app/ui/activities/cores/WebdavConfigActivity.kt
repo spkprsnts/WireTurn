@@ -78,7 +78,6 @@ class WebdavConfigActivity : ComponentActivity() {
                             finish()
                         } else {
                             val intent = Intent(this, XraySetupActivity::class.java).apply {
-                                putExtra("SHOW_PROTOCOL_SELECTION", false)
                                 putExtra("EXTRA_PROFILE_NAME", profileName)
                                 putExtra("EXTRA_KERNEL_VARIANT", "WEBDAV")
                                 putExtra("EXTRA_WEBDAV_CONFIG_JSON", Gson().toJson(config))

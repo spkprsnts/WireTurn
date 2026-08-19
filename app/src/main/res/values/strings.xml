@@ -123,6 +123,7 @@
     <string name="wg_persistent_keepalive" translatable="false">Persistent Keepalive</string>
     <string name="wg_persistent_keepalive_placeholder" translatable="false">25</string>
     <string name="wg_not_used_with_olcrtc">WireGuard is not used with olcRTC</string>
+    <string name="wg_not_used_with_webdav">WireGuard is not used with WebDAV</string>
 
     <!-- Xray Setup (SOCKS/HTTP) -->
     <string name="xray_title" translatable="false">Xray</string>

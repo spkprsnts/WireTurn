@@ -986,7 +986,7 @@ fun HomeScreen(
                 null -> {}
             }
 
-            val isSocks5Core = activeConfig.kernelVariant == KernelVariant.OLCRTC || activeConfig.kernelVariant == KernelVariant.WEBDAV
+            val isSocks5Core = activeConfig.kernelVariant.isSocks5Native
 
             // --- Xray & VPN Settings ---
             val isSettingsValid = if (isSocks5Core) {
@@ -1181,7 +1181,6 @@ fun HomeScreen(
 
             Spacer(Modifier.height(12.dp))
 
-            val isOlcrtc = activeConfig.kernelVariant == KernelVariant.OLCRTC || activeConfig.kernelVariant == KernelVariant.WEBDAV
             val showXray = xrayConfig.enabled
 
             fun formatProxyAddr(
@@ -1200,7 +1199,7 @@ fun HomeScreen(
 
             val displaySocksAddr = when {
                 showXray -> activeXraySettings.socksBindAddress
-                isOlcrtc -> activeConfig.socksAddr
+                isSocks5Core -> activeConfig.socksAddr
                 else -> activeXraySettings.socksBindAddress
             }
 
@@ -1212,7 +1211,7 @@ fun HomeScreen(
                     activeXraySettings.isProxyAuthEnabled
                 )
 
-                isOlcrtc -> formatProxyAddr(
+                isSocks5Core -> formatProxyAddr(
                     activeConfig.socksAddr,
                     activeConfig.socksUser,
                     activeConfig.socksPass,
@@ -1229,7 +1228,7 @@ fun HomeScreen(
 
             val displayHttpAddr = when {
                 showXray -> activeXraySettings.httpBindAddress
-                isOlcrtc -> ""
+                isSocks5Core -> ""
                 else -> activeXraySettings.httpBindAddress
             }
 
@@ -1241,7 +1240,7 @@ fun HomeScreen(
                     activeXraySettings.isProxyAuthEnabled
                 )
 
-                isOlcrtc -> ""
+                isSocks5Core -> ""
                 else -> formatProxyAddr(
                     activeXraySettings.httpBindAddress,
                     activeXraySettings.proxyUser,
@@ -1252,7 +1251,7 @@ fun HomeScreen(
 
             val isSocksModified = when {
                 showXray -> xraySession != null && activeXraySettings.socksBindAddress != xraySession?.settings?.socksBindAddress
-                isOlcrtc -> proxySession != null && activeConfig.socksAddr != proxySession?.clientConfig?.socksAddr
+                isSocks5Core -> proxySession != null && activeConfig.socksAddr != proxySession?.clientConfig?.socksAddr
                 else -> xraySession != null && activeXraySettings.socksBindAddress != xraySession?.settings?.socksBindAddress
             }
 
@@ -1263,7 +1262,7 @@ fun HomeScreen(
 
             SectionGroup(
                 modifier = Modifier.graphicsLayer {
-                    alpha = if (showXray || isOlcrtc) 1f else 0.38f
+                    alpha = if (showXray || isSocks5Core) 1f else 0.38f
                 }
             ) {
                 val clipboard = LocalClipboard.current
@@ -1282,7 +1281,7 @@ fun HomeScreen(
 
                 SectionItem(
                     position = ItemPosition.Top,
-                    enabled = showXray || isOlcrtc,
+                    enabled = showXray || isSocks5Core,
                     onClick = {
                         if (privacyMode) return@SectionItem
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -1304,7 +1303,7 @@ fun HomeScreen(
                             Icon(
                                 painter = painterResource(R.drawable.lan_24px),
                                 contentDescription = null,
-                                tint = if (showXray || isOlcrtc) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                tint = if (showXray || isSocks5Core) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(
                                     alpha = 0.38f
                                 )
                             )
