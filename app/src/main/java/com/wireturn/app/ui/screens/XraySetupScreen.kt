@@ -70,11 +70,9 @@ import com.wireturn.app.data.XrayConfig
 import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.AppTopAppBar
-import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.ExpandableSection
 import com.wireturn.app.ui.FieldTrailingIcons
 import com.wireturn.app.ui.HapticUtil
-import com.wireturn.app.ui.showExclusiveToast
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LabeledButtonGroup
 import com.wireturn.app.ui.LargeLeadingIcon
@@ -86,8 +84,10 @@ import com.wireturn.app.ui.ShareDropdownMenu
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.ValidatorUtils
+import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.redact
 import com.wireturn.app.ui.selectableButtonItem
+import com.wireturn.app.ui.showExclusiveToast
 import kotlinx.coroutines.launch
 
 @Composable

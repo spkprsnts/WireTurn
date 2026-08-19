@@ -92,7 +92,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
-import kotlinx.coroutines.Job
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -101,12 +100,10 @@ import com.wireturn.app.CoreServiceState
 import com.wireturn.app.R
 import com.wireturn.app.VpnServiceState
 import com.wireturn.app.XrayServiceState
-import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.ui.AppExclusionTooltip
 import com.wireturn.app.ui.CompactItem
 import com.wireturn.app.ui.HapticUtil
-import com.wireturn.app.ui.showExclusiveToast
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.ModifiedIndicator
 import com.wireturn.app.ui.RowLabel
@@ -120,12 +117,14 @@ import com.wireturn.app.ui.VerticalAnimatedText
 import com.wireturn.app.ui.components.CoreToggleButton
 import com.wireturn.app.ui.privacySpoiler
 import com.wireturn.app.ui.redact
+import com.wireturn.app.ui.showExclusiveToast
 import com.wireturn.app.viewmodel.CoreState
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.UpdateState
 import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.viewmodel.XrayState
 import com.wireturn.app.viewmodel.isImportant
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.ln

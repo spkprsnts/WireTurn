@@ -35,12 +35,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
 import com.wireturn.app.ui.AppTopAppBar
-import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.RowLabel
 import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.TextFieldRow
+import com.wireturn.app.ui.noFlingExpandConnection
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable

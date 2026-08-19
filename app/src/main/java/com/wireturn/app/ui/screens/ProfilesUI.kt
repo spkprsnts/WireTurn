@@ -12,9 +12,6 @@ import android.os.Build
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
-import com.wireturn.app.domain.ImportStatus
-import com.wireturn.app.domain.isLocalNetworkHost
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -64,8 +61,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -93,6 +90,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.data.KernelVariant
@@ -100,15 +98,17 @@ import com.wireturn.app.data.OlcrtcConfig.Companion.getTransportDisplayName
 import com.wireturn.app.data.Profile
 import com.wireturn.app.data.Subscription
 import com.wireturn.app.data.XrayConfiguration
+import com.wireturn.app.domain.ImportStatus
+import com.wireturn.app.domain.isLocalNetworkHost
 import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.HapticUtil
-import com.wireturn.app.ui.showExclusiveToast
 import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.VerticalAnimatedText
 import com.wireturn.app.ui.activities.SubscriptionConfigActivity
 import com.wireturn.app.ui.activities.cores.OlcRtcConfigActivity
 import com.wireturn.app.ui.activities.cores.TurnableConfigActivity
+import com.wireturn.app.ui.showExclusiveToast
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

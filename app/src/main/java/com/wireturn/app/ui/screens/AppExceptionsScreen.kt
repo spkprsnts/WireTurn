@@ -84,9 +84,7 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.ui.AppTopAppBar
-import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.HapticUtil
-import com.wireturn.app.ui.showExclusiveToast
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LabeledButtonGroup
 import com.wireturn.app.ui.MainSwitchItem
@@ -94,7 +92,9 @@ import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionHeader
 import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.SwitchRow
+import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.selectableButtonItem
+import com.wireturn.app.ui.showExclusiveToast
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay

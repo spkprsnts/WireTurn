@@ -70,9 +70,7 @@ import com.wireturn.app.R
 import com.wireturn.app.data.OlcrtcConfig
 import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.AppTopAppBar
-import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.HapticUtil
-import com.wireturn.app.ui.showExclusiveToast
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.QrCodeDialog
@@ -86,8 +84,10 @@ import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SupportingText
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
+import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.redact
 import com.wireturn.app.ui.screens.QrScannerDialog
+import com.wireturn.app.ui.showExclusiveToast
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 

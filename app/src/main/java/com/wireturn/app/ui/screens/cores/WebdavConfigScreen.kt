@@ -66,18 +66,18 @@ import com.wireturn.app.R
 import com.wireturn.app.data.WebdavConfig
 import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.AppTopAppBar
-import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.HapticUtil
-import com.wireturn.app.ui.showExclusiveToast
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.QrCodeDialog
 import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
-import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.ShareDropdownMenu
+import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
+import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.redact
 import com.wireturn.app.ui.screens.QrScannerDialog
+import com.wireturn.app.ui.showExclusiveToast
 import kotlinx.coroutines.launch
 
 @Composable

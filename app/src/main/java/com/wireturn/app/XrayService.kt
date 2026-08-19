@@ -8,7 +8,6 @@ import android.os.Build
 import android.os.IBinder
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.ClientConfig
-import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.VlessConfig
 import com.wireturn.app.data.WgConfig
 import com.wireturn.app.data.XrayConfig
