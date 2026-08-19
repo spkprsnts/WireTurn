@@ -76,6 +76,7 @@ class XraySetupActivity : ComponentActivity() {
                     defaultProtocol = defaultProtocol,
                     privacyMode = privacyMode,
                     kernelVariant = clientConfigFromIntent.kernelVariant,
+                    kernelConfig = clientConfigFromIntent.kernelConfig,
                     vlessLinkHistory = vlessLinkHistory,
                     onRemoveHistoryItem = { viewModel.removeVlessLinkFromHistory(it) },
                     onBack = { finish() },

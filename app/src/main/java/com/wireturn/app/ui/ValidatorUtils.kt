@@ -4,6 +4,9 @@ import androidx.core.net.toUri
 import androidx.core.util.PatternsCompat
 import com.google.common.net.HostAndPort
 import com.google.common.net.InetAddresses
+import com.wireturn.app.R
+
+enum class UriProtocol { VLESS, TROJAN, HYSTERIA2 }
 
 object ValidatorUtils {
     fun isValidHost(input: String): Boolean {
@@ -48,13 +51,38 @@ object ValidatorUtils {
     }
 
     /**
+     * Определяет протокол ссылки (vless/trojan/hysteria2) по её схеме.
+     * Возвращает null, если схема не распознана.
+     */
+    fun detectUriProtocol(input: String): UriProtocol? {
+        if (input.isBlank()) return null
+        val scheme = try { input.toUri().scheme } catch (_: Exception) { null } ?: return null
+        return when (scheme.lowercase()) {
+            "vless" -> UriProtocol.VLESS
+            "trojan" -> UriProtocol.TROJAN
+            "hysteria2", "hy2" -> UriProtocol.HYSTERIA2
+            else -> null
+        }
+    }
+
+    /**
+     * Строковый ресурс с названием протокола (VLESS/Trojan/Hysteria2), определённого по ссылке.
+     * Нераспознанная или пустая ссылка трактуется как VLESS (исторический дефолт).
+     */
+    fun uriProtocolStringRes(link: String): Int = when (detectUriProtocol(link)) {
+        UriProtocol.TROJAN -> R.string.trojan
+        UriProtocol.HYSTERIA2 -> R.string.hysteria2
+        UriProtocol.VLESS, null -> R.string.vless
+    }
+
+    /**
      * Проверяет, является ли строка валидной VLESS-ссылкой. Пустая строка считается невалидной.
      */
     fun isValidVlessLink(input: String): Boolean {
         if (input.isBlank()) return false
         return try {
             val uri = input.toUri()
-            uri.scheme?.equals("vless", ignoreCase = true) == true &&
+            detectUriProtocol(input) != null &&
                     !uri.userInfo.isNullOrBlank() &&
                     !uri.host.isNullOrBlank()
         } catch (_: Exception) {

@@ -104,6 +104,7 @@ import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.StandardLeadingIcon
+import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.VerticalAnimatedText
 import com.wireturn.app.ui.activities.SubscriptionConfigActivity
 import com.wireturn.app.ui.activities.cores.OlcRtcConfigActivity
@@ -156,12 +157,12 @@ fun ProfileSummary(
         if (isValid) {
             parts.add(
                 when (profile.xrayProtocol) {
-                    XrayConfiguration.VLESS -> stringResource(R.string.vless)
+                    XrayConfiguration.VLESS -> stringResource(ValidatorUtils.uriProtocolStringRes(profile.vlessConfig.vlessLink))
                     XrayConfiguration.WIREGUARD -> stringResource(R.string.wg_short)
                 }
             )
             if (profile.xrayProtocol == XrayConfiguration.VLESS && profile.vlessConfig.isDualRoute) {
-                parts.add(stringResource(R.string.vless_dual_route_short))
+                parts.add(stringResource(R.string.xray_uri_dual_route_short))
             }
         }
     }

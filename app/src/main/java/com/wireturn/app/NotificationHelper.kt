@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
+import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.activities.ProfileDialogActivity
 import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.viewmodel.XrayState
@@ -73,6 +74,9 @@ object NotificationHelper {
         val profileNameSnapshot = coreSession?.profileName
         val clientConfig = coreSession?.clientConfig
         val xrayState = XrayServiceState.state.value
+        val xraySession = XrayServiceState.session.value
+        val vlessProtocolLabel = xraySession?.vless?.vlessLink?.let { context.getString(ValidatorUtils.uriProtocolStringRes(it)) }
+            ?: context.getString(R.string.vless)
         val vpnState = VpnServiceState.state.value
         val isRestarting = CoreServiceState.isRestarting.value
 
@@ -81,7 +85,7 @@ object NotificationHelper {
                 coreStatusText != null -> coreStatusText
                 isRestarting -> context.getString(R.string.core_restarting)
                 coreStatus is CoreStatus.Suppressed -> {
-                    if (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute) context.getString(R.string.vless_direct_active)
+                    if (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute) context.getString(R.string.direct_active_format, vlessProtocolLabel)
                     else context.getString(R.string.connecting)
                 }
                 else -> when (coreStatus) {
@@ -97,18 +101,17 @@ object NotificationHelper {
             if (pStatus.isNotEmpty()) statusParts.add(pStatus)
         }
         
-        val xraySession = XrayServiceState.session.value
         val xrayProtocolLabel = when {
             clientConfig?.kernelVariant?.isSocks5Native == true -> {
                 when (xrayState) {
-                    XrayState.DirectRoute -> context.getString(R.string.vless)
+                    XrayState.DirectRoute -> vlessProtocolLabel
                     XrayState.Running -> context.getString(R.string.socks5)
                     XrayState.Starting, XrayState.Connecting -> context.getString(R.string.socks5)
                     else -> null
                 }
             }
             xrayState == XrayState.Running || xrayState == XrayState.DirectRoute || xrayState == XrayState.Starting || xrayState == XrayState.Connecting -> {
-                if (xraySession?.vless != null) context.getString(R.string.vless)
+                if (xraySession?.vless != null) vlessProtocolLabel
                 else context.getString(R.string.wg_short)
             }
             else -> null

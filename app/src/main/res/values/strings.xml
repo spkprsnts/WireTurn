@@ -236,9 +236,9 @@
     <string name="freeturn_manual_captcha_desc">Solve VK captcha in app browser</string>
     <string name="local_listen_address">Local listen address</string>
     <string name="local_port_help_text">Turnable and FreeTurn don\'t produce a standard proxy - they open a raw tunnel endpoint at this address.</string>
-    <string name="local_port_help_secondary">The app\'s own Xray connects here automatically to turn it into VLESS or a VPN. Change this only if you want to point a separate VPN app (WireGuard, v2RayTun, etc.) at the tunnel directly, bypassing Xray.</string>
+    <string name="local_port_help_secondary">The app\'s own Xray connects here automatically to turn it into an Xray link or a VPN. Change this only if you want to point a separate VPN app (WireGuard, v2RayTun, etc.) at the tunnel directly, bypassing Xray.</string>
     <string name="olcrtc_socks_help_text">olcRTC and WebDAV don\'t use a VPN protocol - they run a local SOCKS5 proxy directly at this address.</string>
-    <string name="olcrtc_socks_help_secondary">Xray uses this address as the upstream for VLESS Dual-route. Xray isn\'t required for full-device VPN routing - VPN mode can connect to this SOCKS5 proxy directly. You can also point any other app that supports SOCKS5 proxies at the same address.</string>
+    <string name="olcrtc_socks_help_secondary">Xray uses this address as the upstream for Dual-route. Xray isn\'t required for full-device VPN routing - VPN mode can connect to this SOCKS5 proxy directly. You can also point any other app that supports SOCKS5 proxies at the same address.</string>
 
     <!-- Logs Screen (Logs) -->
     <string name="logs_title">Logs</string>
@@ -401,6 +401,9 @@
     <string name="notification_restart">Restarting (%1$d/%2$d)…</string>
     <string name="notification_network_change">Network change, reconnecting…</string>
     <string name="vless" translatable="false">VLESS</string>
+    <string name="trojan" translatable="false">Trojan</string>
+    <string name="hysteria2" translatable="false">Hysteria2</string>
+    <string name="uri" translatable="false">URI</string>
     <!-- UI elements and formatting -->
     <string name="dash" translatable="false">—</string>
     <string name="ping_unknown" translatable="false">\?</string>
@@ -417,27 +420,28 @@
     <string name="auto_launch_override_desc">Tunnel is currently managed by auto-launch. To perform manual control, you need to disable auto-launch.</string>
     <string name="auto_launch_disable_and_continue">Disable and continue</string>
 
-    <!-- VLESS Setup -->
-    <string name="vless_link_label">VLESS link</string>
-    <string name="vless_link_placeholder">vless://…</string>
-    <string name="vless_dual_route">Dual-route mode</string>
-    <string name="vless_dual_route_short">Dual-route</string>
-    <string name="vless_dual_route_desc">Prefer direct connection to VLESS server, falling back to local tunnel if direct route is restricted</string>
-    <string name="vless_direct_address">Direct server address</string>
-    <string name="vless_direct_address_placeholder" translatable="false">292.313.32.45:443</string>
-    <string name="vless_hc_interval">Health check interval (sec)</string>
-    <string name="vless_mux">Mux concurrency</string>
-    <string name="vless_mux_desc">Enable Mux multiplexing. 0 disables, >0 sets concurrency. Incompatible with XTLS Vision.</string>
-    <string name="vless_parse_from_link">Parse from link</string>
-    <string name="vless_direct_active">Direct VLESS</string>
+    <!-- Xray link setup (VLESS / Trojan / Hysteria2) -->
+    <string name="xray_uri_config_label">Configuration URI</string>
+    <string name="xray_uri_config_supported_protocols">Supported: VLESS, Trojan, Hysteria2</string>
+    <string name="xray_uri_link_placeholder">vless://…</string>
+    <string name="xray_uri_dual_route">Dual-route mode</string>
+    <string name="xray_uri_dual_route_short">Dual-route</string>
+    <string name="xray_uri_dual_route_desc">Prefer a direct connection to the server, falling back to local tunnel if direct route is restricted</string>
+    <string name="xray_uri_direct_address">Direct server address</string>
+    <string name="xray_uri_direct_address_placeholder" translatable="false">292.313.32.45:443</string>
+    <string name="xray_uri_hc_interval">Health check interval (sec)</string>
+    <string name="xray_uri_mux">Mux concurrency</string>
+    <string name="xray_uri_mux_desc">Enable Mux multiplexing. 0 disables, >0 sets concurrency. Incompatible with XTLS Vision.</string>
+    <string name="xray_uri_parse_from_link">Parse from link</string>
+    <string name="direct_active_format">Direct %1$s</string>
 
     <!-- Warnings -->
     <string name="warn_unsupported_arch_title">Architecture not supported</string>
     <string name="warn_unsupported_arch_desc">Your device uses an architecture (%1$s) not supported by the built-in binaries. The app may not work correctly or fail to start.\n\nSupported architectures: arm64-v8a, x86_64.</string>
 
-    <string name="mismatch_title">Mismatch</string>
-    <string name="warn_core_vless_mismatch">Tunnel expects a VLESS connection, but Xray is configured for WireGuard</string>
-    <string name="warn_core_wg_mismatch">Tunnel expects a WireGuard connection, but Xray is configured for VLESS</string>
+    <string name="mismatch_title">Protocol mismatch</string>
+    <string name="xray_uri_mismatch_tcp">This route only carries TCP (VLESS, Trojan), but Xray is set to a UDP-based protocol (WireGuard, Hysteria2)</string>
+    <string name="xray_uri_mismatch_udp">This route only carries UDP (WireGuard, Hysteria2), but Xray is set to a TCP-based protocol (VLESS, Trojan)</string>
     <string name="warn_vpn_requires_xray">VPN mode requires Xray to be enabled!</string>
 
     <string name="unsaved_changes_title">Unsaved changes</string>
@@ -451,7 +455,6 @@
     <string name="settings_group_olcrtc">olcRTC / WebDAV settings</string>
     <string name="settings_group_xray">Xray settings</string>
     <string name="xray_protocol_desc">Choose protocol for Xray-core</string>
-    <string name="vless_settings">VLESS Settings</string>
     <string name="protocol_wireguard" translatable="false">WireGuard</string>
     <string name="connection_settings_title">Connection Settings</string>
     <string name="connection_settings_desc">Addresses and ports of tunnel cores</string>

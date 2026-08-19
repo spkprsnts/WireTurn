@@ -16,27 +16,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
-import com.wireturn.app.data.KernelConfig
-import com.wireturn.app.data.KernelVariant
-import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.viewmodel.CoreState
 import com.wireturn.app.viewmodel.MainViewModel
 
 @Composable
 fun CoreTriggerController(
     viewModel: MainViewModel,
-    content: @Composable (onToggleCore: () -> Unit, onCheckMismatch: (Boolean, () -> Unit) -> Unit) -> Unit
+    content: @Composable (onToggleCore: () -> Unit) -> Unit
 ) {
     val context = LocalContext.current
     val coreState by viewModel.coreState.collectAsStateWithLifecycle()
     val vpnSettings by viewModel.vpnSettings.collectAsStateWithLifecycle()
     val autoLaunchSettings by viewModel.autoLaunchSettings.collectAsStateWithLifecycle()
-    val xrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
-    val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
 
     val showAutoLaunchOverride = rememberSaveable { mutableStateOf(false) }
-    val showMismatchDialog = rememberSaveable { mutableStateOf(false) }
-    var mismatchMessage by rememberSaveable { mutableStateOf("") }
     var pendingCoreAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     val vpnLauncher = rememberLauncherForActivityResult(
@@ -47,45 +40,20 @@ fun CoreTriggerController(
         }
     }
 
-    val vlessMismatch = stringResource(R.string.warn_core_vless_mismatch)
-    val wgMismatch = stringResource(R.string.warn_core_wg_mismatch)
-
-    val checkMismatch = { targetXrayEnabled: Boolean, onConfirmed: () -> Unit ->
-        val turnableConfig = (clientConfig.kernelConfig as? KernelConfig.Turnable)?.config
-        val selectedRoute = turnableConfig?.routes?.find { it.routeId == turnableConfig.selectedRouteId }
-        val isTunnelVless = selectedRoute?.transport?.contains("KCP", ignoreCase = true) == true
-
-        val isTurnable = clientConfig.kernelVariant == KernelVariant.TURNABLE
-        val mismatch = isTurnable && targetXrayEnabled && (
-                (isTunnelVless && xrayConfig.protocol == XrayConfiguration.WIREGUARD) ||
-                        (!isTunnelVless && xrayConfig.protocol == XrayConfiguration.VLESS)
-                )
-
-        if (mismatch) {
-            mismatchMessage = if (isTunnelVless) vlessMismatch else wgMismatch
-            pendingCoreAction = onConfirmed
-            showMismatchDialog.value = true
-        } else {
-            onConfirmed()
-        }
-    }
-
     val triggerCoreAction = {
         val action = {
             when (coreState) {
                 is CoreState.Idle, is CoreState.Error -> {
-                    checkMismatch(xrayConfig.enabled) {
-                        HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
-                        if (vpnSettings.enabled) {
-                            val intent = VpnService.prepare(context)
-                            if (intent != null) {
-                                vpnLauncher.launch(intent)
-                            } else {
-                                viewModel.startCore()
-                            }
+                    HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
+                    if (vpnSettings.enabled) {
+                        val intent = VpnService.prepare(context)
+                        if (intent != null) {
+                            vpnLauncher.launch(intent)
                         } else {
                             viewModel.startCore()
                         }
+                    } else {
+                        viewModel.startCore()
                     }
                 }
                 else -> {
@@ -103,32 +71,7 @@ fun CoreTriggerController(
         }
     }
 
-    content(triggerCoreAction, checkMismatch)
-
-    if (showMismatchDialog.value) {
-        AlertDialog(
-            onDismissRequest = { showMismatchDialog.value = false },
-            title = { Text(stringResource(R.string.mismatch_title)) },
-            text = { Text(mismatchMessage) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showMismatchDialog.value = false
-                    pendingCoreAction?.invoke()
-                    pendingCoreAction = null
-                }) {
-                    Text(stringResource(R.string.btn_start))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showMismatchDialog.value = false
-                    pendingCoreAction = null
-                }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
-        )
-    }
+    content(triggerCoreAction)
 
     if (showAutoLaunchOverride.value) {
         AlertDialog(

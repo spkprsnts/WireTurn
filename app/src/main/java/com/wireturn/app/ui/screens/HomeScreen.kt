@@ -113,6 +113,7 @@ import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SupportingText
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.UpdateBlock
+import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.VerticalAnimatedText
 import com.wireturn.app.ui.components.CoreToggleButton
 import com.wireturn.app.ui.privacySpoiler
@@ -141,7 +142,6 @@ fun HomeScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToLogs: () -> Unit,
     onToggleProxy: () -> Unit,
-    onCheckMismatch: (Boolean, () -> Unit) -> Unit,
     modifier: Modifier = Modifier
 ) {
     // --- State & Data ---
@@ -1000,27 +1000,25 @@ fun HomeScreen(
             }
             val configValid = isSettingsValid || xrayState != XrayState.Idle || isRestarting
 
+            val activeVlessProtocolLabel = stringResource(ValidatorUtils.uriProtocolStringRes(activeVlessConfig.vlessLink))
+
             val xrayProtocol = when {
                 isSocks5Core -> {
                     when (xrayState) {
-                        XrayState.DirectRoute -> stringResource(R.string.vless)
+                        XrayState.DirectRoute -> activeVlessProtocolLabel
                         XrayState.Running -> stringResource(R.string.socks5)
                         else -> {
-                            if (activeVlessConfig.isDualRoute) "${stringResource(R.string.socks5)} / ${
-                                stringResource(
-                                    R.string.vless
-                                )
-                            }"
+                            if (activeVlessConfig.isDualRoute) "${stringResource(R.string.socks5)} / $activeVlessProtocolLabel"
                             else stringResource(R.string.socks5)
                         }
                     }
                 }
 
-                xrayState == XrayState.Running || xrayState == XrayState.DirectRoute -> if (xraySession?.vless != null) stringResource(
-                    R.string.vless
-                ) else stringResource(R.string.wg_short)
+                xrayState == XrayState.Running || xrayState == XrayState.DirectRoute -> xraySession?.vless?.vlessLink?.let {
+                    stringResource(ValidatorUtils.uriProtocolStringRes(it))
+                } ?: stringResource(R.string.wg_short)
 
-                else -> if (activeXrayConfig.protocol == XrayConfiguration.VLESS) stringResource(R.string.vless) else stringResource(
+                else -> if (activeXrayConfig.protocol == XrayConfiguration.VLESS) activeVlessProtocolLabel else stringResource(
                     R.string.wg_short
                 )
             }
@@ -1052,26 +1050,18 @@ fun HomeScreen(
                         label = stringResource(R.string.xray_title) + if (configValid && profilesExist) " $xrayProtocol" else "",
                         checked = xrayConfig.enabled,
                         onCheckedChange = { next ->
-                            val action = {
-                                HapticUtil.perform(
-                                    context,
-                                    if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
-                                )
+                            HapticUtil.perform(
+                                context,
+                                if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                            )
 
-                                // OLCRTC/WEBDAV run their own socks5, so VPN mode keeps working
-                                // without Xray for those - only warn when it truly can't.
-                                if (!next && vpnEnabled && !isSocks5Core) {
-                                    showVpnWarning()
-                                }
-
-                                viewModel.updateXrayConfig(xrayConfig.copy(enabled = next))
+                            // OLCRTC/WEBDAV run their own socks5, so VPN mode keeps working
+                            // without Xray for those - only warn when it truly can't.
+                            if (!next && vpnEnabled && !isSocks5Core) {
+                                showVpnWarning()
                             }
 
-                            if (next) {
-                                onCheckMismatch(true, action)
-                            } else {
-                                action()
-                            }
+                            viewModel.updateXrayConfig(xrayConfig.copy(enabled = next))
                         },
                         isSplit = true,
                         supportingText = if (!profilesExist) null else if (!configValid) stringResource(
@@ -1081,7 +1071,7 @@ fun HomeScreen(
                                 XrayState.Starting -> stringResource(R.string.starting)
                                 XrayState.Connecting -> stringResource(R.string.connecting)
                                 XrayState.Running -> stringResource(R.string.running)
-                                XrayState.DirectRoute -> stringResource(R.string.vless_direct_active)
+                                XrayState.DirectRoute -> stringResource(R.string.direct_active_format, activeVlessProtocolLabel)
                                 else -> stringResource(R.string.idle)
                             }
                         },
@@ -1434,6 +1424,7 @@ private fun formatBytes(bytes: Long): String {
     val pre = "KMGTPE"[exp - 1]
     return String.format(java.util.Locale.US, "%.1f %siB", bytes / 1024.0.pow(exp.toDouble()), pre)
 }
+
 
 private fun formatSpeed(bytesPerSecond: Long): String {
     return formatBytes(bytesPerSecond) + "/s"

@@ -63,6 +63,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
+import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.VlessConfig
 import com.wireturn.app.data.WgConfig
@@ -81,8 +82,10 @@ import com.wireturn.app.ui.RowLabel
 import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.ShareDropdownMenu
+import com.wireturn.app.ui.SupportingText
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
+import com.wireturn.app.ui.UriProtocol
 import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.redact
@@ -99,6 +102,7 @@ fun XraySetupScreen(
     initialXrayConfig: XrayConfig = XrayConfig(),
     privacyMode: Boolean = false,
     kernelVariant: KernelVariant = KernelVariant.TURNABLE,
+    kernelConfig: KernelConfig? = null,
     profileName: String? = null,
     vlessLinkHistory: List<String> = emptyList(),
     onRemoveHistoryItem: (String) -> Unit = {},
@@ -145,6 +149,26 @@ fun XraySetupScreen(
     }
     val currentVless = remember(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessMux, initialVlessConfig) {
         VlessConfig(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessMux)
+    }
+
+    // Route's own socket type is authoritative (tcp -> VLESS/Trojan, udp -> WireGuard/Hysteria2) -
+    // see external/turnable/docs/REFERENCE.md. Mismatch is possible on Turnable/FreeTurn only,
+    // where the kernel itself exposes a fixed tcp/udp entry point.
+    val kernelRequiredSocket = remember(kernelConfig) {
+        when (kernelConfig) {
+            is KernelConfig.Turnable -> kernelConfig.config.routes.find { it.routeId == kernelConfig.config.selectedRouteId }
+                ?.socket?.lowercase()?.takeIf { it == "tcp" || it == "udp" }
+            is KernelConfig.FreeTurn -> kernelConfig.config.mode.lowercase().takeIf { it == "tcp" || it == "udp" }
+            else -> null
+        }
+    }
+    val transportMismatchSocket = remember(kernelRequiredSocket, xrayConfiguration, currentVless) {
+        val xrayNeedsUdp = when (xrayConfiguration) {
+            XrayConfiguration.WIREGUARD -> true
+            XrayConfiguration.VLESS -> ValidatorUtils.detectUriProtocol(currentVless.vlessLink) == UriProtocol.HYSTERIA2
+        }
+        val requiredForXray = if (xrayNeedsUdp) "udp" else "tcp"
+        kernelRequiredSocket?.takeIf { it != requiredForXray }
     }
 
     val isModified by remember(xrayConfiguration, currentWg, currentVless, initialXrayConfig, initialWgConfig, initialVlessConfig, canChangeProtocol) {
@@ -408,14 +432,14 @@ fun XraySetupScreen(
         ) {
             // Выбор протокола
             if (canChangeProtocol) {
-                SectionGroup(title = stringResource(R.string.xray_protocol_label)) {
+                SectionGroup {
                     SectionItem(position = ItemPosition.Single) {
                         val configurations = XrayConfiguration.entries
                         val protocolLabels = configurations.associateWith { config ->
                             stringResource(
                                 when (config) {
                                     XrayConfiguration.WIREGUARD -> R.string.protocol_wireguard
-                                    XrayConfiguration.VLESS -> R.string.vless
+                                    XrayConfiguration.VLESS -> R.string.uri
                                 }
                             )
                         }
@@ -438,6 +462,36 @@ fun XraySetupScreen(
                                     index = index,
                                     count = configurations.size
                                 )
+                            }
+                        }
+                    }
+                }
+
+                if (transportMismatchSocket != null) {
+                    SectionGroup {
+                        SectionItem(
+                            position = ItemPosition.Single,
+                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                LargeLeadingIcon {
+                                    Icon(
+                                        painter = painterResource(R.drawable.error_24px),
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    RowLabel(stringResource(R.string.mismatch_title))
+                                    Spacer(Modifier.height(2.dp))
+                                    SupportingText(
+                                        stringResource(
+                                            if (transportMismatchSocket == "tcp") R.string.xray_uri_mismatch_tcp
+                                            else R.string.xray_uri_mismatch_udp
+                                        ),
+                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                }
                             }
                         }
                     }
@@ -672,14 +726,28 @@ private fun VlessSettingsBlock(
         !ValidatorUtils.isValidVlessLink(vlessLink)
     }
 
+    val detectedUriProtocol = ValidatorUtils.detectUriProtocol(vlessLink)
+    val vlessLinkLabel = if (vlessLink.isBlank() || detectedUriProtocol == null) {
+        stringResource(R.string.xray_uri_config_label)
+    } else {
+        stringResource(
+            when (detectedUriProtocol) {
+                UriProtocol.VLESS -> R.string.vless
+                UriProtocol.TROJAN -> R.string.trojan
+                UriProtocol.HYSTERIA2 -> R.string.hysteria2
+            }
+        ) + vlessName
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(19.dp)) {
-        SectionGroup(title = stringResource(R.string.vless_settings)) {
+        SectionGroup {
             SectionItem(position = ItemPosition.Single) {
                 TextFieldRow(
-                    label = stringResource(R.string.vless_link_label) + vlessName,
+                    label = vlessLinkLabel,
                     value = vlessLink.redact(isPrivacyActive),
                     onValueChange = { if (!isPrivacyActive) onVlessLinkChange(it) },
-                    placeholder = stringResource(R.string.vless_link_placeholder),
+                    placeholder = stringResource(R.string.xray_uri_link_placeholder),
+                    supportingText = stringResource(R.string.xray_uri_config_supported_protocols),
                     isError = vlessLinkError,
                     minLines = 4,
                     maxLines = 4,
@@ -702,8 +770,8 @@ private fun VlessSettingsBlock(
 
             SectionItem(position = ItemPosition.Single) {
                 TextFieldRow(
-                    label = stringResource(R.string.vless_mux),
-                    supportingText = stringResource(R.string.vless_mux_desc),
+                    label = stringResource(R.string.xray_uri_mux),
+                    supportingText = stringResource(R.string.xray_uri_mux_desc),
                     value = vlessMux,
                     onValueChange = onVlessMuxChange,
                     placeholder = "0",
@@ -729,8 +797,8 @@ private fun VlessSettingsBlock(
                 }
             ) {
                 SwitchRow(
-                    label = stringResource(R.string.vless_dual_route),
-                    supportingText = stringResource(R.string.vless_dual_route_desc),
+                    label = stringResource(R.string.xray_uri_dual_route),
+                    supportingText = stringResource(R.string.xray_uri_dual_route_desc),
                     checked = vlessIsDualRoute,
                     onCheckedChange = { next ->
                         HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
@@ -749,10 +817,10 @@ private fun VlessSettingsBlock(
                 SectionGroup {
                     SectionItem {
                         TextFieldRow(
-                            label = stringResource(R.string.vless_direct_address),
+                            label = stringResource(R.string.xray_uri_direct_address),
                             value = vlessDirectAddress.redact(isPrivacyActive),
                             onValueChange = { if (!isPrivacyActive) onVlessDirectAddressChange(it) },
-                            placeholder = stringResource(R.string.vless_direct_address_placeholder),
+                            placeholder = stringResource(R.string.xray_uri_direct_address_placeholder),
                             isError = !ValidatorUtils.isValidHostPort(vlessDirectAddress),
                             readOnly = isPrivacyActive,
                             isModified = isEditMode && vlessDirectAddress != initialVlessConfig.directAddress,
@@ -763,14 +831,14 @@ private fun VlessSettingsBlock(
                                         onVlessDirectAddressChange(addr)
                                     }
                                 }) {
-                                    Icon(painterResource(R.drawable.sync_24px), stringResource(R.string.vless_parse_from_link))
+                                    Icon(painterResource(R.drawable.sync_24px), stringResource(R.string.xray_uri_parse_from_link))
                                 }
                             }
                         )
                     }
                     SectionItem(position = ItemPosition.Bottom) {
                         TextFieldRow(
-                            label = stringResource(R.string.vless_hc_interval),
+                            label = stringResource(R.string.xray_uri_hc_interval),
                             value = vlessHcInterval,
                             onValueChange = onVlessHcIntervalChange,
                             placeholder = "30",

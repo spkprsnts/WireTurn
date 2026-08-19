@@ -54,6 +54,7 @@ class XrayEditActivity : ComponentActivity() {
                     initialXrayConfig = initialXrayConfig,
                     privacyMode = privacyMode,
                     kernelVariant = targetProfile?.kernelVariant ?: clientConfig.kernelVariant,
+                    kernelConfig = targetProfile?.kernelConfig ?: clientConfig.kernelConfig,
                     profileName = targetProfile?.name,
                     vlessLinkHistory = vlessLinkHistory,
                     onRemoveHistoryItem = { viewModel.removeVlessLinkFromHistory(it) },

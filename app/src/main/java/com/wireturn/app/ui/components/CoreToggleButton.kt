@@ -66,6 +66,7 @@ import com.wireturn.app.CoreServiceState
 import com.wireturn.app.R
 import com.wireturn.app.XrayServiceState
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.VerticalAnimatedText
 import com.wireturn.app.viewmodel.CoreState
 import com.wireturn.app.viewmodel.MainViewModel
@@ -86,6 +87,10 @@ fun CoreToggleButton(
 ) {
     val coreState by viewModel.coreState.collectAsStateWithLifecycle()
     val xrayState by XrayServiceState.state.collectAsStateWithLifecycle()
+    val xraySession by XrayServiceState.session.collectAsStateWithLifecycle()
+    val directRouteProtocolLabel = xraySession?.vless?.vlessLink?.let {
+        stringResource(ValidatorUtils.uriProtocolStringRes(it))
+    } ?: stringResource(R.string.vless)
     val xrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
     val autoLaunchSettings by viewModel.autoLaunchSettings.collectAsStateWithLifecycle()
 
@@ -150,14 +155,14 @@ fun CoreToggleButton(
     val statusText = when {
         actuallyRestarting -> stringResource(R.string.core_restarting)
         coreState is CoreState.Connected -> {
-            if (xrayState == XrayState.DirectRoute) stringResource(R.string.vless_direct_active)
+            if (xrayState == XrayState.DirectRoute) stringResource(R.string.direct_active_format, directRouteProtocolLabel)
             else stringResource(R.string.core_active)
         }
         coreState is CoreState.Starting -> stringResource(R.string.starting)
         coreState is CoreState.Stopping -> stringResource(R.string.stopping)
         coreState is CoreState.Connecting -> stringResource(R.string.connecting)
         coreState is CoreState.Suppressed -> {
-            if (xrayState == XrayState.DirectRoute) stringResource(R.string.vless_direct_active)
+            if (xrayState == XrayState.DirectRoute) stringResource(R.string.direct_active_format, directRouteProtocolLabel)
             else stringResource(R.string.connecting)
         }
         coreState is CoreState.CaptchaRequired -> stringResource(R.string.core_captcha_required)

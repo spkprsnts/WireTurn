@@ -207,9 +207,9 @@
     <string name="freeturn_manual_captcha_desc">Решать капчу ВК во встроенном браузере</string>
     <string name="local_listen_address">Локальный адрес прослушивания</string>
     <string name="local_port_help_text">Turnable и FreeTurn не создают обычный прокси — они поднимают по этому адресу точку входа сырого туннеля.</string>
-    <string name="local_port_help_secondary">Встроенный Xray сам подключается сюда, чтобы превратить это в VLESS или VPN. Меняйте адрес только если хотите подключить к туннелю напрямую сторонний VPN-клиент (WireGuard, v2RayTun и др.), в обход Xray.</string>
+    <string name="local_port_help_secondary">Встроенный Xray сам подключается сюда, чтобы превратить это в ссылку Xray или VPN. Меняйте адрес только если хотите подключить к туннелю напрямую сторонний VPN-клиент (WireGuard, v2RayTun и др.), в обход Xray.</string>
     <string name="olcrtc_socks_help_text">olcRTC и WebDAV не используют VPN-протокол — они сразу поднимают по этому адресу локальный SOCKS5-прокси.</string>
-    <string name="olcrtc_socks_help_secondary">Xray использует этот адрес как вышестоящий прокси для VLESS в режиме Dual-route. Для маршрутизации всего трафика устройства через VPN Xray не обязателен — VPN может подключаться к этому SOCKS5 напрямую. К тому же адресу можно подключить и любое другое приложение с поддержкой SOCKS5.</string>
+    <string name="olcrtc_socks_help_secondary">Xray использует этот адрес как вышестоящий прокси в режиме Dual-route. Для маршрутизации всего трафика устройства через VPN Xray не обязателен — VPN может подключаться к этому SOCKS5 напрямую. К тому же адресу можно подключить и любое другое приложение с поддержкой SOCKS5.</string>
 
     <!-- Экран логов (Logs) -->
     <string name="logs_title">Логи</string>
@@ -381,26 +381,27 @@
     <string name="auto_launch_override_desc">Сейчас туннель управляется автозапуском. Чтобы управлять вручную, необходимо отключить режим автозапуска.</string>
     <string name="auto_launch_disable_and_continue">Отключить и продолжить</string>
 
-    <!-- Настройка VLESS -->
-    <string name="vless_link_label">VLESS-ссылка</string>
-    <string name="vless_link_placeholder">vless://…</string>
-    <string name="vless_dual_route">Режим Dual-route</string>
-    <string name="vless_dual_route_short">Dual-route</string>
-    <string name="vless_dual_route_desc">Предпочитать прямое подключение к VLESS-серверу, используя локальный туннель только при ограничении прямого доступа</string>
-    <string name="vless_direct_address">Прямой адрес сервера</string>
-    <string name="vless_hc_interval">Интервал проверки (сек)</string>
-    <string name="vless_mux">Mux concurrency</string>
-    <string name="vless_mux_desc">Включает мультиплексирование Mux. 0 — выключено, >0 — количество соединений. Несовместимо с XTLS Vision.</string>
-    <string name="vless_parse_from_link">Взять из ссылки</string>
-    <string name="vless_direct_active">Прямой VLESS</string>
+    <!-- Настройка ссылки Xray (VLESS / Trojan / Hysteria2) -->
+    <string name="xray_uri_config_label">URI конфигурации</string>
+    <string name="xray_uri_config_supported_protocols">Поддерживаются: VLESS, Trojan, Hysteria2</string>
+    <string name="xray_uri_link_placeholder">vless://…</string>
+    <string name="xray_uri_dual_route">Режим Dual-route</string>
+    <string name="xray_uri_dual_route_short">Dual-route</string>
+    <string name="xray_uri_dual_route_desc">Предпочитать прямое подключение к серверу, используя локальный туннель только при ограничении прямого доступа</string>
+    <string name="xray_uri_direct_address">Прямой адрес сервера</string>
+    <string name="xray_uri_hc_interval">Интервал проверки (сек)</string>
+    <string name="xray_uri_mux">Mux concurrency</string>
+    <string name="xray_uri_mux_desc">Включает мультиплексирование Mux. 0 — выключено, >0 — количество соединений. Несовместимо с XTLS Vision.</string>
+    <string name="xray_uri_parse_from_link">Взять из ссылки</string>
+    <string name="direct_active_format">Прямой %1$s</string>
 
     <!-- Предупреждения -->
     <string name="warn_unsupported_arch_title">Архитектура не поддерживается</string>
     <string name="warn_unsupported_arch_desc">Ваше устройство использует архитектуру (%1$s), которая не поддерживается встроенными бинарными файлами. Приложение может работать некорректно или не запускаться.\n\nПоддерживаемые архитектуры: arm64-v8a, x86_64.</string>
 
-    <string name="mismatch_title">Несоответствие</string>
-    <string name="warn_core_vless_mismatch">Туннель ожидает VLESS-подключение, а Xray настроен на WireGuard</string>
-    <string name="warn_core_wg_mismatch">Туннель ожидает WireGuard-подключение, а Xray настроен на VLESS</string>
+    <string name="mismatch_title">Несоответствие протокола</string>
+    <string name="xray_uri_mismatch_tcp">Этот маршрут работает только по TCP (VLESS, Trojan), а Xray настроен на UDP-протокол (WireGuard, Hysteria2)</string>
+    <string name="xray_uri_mismatch_udp">Этот маршрут работает только по UDP (WireGuard, Hysteria2), а Xray настроен на TCP-протокол (VLESS, Trojan)</string>
     <string name="warn_vpn_requires_xray">Режим VPN требует включенного Xray!</string>
 
     <string name="unsaved_changes_title">Несохранённые изменения</string>
@@ -418,7 +419,6 @@
     <string name="xray_proxy_user">Логин</string>
     <string name="xray_proxy_pass">Пароль</string>
     <string name="xray_protocol_desc">Выберите протокол для Xray-core</string>
-    <string name="vless_settings">Настройки VLESS</string>
     <string name="connection_settings_title">Параметры подключения</string>
     <string name="connection_settings_desc">Адреса и порты ядер туннеля</string>
     <string name="connection_details">Детали подключения</string>

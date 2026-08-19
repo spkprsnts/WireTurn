@@ -33,7 +33,7 @@ fun AppNavigation(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            CoreTriggerController(viewModel = viewModel) { onToggle, onCheckMismatch ->
+            CoreTriggerController(viewModel = viewModel) { onToggle ->
                 HomeScreen(
                     viewModel = viewModel,
                     onNavigateToExclusions = { 
@@ -53,8 +53,7 @@ fun AppNavigation(
                     onNavigateToLogs = {
                         context.startActivity(Intent(context, com.wireturn.app.ui.activities.LogsActivity::class.java))
                     },
-                    onToggleProxy = onToggle,
-                    onCheckMismatch = onCheckMismatch
+                    onToggleProxy = onToggle
                 )
             }
         }
