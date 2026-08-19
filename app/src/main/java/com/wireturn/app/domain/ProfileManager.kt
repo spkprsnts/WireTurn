@@ -610,7 +610,10 @@ class ProfileManager(
                                         }
                                         ProfileBundle(profiles = profiles)
                                     } else {
-                                        tryParseTextSubscription(content)
+                                        // Raw line-based subscription first (as-is, the common case), then as a
+                                        // last resort try decoding it as plain (non-deflated) base64 - some panels
+                                        // (e.g. 3x-ui) base64-encode their line-based subscription body directly.
+                                        tryParseTextSubscription(content) ?: tryParseBase64TextSubscription(content)
                                     }
                                 }
                             }
@@ -620,7 +623,13 @@ class ProfileManager(
                             val subId = subIdToMark ?: subscriptions.value.find { it.url == url }?.id ?: UUID.randomUUID().toString()
                             val existingSub = subscriptions.value.find { it.id == subId }
                             val subName = bundle.name ?: connection.getHeaderField("Profile-Title") ?: URL(url).host ?: "Subscription"
-                            
+
+                            // Fallbacks for panels (e.g. 3x-ui) that convey quota/refresh via response headers
+                            // instead of the subscription body - only consulted when the body itself has nothing.
+                            val (headerBytesUsed, headerBytesTotal) = parseSubscriptionUserinfo(connection.getHeaderField("Subscription-Userinfo"))
+                            val headerUpdateIntervalMinutes = connection.getHeaderField("Profile-Update-Interval")
+                                ?.toDoubleOrNull()?.let { hours -> (hours * 60).toInt() }
+
                             kotlinx.coroutines.yield()
 
                             // 1. Import profiles with the recommendation ID from the server
@@ -642,12 +651,12 @@ class ProfileManager(
                                 url = url,
                                 description = bundle.description,
                                 updatedAt = System.currentTimeMillis(),
-                                bytesUsed = bundle.bytesUsed ?: 0,
-                                bytesTotal = bundle.bytesTotal ?: 0,
+                                bytesUsed = bundle.bytesUsed ?: headerBytesUsed ?: 0,
+                                bytesTotal = bundle.bytesTotal ?: headerBytesTotal ?: 0,
                                 activeProfileId = bestActiveId,
-                                autoUpdate = existingSub?.autoUpdate ?: (bundle.updateIntervalMinutes != null),
+                                autoUpdate = existingSub?.autoUpdate ?: ((bundle.updateIntervalMinutes ?: headerUpdateIntervalMinutes) != null),
                                 updateIntervalMinutes = existingSub?.updateIntervalMinutes
-                                    ?: bundle.updateIntervalMinutes?.coerceAtLeast(20)
+                                    ?: (bundle.updateIntervalMinutes ?: headerUpdateIntervalMinutes)?.coerceAtLeast(20)
                                     ?: 1440,
                                 onlyUpdateIfSelected = existingSub?.onlyUpdateIfSelected ?: false,
                                 requireTunnelForUpdate = existingSub?.requireTunnelForUpdate ?: false
@@ -830,6 +839,8 @@ class ProfileManager(
         var subName: String? = null
         var subDescription: String? = null
         var subInterval: Int? = null
+        var subBytesUsed: Long? = null
+        var subBytesTotal: Long? = null
 
         val profiles = mutableListOf<Profile>()
         var currentProfile: Profile? = null
@@ -844,6 +855,22 @@ class ProfileManager(
                 v.endsWith("d") -> num * 1440
                 else -> num
             }
+        }
+
+        // Parses sizes like "10mb", "1.1gb", "500 KB" (binary units: 1kb = 1024b) as used by the
+        // olcRTC/free-turn-proxy sub.md convention's #used/#available fields.
+        fun parseByteSize(v: String): Long? {
+            val match = Regex("(?i)^\\s*([0-9]*\\.?[0-9]+)\\s*(b|kb|mb|gb|tb)?\\s*$").find(v) ?: return null
+            val num = match.groupValues[1].toDoubleOrNull() ?: return null
+            val multiplier = when (match.groupValues[2].lowercase()) {
+                "", "b" -> 1.0
+                "kb" -> 1024.0
+                "mb" -> 1024.0 * 1024
+                "gb" -> 1024.0 * 1024 * 1024
+                "tb" -> 1024.0 * 1024 * 1024 * 1024
+                else -> return null
+            }
+            return (num * multiplier).toLong()
         }
 
         fun flush() {
@@ -956,6 +983,17 @@ class ProfileManager(
                         "description" -> subDescription = value
                         "refresh" -> subInterval = parseInterval(value)
                         "comment" -> if (subDescription == null) subDescription = value
+                        "used" -> {
+                            // "10mb/10gb" (used/total) or a bare "10mb" (used only)
+                            val parts = value.split("/", limit = 2)
+                            parseByteSize(parts[0])?.let { subBytesUsed = it }
+                            if (parts.size == 2) parseByteSize(parts[1])?.let { subBytesTotal = it }
+                        }
+                        "available" -> {
+                            // Remaining quota - total = whatever's used so far (0 if #used wasn't
+                            // given yet) + what's left, regardless of which field comes first in the file.
+                            parseByteSize(value)?.let { subBytesTotal = (subBytesUsed ?: 0L) + it }
+                        }
                     }
                 }
             }
@@ -967,7 +1005,42 @@ class ProfileManager(
             name = subName,
             description = subDescription,
             profiles = profiles,
-            updateIntervalMinutes = subInterval
+            updateIntervalMinutes = subInterval,
+            bytesUsed = subBytesUsed,
+            bytesTotal = subBytesTotal
         )
+    }
+
+    /**
+     * Some panels (e.g. 3x-ui) base64-encode a plain line-based subscription body directly,
+     * unlike `wireturn://`'s zlib-deflated + URL-safe encoding ([ProfileEncoder]). Tried only
+     * after the body fails as-is, since real line-based subscriptions are never valid base64.
+     */
+    private fun tryParseBase64TextSubscription(content: String): ProfileBundle? {
+        val decoded = try {
+            val cleaned = content.trim().replace(Regex("\\s"), "")
+            String(android.util.Base64.decode(cleaned, android.util.Base64.DEFAULT), Charsets.UTF_8)
+        } catch (_: Exception) {
+            return null
+        }
+        return tryParseTextSubscription(decoded)
+    }
+
+    /**
+     * Parses the "Subscription-Userinfo" header some panels (e.g. 3x-ui) send for traffic quota:
+     * "upload=X; download=Y; total=Z; expire=E" (bytes). Returns (used, total) - either half may
+     * be null if that number wasn't present. "used" is upload+download combined, matching how
+     * this header is interpreted across the V2Ray/Xray-adjacent subscription ecosystem.
+     */
+    private fun parseSubscriptionUserinfo(header: String?): Pair<Long?, Long?> {
+        if (header == null) return null to null
+        val fields = header.split(";").mapNotNull { part ->
+            val kv = part.trim().split("=", limit = 2)
+            if (kv.size == 2) kv[0].trim().lowercase() to kv[1].trim().toLongOrNull() else null
+        }.toMap()
+        val upload = fields["upload"]
+        val download = fields["download"]
+        val used = if (upload != null || download != null) (upload ?: 0L) + (download ?: 0L) else null
+        return used to fields["total"]
     }
 }
