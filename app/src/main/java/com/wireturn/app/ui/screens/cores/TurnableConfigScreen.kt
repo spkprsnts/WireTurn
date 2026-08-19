@@ -442,7 +442,7 @@ fun TurnableConfigScreen(
                         }
                         Column(modifier = Modifier.weight(1f)) {
                             RowLabel(
-                                text = stringResource(R.string.olcrtc_carrier_label),
+                                text = stringResource(R.string.turnable_carrier_label),
                                 isModified = isEditMode && config.platformId != initialConfig.platformId
                             )
                             val currentLabel = config.platformDisplayName
@@ -887,7 +887,7 @@ fun TurnablePlatformDialog(
     )
 
     SelectionDialog(
-        title = stringResource(R.string.olcrtc_carrier_label),
+        title = stringResource(R.string.turnable_carrier_label),
         items = platforms,
         isSelected = { it == currentPlatform },
         onSelect = { onSelect(it) },

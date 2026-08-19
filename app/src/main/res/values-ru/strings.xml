@@ -83,7 +83,6 @@
     <string name="import_error_connection">Ошибка подключения. Проверьте интернет.</string>
     <string name="import_error_server">Ошибка сервера: %1$d</string>
     <string name="import_error_empty">Сервер вернул пустой ответ</string>
-    <string name="import_error_invalid_config">Некорректный формат конфигурации</string>
     <string name="profile_import_partial_failure">Импортировано, но %1$d из %2$d файлов не удалось обработать</string>
 
     <!-- Подтверждение импорта по диплинку wireturn:// / wt:// -->
@@ -143,6 +142,7 @@
     <string name="olcrtc_dns_label">DNS-сервер</string>
     <string name="olcrtc_dns_desc">Используется для резолвинга сигнального провайдера до поднятия туннеля — сервер должен быть доступен при ограничениях по белым спискам (БС)</string>
     <string name="olcrtc_carrier_label">Платформа</string>
+    <string name="turnable_carrier_label">Платформа</string>
     <string name="olcrtc_transport_label">Транспорт</string>
     <string name="olcrtc_restart_on_connection_errors_label">Перезапуск при ошибках</string>
     <string name="olcrtc_restart_on_connection_errors_desc">Перезапускать соединение после повторяющихся ошибок \"remote not ready\"</string>
@@ -154,6 +154,7 @@
     <string name="webdav_login_label">Логин</string>
     <string name="webdav_password_label">Пароль</string>
     <string name="webdav_advanced_settings">Расширенные настройки</string>
+    <string name="freeturn_advanced_settings">Расширенные настройки</string>
     <string name="webdav_poll_min">Poll min</string>
     <string name="webdav_poll_max">Poll max</string>
     <string name="webdav_chunk_size">Chunk size</string>
@@ -479,12 +480,6 @@
     <string name="profile_import_qr_hint">Сканируйте код профиля, подписки или ядра</string>
     <string name="profile_import_link">Вставить ссылку</string>
     <string name="profile_import_link_hint">Поддерживаются ссылки, JSON или текст конфига</string>
-    <string name="profile_import_clipboard">Вставить URI конфигурации</string>
-    <string name="profile_import_clipboard_hint">Вставьте ссылку на конфигурацию из буфера</string>
-    <string name="profile_import_file">Импорт из файла</string>
-    <string name="kernel_import_file_hint">Выберите файл со ссылкой на конфигурацию</string>
-    <string name="kernel_import_qr_hint">Сканируйте QR-код со ссылкой</string>
-    <string name="kernel_import_clipboard_hint">Вставьте ссылку на конфигурацию из буфера</string>
     <string name="profile_import_name_title">Название профиля</string>
     <string name="guide_turnable">Инструкция по настройке сервера Turnable</string>
     <string name="guide_olcrtc">Инструкция по настройке сервера olcRTC</string>

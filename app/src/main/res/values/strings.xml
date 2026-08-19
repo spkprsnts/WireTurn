@@ -87,7 +87,6 @@
     <string name="import_error_connection">Connection failed. Check your internet.</string>
     <string name="import_error_server">Server returned an error: %1$d</string>
     <string name="import_error_empty">Server returned empty response</string>
-    <string name="import_error_invalid_config">Invalid configuration format</string>
     <string name="profile_import_partial_failure">Imported, but %1$d of %2$d files failed</string>
 
     <!-- wireturn:// / wt:// deep link import confirmation -->
@@ -171,6 +170,7 @@
     <string name="webdav_login_label">Login</string>
     <string name="webdav_password_label">Password</string>
     <string name="webdav_advanced_settings">Advanced Settings</string>
+    <string name="freeturn_advanced_settings">Advanced Settings</string>
     <string name="webdav_poll_min">Poll min</string>
     <string name="webdav_poll_max">Poll max</string>
     <string name="webdav_chunk_size">Chunk size</string>
@@ -186,6 +186,7 @@
     <string name="olcrtc_dns_label">DNS Server</string>
     <string name="olcrtc_dns_desc">Used to resolve the signaling provider before the tunnel is up - must stay reachable under allow-list-only restrictions</string>
     <string name="olcrtc_carrier_label">Carrier</string>
+    <string name="turnable_carrier_label">Carrier</string>
     <string name="olcrtc_transport_label">Transport</string>
     <string name="olcrtc_restart_on_connection_errors_label">Restart on errors</string>
     <string name="olcrtc_restart_on_connection_errors_desc">Restart the connection after repeated \"remote not ready\" errors</string>
@@ -515,12 +516,6 @@
     <string name="profile_import_qr_hint">Scan profile, subscription or kernel code</string>
     <string name="profile_import_link">Paste Link</string>
     <string name="profile_import_link_hint">Supports links, JSON or kernel config text</string>
-    <string name="profile_import_clipboard">Paste Config URI</string>
-    <string name="profile_import_clipboard_hint">Paste configuration link from clipboard</string>
-    <string name="profile_import_file">Import from File</string>
-    <string name="kernel_import_file_hint">Select file with configuration link</string>
-    <string name="kernel_import_qr_hint">Scan QR code containing link</string>
-    <string name="kernel_import_clipboard_hint">Paste configuration link from clipboard</string>
     <string name="profile_import_name_title">Profile name</string>
     <string name="guide_turnable">Server setup guide: Turnable</string>
     <string name="guide_olcrtc">Server setup guide: olcRTC</string>

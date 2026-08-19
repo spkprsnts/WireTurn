@@ -457,7 +457,7 @@ fun FreeTurnConfigScreen(
                 }
             }
 
-            SectionGroup(title = stringResource(R.string.webdav_advanced_settings)) {
+            SectionGroup(title = stringResource(R.string.freeturn_advanced_settings)) {
                 SectionItem(
                     position = ItemPosition.Top,
                     onClick = {
