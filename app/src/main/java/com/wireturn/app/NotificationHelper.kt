@@ -212,7 +212,7 @@ object NotificationHelper {
         return builder.build()
     }
 
-    fun notifyCaptcha(context: Context, url: String, @Suppress("UNUSED_PARAMETER") sessionId: String) {
+    fun notifyCaptcha(context: Context, url: String) {
         val captchaIntent = Intent(context, com.wireturn.app.ui.activities.CaptchaActivity::class.java).apply {
             putExtra("CAPTCHA_URL", url)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
