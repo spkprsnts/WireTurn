@@ -153,12 +153,13 @@ fun XraySetupScreen(
 
     // Route's own socket type is authoritative (tcp -> VLESS/Trojan, udp -> WireGuard/Hysteria2) -
     // see external/turnable/docs/REFERENCE.md. Mismatch is possible on Turnable/FreeTurn only,
-    // where the kernel itself exposes a fixed tcp/udp entry point.
+    // where the kernel itself exposes a fixed tcp/udp entry point. FreeTurn dropped its tcp tunnel
+    // mode entirely (v3.0.0+) - it's udp-only now, unconditionally.
     val kernelRequiredSocket = remember(kernelConfig) {
         when (kernelConfig) {
             is KernelConfig.Turnable -> kernelConfig.config.routes.find { it.routeId == kernelConfig.config.selectedRouteId }
                 ?.socket?.lowercase()?.takeIf { it == "tcp" || it == "udp" }
-            is KernelConfig.FreeTurn -> kernelConfig.config.mode.lowercase().takeIf { it == "tcp" || it == "udp" }
+            is KernelConfig.FreeTurn -> "udp"
             else -> null
         }
     }
@@ -485,10 +486,17 @@ fun XraySetupScreen(
                                     RowLabel(stringResource(R.string.mismatch_title))
                                     Spacer(Modifier.height(2.dp))
                                     SupportingText(
-                                        stringResource(
-                                            if (transportMismatchSocket == "tcp") R.string.xray_uri_mismatch_tcp
-                                            else R.string.xray_uri_mismatch_udp
-                                        ),
+                                        // FreeTurn has no per-route transport choice left (tcp mode was
+                                        // dropped entirely) - it's just how the kernel works, not a route.
+                                        if (kernelConfig is KernelConfig.FreeTurn) {
+                                            stringResource(R.string.xray_uri_kernel_udp_only_mismatch, kernelName)
+                                        } else {
+                                            stringResource(
+                                                if (transportMismatchSocket == "tcp") R.string.xray_uri_mismatch_tcp
+                                                else R.string.xray_uri_mismatch_udp,
+                                                kernelName
+                                            )
+                                        },
                                         color = MaterialTheme.colorScheme.onErrorContainer
                                     )
                                 }

@@ -225,13 +225,10 @@
     <string name="freeturn_dns_servers_desc">Custom UDP resolvers (comma separated)</string>
     <string name="freeturn_client_id_label">Client ID</string>
     <string name="freeturn_client_id_desc">Unique identifier for server allowlist</string>
-    <string name="freeturn_bond_label">Bonding (TCP mode only)</string>
-    <string name="freeturn_bond_desc">Striping traffic across sessions</string>
     <string name="freeturn_obf_timing_label">Obf Timing</string>
     <string name="freeturn_obf_timing_desc">Packet delay for RTP mimicry (e.g. 20ms); 0=off</string>
     <string name="freeturn_platform_label">Platform</string>
     <string name="freeturn_transport_label">Transport</string>
-    <string name="freeturn_mode_label">Tunnel Mode</string>
     <string name="freeturn_manual_captcha_label">Manual Captcha</string>
     <string name="freeturn_manual_captcha_desc">Solve VK captcha in app browser</string>
     <string name="local_listen_address">Local listen address</string>
@@ -440,8 +437,9 @@
     <string name="warn_unsupported_arch_desc">Your device uses an architecture (%1$s) not supported by the built-in binaries. The app may not work correctly or fail to start.\n\nSupported architectures: arm64-v8a, x86_64.</string>
 
     <string name="mismatch_title">Protocol mismatch</string>
-    <string name="xray_uri_mismatch_tcp">This route only carries TCP (VLESS, Trojan), but Xray is set to a UDP-based protocol (WireGuard, Hysteria2)</string>
-    <string name="xray_uri_mismatch_udp">This route only carries UDP (WireGuard, Hysteria2), but Xray is set to a TCP-based protocol (VLESS, Trojan)</string>
+    <string name="xray_uri_mismatch_tcp">%1$s\'s route only carries TCP (VLESS, Trojan)</string>
+    <string name="xray_uri_mismatch_udp">%1$s\'s route only carries UDP (WireGuard, Hysteria2)</string>
+    <string name="xray_uri_kernel_udp_only_mismatch">%1$s only supports UDP-based protocols (WireGuard, Hysteria2)</string>
     <string name="warn_vpn_requires_xray">VPN mode requires Xray to be enabled!</string>
 
     <string name="unsaved_changes_title">Unsaved changes</string>

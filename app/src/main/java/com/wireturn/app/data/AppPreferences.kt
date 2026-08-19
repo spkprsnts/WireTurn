@@ -632,8 +632,6 @@ data class FreeTurnConfig(
     @SerializedName("links") val links: String = "",
     @SerializedName("n") val n: Int = 10,
     @SerializedName("transport") val transport: String = "tcp",
-    @SerializedName("mode") val mode: String = "udp",
-    @SerializedName("bond") val bond: Boolean = false,
     @SerializedName("obf_profile") val obfProfile: String = "none",
     @SerializedName("obf_key") val obfKey: String = "",
     @SerializedName("obf_timing") val obfTiming: String = "0",
@@ -667,8 +665,6 @@ data class FreeTurnConfig(
             if (links.isNotBlank()) addProperty("links", links)
             if (sub.isNotBlank()) addProperty("sub", sub)
             if (transport != "tcp") addProperty("transport", transport)
-            if (mode != "udp") addProperty("mode", mode)
-            if (bond) addProperty("bond", true)
             if (obfProfile != "none") {
                 addProperty("obf", obfProfile)
                 addProperty("key", obfKey)
@@ -708,8 +704,6 @@ data class FreeTurnConfig(
                     obfTiming = json.get("obft")?.asString ?: current.obfTiming,
                     n = json.get("n")?.asInt ?: current.n,
                     transport = json.get("transport")?.asString ?: current.transport,
-                    mode = json.get("mode")?.asString ?: current.mode,
-                    bond = json.get("bond")?.asBoolean ?: current.bond,
                     streamsPerCred = json.get("spc")?.asInt ?: current.streamsPerCred,
                     clientId = json.get("cid")?.asString ?: current.clientId,
                     dnsMode = json.get("dns")?.asString ?: current.dnsMode,
@@ -1151,7 +1145,7 @@ data class Profile(
 
         is KernelConfig.Olcrtc -> context.getString(R.string.kernel_olcrtc) + " " + k.config.providerDisplayName
         is KernelConfig.Webdav -> context.getString(R.string.kernel_webdav) + " " + WebdavConfig.formatHost(k.config.webdav)
-        is KernelConfig.FreeTurn -> context.getString(R.string.kernel_freeturn) + " m:" + k.config.mode.uppercase()
+        is KernelConfig.FreeTurn -> context.getString(R.string.kernel_freeturn) + " " + k.config.peer.ifBlank { k.config.provider }
     }
 }
 

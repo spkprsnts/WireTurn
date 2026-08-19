@@ -1016,7 +1016,6 @@ class CoreService : Service() {
                     "-peer", o.peer,
                     "-n", o.n.toString(),
                     "-transport", o.transport,
-                    "-mode", o.mode,
                     "-obf-profile", o.obfProfile,
                     "-streams-per-cred", o.streamsPerCred.toString(),
                     "-dns-mode", o.dnsMode,
@@ -1034,7 +1033,6 @@ class CoreService : Service() {
                     cmdArgs.add("-sub")
                     cmdArgs.add(o.sub)
                 }
-                if (o.bond && o.mode == "tcp") cmdArgs.add("-bond")
                 if (o.obfProfile != "none" && o.obfKey.isNotBlank()) {
                     cmdArgs.add("-obf-key")
                     cmdArgs.add(o.obfKey)

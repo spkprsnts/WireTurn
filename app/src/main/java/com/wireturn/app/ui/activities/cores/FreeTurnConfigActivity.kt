@@ -74,13 +74,9 @@ class FreeTurnConfigActivity : ComponentActivity() {
                         } else {
                             val intent = Intent(this, XraySetupActivity::class.java).apply {
                                 putExtra("EXTRA_PROFILE_NAME", profileName)
-                                
-                                val defaultProtocol = if (config.mode == "tcp") {
-                                    XrayConfiguration.VLESS
-                                } else {
-                                    XrayConfiguration.WIREGUARD
-                                }
-                                putExtra("EXTRA_DEFAULT_PROTOCOL", defaultProtocol.name)
+                                // FreeTurn now only exposes a udp (WireGuard-compatible) endpoint -
+                                // VLESS-mode would only work with a Hysteria2 link, which isn't known yet here.
+                                putExtra("EXTRA_DEFAULT_PROTOCOL", XrayConfiguration.WIREGUARD.name)
 
                                 putExtra("EXTRA_KERNEL_VARIANT", "FREETURN")
                                 putExtra("EXTRA_FREETURN_CONFIG_JSON", Gson().toJson(config))
