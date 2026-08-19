@@ -138,6 +138,26 @@ sealed class KernelConfig {
     }
 }
 
+// ClientConfig and Profile both just hold a KernelConfig - kept as extensions here so neither
+// has to duplicate this when() themselves.
+val KernelConfig.variant: KernelVariant get() = when (this) {
+    is KernelConfig.Turnable -> KernelVariant.TURNABLE
+    is KernelConfig.Olcrtc -> KernelVariant.OLCRTC
+    is KernelConfig.Webdav -> KernelVariant.WEBDAV
+    is KernelConfig.FreeTurn -> KernelVariant.FREETURN
+}
+
+fun KernelConfig.description(context: Context): String = when (this) {
+    is KernelConfig.Turnable -> {
+        val route = config.routes.find { it.routeId == config.selectedRouteId }
+        val routeName = route?.name?.ifBlank { route.routeId } ?: config.selectedRouteId
+        context.getString(R.string.kernel_turnable) + " r:" + routeName
+    }
+    is KernelConfig.Olcrtc -> context.getString(R.string.kernel_olcrtc) + " " + config.providerDisplayName
+    is KernelConfig.Webdav -> context.getString(R.string.kernel_webdav) + " " + WebdavConfig.formatHost(config.webdav)
+    is KernelConfig.FreeTurn -> context.getString(R.string.kernel_freeturn) + " " + config.addressLabel()
+}
+
 data class TurnableRoute(
     @SerializedName("route_id") val routeId: String = "",
     @SerializedName("name") val name: String = "",
@@ -645,6 +665,22 @@ data class FreeTurnConfig(
 ) {
     fun isValid(): Boolean = links.isNotBlank() && (peer.isNotBlank() || sub.isNotBlank())
 
+    /**
+     * Masked address for display: the peer host:port if set, otherwise the subscription URL's
+     * host (peer is optional when a subscription supplies the server list - see [isValid]), or
+     * finally the provider name if neither is set.
+     */
+    fun addressLabel(): String {
+        // When both are set, the running client actually uses the subscription's node - it
+        // fetches -sub and unconditionally overwrites -peer with the node's own address
+        // (see external/free-turn-proxy: cmd/client/main.go + internal/config/raw.go
+        // applyURI's `if u.Peer != "" { r.Peer = u.Peer }`), so sub must win here too.
+        val subHost = if (sub.isNotBlank()) try { Uri.parse(sub).host } catch (_: Exception) { null } else null
+        if (!subHost.isNullOrBlank()) return maskPeer(subHost)
+        if (peer.isNotBlank()) return maskPeer(peer)
+        return provider
+    }
+
     fun sanitize(): FreeTurnConfig = copy(
         provider = (provider as Any?)?.toString()?.trim()?.take(32) ?: "vk",
         peer = (peer as Any?)?.toString()?.trim()?.take(500) ?: "",
@@ -685,6 +721,28 @@ data class FreeTurnConfig(
     }
 
     companion object {
+        /**
+         * Masks the middle of a peer host:port for display (e.g. "123.45.67.89:56000" ->
+         * "123.***.**.89:56000") - keeps the first/last IPv4 octet and the port visible so the
+         * value still means something at a glance, without exposing the full server address.
+         */
+        fun maskPeer(peer: String): String {
+            if (peer.isBlank()) return peer
+            val colonIdx = peer.lastIndexOf(':')
+            val host = if (colonIdx > 0) peer.substring(0, colonIdx) else peer
+            val port = if (colonIdx > 0) peer.substring(colonIdx) else ""
+            val octets = host.split(".")
+            val maskedHost = if (octets.size == 4 && octets.all { it.isNotEmpty() && it.all(Char::isDigit) }) {
+                octets.mapIndexed { i, o -> if (i == 0 || i == octets.lastIndex) o else "*".repeat(o.length) }
+                    .joinToString(".")
+            } else if (host.length > 4) {
+                host.take(2) + "*".repeat(host.length - 4) + host.takeLast(2)
+            } else {
+                "*".repeat(host.length)
+            }
+            return maskedHost + port
+        }
+
         fun parse(url: String, current: FreeTurnConfig = FreeTurnConfig()): FreeTurnConfig? {
             if (!url.startsWith("freeturn://", ignoreCase = true)) return null
             return try {
@@ -737,12 +795,7 @@ data class ClientConfig(
     @SerializedName("freeturnUrl") val freeturnUrl: String = ""
     // --- END LEGACY ---
 ) {
-    val kernelVariant: KernelVariant get() = when (kernelConfig) {
-        is KernelConfig.Turnable -> KernelVariant.TURNABLE
-        is KernelConfig.Olcrtc -> KernelVariant.OLCRTC
-        is KernelConfig.Webdav -> KernelVariant.WEBDAV
-        is KernelConfig.FreeTurn -> KernelVariant.FREETURN
-    }
+    val kernelVariant: KernelVariant get() = kernelConfig.variant
 
     fun fillDefaults(): ClientConfig {
         val cleanedUser = ValidatorUtils.cleanProxyString(socksUser)
@@ -809,16 +862,7 @@ data class ClientConfig(
 
     val isValid: Boolean get() = getValidationErrorResId() == null
 
-    fun getKernelDescription(context: Context): String = when (val k = kernelConfig) {
-        is KernelConfig.Turnable -> {
-            val route = k.config.routes.find { it.routeId == k.config.selectedRouteId }
-            val routeName = route?.name?.ifBlank { route.routeId } ?: k.config.selectedRouteId
-            context.getString(R.string.kernel_turnable) + " r:" + routeName
-        }
-        is KernelConfig.Olcrtc -> context.getString(R.string.kernel_olcrtc) + " " + k.config.providerDisplayName
-        is KernelConfig.Webdav -> context.getString(R.string.kernel_webdav) + " " + WebdavConfig.formatHost(k.config.webdav)
-        is KernelConfig.FreeTurn -> context.getString(R.string.kernel_freeturn) + " " + k.config.peer.take(15)
-    }
+    fun getKernelDescription(context: Context): String = kernelConfig.description(context)
 
     companion object {
         const val DEFAULT_LISTEN_ADDR = "127.0.0.1:9000"
@@ -1007,12 +1051,7 @@ data class Profile(
     @SerializedName("xrayConfig") private val oldXrayConfig: JsonElement? = null
     // --- END TEMPORARY MIGRATION FIELDS ---
 
-    val kernelVariant: KernelVariant get() = when (kernelConfig) {
-        is KernelConfig.Turnable -> KernelVariant.TURNABLE
-        is KernelConfig.Olcrtc -> KernelVariant.OLCRTC
-        is KernelConfig.Webdav -> KernelVariant.WEBDAV
-        is KernelConfig.FreeTurn -> KernelVariant.FREETURN
-    }
+    val kernelVariant: KernelVariant get() = kernelConfig.variant
 
     val turnableConfig: TurnableConfig get() = (kernelConfig as? KernelConfig.Turnable)?.config ?: TurnableConfig()
     val olcrtcConfig: OlcrtcConfig get() = (kernelConfig as? KernelConfig.Olcrtc)?.config ?: OlcrtcConfig()
@@ -1136,17 +1175,7 @@ data class Profile(
         )
     }
 
-    fun getKernelDescription(context: Context): String = when (val k = kernelConfig) {
-        is KernelConfig.Turnable -> {
-            val route = k.config.routes.find { it.routeId == k.config.selectedRouteId }
-            val routeName = route?.name?.ifBlank { route.routeId } ?: k.config.selectedRouteId
-            context.getString(R.string.kernel_turnable) + " r:" + routeName
-        }
-
-        is KernelConfig.Olcrtc -> context.getString(R.string.kernel_olcrtc) + " " + k.config.providerDisplayName
-        is KernelConfig.Webdav -> context.getString(R.string.kernel_webdav) + " " + WebdavConfig.formatHost(k.config.webdav)
-        is KernelConfig.FreeTurn -> context.getString(R.string.kernel_freeturn) + " " + k.config.peer.ifBlank { k.config.provider }
-    }
+    fun getKernelDescription(context: Context): String = kernelConfig.description(context)
 }
 
 data class VpnSettings(

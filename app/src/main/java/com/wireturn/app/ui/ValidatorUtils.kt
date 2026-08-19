@@ -104,6 +104,21 @@ object ValidatorUtils {
         }
     }
 
+    /**
+     * Проверяет, является ли строка валидной http(s) ссылкой с непустым хостом.
+     * Пустая строка считается невалидной.
+     */
+    fun isValidUrl(input: String): Boolean {
+        if (input.isBlank()) return false
+        return try {
+            val uri = input.toUri()
+            (uri.scheme.equals("http", ignoreCase = true) || uri.scheme.equals("https", ignoreCase = true)) &&
+                    !uri.host.isNullOrBlank()
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     fun isValidProxyUser(input: String): Boolean {
         if (input.isBlank()) return true
         return input.all { it in 'a'..'z' || it in 'A'..'Z' || it.isDigit() || it == '-' || it == '_' || it == '.' } && input.length >= 3

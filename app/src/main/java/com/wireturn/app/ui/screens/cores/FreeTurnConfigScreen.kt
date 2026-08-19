@@ -352,7 +352,8 @@ fun FreeTurnConfigScreen(
                         onValueChange = { if (!isPrivacyActive) config = config.copy(sub = it) },
                         readOnly = isPrivacyActive,
                         isModified = isEditMode && config.sub != initialConfig.sub,
-                        isError = config.peer.isBlank() && config.sub.isBlank(),
+                        isError = (config.peer.isBlank() && config.sub.isBlank()) ||
+                            (config.sub.isNotBlank() && !ValidatorUtils.isValidUrl(config.sub)),
                         privacyMode = isPrivacyActive
                     )
                 }
