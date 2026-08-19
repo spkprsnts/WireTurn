@@ -37,6 +37,8 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -55,6 +57,15 @@ class CoreService : Service() {
     private val userStopped = AtomicBoolean(false)
     private val isStarted = AtomicBoolean(false)
     private val currentRunningCfg = AtomicReference<ClientConfig?>(null)
+    // Serializes stopBinaryProcessGracefully() across all its callers (onStartCommand's per-request
+    // coroutines, the Suppressed/hot-reload/network-change collectors, handleStopAction, runBinary's
+    // own finally). Rapid successive profile switches each spawn a sibling coroutine under
+    // serviceScope's SupervisorJob - previousJob?.cancelAndJoin() only awaits its immediate
+    // predecessor, so under 3+ switches within the ~2s SIGTERM grace period that chain can be cut
+    // short and a new binary could start before the old one's process actually exited. This mutex
+    // makes every stop attempt wait for whichever one is already in flight, so no caller can start a
+    // new process until the previous one is confirmed dead, no matter how many requests overlap.
+    private val stopMutex = Mutex()
     private val availablePhysicalNetworks = java.util.concurrent.ConcurrentHashMap.newKeySet<Network>()
     
     private val handler = Handler(Looper.getMainLooper())
@@ -1116,8 +1127,8 @@ class CoreService : Service() {
         AppLogsState.addLog(getString(R.string.error_critical_format, e.message))
     }
 
-    private suspend fun stopBinaryProcessGracefully() {
-        val proc = process.getAndSet(null) ?: return
+    private suspend fun stopBinaryProcessGracefully() = stopMutex.withLock {
+        val proc = process.getAndSet(null) ?: return@withLock
         withContext(Dispatchers.IO) {
             sendSigTerm(proc)
             try {
