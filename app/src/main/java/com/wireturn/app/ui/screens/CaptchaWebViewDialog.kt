@@ -117,32 +117,43 @@ fun CaptchaWebViewDialog(
 
     val captchaCss = remember(captchaStyleMod, captchaForceTint, tintFilter) {
         if (captchaStyleMod) {
+            // VK's CSS module class names carry a per-build hash suffix (e.g.
+            // "ModalCardBase__container--Obeop") that rotates on every widget deploy - matching
+            // on the stable "ModuleName__member--" prefix via [class*=] survives those rotations,
+            // unlike a hardcoded full class name.
             """
-                html, body, .vkc__ModalOverlay-module__host, .vkc__ModalCardBase-module__container { 
-                    background: transparent !important; 
-                    background-color: transparent !important; 
-                    box-shadow: none !important; 
+                html, body, [class*="ModalOverlay__host--"], [class*="ModalCardBase__container--"] {
+                    background: transparent !important;
+                    background-color: transparent !important;
+                    box-shadow: none !important;
                 }
-                .vkc__ModalCardBase-module__container {
+                [class*="ModalCardBase__container--"] {
                     padding: 0 !important;
                     ${if (captchaForceTint) "filter: $tintFilter !important;" else ""}
                 }
-                .vkc__NotRobotCaptcha-module__appRoot > div,
-                .vkc__ModalCard-module__hostMobile {
+                [class*="NotRobotCaptcha__appRoot--"] > div,
+                [class*="ModalCard__hostMobile--"] {
                     animation: none !important;
                     transition: none !important;
                     transform: none !important;
                 }
-                .vkc__ModalCardBase-module__dismiss, 
-                .vkc__CheckboxPopupCaptcha-module__captchaId, 
-                .vkc__CheckboxPopupCaptcha-module__termsLink { 
-                    display: none !important; 
+                [class*="ModalCardBase__dismiss--"],
+                [class*="CheckboxPopupCaptcha__captchaId--"],
+                [class*="CheckboxPopupCaptcha__termsLink--"] {
+                    display: none !important;
                 }
-                .vkc__CheckboxPopupCaptcha-module__checkboxBlock { 
+                [class*="CheckboxPopupCaptcha__checkboxBlock--"] {
                     padding: 0 !important;
                 }
-                .vkc__Checkbox-module__Checkbox { 
+                [class*="Checkbox__Checkbox--"] {
                     transform: scale(1.2) !important;
+                }
+                /* free-turn-proxy's own captcha proxy (когда активное ядро - FreeTurn) инжектит
+                   поверх страницы баннер "free turn proxy - captcha" без класса/id - только через
+                   style.cssText (internal/provider/vk/internal/captcha/manual/inject.js,
+                   showPending()). Ловим его по этому же инлайн-стилю. */
+                body > div[style*="z-index:99999"] {
+                    display: none !important;
                 }
             """.trimIndent()
         } else {
@@ -228,6 +239,11 @@ fun CaptchaWebViewDialog(
                     if (isViewModelInitialized) {
                     AndroidView(
                         factory = { ctx ->
+                            // Lets chrome://inspect see this WebView over USB for debugging captcha
+                            // page changes - only in debug builds, never in release.
+                            if ((ctx.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+                                WebView.setWebContentsDebuggingEnabled(true)
+                            }
                             WebView(ctx).apply {
                                 // Устанавливаем программный тип слоя для лучшей поддержки прозрачности
                                 setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
@@ -284,14 +300,14 @@ fun CaptchaWebViewDialog(
 
                                                 const applyTheme = function() {
                                                     if (!window.__wireturnCaptcha.styleModEnabled) return;
-                                                    const appRoot = document.querySelector('.vkc__AppRoot-module__host');
+                                                    const appRoot = document.querySelector('[class*="AppRoot__host--"]');
                                                     if (!appRoot) return;
 
                                                     const isDark = window.__wireturnCaptcha.isDark;
-                                                    const target = isDark ? 'vkui--vkAccessibilityIOS--dark' : 'vkui--vkAccessibilityIOS--light';
+                                                    const target = isDark ? 'vkui--vkAccessibility--dark' : 'vkui--vkAccessibility--light';
                                                     const others = isDark ?
-                                                        ['vkui--vkAccessibility--dark', 'vkui--vkAccessibilityIOS--light', 'vkui--vkAccessibility--light'] :
-                                                        ['vkui--vkAccessibility--dark', 'vkui--vkAccessibilityIOS--dark', 'vkui--vkAccessibility--light'];
+                                                        ['vkui--vkAccessibility--light', 'vkui--vkAccessibilityIOS--dark', 'vkui--vkAccessibilityIOS--light'] :
+                                                        ['vkui--vkAccessibility--dark', 'vkui--vkAccessibilityIOS--dark', 'vkui--vkAccessibilityIOS--light'];
 
                                                     let needsUpdate = !appRoot.classList.contains(target);
                                                     if (!needsUpdate) {
@@ -367,13 +383,28 @@ fun CaptchaWebViewDialog(
                                                 };
 
                                                 // Опрос виден только для авторазмера/показа диалога, к успеху
-                                                // отношения не имеет.
+                                                // отношения не имеет - за исключением проверки ниже.
                                                 const checkVisibility = function() {
                                                     if (window.__wireturnCaptcha.styleModEnabled) applyTheme();
 
+                                                    // free-turn-proxy's own captcha proxy (когда активное ядро -
+                                                    // FreeTurn) инжектит свой inject.js прямо в HTML на сервере
+                                                    // (internal/provider/vk/internal/captcha/manual/inject.js).
+                                                    // Он слушает тот же success_token с captchaNotRobot.check, что
+                                                    // и markSuccess выше, но при успехе полностью заменяет
+                                                    // document.body своим экраном "free turn proxy / gg" вместо
+                                                    // виджета VK - тогда дальнейший опрос диалога ниже уже ничего
+                                                    // не найдёт. Считаем этот экран равнозначным сигналом успеха.
+                                                    if (!window.__wireturnCaptcha.success) {
+                                                        const bodyHtml = document.body.innerHTML;
+                                                        if (bodyHtml.indexOf('free turn proxy') !== -1 && bodyHtml.indexOf('>gg<') !== -1) {
+                                                            window.__wireturnCaptcha.success = true;
+                                                        }
+                                                    }
+
                                                     const dialog = document.querySelector('[role="dialog"]') ||
-                                                                 document.querySelector('.vkc__ModalCardBase-module__container') ||
-                                                                 document.querySelector('.vkc__Captcha-module__container') ||
+                                                                 document.querySelector('[class*="ModalCardBase__container--"]') ||
+                                                                 document.querySelector('[class*="Captcha__container--"]') ||
                                                                  document.querySelector('body > div');
 
                                                     if (dialog) {
