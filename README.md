@@ -10,43 +10,29 @@ Android-клиент для [Turnable](https://github.com/TheAirBlow/Turnable), 
 
 ## Принцип работы
 
-WireTurn интегрирует возможности **Turnable**, **olcRTC**, **WebDAV** и **FreeTurn** в Android, позволяя упаковывать трафик в стандартные протоколы WebRTC (**DTLS** или **SRTP**) или передавать его через облачные хранилища.
+WireTurn упаковывает трафик в стандартные протоколы WebRTC (**DTLS**/**SRTP**) или передаёт его через облачные хранилища, в зависимости от выбранного ядра.
 
 ### Turnable
-Обеспечивает туннелирование TCP/UDP трафика через TURN-серверы или SFU-платформы.
-- **Multi-Peer:** Распределяет трафик по нескольким параллельным WebRTC-соединениям (пирам) для повышения пропускной способности и стабильности.
-- **Мультиплексирование:** Позволяет эффективно передавать множество независимых потоков данных внутри установленных сессий.
-- **Имитация медиа-трафика:** Опционально использует **SRTP** (Secure RTP) с DTLS-рукопожатием, маскируя пакеты под зашифрованный видеопоток (VP8). Это необходимо для работы через SFU-платформы в режиме Relay.
-- **Шифрование:** Обязательное сквозное шифрование для рукопожатия и настраиваемое шифрование для передаваемых данных.
+Туннелирование TCP/UDP через TURN-серверы или SFU-платформы: несколько параллельных пиров (Multi-Peer) для пропускной способности и стабильности, мультиплексирование потоков, опциональная имитация видеотрафика (SRTP/DTLS поверх VP8) для работы через SFU в режиме Relay, сквозное шифрование рукопожатия.
 
 ### olcRTC
-Туннелирование через платформы видеоконференций с использованием различных WebRTC-транспортов. Реализует SOCKS5-прокси для подключения:
-- **DataChannel**: Передача через стандартные каналы данных WebRTC (SCTP). Обеспечивает высокую скорость и низкие задержки.
-- **VP8Channel**: Стеганография внутри видеопотока VP8. Пакеты маскируются под валидные ключевые кадры видео и передаются с использованием надежного протокола KCP поверх них.
-- **SEIChannel**: Упаковка данных в метаданные видеопотока H.264. Использует Supplemental Enhancement Information (SEI) сообщения для скрытой передачи пакетов.
-- **VideoChannel**: Визуальная стеганография. Данные кодируются в QR-коды или специальные графические тайлы и транслируются как реальный видеопоток.
+Туннелирование через платформы видеоконференций с SOCKS5-прокси на клиенте. Транспорты: **DataChannel** (SCTP, низкая задержка), **VP8Channel** (стеганография в видеопотоке через KCP), **SEIChannel** (упаковка в SEI-метаданные H.264), **VideoChannel** (визуальная стеганография — QR-коды/графические тайлы).
 
 ### WebDAV
-Туннелирование трафика через любое WebDAV-совместимое облачное хранилище.
-- **Polling:** Работает через периодические запросы к серверу для получения и отправки данных.
-- **Скрытность:** Трафик полностью имитирует работу с облачным диском по протоколу HTTPS.
-- **Универсальность:** Поддержка большинства популярных WebDAV-провайдеров.
+Туннелирование через любое WebDAV-совместимое облачное хранилище: передача данных поллингом, трафик неотличим от обычной работы с облачным диском по HTTPS.
 
 ### FreeTurn
-Улучшенная версия протоколов туннелирования через WebRTC.
-- **Подписки:** Поддержка URL-адресов подписок для автоматического обновления списка серверов.
-- **Масштабируемость:** Оптимизированная работа с большим количеством параллельных потоков и гибкая настройка обфускации.
-- **Интеграция:** Поддержка ручного решения капчи через встроенный браузер для бесперебойной работы.
+Туннелирование через WebRTC поверх UDP с подпиской на список серверов (поддерживаются как обычные, так и Base64-закодированные подписки), гибкой настройкой обфускации/транспорта до TURN-relay и ручным решением капчи через встроенный браузер при необходимости.
 
 ## Возможности
 
-- **Xray-core** — встроенный прокси-движок для работы с VLESS и WireGuard в режиме локального SOCKS5/HTTP прокси.
-- **Dual-route (VLESS)** — интеллектуальная маршрутизация: автоматическое переключение на прямой адрес сервера при его доступности, минуя WebRTC-туннель для снижения задержек.
-- **VPN Mode & Split Tunneling** — полноценный VPN-режим (TUN) с поддержкой исключения (Bypass) и включения (Include) конкретных приложений.
-- **Система профилей** — создание независимых конфигураций, поддержка массового импорта и удобное управление.
-- **Быстрое управление** — смена профиля из уведомления, Quick Settings Tile и автоматизация через Intent API.
-- **Умное ожидание сети** — автоматическое восстановление туннеля при появлении интернета без лишних уведомлений об ошибках.
-- **Material 3 Expressive** — современный интерфейс с поддержкой динамических цветов и expressive motion анимаций.
+- **Xray-core** — встроенный движок для VLESS/Trojan/Hysteria2 и WireGuard в режиме локального SOCKS5/HTTP-прокси.
+- **Dual-route** — автоматическое переключение на прямой адрес сервера при его доступности, минуя WebRTC-туннель, для снижения задержек.
+- **VPN-режим и Split Tunneling** — полноценный TUN-режим с исключением (Bypass) или включением (Include) конкретных приложений.
+- **Профили и подписки** — независимые конфигурации, массовый импорт, автообновление по расписанию с учётом квоты трафика; импорт по диплинкам `wireturn://` и `wt://`. Подробности — в [спецификации подписок и профилей](docs/subscriptions.md).
+- **Быстрое управление** — смена профиля из уведомления, Quick Settings Tile и Intent API.
+- **Умное ожидание сети** — восстановление туннеля при появлении интернета без лишних уведомлений об ошибках.
+- **Material 3 Expressive** — динамические цвета и expressive motion анимации.
 
 ## Автоматизация (Intent API)
 
@@ -63,56 +49,43 @@ WireTurn интегрирует возможности **Turnable**, **olcRTC**,
   <img src="docs/screenshots/screenshot_4.png" width="130" alt="Screenshot 4" />
   <img src="docs/screenshots/screenshot_5.png" width="130" alt="Screenshot 5" />
   <img src="docs/screenshots/screenshot_6.png" width="130" alt="Screenshot 6" />
+  <img src="docs/screenshots/screenshot_7.png" width="130" alt="Screenshot 7" />
 </p>
 
 ## Быстрый старт
 
 ### Требования
-- Android 8.0+ (API 26)
-- Архитектуры: `arm64-v8a`, `x86_64`
-- VPS для размещения серверной части (сервер Turnable, olcRTC, FreeTurn или WebDAV) или аккаунт в облачном сервисе с поддержкой WebDAV.
+- Android 8.0+ (API 26), архитектуры `arm64-v8a`/`x86_64`.
+- VPS для серверной части (Turnable, olcRTC, FreeTurn или WebDAV) либо аккаунт в облаке с поддержкой WebDAV.
 
 ### Настройка
-Подробные инструкции по настройке серверной части и клиента WireTurn доступны в следующих руководствах:
-
 - **[Настройка сервера Turnable](docs/guides/turnable.md)**
 - **[Настройка сервера olcRTC](docs/guides/olcrtc.md)**
-- **[Спецификация генерации профилей (JSON)](docs/generate_profiles.md)**
+- **[Спецификация подписок и профилей](docs/subscriptions.md)**
 
 ## Стек технологий
 
-- **Kotlin** + **Jetpack Compose** (Material 3 Expressive)
-- **Native Components (C/Go)** (автоматическая сборка из исходников через Git-субмодули):
-    - `libturnable.so` — реализация Turnable ([TheAirBlow/Turnable](https://github.com/TheAirBlow/Turnable)).
-    - `libolcrtc.so` — реализация olcRTC ([openlibrecommunity/olcrtc](https://github.com/openlibrecommunity/olcrtc)).
-    - `libwebdav.so` — реализация WebDAV ([spkprsnts/webdav-tunnel](https://github.com/spkprsnts/webdav-tunnel)).
-    - `libfreeturn.so` — реализация FreeTurn ([samosvalishe/free-turn-proxy](https://github.com/samosvalishe/free-turn-proxy)).
-    - `libxray.so` — движок Xray ([spkprsnts/vless-client](https://github.com/spkprsnts/vless-client)).
-    - `libhevsocks5.so` — сетевой стек для VPN-режима ([heiher/hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel)).
+**Kotlin** + **Jetpack Compose** (Material 3 Expressive). Нативные компоненты (C/Go) собираются из исходников через Git-субмодули:
+
+- `libturnable.so` — [TheAirBlow/Turnable](https://github.com/TheAirBlow/Turnable)
+- `libolcrtc.so` — [openlibrecommunity/olcrtc](https://github.com/openlibrecommunity/olcrtc)
+- `libwebdav.so` — [spkprsnts/webdav-tunnel](https://github.com/spkprsnts/webdav-tunnel)
+- `libfreeturn.so` — [samosvalishe/free-turn-proxy](https://github.com/samosvalishe/free-turn-proxy)
+- `libxray.so` — [spkprsnts/vless-client](https://github.com/spkprsnts/vless-client)
+- `libhevsocks5.so` — сетевой стек VPN-режима, [heiher/hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel)
 
 ## Для разработчиков
 
-Проект поддерживает автоматизированную сборку нативных компонентов через Gradle-задачи.
+Сборка нативных библиотек (`.so`) автоматизирована через Gradle-задачи; рекомендуется **Linux** (Ubuntu/Debian) или **Windows + WSL2**.
 
-### Требования к окружению
-Для сборки нативных библиотек (`.so`) рекомендуется использовать **Linux** (Ubuntu/Debian) или **Windows + WSL2**.
+Зависимости: `build-essential`, `pkg-config`, `golang` (1.23+), `openjdk-21-jdk`, `python3`, `git`, `curl`.
 
-В системе должны быть установлены следующие зависимости:
-- **Инструменты сборки**: `build-essential`, `pkg-config`.
-- **Языки и окружение**: `golang` (1.23+), `openjdk-21-jdk`, `python3`, `git`, `curl`.
-
-Команда для установки всех зависимостей в Ubuntu/Debian:
 ```bash
 sudo apt update && sudo apt install -y build-essential pkg-config git curl golang-go openjdk-21-jdk python3
-```
 
-### Сборка
-```bash
 git clone --recursive https://github.com/spkprsnts/WireTurn.git
-# Сборка всех нативных компонентов (займет время)
-./gradlew buildCBinaries buildGoBinaries
-# Сборка APK
-./gradlew assembleDebug
+./gradlew buildCBinaries buildGoBinaries   # нативные компоненты
+./gradlew assembleDebug                    # APK
 ```
 
 ## Упоминания
