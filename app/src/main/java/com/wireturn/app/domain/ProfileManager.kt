@@ -463,11 +463,25 @@ class ProfileManager(
 
                 usedInThisBatchIds.add(newId)
 
-                val profile = p.sanitize(defaultName).copy(
+                val sanitized = p.sanitize(defaultName)
+                // Text subscriptions (and JSON entries that just don't bother) carry no Xray config of
+                // their own, so `sanitized` comes back with the all-defaults/empty state here. Without
+                // this check, every refresh would blow away Xray/dual-route settings the user configured
+                // locally on top of the subscription's tunnel config. Only fall back to the previous
+                // local values when the subscription didn't actually specify anything Xray-related -
+                // if it did (a JSON sub explicitly setting vlessConfig/wgConfig), that takes precedence.
+                val subscriptionHasXrayConfig = sanitized.xrayEnabled ||
+                    sanitized.wgConfig.isValid() ||
+                    sanitized.vlessConfig.isValid()
+                val profile = sanitized.copy(
                     id = newId,
                     name = name,
                     subscriptionId = subscriptionId,
-                    subscriptionSourceId = subscriptionId?.let { sourceId }
+                    subscriptionSourceId = subscriptionId?.let { sourceId },
+                    xrayEnabled = if (!subscriptionHasXrayConfig && existing != null) existing.xrayEnabled else sanitized.xrayEnabled,
+                    xrayProtocol = if (!subscriptionHasXrayConfig && existing != null) existing.xrayProtocol else sanitized.xrayProtocol,
+                    wgConfig = if (!subscriptionHasXrayConfig && existing != null) existing.wgConfig else sanitized.wgConfig,
+                    vlessConfig = if (!subscriptionHasXrayConfig && existing != null) existing.vlessConfig else sanitized.vlessConfig
                 )
 
                 if (existing != null) {
@@ -969,6 +983,32 @@ class ProfileManager(
                         "comment" -> {
                             if (currentProfile?.name?.contains("Server") == true) {
                                 currentProfile = currentProfile?.copy(name = value)
+                            }
+                        }
+                        "xray" -> {
+                            // A raw VLESS/Trojan/Hysteria2 link for the current profile's Xray leg.
+                            if (com.wireturn.app.ui.ValidatorUtils.isValidVlessLink(value)) {
+                                currentProfile = currentProfile?.copy(
+                                    xrayEnabled = true,
+                                    xrayProtocol = com.wireturn.app.data.XrayConfiguration.VLESS,
+                                    vlessConfig = com.wireturn.app.data.VlessConfig(vlessLink = value)
+                                )
+                            }
+                        }
+                        "xray-wg" -> {
+                            // WireGuard is a multi-line [Interface]/[Peer] config, so it can't be a bare
+                            // link like ##xray - the value is that config text, base64-encoded to fit on
+                            // one line (plain, not URL-safe - matches how panels commonly wrap wg-quick).
+                            val decoded = try {
+                                String(android.util.Base64.decode(value, android.util.Base64.DEFAULT), Charsets.UTF_8)
+                            } catch (_: Exception) { null }
+                            val wg = decoded?.let { com.wireturn.app.data.WgConfig.parse(it) }
+                            if (wg != null && wg.isValid()) {
+                                currentProfile = currentProfile?.copy(
+                                    xrayEnabled = true,
+                                    xrayProtocol = com.wireturn.app.data.XrayConfiguration.WIREGUARD,
+                                    wgConfig = wg
+                                )
                             }
                         }
                     }
