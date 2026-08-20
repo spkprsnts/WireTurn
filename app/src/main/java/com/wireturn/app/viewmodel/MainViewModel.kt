@@ -724,18 +724,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         selectProfileAndRestart(it.id, it)
                     }
                 }
-                val result = importProfiles(listOf(null to json))
-                val targetId = if (result.added > 0 || result.updated > 0) {
-                    // Try to find the first imported profile ID
-                    try {
-                        val element = com.google.gson.JsonParser.parseString(json)
-                        if (element.isJsonArray) {
-                            element.asJsonArray.firstOrNull()?.asJsonObject?.get("id")?.asString
-                        } else {
-                            element.asJsonObject.get("id")?.asString
-                        }
-                    } catch(_: Exception) { null }
-                } else null
+                val (result, imported) = importProfilesWithResult(listOf(null to json))
+                val targetId = if (result.added > 0 || result.updated > 0) imported.firstOrNull()?.id else null
                 return com.wireturn.app.domain.ImportStatus.Success(targetId, result)
             }
         }
@@ -744,16 +734,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         try {
             val element = com.google.gson.JsonParser.parseString(trimmed)
             if (element.isJsonObject || element.isJsonArray) {
-                val result = importProfiles(listOf(null to trimmed))
+                val (result, imported) = importProfilesWithResult(listOf(null to trimmed))
                 if (result.total > 0) {
-                    val targetId = try {
-                        if (element.isJsonArray) {
-                            element.asJsonArray.firstOrNull()?.asJsonObject?.get("id")?.asString
-                        } else {
-                            element.asJsonObject.get("id")?.asString
-                        }
-                    } catch(_: Exception) { null }
-                    return com.wireturn.app.domain.ImportStatus.Success(targetId, result)
+                    return com.wireturn.app.domain.ImportStatus.Success(imported.firstOrNull()?.id, result)
                 }
             }
         } catch (_: Exception) {

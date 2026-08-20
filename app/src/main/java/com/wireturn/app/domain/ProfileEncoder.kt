@@ -40,7 +40,7 @@ object ProfileEncoder {
             }
             inflater.end()
             bos.toString("UTF-8")
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }

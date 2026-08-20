@@ -5,6 +5,8 @@ import androidx.core.util.PatternsCompat
 import com.google.common.net.HostAndPort
 import com.google.common.net.InetAddresses
 import com.wireturn.app.R
+import com.wireturn.app.data.KernelConfig
+import com.wireturn.app.data.XrayConfiguration
 
 enum class UriProtocol { VLESS, TROJAN, HYSTERIA2 }
 
@@ -137,5 +139,28 @@ object ValidatorUtils {
         if (input.isBlank()) return false
         val regex = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$")
         return regex.matches(input)
+    }
+
+    /**
+     * Route's own socket type is authoritative (tcp -> VLESS/Trojan, udp -> WireGuard/Hysteria2) -
+     * see external/turnable/docs/REFERENCE.md. Mismatch is possible on Turnable/FreeTurn only,
+     * where the kernel itself exposes a fixed tcp/udp entry point. FreeTurn dropped its tcp tunnel
+     * mode entirely (v3.0.0+) - it's udp-only now, unconditionally. Returns the kernel's required
+     * socket ("tcp"/"udp") if it conflicts with what xrayProtocol/vlessLink actually need, else null.
+     */
+    fun kernelTransportMismatch(kernelConfig: KernelConfig?, xrayProtocol: XrayConfiguration, vlessLink: String): String? {
+        val kernelRequiredSocket = when (kernelConfig) {
+            is KernelConfig.Turnable -> kernelConfig.config.routes.find { it.routeId == kernelConfig.config.selectedRouteId }
+                ?.socket?.lowercase()?.takeIf { it == "tcp" || it == "udp" }
+            is KernelConfig.FreeTurn -> "udp"
+            else -> null
+        } ?: return null
+
+        val xrayNeedsUdp = when (xrayProtocol) {
+            XrayConfiguration.WIREGUARD -> true
+            XrayConfiguration.VLESS -> detectUriProtocol(vlessLink) == UriProtocol.HYSTERIA2
+        }
+        val requiredForXray = if (xrayNeedsUdp) "udp" else "tcp"
+        return kernelRequiredSocket.takeIf { it != requiredForXray }
     }
 }

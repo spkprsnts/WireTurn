@@ -446,6 +446,27 @@ fun ProfilesDialog(
         derivedStateOf { subscriptions.map { sub -> sub to profiles.filter { it.subscriptionId == sub.id } } }
     }
 
+    fun findLazyIndex(targetId: String): Int {
+        val hasStandaloneGuard = standaloneProfiles.isNotEmpty()
+        val standaloneIdx = standaloneProfiles.indexOfFirst { it.id == targetId }
+        if (standaloneIdx != -1) {
+            return if (hasStandaloneGuard) standaloneIdx + 1 else standaloneIdx
+        }
+
+        var runningIndex = if (hasStandaloneGuard) standaloneProfiles.size + 1 else standaloneProfiles.size
+        for ((sub, subProfiles) in subscriptionGroups) {
+            if (sub.id == targetId) return runningIndex
+
+            val inSubIdx = subProfiles.indexOfFirst { it.id == targetId }
+            if (inSubIdx != -1) {
+                return runningIndex + 1 + inSubIdx
+            }
+            runningIndex += 1 // header
+            runningIndex += if (subProfiles.isEmpty()) 1 else subProfiles.size
+        }
+        return -1
+    }
+
     val lazyListState = rememberLazyListState()
     var autoScrollSpeed by remember { mutableFloatStateOf(0f) }
     var fingerAbsoluteY by remember { mutableFloatStateOf(0f) }
@@ -518,6 +539,31 @@ fun ProfilesDialog(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    // Listens for scroll-to-profile requests for the dialog's whole lifetime - a single persistent
+    // subscription, not re-created on every profilesSource change (that used to leak a new collector
+    // per list change, see the LaunchedEffect(profilesSource) below for the list-sync logic itself).
+    LaunchedEffect(Unit) {
+        com.wireturn.app.ui.UIEventBus.scrollRequest.collect { targetId ->
+            // Подсвечиваем цель и всё связанное (профили подписки или заголовок профиля)
+            val relatedIds = mutableListOf(targetId)
+            profilesSource.filter { it.subscriptionId == targetId }.forEach { relatedIds.add(it.id) }
+            profilesSource.find { it.id == targetId }?.subscriptionId?.let { relatedIds.add(it) }
+
+            val uniqueRelated = relatedIds.distinct()
+            highlightedIds.addAll(uniqueRelated)
+            scope.launch {
+                delay(1_000.milliseconds)
+                highlightedIds.removeAll(uniqueRelated)
+            }
+
+            delay(100.milliseconds)
+            val targetLazyIndex = findLazyIndex(targetId)
+            if (targetLazyIndex != -1) {
+                lazyListState.animateScrollToItem(targetLazyIndex)
+            }
+        }
+    }
+
     // Sync local list with source of truth only when NOT dragging
     LaunchedEffect(profilesSource) {
         if (optimisticSelectedId != null && profilesSource.none { it.id == optimisticSelectedId }) {
@@ -559,51 +605,6 @@ fun ProfilesDialog(
             // Scroll logic
             scope.launch {
                 delay(150.milliseconds) // Wait for layout update
-
-                val hasStandaloneGuard = standaloneProfiles.isNotEmpty()
-
-                fun findLazyIndex(targetId: String): Int {
-                    val standaloneIdx = standaloneProfiles.indexOfFirst { it.id == targetId }
-                    if (standaloneIdx != -1) {
-                        return if (hasStandaloneGuard) standaloneIdx + 1 else standaloneIdx
-                    }
-                    
-                    var runningIndex = if (hasStandaloneGuard) standaloneProfiles.size + 1 else standaloneProfiles.size
-                    for ((sub, subProfiles) in subscriptionGroups) {
-                        if (sub.id == targetId) return runningIndex
-                        
-                        val inSubIdx = subProfiles.indexOfFirst { it.id == targetId }
-                        if (inSubIdx != -1) {
-                            return runningIndex + 1 + inSubIdx
-                        }
-                        runningIndex += 1 // header
-                        runningIndex += if (subProfiles.isEmpty()) 1 else subProfiles.size
-                    }
-                    return -1
-                }
-
-                // UI signals processing (internal to the same scope to reuse findLazyIndex)
-                launch {
-                    com.wireturn.app.ui.UIEventBus.scrollRequest.collect { targetId ->
-                        // Подсвечиваем цель и всё связанное (профили подписки или заголовок профиля)
-                        val relatedIds = mutableListOf(targetId)
-                        profilesSource.filter { it.subscriptionId == targetId }.forEach { relatedIds.add(it.id) }
-                        profilesSource.find { it.id == targetId }?.subscriptionId?.let { relatedIds.add(it) }
-                        
-                        val uniqueRelated = relatedIds.distinct()
-                        highlightedIds.addAll(uniqueRelated)
-                        scope.launch {
-                            delay(1_000.milliseconds)
-                            highlightedIds.removeAll(uniqueRelated)
-                        }
-
-                        delay(100.milliseconds)
-                        val targetLazyIndex = findLazyIndex(targetId)
-                        if (targetLazyIndex != -1) {
-                            lazyListState.animateScrollToItem(targetLazyIndex)
-                        }
-                    }
-                }
 
                 if (isFirstLoad) {
                     val targetLazyIndex = findLazyIndex(currentId)

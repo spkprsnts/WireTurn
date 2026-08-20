@@ -489,11 +489,28 @@ class ProfileManager(
                 val subscriptionHasXrayConfig = sanitized.xrayEnabled ||
                     sanitized.wgConfig.isValid() ||
                     sanitized.vlessConfig.isValid()
+
+                // FreeTurn's own freeturn:// URI intentionally doesn't carry the VK call link/id
+                // (per its docs, that's account/session-specific and left for the user to fill in
+                // locally) - so a subscription entry's `links` almost always comes back blank here.
+                // Same overwrite problem as the Xray fields above: without this, a locally-added
+                // links value gets wiped back to blank on every refresh.
+                val mergedKernelConfig = run {
+                    val newKc = sanitized.kernelConfig
+                    val oldKc = existing?.kernelConfig
+                    if (newKc is KernelConfig.FreeTurn && oldKc is KernelConfig.FreeTurn &&
+                        newKc.config.links.isBlank() && oldKc.config.links.isNotBlank()
+                    ) {
+                        KernelConfig.FreeTurn(newKc.config.copy(links = oldKc.config.links))
+                    } else newKc
+                }
+
                 val profile = sanitized.copy(
                     id = newId,
                     name = name,
                     subscriptionId = subscriptionId,
                     subscriptionSourceId = subscriptionId?.let { sourceId },
+                    kernelConfig = mergedKernelConfig,
                     xrayEnabled = if (!subscriptionHasXrayConfig && existing != null) existing.xrayEnabled else sanitized.xrayEnabled,
                     xrayProtocol = if (!subscriptionHasXrayConfig && existing != null) existing.xrayProtocol else sanitized.xrayProtocol,
                     wgConfig = if (!subscriptionHasXrayConfig && existing != null) existing.wgConfig else sanitized.wgConfig,
@@ -860,6 +877,18 @@ class ProfileManager(
         return Profile(id = storageId, name = name, kernelConfig = KernelConfig.Olcrtc(config))
     }
 
+    // Text-subscription entries have no server-supplied stable id the way JSON ProfileBundle entries
+    // do, so importParsedProfiles' id-based re-matching (subscriptionSourceId) would otherwise never
+    // work past the very first sync - a fresh UUID.randomUUID() here would look "new" on every single
+    // refresh, permanently losing the local profile's identity (and with it, any locally-configured
+    // Xray settings, see subscriptionHasXrayConfig above) starting from the second refresh onward.
+    // Deriving a deterministic id from the entry's own raw URI line instead keeps the same identity
+    // across refreshes as long as the URI itself doesn't change, matching the "survives renames"
+    // intent of the id-matching comment in importParsedProfiles (renames go through name-only fallback
+    // matching, unrelated to this).
+    private fun stableTextSubEntryId(rawUriLine: String): String =
+        UUID.nameUUIDFromBytes(rawUriLine.toByteArray(Charsets.UTF_8)).toString()
+
     private fun tryParseTextSubscription(text: String): ProfileBundle? {
         if (!text.contains("freeturn://") && !text.contains("olcrtc://") && 
             !text.contains("turnable://") && !text.contains("webdav://") && 
@@ -928,7 +957,7 @@ class ProfileManager(
 
                 currentKernelConfig = KernelConfig.FreeTurn(config)
                 currentProfile = Profile(
-                    id = UUID.randomUUID().toString(),
+                    id = stableTextSubEntryId(trimmed),
                     name = nameFromUri ?: "FreeTurn Server",
                     kernelConfig = KernelConfig.FreeTurn(config)
                 )
@@ -942,7 +971,7 @@ class ProfileManager(
 
                 currentKernelConfig = KernelConfig.Olcrtc(config)
                 currentProfile = Profile(
-                    id = UUID.randomUUID().toString(),
+                    id = stableTextSubEntryId(trimmed),
                     name = nameFromMimo ?: "Olcrtc Server",
                     kernelConfig = KernelConfig.Olcrtc(config)
                 )
@@ -956,7 +985,7 @@ class ProfileManager(
 
                 currentKernelConfig = KernelConfig.Turnable(config)
                 currentProfile = Profile(
-                    id = UUID.randomUUID().toString(),
+                    id = stableTextSubEntryId(trimmed),
                     name = nameFromUri ?: "Turnable Server",
                     kernelConfig = KernelConfig.Turnable(config)
                 )
@@ -970,7 +999,7 @@ class ProfileManager(
 
                 currentKernelConfig = KernelConfig.Webdav(config)
                 currentProfile = Profile(
-                    id = UUID.randomUUID().toString(),
+                    id = stableTextSubEntryId(trimmed),
                     name = nameFromUri ?: "WebDAV Server",
                     kernelConfig = KernelConfig.Webdav(config)
                 )

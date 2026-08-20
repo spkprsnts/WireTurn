@@ -53,6 +53,7 @@ import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
+import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
 
@@ -102,6 +103,7 @@ class SubscriptionConfigActivity : ComponentActivity() {
             var requireTunnelForUpdate by remember(sub) { mutableStateOf(sub.requireTunnelForUpdate) }
             var updateIntervalMinutes by remember(sub) { mutableIntStateOf(sub.updateIntervalMinutes) }
 
+            val isUrlValid = url.isNotBlank() && ValidatorUtils.isValidUrl(url)
             val isIntervalValid = !autoUpdate || updateIntervalMinutes >= 20
             val isModified = url != sub.url || 
                              autoUpdate != sub.autoUpdate || 
@@ -135,7 +137,7 @@ class SubscriptionConfigActivity : ComponentActivity() {
                     },
                     floatingActionButton = {
                         AnimatedVisibility(
-                            visible = isModified && url.isNotBlank() && isIntervalValid,
+                            visible = isModified && isUrlValid && isIntervalValid,
                             enter = scaleIn(
                                 initialScale = 0.8f,
                                 animationSpec = spring(
@@ -185,7 +187,8 @@ class SubscriptionConfigActivity : ComponentActivity() {
                                     label = stringResource(R.string.freeturn_sub_label),
                                     value = url,
                                     onValueChange = { url = it },
-                                    isModified = url != sub.url
+                                    isModified = url != sub.url,
+                                    isError = url.isNotBlank() && !ValidatorUtils.isValidUrl(url)
                                 )
                             }
                         }

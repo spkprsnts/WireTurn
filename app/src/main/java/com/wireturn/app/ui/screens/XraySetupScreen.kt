@@ -151,25 +151,8 @@ fun XraySetupScreen(
         VlessConfig(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessMux)
     }
 
-    // Route's own socket type is authoritative (tcp -> VLESS/Trojan, udp -> WireGuard/Hysteria2) -
-    // see external/turnable/docs/REFERENCE.md. Mismatch is possible on Turnable/FreeTurn only,
-    // where the kernel itself exposes a fixed tcp/udp entry point. FreeTurn dropped its tcp tunnel
-    // mode entirely (v3.0.0+) - it's udp-only now, unconditionally.
-    val kernelRequiredSocket = remember(kernelConfig) {
-        when (kernelConfig) {
-            is KernelConfig.Turnable -> kernelConfig.config.routes.find { it.routeId == kernelConfig.config.selectedRouteId }
-                ?.socket?.lowercase()?.takeIf { it == "tcp" || it == "udp" }
-            is KernelConfig.FreeTurn -> "udp"
-            else -> null
-        }
-    }
-    val transportMismatchSocket = remember(kernelRequiredSocket, xrayConfiguration, currentVless) {
-        val xrayNeedsUdp = when (xrayConfiguration) {
-            XrayConfiguration.WIREGUARD -> true
-            XrayConfiguration.VLESS -> ValidatorUtils.detectUriProtocol(currentVless.vlessLink) == UriProtocol.HYSTERIA2
-        }
-        val requiredForXray = if (xrayNeedsUdp) "udp" else "tcp"
-        kernelRequiredSocket?.takeIf { it != requiredForXray }
+    val transportMismatchSocket = remember(kernelConfig, xrayConfiguration, currentVless) {
+        ValidatorUtils.kernelTransportMismatch(kernelConfig, xrayConfiguration, currentVless.vlessLink)
     }
 
     val isModified by remember(xrayConfiguration, currentWg, currentVless, initialXrayConfig, initialWgConfig, initialVlessConfig, canChangeProtocol) {
