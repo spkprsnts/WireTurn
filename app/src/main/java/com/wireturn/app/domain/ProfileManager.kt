@@ -92,6 +92,17 @@ fun previewDeepLink(link: String): DeepLinkPreview {
 
 private data class ActiveSocksTarget(val addr: String, val user: String?, val pass: String?)
 
+// Guards the read-decide-write sequence in activeLocalSocksProxy() below so two concurrent callers
+// (ping loop, subscription auto-update, AppUpdater) can't interleave their System-property/
+// Authenticator writes and leave a torn combination (e.g. one caller's username paired with
+// another's password) visible to a third party mid-connection. Also caches the last-applied target
+// so a call that resolves to the same target as before is a no-op instead of re-touching global
+// JVM state on every ~1s poll - this does not eliminate the underlying constraint that java.net's
+// SOCKS5 auth is a single JVM-wide slot (two genuinely different concurrent targets can still race
+// at the Java networking layer), but it removes the redundant churn that makes that race likely.
+private val socksAuthLock = Any()
+private var lastAppliedSocksTarget: ActiveSocksTarget? = null
+
 /**
  * SOCKS proxy for whichever local core (Xray, or OLCRTC/WEBDAV via CoreService) is currently
  * running, or [java.net.Proxy.NO_PROXY] if none is. Shared by [ProfileManager.fetchSubscription],
@@ -138,18 +149,23 @@ fun activeLocalSocksProxy(): java.net.Proxy {
         null
     } ?: return java.net.Proxy.NO_PROXY
 
-    if (target.user != null) {
-        val user = target.user
-        val pass = target.pass ?: ""
-        System.setProperty("java.net.socks.username", user)
-        System.setProperty("java.net.socks.password", pass)
-        java.net.Authenticator.setDefault(object : java.net.Authenticator() {
-            override fun getPasswordAuthentication() = java.net.PasswordAuthentication(user, pass.toCharArray())
-        })
-    } else {
-        System.clearProperty("java.net.socks.username")
-        System.clearProperty("java.net.socks.password")
-        java.net.Authenticator.setDefault(null)
+    synchronized(socksAuthLock) {
+        if (target != lastAppliedSocksTarget) {
+            if (target.user != null) {
+                val user = target.user
+                val pass = target.pass ?: ""
+                System.setProperty("java.net.socks.username", user)
+                System.setProperty("java.net.socks.password", pass)
+                java.net.Authenticator.setDefault(object : java.net.Authenticator() {
+                    override fun getPasswordAuthentication() = java.net.PasswordAuthentication(user, pass.toCharArray())
+                })
+            } else {
+                System.clearProperty("java.net.socks.username")
+                System.clearProperty("java.net.socks.password")
+                java.net.Authenticator.setDefault(null)
+            }
+            lastAppliedSocksTarget = target
+        }
     }
 
     return try {

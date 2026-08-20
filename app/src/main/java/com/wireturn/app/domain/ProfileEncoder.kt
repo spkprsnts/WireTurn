@@ -8,15 +8,22 @@ import java.util.zip.Inflater
 object ProfileEncoder {
     fun encode(json: String): String {
         val input = json.toByteArray(Charsets.UTF_8)
-        val output = ByteArray(input.size + 100)
         val deflater = Deflater(Deflater.BEST_COMPRESSION)
         deflater.setInput(input)
         deflater.finish()
-        val compressedSize = deflater.deflate(output)
+
+        // A single fixed-size deflate() call can't guarantee the whole input fits - loop until
+        // finished() instead, growing the output as needed (matches decode()'s inflate loop below).
+        val bos = ByteArrayOutputStream(input.size)
+        val buf = ByteArray(1024)
+        while (!deflater.finished()) {
+            val count = deflater.deflate(buf)
+            if (count == 0) break
+            bos.write(buf, 0, count)
+        }
         deflater.end()
-        
-        val compressed = output.copyOfRange(0, compressedSize)
-        return Base64.encodeToString(compressed, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
+
+        return Base64.encodeToString(bos.toByteArray(), Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
     }
 
     fun decode(encoded: String): String? {
