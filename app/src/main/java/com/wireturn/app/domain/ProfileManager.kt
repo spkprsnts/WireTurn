@@ -890,9 +890,10 @@ class ProfileManager(
         UUID.nameUUIDFromBytes(rawUriLine.toByteArray(Charsets.UTF_8)).toString()
 
     private fun tryParseTextSubscription(text: String): ProfileBundle? {
-        if (!text.contains("freeturn://") && !text.contains("olcrtc://") && 
-            !text.contains("turnable://") && !text.contains("webdav://") && 
-            !text.contains("webdavs://") && !text.contains("#name:")) return null
+        if (!text.contains("freeturn://") && !text.contains("olcrtc://") &&
+            !text.contains("turnable://") && !text.contains("webdav://") &&
+            !text.contains("webdavs://") && !text.contains("wireturn://") &&
+            !text.contains("wt://") && !text.contains("#name:")) return null
 
         val lines = text.lines()
         var subName: String? = null
@@ -1003,6 +1004,38 @@ class ProfileManager(
                     name = nameFromUri ?: "WebDAV Server",
                     kernelConfig = KernelConfig.Webdav(config)
                 )
+            } else if (trimmed.startsWith("wireturn://") || trimmed.startsWith("wt://")) {
+                // A wireturn:// container carries a full Profile (or several) as-is - kernelConfig,
+                // xrayEnabled/xrayProtocol, vlessConfig/wgConfig and its own stable `id`, all together.
+                // Unlike the other schemes above, there's nothing to reconstruct: just decode and use
+                // it directly, which also means its own id (not a hash of this line) drives matching
+                // on refresh, and any Xray config it carries takes precedence the same way a JSON
+                // subscription entry's would (see subscriptionHasXrayConfig in importParsedProfiles).
+                flush()
+                val encoded = trimmed.substringAfter("://")
+                val decodedJson = com.wireturn.app.domain.ProfileEncoder.decode(encoded)
+                val decodedProfiles = decodedJson?.let {
+                    try {
+                        val element = JsonParser.parseString(it)
+                        if (element.isJsonArray) {
+                            gson.fromJson<List<Profile>>(element, object : com.google.gson.reflect.TypeToken<List<Profile>>() {}.type)
+                        } else {
+                            listOf(gson.fromJson(element, Profile::class.java))
+                        }
+                    } catch (_: Exception) { null }
+                }
+                if (decodedProfiles.isNullOrEmpty()) continue
+
+                if (decodedProfiles.size == 1) {
+                    // Keep it as the "current" profile so any ##tags on following lines can still
+                    // adjust it, same as every other scheme above.
+                    val p = decodedProfiles[0].sanitize()
+                    currentKernelConfig = p.kernelConfig
+                    currentProfile = p
+                } else {
+                    // Multiple profiles in one blob - push them all now, nothing left to be "current".
+                    decodedProfiles.forEach { profiles.add(it.sanitize()) }
+                }
             } else if (trimmed.startsWith("##")) {
                 if (currentProfile == null) continue
                 val parts = trimmed.substring(2).split(":", limit = 2)
@@ -1011,6 +1044,16 @@ class ProfileManager(
                     val value = parts[1].trim()
                     when (key) {
                         "name" -> currentProfile = currentProfile?.copy(name = value)
+                        "id" -> {
+                            // Overrides the default identity (a hash of the entry's own raw URI line,
+                            // see stableTextSubEntryId) with an author-supplied stable id - needed when
+                            // the URI's own content is expected to change between refreshes (rotating
+                            // peer/port/obfuscation etc.) but it's still logically the same entry and
+                            // should keep its locally-configured Xray settings across that change.
+                            if (value.isNotBlank()) {
+                                currentProfile = currentProfile?.copy(id = value)
+                            }
+                        }
                         "ip" -> {
                             val kc = currentKernelConfig
                             if (kc is KernelConfig.FreeTurn) {
