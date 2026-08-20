@@ -688,6 +688,11 @@ class CoreService : Service() {
                         updateNotification(getString(R.string.error_connecting))
                     }
                     state.startupFailed = true
+                } else {
+                    // Not a hard failure - just kill this run and let the normal watchdog restart it.
+                    // Without marking startupEmitted, the no-output fallback below would misreport this
+                    // as CoreStatus.Error and the outer watchdog would stop the whole service instead.
+                    state.startupEmitted = true
                 }
                 return true
             }

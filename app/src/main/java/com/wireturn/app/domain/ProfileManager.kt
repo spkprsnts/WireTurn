@@ -92,16 +92,16 @@ fun previewDeepLink(link: String): DeepLinkPreview {
 
 private data class ActiveSocksTarget(val addr: String, val user: String?, val pass: String?)
 
-// Guards the read-decide-write sequence in activeLocalSocksProxy() below so two concurrent callers
-// (ping loop, subscription auto-update, AppUpdater) can't interleave their System-property/
-// Authenticator writes and leave a torn combination (e.g. one caller's username paired with
-// another's password) visible to a third party mid-connection. Also caches the last-applied target
-// so a call that resolves to the same target as before is a no-op instead of re-touching global
-// JVM state on every ~1s poll - this does not eliminate the underlying constraint that java.net's
-// SOCKS5 auth is a single JVM-wide slot (two genuinely different concurrent targets can still race
-// at the Java networking layer), but it removes the redundant churn that makes that race likely.
+// Guards the write step in activeLocalSocksProxy() below so two concurrent callers (ping loop,
+// subscription auto-update, AppUpdater) can't interleave their System-property/Authenticator writes
+// and leave a torn combination (e.g. one caller's username paired with another's password) visible
+// to a third party mid-connection. Deliberately NOT cached/skipped when the target is unchanged from
+// last time: XrayServiceState.setSession() writes this exact same global state independently and
+// reactively (see the class doc below), so re-asserting unconditionally on every call is what lets
+// this function self-heal if that other writer left something stale in between polls - caching would
+// silently skip the correction whenever this call's target happens to match what *this* function
+// applied last, even if setSession() had since overwritten it with something else.
 private val socksAuthLock = Any()
-private var lastAppliedSocksTarget: ActiveSocksTarget? = null
 
 /**
  * SOCKS proxy for whichever local core (Xray, or OLCRTC/WEBDAV via CoreService) is currently
@@ -150,21 +150,18 @@ fun activeLocalSocksProxy(): java.net.Proxy {
     } ?: return java.net.Proxy.NO_PROXY
 
     synchronized(socksAuthLock) {
-        if (target != lastAppliedSocksTarget) {
-            if (target.user != null) {
-                val user = target.user
-                val pass = target.pass ?: ""
-                System.setProperty("java.net.socks.username", user)
-                System.setProperty("java.net.socks.password", pass)
-                java.net.Authenticator.setDefault(object : java.net.Authenticator() {
-                    override fun getPasswordAuthentication() = java.net.PasswordAuthentication(user, pass.toCharArray())
-                })
-            } else {
-                System.clearProperty("java.net.socks.username")
-                System.clearProperty("java.net.socks.password")
-                java.net.Authenticator.setDefault(null)
-            }
-            lastAppliedSocksTarget = target
+        if (target.user != null) {
+            val user = target.user
+            val pass = target.pass ?: ""
+            System.setProperty("java.net.socks.username", user)
+            System.setProperty("java.net.socks.password", pass)
+            java.net.Authenticator.setDefault(object : java.net.Authenticator() {
+                override fun getPasswordAuthentication() = java.net.PasswordAuthentication(user, pass.toCharArray())
+            })
+        } else {
+            System.clearProperty("java.net.socks.username")
+            System.clearProperty("java.net.socks.password")
+            java.net.Authenticator.setDefault(null)
         }
     }
 
@@ -484,11 +481,18 @@ class ProfileManager(
                 // their own, so `sanitized` comes back with the all-defaults/empty state here. Without
                 // this check, every refresh would blow away Xray/dual-route settings the user configured
                 // locally on top of the subscription's tunnel config. Only fall back to the previous
-                // local values when the subscription didn't actually specify anything Xray-related -
-                // if it did (a JSON sub explicitly setting vlessConfig/wgConfig), that takes precedence.
-                val subscriptionHasXrayConfig = sanitized.xrayEnabled ||
-                    sanitized.wgConfig.isValid() ||
-                    sanitized.vlessConfig.isValid()
+                // local values when the subscription didn't actually specify a usable link/wg config -
+                // if it did, that takes precedence (including turning Xray off, since a config change
+                // implies the entry is being actively managed by the subscription).
+                //
+                // Deliberately keyed on wgConfig/vlessConfig validity alone, NOT sanitized.xrayEnabled:
+                // a subscription entry can't express "explicitly disabled, no link either" any
+                // differently from "doesn't mention Xray at all" through this data model (Gson can't
+                // tell a present-but-false field from an absent one), so treating a bare xrayEnabled by
+                // itself as authoritative would risk the opposite failure mode - a sub entry with
+                // xrayEnabled=true but no link would otherwise turn Xray on locally while wiping out
+                // the user's actual working link, leaving a broken enabled-but-empty state.
+                val subscriptionHasXrayConfig = sanitized.wgConfig.isValid() || sanitized.vlessConfig.isValid()
 
                 // FreeTurn's own freeturn:// URI intentionally doesn't carry the VK call link/id
                 // (per its docs, that's account/session-specific and left for the user to fill in
@@ -1026,15 +1030,29 @@ class ProfileManager(
                 }
                 if (decodedProfiles.isNullOrEmpty()) continue
 
+                // A hand-crafted blob might omit `id` - Profile.sanitize() would then assign a fresh
+                // random one on every single parse (its own fallback has no way to be deterministic),
+                // silently reintroducing the identity-churn problem stableTextSubEntryId exists to
+                // avoid for the other schemes. Only apply this fallback when the blob really didn't
+                // supply an id - one that does should keep driving matching, same as a JSON sub entry.
+                fun withStableIdIfMissing(p: Profile, fallbackSeed: String): Profile {
+                    val sanitized = p.sanitize()
+                    return if (p.id.isBlank()) sanitized.copy(id = stableTextSubEntryId(fallbackSeed)) else sanitized
+                }
+
                 if (decodedProfiles.size == 1) {
                     // Keep it as the "current" profile so any ##tags on following lines can still
                     // adjust it, same as every other scheme above.
-                    val p = decodedProfiles[0].sanitize()
+                    val p = withStableIdIfMissing(decodedProfiles[0], trimmed)
                     currentKernelConfig = p.kernelConfig
                     currentProfile = p
                 } else {
                     // Multiple profiles in one blob - push them all now, nothing left to be "current".
-                    decodedProfiles.forEach { profiles.add(it.sanitize()) }
+                    // Fallback seed includes the index so distinct id-less entries in the same blob
+                    // don't collide onto the same stable id.
+                    decodedProfiles.forEachIndexed { index, p ->
+                        profiles.add(withStableIdIfMissing(p, "$trimmed#$index"))
+                    }
                 }
             } else if (trimmed.startsWith("##")) {
                 if (currentProfile == null) continue

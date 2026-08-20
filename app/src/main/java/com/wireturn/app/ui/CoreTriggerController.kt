@@ -44,9 +44,10 @@ fun CoreTriggerController(
     val vlessConfig by viewModel.vlessConfig.collectAsStateWithLifecycle()
 
     val mismatchTitle = stringResource(R.string.mismatch_title)
-    val mismatchTcpBody = stringResource(R.string.xray_uri_mismatch_tcp, kernelDisplayName(clientConfig.kernelConfig))
-    val mismatchUdpBody = stringResource(R.string.xray_uri_mismatch_udp, kernelDisplayName(clientConfig.kernelConfig))
-    val mismatchFreeTurnBody = stringResource(R.string.xray_uri_kernel_udp_only_mismatch, kernelDisplayName(clientConfig.kernelConfig))
+    val mismatchKernelName = kernelDisplayName(clientConfig.kernelConfig)
+    val mismatchTcpBody = stringResource(R.string.xray_uri_mismatch_tcp, mismatchKernelName)
+    val mismatchUdpBody = stringResource(R.string.xray_uri_mismatch_udp, mismatchKernelName)
+    val mismatchFreeTurnBody = stringResource(R.string.xray_uri_kernel_udp_only_mismatch, mismatchKernelName)
 
     val showAutoLaunchOverride = rememberSaveable { mutableStateOf(false) }
     var pendingCoreAction by remember { mutableStateOf<(() -> Unit)?>(null) }
