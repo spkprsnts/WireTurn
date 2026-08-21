@@ -85,7 +85,7 @@ object NotificationHelper {
                 coreStatusText != null -> coreStatusText
                 isRestarting -> context.getString(R.string.core_restarting)
                 coreStatus is CoreStatus.Suppressed -> {
-                    if (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute) context.getString(R.string.direct_active_format, vlessProtocolLabel)
+                    if (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute) context.getString(R.string.direct_route_active)
                     else context.getString(R.string.connecting)
                 }
                 else -> when (coreStatus) {

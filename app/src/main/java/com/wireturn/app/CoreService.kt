@@ -17,7 +17,6 @@ import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.OlcrtcConfig
 import com.wireturn.app.data.VpnSettings
-import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.viewmodel.AppLifecycleState
 import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.viewmodel.XrayState
@@ -264,7 +263,7 @@ class CoreService : Service() {
                                 AppLogsState.addLog(getString(R.string.log_core_suppressed))
                                 CoreServiceState.setStatus(CoreStatus.Suppressed)
                             }
-                            updateNotification(getString(R.string.direct_active_format, getString(ValidatorUtils.uriProtocolStringRes(effectiveVless.vlessLink))))
+                            updateNotification(getString(R.string.direct_route_active))
                             CoreServiceState.setRestarting(false)
                         }
                         // XrayState.Running в режиме Dual-route означает использование туннеля (local route).

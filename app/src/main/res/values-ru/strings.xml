@@ -393,7 +393,7 @@
     <string name="xray_uri_mux">Mux concurrency</string>
     <string name="xray_uri_mux_desc">Включает мультиплексирование Mux. 0 — выключено, >0 — количество соединений. Несовместимо с XTLS Vision.</string>
     <string name="xray_uri_parse_from_link">Взять из ссылки</string>
-    <string name="direct_active_format">Прямой %1$s</string>
+    <string name="direct_route_active">Прямой маршрут</string>
 
     <!-- Предупреждения -->
     <string name="warn_unsupported_arch_title">Архитектура не поддерживается</string>

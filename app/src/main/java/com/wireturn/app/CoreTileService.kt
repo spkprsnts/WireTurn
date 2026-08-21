@@ -7,7 +7,6 @@ import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import com.wireturn.app.data.AppPreferences
-import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.viewmodel.XrayState
 import kotlinx.coroutines.CoroutineScope
@@ -187,10 +186,8 @@ class CoreTileService : TileService() {
                 autoLaunchEnabled && !isRunning -> getString(R.string.settings_auto_launch_title)
                 isStopping -> getString(R.string.stopping)
                 isDirect -> {
-                    if (isXrayWorking) {
-                        val link = XrayServiceState.session.value?.vless?.vlessLink.orEmpty()
-                        getString(R.string.direct_active_format, getString(ValidatorUtils.uriProtocolStringRes(link)))
-                    } else getString(R.string.connecting)
+                    if (isXrayWorking) getString(R.string.direct_route_active)
+                    else getString(R.string.connecting)
                 }
                 isWorking -> getString(R.string.tile_active)
                 isRunning -> getString(R.string.connecting)

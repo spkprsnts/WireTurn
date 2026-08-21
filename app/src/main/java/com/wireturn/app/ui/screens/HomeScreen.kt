@@ -1071,7 +1071,7 @@ fun HomeScreen(
                                 XrayState.Starting -> stringResource(R.string.starting)
                                 XrayState.Connecting -> stringResource(R.string.connecting)
                                 XrayState.Running -> stringResource(R.string.running)
-                                XrayState.DirectRoute -> stringResource(R.string.direct_active_format, activeVlessProtocolLabel)
+                                XrayState.DirectRoute -> stringResource(R.string.direct_route_active)
                                 else -> stringResource(R.string.idle)
                             }
                         },

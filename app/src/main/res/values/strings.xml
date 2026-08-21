@@ -435,7 +435,7 @@
     <string name="xray_uri_mux">Mux concurrency</string>
     <string name="xray_uri_mux_desc">Enable Mux multiplexing. 0 disables, >0 sets concurrency. Incompatible with XTLS Vision.</string>
     <string name="xray_uri_parse_from_link">Parse from link</string>
-    <string name="direct_active_format">Direct %1$s</string>
+    <string name="direct_route_active">Direct route</string>
 
     <!-- Warnings -->
     <string name="warn_unsupported_arch_title">Architecture not supported</string>
