@@ -376,6 +376,8 @@
     <string name="log_vpn_stopped">* [VPN] TUN stopped (hev-socks5-tunnel)</string>
     <string name="log_vpn_stop_error">* [VPN] Stop error: %1$s (hev-socks5-tunnel)</string>
     <string name="log_vpn_restarting_config">* [VPN] Restarting due to settings change or recovery</string>
+    <string name="log_vpn_retarget">* [VPN] Switching relay target without dropping TUN, proxy=%1$s</string>
+    <string name="log_vpn_retarget_no_tun">* [VPN] Target update requested but TUN isn\'t up - ignored</string>
 
     <string name="log_dual_route_direct_established">* [DualRoute] Direct connection established, suppressing tunnel</string>
     <string name="log_dual_route_direct_lost">* [DualRoute] Direct connection lost, unsuppressing tunnel</string>

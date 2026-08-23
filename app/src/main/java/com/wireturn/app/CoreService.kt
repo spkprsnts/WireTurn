@@ -1270,8 +1270,14 @@ class CoreService : Service() {
      */
     private data class VpnTarget(val addr: String, val user: String?, val pass: String?)
 
+    // terminalError marks a target-less state the core isn't coming back from on its own (its
+    // own watchdog gave up, or the config was invalid outright) - as opposed to a transient gap
+    // (mid-retry, switching profiles) where target is momentarily null too but something is
+    // still expected to make it valid again shortly.
+    private data class VpnTargetSignal(val target: VpnTarget?, val terminalError: Boolean)
+
     private data class VpnSupervisorBundle(
-        val target: VpnTarget?,
+        val signal: VpnTargetSignal,
         val vpnSettings: VpnSettings,
         val vpnState: VpnState
     )
@@ -1282,6 +1288,25 @@ class CoreService : Service() {
             val prefs = AppPreferences(applicationContext)
             var lastVpnSettings: VpnSettings? = null
             var lastTarget: VpnTarget? = null
+            // Debounces tearing the VPN down when the target transiently disappears (e.g. the
+            // brief gap between the old core session ending and a newly-selected profile's
+            // starting) - a kill switch shouldn't drop to the raw network for that, only if no
+            // target reappears within the grace window below.
+            var pendingStopJob: Job? = null
+
+            fun stopIntent() = Intent(this@CoreService, HevVpnService::class.java).apply {
+                action = HevVpnService.ACTION_STOP
+            }
+            fun startIntent(target: VpnTarget) = Intent(this@CoreService, HevVpnService::class.java).apply {
+                putExtra(HevVpnService.EXTRA_SOCKS5_ADDR, target.addr)
+                if (target.user != null) {
+                    putExtra(HevVpnService.EXTRA_SOCKS5_USER, target.user)
+                    putExtra(HevVpnService.EXTRA_SOCKS5_PASS, target.pass)
+                }
+            }
+            fun retargetIntent(target: VpnTarget) = startIntent(target).apply {
+                action = HevVpnService.ACTION_UPDATE_TARGET
+            }
 
             val targetFlow = combine(
                 XrayServiceState.state,
@@ -1291,70 +1316,114 @@ class CoreService : Service() {
             ) { xrayState, xraySession, coreStatus, coreSession ->
                 if (xrayState != XrayState.Idle && xraySession != null) {
                     val s = xraySession.settings
-                    VpnTarget(
-                        s.connectableAddress,
-                        s.proxyUser.takeIf { s.isProxyAuthEnabled && it.isNotBlank() },
-                        s.proxyPass
+                    VpnTargetSignal(
+                        VpnTarget(
+                            s.connectableAddress,
+                            s.proxyUser.takeIf { s.isProxyAuthEnabled && it.isNotBlank() },
+                            s.proxyPass
+                        ),
+                        terminalError = false
                     )
                 } else if (coreSession != null &&
                     coreSession.clientConfig.kernelVariant.isSocks5Native &&
                     coreStatus !is CoreStatus.Idle && coreStatus !is CoreStatus.Error && coreStatus !is CoreStatus.WaitingForNetwork
                 ) {
                     val cc = coreSession.clientConfig
-                    VpnTarget(
-                        // socksAddr can be bound to 0.0.0.0 (e.g. to also serve LAN clients) - hev
-                        // connects to this as a literal destination, so it needs the loopback form,
-                        // same normalization activeLocalSocksProxy() applies for HTTP requests.
-                        cc.socksAddr.replace("0.0.0.0:", "127.0.0.1:"),
-                        cc.socksUser.takeIf { cc.isSocksAuthEnabled && it.isNotBlank() },
-                        cc.socksPass
+                    VpnTargetSignal(
+                        VpnTarget(
+                            // socksAddr can be bound to 0.0.0.0 (e.g. to also serve LAN clients) -
+                            // hev connects to this as a literal destination, so it needs the
+                            // loopback form, same normalization activeLocalSocksProxy() applies
+                            // for HTTP requests.
+                            cc.socksAddr.replace("0.0.0.0:", "127.0.0.1:"),
+                            cc.socksUser.takeIf { cc.isSocksAuthEnabled && it.isNotBlank() },
+                            cc.socksPass
+                        ),
+                        terminalError = false
                     )
-                } else null
+                } else {
+                    // Xray not in the picture and the raw core is target-less: WaitingForNetwork
+                    // and mid-retry states (Starting/Connecting/Suppressed with no session yet)
+                    // are still expected to recover on their own, so keep waiting. Only a
+                    // genuine CoreStatus.Error - the core's own watchdog giving up, or an
+                    // outright invalid config - means nothing is coming and the tunnel should
+                    // drop right away instead of waiting out the grace period below for nothing.
+                    VpnTargetSignal(null, terminalError = coreStatus is CoreStatus.Error)
+                }
             }
 
-            combine(targetFlow, prefs.vpnSettingsFlow, VpnServiceState.state) { target, vpnSettings, vpnState ->
-                VpnSupervisorBundle(target, vpnSettings, vpnState)
+            combine(targetFlow, prefs.vpnSettingsFlow, VpnServiceState.state) { signal, vpnSettings, vpnState ->
+                VpnSupervisorBundle(signal, vpnSettings, vpnState)
             }.collect { bundle ->
                 withContext(Dispatchers.Main) {
+                    val target = bundle.signal.target
                     val settingsChanged = lastVpnSettings != null && lastVpnSettings != bundle.vpnSettings
-                    val targetChanged = lastTarget != null && lastTarget != bundle.target
+                    val targetChanged = lastTarget != null && lastTarget != target
                     lastVpnSettings = bundle.vpnSettings
-                    lastTarget = bundle.target
+                    lastTarget = target
 
-                    val shouldVpnBeActive = bundle.vpnSettings.enabled && bundle.target != null
+                    if (target != null) {
+                        pendingStopJob?.cancel()
+                        pendingStopJob = null
+                    }
 
-                    if (shouldVpnBeActive) {
-                        val target = bundle.target
-                        val vpnRunning = bundle.vpnState == VpnState.Running
-                        val vpnError = bundle.vpnState is VpnState.Error
-                        // Start if VPN isn't up yet, or restart if settings/target changed while
-                        // running/errored (e.g. Xray started or stopped, switching who VPN follows).
-                        val needsStart = bundle.vpnState == VpnState.Idle ||
-                            ((settingsChanged || targetChanged) && (vpnRunning || vpnError))
+                    if (!bundle.vpnSettings.enabled) {
+                        // Explicit user opt-out - stop immediately, no grace period.
+                        if (bundle.vpnState != VpnState.Idle) startService(stopIntent())
+                        return@withContext
+                    }
 
-                        if (needsStart) {
-                            if (vpnRunning || vpnError) {
-                                AppLogsState.addLog(getString(R.string.log_vpn_restarting_config))
-                                startService(Intent(this@CoreService, HevVpnService::class.java).apply {
-                                    action = HevVpnService.ACTION_STOP
-                                })
-                            }
-
-                            if (VpnServiceState.state.value != VpnState.Starting) {
-                                startService(Intent(this@CoreService, HevVpnService::class.java).apply {
-                                    putExtra(HevVpnService.EXTRA_SOCKS5_ADDR, target.addr)
-                                    if (target.user != null) {
-                                        putExtra(HevVpnService.EXTRA_SOCKS5_USER, target.user)
-                                        putExtra(HevVpnService.EXTRA_SOCKS5_PASS, target.pass)
-                                    }
-                                })
+                    if (target == null) {
+                        // Enabled, but nothing to point the relay at right now.
+                        if (bundle.vpnState != VpnState.Idle) {
+                            if (bundle.signal.terminalError) {
+                                // The core has definitively given up (watchdog exhausted, or an
+                                // outright invalid config) - nothing is coming, so there's
+                                // nothing to wait for. Drop right away.
+                                startService(stopIntent())
+                            } else if (pendingStopJob == null) {
+                                // Otherwise this could be a transient gap - mid-retry, switching
+                                // profiles - that's still expected to resolve on its own shortly.
+                                // Give it a moment before tearing the tunnel down.
+                                pendingStopJob = serviceScope.launch {
+                                    delay(VPN_TARGET_LOST_GRACE_MS.milliseconds)
+                                    withContext(Dispatchers.Main) { startService(stopIntent()) }
+                                }
                             }
                         }
-                    } else {
-                        if (bundle.vpnState != VpnState.Idle) {
-                            startService(Intent(this@CoreService, HevVpnService::class.java).apply {
-                                action = HevVpnService.ACTION_STOP
-                            })
+                        return@withContext
+                    }
+
+                    val vpnRunning = bundle.vpnState == VpnState.Running
+                    val vpnError = bundle.vpnState is VpnState.Error
+
+                    when {
+                        bundle.vpnState == VpnState.Idle -> {
+                            // Establish as soon as any target exists - don't wait for the hop to
+                            // finish connecting. A kill switch should be up *before* it's needed;
+                            // packets simply have nowhere to go until the hop catches up, rather
+                            // than the alternative of briefly routing over the raw network.
+                            if (VpnServiceState.state.value != VpnState.Starting) {
+                                startService(startIntent(target))
+                            }
+                        }
+                        vpnError && (settingsChanged || targetChanged) -> {
+                            AppLogsState.addLog(getString(R.string.log_vpn_restarting_config))
+                            startService(stopIntent())
+                            startService(startIntent(target))
+                        }
+                        vpnRunning && settingsChanged -> {
+                            // Routing config itself changed (filtering/bypass/app list) - that's
+                            // baked into the Builder at establish() time, so it must be redone.
+                            AppLogsState.addLog(getString(R.string.log_vpn_restarting_config))
+                            startService(stopIntent())
+                            startService(startIntent(target))
+                        }
+                        vpnRunning && targetChanged -> {
+                            // Only the upstream SOCKS5 hop moved (e.g. switched profiles) - hot-
+                            // swap the relay's target without a fresh establish(), so the tun
+                            // interface (and the device's default network) never blips.
+                            startService(retargetIntent(target))
                         }
                     }
                 }
@@ -1608,6 +1677,7 @@ class CoreService : Service() {
         const val ACTION_STOP = "ACTION_STOP"
         const val ACTION_STOP_BY_USER = "ACTION_STOP_BY_USER"
         const val MAX_RESTARTS = 10
+        private const val VPN_TARGET_LOST_GRACE_MS = 5_000L
         private val CAPTCHA_URL_REGEX = Pattern.compile("""Open this URL in your browser:\s*(https?://\S+)""")
         private val FREE_TURN_CAPTCHA_REGEX = Pattern.compile("""(?:manually open this URL|Open this URL in your browser):\s*(https?://\S+)""")
         private val STREAM_ESTABLISHED_REGEX = Pattern.compile("""\[STREAM (\d+)] Established DTLS connection""")

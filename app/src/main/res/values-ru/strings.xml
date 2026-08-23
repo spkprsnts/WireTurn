@@ -344,6 +344,8 @@
     <string name="log_vpn_stopped">* [VPN] TUN остановлен (hev-socks5-tunnel)</string>
     <string name="log_vpn_stop_error">* [VPN] Ошибка при остановке: %1$s (hev-socks5-tunnel)</string>
     <string name="log_vpn_restarting_config">* [VPN] Перезапуск из-за изменения настроек или восстановления</string>
+    <string name="log_vpn_retarget">* [VPN] Смена цели релея без пересоздания TUN, прокси=%1$s</string>
+    <string name="log_vpn_retarget_no_tun">* [VPN] Запрошена смена цели, но TUN не поднят — проигнорировано</string>
 
     <string name="log_dual_route_direct_established">* [DualRoute] Прямое соединение установлено, подавление туннеля</string>
     <string name="log_dual_route_direct_lost">* [DualRoute] Прямое соединение потеряно, разблокировка туннеля</string>
