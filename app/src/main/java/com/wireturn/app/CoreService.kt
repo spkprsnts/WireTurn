@@ -773,14 +773,16 @@ class CoreService : Service() {
     }
 
     private suspend fun handleWebdavLog(line: String, lower: String, state: BinaryOutputState): Boolean {
-        if (lower.contains("webdav: connecting to")) {
-            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
-                CoreServiceState.setStatus(CoreStatus.Connecting)
-                updateNotification(getString(R.string.connecting))
-            }
+        // A single backend's ping failing doesn't fail startup by itself - pingBackends()
+        // (external/webdav-tunnel main.go) only gives up once every configured backend is
+        // unreachable, logging each failure individually along the way as
+        // "WebDAV backend <label>: connection failed: <err>". Swallow those per-backend
+        // lines here and only react to the final "all N WebDAV backend(s) unreachable" fatal.
+        if (lower.contains("webdav backend") && lower.contains("connection failed")) {
+            return true
         }
 
-        if (lower.contains("webdav: connection failed")) {
+        if (lower.contains("webdav backend(s) unreachable")) {
             if (getNetworkQuality() == NetworkQuality.FAST) {
                 if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                     CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_webdav_unavailable)))

@@ -164,15 +164,28 @@ olcrtc://wbstream?vp8channel<vp8-fps=60&vp8-batch=64>@room123#abc$user_1
 ### 2.3 `webdav://` / `webdavs://`
 
 ```
-webdavs://[login[:password]@]host[:port][/path]?timeout=60s&poll-min=200ms&poll-max=500ms&coalesce=10ms&chunk-size=131071&puts=8&read-min=3&read-max=8&enc=1#[profile_name]
+webdavs://[login[:password]@]host[:port][/path]?timeout=60s&poll-min=200ms&poll-max=500ms&coalesce=10ms&chunk-size=131071&puts=8&read-min=3&read-max=8&enc=1&dns=1.1.1.1:53&backend=[nested_uri]&backend=...#[profile_name]
 ```
 
 Схема `webdavs://` = HTTPS, `webdav://` = HTTP. Логин/пароль — стандартный userinfo. Все параметры интервалов опциональны (есть значения по умолчанию); `enc=1` включает шифрование. Фрагмент — имя профиля.
+
+| Параметр | Описание |
+| :--- | :--- |
+| `dns` | Необязательный DNS-сервер (`host:port`, порт по умолчанию `53`) для резолвинга **только хоста самого WebDAV-бэкенда** — полезно, если системный DNS фильтрует/блокирует адрес бэкенда. На туннелируемый через SOCKS5 трафик не влияет: адреса назначения там всегда резолвятся на сервере ядра, а не на клиенте. |
+| `backend` | Повторяемый параметр — один или несколько **дополнительных** WebDAV-бэкендов для ротации (см. ниже). Основной бэкенд — тот, что в userinfo/host самой ссылки. |
 
 Пример:
 ```
 webdavs://admin:password@webdav.example.com?timeout=30s&poll-min=100ms&poll-max=300ms#MyDisk
 ```
+
+Несколько бэкендов (ротация): значение каждого `backend=` — это вложенная ссылка того же вида (`webdav://login:password@host[:port][/path]`, без своих tuning-параметров), percent-encoded как значение query-параметра:
+
+```
+webdav://user1:pass1@host1:8081?poll-min=50ms&backend=webdav%3A%2F%2Fuser2%3Apass2%40host2%3A8082
+```
+
+Клиент распределяет новые сессии по всем бэкендам по кругу (round-robin), пропуская тот, что временно недоступен/rate-limited, — недоступность одного не блокирует остальные. Подробности алгоритма ротации и требование «одинаковый список бэкендов на клиенте и сервере» — см. `external/webdav-tunnel/docs/config.md#multi-backend-rotation`.
 
 ### 2.4 `freeturn://`
 
