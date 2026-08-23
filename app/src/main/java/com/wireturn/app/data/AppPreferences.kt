@@ -154,7 +154,8 @@ fun KernelConfig.description(context: Context): String = when (this) {
         context.getString(R.string.kernel_turnable) + " r:" + routeName
     }
     is KernelConfig.Olcrtc -> context.getString(R.string.kernel_olcrtc) + " " + config.providerDisplayName
-    is KernelConfig.Webdav -> context.getString(R.string.kernel_webdav) + " " + WebdavConfig.formatHost(config.webdav)
+    is KernelConfig.Webdav -> context.getString(R.string.kernel_webdav) + " " + WebdavConfig.formatHost(config.webdav) +
+        if (config.backends.isNotEmpty()) " +${config.backends.size}" else ""
     is KernelConfig.FreeTurn -> context.getString(R.string.kernel_freeturn) + " " + config.addressLabel()
 }
 
@@ -517,10 +518,69 @@ data class OlcrtcConfig(
     }
 }
 
+data class WebdavBackend(
+    @SerializedName("label") val label: String = "",
+    @SerializedName("url") val url: String = "",
+    @SerializedName("login") val login: String = "",
+    @SerializedName("password") val password: String = ""
+) {
+    fun isValid(): Boolean = url.isNotBlank() && login.isNotBlank() && password.isNotBlank()
+
+    // Nested backend form used inside a primary webdav:// URI's repeatable `backend=` query
+    // param - see external/webdav-tunnel docs/modes.md#multiple-backends-in-one-uri.
+    fun toNestedUri(): String {
+        val isHttps = url.startsWith("https://", ignoreCase = true)
+        val scheme = if (isHttps) "webdavs" else "webdav"
+        val cleanBase = url.replaceFirst("https://", "", ignoreCase = true)
+            .replaceFirst("http://", "", ignoreCase = true)
+        val builder = Uri.Builder()
+            .scheme(scheme)
+            .encodedAuthority(buildString {
+                append(Uri.encode(login))
+                append(":")
+                append(Uri.encode(password))
+                append("@")
+                append(cleanBase.substringBefore("/"))
+            })
+        val path = cleanBase.substringAfter("/", "")
+        if (path.isNotBlank()) builder.path(path)
+        return builder.build().toString()
+    }
+
+    companion object {
+        fun parseNestedUri(raw: String): WebdavBackend? {
+            val isWebdavs = raw.startsWith("webdavs://", ignoreCase = true)
+            val isWebdav = raw.startsWith("webdav://", ignoreCase = true)
+            if (!isWebdav && !isWebdavs) return null
+            return try {
+                val uri = Uri.parse(raw)
+                val userParts = (uri.userInfo ?: "").split(":")
+                val login = userParts.getOrNull(0)?.let { Uri.decode(it) } ?: ""
+                val password = userParts.getOrNull(1)?.let { Uri.decode(it) } ?: ""
+                val scheme = if (isWebdavs) "https" else "http"
+                val host = uri.host ?: ""
+                val port = if (uri.port != -1) ":${uri.port}" else ""
+                val path = uri.path ?: ""
+                WebdavBackend(url = "$scheme://$host$port$path", login = login, password = password)
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+}
+
 data class WebdavConfig(
     @SerializedName("webdav") val webdav: String = "",
     @SerializedName("login") val login: String = "",
     @SerializedName("password") val password: String = "",
+    // Overrides how the WebDAV backend's own hostname is resolved (client & server) - useful
+    // when the OS resolver is unreliable/filtered. Has no effect on SOCKS5-tunneled traffic,
+    // which is always resolved server-side. See external/webdav-tunnel docs/config.md#dns-resolution.
+    @SerializedName("dns") val dns: String = "",
+    // Additional WebDAV backends beyond the primary one above - the client rotates new sessions
+    // round-robin across all of them, skipping any that are rate-limited/unreachable. See
+    // external/webdav-tunnel docs/config.md#multi-backend-rotation.
+    @SerializedName("backends") val backends: List<WebdavBackend> = emptyList(),
     @SerializedName("timeout") val timeout: String = "60s",
     @SerializedName("poll_max") val pollMax: String = "500ms",
     @SerializedName("poll_min") val pollMin: String = "200ms",
@@ -540,7 +600,8 @@ data class WebdavConfig(
         chunkSize = chunkSize.ifBlank { "131071" },
         puts = puts.ifBlank { "8" },
         readMin = readMin.ifBlank { "3" },
-        readMax = readMax.ifBlank { "8" }
+        readMax = readMax.ifBlank { "8" },
+        backends = backends.filter { it.isValid() }
     )
 
     fun toUri(profileName: String? = null): String {
@@ -579,6 +640,10 @@ data class WebdavConfig(
         builder.appendQueryParameter("read-min", readMin)
         builder.appendQueryParameter("read-max", readMax)
         if (encrypt) builder.appendQueryParameter("enc", "1")
+        if (dns.isNotBlank()) builder.appendQueryParameter("dns", dns)
+        for (backend in backends) {
+            if (backend.isValid()) builder.appendQueryParameter("backend", backend.toNestedUri())
+        }
 
         if (!profileName.isNullOrBlank()) {
             builder.fragment(profileName)
@@ -606,10 +671,15 @@ data class WebdavConfig(
                 
                 val webdav = "$webdavScheme://$host$port$path"
 
+                val backends = uri.getQueryParameters("backend")
+                    .mapNotNull { WebdavBackend.parseNestedUri(it) }
+
                 return WebdavConfig(
                     webdav = webdav,
                     login = login,
                     password = password,
+                    dns = uri.getQueryParameter("dns") ?: current.dns,
+                    backends = backends.ifEmpty { current.backends },
                     timeout = uri.getQueryParameter("timeout") ?: current.timeout,
                     pollMin = uri.getQueryParameter("poll-min") ?: current.pollMin,
                     pollMax = uri.getQueryParameter("poll-max") ?: current.pollMax,

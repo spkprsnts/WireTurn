@@ -19,6 +19,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,12 +27,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -39,7 +42,9 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -53,6 +58,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
@@ -63,15 +69,19 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
+import com.wireturn.app.data.WebdavBackend
 import com.wireturn.app.data.WebdavConfig
 import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
+import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.QrCodeDialog
 import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
+import com.wireturn.app.ui.SelectionDialog
 import com.wireturn.app.ui.ShareDropdownMenu
+import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.noFlingExpandConnection
@@ -100,6 +110,11 @@ fun WebdavConfigScreen(
     val showQrScanner = remember { mutableStateOf(false) }
     val showMenu = remember { mutableStateOf(false) }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
+
+    val showBackendsDialog = remember { mutableStateOf(false) }
+    val editingBackend = remember { mutableStateOf<WebdavBackend?>(null) }
+    val isAddingBackend = remember { mutableStateOf(false) }
+    val isBackendsModified = isEditMode && config.backends != initialConfig.backends
 
     val handleBack = {
         if (isEditMode && isModified) {
@@ -379,9 +394,69 @@ fun WebdavConfigScreen(
                 }
             }
 
+            // Additional backends
+            SectionGroup(
+                title = stringResource(R.string.webdav_backends_title),
+                isModified = isBackendsModified
+            ) {
+                SectionItem(
+                    position = ItemPosition.Single,
+                    onClick = {
+                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                        showBackendsDialog.value = true
+                    }
+                ) {
+                    if (config.backends.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            StandardLeadingIcon {
+                                Icon(
+                                    painter = painterResource(R.drawable.lan_24px),
+                                    contentDescription = null
+                                )
+                            }
+                            Text(
+                                text = "${stringResource(R.string.webdav_backends_title)} (${config.backends.size})",
+                                maxLines = 1
+                            )
+                        }
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            LargeLeadingIcon {
+                                Icon(
+                                    painter = painterResource(R.drawable.lan_24px),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(32.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Text(
+                                text = stringResource(R.string.webdav_backend_add),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+            }
+
             // Advanced Settings
             SectionGroup(title = stringResource(R.string.webdav_advanced_settings)) {
                 SectionItem(position = ItemPosition.Top) {
+                    TextFieldRow(
+                        label = stringResource(R.string.webdav_dns_label),
+                        value = config.dns,
+                        onValueChange = { config = config.copy(dns = it) },
+                        placeholder = "1.1.1.1:53",
+                        supportingText = stringResource(R.string.webdav_dns_desc),
+                        isModified = isEditMode && config.dns != initialConfig.dns
+                    )
+                }
+                SectionItem {
                     TextFieldRow(
                         label = stringResource(R.string.webdav_poll_min),
                         value = config.pollMin,
@@ -479,4 +554,236 @@ fun WebdavConfigScreen(
             }
         )
     }
+
+    if (showBackendsDialog.value) {
+        BackendsDialog(
+            backends = config.backends,
+            onAdd = {
+                showBackendsDialog.value = false
+                isAddingBackend.value = true
+            },
+            onEdit = { backend ->
+                showBackendsDialog.value = false
+                editingBackend.value = backend
+            },
+            onDelete = { backend ->
+                config = config.copy(backends = config.backends - backend)
+            },
+            onDismiss = { showBackendsDialog.value = false }
+        )
+    }
+
+    if (isAddingBackend.value || editingBackend.value != null) {
+        val backendToEdit = editingBackend.value
+        BackendEditDialog(
+            backend = backendToEdit,
+            isPrivacyActive = isPrivacyActive,
+            onSave = { newBackend ->
+                config = if (backendToEdit != null) {
+                    config.copy(backends = config.backends.map { if (it == backendToEdit) newBackend else it })
+                } else {
+                    config.copy(backends = config.backends + newBackend)
+                }
+                editingBackend.value = null
+                isAddingBackend.value = false
+                showBackendsDialog.value = true
+            },
+            onDismiss = {
+                editingBackend.value = null
+                isAddingBackend.value = false
+                showBackendsDialog.value = true
+            }
+        )
+    }
+}
+
+@Composable
+private fun BackendsDialog(
+    backends: List<WebdavBackend>,
+    onAdd: () -> Unit,
+    onEdit: (WebdavBackend) -> Unit,
+    onDelete: (WebdavBackend) -> Unit,
+    onDismiss: () -> Unit
+) {
+    SelectionDialog(
+        title = stringResource(R.string.webdav_backends_title),
+        description = stringResource(R.string.webdav_backends_desc),
+        items = backends,
+        isSelected = { false },
+        onSelect = onEdit,
+        onDismiss = onDismiss,
+        dismissOnSelect = false,
+        footer = {
+            Surface(
+                onClick = onAdd,
+                shape = MaterialTheme.shapes.extraLarge,
+                color = Color.Transparent,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    StandardLeadingIcon {
+                        Icon(
+                            painter = painterResource(R.drawable.add_24px),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.webdav_backend_add),
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+            }
+        }
+    ) { backend, _ ->
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            StandardLeadingIcon {
+                Icon(painter = painterResource(R.drawable.lan_24px), contentDescription = null)
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = backend.label.ifBlank { WebdavConfig.formatHost(backend.url) },
+                    maxLines = 1
+                )
+                Text(
+                    text = backend.login,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
+                )
+            }
+            var showMenu by remember { mutableStateOf(false) }
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(
+                        painter = painterResource(R.drawable.more_vert_24px),
+                        contentDescription = stringResource(R.string.profile_actions)
+                    )
+                }
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.webdav_backend_edit)) },
+                        onClick = { showMenu = false; onEdit(backend) },
+                        leadingIcon = { Icon(painterResource(R.drawable.edit_24px), null) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.webdav_backend_delete)) },
+                        onClick = { showMenu = false; onDelete(backend) },
+                        leadingIcon = {
+                            Icon(
+                                painterResource(R.drawable.delete_24px),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BackendEditDialog(
+    backend: WebdavBackend?,
+    isPrivacyActive: Boolean,
+    onSave: (WebdavBackend) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var label by remember { mutableStateOf(backend?.label ?: "") }
+    var url by remember { mutableStateOf(backend?.url ?: "") }
+    var login by remember { mutableStateOf(backend?.login ?: "") }
+    var password by remember { mutableStateOf(backend?.password ?: "") }
+    var passwordVisible by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                if (backend == null) stringResource(R.string.webdav_backend_add)
+                else stringResource(R.string.webdav_backend_edit)
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                OutlinedTextField(
+                    value = label,
+                    onValueChange = { label = it },
+                    label = { Text(stringResource(R.string.webdav_backend_label_label)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = url.redact(isPrivacyActive),
+                    onValueChange = { if (!isPrivacyActive) url = it },
+                    readOnly = isPrivacyActive,
+                    label = { Text(stringResource(R.string.webdav_backend_url_label)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = url.isBlank(),
+                    singleLine = true,
+                    placeholder = { Text("https://dav.example.com") }
+                )
+                OutlinedTextField(
+                    value = login.redact(isPrivacyActive),
+                    onValueChange = { if (!isPrivacyActive) login = it },
+                    readOnly = isPrivacyActive,
+                    label = { Text(stringResource(R.string.webdav_login_label)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = login.isBlank(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = password.redact(isPrivacyActive),
+                    onValueChange = { if (!isPrivacyActive) password = it },
+                    readOnly = isPrivacyActive,
+                    label = { Text(stringResource(R.string.webdav_password_label)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = password.isBlank(),
+                    singleLine = true,
+                    trailingIcon = {
+                        if (!isPrivacyActive) {
+                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                Icon(
+                                    painter = painterResource(
+                                        if (passwordVisible) R.drawable.visibility_24px
+                                        else R.drawable.visibility_off_24px
+                                    ),
+                                    contentDescription = null
+                                )
+                            }
+                        }
+                    },
+                    visualTransformation = if (passwordVisible || isPrivacyActive) VisualTransformation.None
+                                         else PasswordVisualTransformation()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onSave(WebdavBackend(label = label, url = url, login = login, password = password))
+                },
+                enabled = url.isNotBlank() && login.isNotBlank() && password.isNotBlank()
+            ) {
+                Text(stringResource(R.string.btn_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
 }

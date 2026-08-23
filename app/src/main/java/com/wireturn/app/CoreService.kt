@@ -993,30 +993,10 @@ class CoreService : Service() {
                 cmdArgs.add(configFile.absolutePath)
             }
             is KernelConfig.Webdav -> {
-                val o = k.config
                 cmdArgs.add("${applicationInfo.nativeLibraryDir}/libwebdav.so")
-                cmdArgs.addAll(listOf(
-                    "-mode", "client",
-                    "-webdav", o.webdav,
-                    "-login", o.login,
-                    "-password", o.password,
-                    "-timeout", o.timeout,
-                    "-poll-max", o.pollMax,
-                    "-poll-min", o.pollMin,
-                    "-coalesce", o.coalesce,
-                    "-chunk-size", o.chunkSize,
-                    "-puts", o.puts,
-                    "-read-min", o.readMin,
-                    "-read-max", o.readMax,
-                    "-socks-listen", cfg.socksAddr.ifBlank { ClientConfig.DEFAULT_SOCKS_ADDR }
-                ))
-                if (o.encrypt) cmdArgs.add("-enc")
-                if (cfg.isSocksAuthEnabled) {
-                    cmdArgs.add("-socks-user")
-                    cmdArgs.add(cfg.socksUser)
-                    cmdArgs.add("-socks-pass")
-                    cmdArgs.add(cfg.socksPass)
-                }
+                val configFile = java.io.File(filesDir, "webdav.yaml")
+                configFile.writeText(buildWebdavYaml(cfg))
+                cmdArgs.addAll(listOf("-config", configFile.absolutePath))
             }
             is KernelConfig.FreeTurn -> {
                 val o = k.config
@@ -1110,6 +1090,43 @@ class CoreService : Service() {
                     }
                 }
             }
+        }
+    }
+
+    private fun buildWebdavYaml(cfg: ClientConfig): String {
+        val o = (cfg.kernelConfig as KernelConfig.Webdav).config
+        fun esc(s: String) = s.replace("\\", "\\\\").replace("\"", "\\\"")
+        return buildString {
+            appendLine("mode: client")
+            appendLine("socks-listen: \"${esc(cfg.socksAddr.ifBlank { ClientConfig.DEFAULT_SOCKS_ADDR })}\"")
+            if (cfg.isSocksAuthEnabled) {
+                appendLine("socks-user: \"${esc(cfg.socksUser)}\"")
+                appendLine("socks-pass: \"${esc(cfg.socksPass)}\"")
+            }
+            if (o.encrypt) appendLine("enc: true")
+            appendLine("timeout: \"${esc(o.timeout)}\"")
+            if (o.dns.isNotBlank()) appendLine("dns: \"${esc(o.dns)}\"")
+
+            appendLine("backends:")
+            appendLine("  - url: \"${esc(o.webdav)}\"")
+            appendLine("    login: \"${esc(o.login)}\"")
+            appendLine("    password: \"${esc(o.password)}\"")
+            for (backend in o.backends) {
+                // BackendConfig (external/webdav-tunnel config.go) only has url/login/password -
+                // the label is purely a local display name, not sent to the tunnel binary.
+                appendLine("  - url: \"${esc(backend.url)}\"")
+                appendLine("    login: \"${esc(backend.login)}\"")
+                appendLine("    password: \"${esc(backend.password)}\"")
+            }
+
+            appendLine("tuning:")
+            appendLine("  poll-min: \"${esc(o.pollMin)}\"")
+            appendLine("  poll-max: \"${esc(o.pollMax)}\"")
+            appendLine("  coalesce: \"${esc(o.coalesce)}\"")
+            appendLine("  chunk-size: ${o.chunkSize.toIntOrNull() ?: 131071}")
+            appendLine("  puts: ${o.puts.toIntOrNull() ?: 8}")
+            appendLine("  read-min: ${o.readMin.toIntOrNull() ?: 3}")
+            appendLine("  read-max: ${o.readMax.toIntOrNull() ?: 8}")
         }
     }
 

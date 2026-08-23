@@ -165,6 +165,16 @@
     <string name="webdav_timeout">Timeout</string>
     <string name="webdav_encrypt">Шифрование (AES-256-GCM)</string>
     <string name="webdav_encrypt_desc">Должно быть включено и на стороне сервера</string>
+    <string name="webdav_dns_label">Свой DNS-сервер</string>
+    <string name="webdav_dns_desc">Определяет только адрес сервера WebDAV, например 1.1.1.1:53 — на туннелируемый трафик не влияет</string>
+    <string name="webdav_backends_title">Дополнительные бэкенды</string>
+    <string name="webdav_backends_desc">Новые сессии распределяются по всем бэкендам по очереди; недоступность одного не блокирует остальные</string>
+    <string name="webdav_backend_add">Добавить бэкенд</string>
+    <string name="webdav_backend_edit">Изменить бэкенд</string>
+    <string name="webdav_backend_delete">Удалить бэкенд</string>
+    <string name="webdav_backend_label_label">Метка (необязательно)</string>
+    <string name="webdav_backend_url_label">URL WebDAV</string>
+    <string name="webdav_backend_empty">Нет дополнительных бэкендов</string>
     <string name="olcrtc_vp8_batch">VP8 Batch</string>
     <string name="olcrtc_sei_fps">SEI FPS</string>
     <string name="olcrtc_sei_batch">SEI Batch</string>
