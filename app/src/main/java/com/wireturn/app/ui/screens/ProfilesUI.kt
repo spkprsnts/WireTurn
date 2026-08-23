@@ -23,6 +23,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.rememberOverscrollEffect
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -365,6 +366,15 @@ fun ProfilesDialog(
     val density = androidx.compose.ui.platform.LocalDensity.current
 
     var draggedItemId by remember { mutableStateOf<String?>(null) }
+
+    // Was the list already at rest at the top when the current touch began? Distinguishes a
+    // swipe that merely scrolls up to the top (never dismiss) from a deliberate second swipe
+    // starting with nothing left to scroll (dismiss normally).
+    var gestureStartedAtTop by remember { mutableStateOf(false) }
+
+    // Passed to the LazyColumn below so noDismissNestedScroll can also manually drive it for
+    // top-boundary overscroll (see there) - same native stretch effect as the bottom edge.
+    val topOverscroll = rememberOverscrollEffect()
 
     val sheetState = rememberBottomSheetState(
         initialValue = SheetValue.Hidden,
@@ -809,24 +819,40 @@ fun ProfilesDialog(
                 if (draggedItemId != null && source == NestedScrollSource.UserInput) {
                     return available
                 }
-                
+
+                // Второй жест, начатый уже с упора - однозначный драг шторки, не мешаем.
+                if (gestureStartedAtTop) {
+                    return Offset.Zero
+                }
+
+                // Упёрлись в верх ВНУТРИ жеста - в шторку не пускаем (иначе она поедет),
+                // рисуем вместо этого нативный stretch через topOverscroll (performScroll
+                // ничего не отдаёт дальше, поэтому весь остаток уходит в растяжку).
+                if (available.y > 0) {
+                    return topOverscroll?.applyToScroll(available, source) { Offset.Zero } ?: available
+                }
+
                 return Offset.Zero
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
-                // Вместо полного гашения, оставляем 5% энергии.
-                // Это заставит шторку слегка "вздрогнуть" при резком свайпе, 
-                // но этой энергии не хватит для её закрытия.
+                if (gestureStartedAtTop) {
+                    return Velocity.Zero
+                }
                 if (available.y > 0 && !lazyListState.canScrollBackward) {
-                    return available * 0.95f
+                    topOverscroll?.applyToFling(available) { Velocity.Zero }
+                    return available
                 }
                 return Velocity.Zero
             }
 
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                // Прокидываем чуть-чуть остаточной энергии вниз
+                if (gestureStartedAtTop) {
+                    return Velocity.Zero
+                }
                 if (available.y > 0) {
-                    return available * 0.95f
+                    topOverscroll?.applyToFling(available) { Velocity.Zero }
+                    return available
                 }
                 return Velocity.Zero
             }
@@ -1011,10 +1037,18 @@ fun ProfilesDialog(
             LazyColumn(
                 state = lazyListState,
                 userScrollEnabled = draggedItemId == null,
+                overscrollEffect = topOverscroll,
                 modifier = Modifier
                     .heightIn(max = 640.dp)
                     .fillMaxWidth()
                     .nestedScroll(noDismissNestedScroll)
+                    .pointerInput(Unit) {
+                        // Never consumes - just samples gestureStartedAtTop on each new touch.
+                        awaitEachGesture {
+                            awaitFirstDown(requireUnconsumed = false)
+                            gestureStartedAtTop = !lazyListState.canScrollBackward
+                        }
+                    }
                     .pointerInput(isSelectionMode) {
                         if (isSelectionMode) return@pointerInput
                         awaitEachGesture {
