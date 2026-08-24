@@ -181,8 +181,6 @@
     <string name="webdav_timeout">Timeout</string>
     <string name="webdav_encrypt">Encryption (AES-256-GCM)</string>
     <string name="webdav_encrypt_desc">Must be enabled on the server side as well</string>
-    <string name="webdav_dns_label">DNS server</string>
-    <string name="webdav_dns_desc">Resolves only the WebDAV backend\'s hostname, e.g. 1.1.1.1:53 - tunneled traffic is unaffected</string>
     <string name="webdav_backends_title">Additional backends</string>
     <string name="webdav_backends_desc">New sessions rotate across all backends; one being rate-limited or unreachable doesn\'t block the others</string>
     <string name="webdav_backend_add">Add backend</string>
@@ -193,9 +191,6 @@
     <string name="webdav_backend_empty">No additional backends</string>
     <string name="olcrtc_id_label">Room ID</string>
     <string name="olcrtc_key_label">Auth Key</string>
-    <string name="olcrtc_dns_label">DNS Server</string>
-    <string name="olcrtc_dns_desc">Used to resolve the signaling provider before the tunnel is up - must stay reachable under allow-list-only restrictions</string>
-    <string name="olcrtc_dns_placeholder" translatable="false">77.88.8.8:53</string>
     <string name="olcrtc_carrier_label">Carrier</string>
     <string name="turnable_carrier_label">Carrier</string>
     <string name="olcrtc_transport_label">Transport</string>
@@ -300,6 +295,9 @@
     <string name="wait_for_network_desc">When connection is lost, the tunnel will wait for Wi-Fi or mobile network availability</string>
     <string name="restart_on_network_change_title">Restart on network change</string>
     <string name="restart_on_network_change_desc">Automatically restart tunnel when switching between Wi-Fi and mobile network</string>
+
+    <string name="client_dns_label">DNS server</string>
+    <string name="client_dns_desc">Used by olcRTC and WebDAV to resolve their entry point before the tunnel is up.</string>
 
     <string name="go_internal_dns_title">Go internal resolver</string>
     <string name="go_internal_dns_desc">Force Go core to use its internal resolver. Can help with IPv6 issues.</string>

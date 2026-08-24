@@ -1056,7 +1056,7 @@ class CoreService : Service() {
             appendLine("  key: \"${o.key}\"")
             appendLine("net:")
             appendLine("  transport: ${o.transport}")
-            appendLine("  dns: \"${o.dns}\"")
+            appendLine("  dns: \"${cfg.dns}\"")
             appendLine("socks:")
             appendLine("  host: \"${cfg.socksAddr.substringBefore(':').ifBlank { "127.0.0.1" }}\"")
             appendLine("  port: ${cfg.socksAddr.substringAfter(':', "9001").ifBlank { "9001" }}")
@@ -1107,7 +1107,7 @@ class CoreService : Service() {
             }
             if (o.encrypt) appendLine("enc: true")
             appendLine("timeout: \"${esc(o.timeout)}\"")
-            if (o.dns.isNotBlank()) appendLine("dns: \"${esc(o.dns)}\"")
+            if (cfg.dns.isNotBlank()) appendLine("dns: \"${esc(cfg.dns)}\"")
 
             appendLine("backends:")
             appendLine("  - url: \"${esc(o.webdav)}\"")

@@ -865,7 +865,6 @@ class ProfileManager(
             ?: str("vp8_fps", "vp8Fps")?.toIntOrNull()
         val vp8Batch = (vp8?.get("batch")?.takeIf { it.isJsonPrimitive }?.asInt)
             ?: str("vp8_batch", "vp8Batch")?.toIntOrNull()
-        val dns = str("dns_server", "dnsServer")
 
         val storageId = str("storage_id", "storageId") ?: ""
         val metadataName = obj("metadata")?.get("name")?.takeIf { it.isJsonPrimitive }?.asString
@@ -876,7 +875,6 @@ class ProfileManager(
         var config = OlcrtcConfig(provider = provider, transport = transport, id = roomId, key = key)
         vp8Fps?.let { config = config.copy(vp8Fps = it) }
         vp8Batch?.let { config = config.copy(vp8Batch = it) }
-        dns?.takeIf { it.isNotBlank() }?.let { config = config.copy(dns = it) }
 
         return Profile(id = storageId, name = name, kernelConfig = KernelConfig.Olcrtc(config))
     }

@@ -83,6 +83,9 @@ fun ConnectionSettingsScreen(
     var goDnsGo by remember { mutableStateOf(initialClientConfig.goDnsGo) }
     var useCustomCerts by remember { mutableStateOf(initialClientConfig.useCustomCerts) }
 
+    // Shared between olcRTC and WebDAV (both SOCKS5-native, see olSocks below)
+    var dns by remember { mutableStateOf(initialClientConfig.dns) }
+
     // olcRTC states
     var olSocks by remember { mutableStateOf(initialClientConfig.socksAddr) }
     var olAuth by remember { mutableStateOf(initialClientConfig.isSocksAuthEnabled) }
@@ -100,13 +103,14 @@ fun ConnectionSettingsScreen(
 
     val scrollState = rememberScrollState()
 
-    val currentClientConfig = remember(listenAddr, olSocks, olAuth, olUser, olPass, goDnsGo, useCustomCerts, initialClientConfig) {
+    val currentClientConfig = remember(listenAddr, olSocks, olAuth, olUser, olPass, dns, goDnsGo, useCustomCerts, initialClientConfig) {
         initialClientConfig.copy(
             listenAddr = listenAddr,
             socksAddr = olSocks,
             isSocksAuthEnabled = olAuth,
             socksUser = olUser,
             socksPass = olPass,
+            dns = dns,
             goDnsGo = goDnsGo,
             useCustomCerts = useCustomCerts
         )
@@ -124,6 +128,7 @@ fun ConnectionSettingsScreen(
 
     val isModified = remember(currentClientConfig, initialClientConfig, currentXraySettings, initialXraySettings) {
         currentClientConfig.listenAddr != initialClientConfig.listenAddr ||
+        currentClientConfig.dns != initialClientConfig.dns ||
         currentClientConfig.goDnsGo != initialClientConfig.goDnsGo ||
         currentClientConfig.useCustomCerts != initialClientConfig.useCustomCerts ||
         currentClientConfig.socksAddr != initialClientConfig.socksAddr ||
@@ -317,7 +322,20 @@ fun ConnectionSettingsScreen(
                         privacyMode = privacyMode
                     )
                 }
-                
+
+                SectionItem {
+                    TextFieldRow(
+                        label = stringResource(R.string.client_dns_label),
+                        value = dns.redact(privacyMode),
+                        onValueChange = { if (!privacyMode) dns = it },
+                        placeholder = ClientConfig.DEFAULT_DNS,
+                        supportingText = stringResource(R.string.client_dns_desc),
+                        readOnly = privacyMode,
+                        isModified = dns != initialClientConfig.dns,
+                        privacyMode = privacyMode
+                    )
+                }
+
                 SectionItem(
                     position = if (olAuth) ItemPosition.Middle else ItemPosition.Bottom,
                     onClick = {

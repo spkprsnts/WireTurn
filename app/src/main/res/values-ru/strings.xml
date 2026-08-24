@@ -139,8 +139,6 @@
     <string name="kernel_freeturn">FreeTurn</string>
     <string name="olcrtc_id_label">ID комнаты</string>
     <string name="olcrtc_key_label">Ключ авторизации</string>
-    <string name="olcrtc_dns_label">DNS-сервер</string>
-    <string name="olcrtc_dns_desc">Используется для резолвинга сигнального провайдера до поднятия туннеля — сервер должен быть доступен при ограничениях по белым спискам (БС)</string>
     <string name="olcrtc_carrier_label">Платформа</string>
     <string name="turnable_carrier_label">Платформа</string>
     <string name="olcrtc_transport_label">Транспорт</string>
@@ -165,8 +163,6 @@
     <string name="webdav_timeout">Timeout</string>
     <string name="webdav_encrypt">Шифрование (AES-256-GCM)</string>
     <string name="webdav_encrypt_desc">Должно быть включено и на стороне сервера</string>
-    <string name="webdav_dns_label">DNS-сервер</string>
-    <string name="webdav_dns_desc">Определяет только адрес сервера WebDAV, например 1.1.1.1:53 — на туннелируемый трафик не влияет</string>
     <string name="webdav_backends_title">Дополнительные бэкенды</string>
     <string name="webdav_backends_desc">Новые сессии распределяются по всем бэкендам по очереди; недоступность одного не блокирует остальные</string>
     <string name="webdav_backend_add">Добавить бэкенд</string>
@@ -268,6 +264,9 @@
     <string name="wait_for_network_desc">При потере связи туннель будет ждать подключения к Wi-Fi или мобильной сети</string>
     <string name="restart_on_network_change_title">Перезапуск при смене сети</string>
     <string name="restart_on_network_change_desc">Автоматически перезапускать туннель при переключении между Wi-Fi и мобильной сетью</string>
+
+    <string name="client_dns_label">DNS-сервер</string>
+    <string name="client_dns_desc">Используется olcRTC и WebDAV для резолвинга точки входа до запуска туннеля.</string>
 
     <string name="go_internal_dns_title">Внутренний резолвер Go</string>
     <string name="go_internal_dns_desc">Принудительно использовать встроенный резолвер Go. Может помочь при проблемах с IPv6.</string>

@@ -299,9 +299,6 @@ data class OlcrtcConfig(
     @SerializedName("transport") val transport: String = "datachannel",
     @SerializedName("id") val id: String = "",
     @SerializedName("key") val key: String = "",
-    // Yandex DNS: resolves the signaling provider's domain before the tunnel is even up, so it
-    // needs to be reachable under allow-list-only restrictions where 1.1.1.1/8.8.8.8 typically aren't.
-    @SerializedName("dns") val dns: String = "77.88.8.8:53",
     @SerializedName("mimo") val mimo: String = "",
     @SerializedName("vp8_fps") val vp8Fps: Int = 60,
     @SerializedName("vp8_batch") val vp8Batch: Int = 64,
@@ -336,7 +333,6 @@ data class OlcrtcConfig(
             transport = (transport as Any?)?.toString()?.take(100) ?: "datachannel",
             id = (id as Any?)?.toString()?.take(200) ?: "",
             key = (key as Any?)?.toString()?.take(1000) ?: "",
-            dns = (dns as Any?)?.toString()?.take(200) ?: "77.88.8.8:53",
             mimo = (mimo as Any?)?.toString()?.take(500) ?: "",
             videoW = if (videoW <= 0) 1080 else videoW,
             videoH = if (videoH <= 0) 1080 else videoH
@@ -344,7 +340,7 @@ data class OlcrtcConfig(
     }
 
     fun isValid(): Boolean {
-        if (id.isBlank() || key.isBlank() || dns.isBlank()) return false
+        if (id.isBlank() || key.isBlank()) return false
         if (transport == "videochannel") {
             if (videoW !in VIDEO_MIN_DIMENSION..VIDEO_MAX_DIMENSION) return false
             if (videoH !in VIDEO_MIN_DIMENSION..VIDEO_MAX_DIMENSION) return false
@@ -508,7 +504,6 @@ data class OlcrtcConfig(
                     transport = params["transport"] ?: params["t"] ?: current.transport,
                     vp8Fps = (params["vp8_fps"] ?: params["f"])?.toIntOrNull() ?: current.vp8Fps,
                     vp8Batch = (params["vp8_batch"] ?: params["b"])?.toIntOrNull() ?: current.vp8Batch,
-                    dns = params["dns"] ?: params["d"] ?: current.dns,
                     mimo = Uri.decode(fragment).ifBlank { current.mimo }
                 )
             } catch (_: Exception) {
@@ -573,10 +568,6 @@ data class WebdavConfig(
     @SerializedName("webdav") val webdav: String = "",
     @SerializedName("login") val login: String = "",
     @SerializedName("password") val password: String = "",
-    // Overrides how the WebDAV backend's own hostname is resolved (client & server) - useful
-    // when the OS resolver is unreliable/filtered. Has no effect on SOCKS5-tunneled traffic,
-    // which is always resolved server-side. See external/webdav-tunnel docs/config.md#dns-resolution.
-    @SerializedName("dns") val dns: String = "",
     // Additional WebDAV backends beyond the primary one above - the client rotates new sessions
     // round-robin across all of them, skipping any that are rate-limited/unreachable. See
     // external/webdav-tunnel docs/config.md#multi-backend-rotation.
@@ -640,7 +631,6 @@ data class WebdavConfig(
         builder.appendQueryParameter("read-min", readMin)
         builder.appendQueryParameter("read-max", readMax)
         if (encrypt) builder.appendQueryParameter("enc", "1")
-        if (dns.isNotBlank()) builder.appendQueryParameter("dns", dns)
         for (backend in backends) {
             if (backend.isValid()) builder.appendQueryParameter("backend", backend.toNestedUri())
         }
@@ -678,7 +668,6 @@ data class WebdavConfig(
                     webdav = webdav,
                     login = login,
                     password = password,
-                    dns = uri.getQueryParameter("dns") ?: current.dns,
                     backends = backends.ifEmpty { current.backends },
                     timeout = uri.getQueryParameter("timeout") ?: current.timeout,
                     pollMin = uri.getQueryParameter("poll-min") ?: current.pollMin,
@@ -852,6 +841,12 @@ data class ClientConfig(
     val isSocksAuthEnabled: Boolean = true,
     val socksUser: String = "",
     val socksPass: String = "",
+    // Shared between OLCRTC and WEBDAV (the two SOCKS5-native kernels, see socksAddr above) -
+    // resolves that kernel's own entry-point hostname (olcRTC's signaling provider, or the
+    // WebDAV backend) before/outside the tunnel, useful when the OS resolver is
+    // unreliable/filtered/blocked. Has no effect on traffic routed *through* the tunnel once
+    // it's up - that's always resolved on the other side, never on this client.
+    val dns: String = DEFAULT_DNS,
     val goDnsGo: Boolean = false,
     val useCustomCerts: Boolean = true,
     val kernelConfig: KernelConfig = KernelConfig.Turnable(),
@@ -892,6 +887,7 @@ data class ClientConfig(
             socksAddr = validSocks,
             socksUser = cleanedUser,
             socksPass = cleanedPass,
+            dns = dns.ifBlank { DEFAULT_DNS },
             goDnsGo = goDnsGo,
             kernelConfig = currentKc,
             uri = "",
@@ -937,6 +933,9 @@ data class ClientConfig(
     companion object {
         const val DEFAULT_LISTEN_ADDR = "127.0.0.1:9000"
         const val DEFAULT_SOCKS_ADDR = "127.0.0.1:2081"
+        // Yandex DNS - stays reachable under allow-list-only restrictions where 1.1.1.1/8.8.8.8
+        // typically aren't.
+        const val DEFAULT_DNS = "77.88.8.8:53"
     }
 }
 
@@ -1328,6 +1327,7 @@ class AppPreferences(val context: Context) {
         val USE_CUSTOM_CERTS = booleanPreferencesKey("use_custom_certs")
 
         val CLIENT_LISTEN_ADDR = stringPreferencesKey("client_listen_addr")
+        val CLIENT_DNS = stringPreferencesKey("client_dns")
         val OLCRTC_SOCKS_ADDR = stringPreferencesKey("olcrtc_socks_addr")
         val OLCRTC_SOCKS_AUTH_ENABLED = booleanPreferencesKey("olcrtc_socks_auth_enabled")
         val OLCRTC_SOCKS_USER = stringPreferencesKey("olcrtc_socks_user")
@@ -1471,6 +1471,7 @@ class AppPreferences(val context: Context) {
                 isSocksAuthEnabled = p[OLCRTC_SOCKS_AUTH_ENABLED] ?: true,
                 socksUser = p[OLCRTC_SOCKS_USER] ?: "",
                 socksPass = p[OLCRTC_SOCKS_PASS] ?: "",
+                dns = p[CLIENT_DNS] ?: ClientConfig.DEFAULT_DNS,
                 goDnsGo = p[GO_DNS_GO] ?: false,
                 useCustomCerts = p[USE_CUSTOM_CERTS] ?: true,
                 kernelConfig = kernelConfig
@@ -1656,6 +1657,7 @@ class AppPreferences(val context: Context) {
             it[OLCRTC_SOCKS_AUTH_ENABLED] = c.isSocksAuthEnabled
             it[OLCRTC_SOCKS_USER] = c.socksUser
             it[OLCRTC_SOCKS_PASS] = c.socksPass
+            it[CLIENT_DNS] = c.dns
             it[GO_DNS_GO] = c.goDnsGo
             it[USE_CUSTOM_CERTS] = c.useCustomCerts
             it[ACTIVE_KERNEL_JSON] = gson.toJson(when (val k = c.kernelConfig) {
