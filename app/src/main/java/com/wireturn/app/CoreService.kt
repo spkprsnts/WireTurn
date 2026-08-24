@@ -674,14 +674,14 @@ class CoreService : Service() {
         // Gated on network being up so a dropped connection isn't misreported as a captcha
         // failure — these attempts only happen after the challenge page was fetched
         // successfully, but skip counting them if the network has since gone away.
-        if (lower.contains("captcha solve attempt failed") && isNetworkAvailable()) {
+        if (lower.contains("vk captcha solve failed") && isNetworkAvailable()) {
             if (state.vkCaptchaSolveFailCounter.recordAndCheckThreshold()) {
-                // "failed to find PoW settings" means the captcha page itself is structurally
+                // "captcha pow arguments not found" means the captcha page itself is structurally
                 // broken (e.g. VK changed markup) - restarting Turnable won't fix that, so stop
                 // for good with a clear error. Any other captcha error (e.g. a transient "captcha
                 // init json not found" from a bad page fetch) is more likely to clear up on its
                 // own, so just kill this run and let the normal watchdog restart it fresh.
-                if (lower.contains("failed to find pow settings")) {
+                if (lower.contains("captcha pow arguments not found")) {
                     if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                         CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_turnable_vk_captcha_failed)))
                         updateNotification(getString(R.string.error_connecting))
