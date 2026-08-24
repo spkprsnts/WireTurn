@@ -394,6 +394,22 @@ fun WebdavConfigScreen(
                 }
             }
 
+
+            SectionGroup {
+                SectionItem(
+                    position = ItemPosition.Single
+                ) {
+                    TextFieldRow(
+                        label = stringResource(R.string.webdav_dns_label),
+                        value = config.dns,
+                        onValueChange = { config = config.copy(dns = it) },
+                        placeholder = "1.1.1.1:53",
+                        supportingText = stringResource(R.string.webdav_dns_desc),
+                        isModified = isEditMode && config.dns != initialConfig.dns
+                    )
+                }
+            }
+
             // Additional backends
             SectionGroup(
                 title = stringResource(R.string.webdav_backends_title),
@@ -447,16 +463,6 @@ fun WebdavConfigScreen(
             // Advanced Settings
             SectionGroup(title = stringResource(R.string.webdav_advanced_settings)) {
                 SectionItem(position = ItemPosition.Top) {
-                    TextFieldRow(
-                        label = stringResource(R.string.webdav_dns_label),
-                        value = config.dns,
-                        onValueChange = { config = config.copy(dns = it) },
-                        placeholder = "1.1.1.1:53",
-                        supportingText = stringResource(R.string.webdav_dns_desc),
-                        isModified = isEditMode && config.dns != initialConfig.dns
-                    )
-                }
-                SectionItem {
                     TextFieldRow(
                         label = stringResource(R.string.webdav_poll_min),
                         value = config.pollMin,
