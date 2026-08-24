@@ -150,8 +150,8 @@ val KernelConfig.variant: KernelVariant get() = when (this) {
 fun KernelConfig.description(context: Context): String = when (this) {
     is KernelConfig.Turnable -> {
         val route = config.routes.find { it.routeId == config.selectedRouteId }
-        val routeName = route?.name?.ifBlank { route.routeId } ?: config.selectedRouteId
-        context.getString(R.string.kernel_turnable) + " r:" + routeName
+        val transport = route?.socket?.uppercase()?.ifBlank { null }
+        context.getString(R.string.kernel_turnable) + transport?.let { " $it" }.orEmpty()
     }
     is KernelConfig.Olcrtc -> context.getString(R.string.kernel_olcrtc) + " " + config.providerDisplayName
     is KernelConfig.Webdav -> context.getString(R.string.kernel_webdav) + " " + WebdavConfig.formatHost(config.webdav) +
