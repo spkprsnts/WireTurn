@@ -967,7 +967,7 @@ fun ProfilesDialog(
                                 FilledTonalIconButton(onClick = { onExportClick(selectedIds.toList(), true) }) {
                                     Icon(
                                         painterResource(R.drawable.ios_share_24px),
-                                        contentDescription = null
+                                        contentDescription = stringResource(R.string.profile_export)
                                     )
                                 }
                                 ExportDropdownMenus(
@@ -1476,7 +1476,7 @@ private fun ProfileItemRow(
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         menuExpanded = true
                     }) {
-                        Icon(painterResource(R.drawable.more_vert_24px), contentDescription = null)
+                        Icon(painterResource(R.drawable.more_vert_24px), contentDescription = stringResource(R.string.profile_actions))
                     }
                     AppDropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }, title = stringResource(R.string.profile_actions)) {
                         DropdownMenuItem(
@@ -1664,8 +1664,8 @@ private fun SubscriptionHeaderRow(
             if (!isSelectionMode) {
                 IconButton(onClick = onSettings) {
                     Icon(
-                        painter = painterResource(R.drawable.settings_24px), 
-                        contentDescription = null, 
+                        painter = painterResource(R.drawable.settings_24px),
+                        contentDescription = stringResource(R.string.subscription_settings),
                         tint = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(20.dp)
                     )

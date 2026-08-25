@@ -595,7 +595,7 @@ fun AppExceptionsScreen(
                                         IconButton(onClick = { textFieldState.clearText() }) {
                                             Icon(
                                                 painterResource(R.drawable.close_24px),
-                                                contentDescription = null
+                                                contentDescription = stringResource(R.string.clear)
                                             )
                                         }
                                     }
@@ -603,7 +603,7 @@ fun AppExceptionsScreen(
                                         IconButton(onClick = { onImportFromClipboard() }) {
                                             Icon(
                                                 painterResource(R.drawable.content_paste_24px),
-                                                contentDescription = null
+                                                contentDescription = stringResource(R.string.import_from_clipboard)
                                             )
                                         }
                                     }
@@ -698,7 +698,7 @@ fun AppExceptionsScreen(
                             IconButton(onClick = { showMenu = true }) {
                                 Icon(
                                     painterResource(R.drawable.more_vert_24px),
-                                    contentDescription = null
+                                    contentDescription = stringResource(R.string.more_options)
                                 )
                             }
                             DropdownMenu(
