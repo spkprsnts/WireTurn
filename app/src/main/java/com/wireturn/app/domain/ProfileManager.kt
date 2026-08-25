@@ -1015,12 +1015,12 @@ class ProfileManager(
                 // subscription entry's would (see subscriptionHasXrayConfig in importParsedProfiles).
                 flush()
                 val encoded = trimmed.substringAfter("://")
-                val decodedJson = com.wireturn.app.domain.ProfileEncoder.decode(encoded)
+                val decodedJson = ProfileEncoder.decode(encoded)
                 val decodedProfiles = decodedJson?.let {
                     try {
                         val element = JsonParser.parseString(it)
                         if (element.isJsonArray) {
-                            gson.fromJson<List<Profile>>(element, object : com.google.gson.reflect.TypeToken<List<Profile>>() {}.type)
+                            gson.fromJson(element, object : com.google.gson.reflect.TypeToken<List<Profile>>() {}.type)
                         } else {
                             listOf(gson.fromJson(element, Profile::class.java))
                         }
