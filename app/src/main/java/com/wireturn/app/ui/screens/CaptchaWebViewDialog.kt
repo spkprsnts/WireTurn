@@ -13,7 +13,6 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -162,7 +161,7 @@ fun CaptchaWebViewDialog(
 
     val contentAlpha by animateFloatAsState(
         targetValue = if (isContentVisible.value) 1f else 0f,
-        animationSpec = tween(durationMillis = 400),
+        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
         label = "CaptchaVisibility"
     )
 

@@ -11,7 +11,6 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -353,7 +352,7 @@ private fun CoreToggleButtonInternal(
             "error" -> MaterialTheme.colorScheme.errorContainer
             else -> MaterialTheme.colorScheme.surfaceVariant
         },
-        animationSpec = tween(600),
+        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
         label = "btn_bg"
     )
 
@@ -364,7 +363,7 @@ private fun CoreToggleButtonInternal(
             "error" -> MaterialTheme.colorScheme.onErrorContainer
             else -> MaterialTheme.colorScheme.onSurfaceVariant
         },
-        animationSpec = tween(600),
+        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
         label = "btn_fg"
     )
 

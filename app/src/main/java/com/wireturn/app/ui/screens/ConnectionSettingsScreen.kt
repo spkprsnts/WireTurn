@@ -9,7 +9,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -206,14 +205,14 @@ fun ConnectionSettingsScreen(
                         dampingRatio = Spring.DampingRatioLowBouncy,
                         stiffness = Spring.StiffnessMediumLow
                     )
-                ) + fadeIn(animationSpec = tween(200)),
+                ) + fadeIn(animationSpec = MaterialTheme.motionScheme.fastEffectsSpec()),
                 exit = scaleOut(
                     targetScale = 0.8f,
                     animationSpec = spring(
                         dampingRatio = Spring.DampingRatioNoBouncy,
                         stiffness = Spring.StiffnessMedium
                     )
-                ) + fadeOut(animationSpec = tween(150))
+                ) + fadeOut(animationSpec = MaterialTheme.motionScheme.fastEffectsSpec())
             ) {
                 ExtendedFloatingActionButton(
                     modifier = Modifier.navigationBarsPadding(),

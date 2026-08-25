@@ -12,7 +12,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -269,14 +268,14 @@ fun OlcRtcConfigScreen(
                         dampingRatio = Spring.DampingRatioLowBouncy,
                         stiffness = Spring.StiffnessMediumLow
                     )
-                ) + fadeIn(animationSpec = tween(200)),
+                ) + fadeIn(animationSpec = MaterialTheme.motionScheme.fastEffectsSpec()),
                 exit = scaleOut(
                     targetScale = 0.8f,
                     animationSpec = spring(
                         dampingRatio = Spring.DampingRatioNoBouncy,
                         stiffness = Spring.StiffnessMedium
                     )
-                ) + fadeOut(animationSpec = tween(150))
+                ) + fadeOut(animationSpec = MaterialTheme.motionScheme.fastEffectsSpec())
             ) {
                 ExtendedFloatingActionButton(
                     modifier = Modifier.navigationBarsPadding(),
@@ -450,8 +449,8 @@ fun OlcRtcConfigScreen(
 
             AnimatedVisibility(
                 visibleState = transportVp8Visible,
-                enter = fadeIn(tween(300)) + expandVertically(tween(300)),
-                exit = fadeOut(tween(300)) + shrinkVertically(tween(300))
+                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
+                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec())
             ) {
                 SectionGroup(title = stringResource(R.string.olcrtc_vp8_settings_title)) {
                     SectionItem(position = ItemPosition.Top) {
@@ -479,8 +478,8 @@ fun OlcRtcConfigScreen(
 
             AnimatedVisibility(
                 visibleState = transportSeiVisible,
-                enter = fadeIn(tween(300)) + expandVertically(tween(300)),
-                exit = fadeOut(tween(300)) + shrinkVertically(tween(300))
+                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
+                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec())
             ) {
                 SectionGroup(title = stringResource(R.string.olcrtc_sei_settings_title)) {
                     SectionItem(position = ItemPosition.Top) {
@@ -528,8 +527,8 @@ fun OlcRtcConfigScreen(
 
             AnimatedVisibility(
                 visibleState = transportVideoVisible,
-                enter = fadeIn(tween(300)) + expandVertically(tween(300)),
-                exit = fadeOut(tween(300)) + shrinkVertically(tween(300))
+                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
+                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec())
             ) {
                 SectionGroup(title = stringResource(R.string.olcrtc_video_settings_title)) {
                     SectionItem(position = ItemPosition.Top) {

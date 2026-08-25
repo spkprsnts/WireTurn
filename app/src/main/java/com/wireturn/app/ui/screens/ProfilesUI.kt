@@ -339,7 +339,7 @@ fun ProfileListItem(
             isHighlighted -> MaterialTheme.colorScheme.surfaceVariant
             else -> MaterialTheme.colorScheme.surfaceContainerHigh
         },
-        animationSpec = tween(durationMillis = if (isHighlighted) 200 else 300),
+        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
         label = "profile_item_bg"
     )
 
@@ -1620,7 +1620,7 @@ private fun SubscriptionHeaderRow(
             isAnyChildSelected -> MaterialTheme.colorScheme.secondaryContainer
             else -> MaterialTheme.colorScheme.surfaceContainerHigh
         },
-        animationSpec = tween(durationMillis = if (isHighlighted) 200 else 300),
+        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
         label = "sub_header_bg"
     )
 

@@ -209,7 +209,7 @@ fun IconSwitch(
             modifier = modifier,
             interactionSource = internalInteractionSource,
             thumbContent = {
-                Crossfade(targetState = checked, animationSpec = tween(200), label = "switch_icon") { isChecked ->
+                Crossfade(targetState = checked, animationSpec = MaterialTheme.motionScheme.fastEffectsSpec(), label = "switch_icon") { isChecked ->
                     if (isChecked) {
                         Icon(
                             painter = painterResource(R.drawable.check_24px),
@@ -396,15 +396,16 @@ fun VerticalAnimatedText(
     val transitionState = remember { MutableTransitionState(text) }
     transitionState.targetState = text
     val transition = rememberTransition(transitionState, label = "vertical_animated_text")
+    val fadeSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
 
     transition.AnimatedContent(
         transitionSpec = {
             if (transitionState.currentState == transitionState.targetState) {
                 EnterTransition.None togetherWith ExitTransition.None
             } else {
-                (fadeIn(animationSpec = tween(220), initialAlpha = 0.2f) +
+                (fadeIn(animationSpec = fadeSpec, initialAlpha = 0.2f) +
                         slideInVertically(initialOffsetY = { h -> h / 2 }))
-                    .togetherWith(fadeOut(animationSpec = tween(160)) +
+                    .togetherWith(fadeOut(animationSpec = fadeSpec) +
                             slideOutVertically(targetOffsetY = { h -> -h / 2 }))
             }
         },
@@ -496,8 +497,8 @@ fun ExpandableSection(
 
     AnimatedVisibility(
         visibleState = visibleState,
-        enter = fadeIn(tween(300)) + expandVertically(tween(300)),
-        exit = fadeOut(tween(300)) + shrinkVertically(tween(300)),
+        enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
+        exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
         modifier = modifier
     ) {
         content()
@@ -1435,8 +1436,8 @@ fun UpdateBlock(
         // Линейный прогресс-бар при скачивании
         AnimatedVisibility(
             visible = state is UpdateState.Downloading,
-            enter = expandVertically(animationSpec = tween(300)) + fadeIn(tween(300)),
-            exit = shrinkVertically(animationSpec = tween(300)) + fadeOut(tween(300))
+            enter = expandVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+            exit = shrinkVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec())
         ) {
             androidx.compose.material3.LinearWavyProgressIndicator(
                 progress = { progress.div(100f) },
@@ -1449,8 +1450,8 @@ fun UpdateBlock(
 
         AnimatedVisibility(
             visible = showChangelog && currentChangelog.isNotBlank(),
-            enter = expandVertically(animationSpec = tween(300)) + fadeIn(tween(300)),
-            exit = shrinkVertically(animationSpec = tween(300)) + fadeOut(tween(300))
+            enter = expandVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+            exit = shrinkVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec())
         ) {
             Text(
                 text = MarkdownUtils.parseMarkdown(
