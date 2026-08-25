@@ -362,7 +362,15 @@ misc:
         private const val TUN_IPV4_ADDRESS = "10.0.88.88"
         // ULA (RFC 4193), same convention hev-socks5-tunnel's own README example uses.
         private const val TUN_IPV6_ADDRESS = "fc00::1"
-        private const val MAPDNS_ADDRESS = "1.1.1.1"
+        // Deliberately NOT a real public resolver (e.g. 1.1.1.1/8.8.8.8): Chrome silently
+        // auto-upgrades to DNS-over-HTTPS when it recognizes the system DNS server as a known
+        // provider, which bypasses hev-socks5-tunnel's local fake-DNS responder (hev-mapped-dns.c)
+        // entirely - that responder is what keeps AAAA lookups from ever returning a real answer.
+        // Once Chrome gets real AAAA records via DoH instead, every navigation races a genuine
+        // IPv6 connect through the tunnel, which can still stall/fail against an IPv4-only
+        // WireGuard outbound. 198.18.0.1 sits in the RFC 2544 benchmarking range - never publicly
+        // routed and not on Chrome's built-in DoH provider list - so it can't trigger the upgrade.
+        private const val MAPDNS_ADDRESS = "198.18.0.1"
         private const val MAPDNS_NETWORK = "100.64.0.0"
         private const val MAPDNS_NETMASK = "255.192.0.0"
     }
