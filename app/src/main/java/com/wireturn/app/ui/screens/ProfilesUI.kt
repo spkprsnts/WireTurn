@@ -76,6 +76,7 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
@@ -116,12 +117,24 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
+/** Small flat rectangular flag for an ISO-3166 alpha-2 country code, fetched from flagcdn.com. */
+@Composable
+private fun FlagImage(countryCode: String, modifier: Modifier = Modifier) {
+    coil.compose.AsyncImage(
+        model = "https://flagcdn.com/w80/${countryCode.lowercase()}.png",
+        contentDescription = null,
+        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+        modifier = modifier.clip(RoundedCornerShape(2.dp))
+    )
+}
+
 @Composable
 fun ProfileSummary(
     profile: Profile,
     modifier: Modifier = Modifier,
     color: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurfaceVariant,
-    useAnimation: Boolean = false
+    useAnimation: Boolean = false,
+    countryCode: String? = null
 ) {
     val parts = mutableListOf<String>()
     val context = LocalContext.current
@@ -170,24 +183,39 @@ fun ProfileSummary(
 
     if (parts.isNotEmpty()) {
         val text = parts.joinToString(" • ")
-        if (useAnimation) {
-            VerticalAnimatedText(
-                text = text,
-                style = MaterialTheme.typography.bodyMedium,
-                color = color,
-                maxLines = 1,
-                softWrap = false,
-                modifier = modifier
-            )
-        } else {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.labelSmall,
-                color = color,
-                maxLines = 1,
-                softWrap = false,
-                modifier = modifier
-            )
+        Row(
+            modifier = modifier,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (countryCode != null) {
+                val flagWidth = if (useAnimation) 14.dp else 12.dp
+                val flagHeight = if (useAnimation) 10.5.dp else 9.dp
+                FlagImage(
+                    countryCode = countryCode,
+                    modifier = Modifier
+                        .padding(end = if (useAnimation) 5.dp else 4.dp)
+                        .size(width = flagWidth, height = flagHeight)
+                )
+            }
+            if (useAnimation) {
+                VerticalAnimatedText(
+                    text = text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = color,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.weight(1f, fill = false).basicMarquee()
+                )
+            } else {
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = color,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.weight(1f, fill = false).basicMarquee()
+                )
+            }
         }
     }
 }
@@ -201,6 +229,7 @@ fun ProfilesBlock(
     val currentId by viewModel.currentProfileId.collectAsStateWithLifecycle()
     val currentProfile = profiles.find { it.id == currentId } ?: profiles.firstOrNull()
     val context = LocalContext.current
+    val profileCountries by viewModel.profileCountries.collectAsStateWithLifecycle()
 
     if (currentProfile != null) {
         Row(
@@ -230,10 +259,9 @@ fun ProfilesBlock(
                 )
                 ProfileSummary(
                     profile = currentProfile,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .basicMarquee(),
-                    useAnimation = true
+                    modifier = Modifier.fillMaxWidth(),
+                    useAnimation = true,
+                    countryCode = profileCountries[currentProfile.id]
                 )
             }
             FilledTonalIconButton(onClick = {
@@ -300,6 +328,7 @@ fun ProfileListItem(
     shape: Shape = MaterialTheme.shapes.medium,
     isDragged: Boolean = false,
     isHighlighted: Boolean = false,
+    countryCode: String? = null,
     trailingContent: @Composable (() -> Unit)? = null,
     leadingContent: @Composable (() -> Unit)? = null
 ) {
@@ -342,7 +371,7 @@ fun ProfileListItem(
                     profile = profile,
                     color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer
                     else MaterialTheme.colorScheme.outline,
-                    modifier = Modifier.basicMarquee()
+                    countryCode = countryCode
                 )
             }
             if (trailingContent != null) {
@@ -1362,6 +1391,7 @@ private fun ProfileItemRow(
     isInsideSubscription: Boolean = false
 ) {
     val isDragged = draggedItemId == profile.id
+    val profileCountries by viewModel.profileCountries.collectAsStateWithLifecycle()
 
     val isDraggedState = rememberUpdatedState(isDragged)
     val onDragEndState = rememberUpdatedState(onDragEnd)
@@ -1402,6 +1432,7 @@ private fun ProfileItemRow(
         profile = profile,
         isSelected = isSelected,
         isHighlighted = highlightedIds.contains(profile.id),
+        countryCode = profileCountries[profile.id],
         shape = itemShape,
         isDragged = isDragged,
         onClick = {

@@ -201,6 +201,14 @@ class ProfileManager(
     val subscriptions: StateFlow<List<Subscription>> = prefs.subscriptionsFlow
         .stateIn(scope, SharingStarted.Eagerly, emptyList())
 
+    /** Last known tunnel-exit country (ISO-3166 alpha-2) per profile id, updated after each successful connection. */
+    val profileCountries: StateFlow<Map<String, String>> = prefs.profileCountriesFlow
+        .stateIn(scope, SharingStarted.Eagerly, emptyMap())
+
+    fun saveProfileCountry(profileId: String, countryCode: String) {
+        scope.launch { prefs.saveProfileCountry(profileId, countryCode) }
+    }
+
     private val _updatingSubIds = MutableStateFlow<Set<String>>(emptySet())
     val updatingSubIds: StateFlow<Set<String>> = _updatingSubIds.asStateFlow()
 
@@ -305,6 +313,7 @@ class ProfileManager(
 
         scope.launch {
             prefs.saveProfiles(newList)
+            prefs.removeProfileCountries(ids)
             if (isCurrentDeleted && newList.isNotEmpty()) {
                 findBestFallbackProfile(newList, subscriptions.value, preferredSubId)?.let { onFallback(it) }
             }

@@ -1,5 +1,5 @@
 [versions]
-agp = "9.3.1"
+agp = "9.3.2"
 kotlin = "2.4.10"
 coreKtx = "1.19.0"
 appcompat = "1.8.0"
@@ -14,10 +14,11 @@ composeMaterial3 = "1.5.0-alpha26"
 lifecycleProcess = "2.11.0"
 barcodeScanning = "17.3.0"
 camera = "1.6.1"
-guava = "33.6.0-android"
+guava = "33.7.1-android"
 gson = "2.14.0"
 zxing = "3.5.4"
 desugar_jdk_libs = "2.1.5"
+coil = "2.7.0"
 
 
 [libraries]
@@ -45,6 +46,7 @@ guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugar_jdk_libs" }
+coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 
 
 [plugins]

@@ -1303,6 +1303,7 @@ class AppPreferences(val context: Context) {
         val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
         val PROFILES_JSON = stringPreferencesKey("profiles_json")
         val SUBSCRIPTIONS_JSON = stringPreferencesKey("subscriptions_json")
+        val PROFILE_COUNTRIES_JSON = stringPreferencesKey("profile_countries_json")
         val CURRENT_PROFILE_ID = stringPreferencesKey("current_profile_id")
         val DYNAMIC_THEME = booleanPreferencesKey("dynamic_theme")
         val THEME_MODE = stringPreferencesKey("theme_mode")
@@ -1419,6 +1420,19 @@ class AppPreferences(val context: Context) {
                 gson.fromJson<List<Subscription>>(json, object : TypeToken<List<Subscription>>() {}.type) ?: emptyList()
             } catch (_: Exception) {
                 emptyList()
+            }
+        }.distinctUntilChanged()
+
+    /** Last known tunnel-exit country (ISO-3166 alpha-2) per profile id, from the most recent successful connection. */
+    val profileCountriesFlow: Flow<Map<String, String>> = appCtx.internalDataStore.data
+        .map { p ->
+            try {
+                gson.fromJson<Map<String, String>>(
+                    p[PROFILE_COUNTRIES_JSON] ?: "{}",
+                    object : TypeToken<Map<String, String>>() {}.type
+                ) ?: emptyMap()
+            } catch (_: Exception) {
+                emptyMap()
             }
         }.distinctUntilChanged()
 
@@ -1592,6 +1606,35 @@ class AppPreferences(val context: Context) {
 
     suspend fun setPrivacyMode(v: Boolean) {
         appCtx.internalDataStore.edit { it[PRIVACY_MODE] = v }
+    }
+
+    suspend fun saveProfileCountry(profileId: String, countryCode: String) {
+        appCtx.internalDataStore.edit { p ->
+            val current = try {
+                gson.fromJson<Map<String, String>>(
+                    p[PROFILE_COUNTRIES_JSON] ?: "{}",
+                    object : TypeToken<Map<String, String>>() {}.type
+                ) ?: emptyMap()
+            } catch (_: Exception) {
+                emptyMap()
+            }
+            p[PROFILE_COUNTRIES_JSON] = gson.toJson(current + (profileId to countryCode))
+        }
+    }
+
+    suspend fun removeProfileCountries(profileIds: List<String>) {
+        if (profileIds.isEmpty()) return
+        appCtx.internalDataStore.edit { p ->
+            val current = try {
+                gson.fromJson<Map<String, String>>(
+                    p[PROFILE_COUNTRIES_JSON] ?: "{}",
+                    object : TypeToken<Map<String, String>>() {}.type
+                ) ?: emptyMap()
+            } catch (_: Exception) {
+                emptyMap()
+            }
+            p[PROFILE_COUNTRIES_JSON] = gson.toJson(current - profileIds.toSet())
+        }
     }
 
     suspend fun addVlessLinkToHistory(l: String) {
