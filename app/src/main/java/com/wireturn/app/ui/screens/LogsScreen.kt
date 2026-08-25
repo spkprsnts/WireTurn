@@ -29,7 +29,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ElevatedButton
@@ -178,7 +177,7 @@ fun LogsScreen(
                     viewModel = viewModel,
                     modifier = Modifier.navigationBarsPadding(),
                     size = 86.dp,
-                    shape = RoundedCornerShape(20.dp),
+                    shape = MaterialTheme.shapes.largeIncreased,
                     onClick = onToggleCore,
                     isFloat = true,
                     isVisible = true

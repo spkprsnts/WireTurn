@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -126,7 +125,7 @@ fun QrScannerDialog(
                     Box(
                         modifier = Modifier
                             .size(280.dp)
-                            .clip(RoundedCornerShape(28.dp))
+                            .clip(MaterialTheme.shapes.extraLarge)
                     ) {
                         CameraPreview(
                             zoom = zoom,

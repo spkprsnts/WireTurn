@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -234,7 +233,7 @@ fun CaptchaWebViewDialog(
                                 it.height(350.dp)
                             }
                         }
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(MaterialTheme.shapes.large)
                 ) {
                     if (isViewModelInitialized) {
                     AndroidView(

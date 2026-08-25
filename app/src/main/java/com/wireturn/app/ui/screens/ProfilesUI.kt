@@ -1411,7 +1411,7 @@ private fun ProfileItemRow(
     var itemExportActionMenuExpanded by remember { mutableStateOf(false) }
 
     val itemShape = when {
-        isDragged -> RoundedCornerShape(12.dp)
+        isDragged -> MaterialTheme.shapes.medium
         totalInGroup == 1 && !isInsideSubscription -> MaterialTheme.shapes.medium
         isInsideSubscription -> {
             if (index == totalInGroup - 1) RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 16.dp, bottomEnd = 16.dp)

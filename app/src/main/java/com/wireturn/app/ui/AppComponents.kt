@@ -683,7 +683,7 @@ fun CompactItem(
     CompositionLocalProvider(LocalSettingsInteractionSource provides internalInteractionSource) {
         Card(
             modifier = modifier,
-            shape = RoundedCornerShape(24.dp),
+            shape = RoundedCornerShape(percent = 50),
             onClick = onClick ?: {},
             enabled = onClick != null && enabled,
             interactionSource = internalInteractionSource,
@@ -784,7 +784,7 @@ fun SliderRow(
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     showDialog.value = true
                 },
-                shape = RoundedCornerShape(8.dp),
+                shape = MaterialTheme.shapes.small,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
                 Row(
@@ -1127,7 +1127,7 @@ fun TextFieldRow(
             trailingIcon = trailingIcon,
             visualTransformation = if (privacyMode) PasswordVisualTransformation() else visualTransformation,
             keyboardOptions = keyboardOptions,
-            shape = RoundedCornerShape(8.dp),
+            shape = MaterialTheme.shapes.small,
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Transparent,
                 unfocusedContainerColor = Color.Transparent,
@@ -1782,7 +1782,7 @@ fun QrCodeDialog(
             ) {
                 if (bitmap != null) {
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
+                        shape = MaterialTheme.shapes.large,
                         color = Color.White,
                         modifier = Modifier
                             .size(260.dp)
