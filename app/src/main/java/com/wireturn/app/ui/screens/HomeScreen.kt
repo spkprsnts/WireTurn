@@ -450,8 +450,8 @@ fun HomeScreen(
                                                 notificationLauncher.launch("android.permission.POST_NOTIFICATIONS")
                                             },
                                             colors = ButtonDefaults.buttonColors(
-                                                containerColor = MaterialTheme.colorScheme.onErrorContainer,
-                                                contentColor = MaterialTheme.colorScheme.errorContainer
+                                                containerColor = MaterialTheme.colorScheme.error,
+                                                contentColor = MaterialTheme.colorScheme.onError
                                             ),
                                             contentPadding = PaddingValues(horizontal = 12.dp),
                                             modifier = Modifier.height(32.dp)
@@ -486,8 +486,8 @@ fun HomeScreen(
                                                 )
                                             },
                                             colors = ButtonDefaults.buttonColors(
-                                                containerColor = MaterialTheme.colorScheme.onErrorContainer,
-                                                contentColor = MaterialTheme.colorScheme.errorContainer
+                                                containerColor = MaterialTheme.colorScheme.error,
+                                                contentColor = MaterialTheme.colorScheme.onError
                                             ),
                                             contentPadding = PaddingValues(horizontal = 12.dp),
                                             modifier = Modifier.height(32.dp)
