@@ -339,8 +339,39 @@ misc:
 
     override fun onDestroy() {
         super.onDestroy()
-        stopVpn()
-        serviceScope.cancel()
+        // stopVpn() only launches its cleanup on serviceScope and returns immediately - cancelling
+        // the scope right after (the old behavior here) killed that coroutine before it ever ran,
+        // so VpnServiceState never got reset to Idle and the notification (whose only other update
+        // path is each service's own observeStates collector, also just killed) was left showing
+        // the last "running" state forever. Mirror CoreService.onDestroy(): do the reset and final
+        // notification refresh inside the same coroutine, and cancel the scope as its last step.
+        isStopping.set(true)
+        startJob?.cancel()
+        val wasRunning = hevRunning.getAndSet(false)
+
+        serviceScope.launch {
+            nativeLock.withLock {
+                if (wasRunning) {
+                    try {
+                        hevTunnel.TProxyStopService()
+                        AppLogsState.addLog(getString(R.string.log_vpn_stopped))
+                    } catch (e: Exception) {
+                        AppLogsState.addLog(getString(R.string.log_vpn_stop_error, e.message ?: "Unknown"))
+                    }
+                }
+                synchronized(this@HevVpnService) {
+                    tunInterface?.let { try { it.close() } catch (_: Exception) {} }
+                    tunInterface = null
+                }
+            }
+
+            val currentState = VpnServiceState.state.value
+            if (currentState !is VpnState.Error) {
+                VpnServiceState.updateStatus(VpnState.Idle)
+            }
+            NotificationHelper.updateNotification(this@HevVpnService)
+            serviceScope.cancel()
+        }
     }
 
     override fun onRevoke() {

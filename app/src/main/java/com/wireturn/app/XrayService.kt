@@ -409,10 +409,15 @@ class XrayService : Service() {
         xrayJob?.cancel()
         process.getAndSet(null)?.destroyForcibly()
 
-        serviceScope.cancel()
         // CoreService.startVpnSupervisor() reacts to this and either falls back to the
         // OLCRTC/WEBDAV core's own socks5 (if eligible) or stops VPN mode - not decided here.
+        // Must run, and the notification refresh below with it, BEFORE the scope is cancelled:
+        // this service's own observeStates collector (started in onCreate) lives on that scope,
+        // so cancelling first meant nothing here ever reacted to the Idle transition, leaving a
+        // stale "running" notification up whenever this was the last piece to shut down.
         XrayServiceState.updateStatus(XrayState.Idle)
+        NotificationHelper.updateNotification(this)
+        serviceScope.cancel()
     }
 
     companion object {
