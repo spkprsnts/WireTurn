@@ -1056,7 +1056,13 @@ class CoreService : Service() {
             appendLine("  key: \"${o.key}\"")
             appendLine("net:")
             appendLine("  transport: ${o.transport}")
-            appendLine("  dns: \"${cfg.dns}\"")
+            // Unlike WebDAV's -dns, this one isn't optional: olcRTC's own config validation
+            // (internal/app/session/validate.go, validateCommon) hard-fails startup with
+            // "dns server required" if net.dns is empty, for every mode - so even though the
+            // shared ClientConfig.dns field itself stays blank-friendly (for WebDAV, where it
+            // really is optional), fall back to the same default the field's placeholder shows
+            // right here rather than ever handing olcRTC an empty value.
+            appendLine("  dns: \"${cfg.dns.ifBlank { ClientConfig.DEFAULT_DNS }}\"")
             appendLine("socks:")
             appendLine("  host: \"${cfg.socksAddr.substringBefore(':').ifBlank { "127.0.0.1" }}\"")
             appendLine("  port: ${cfg.socksAddr.substringAfter(':', "9001").ifBlank { "9001" }}")

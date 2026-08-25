@@ -845,8 +845,11 @@ data class ClientConfig(
     // resolves that kernel's own entry-point hostname (olcRTC's signaling provider, or the
     // WebDAV backend) before/outside the tunnel, useful when the OS resolver is
     // unreliable/filtered/blocked. Has no effect on traffic routed *through* the tunnel once
-    // it's up - that's always resolved on the other side, never on this client.
-    val dns: String = DEFAULT_DNS,
+    // it's up - that's always resolved on the other side, never on this client. Optional for
+    // both cores - blank means "use the OS resolver" (see NewResolver("") in olcrtc's
+    // internal/protect/protect.go, and webdav-tunnel's own -dns docs); DEFAULT_DNS is only ever
+    // shown as a placeholder, never silently substituted in.
+    val dns: String = "",
     val goDnsGo: Boolean = false,
     val useCustomCerts: Boolean = true,
     val kernelConfig: KernelConfig = KernelConfig.Turnable(),
@@ -887,7 +890,6 @@ data class ClientConfig(
             socksAddr = validSocks,
             socksUser = cleanedUser,
             socksPass = cleanedPass,
-            dns = dns.ifBlank { DEFAULT_DNS },
             goDnsGo = goDnsGo,
             kernelConfig = currentKc,
             uri = "",
@@ -1471,7 +1473,7 @@ class AppPreferences(val context: Context) {
                 isSocksAuthEnabled = p[OLCRTC_SOCKS_AUTH_ENABLED] ?: true,
                 socksUser = p[OLCRTC_SOCKS_USER] ?: "",
                 socksPass = p[OLCRTC_SOCKS_PASS] ?: "",
-                dns = p[CLIENT_DNS] ?: ClientConfig.DEFAULT_DNS,
+                dns = p[CLIENT_DNS] ?: "",
                 goDnsGo = p[GO_DNS_GO] ?: false,
                 useCustomCerts = p[USE_CUSTOM_CERTS] ?: true,
                 kernelConfig = kernelConfig
