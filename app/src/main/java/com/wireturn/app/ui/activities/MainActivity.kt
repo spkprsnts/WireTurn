@@ -73,10 +73,20 @@ class MainActivity : AppCompatActivity() {
                 .start()
         }
 
+        val appContext = applicationContext
         ProcessLifecycleOwner.get().lifecycle.addObserver(object :
             DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
                 AppLifecycleState.isAppInForeground.value = true
+                // CoreTileService is an ACTIVE_TILE (see AndroidManifest) - the system never
+                // auto-calls onStartListening() just because the user opens Quick Settings, so
+                // this explicit push is the only thing keeping the tile in sync. Doing it here
+                // (process coming to foreground) rather than only once in onCreate() matters
+                // most right after an app update while the tunnel was running: the old process
+                // is killed with no chance to push a final Idle state, and requestListeningState()
+                // needs the app to actually be in the foreground to take effect, which isn't
+                // guaranteed yet this early in onCreate().
+                CoreTileService.requestUpdate(appContext)
             }
             override fun onStop(owner: LifecycleOwner) {
                 AppLifecycleState.isAppInForeground.value = false
@@ -85,9 +95,6 @@ class MainActivity : AppCompatActivity() {
 
         HapticUtil.perform(this, HapticUtil.Pattern.LAUNCH)
         enableEdgeToEdge()
-
-        // Синхронизируем состояние плитки при запуске приложения
-        CoreTileService.requestUpdate(this)
 
         setContent {
             val isInitialized by viewModel.isInitialized.collectAsStateWithLifecycle()
