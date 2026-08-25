@@ -152,27 +152,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _proxyPing = MutableStateFlow<PingResult?>(null)
     val proxyPing: StateFlow<PingResult?> = _proxyPing.asStateFlow()
 
-    private val _tunnelCountry = MutableStateFlow<CountryResult?>(null)
-
     private val _proxyTransfer = MutableStateFlow<TransferResult?>(null)
     val proxyTransfer: StateFlow<TransferResult?> = _proxyTransfer.asStateFlow()
 
     private val _isHomeScreenActive = MutableStateFlow(false)
 
     private var pingJob: Job? = null
-    private var countryJob: Job? = null
     private var metricsJob: Job? = null
 
     sealed class PingResult {
         object Loading : PingResult()
         data class Success(val ms: Long) : PingResult()
         object Error : PingResult()
-    }
-
-    sealed class CountryResult {
-        object Loading : CountryResult()
-        data class Success(val countryCode: String) : CountryResult()
-        object Error : CountryResult()
     }
 
     data class TransferResult(
@@ -282,10 +273,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }.distinctUntilChanged().collect { active ->
                 if (active) {
                     checkProxyPing(delayFirst = true)
-                    checkTunnelCountry(delayFirst = true)
                     startMetricsPoller()
                 } else {
-                    _tunnelCountry.value = null
                     stopMetricsPoller()
                 }
             }
@@ -531,65 +520,37 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     if (delayFirst && attempt == 0) delay(1_000.milliseconds)
                     val res = withContext(Dispatchers.IO) {
                         try {
-                            val conn = java.net.URL("https://1.1.1.1/").openConnection(proxy) as java.net.HttpURLConnection
+                            // Cloudflare's trace endpoint doubles as the ping target and the exit-country
+                            // source: timing conn.responseCode gives the same latency reading the old "/"
+                            // request did, and the body echoes back a "loc=XX" line - the ISO-3166 country
+                            // Cloudflare geolocated the *connecting* IP to. One request instead of two, and
+                            // it re-runs on the same cadence as the ping (incl. right after a hot profile
+                            // switch), so the flag no longer goes stale between connect/disconnect edges.
+                            val conn = java.net.URL("https://1.1.1.1/cdn-cgi/trace").openConnection(proxy) as java.net.HttpURLConnection
                             conn.connectTimeout = 3000
                             conn.readTimeout = 3000
                             conn.instanceFollowRedirects = false
-                            PingResult.Success(measureTimeMillis { conn.responseCode })
+                            val elapsed = measureTimeMillis { conn.responseCode }
+                            val country = conn.inputStream.bufferedReader().use { it.readText() }
+                                .let { body -> Regex("(?m)^loc=([A-Z]{2})$").find(body)?.groupValues?.get(1) }
+                            PingResult.Success(elapsed) to country
                         } catch (_: Exception) {
                             // AppLogsState.addLog("* [Ping] Error: ${e.message}")
                             null
                         }
                     }
-                    if (res is PingResult.Success) {
-                        _proxyPing.value = res
+                    if (res != null) {
+                        val (pingResult, country) = res
+                        _proxyPing.value = pingResult
+                        if (country != null) {
+                            profileManager.saveProfileCountry(currentProfileId.value, country)
+                        }
                         return@launch
                     }
                 }
                 delay(1_000.milliseconds)
             }
             _proxyPing.value = if (sawProxy) PingResult.Error else null
-        }
-    }
-
-    fun checkTunnelCountry(delayFirst: Boolean = false) {
-        countryJob?.cancel()
-        countryJob = viewModelScope.launch {
-            _tunnelCountry.value = CountryResult.Loading
-            var sawProxy = false
-            repeat(10) { attempt ->
-                // Same re-resolve-every-attempt reasoning as checkProxyPing(): follows whichever
-                // core is currently active and tolerates a NO_PROXY blip while Xray is still starting.
-                val proxy = activeLocalSocksProxy()
-                if (proxy != Proxy.NO_PROXY) {
-                    sawProxy = true
-                    if (delayFirst && attempt == 0) delay(1_000.milliseconds)
-                    val res = withContext(Dispatchers.IO) {
-                        try {
-                            // Cloudflare's own trace endpoint (same host already used for the ping
-                            // check) echoes back a "loc=XX" line - the ISO-3166 country Cloudflare
-                            // geolocated the *connecting* IP to, i.e. the tunnel's exit country.
-                            // Avoids depending on a third-party geo-IP API/key.
-                            val conn = java.net.URL("https://1.1.1.1/cdn-cgi/trace").openConnection(proxy) as java.net.HttpURLConnection
-                            conn.connectTimeout = 3000
-                            conn.readTimeout = 3000
-                            conn.instanceFollowRedirects = false
-                            val body = conn.inputStream.bufferedReader().use { it.readText() }
-                            Regex("(?m)^loc=([A-Z]{2})$").find(body)?.groupValues?.get(1)
-                                ?.let { CountryResult.Success(it) }
-                        } catch (_: Exception) {
-                            null
-                        }
-                    }
-                    if (res is CountryResult.Success) {
-                        _tunnelCountry.value = res
-                        profileManager.saveProfileCountry(currentProfileId.value, res.countryCode)
-                        return@launch
-                    }
-                }
-                delay(1_000.milliseconds)
-            }
-            _tunnelCountry.value = if (sawProxy) CountryResult.Error else null
         }
     }
 
