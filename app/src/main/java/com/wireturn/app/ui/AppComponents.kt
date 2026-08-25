@@ -1686,14 +1686,14 @@ fun <T> SelectionDialog(
                             if (dismissOnSelect) onDismiss()
                         },
                         shape = shape,
-                        color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else Color.Transparent,
+                        color = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
                         contentColor = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = 64.dp)
                     ) {
                         CompositionLocalProvider(
-                            LocalContentColor provides if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            LocalContentColor provides if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                         ) {
                             ProvideTextStyle(value = MaterialTheme.typography.titleMedium) {
                                 itemContent(item, selected)
