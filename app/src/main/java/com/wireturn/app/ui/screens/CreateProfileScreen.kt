@@ -140,6 +140,12 @@ fun CreateProfileScreen(
                 val uriHandler = LocalUriHandler.current
 
                 GuideLinkItem(
+                    text = stringResource(R.string.guide_wt_panel),
+                    onClick = {
+                        uriHandler.openUri("https://github.com/spkprsnts/wt-panel")
+                    }
+                )
+                GuideLinkItem(
                     text = stringResource(R.string.guide_turnable),
                     onClick = {
                         uriHandler.openUri("https://github.com/spkprsnts/WireTurn/blob/$branch/docs/guides/turnable.md")

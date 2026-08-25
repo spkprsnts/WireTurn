@@ -533,6 +533,7 @@
     <string name="profile_import_link">Paste Link</string>
     <string name="profile_import_link_hint">Supports links, JSON or kernel config text</string>
     <string name="profile_import_name_title">Profile name</string>
+    <string name="guide_wt_panel">WT Panel — server creation &amp; management</string>
     <string name="guide_turnable">Server setup guide: Turnable</string>
     <string name="guide_olcrtc">Server setup guide: olcRTC</string>
 </resources>

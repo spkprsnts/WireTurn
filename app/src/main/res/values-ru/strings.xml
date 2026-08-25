@@ -493,6 +493,7 @@
     <string name="profile_import_link">Вставить ссылку</string>
     <string name="profile_import_link_hint">Поддерживаются ссылки, JSON или текст конфига</string>
     <string name="profile_import_name_title">Название профиля</string>
+    <string name="guide_wt_panel">WT Panel — создание и управление серверами</string>
     <string name="guide_turnable">Инструкция по настройке сервера Turnable</string>
     <string name="guide_olcrtc">Инструкция по настройке сервера olcRTC</string>
 </resources>

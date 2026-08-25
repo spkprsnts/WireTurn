@@ -59,6 +59,7 @@ WireTurn упаковывает трафик в стандартные прот�
 - VPS для серверной части (Turnable, olcRTC, FreeTurn или WebDAV) либо аккаунт в облаке с поддержкой WebDAV.
 
 ### Настройка
+- **[WT Panel](https://github.com/spkprsnts/wt-panel)** — панель для создания и управления серверами
 - **[Настройка сервера Turnable](docs/guides/turnable.md)**
 - **[Настройка сервера olcRTC](docs/guides/olcrtc.md)**
 - **[Спецификация подписок и профилей](docs/subscriptions.md)**
