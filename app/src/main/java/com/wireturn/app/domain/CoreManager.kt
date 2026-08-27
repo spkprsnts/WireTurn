@@ -28,6 +28,7 @@ class CoreManager(private val context: Context) {
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var resetJob: kotlinx.coroutines.Job? = null
+    private var activeStartJob: kotlinx.coroutines.Job? = null
 
     suspend fun observeCoreLifecycle() {
         CoreServiceState.coreFailed.collect {
@@ -98,32 +99,42 @@ class CoreManager(private val context: Context) {
             _coreState.value = CoreState.Idle
         }
 
-        CoreService.start(context, cfg)
+        // Supersede any previous in-flight start attempt (e.g. from rapid profile
+        // switching) so its 20s timeout can't fire CoreService.stop() against a
+        // connection that THIS, newer call is now waiting on - otherwise every
+        // stale call independently races the same status flow and stops the
+        // service out from under whichever attempt is actually still starting.
+        activeStartJob?.cancel()
+        val job = scope.launch {
+            CoreService.start(context, cfg)
 
-        val result = withTimeoutOrNull(20_000L.milliseconds) {
-            CoreServiceState.status
-                .dropWhile { it is CoreStatus.Idle || it is CoreStatus.Starting || it is CoreStatus.Stopping }
-                .first()
+            val result = withTimeoutOrNull(20_000L.milliseconds) {
+                CoreServiceState.status
+                    .dropWhile { it is CoreStatus.Idle || it is CoreStatus.Starting || it is CoreStatus.Stopping }
+                    .first()
+            }
+
+            if (_coreState.value is CoreState.Error) return@launch
+
+            when (result) {
+                null -> {
+                    CoreService.stop(context)
+                    setErrorWithAutoReset(context.getString(R.string.error_core_not_started))
+                }
+                is CoreStatus.Error -> {
+                    // Если сервис вернул ошибку (например, Jitsi недоступен),
+                    // останавливаем его и показываем ошибку в UI.
+                    CoreService.stop(context)
+                    setErrorWithAutoReset(result.message)
+                }
+
+                else -> {
+                    syncStateWithService()
+                }
+            }
         }
-
-        if (_coreState.value is CoreState.Error) return
-
-        when (result) {
-            null -> {
-                CoreService.stop(context)
-                setErrorWithAutoReset(context.getString(R.string.error_core_not_started))
-            }
-            is CoreStatus.Error -> {
-                // Если сервис вернул ошибку (например, Jitsi недоступен),
-                // останавливаем его и показываем ошибку в UI.
-                CoreService.stop(context)
-                setErrorWithAutoReset(result.message)
-            }
-
-            else -> {
-                syncStateWithService()
-            }
-        }
+        activeStartJob = job
+        job.join()
     }
 
     fun stopCore() {

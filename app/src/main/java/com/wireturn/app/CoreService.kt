@@ -24,6 +24,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
@@ -469,10 +470,17 @@ class CoreService : Service() {
                     caBundlePath?.let { env["SSL_CERT_FILE"] = it }
                 }
 
-                builder.start()
+                // Record the reference in the same non-suspending stretch as start() - a
+                // suspension point between spawning and recording it (e.g. the withContext
+                // hop back to the caller) is a window where cancellation (from a concurrent
+                // profile switch / restart) can slip in and orphan the freshly-spawned OS
+                // process: it'd keep running and holding its port with no reference anywhere
+                // for stopBinaryProcessGracefully()'s cleanup to find.
+                builder.start().also {
+                    startedProc = it
+                    process.set(it)
+                }
             }
-            startedProc = proc
-            process.set(proc)
 
             if (cfg.kernelVariant == KernelVariant.OLCRTC) {
                 state.startupEmitted = true
@@ -539,11 +547,19 @@ class CoreService : Service() {
             false
         } finally {
             CoreServiceState.setCaptchaSession(null)
-            stopBinaryProcessGracefully()
-            // compareAndSet, а не set: если это исполнение уже устарело (отменено извне,
-            // пока доигрывал finally) и process успел стать ссылкой на процесс НОВОГО
-            // запуска, безусловный set(null) стёр бы её и оставил новый процесс "потерянным".
-            process.compareAndSet(startedProc, null)
+            // NonCancellable: this finally routinely runs because the coroutine itself was
+            // cancelled (e.g. previousJob.cancelAndJoin() on a profile switch/restart). Without
+            // it, stopBinaryProcessGracefully()'s withContext(Dispatchers.IO) hop would throw
+            // CancellationException immediately on entry - skipping the SIGTERM/waitFor kill
+            // and leaving the old binary alive still holding its port, with the wrong reference
+            // for it silently dropped by the compareAndSet below.
+            withContext(NonCancellable) {
+                stopBinaryProcessGracefully()
+                // compareAndSet, а не set: если это исполнение уже устарело (отменено извне,
+                // пока доигрывал finally) и process успел стать ссылкой на процесс НОВОГО
+                // запуска, безусловный set(null) стёр бы её и оставил новый процесс "потерянным".
+                process.compareAndSet(startedProc, null)
+            }
         }
     }
 
@@ -780,6 +796,17 @@ class CoreService : Service() {
         // lines here and only react to the final "all N WebDAV backend(s) unreachable" fatal.
         if (lower.contains("webdav backend") && lower.contains("connection failed")) {
             return true
+        }
+
+        // Marks the process as having genuinely started, same as Olcrtc's "socks5 server
+        // listening on" branch below. Without this, WebDAV only gets marked started at
+        // "server connected" - if the binary exits before that (e.g. crashing on a later,
+        // otherwise-harmless per-backend health-check failure like the one swallowed above)
+        // the exit falls through to runBinary()'s "process produced no output" branch, which
+        // sets CoreStatus.Error and makes the watchdog stop the whole service instead of
+        // retrying with backoff like it does for a proper post-startup crash.
+        if (lower.contains("socks5 proxy listening on")) {
+            state.startupEmitted = true
         }
 
         if (lower.contains("webdav backend(s) unreachable")) {
