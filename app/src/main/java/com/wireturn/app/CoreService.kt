@@ -587,10 +587,17 @@ class CoreService : Service() {
         }
 
         // 2. Connected
-        val streamEstMatch = STREAM_ESTABLISHED_REGEX.matcher(line)
+        // TCP_ACTIVE_REGEX stays a regex (unlike every other check here, incl. the udp-mode one
+        // right before it) because it needs the active-session count as a number: a session
+        // dropping while others in the pool are still active should stay Connected, only an
+        // empty pool shouldn't - a plain .contains() can't express that comparison.
         val tcpActiveMatch = TCP_ACTIVE_REGEX.matcher(line)
-        
-        if (streamEstMatch.find() || (tcpActiveMatch.find() && (tcpActiveMatch.group(1)?.toIntOrNull() ?: 0) > 0)) {
+
+        // udp mode's old signal, "Established DTLS connection", dropped to Debugf in
+        // free-turn-proxy v3.2.0 and we don't pass -debug; "TURN allocation up" stayed Infof
+        // and fires right after ConnectedStreams.Add(1), so it's the live replacement.
+        if (lower.contains("] turn allocation up") ||
+            (tcpActiveMatch.find() && (tcpActiveMatch.group(1)?.toIntOrNull() ?: 0) > 0)) {
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                 CoreServiceState.setStatus(CoreStatus.Connected)
                 updateNotification(getString(R.string.core_active))
@@ -618,11 +625,12 @@ class CoreService : Service() {
         }
 
         // 4. Captcha
-        handleCaptchaEvents(line, lower, state)
+        handleFreeTurnCaptchaEvents(line, lower, state)
 
         if (state.captchaActive && (
                 lower.contains("[vk auth] failed") ||
                 lower.contains("[vk auth] success") ||
+                lower.contains("turn allocation up") || // FreeTurn: "success" is Debugf-only since v3.2.0, this stays Infof
                 (lower.contains("[captcha]") && lower.contains("failed"))
             )) {
             CoreServiceState.setCaptchaSession(null)
@@ -782,9 +790,6 @@ class CoreService : Service() {
             }
         }
 
-        // 4. Captcha
-        handleCaptchaEvents(line, lower, state)
-
         return false
     }
 
@@ -926,7 +931,7 @@ class CoreService : Service() {
         return if (matcher.find()) matcher.group(1)?.toIntOrNull() else null
     }
 
-    private fun handleCaptchaEvents(line: String, lower: String, state: BinaryOutputState) {
+    private fun handleFreeTurnCaptchaEvents(line: String, lower: String, state: BinaryOutputState) {
         if (line.contains("Triggering manual captcha fallback")) {
             if (CoreServiceState.status.value !is CoreStatus.CaptchaRequired) {
                 state.startupEmitted = true
@@ -960,6 +965,7 @@ class CoreService : Service() {
         if (state.captchaActive && (
                 lower.contains("[vk auth] failed") ||
                 lower.contains("[vk auth] success") ||
+                lower.contains("turn allocation up") || // FreeTurn: "success" is Debugf-only since v3.2.0, this stays Infof
                 (lower.contains("[captcha]") && lower.contains("failed"))
             )) {
             CoreServiceState.setCaptchaSession(null)
@@ -1066,6 +1072,19 @@ class CoreService : Service() {
                     cmdArgs.add(o.clientId)
                 }
                 if (o.manualCaptcha) cmdArgs.add("-manual-captcha")
+                if (o.mode == "tcp") {
+                    cmdArgs.add("-mode")
+                    cmdArgs.add("tcp")
+                    val default = com.wireturn.app.data.FreeTurnConfig()
+                    if (o.kcpNodelay != default.kcpNodelay) cmdArgs.addAll(listOf("-kcp-nodelay", o.kcpNodelay.toString()))
+                    if (o.kcpInterval != default.kcpInterval) cmdArgs.addAll(listOf("-kcp-interval", o.kcpInterval.toString()))
+                    if (o.kcpResend != default.kcpResend) cmdArgs.addAll(listOf("-kcp-resend", o.kcpResend.toString()))
+                    if (o.kcpNc != default.kcpNc) cmdArgs.addAll(listOf("-kcp-nc", o.kcpNc.toString()))
+                    if (o.kcpSndwnd != default.kcpSndwnd) cmdArgs.addAll(listOf("-kcp-sndwnd", o.kcpSndwnd.toString()))
+                    if (o.kcpRcvwnd != default.kcpRcvwnd) cmdArgs.addAll(listOf("-kcp-rcvwnd", o.kcpRcvwnd.toString()))
+                    if (o.kcpMtu != default.kcpMtu) cmdArgs.addAll(listOf("-kcp-mtu", o.kcpMtu.toString()))
+                    if (o.kcpAcknodelay != default.kcpAcknodelay) cmdArgs.addAll(listOf("-kcp-acknodelay", o.kcpAcknodelay.toString()))
+                }
             }
         }
         return cmdArgs
@@ -1713,7 +1732,6 @@ class CoreService : Service() {
         private const val VPN_TARGET_LOST_GRACE_MS = 5_000L
         private val CAPTCHA_URL_REGEX = Pattern.compile("""Open this URL in your browser:\s*(https?://\S+)""")
         private val FREE_TURN_CAPTCHA_REGEX = Pattern.compile("""(?:manually open this URL|Open this URL in your browser):\s*(https?://\S+)""")
-        private val STREAM_ESTABLISHED_REGEX = Pattern.compile("""\[STREAM (\d+)] Established DTLS connection""")
         private val TCP_ACTIVE_REGEX = Pattern.compile("""\[session \d+] (?:connected|disconnected) \(active: (\d+)\)""")
         private val ONLINE_COUNT_REGEX = Pattern.compile("""online=(\d+)""")
 

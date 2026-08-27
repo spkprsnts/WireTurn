@@ -320,6 +320,23 @@ fun FreeTurnConfigScreen(
             // connection details
             SectionGroup(title = stringResource(R.string.connection_details)) {
                 SectionItem(position = ItemPosition.Top) {
+                    LabeledButtonGroup(
+                        label = stringResource(R.string.freeturn_mode_label),
+                        isModified = isEditMode && config.mode != initialConfig.mode
+                    ) {
+                        val options = listOf("udp", "tcp")
+                        options.forEachIndexed { index, m ->
+                            selectableButtonItem(
+                                selected = config.mode == m,
+                                onSelect = { config = config.copy(mode = m) },
+                                label = m.uppercase(),
+                                index = index,
+                                count = options.size
+                            )
+                        }
+                    }
+                }
+                SectionItem {
                     TextFieldRow(
                         label = stringResource(R.string.freeturn_peer_label),
                         supportingText = stringResource(R.string.freeturn_peer_desc),
@@ -399,9 +416,7 @@ fun FreeTurnConfigScreen(
                         }
                     }
                 }
-                SectionItem(
-                    position = ItemPosition.Bottom
-                ) {
+                SectionItem {
                     LabeledButtonGroup(
                         label = stringResource(R.string.freeturn_transport_label),
                         supportingText = stringResource(R.string.freeturn_transport_desc),
@@ -417,6 +432,113 @@ fun FreeTurnConfigScreen(
                                 count = options.size
                             )
                         }
+                    }
+                }
+            }
+
+            if (config.mode == "tcp") {
+                SectionGroup(title = stringResource(R.string.freeturn_kcp_settings_title)) {
+                    SectionItem(
+                        position = ItemPosition.Top,
+                        onClick = {
+                            val next = config.kcpNodelay == 0
+                            HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                            config = config.copy(kcpNodelay = if (next) 1 else 0)
+                        }
+                    ) {
+                        SwitchRow(
+                            label = stringResource(R.string.freeturn_kcp_nodelay_label),
+                            supportingText = stringResource(R.string.freeturn_kcp_nodelay_desc),
+                            checked = config.kcpNodelay != 0,
+                            onCheckedChange = { config = config.copy(kcpNodelay = if (it) 1 else 0) },
+                            isModified = isEditMode && config.kcpNodelay != initialConfig.kcpNodelay
+                        )
+                    }
+                    SectionItem {
+                        SliderRow(
+                            label = stringResource(R.string.freeturn_kcp_interval_label),
+                            supportingText = stringResource(R.string.freeturn_kcp_interval_desc),
+                            value = config.kcpInterval.toFloat(),
+                            onValueChange = { config = config.copy(kcpInterval = it.roundToInt()) },
+                            valueRange = 10f..100f,
+                            steps = 17,
+                            isModified = isEditMode && config.kcpInterval != initialConfig.kcpInterval
+                        )
+                    }
+                    SectionItem {
+                        SliderRow(
+                            label = stringResource(R.string.freeturn_kcp_resend_label),
+                            supportingText = stringResource(R.string.freeturn_kcp_resend_desc),
+                            value = config.kcpResend.toFloat(),
+                            onValueChange = { config = config.copy(kcpResend = it.roundToInt()) },
+                            valueRange = 0f..10f,
+                            steps = 9,
+                            isModified = isEditMode && config.kcpResend != initialConfig.kcpResend
+                        )
+                    }
+                    SectionItem(
+                        onClick = {
+                            val next = config.kcpNc == 0
+                            HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                            config = config.copy(kcpNc = if (next) 1 else 0)
+                        }
+                    ) {
+                        SwitchRow(
+                            label = stringResource(R.string.freeturn_kcp_nc_label),
+                            supportingText = stringResource(R.string.freeturn_kcp_nc_desc),
+                            checked = config.kcpNc != 0,
+                            onCheckedChange = { config = config.copy(kcpNc = if (it) 1 else 0) },
+                            isModified = isEditMode && config.kcpNc != initialConfig.kcpNc
+                        )
+                    }
+                    SectionItem {
+                        SliderRow(
+                            label = stringResource(R.string.freeturn_kcp_sndwnd_label),
+                            supportingText = stringResource(R.string.freeturn_kcp_sndwnd_desc),
+                            value = config.kcpSndwnd.toFloat(),
+                            onValueChange = { config = config.copy(kcpSndwnd = it.roundToInt()) },
+                            valueRange = 64f..2048f,
+                            steps = 30,
+                            isModified = isEditMode && config.kcpSndwnd != initialConfig.kcpSndwnd
+                        )
+                    }
+                    SectionItem {
+                        SliderRow(
+                            label = stringResource(R.string.freeturn_kcp_rcvwnd_label),
+                            supportingText = stringResource(R.string.freeturn_kcp_rcvwnd_desc),
+                            value = config.kcpRcvwnd.toFloat(),
+                            onValueChange = { config = config.copy(kcpRcvwnd = it.roundToInt()) },
+                            valueRange = 64f..2048f,
+                            steps = 30,
+                            isModified = isEditMode && config.kcpRcvwnd != initialConfig.kcpRcvwnd
+                        )
+                    }
+                    SectionItem {
+                        SliderRow(
+                            label = stringResource(R.string.freeturn_kcp_mtu_label),
+                            supportingText = stringResource(R.string.freeturn_kcp_mtu_desc),
+                            value = config.kcpMtu.toFloat(),
+                            onValueChange = { config = config.copy(kcpMtu = it.roundToInt()) },
+                            valueRange = 300f..1350f,
+                            steps = 20,
+                            isModified = isEditMode && config.kcpMtu != initialConfig.kcpMtu
+                        )
+                    }
+                    SectionItem(
+                        position = ItemPosition.Bottom,
+                        onClick = {
+                            val next = !config.kcpAcknodelay
+                            HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                            config = config.copy(kcpAcknodelay = next)
+                        }
+                    ) {
+                        SwitchRow(
+                            label = stringResource(R.string.freeturn_kcp_acknodelay_label),
+                            supportingText = stringResource(R.string.freeturn_kcp_acknodelay_desc),
+                            checked = config.kcpAcknodelay,
+                            onCheckedChange = { config = config.copy(kcpAcknodelay = it) },
+                            isModified = isEditMode && config.kcpAcknodelay != initialConfig.kcpAcknodelay
+                        )
                     }
                 }
             }

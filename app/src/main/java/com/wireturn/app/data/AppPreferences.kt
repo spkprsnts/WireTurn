@@ -720,7 +720,16 @@ data class FreeTurnConfig(
     @SerializedName("dns_mode") val dnsMode: String = "auto",
     @SerializedName("dns_servers") val dnsServers: String = "",
     @SerializedName("client_id") val clientId: String = "",
-    @SerializedName("sub") val sub: String = ""
+    @SerializedName("sub") val sub: String = "",
+    @SerializedName("mode") val mode: String = "udp",
+    @SerializedName("kcp_nodelay") val kcpNodelay: Int = 1,
+    @SerializedName("kcp_interval") val kcpInterval: Int = 20,
+    @SerializedName("kcp_resend") val kcpResend: Int = 2,
+    @SerializedName("kcp_nc") val kcpNc: Int = 1,
+    @SerializedName("kcp_sndwnd") val kcpSndwnd: Int = 512,
+    @SerializedName("kcp_rcvwnd") val kcpRcvwnd: Int = 512,
+    @SerializedName("kcp_mtu") val kcpMtu: Int = 1200,
+    @SerializedName("kcp_acknodelay") val kcpAcknodelay: Boolean = true
 ) {
     fun isValid(): Boolean = links.isNotBlank() && (peer.isNotBlank() || sub.isNotBlank())
 
@@ -772,6 +781,18 @@ data class FreeTurnConfig(
             if (dnsServers.isNotBlank()) addProperty("dnss", dnsServers)
             if (manualCaptcha) addProperty("mcap", true)
             if (platform != "desktop") addProperty("plt", platform)
+            if (mode != "udp") {
+                addProperty("mode", mode)
+                val default = FreeTurnConfig()
+                if (kcpNodelay != default.kcpNodelay) addProperty("kcp_nd", kcpNodelay)
+                if (kcpInterval != default.kcpInterval) addProperty("kcp_iv", kcpInterval)
+                if (kcpResend != default.kcpResend) addProperty("kcp_rs", kcpResend)
+                if (kcpNc != default.kcpNc) addProperty("kcp_nc", kcpNc)
+                if (kcpSndwnd != default.kcpSndwnd) addProperty("kcp_sw", kcpSndwnd)
+                if (kcpRcvwnd != default.kcpRcvwnd) addProperty("kcp_rw", kcpRcvwnd)
+                if (kcpMtu != default.kcpMtu) addProperty("kcp_mtu", kcpMtu)
+                if (kcpAcknodelay != default.kcpAcknodelay) addProperty("kcp_ack", kcpAcknodelay)
+            }
             if (!profileName.isNullOrBlank()) addProperty("name", profileName)
         }
         val bytes = json.toString().toByteArray()
@@ -826,7 +847,16 @@ data class FreeTurnConfig(
                     dnsMode = json.get("dns")?.asString ?: current.dnsMode,
                     dnsServers = json.get("dnss")?.asString ?: current.dnsServers,
                     manualCaptcha = json.get("mcap")?.asBoolean ?: current.manualCaptcha,
-                    platform = json.get("plt")?.asString ?: current.platform
+                    platform = json.get("plt")?.asString ?: current.platform,
+                    mode = json.get("mode")?.asString ?: current.mode,
+                    kcpNodelay = json.get("kcp_nd")?.asInt ?: current.kcpNodelay,
+                    kcpInterval = json.get("kcp_iv")?.asInt ?: current.kcpInterval,
+                    kcpResend = json.get("kcp_rs")?.asInt ?: current.kcpResend,
+                    kcpNc = json.get("kcp_nc")?.asInt ?: current.kcpNc,
+                    kcpSndwnd = json.get("kcp_sw")?.asInt ?: current.kcpSndwnd,
+                    kcpRcvwnd = json.get("kcp_rw")?.asInt ?: current.kcpRcvwnd,
+                    kcpMtu = json.get("kcp_mtu")?.asInt ?: current.kcpMtu,
+                    kcpAcknodelay = json.get("kcp_ack")?.asBoolean ?: current.kcpAcknodelay
                 )
             } catch (_: Exception) {
                 null

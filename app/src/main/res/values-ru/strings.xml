@@ -211,6 +211,24 @@
     <string name="freeturn_transport_desc">TCP/TLS совместимее; UDP может быть быстрее, но чаще режется DPI</string>
     <string name="freeturn_manual_captcha_label">Ручная капча</string>
     <string name="freeturn_manual_captcha_desc">Решать капчу ВК во встроенном браузере</string>
+    <string name="freeturn_mode_label">Режим туннеля</string>
+    <string name="freeturn_kcp_settings_title">KCP (режим TCP)</string>
+    <string name="freeturn_kcp_nodelay_label">Быстрый режим (nodelay)</string>
+    <string name="freeturn_kcp_nodelay_desc">Ниже задержка, больше служебного трафика</string>
+    <string name="freeturn_kcp_interval_label">Интервал (мс)</string>
+    <string name="freeturn_kcp_interval_desc">Меньше = отзывчивее, больше служебного трафика</string>
+    <string name="freeturn_kcp_resend_label">Порог быстрой повторной отправки</string>
+    <string name="freeturn_kcp_resend_desc">Дублирующих ACK до повтора; 0 — выкл</string>
+    <string name="freeturn_kcp_nc_label">Отключить контроль перегрузки</string>
+    <string name="freeturn_kcp_nc_desc">Может помочь на нестабильной мобильной сети</string>
+    <string name="freeturn_kcp_sndwnd_label">Окно отправки (пакетов)</string>
+    <string name="freeturn_kcp_sndwnd_desc">Больше = выше пропускная способность, больше памяти</string>
+    <string name="freeturn_kcp_rcvwnd_label">Окно приёма (пакетов)</string>
+    <string name="freeturn_kcp_rcvwnd_desc">Больше = выше пропускная способность, больше памяти</string>
+    <string name="freeturn_kcp_mtu_label">MTU сегмента (байт)</string>
+    <string name="freeturn_kcp_mtu_desc">Должно совпадать с сервером</string>
+    <string name="freeturn_kcp_acknodelay_label">Отправлять ACK немедленно</string>
+    <string name="freeturn_kcp_acknodelay_desc">Ниже задержка, больше служебного трафика</string>
     <string name="local_listen_address">Локальный адрес прослушивания</string>
     <string name="local_port_help_text">Turnable и FreeTurn не создают обычный прокси — они поднимают по этому адресу точку входа сырого туннеля.</string>
     <string name="local_port_help_secondary">Встроенный Xray сам подключается сюда, чтобы превратить это в ссылку Xray или VPN. Меняйте адрес только если хотите подключить к туннелю напрямую сторонний VPN-клиент (WireGuard, v2RayTun и др.), в обход Xray.</string>

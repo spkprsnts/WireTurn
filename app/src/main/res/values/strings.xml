@@ -241,6 +241,24 @@
     <string name="freeturn_transport_desc">TCP/TLS is more compatible; UDP can be faster but is more often blocked by DPI</string>
     <string name="freeturn_manual_captcha_label">Manual Captcha</string>
     <string name="freeturn_manual_captcha_desc">Solve VK captcha in app browser</string>
+    <string name="freeturn_mode_label">Tunnel mode</string>
+    <string name="freeturn_kcp_settings_title">KCP (TCP mode)</string>
+    <string name="freeturn_kcp_nodelay_label">Fast mode (nodelay)</string>
+    <string name="freeturn_kcp_nodelay_desc">Lower latency, more overhead</string>
+    <string name="freeturn_kcp_interval_label">Interval (ms)</string>
+    <string name="freeturn_kcp_interval_desc">Lower = more responsive, more overhead</string>
+    <string name="freeturn_kcp_resend_label">Fast resend threshold</string>
+    <string name="freeturn_kcp_resend_desc">Duplicate ACKs before resend; 0 = off</string>
+    <string name="freeturn_kcp_nc_label">Disable congestion control</string>
+    <string name="freeturn_kcp_nc_desc">Can help on lossy mobile links</string>
+    <string name="freeturn_kcp_sndwnd_label">Send window (packets)</string>
+    <string name="freeturn_kcp_sndwnd_desc">Higher = more throughput, more memory</string>
+    <string name="freeturn_kcp_rcvwnd_label">Receive window (packets)</string>
+    <string name="freeturn_kcp_rcvwnd_desc">Higher = more throughput, more memory</string>
+    <string name="freeturn_kcp_mtu_label">Segment MTU (bytes)</string>
+    <string name="freeturn_kcp_mtu_desc">Must match the server</string>
+    <string name="freeturn_kcp_acknodelay_label">Send ACKs immediately</string>
+    <string name="freeturn_kcp_acknodelay_desc">Lower latency, more overhead</string>
     <string name="local_listen_address">Local listen address</string>
     <string name="local_port_help_text">Turnable and FreeTurn don\'t produce a standard proxy - they open a raw tunnel endpoint at this address.</string>
     <string name="local_port_help_secondary">The app\'s own Xray connects here automatically to turn it into an Xray link or a VPN. Change this only if you want to point a separate VPN app (WireGuard, v2RayTun, etc.) at the tunnel directly, bypassing Xray.</string>
