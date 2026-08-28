@@ -45,6 +45,7 @@ class MainActivity : AppCompatActivity() {
         // onNewIntent() covers the case where the app is already running.
         if (savedInstanceState == null) {
             handleDeepLinkIntent(intent)
+            handleTileConsentIntent(intent)
         }
 
         // Удерживаем системный splash пока ViewModel не инициализируется
@@ -152,12 +153,19 @@ class MainActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleDeepLinkIntent(intent)
+        handleTileConsentIntent(intent)
         NotificationHelper.cancelCaptchaNotification(this)
     }
 
     override fun onResume() {
         super.onResume()
         NotificationHelper.cancelCaptchaNotification(this)
+    }
+
+    private fun handleTileConsentIntent(intent: Intent?) {
+        if (intent?.getBooleanExtra(CoreTileService.EXTRA_REQUEST_VPN_CONSENT, false) != true) return
+        intent.removeExtra(CoreTileService.EXTRA_REQUEST_VPN_CONSENT)
+        com.wireturn.app.ui.TileVpnConsentBus.submit()
     }
 
     private fun handleDeepLinkIntent(intent: Intent?) {

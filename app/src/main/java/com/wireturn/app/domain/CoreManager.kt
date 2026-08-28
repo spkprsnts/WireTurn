@@ -99,11 +99,9 @@ class CoreManager(private val context: Context) {
             _coreState.value = CoreState.Idle
         }
 
-        // Supersede any previous in-flight start attempt (e.g. from rapid profile
-        // switching) so its 20s timeout can't fire CoreService.stop() against a
-        // connection that THIS, newer call is now waiting on - otherwise every
-        // stale call independently races the same status flow and stops the
-        // service out from under whichever attempt is actually still starting.
+        // Supersede any previous in-flight start (e.g. rapid profile switching) so its
+        // timeout can't fire CoreService.stop() against a connection this newer call is
+        // now waiting on.
         activeStartJob?.cancel()
         val job = scope.launch {
             CoreService.start(context, cfg)

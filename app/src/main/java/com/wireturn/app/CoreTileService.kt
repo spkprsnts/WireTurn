@@ -1,12 +1,15 @@
 package com.wireturn.app
 
+import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.net.VpnService
 import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import com.wireturn.app.data.AppPreferences
+import com.wireturn.app.ui.activities.MainActivity
 import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.viewmodel.XrayState
 import kotlinx.coroutines.CoroutineScope
@@ -25,6 +28,8 @@ class CoreTileService : TileService() {
     private var statusJob: Job? = null
 
     companion object {
+        const val EXTRA_REQUEST_VPN_CONSENT = "REQUEST_VPN_CONSENT"
+
         /**
          * Запрашивает обновление состояния плитки у системы.
          */
@@ -146,6 +151,29 @@ class CoreTileService : TileService() {
                 updateTileState(isRunning = false, isWorking = false, autoLaunchEnabled = false)
                 return
             }
+
+            // A TileService can't show the system VPN consent dialog itself - open the app for
+            // that instead of letting establish() silently and permanently fail.
+            val vpnSettings = runBlocking { prefs.vpnSettingsFlow.first() }
+            if (vpnSettings.enabled && VpnService.prepare(this) != null) {
+                updateTileState(isRunning = false, isWorking = false, autoLaunchEnabled = false)
+                val consentIntent = Intent(this, MainActivity::class.java).apply {
+                    putExtra(EXTRA_REQUEST_VPN_CONSENT, true)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    val pendingIntent = PendingIntent.getActivity(
+                        this, 0, consentIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+                    startActivityAndCollapse(pendingIntent)
+                } else {
+                    @Suppress("DEPRECATION", "StartActivityAndCollapseDeprecated")
+                    startActivityAndCollapse(consentIntent)
+                }
+                return
+            }
+
             CoreServiceState.setStatus(CoreStatus.Starting)
         }
 

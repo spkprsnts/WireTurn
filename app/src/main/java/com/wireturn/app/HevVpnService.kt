@@ -1,8 +1,14 @@
 package com.wireturn.app
 
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.VpnService
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.ParcelFileDescriptor
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.XraySettings.Companion.DEFAULT_SOCKS_BIND_ADDRESS
@@ -11,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -18,6 +25,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.time.Duration.Companion.milliseconds
 
 @Suppress("unused")
 internal class HevSocks5Tunnel {
@@ -43,6 +51,71 @@ class HevVpnService : VpnService() {
     private val nativeLock = Mutex()
     private var startJob: kotlinx.coroutines.Job? = null
 
+    private var underlyingNetworkCallback: ConnectivityManager.NetworkCallback? = null
+    @Volatile private var vpnEstablished = false
+
+    // Kept live (not just set once at establish()) so the system's view of the VPN's dependency
+    // stays accurate across e.g. a Wi-Fi/cellular handover.
+    @Volatile
+    private var underlyingNetwork: Network? = null
+        set(value) {
+            field = value
+            if (vpnEstablished) {
+                try {
+                    setUnderlyingNetworks(value?.let { arrayOf(it) })
+                } catch (_: Exception) {}
+            }
+        }
+
+    private fun registerUnderlyingNetworkTracking() {
+        val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+            .build()
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                underlyingNetwork = network
+            }
+
+            override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+                if (network == underlyingNetwork) underlyingNetwork = network
+            }
+
+            override fun onLost(network: Network) {
+                if (network == underlyingNetwork) underlyingNetwork = null
+            }
+        }
+        underlyingNetworkCallback = callback
+
+        try {
+            val handler = Handler(Looper.getMainLooper())
+            when {
+                // registerDefaultNetworkCallback() alone returns the VPN's own network once
+                // established (since Android P), so request NOT_VPN explicitly instead.
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
+                    cm.registerBestMatchingNetworkCallback(request, callback, handler)
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.P ->
+                    cm.requestNetwork(request, callback, handler)
+                else ->
+                    cm.registerDefaultNetworkCallback(callback, handler)
+            }
+        } catch (e: Exception) {
+            AppLogsState.addLog(getString(R.string.log_vpn_error, "underlying network tracking: ${e.message}"))
+            underlyingNetworkCallback = null
+        }
+    }
+
+    private fun unregisterUnderlyingNetworkTracking() {
+        underlyingNetworkCallback?.let { cb ->
+            try {
+                (getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager).unregisterNetworkCallback(cb)
+            } catch (_: Exception) {}
+        }
+        underlyingNetworkCallback = null
+        underlyingNetwork = null
+    }
+
     private fun disableVpnMode() {
         val context = applicationContext
         CoroutineScope(Dispatchers.IO).launch {
@@ -59,11 +132,17 @@ class HevVpnService : VpnService() {
         super.onCreate()
         NotificationHelper.createChannel(this)
         NotificationHelper.observeStates(this, serviceScope)
+        registerUnderlyingNetworkTracking()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action
         if (action == ACTION_STOP) {
+            // An explicit external stop should always clear a stale Error, unlike stopVpn()'s
+            // own guard which preserves one set by a failed establish() in the same run.
+            if (VpnServiceState.state.value is VpnState.Error) {
+                VpnServiceState.updateStatus(VpnState.Idle)
+            }
             stopVpn()
             return START_NOT_STICKY
         }
@@ -156,11 +235,8 @@ misc:
 """.trimIndent()
     }
 
-    // Repoints the already-running native relay at a new SOCKS5 target (e.g. after switching
-    // profiles) WITHOUT touching the Android tun interface - establish() is what switches the
-    // device's default network and triggers ERR_NETWORK_CHANGED-style disruption in every app,
-    // so avoiding a fresh establish() call here is the whole point: the tun stays up, other apps
-    // never see a network change, and nothing falls back to the raw network in between.
+    // Repoints the relay at a new SOCKS5 target without touching the tun interface - a fresh
+    // establish() would switch the device's default network and disrupt every other app.
     private suspend fun updateTarget(socks5Addr: String, socks5User: String? = null, socks5Pass: String? = null) {
         nativeLock.withLock {
             val fd = synchronized(this@HevVpnService) { tunInterface?.fd }
@@ -210,18 +286,16 @@ misc:
                 .setSession("wireturn VPN")
                 .setMtu(TUN_MTU)
                 .addAddress(TUN_IPV4_ADDRESS, 24)
-                // hev-socks5-tunnel is IPv4/IPv6 dual-stack (LWIP_IPV6 is on), but without an
-                // IPv6 address/route here Android never captures IPv6 traffic into the tun at
-                // all - it leaks straight out over the underlying network instead. For any
-                // dual-stack site that resolves an AAAA record, Chrome's Happy Eyeballs then
-                // races a real (unprotected) IPv6 connection against the tunneled IPv4 one for
-                // every new navigation; on a flaky/filtered IPv6 path that shows up as a
-                // transient ERR_NETWORK_CHANGED before it falls back to IPv4. Routing IPv6 into
-                // the tun closes the leak - even where the upstream SOCKS5 hop can't actually
-                // relay an IPv6 destination, that now fails inside the tunnel as an ordinary
-                // connection error instead of as a system-wide network change outside it.
+                // Without this, Android never captures IPv6 into the tun - it leaks straight
+                // out over the underlying network instead, unprotected.
                 .addAddress(TUN_IPV6_ADDRESS, 128)
                 .addDnsServer(MAPDNS_ADDRESS)
+
+            val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+            (underlyingNetwork ?: cm.activeNetwork)?.let { builder.setUnderlyingNetworks(arrayOf(it)) }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                builder.setMetered(cm.isActiveNetworkMetered)
+            }
 
             if (!vpnSettings.filteringEnabled) {
                 builder.addRoute("0.0.0.0", 0)
@@ -249,15 +323,24 @@ misc:
                 }
             }
 
-            val established = builder.establish()
+            // establish() can transiently return null right after another app releases VPN
+            // ownership; the handover window isn't predictable, so retry with backoff.
+            var established = builder.establish()
+            for (retryDelayMs in longArrayOf(300L, 700L, 1500L, 3000L)) {
+                if (established != null || isStopping.get()) break
+                delay(retryDelayMs.milliseconds)
+                established = builder.establish()
+            }
             if (established == null) {
                 AppLogsState.addLog(getString(R.string.log_vpn_tun_failed))
                 VpnServiceState.updateStatus(VpnState.Error(getString(R.string.error_connecting)))
                 NotificationHelper.updateNotification(this@HevVpnService)
-                disableVpnMode()
+                // No disableVpnMode() here - this is a failed attempt, not the user opting out;
+                // leave VPN mode on so the next restart retries establish() on its own.
                 stopSelf()
                 return
             }
+            vpnEstablished = true
 
             val tunFd = established.fd
             val configFile = File(filesDir, "hev-socks5-tunnel.yaml")
@@ -305,8 +388,9 @@ misc:
     private fun stopVpn() {
         isStopping.set(true)
         startJob?.cancel()
+        vpnEstablished = false
         val wasRunning = hevRunning.getAndSet(false)
-        
+
         serviceScope.launch {
             nativeLock.withLock {
                 if (wasRunning) {
@@ -339,14 +423,12 @@ misc:
 
     override fun onDestroy() {
         super.onDestroy()
-        // stopVpn() only launches its cleanup on serviceScope and returns immediately - cancelling
-        // the scope right after (the old behavior here) killed that coroutine before it ever ran,
-        // so VpnServiceState never got reset to Idle and the notification (whose only other update
-        // path is each service's own observeStates collector, also just killed) was left showing
-        // the last "running" state forever. Mirror CoreService.onDestroy(): do the reset and final
-        // notification refresh inside the same coroutine, and cancel the scope as its last step.
+        // Do the Idle reset and final notification refresh inline (not via stopVpn(), whose
+        // cleanup coroutine cancelling the scope right after would kill before it runs).
         isStopping.set(true)
         startJob?.cancel()
+        vpnEstablished = false
+        unregisterUnderlyingNetworkTracking()
         val wasRunning = hevRunning.getAndSet(false)
 
         serviceScope.launch {
@@ -393,14 +475,9 @@ misc:
         private const val TUN_IPV4_ADDRESS = "10.0.88.88"
         // ULA (RFC 4193), same convention hev-socks5-tunnel's own README example uses.
         private const val TUN_IPV6_ADDRESS = "fc00::1"
-        // Deliberately NOT a real public resolver (e.g. 1.1.1.1/8.8.8.8): Chrome silently
-        // auto-upgrades to DNS-over-HTTPS when it recognizes the system DNS server as a known
-        // provider, which bypasses hev-socks5-tunnel's local fake-DNS responder (hev-mapped-dns.c)
-        // entirely - that responder is what keeps AAAA lookups from ever returning a real answer.
-        // Once Chrome gets real AAAA records via DoH instead, every navigation races a genuine
-        // IPv6 connect through the tunnel, which can still stall/fail against an IPv4-only
-        // WireGuard outbound. 198.18.0.1 sits in the RFC 2544 benchmarking range - never publicly
-        // routed and not on Chrome's built-in DoH provider list - so it can't trigger the upgrade.
+        // Not a real public resolver: Chrome auto-upgrades to DoH for known providers, which
+        // would bypass the local fake-DNS responder. 198.18.0.1 (RFC 2544 benchmark range)
+        // isn't on Chrome's built-in DoH provider list, so it can't trigger that.
         private const val MAPDNS_ADDRESS = "198.18.0.1"
         private const val MAPDNS_NETWORK = "100.64.0.0"
         private const val MAPDNS_NETMASK = "255.192.0.0"

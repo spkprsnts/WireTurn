@@ -266,9 +266,6 @@ private fun LogLine(line: String) {
                   lower.contains("критическая") || lower.contains("failed") ||
                   lower.contains("fatal") || lower.contains("panic") ||
                   lower.contains("did not complete") || lower.contains("could not")
-    // "restart"/"timeout" catch the EN strings.xml wording (log_core_network_change etc. say
-    // "RESTARTING"/"TIMEOUT", not "watchdog") that had no match at all before - the RU set only
-    // worked because "перезапуск" happened to be covered separately.
     val isWarning = lower.contains("watchdog") || lower.contains("перезапуск") ||
                     lower.contains("quota") || lower.contains("warn") ||
                     lower.contains(">>>") || lower.contains("stopped") ||

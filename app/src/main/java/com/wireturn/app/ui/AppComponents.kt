@@ -185,6 +185,20 @@ object DeepLinkBus {
 }
 
 /**
+ * [com.wireturn.app.CoreTileService] can't show the system VPN consent dialog itself, so when
+ * consent is missing it opens MainActivity instead of sending its usual broadcast; this bus
+ * tells [com.wireturn.app.ui.CoreTriggerController] to replay the start action from there.
+ */
+object TileVpnConsentBus {
+    private val _pending = Channel<Unit>(capacity = Channel.CONFLATED)
+    val pending = _pending.receiveAsFlow()
+
+    fun submit() {
+        _pending.trySend(Unit)
+    }
+}
+
+/**
  * Local provider for interaction source to coordinate ripples between parent blocks and children.
  */
 val LocalSettingsInteractionSource = compositionLocalOf<MutableInteractionSource?> { null }

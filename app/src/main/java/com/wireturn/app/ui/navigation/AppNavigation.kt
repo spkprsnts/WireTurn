@@ -11,9 +11,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.wireturn.app.ui.CoreTriggerController
+import com.wireturn.app.ui.TileVpnConsentBus
 import com.wireturn.app.ui.activities.AppExceptionsActivity
 import com.wireturn.app.ui.screens.HomeScreen
 import com.wireturn.app.viewmodel.MainViewModel
@@ -34,6 +36,9 @@ fun AppNavigation(
                 .padding(innerPadding)
         ) {
             CoreTriggerController(viewModel = viewModel) { onToggle ->
+                LaunchedEffect(onToggle) {
+                    TileVpnConsentBus.pending.collect { onToggle() }
+                }
                 HomeScreen(
                     viewModel = viewModel,
                     onNavigateToExclusions = { 

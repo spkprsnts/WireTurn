@@ -4,6 +4,8 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Lets HevVpnService track the true underlying network for setUnderlyingNetworks(). -->
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
     <!-- Android 17+ (targetSdk 37) blocks outbound connections to LAN/local addresses
          (e.g. local subscription servers) unless this is granted at runtime. -->
     <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />

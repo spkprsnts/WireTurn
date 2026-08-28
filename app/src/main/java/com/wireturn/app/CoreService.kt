@@ -471,11 +471,8 @@ class CoreService : Service() {
                 }
 
                 // Record the reference in the same non-suspending stretch as start() - a
-                // suspension point between spawning and recording it (e.g. the withContext
-                // hop back to the caller) is a window where cancellation (from a concurrent
-                // profile switch / restart) can slip in and orphan the freshly-spawned OS
-                // process: it'd keep running and holding its port with no reference anywhere
-                // for stopBinaryProcessGracefully()'s cleanup to find.
+                // suspension point in between is a window where cancellation could orphan the
+                // freshly-spawned process with no reference left to clean it up.
                 builder.start().also {
                     startedProc = it
                     process.set(it)
@@ -547,12 +544,9 @@ class CoreService : Service() {
             false
         } finally {
             CoreServiceState.setCaptchaSession(null)
-            // NonCancellable: this finally routinely runs because the coroutine itself was
-            // cancelled (e.g. previousJob.cancelAndJoin() on a profile switch/restart). Without
-            // it, stopBinaryProcessGracefully()'s withContext(Dispatchers.IO) hop would throw
-            // CancellationException immediately on entry - skipping the SIGTERM/waitFor kill
-            // and leaving the old binary alive still holding its port, with the wrong reference
-            // for it silently dropped by the compareAndSet below.
+            // NonCancellable: this finally routinely runs on an already-cancelled coroutine
+            // (e.g. previousJob.cancelAndJoin()); without it the IO hop below would throw
+            // immediately and skip the kill, leaking the old binary process.
             withContext(NonCancellable) {
                 stopBinaryProcessGracefully()
                 // compareAndSet, а не set: если это исполнение уже устарело (отменено извне,
@@ -587,15 +581,12 @@ class CoreService : Service() {
         }
 
         // 2. Connected
-        // TCP_ACTIVE_REGEX stays a regex (unlike every other check here, incl. the udp-mode one
-        // right before it) because it needs the active-session count as a number: a session
-        // dropping while others in the pool are still active should stay Connected, only an
-        // empty pool shouldn't - a plain .contains() can't express that comparison.
+        // TCP_ACTIVE_REGEX needs the active-session count as a number (stay Connected while any
+        // session in the pool is still up, not just on the exact "connected" line).
         val tcpActiveMatch = TCP_ACTIVE_REGEX.matcher(line)
 
-        // udp mode's old signal, "Established DTLS connection", dropped to Debugf in
-        // free-turn-proxy v3.2.0 and we don't pass -debug; "TURN allocation up" stayed Infof
-        // and fires right after ConnectedStreams.Add(1), so it's the live replacement.
+        // "TURN allocation up" (udp mode) fires once a stream is live; free-turn-proxy's old
+        // "Established DTLS connection" signal moved to Debugf and we don't pass -debug.
         if (lower.contains("] turn allocation up") ||
             (tcpActiveMatch.find() && (tcpActiveMatch.group(1)?.toIntOrNull() ?: 0) > 0)) {
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
@@ -630,7 +621,7 @@ class CoreService : Service() {
         if (state.captchaActive && (
                 lower.contains("[vk auth] failed") ||
                 lower.contains("[vk auth] success") ||
-                lower.contains("turn allocation up") || // FreeTurn: "success" is Debugf-only since v3.2.0, this stays Infof
+                lower.contains("turn allocation up") || // success line is Debugf-only now; this stays Infof
                 (lower.contains("[captcha]") && lower.contains("failed"))
             )) {
             CoreServiceState.setCaptchaSession(null)
@@ -803,13 +794,8 @@ class CoreService : Service() {
             return true
         }
 
-        // Marks the process as having genuinely started, same as Olcrtc's "socks5 server
-        // listening on" branch below. Without this, WebDAV only gets marked started at
-        // "server connected" - if the binary exits before that (e.g. crashing on a later,
-        // otherwise-harmless per-backend health-check failure like the one swallowed above)
-        // the exit falls through to runBinary()'s "process produced no output" branch, which
-        // sets CoreStatus.Error and makes the watchdog stop the whole service instead of
-        // retrying with backoff like it does for a proper post-startup crash.
+        // Marks the process as genuinely started (like Olcrtc's branch below) so a later crash
+        // goes through the normal watchdog retry instead of the "no output" hard-stop path.
         if (lower.contains("socks5 proxy listening on")) {
             state.startupEmitted = true
         }
@@ -965,7 +951,7 @@ class CoreService : Service() {
         if (state.captchaActive && (
                 lower.contains("[vk auth] failed") ||
                 lower.contains("[vk auth] success") ||
-                lower.contains("turn allocation up") || // FreeTurn: "success" is Debugf-only since v3.2.0, this stays Infof
+                lower.contains("turn allocation up") || // success line is Debugf-only now; this stays Infof
                 (lower.contains("[captcha]") && lower.contains("failed"))
             )) {
             CoreServiceState.setCaptchaSession(null)
@@ -1620,6 +1606,10 @@ class CoreService : Service() {
         CoreServiceState.setStatus(CoreStatus.Stopping)
         NotificationHelper.updateNotification(this)
         serviceScope.launch {
+            // Wait for a still-in-flight start to fully unwind first, or it can keep running
+            // concurrently with this cleanup and leave the "Stopping" notification stuck.
+            coreJob?.cancelAndJoin()
+
             if (disableAutoLaunch) {
                 val prefs = AppPreferences(applicationContext)
                 val autoLaunch = prefs.autoLaunchSettingsFlow.first()

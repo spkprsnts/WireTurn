@@ -56,7 +56,8 @@ fun CoreTriggerController(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
-            viewModel.setVpnEnabled(true)
+            // The user asked to start; consent was the only thing missing.
+            viewModel.startCore()
         }
     }
 
