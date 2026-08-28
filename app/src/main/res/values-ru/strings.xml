@@ -442,6 +442,10 @@
     <!-- Импорт через QR и расширенные параметры -->
     <string name="qr_import">QR-код</string>
     <string name="qr_scan_desc">Наведите камеру на QR-код конфигурации для импорта</string>
+    <string name="qr_frame_progress">Кадр %1$d из %2$d — держите камеру наведённой на экран</string>
+    <string name="qr_scan_progress">Получено %1$d из %2$d частей — продолжайте сканировать</string>
+    <string name="qr_force_static_label">Один QR-код</string>
+    <string name="qr_force_static_hint">Для сканирования сторонними приложениями, которые не понимают многокадровый формат; может не сканироваться</string>
     <string name="settings_group_turnable">Настройки Turnable / FreeTurn</string>
     <string name="settings_group_olcrtc">Настройки olcRTC / WebDAV</string>
     <string name="settings_group_xray">Настройки Xray</string>

@@ -35,6 +35,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -55,6 +57,22 @@ import com.google.mlkit.vision.common.InputImage
 import com.wireturn.app.R
 import java.util.concurrent.Executors
 import kotlin.math.abs
+
+// Соответствует формату из QrCodeDialog в AppComponents.kt для длинных конфигов,
+// которые не помещаются в один надёжно сканируемый QR-код.
+private const val QR_CHUNK_PREFIX = "WTMQ1"
+
+private data class QrChunk(val sessionId: String, val index: Int, val total: Int, val payload: String)
+
+private fun parseQrChunk(raw: String): QrChunk? {
+    if (!raw.startsWith("$QR_CHUNK_PREFIX|")) return null
+    val parts = raw.split("|", limit = 5)
+    if (parts.size != 5) return null
+    val index = parts[2].toIntOrNull() ?: return null
+    val total = parts[3].toIntOrNull() ?: return null
+    if (total <= 0 || index !in 1..total) return null
+    return QrChunk(sessionId = parts[1], index = index, total = total, payload = parts[4])
+}
 
 @Composable
 fun QrScannerDialog(
@@ -91,7 +109,8 @@ fun QrScannerDialog(
 
     if (hasCameraPermission) {
         var zoom by remember { mutableFloatStateOf(0.15f) } // Начальное приближение
-        
+        var scanProgress by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+
         Dialog(onDismissRequest = onDismiss) {
             Surface(
                 shape = MaterialTheme.shapes.extraLarge,
@@ -130,15 +149,26 @@ fun QrScannerDialog(
                         CameraPreview(
                             zoom = zoom,
                             onZoomChange = { zoom = it },
+                            onProgress = { collected, total -> scanProgress = collected to total },
                             onResult = {
                                 onResult(it)
                                 onDismiss()
                             }
                         )
                     }
-                    
+
+                    scanProgress?.let { (collected, total) ->
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.qr_scan_progress, collected, total),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    
+
                     // Слайдер зума
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
@@ -181,6 +211,7 @@ fun QrScannerDialog(
 fun CameraPreview(
     zoom: Float,
     onZoomChange: (Float) -> Unit,
+    onProgress: (collected: Int, total: Int) -> Unit = { _, _ -> },
     onResult: (String) -> Unit
 ) {
     val context = LocalContext.current
@@ -189,6 +220,31 @@ fun CameraPreview(
     val scanner = remember { BarcodeScanning.getClient() }
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
     var camera by remember { mutableStateOf<Camera?>(null) }
+
+    // Части многокадрового QR (см. QrCodeDialog в AppComponents.kt), собираемые
+    // по мере сканирования до тех пор, пока не наберётся весь набор.
+    val scannedParts = remember { mutableStateMapOf<Int, String>() }
+    var activeSessionId by remember { mutableStateOf<String?>(null) }
+    var activeTotal by remember { mutableIntStateOf(0) }
+
+    val onBarcodeDetected: (String) -> Unit = onBarcode@{ raw ->
+        val chunk = parseQrChunk(raw)
+        if (chunk == null) {
+            onResult(raw)
+            return@onBarcode
+        }
+        if (activeSessionId != chunk.sessionId) {
+            activeSessionId = chunk.sessionId
+            activeTotal = chunk.total
+            scannedParts.clear()
+        }
+        scannedParts[chunk.index] = chunk.payload
+        onProgress(scannedParts.size, activeTotal)
+        if (scannedParts.size >= activeTotal) {
+            val assembled = (1..activeTotal).joinToString("") { scannedParts[it].orEmpty() }
+            onResult(assembled)
+        }
+    }
 
     // Установка начального зума 1.5x при первом бинде
     LaunchedEffect(camera) {
@@ -235,7 +291,7 @@ fun CameraPreview(
                     .build()
 
                 imageAnalysis.setAnalyzer(cameraExecutor) { imageProxy ->
-                    processImageProxy(scanner, imageProxy, onResult)
+                    processImageProxy(scanner, imageProxy, onBarcodeDetected)
                 }
 
                 val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA

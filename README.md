@@ -63,6 +63,7 @@ WireTurn упаковывает трафик в стандартные прот�
 - **[Настройка сервера Turnable](docs/guides/turnable.md)**
 - **[Настройка сервера olcRTC](docs/guides/olcrtc.md)**
 - **[Спецификация подписок и профилей](docs/subscriptions.md)**
+- **[Многокадровый QR для длинных конфигов](docs/qr-transfer.md)**
 
 ## Стек технологий
 

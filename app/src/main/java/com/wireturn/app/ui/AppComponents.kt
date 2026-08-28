@@ -1754,13 +1754,48 @@ fun ShareDropdownMenu(
     }
 }
 
+// Длинные конфиги (например turnable:// с крупным pub_key) дают QR слишком
+// плотный, чтобы его надёжно сканировала камера телефона — выше этого порога
+// показываем не один код, а зацикленную анимацию из нескольких более простых кадров.
+private const val QR_CHUNK_PREFIX = "WTMQ1"
+private const val QR_SINGLE_FRAME_MAX_LENGTH = 700
+private const val QR_CHUNK_PAYLOAD_SIZE = 400
+private const val QR_FRAME_INTERVAL_MS = 450L
+
+private fun buildQrFrames(text: String): List<String> {
+    if (text.length <= QR_SINGLE_FRAME_MAX_LENGTH) return listOf(text)
+    val chunks = text.chunked(QR_CHUNK_PAYLOAD_SIZE)
+    val total = chunks.size
+    val sessionId = (text.hashCode() and 0xFFFF).toString(16).padStart(4, '0')
+    return chunks.mapIndexed { i, chunk -> "$QR_CHUNK_PREFIX|$sessionId|${i + 1}|$total|$chunk" }
+}
+
 @Composable
 fun QrCodeDialog(
     text: String,
     onDismiss: () -> Unit,
     title: String = stringResource(R.string.qr_import)
 ) {
-    val bitmap = remember(text) { generateQrCode(text) }
+    val autoFrames = remember(text) { buildQrFrames(text) }
+    val isChunkable = autoFrames.size > 1
+    var forceStaticQr by remember(text) { mutableStateOf(false) }
+    val frames = if (isChunkable && forceStaticQr) listOf(text) else autoFrames
+    var frameIndex by remember { mutableStateOf(0) }
+
+    LaunchedEffect(frames) {
+        frameIndex = 0
+        if (frames.size > 1) {
+            while (true) {
+                delay(QR_FRAME_INTERVAL_MS.milliseconds)
+                frameIndex = (frameIndex + 1) % frames.size
+            }
+        }
+    }
+
+    // frames может резко сузиться (свич "Один QR-код"/смена text) раньше, чем
+    // LaunchedEffect выше успеет асинхронно сбросить frameIndex — подстраховываемся.
+    val safeFrameIndex = frameIndex.coerceIn(0, frames.lastIndex)
+    val bitmap = remember(frames, safeFrameIndex) { generateQrCode(frames[safeFrameIndex]) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1793,6 +1828,39 @@ fun QrCodeDialog(
                             bitmap = bitmap.asImageBitmap(),
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+                if (frames.size > 1) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.qr_frame_progress, safeFrameIndex + 1, frames.size),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+                if (isChunkable) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.qr_force_static_label),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = stringResource(R.string.qr_force_static_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = forceStaticQr,
+                            onCheckedChange = { forceStaticQr = it }
                         )
                     }
                 }

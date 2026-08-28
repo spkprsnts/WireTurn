@@ -483,6 +483,10 @@
     <!-- QR Import and Advanced Parameters -->
     <string name="qr_import">QR Code</string>
     <string name="qr_scan_desc">Point the camera at the configuration QR code to import</string>
+    <string name="qr_frame_progress">Frame %1$d of %2$d — keep the camera pointed at the screen</string>
+    <string name="qr_scan_progress">Collected %1$d of %2$d parts — keep scanning</string>
+    <string name="qr_force_static_label">Single QR code</string>
+    <string name="qr_force_static_hint">For scanning with other apps that don\'t support multi-frame codes; may not scan reliably</string>
     <string name="settings_group_turnable">Turnable / FreeTurn settings</string>
     <string name="settings_group_olcrtc">olcRTC / WebDAV settings</string>
     <string name="settings_group_xray">Xray settings</string>
