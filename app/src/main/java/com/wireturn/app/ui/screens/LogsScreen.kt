@@ -256,25 +256,31 @@ fun LogsScreen(
     }
 }
 
+
 @Composable
 private fun LogLine(line: String) {
     val lower = line.lowercase()
     val isHeader = line.startsWith("*")
-    val isInternalLog = lower.startsWith("* [xray]") || lower.startsWith("* [vpn]") ||
-                        lower.startsWith("* [core]") || lower.startsWith("* [dualroute]") ||
-                        lower.startsWith("* [hev-socks5-tunnel]")
+    val isInternalLog = lower.startsWith("* [")
     val isError = lower.contains("ошибка") || lower.contains("error") ||
                   lower.contains("критическая") || lower.contains("failed") ||
                   lower.contains("fatal") || lower.contains("panic") ||
-                  lower.contains("did not complete")
+                  lower.contains("did not complete") || lower.contains("could not")
+    // "restart"/"timeout" catch the EN strings.xml wording (log_core_network_change etc. say
+    // "RESTARTING"/"TIMEOUT", not "watchdog") that had no match at all before - the RU set only
+    // worked because "перезапуск" happened to be covered separately.
     val isWarning = lower.contains("watchdog") || lower.contains("перезапуск") ||
                     lower.contains("quota") || lower.contains("warn") ||
                     lower.contains(">>>") || lower.contains("stopped") ||
-                    lower.contains("connection lost")
+                    lower.contains("connection lost") || lower.contains("reconnecting") ||
+                    lower.contains("restart") || lower.contains("timeout") ||
+                    lower.contains("captcha") || lower.contains("refused") ||
+                    lower.contains("offline")
     val isSuccess = lower.contains("запущен") || lower.contains("подключен") ||
                     lower.contains("success") || lower.contains("started") ||
                     lower.contains("established") || lower.contains("connected") ||
-                    lower.contains("received handshake") || lower.contains("peer online")
+                    lower.contains("received handshake") || lower.contains("peer online") ||
+                    lower.contains("turn allocation up")
 
     val textColor = when {
         isError   -> MaterialTheme.colorScheme.error
