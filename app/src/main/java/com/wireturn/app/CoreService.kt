@@ -1622,8 +1622,13 @@ class CoreService : Service() {
         CoreServiceState.setStatus(CoreStatus.Stopping)
         NotificationHelper.updateNotification(this)
         serviceScope.launch {
-            // Wait for a still-in-flight start to fully unwind first, or it can keep running
-            // concurrently with this cleanup and leave the "Stopping" notification stuck.
+            // Kill the process first, THEN wait for coreJob to unwind - not the other way
+            // around. coreJob's runBinary() blocks on a synchronous reader.readLine() while
+            // idle; coroutine cancellation is cooperative and can't interrupt that blocking
+            // call, so cancelAndJoin() alone would hang forever waiting for output the process
+            // may never send. Killing it first closes its stdout, which unblocks readLine()
+            // with EOF so the coroutine can actually observe the cancellation and finish.
+            stopBinaryProcessGracefully()
             coreJob?.cancelAndJoin()
 
             if (disableAutoLaunch) {
