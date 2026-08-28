@@ -416,7 +416,9 @@ fun FreeTurnConfigScreen(
                         }
                     }
                 }
-                SectionItem {
+                SectionItem(
+                    position = ItemPosition.Bottom
+                ) {
                     LabeledButtonGroup(
                         label = stringResource(R.string.freeturn_transport_label),
                         supportingText = stringResource(R.string.freeturn_transport_desc),
