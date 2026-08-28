@@ -89,6 +89,7 @@ fun CoreToggleButton(
     val autoLaunchSettings by viewModel.autoLaunchSettings.collectAsStateWithLifecycle()
 
     val isRestarting by CoreServiceState.isRestarting.collectAsStateWithLifecycle()
+    val restartAttempt by CoreServiceState.restartAttempt.collectAsStateWithLifecycle()
 
     var wasActiveBeforeRestart by remember { mutableStateOf(false) }
 
@@ -147,7 +148,8 @@ fun CoreToggleButton(
     }
 
     val statusText = when {
-        actuallyRestarting -> stringResource(R.string.core_restarting)
+        actuallyRestarting -> restartAttempt?.let { stringResource(R.string.notification_restart, it.attempt, it.max) }
+            ?: stringResource(R.string.core_restarting)
         coreState is CoreState.Connected -> {
             if (xrayState == XrayState.DirectRoute) stringResource(R.string.direct_route_active)
             else stringResource(R.string.core_active)

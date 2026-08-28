@@ -78,12 +78,12 @@ object NotificationHelper {
         val vlessProtocolLabel = xraySession?.vless?.vlessLink?.let { context.getString(ValidatorUtils.uriProtocolStringRes(it)) }
             ?: context.getString(R.string.vless)
         val vpnState = VpnServiceState.state.value
-        val isRestarting = CoreServiceState.isRestarting.value
+        val restartAttempt = CoreServiceState.restartAttempt.value
 
         if (coreStatus !is CoreStatus.Idle) {
             val pStatus = when {
                 coreStatusText != null -> coreStatusText
-                isRestarting -> context.getString(R.string.core_restarting)
+                restartAttempt != null -> context.getString(R.string.notification_restart, restartAttempt.attempt, restartAttempt.max)
                 coreStatus is CoreStatus.Suppressed -> {
                     if (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute) context.getString(R.string.direct_route_active)
                     else context.getString(R.string.connecting)
@@ -276,7 +276,7 @@ object NotificationHelper {
             combine(
                 listOf(
                     CoreServiceState.status,
-                    CoreServiceState.isRestarting,
+                    CoreServiceState.restartAttempt,
                     CoreServiceState.statusText,
                     CoreServiceState.session,
                     XrayServiceState.state,

@@ -10,7 +10,6 @@ import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.ui.activities.MainActivity
-import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.viewmodel.XrayState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -50,21 +49,22 @@ class CoreTileService : TileService() {
         // Мгновенное обновление при открытии шторки
         val initialAutoLaunch = runBlocking { prefs.autoLaunchSettingsFlow.first() }
         val status = CoreServiceState.status.value
-        val isRestarting = CoreServiceState.isRestarting.value
+        val restartAttempt = CoreServiceState.restartAttempt.value
         val statusText = CoreServiceState.statusText.value
         val xrayState = XrayServiceState.state.value
-        val vpnState = VpnServiceState.state.value
-        
+
         val isDirect = status is CoreStatus.Suppressed
         val isXrayWorking = xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
-        val isVpnRunning = vpnState is VpnState.Running
-        val isWorking = status is CoreStatus.Connected || (isDirect && isXrayWorking) || isVpnRunning
+        // VPN state deliberately doesn't factor in here - the tun interface can stay up while
+        // the core tunnel behind it is reconnecting, and "Active" should reflect the core, same
+        // as CoreToggleButton's isCoreActuallyConnected and the notification's separate VPN badge.
+        val isWorking = status is CoreStatus.Connected || (isDirect && isXrayWorking)
 
         updateTileState(
             isRunning = status !is CoreStatus.Idle,
             isWorking = isWorking,
             isStopping = status is CoreStatus.Stopping,
-            isRestarting = isRestarting,
+            restartAttempt = restartAttempt,
             isWaiting = status is CoreStatus.WaitingForNetwork,
             isCaptcha = status is CoreStatus.CaptchaRequired,
             autoLaunchEnabled = initialAutoLaunch.enabled,
@@ -77,16 +77,15 @@ class CoreTileService : TileService() {
         statusJob = serviceScope.launch {
             combine(
                 CoreServiceState.status,
-                CoreServiceState.isRestarting,
+                CoreServiceState.restartAttempt,
                 XrayServiceState.state,
                 VpnServiceState.state,
                 CoreServiceState.statusText,
                 prefs.autoLaunchSettingsFlow
             ) { args: Array<Any?> ->
                 val status = args[0] as CoreStatus
-                val isRestarting = args[1] as Boolean
+                val restartAttempt = args[1] as CoreServiceState.RestartAttempt?
                 val xrayState = args[2] as XrayState
-                val vpnState = args[3] as VpnState
                 val statusText = args[4] as? String
                 val autoLaunch = args[5] as com.wireturn.app.data.AutoLaunchSettings
 
@@ -94,8 +93,7 @@ class CoreTileService : TileService() {
                 val isDirect = status is CoreStatus.Suppressed
                 val isWaiting = status is CoreStatus.WaitingForNetwork
                 val isXrayWorking = xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
-                val isVpnRunning = vpnState is VpnState.Running
-                val isWorking = status is CoreStatus.Connected || (isDirect && isXrayWorking) || isVpnRunning
+                val isWorking = status is CoreStatus.Connected || (isDirect && isXrayWorking)
                 val isCaptcha = status is CoreStatus.CaptchaRequired
                 val isStopping = status is CoreStatus.Stopping
 
@@ -103,7 +101,7 @@ class CoreTileService : TileService() {
                     isRunning = isRunning,
                     isWorking = isWorking,
                     isStopping = isStopping,
-                    isRestarting = isRestarting,
+                    restartAttempt = restartAttempt,
                     isWaiting = isWaiting,
                     isCaptcha = isCaptcha,
                     autoLaunchEnabled = autoLaunch.enabled,
@@ -193,7 +191,7 @@ class CoreTileService : TileService() {
         isRunning: Boolean,
         isWorking: Boolean,
         isStopping: Boolean = false,
-        isRestarting: Boolean = false,
+        restartAttempt: CoreServiceState.RestartAttempt? = null,
         isWaiting: Boolean = false,
         isCaptcha: Boolean = false,
         autoLaunchEnabled: Boolean = false,
@@ -208,7 +206,7 @@ class CoreTileService : TileService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             tile.subtitle = when {
                 statusText != null -> statusText
-                isRestarting -> getString(R.string.core_restarting)
+                restartAttempt != null -> getString(R.string.notification_restart, restartAttempt.attempt, restartAttempt.max)
                 isCaptcha -> getString(R.string.tile_captcha)
                 isWaiting -> getString(R.string.status_waiting_for_network)
                 autoLaunchEnabled && !isRunning -> getString(R.string.settings_auto_launch_title)

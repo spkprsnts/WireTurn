@@ -56,8 +56,14 @@ object CoreServiceState {
     private val _statusText = MutableStateFlow<String?>(null)
     val statusText: StateFlow<String?> = _statusText.asStateFlow()
 
-    private val _isRestarting = MutableStateFlow(false)
-    val isRestarting: StateFlow<Boolean> = _isRestarting.asStateFlow()
+    // Non-null only while the watchdog is backing off between crash retries - this is the ONLY
+    // thing "Restarting" means. Hot-reload, dual-route wake, profile/kernel switch and
+    // network-loss recovery are deliberate, not a failure being retried, so they just show
+    // Connecting/Starting like any other connection attempt.
+    data class RestartAttempt(val attempt: Int, val max: Int)
+
+    private val _restartAttempt = MutableStateFlow<RestartAttempt?>(null)
+    val restartAttempt: StateFlow<RestartAttempt?> = _restartAttempt.asStateFlow()
 
     val isRunning: StateFlow<Boolean> = _status.map { it !is CoreStatus.Idle }
         .stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, false)
@@ -65,9 +71,12 @@ object CoreServiceState {
     val isWorking: StateFlow<Boolean> = _status.map { it is CoreStatus.Connected || it is CoreStatus.Suppressed }
         .stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, false)
 
+    val isRestarting: StateFlow<Boolean> = _restartAttempt.map { it != null }
+        .stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, false)
+
     fun setStatus(newStatus: CoreStatus) {
         if (newStatus is CoreStatus.Idle || newStatus is CoreStatus.Error || newStatus is CoreStatus.Connected) {
-            _isRestarting.value = false
+            _restartAttempt.value = null
         }
         if (newStatus is CoreStatus.Idle) {
             _session.value = null
@@ -80,8 +89,8 @@ object CoreServiceState {
         _status.value = newStatus
     }
 
-    fun setRestarting(value: Boolean) {
-        _isRestarting.value = value
+    fun setRestartAttempt(attempt: RestartAttempt?) {
+        _restartAttempt.value = attempt
     }
 
     fun setStatusText(text: String?) {

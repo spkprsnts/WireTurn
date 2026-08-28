@@ -205,7 +205,9 @@ class CoreService : Service() {
             // В режиме Dual-route стартуем в паузе, чтобы не запускать бинарник зря
             AppLogsState.addLog(getString(R.string.log_core_suppressed))
             CoreServiceState.setStatus(CoreStatus.Suppressed)
-            CoreServiceState.setStatusText(getString(R.string.connecting))
+            // null, not the literal text - the Suppressed branch in NotificationHelper already
+            // derives the right text (connecting/direct route active) from current xrayState.
+            CoreServiceState.setStatusText(null)
         } else {
             CoreServiceState.setStatus(CoreStatus.Starting)
         }
@@ -265,7 +267,6 @@ class CoreService : Service() {
                                 CoreServiceState.setStatus(CoreStatus.Suppressed)
                             }
                             updateNotification(getString(R.string.direct_route_active))
-                            CoreServiceState.setRestarting(false)
                         }
                         // XrayState.Running в режиме Dual-route означает использование туннеля (local route).
                         // Если мы были в паузе (Suppressed), пробуждаем бинарник.
@@ -324,6 +325,11 @@ class CoreService : Service() {
                     currentRunningCfg.set(newCfg)
                     CoreServiceState.setSession(CoreServiceState.RunningSession(newCfg, prefs.currentProfileNameFlow.first().orEmpty()))
                     if (binaryChanged) {
+                        // A config/profile switch is a deliberate new attempt, not the watchdog
+                        // retrying a failure - drop any restart counter left over from before.
+                        restartCount = 0
+                        CoreServiceState.setRestartAttempt(null)
+
                         val xrayConfig = prefs.xrayConfigFlow.first()
                         val vlessConfig = prefs.vlessConfigFlow.first()
                         val isDualRoute = xrayConfig.enabled &&
@@ -333,10 +339,8 @@ class CoreService : Service() {
                             AppLogsState.addLog(getString(R.string.log_core_dual_route_config_changed))
                             CoreServiceState.setStatus(CoreStatus.Suppressed)
                         } else {
-                            restartCount = 0
                             AppLogsState.addLog(getString(R.string.log_core_config_changed))
                             CoreServiceState.setStatusText(null)
-                            CoreServiceState.setRestarting(true)
                             CoreServiceState.setStatus(CoreStatus.Stopping)
                             stopBinaryProcessGracefully()
                         }
@@ -423,9 +427,11 @@ class CoreService : Service() {
             val delayMs = baseDelay + Random.nextLong(0, 500)
             
             AppLogsState.addLog(getString(R.string.log_core_watchdog_restart, delayMs, restartCount, MAX_RESTARTS))
-            updateNotification(getString(R.string.notification_restart, restartCount, MAX_RESTARTS))
-            
-            CoreServiceState.setRestarting(true)
+            // Clears any stale text left over from the previous run (e.g. "Active") so the
+            // restart-attempt text below isn't shadowed by it in the notification/tile.
+            CoreServiceState.setStatusText(null)
+            CoreServiceState.setRestartAttempt(CoreServiceState.RestartAttempt(restartCount, MAX_RESTARTS))
+
             delay(delayMs.milliseconds)
         }
     }
@@ -483,7 +489,9 @@ class CoreService : Service() {
                 state.startupEmitted = true
                 if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                     CoreServiceState.setStatus(CoreStatus.Connecting)
-                    updateNotification(getString(R.string.connecting))
+                    // null, not the literal text - lets a watchdog restart's "Restarting (N/M)"
+                    // show through instead of being clobbered by a redundant "Connecting".
+                    CoreServiceState.setStatusText(null)
                 }
             }
 
@@ -593,7 +601,6 @@ class CoreService : Service() {
                 CoreServiceState.setStatus(CoreStatus.Connected)
                 updateNotification(getString(R.string.core_active))
                 state.startupEmitted = true
-                CoreServiceState.setRestarting(false)
             }
         }
 
@@ -610,7 +617,9 @@ class CoreService : Service() {
             val currentStatus = CoreServiceState.status.value
             if (currentStatus !is CoreStatus.Suppressed && currentStatus !is CoreStatus.CaptchaRequired) {
                 CoreServiceState.setStatus(CoreStatus.Connecting)
-                updateNotification(getString(R.string.connecting))
+                // null, not the literal text - lets a watchdog restart's "Restarting (N/M)"
+                // show through instead of being clobbered by a redundant "Connecting".
+                CoreServiceState.setStatusText(null)
                 state.startupEmitted = true
             }
         }
@@ -738,7 +747,6 @@ class CoreService : Service() {
                 CoreServiceState.setStatus(CoreStatus.Connected)
                 updateNotification(getString(R.string.core_active))
                 state.startupEmitted = true
-                CoreServiceState.setRestarting(false)
             }
         }
 
@@ -776,7 +784,9 @@ class CoreService : Service() {
                     return true
                 }
                 CoreServiceState.setStatus(CoreStatus.Connecting)
-                updateNotification(getString(R.string.connecting))
+                // null, not the literal text - lets a watchdog restart's "Restarting (N/M)"
+                // show through instead of being clobbered by a redundant "Connecting".
+                CoreServiceState.setStatusText(null)
                 state.startupEmitted = true
             }
         }
@@ -831,7 +841,6 @@ class CoreService : Service() {
                 CoreServiceState.setStatus(CoreStatus.Connected)
                 updateNotification(getString(R.string.core_active))
                 state.startupEmitted = true
-                CoreServiceState.setRestarting(false)
             }
         }
 
@@ -867,7 +876,6 @@ class CoreService : Service() {
                 CoreServiceState.setStatus(CoreStatus.Connected)
                 updateNotification(getString(R.string.core_active))
                 state.startupEmitted = true
-                CoreServiceState.setRestarting(false)
             }
         }
 
@@ -1618,7 +1626,6 @@ class CoreService : Service() {
         vpnSupervisorJob?.cancel()
         vpnSupervisorJob = null
         NotificationHelper.cancelErrorNotification(this)
-        CoreServiceState.setRestarting(false)
         CoreServiceState.setStatus(CoreStatus.Stopping)
         NotificationHelper.updateNotification(this)
         serviceScope.launch {
@@ -1754,6 +1761,10 @@ class CoreService : Service() {
             // Устанавливаем статус Starting сразу, чтобы UI и LocalCoreManager
             // поняли, что запущен новый процесс попытки подключения, даже если до этого была ошибка.
             CoreServiceState.setStatus(CoreStatus.Starting)
+            // A profile/kernel switch (or any explicit start) is a deliberate new attempt, not
+            // the watchdog retrying a failure - any stale restart counter from the previous
+            // profile no longer applies.
+            CoreServiceState.setRestartAttempt(null)
             context.startForegroundService(Intent(context, CoreService::class.java))
         }
 
