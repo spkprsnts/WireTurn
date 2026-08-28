@@ -50,6 +50,15 @@ class XrayService : Service() {
 
     // See CoreService.ensureCaBundle() — same rationale: don't depend on the
     // device's (possibly stale) system CA trust store for TLS verification.
+    // Masks credentials/keys for the app's own log, which the user may end up sharing for
+    // support - the actual cmdArgs passed to the process are untouched.
+    private fun redactedCommandLog(cmdArgs: List<String>): String {
+        val sensitiveFlags = setOf("-proxy-user", "-proxy-pass", "-local-socks5", "-link", "-wg-private-key")
+        return cmdArgs.mapIndexed { i, arg ->
+            if (i > 0 && cmdArgs[i - 1] in sensitiveFlags) "<redacted>" else arg
+        }.joinToString(" ")
+    }
+
     private fun ensureCaBundle(): String? {
         val target = java.io.File(filesDir, "cacert.pem")
         return try {
@@ -261,7 +270,7 @@ class XrayService : Service() {
                 )
             }
 
-            AppLogsState.addLog(getString(R.string.log_xray_starting, cmdArgs.joinToString(" ")))
+            AppLogsState.addLog(getString(R.string.log_xray_starting, redactedCommandLog(cmdArgs)))
             val proc = withContext(Dispatchers.IO) {
                 val builder = ProcessBuilder(cmdArgs).redirectErrorStream(true)
                 if (snapshot.client.useCustomCerts) {

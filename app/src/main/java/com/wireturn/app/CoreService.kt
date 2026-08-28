@@ -441,7 +441,7 @@ class CoreService : Service() {
         var startedProc: Process? = null
 
         try {
-            AppLogsState.addLog(getString(R.string.log_core_command, cmdArgs.joinToString(" ")))
+            AppLogsState.addLog(getString(R.string.log_core_command, redactedCommandLog(cmdArgs, cfg)))
 
             val proc = withContext(Dispatchers.IO) {
                 val builder = ProcessBuilder(cmdArgs)
@@ -996,15 +996,31 @@ class CoreService : Service() {
         }
     }
 
+    // FreeTurn has no file-based config option upstream (unlike the other kernels), so its
+    // join links/obf key ride the process command line directly - mask those specific values
+    // for the app's own log, which the user may end up sharing for support.
+    private fun redactedCommandLog(cmdArgs: List<String>, cfg: ClientConfig): String {
+        if (cfg.kernelConfig !is KernelConfig.FreeTurn) return cmdArgs.joinToString(" ")
+        val sensitiveFlags = setOf("-obf-key", "-links", "-sub")
+        return cmdArgs.mapIndexed { i, arg ->
+            if (i > 0 && cmdArgs[i - 1] in sensitiveFlags) "<redacted>" else arg
+        }.joinToString(" ")
+    }
+
     private fun buildCommandArgs(cfg: ClientConfig): List<String> {
         val cmdArgs = mutableListOf<String>()
         when (val k = cfg.kernelConfig) {
             is KernelConfig.Turnable -> {
                 cmdArgs.add("${applicationInfo.nativeLibraryDir}/libturnable.so")
+                // Via -config file rather than as a positional arg (both are supported by
+                // turnable's client subcommand) so the join link/key doesn't end up in the
+                // process command line, which gets written verbatim to the app's own log.
+                val configFile = java.io.File(filesDir, "turnable.json")
+                configFile.writeText(k.config.toUri(true))
                 cmdArgs.addAll(listOf(
                     "client",
                     "-l", cfg.listenAddr.ifBlank { ClientConfig.DEFAULT_LISTEN_ADDR },
-                    k.config.toUri(true)
+                    "-c", configFile.absolutePath
                 ))
             }
             is KernelConfig.Olcrtc -> {
