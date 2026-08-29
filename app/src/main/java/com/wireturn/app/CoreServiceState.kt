@@ -75,7 +75,8 @@ object CoreServiceState {
         .stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, false)
 
     fun setStatus(newStatus: CoreStatus) {
-        if (newStatus is CoreStatus.Idle || newStatus is CoreStatus.Error || newStatus is CoreStatus.Connected) {
+        if (newStatus is CoreStatus.Idle || newStatus is CoreStatus.Error ||
+            newStatus is CoreStatus.Connected || newStatus is CoreStatus.Suppressed) {
             _restartAttempt.value = null
         }
         if (newStatus is CoreStatus.Idle) {

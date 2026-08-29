@@ -363,6 +363,9 @@ class CoreService : Service() {
 
             val cfg = currentRunningCfg.get() ?: break
             val startTime = System.currentTimeMillis()
+            // Reset so a stale reason from an earlier, unrelated cycle can't outlive it - only
+            // this run's own handler (if any) should set it before the failure check below reads it.
+            lastKnownFailureReason = null
             val startupSuccessful = runBinary(cfg)
             val duration = System.currentTimeMillis() - startTime
             
