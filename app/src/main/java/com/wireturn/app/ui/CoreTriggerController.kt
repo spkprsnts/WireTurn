@@ -47,7 +47,6 @@ fun CoreTriggerController(
     val mismatchKernelName = kernelDisplayName(clientConfig.kernelConfig)
     val mismatchTcpBody = stringResource(R.string.xray_uri_mismatch_tcp, mismatchKernelName)
     val mismatchUdpBody = stringResource(R.string.xray_uri_mismatch_udp, mismatchKernelName)
-    val mismatchFreeTurnBody = stringResource(R.string.xray_uri_kernel_udp_only_mismatch, mismatchKernelName)
 
     val showAutoLaunchOverride = rememberSaveable { mutableStateOf(false) }
     var pendingCoreAction by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -72,9 +71,7 @@ fun CoreTriggerController(
                 clientConfig.kernelConfig, xrayConfig.protocol, vlessConfig.vlessLink
             )
             if (mismatchSocket != null) {
-                val body = if (clientConfig.kernelConfig is KernelConfig.FreeTurn) {
-                    mismatchFreeTurnBody
-                } else if (mismatchSocket == "tcp") mismatchTcpBody else mismatchUdpBody
+                val body = if (mismatchSocket == "tcp") mismatchTcpBody else mismatchUdpBody
                 context.showExclusiveToast("$mismatchTitle: $body", android.widget.Toast.LENGTH_LONG)
             }
         }

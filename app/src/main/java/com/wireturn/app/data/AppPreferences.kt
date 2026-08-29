@@ -784,14 +784,25 @@ data class FreeTurnConfig(
             if (mode != "udp") {
                 addProperty("mode", mode)
                 val default = FreeTurnConfig()
-                if (kcpNodelay != default.kcpNodelay) addProperty("kcp_nd", kcpNodelay)
-                if (kcpInterval != default.kcpInterval) addProperty("kcp_iv", kcpInterval)
-                if (kcpResend != default.kcpResend) addProperty("kcp_rs", kcpResend)
-                if (kcpNc != default.kcpNc) addProperty("kcp_nc", kcpNc)
-                if (kcpSndwnd != default.kcpSndwnd) addProperty("kcp_sw", kcpSndwnd)
-                if (kcpRcvwnd != default.kcpRcvwnd) addProperty("kcp_rw", kcpRcvwnd)
-                if (kcpMtu != default.kcpMtu) addProperty("kcp_mtu", kcpMtu)
-                if (kcpAcknodelay != default.kcpAcknodelay) addProperty("kcp_ack", kcpAcknodelay)
+                val kcpChanged = kcpNodelay != default.kcpNodelay || kcpInterval != default.kcpInterval ||
+                    kcpResend != default.kcpResend || kcpNc != default.kcpNc ||
+                    kcpSndwnd != default.kcpSndwnd || kcpRcvwnd != default.kcpRcvwnd ||
+                    kcpMtu != default.kcpMtu || kcpAcknodelay != default.kcpAcknodelay
+                // The server applies this object atomically (internal/config/raw.go's applyURI) -
+                // any field missing from it becomes Go's zero value, not our default, so all 8
+                // fields must always be sent together, never a partial subset.
+                if (kcpChanged) {
+                    add("kcp", JsonObject().apply {
+                        addProperty("nodelay", kcpNodelay)
+                        addProperty("interval", kcpInterval)
+                        addProperty("resend", kcpResend)
+                        addProperty("nc", kcpNc)
+                        addProperty("sndwnd", kcpSndwnd)
+                        addProperty("rcvwnd", kcpRcvwnd)
+                        addProperty("mtu", kcpMtu)
+                        addProperty("acknodelay", kcpAcknodelay)
+                    })
+                }
             }
             if (!profileName.isNullOrBlank()) addProperty("name", profileName)
         }
@@ -831,6 +842,7 @@ data class FreeTurnConfig(
                 val json = Gson().fromJson(jsonStr, JsonObject::class.java)
                 
                 if (json.get("v")?.asInt != 1) return null
+                val kcp = json.getAsJsonObject("kcp")
 
                 FreeTurnConfig(
                     provider = json.get("provider")?.asString ?: current.provider,
@@ -849,14 +861,14 @@ data class FreeTurnConfig(
                     manualCaptcha = json.get("mcap")?.asBoolean ?: current.manualCaptcha,
                     platform = json.get("plt")?.asString ?: current.platform,
                     mode = json.get("mode")?.asString ?: current.mode,
-                    kcpNodelay = json.get("kcp_nd")?.asInt ?: current.kcpNodelay,
-                    kcpInterval = json.get("kcp_iv")?.asInt ?: current.kcpInterval,
-                    kcpResend = json.get("kcp_rs")?.asInt ?: current.kcpResend,
-                    kcpNc = json.get("kcp_nc")?.asInt ?: current.kcpNc,
-                    kcpSndwnd = json.get("kcp_sw")?.asInt ?: current.kcpSndwnd,
-                    kcpRcvwnd = json.get("kcp_rw")?.asInt ?: current.kcpRcvwnd,
-                    kcpMtu = json.get("kcp_mtu")?.asInt ?: current.kcpMtu,
-                    kcpAcknodelay = json.get("kcp_ack")?.asBoolean ?: current.kcpAcknodelay
+                    kcpNodelay = kcp?.get("nodelay")?.asInt ?: current.kcpNodelay,
+                    kcpInterval = kcp?.get("interval")?.asInt ?: current.kcpInterval,
+                    kcpResend = kcp?.get("resend")?.asInt ?: current.kcpResend,
+                    kcpNc = kcp?.get("nc")?.asInt ?: current.kcpNc,
+                    kcpSndwnd = kcp?.get("sndwnd")?.asInt ?: current.kcpSndwnd,
+                    kcpRcvwnd = kcp?.get("rcvwnd")?.asInt ?: current.kcpRcvwnd,
+                    kcpMtu = kcp?.get("mtu")?.asInt ?: current.kcpMtu,
+                    kcpAcknodelay = kcp?.get("acknodelay")?.asBoolean ?: current.kcpAcknodelay
                 )
             } catch (_: Exception) {
                 null

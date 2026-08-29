@@ -433,7 +433,6 @@
     <string name="mismatch_title">Несоответствие протокола</string>
     <string name="xray_uri_mismatch_tcp">Маршрут %1$s работает только по TCP (VLESS, Trojan)</string>
     <string name="xray_uri_mismatch_udp">Маршрут %1$s работает только по UDP (WireGuard, Hysteria2)</string>
-    <string name="xray_uri_kernel_udp_only_mismatch">%1$s поддерживает только UDP-протоколы (WireGuard, Hysteria2)</string>
     <string name="warn_vpn_requires_xray">Режим VPN требует включенного Xray!</string>
 
     <string name="unsaved_changes_title">Несохранённые изменения</string>

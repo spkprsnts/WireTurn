@@ -152,7 +152,7 @@ object ValidatorUtils {
         val kernelRequiredSocket = when (kernelConfig) {
             is KernelConfig.Turnable -> kernelConfig.config.routes.find { it.routeId == kernelConfig.config.selectedRouteId }
                 ?.socket?.lowercase()?.takeIf { it == "tcp" || it == "udp" }
-            is KernelConfig.FreeTurn -> "udp"
+            is KernelConfig.FreeTurn -> kernelConfig.config.mode.lowercase().takeIf { it == "tcp" || it == "udp" } ?: "udp"
             else -> null
         } ?: return null
 

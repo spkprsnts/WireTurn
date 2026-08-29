@@ -474,7 +474,6 @@
     <string name="mismatch_title">Protocol mismatch</string>
     <string name="xray_uri_mismatch_tcp">%1$s\'s route only carries TCP (VLESS, Trojan)</string>
     <string name="xray_uri_mismatch_udp">%1$s\'s route only carries UDP (WireGuard, Hysteria2)</string>
-    <string name="xray_uri_kernel_udp_only_mismatch">%1$s only supports UDP-based protocols (WireGuard, Hysteria2)</string>
     <string name="warn_vpn_requires_xray">VPN mode requires Xray to be enabled!</string>
 
     <string name="unsaved_changes_title">Unsaved changes</string>

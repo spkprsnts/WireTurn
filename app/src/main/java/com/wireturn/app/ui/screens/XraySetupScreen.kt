@@ -468,17 +468,11 @@ fun XraySetupScreen(
                                     RowLabel(stringResource(R.string.mismatch_title))
                                     Spacer(Modifier.height(2.dp))
                                     SupportingText(
-                                        // FreeTurn has no per-route transport choice left (tcp mode was
-                                        // dropped entirely) - it's just how the kernel works, not a route.
-                                        if (kernelConfig is KernelConfig.FreeTurn) {
-                                            stringResource(R.string.xray_uri_kernel_udp_only_mismatch, kernelName)
-                                        } else {
-                                            stringResource(
-                                                if (transportMismatchSocket == "tcp") R.string.xray_uri_mismatch_tcp
-                                                else R.string.xray_uri_mismatch_udp,
-                                                kernelName
-                                            )
-                                        },
+                                        stringResource(
+                                            if (transportMismatchSocket == "tcp") R.string.xray_uri_mismatch_tcp
+                                            else R.string.xray_uri_mismatch_udp,
+                                            kernelName
+                                        ),
                                         color = MaterialTheme.colorScheme.onErrorContainer
                                     )
                                 }
