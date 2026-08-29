@@ -166,7 +166,8 @@ fun HomeScreen(
     val vpnEnabled = vpnSettings.enabled
     val appsExclusionHintShown by viewModel.appsExclusionHintShown.collectAsStateWithLifecycle()
     val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
-    val isRestarting by CoreServiceState.isRestarting.collectAsStateWithLifecycle()
+    val restartAttempt by CoreServiceState.restartAttempt.collectAsStateWithLifecycle()
+    val isRestarting = restartAttempt != null
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
     val updateProgress by viewModel.updateProgress.collectAsStateWithLifecycle()
 

@@ -88,8 +88,8 @@ fun CoreToggleButton(
     val xrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
     val autoLaunchSettings by viewModel.autoLaunchSettings.collectAsStateWithLifecycle()
 
-    val isRestarting by CoreServiceState.isRestarting.collectAsStateWithLifecycle()
     val restartAttempt by CoreServiceState.restartAttempt.collectAsStateWithLifecycle()
+    val isRestarting = restartAttempt != null
 
     var wasActiveBeforeRestart by remember { mutableStateOf(false) }
 

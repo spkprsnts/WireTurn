@@ -1,6 +1,5 @@
 package com.wireturn.app.ui
 
-import android.net.VpnService
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.AlertDialog
@@ -21,6 +20,7 @@ import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.variant
 import com.wireturn.app.viewmodel.CoreState
 import com.wireturn.app.viewmodel.MainViewModel
+import com.wireturn.app.vpnConsentIntent
 
 @Composable
 private fun kernelDisplayName(kernelConfig: KernelConfig): String = when (kernelConfig.variant) {
@@ -79,13 +79,9 @@ fun CoreTriggerController(
             }
         }
 
-        if (vpnSettings.enabled) {
-            val intent = VpnService.prepare(context)
-            if (intent != null) {
-                vpnLauncher.launch(intent)
-            } else {
-                viewModel.startCore()
-            }
+        val consentIntent = vpnConsentIntent(context, vpnSettings.enabled)
+        if (consentIntent != null) {
+            vpnLauncher.launch(consentIntent)
         } else {
             viewModel.startCore()
         }

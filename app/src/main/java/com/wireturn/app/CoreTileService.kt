@@ -4,7 +4,6 @@ import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.net.VpnService
 import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
@@ -79,15 +78,14 @@ class CoreTileService : TileService() {
                 CoreServiceState.status,
                 CoreServiceState.restartAttempt,
                 XrayServiceState.state,
-                VpnServiceState.state,
                 CoreServiceState.statusText,
                 prefs.autoLaunchSettingsFlow
             ) { args: Array<Any?> ->
                 val status = args[0] as CoreStatus
                 val restartAttempt = args[1] as CoreServiceState.RestartAttempt?
                 val xrayState = args[2] as XrayState
-                val statusText = args[4] as? String
-                val autoLaunch = args[5] as com.wireturn.app.data.AutoLaunchSettings
+                val statusText = args[3] as? String
+                val autoLaunch = args[4] as com.wireturn.app.data.AutoLaunchSettings
 
                 val isRunning = status !is CoreStatus.Idle
                 val isDirect = status is CoreStatus.Suppressed
@@ -153,7 +151,7 @@ class CoreTileService : TileService() {
             // A TileService can't show the system VPN consent dialog itself - open the app for
             // that instead of letting establish() silently and permanently fail.
             val vpnSettings = runBlocking { prefs.vpnSettingsFlow.first() }
-            if (vpnSettings.enabled && VpnService.prepare(this) != null) {
+            if (vpnConsentIntent(this, vpnSettings.enabled) != null) {
                 updateTileState(isRunning = false, isWorking = false, autoLaunchEnabled = false)
                 val consentIntent = Intent(this, MainActivity::class.java).apply {
                     putExtra(EXTRA_REQUEST_VPN_CONSENT, true)
