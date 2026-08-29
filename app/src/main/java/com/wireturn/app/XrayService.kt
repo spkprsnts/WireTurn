@@ -54,9 +54,7 @@ class XrayService : Service() {
     // support - the actual cmdArgs passed to the process are untouched.
     private fun redactedCommandLog(cmdArgs: List<String>): String {
         val sensitiveFlags = setOf("-proxy-user", "-proxy-pass", "-local-socks5", "-link", "-wg-private-key")
-        return cmdArgs.mapIndexed { i, arg ->
-            if (i > 0 && cmdArgs[i - 1] in sensitiveFlags) "<redacted>" else arg
-        }.joinToString(" ")
+        return CommandLogRedactor.redact(cmdArgs, sensitiveFlags)
     }
 
     private fun ensureCaBundle(): String? {

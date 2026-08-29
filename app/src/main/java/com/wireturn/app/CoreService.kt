@@ -987,9 +987,7 @@ class CoreService : Service() {
     private fun redactedCommandLog(cmdArgs: List<String>, cfg: ClientConfig): String {
         if (cfg.kernelConfig !is KernelConfig.FreeTurn) return cmdArgs.joinToString(" ")
         val sensitiveFlags = setOf("-obf-key", "-links", "-sub")
-        return cmdArgs.mapIndexed { i, arg ->
-            if (i > 0 && cmdArgs[i - 1] in sensitiveFlags) "<redacted>" else arg
-        }.joinToString(" ")
+        return CommandLogRedactor.redact(cmdArgs, sensitiveFlags)
     }
 
     private fun buildCommandArgs(cfg: ClientConfig): List<String> {
