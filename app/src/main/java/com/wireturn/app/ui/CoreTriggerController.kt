@@ -33,7 +33,7 @@ private fun kernelDisplayName(kernelConfig: KernelConfig): String = when (kernel
 @Composable
 fun CoreTriggerController(
     viewModel: MainViewModel,
-    content: @Composable (onToggleCore: () -> Unit) -> Unit
+    content: @Composable (onToggleCore: () -> Unit, onStartCore: () -> Unit) -> Unit
 ) {
     val context = LocalContext.current
     val coreState by viewModel.coreState.collectAsStateWithLifecycle()
@@ -61,45 +61,37 @@ fun CoreTriggerController(
         }
     }
 
-    val triggerCoreAction = {
-        val action = {
-            when (coreState) {
-                is CoreState.Idle, is CoreState.Error -> {
-                    HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
+    val startAction = {
+        HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_ON)
 
-                    // Non-blocking heads-up for a protocol/transport mismatch (e.g. a Hysteria2 link on
-                    // a tcp-only route) regardless of how it got here - manual edit, subscription sync,
-                    // or a route switch - since only the Xray edit screen itself shows this otherwise.
-                    if (xrayConfig.enabled) {
-                        val mismatchSocket = ValidatorUtils.kernelTransportMismatch(
-                            clientConfig.kernelConfig, xrayConfig.protocol, vlessConfig.vlessLink
-                        )
-                        if (mismatchSocket != null) {
-                            val body = if (clientConfig.kernelConfig is KernelConfig.FreeTurn) {
-                                mismatchFreeTurnBody
-                            } else if (mismatchSocket == "tcp") mismatchTcpBody else mismatchUdpBody
-                            context.showExclusiveToast("$mismatchTitle: $body", android.widget.Toast.LENGTH_LONG)
-                        }
-                    }
-
-                    if (vpnSettings.enabled) {
-                        val intent = VpnService.prepare(context)
-                        if (intent != null) {
-                            vpnLauncher.launch(intent)
-                        } else {
-                            viewModel.startCore()
-                        }
-                    } else {
-                        viewModel.startCore()
-                    }
-                }
-                else -> {
-                    HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_OFF)
-                    viewModel.stopCore()
-                }
+        // Non-blocking heads-up for a protocol/transport mismatch (e.g. a Hysteria2 link on
+        // a tcp-only route) regardless of how it got here - manual edit, subscription sync,
+        // or a route switch - since only the Xray edit screen itself shows this otherwise.
+        if (xrayConfig.enabled) {
+            val mismatchSocket = ValidatorUtils.kernelTransportMismatch(
+                clientConfig.kernelConfig, xrayConfig.protocol, vlessConfig.vlessLink
+            )
+            if (mismatchSocket != null) {
+                val body = if (clientConfig.kernelConfig is KernelConfig.FreeTurn) {
+                    mismatchFreeTurnBody
+                } else if (mismatchSocket == "tcp") mismatchTcpBody else mismatchUdpBody
+                context.showExclusiveToast("$mismatchTitle: $body", android.widget.Toast.LENGTH_LONG)
             }
         }
 
+        if (vpnSettings.enabled) {
+            val intent = VpnService.prepare(context)
+            if (intent != null) {
+                vpnLauncher.launch(intent)
+            } else {
+                viewModel.startCore()
+            }
+        } else {
+            viewModel.startCore()
+        }
+    }
+
+    fun runGated(action: () -> Unit) {
         if (autoLaunchSettings.enabled) {
             pendingCoreAction = action
             showAutoLaunchOverride.value = true
@@ -108,7 +100,28 @@ fun CoreTriggerController(
         }
     }
 
-    content(triggerCoreAction)
+    val triggerCoreAction = {
+        runGated {
+            when (coreState) {
+                is CoreState.Idle, is CoreState.Error -> startAction()
+                else -> {
+                    HapticUtil.perform(context, HapticUtil.Pattern.TOGGLE_OFF)
+                    viewModel.stopCore()
+                }
+            }
+        }
+    }
+
+    // Unlike triggerCoreAction, never falls through to stopCore() - a caller that only ever
+    // means "start" (e.g. TileVpnConsentBus replaying after the user granted VPN consent) must
+    // not risk stopping a core that's already running by the time it fires.
+    val startCoreAction = {
+        runGated {
+            if (coreState is CoreState.Idle || coreState is CoreState.Error) startAction()
+        }
+    }
+
+    content(triggerCoreAction, startCoreAction)
 
     if (showAutoLaunchOverride.value) {
         AlertDialog(

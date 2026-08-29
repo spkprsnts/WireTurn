@@ -28,7 +28,7 @@ class LogsActivity : ComponentActivity() {
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
 
             WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
-                CoreTriggerController(viewModel = viewModel) { onToggle ->
+                CoreTriggerController(viewModel = viewModel) { onToggle, _ ->
                     LogsScreen(
                         viewModel = viewModel,
                         onBack = { finish() },

@@ -35,9 +35,9 @@ fun AppNavigation(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            CoreTriggerController(viewModel = viewModel) { onToggle ->
-                LaunchedEffect(onToggle) {
-                    TileVpnConsentBus.pending.collect { onToggle() }
+            CoreTriggerController(viewModel = viewModel) { onToggle, onStart ->
+                LaunchedEffect(onStart) {
+                    TileVpnConsentBus.pending.collect { onStart() }
                 }
                 HomeScreen(
                     viewModel = viewModel,

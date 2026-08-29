@@ -59,6 +59,7 @@ class HevVpnService : VpnService() {
     @Volatile
     private var underlyingNetwork: Network? = null
         set(value) {
+            if (field == value) return
             field = value
             if (vpnEstablished) {
                 try {
@@ -336,7 +337,8 @@ misc:
                 VpnServiceState.updateStatus(VpnState.Error(getString(R.string.error_connecting)))
                 NotificationHelper.updateNotification(this@HevVpnService)
                 // No disableVpnMode() here - this is a failed attempt, not the user opting out;
-                // leave VPN mode on so the next restart retries establish() on its own.
+                // leave VPN mode on. CoreService's VPN supervisor periodically retries establish()
+                // itself while state stays Error (see startVpnSupervisor()'s pendingVpnRetryJob).
                 stopSelf()
                 return
             }

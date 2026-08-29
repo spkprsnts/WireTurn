@@ -1319,6 +1319,10 @@ class CoreService : Service() {
             // Debounces tearing the VPN down when the target transiently disappears (e.g.
             // switching profiles) - only actually stops if it doesn't reappear in time.
             var pendingStopJob: Job? = null
+            // Retries a failed establish() (e.g. another app still held VPN ownership) on a
+            // fixed backoff - without this, VpnState.Error only ever gets retried when settings
+            // or target happen to change, and can otherwise sit there forever.
+            var pendingVpnRetryJob: Job? = null
 
             fun stopIntent() = Intent(this@CoreService, HevVpnService::class.java).apply {
                 action = HevVpnService.ACTION_STOP
@@ -1413,6 +1417,11 @@ class CoreService : Service() {
                     val vpnRunning = bundle.vpnState == VpnState.Running
                     val vpnError = bundle.vpnState is VpnState.Error
 
+                    if (!vpnError) {
+                        pendingVpnRetryJob?.cancel()
+                        pendingVpnRetryJob = null
+                    }
+
                     when {
                         bundle.vpnState == VpnState.Idle -> {
                             // Establish as soon as any target exists, before it's even connected -
@@ -1425,6 +1434,20 @@ class CoreService : Service() {
                             AppLogsState.addLog(getString(R.string.log_vpn_restarting_config))
                             startService(stopIntent())
                             startService(startIntent(target))
+                        }
+                        vpnError && pendingVpnRetryJob == null -> {
+                            // Nothing about the target/settings changed, so nothing else here
+                            // will ever retry this on its own - back off and try again anyway.
+                            pendingVpnRetryJob = serviceScope.launch {
+                                delay(VPN_ERROR_RETRY_MS.milliseconds)
+                                pendingVpnRetryJob = null
+                                withContext(Dispatchers.Main) {
+                                    if (VpnServiceState.state.value is VpnState.Error) {
+                                        startService(stopIntent())
+                                        startService(startIntent(target))
+                                    }
+                                }
+                            }
                         }
                         vpnRunning && settingsChanged -> {
                             // Routing config itself changed (filtering/bypass/app list) - that's
@@ -1697,6 +1720,7 @@ class CoreService : Service() {
         const val ACTION_STOP_BY_USER = "ACTION_STOP_BY_USER"
         const val MAX_RESTARTS = 10
         private const val VPN_TARGET_LOST_GRACE_MS = 5_000L
+        private const val VPN_ERROR_RETRY_MS = 15_000L
         private val CAPTCHA_URL_REGEX = Pattern.compile("""Open this URL in your browser:\s*(https?://\S+)""")
         private val FREE_TURN_CAPTCHA_REGEX = Pattern.compile("""(?:manually open this URL|Open this URL in your browser):\s*(https?://\S+)""")
         private val TCP_ACTIVE_REGEX = Pattern.compile("""\[session \d+] (?:connected|disconnected) \(active: (\d+)\)""")
