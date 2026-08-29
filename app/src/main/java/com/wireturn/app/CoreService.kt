@@ -58,14 +58,8 @@ class CoreService : Service() {
     private val userStopped = AtomicBoolean(false)
     private val isStarted = AtomicBoolean(false)
     private val currentRunningCfg = AtomicReference<ClientConfig?>(null)
-    // Serializes stopBinaryProcessGracefully() across all its callers (onStartCommand's per-request
-    // coroutines, the Suppressed/hot-reload/network-change collectors, handleStopAction, runBinary's
-    // own finally). Rapid successive profile switches each spawn a sibling coroutine under
-    // serviceScope's SupervisorJob - previousJob?.cancelAndJoin() only awaits its immediate
-    // predecessor, so under 3+ switches within the ~2s SIGTERM grace period that chain can be cut
-    // short and a new binary could start before the old one's process actually exited. This mutex
-    // makes every stop attempt wait for whichever one is already in flight, so no caller can start a
-    // new process until the previous one is confirmed dead, no matter how many requests overlap.
+    // Serializes stopBinaryProcessGracefully() across all its callers - rapid profile switches can
+    // otherwise start a new binary before the old one's process is confirmed dead.
     private val stopMutex = Mutex()
     private val availablePhysicalNetworks = java.util.concurrent.ConcurrentHashMap.newKeySet<Network>()
     
@@ -75,6 +69,9 @@ class CoreService : Service() {
     private var lastNetworkHandle: Long = -1
     @Volatile private var caBundlePath: String? = null
     private var restartCount = 0
+    // Specific reason for the current failure, if a handler knows one - shown instead of the
+    // generic core_failed message if the watchdog exhausts MAX_RESTARTS.
+    private var lastKnownFailureReason: String? = null
 
     private lateinit var serviceScope: CoroutineScope
     private var coreJob: Job? = null
@@ -129,12 +126,9 @@ class CoreService : Service() {
         CoreServiceState.setStatus(CoreStatus.Starting)
         val previousJob = coreJob
         coreJob = serviceScope.launch {
-            // Дожидаемся полного завершения предыдущего цикла (включая его finally-очистку) —
-            // иначе он может конкурентно тронуть process (см. runBinary) и убить/потерять
-            // ссылку на только что запущенный новый процесс, из-за чего старый бинарник
-            // не освобождает порт и следующий запуск падает с "address already in use".
+            // Ждём завершения предыдущего цикла, иначе он может конкурентно тронуть process
+            // и потерять ссылку на новый, из-за чего старый бинарник не освободит порт.
             previousJob?.cancelAndJoin()
-            // Очищаем старый процесс перед запуском нового, чтобы избежать конфликтов портов (особенно при мягком перезапуске)
             stopBinaryProcessGracefully()
 
             val prefs = AppPreferences(applicationContext)
@@ -214,6 +208,7 @@ class CoreService : Service() {
 
         userStopped.set(false)
         restartCount = 0
+        lastKnownFailureReason = null
         CoreTileService.requestUpdate(this)
 
         val powerManager = getSystemService(POWER_SERVICE) as PowerManager
@@ -299,10 +294,8 @@ class CoreService : Service() {
             prefs.clientConfigFlow
                 .drop(1) // пропускаем начальное значение — уже обработано в onStartCommand
                 .collect { newCfgRaw ->
-                    // A deliberate stop (e.g. deleting every profile) clears the active config right
-                    // around when handleStopAction() runs - without this guard, that transient
-                    // "no config" emission races the real stop and gets reported as a validation
-                    // error ("client settings not filled") instead of the clean Idle the user asked for.
+                    // A deliberate stop clears the active config right around when
+                    // handleStopAction() runs - without this guard that races the real stop.
                     if (userStopped.get()) return@collect
                     val runningCfg = currentRunningCfg.get() ?: return@collect
                     val newCfg = newCfgRaw.fillDefaults()
@@ -328,6 +321,7 @@ class CoreService : Service() {
                         // A config/profile switch is a deliberate new attempt, not the watchdog
                         // retrying a failure - drop any restart counter left over from before.
                         restartCount = 0
+                        lastKnownFailureReason = null
                         CoreServiceState.setRestartAttempt(null)
 
                         val xrayConfig = prefs.xrayConfigFlow.first()
@@ -408,7 +402,7 @@ class CoreService : Service() {
             restartCount++
             if (restartCount > MAX_RESTARTS) {
                 AppLogsState.addLog(getString(R.string.log_core_watchdog_limit, MAX_RESTARTS))
-                val errorMsg = getString(R.string.core_failed)
+                val errorMsg = lastKnownFailureReason ?: getString(R.string.core_failed)
                 CoreServiceState.emitFailed(errorMsg)
                 if (!AppLifecycleState.isAppInForeground.value) {
                     NotificationHelper.notifyError(this@CoreService, errorMsg)
@@ -476,9 +470,8 @@ class CoreService : Service() {
                     caBundlePath?.let { env["SSL_CERT_FILE"] = it }
                 }
 
-                // Record the reference in the same non-suspending stretch as start() - a
-                // suspension point in between is a window where cancellation could orphan the
-                // freshly-spawned process with no reference left to clean it up.
+                // Same non-suspending stretch as start() - a suspension point in between risks
+                // cancellation orphaning the freshly-spawned process with no reference to clean it up.
                 builder.start().also {
                     startedProc = it
                     process.set(it)
@@ -552,14 +545,12 @@ class CoreService : Service() {
             false
         } finally {
             CoreServiceState.setCaptchaSession(null)
-            // NonCancellable: this finally routinely runs on an already-cancelled coroutine
-            // (e.g. previousJob.cancelAndJoin()); without it the IO hop below would throw
-            // immediately and skip the kill, leaking the old binary process.
+            // NonCancellable: this finally often runs on an already-cancelled coroutine; without
+            // it the IO hop below would throw immediately and leak the old binary process.
             withContext(NonCancellable) {
                 stopBinaryProcessGracefully()
-                // compareAndSet, а не set: если это исполнение уже устарело (отменено извне,
-                // пока доигрывал finally) и process успел стать ссылкой на процесс НОВОГО
-                // запуска, безусловный set(null) стёр бы её и оставил новый процесс "потерянным".
+                // compareAndSet: if process already points to a NEWER run's process by now, an
+                // unconditional set(null) would clear that instead and leak it.
                 process.compareAndSet(startedProc, null)
             }
         }
@@ -589,12 +580,11 @@ class CoreService : Service() {
         }
 
         // 2. Connected
-        // TCP_ACTIVE_REGEX needs the active-session count as a number (stay Connected while any
-        // session in the pool is still up, not just on the exact "connected" line).
+        // Stay Connected while any session in the pool is up, not just on the exact "connected" line.
         val tcpActiveMatch = TCP_ACTIVE_REGEX.matcher(line)
 
-        // "TURN allocation up" (udp mode) fires once a stream is live; free-turn-proxy's old
-        // "Established DTLS connection" signal moved to Debugf and we don't pass -debug.
+        // "TURN allocation up" fires once a stream is live; the old "Established DTLS
+        // connection" signal moved to Debugf and we don't pass -debug.
         if (lower.contains("] turn allocation up") ||
             (tcpActiveMatch.find() && (tcpActiveMatch.group(1)?.toIntOrNull() ?: 0) > 0)) {
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
@@ -604,10 +594,8 @@ class CoreService : Service() {
             }
         }
 
-        // 3. Connecting / Progress — the gap between process launch and the first
-        // established stream (VK auth, TURN allocation, provider backoff) can easily
-        // exceed CoreManager's startup timeout with no status update otherwise, since
-        // the binary never leaves CoreStatus.Starting on its own.
+        // 3. Connecting / Progress - without this the binary never leaves CoreStatus.Starting
+        // on its own and can exceed CoreManager's startup timeout.
         if (lower.contains("provider=") ||
             lower.contains("[vk auth] connecting identity") ||
             lower.contains("[vk auth] trying credentials") ||
@@ -672,11 +660,6 @@ class CoreService : Service() {
         }
 
         // 2. Soft Errors (Transient network issues, watchdog will restart)
-//        if (lower.contains("delay=30s")) {
-//            state.startupEmitted = true
-//            return true
-//        }
-
         val isSignalingLoopTerminated = lower.contains("vk signaling loop terminated")
         val isNormalClose = lower.contains("close 1000 (normal)")
 
@@ -690,21 +673,14 @@ class CoreService : Service() {
             return true
         }
 
-        // Turnable's own PoW-captcha retry loop has no attempt cap and keeps hammering
-        // the same broken request forever (~every 0.5-5s) instead of giving up — without
-        // this, the only thing that ever stops it is the generic 120s connecting-timeout
-        // watchdog, silently restarting the whole process for up to 10 attempts. Surface a
-        // clear captcha error after a few failures instead of hanging that long.
-        // Gated on network being up so a dropped connection isn't misreported as a captcha
-        // failure — these attempts only happen after the challenge page was fetched
-        // successfully, but skip counting them if the network has since gone away.
+        // Turnable's PoW-captcha retry loop has no attempt cap and hammers the same broken
+        // request forever - surface a clear error after a few failures instead of relying on
+        // the generic 120s connecting-timeout watchdog. Gated on network being up so a dropped
+        // connection isn't miscounted as a captcha failure.
         if (lower.contains("vk captcha solve failed") && isNetworkAvailable()) {
             if (state.vkCaptchaSolveFailCounter.recordAndCheckThreshold()) {
-                // "captcha pow arguments not found" means the captcha page itself is structurally
-                // broken (e.g. VK changed markup) - restarting Turnable won't fix that, so stop
-                // for good with a clear error. Any other captcha error (e.g. a transient "captcha
-                // init json not found" from a bad page fetch) is more likely to clear up on its
-                // own, so just kill this run and let the normal watchdog restart it fresh.
+                // "pow arguments not found" means the captcha page itself is broken (e.g. VK
+                // changed markup) - restarting won't fix that. Anything else is likely transient.
                 if (lower.contains("captcha pow arguments not found")) {
                     if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                         CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_turnable_vk_captcha_failed)))
@@ -712,9 +688,6 @@ class CoreService : Service() {
                     }
                     state.startupFailed = true
                 } else {
-                    // Not a hard failure - just kill this run and let the normal watchdog restart it.
-                    // Without marking startupEmitted, the no-output fallback below would misreport this
-                    // as CoreStatus.Error and the outer watchdog would stop the whole service instead.
                     state.startupEmitted = true
                 }
                 return true
@@ -795,31 +768,34 @@ class CoreService : Service() {
     }
 
     private suspend fun handleWebdavLog(line: String, lower: String, state: BinaryOutputState): Boolean {
-        // A single backend's ping failing doesn't fail startup by itself - pingBackends()
-        // (external/webdav-tunnel main.go) only gives up once every configured backend is
-        // unreachable, logging each failure individually along the way as
-        // "WebDAV backend <label>: connection failed: <err>". Swallow those per-backend
-        // lines here and only react to the final "all N WebDAV backend(s) unreachable" fatal.
+        // pingBackends() logs one "connection failed" per dead backend before the final "all N
+        // unreachable" fatal - swallow those (false, not true: true would break the read loop
+        // here and we'd never see that final line).
         if (lower.contains("webdav backend") && lower.contains("connection failed")) {
-            return true
+            return false
         }
 
-        // Marks the process as genuinely started (like Olcrtc's branch below) so a later crash
-        // goes through the normal watchdog retry instead of the "no output" hard-stop path.
+        // pingBackends() logs "OK (<ms>)" per reachable backend - earliest real progress signal.
+        if (lower.contains("webdav backend") && lower.contains("ok (")) {
+            val currentStatus = CoreServiceState.status.value
+            if (currentStatus !is CoreStatus.Suppressed && currentStatus !is CoreStatus.CaptchaRequired) {
+                CoreServiceState.setStatus(CoreStatus.Connecting)
+                CoreServiceState.setStatusText(null)
+            }
+        }
+
+        // Marks the process as genuinely started so a later crash goes through the normal
+        // watchdog retry instead of the "no output" hard-stop path.
         if (lower.contains("socks5 proxy listening on")) {
             state.startupEmitted = true
         }
 
+        // All configured backends unreachable - treat as transient (rate limit, brief outage)
+        // and let the normal watchdog retry rather than hard-failing.
         if (lower.contains("webdav backend(s) unreachable")) {
-            if (getNetworkQuality() == NetworkQuality.FAST) {
-                if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
-                    CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_webdav_unavailable)))
-                    updateNotification(getString(R.string.error_connecting))
-                }
-                state.startupFailed = true
-            } else {
-                state.startupEmitted = true
-            }
+            AppLogsState.addLog(getString(R.string.log_core_webdav_backends_unreachable))
+            lastKnownFailureReason = getString(R.string.error_webdav_backend_unreachable)
+            state.startupEmitted = true
             return true
         }
 
@@ -976,10 +952,8 @@ class CoreService : Service() {
         var peerConnectFailedCount = 0
         var connectingSince = 0L
 
-        // "Give up after N repeats of this log line" counters for per-core failure patterns that
-        // keep recurring without ever surfacing a terminal error on their own. One shared mechanism
-        // (window + threshold) instead of a bespoke ad hoc counter per pattern, so the next one added
-        // doesn't reinvent this a fourth time with yet another slightly different reset rule.
+        // "Give up after N repeats" counters for failure patterns that keep recurring without
+        // ever surfacing a terminal error on their own.
         val remoteNotReadyCounter = LogOccurrenceCounter(windowMs = 10_000, threshold = 7)
         val webdavConnRefusedCounter = LogOccurrenceCounter(windowMs = 5_000, threshold = 10)
         val vkCaptchaSolveFailCounter = LogOccurrenceCounter(windowMs = Long.MAX_VALUE, threshold = 5)
@@ -1112,12 +1086,8 @@ class CoreService : Service() {
             appendLine("  key: \"${o.key}\"")
             appendLine("net:")
             appendLine("  transport: ${o.transport}")
-            // Unlike WebDAV's -dns, this one isn't optional: olcRTC's own config validation
-            // (internal/app/session/validate.go, validateCommon) hard-fails startup with
-            // "dns server required" if net.dns is empty, for every mode - so even though the
-            // shared ClientConfig.dns field itself stays blank-friendly (for WebDAV, where it
-            // really is optional), fall back to the same default the field's placeholder shows
-            // right here rather than ever handing olcRTC an empty value.
+            // Unlike WebDAV's -dns, olcRTC hard-fails startup ("dns server required") if this is
+            // empty, so fall back to a default rather than ever handing it a blank value.
             appendLine("  dns: \"${cfg.dns.ifBlank { ClientConfig.DEFAULT_DNS }}\"")
             appendLine("socks:")
             appendLine("  host: \"${cfg.socksAddr.substringBefore(':').ifBlank { "127.0.0.1" }}\"")
@@ -1322,20 +1292,13 @@ class CoreService : Service() {
         }
     }
 
-    /**
-     * VPN mode used to be reachable only through Xray. OLCRTC/WEBDAV run their own local SOCKS5
-     * listener (ClientConfig.socksAddr) that hev-socks5-tunnel can point at just as well, so VPN
-     * mode should work with those cores directly when Xray isn't in the picture. Xray keeps
-     * priority when it IS running - it may itself be wrapping an OLCRTC/WEBDAV core as a front
-     * proxy (see startXraySupervisor() above), so its socks address is always the hop actually
-     * closest to the outside world.
-     */
+    // OLCRTC/WEBDAV run their own local SOCKS5 listener, so VPN mode can target those directly
+    // when Xray isn't in the picture. Xray keeps priority when running, since it may itself be
+    // wrapping one of those cores as a front proxy (see startXraySupervisor() above).
     private data class VpnTarget(val addr: String, val user: String?, val pass: String?)
 
-    // terminalError marks a target-less state the core isn't coming back from on its own (its
-    // own watchdog gave up, or the config was invalid outright) - as opposed to a transient gap
-    // (mid-retry, switching profiles) where target is momentarily null too but something is
-    // still expected to make it valid again shortly.
+    // terminalError: the core isn't coming back on its own (watchdog gave up / invalid config),
+    // as opposed to a transient gap (mid-retry, switching profiles) that's expected to recover.
     private data class VpnTargetSignal(val target: VpnTarget?, val terminalError: Boolean)
 
     private data class VpnSupervisorBundle(
@@ -1350,10 +1313,8 @@ class CoreService : Service() {
             val prefs = AppPreferences(applicationContext)
             var lastVpnSettings: VpnSettings? = null
             var lastTarget: VpnTarget? = null
-            // Debounces tearing the VPN down when the target transiently disappears (e.g. the
-            // brief gap between the old core session ending and a newly-selected profile's
-            // starting) - a kill switch shouldn't drop to the raw network for that, only if no
-            // target reappears within the grace window below.
+            // Debounces tearing the VPN down when the target transiently disappears (e.g.
+            // switching profiles) - only actually stops if it doesn't reappear in time.
             var pendingStopJob: Job? = null
 
             fun stopIntent() = Intent(this@CoreService, HevVpnService::class.java).apply {
@@ -1393,10 +1354,7 @@ class CoreService : Service() {
                     val cc = coreSession.clientConfig
                     VpnTargetSignal(
                         VpnTarget(
-                            // socksAddr can be bound to 0.0.0.0 (e.g. to also serve LAN clients) -
-                            // hev connects to this as a literal destination, so it needs the
-                            // loopback form, same normalization activeLocalSocksProxy() applies
-                            // for HTTP requests.
+                            // socksAddr may be bound to 0.0.0.0; hev needs a literal destination.
                             cc.socksAddr.replace("0.0.0.0:", "127.0.0.1:"),
                             cc.socksUser.takeIf { cc.isSocksAuthEnabled && it.isNotBlank() },
                             cc.socksPass
@@ -1404,12 +1362,9 @@ class CoreService : Service() {
                         terminalError = false
                     )
                 } else {
-                    // Xray not in the picture and the raw core is target-less: WaitingForNetwork
-                    // and mid-retry states (Starting/Connecting/Suppressed with no session yet)
-                    // are still expected to recover on their own, so keep waiting. Only a
-                    // genuine CoreStatus.Error - the core's own watchdog giving up, or an
-                    // outright invalid config - means nothing is coming and the tunnel should
-                    // drop right away instead of waiting out the grace period below for nothing.
+                    // Target-less and no Xray: mid-retry states are still expected to recover,
+                    // but a genuine CoreStatus.Error means nothing is coming - drop right away
+                    // instead of waiting out the grace period below for nothing.
                     VpnTargetSignal(null, terminalError = coreStatus is CoreStatus.Error)
                 }
             }
@@ -1439,14 +1394,10 @@ class CoreService : Service() {
                         // Enabled, but nothing to point the relay at right now.
                         if (bundle.vpnState != VpnState.Idle) {
                             if (bundle.signal.terminalError) {
-                                // The core has definitively given up (watchdog exhausted, or an
-                                // outright invalid config) - nothing is coming, so there's
-                                // nothing to wait for. Drop right away.
+                                // The core has definitively given up - nothing to wait for.
                                 startService(stopIntent())
                             } else if (pendingStopJob == null) {
-                                // Otherwise this could be a transient gap - mid-retry, switching
-                                // profiles - that's still expected to resolve on its own shortly.
-                                // Give it a moment before tearing the tunnel down.
+                                // Could be a transient gap - give it a moment before tearing down.
                                 pendingStopJob = serviceScope.launch {
                                     delay(VPN_TARGET_LOST_GRACE_MS.milliseconds)
                                     withContext(Dispatchers.Main) { startService(stopIntent()) }
@@ -1461,10 +1412,8 @@ class CoreService : Service() {
 
                     when {
                         bundle.vpnState == VpnState.Idle -> {
-                            // Establish as soon as any target exists - don't wait for the hop to
-                            // finish connecting. A kill switch should be up *before* it's needed;
-                            // packets simply have nowhere to go until the hop catches up, rather
-                            // than the alternative of briefly routing over the raw network.
+                            // Establish as soon as any target exists, before it's even connected -
+                            // a kill switch should be up before it's needed.
                             if (VpnServiceState.state.value != VpnState.Starting) {
                                 startService(startIntent(target))
                             }
@@ -1629,12 +1578,9 @@ class CoreService : Service() {
         CoreServiceState.setStatus(CoreStatus.Stopping)
         NotificationHelper.updateNotification(this)
         serviceScope.launch {
-            // Kill the process first, THEN wait for coreJob to unwind - not the other way
-            // around. coreJob's runBinary() blocks on a synchronous reader.readLine() while
-            // idle; coroutine cancellation is cooperative and can't interrupt that blocking
-            // call, so cancelAndJoin() alone would hang forever waiting for output the process
-            // may never send. Killing it first closes its stdout, which unblocks readLine()
-            // with EOF so the coroutine can actually observe the cancellation and finish.
+            // Kill the process before cancelAndJoin(), not after: coreJob's runBinary() blocks on
+            // a synchronous readLine() that cancellation can't interrupt, so cancelAndJoin() alone
+            // would hang forever - killing the process first closes stdout and unblocks it.
             stopBinaryProcessGracefully()
             coreJob?.cancelAndJoin()
 
@@ -1758,12 +1704,9 @@ class CoreService : Service() {
                 CoreServiceState.setStatus(CoreStatus.Error(context.getString(errorRes)))
                 return
             }
-            // Устанавливаем статус Starting сразу, чтобы UI и LocalCoreManager
-            // поняли, что запущен новый процесс попытки подключения, даже если до этого была ошибка.
+            // Starting immediately lets UI/CoreManager know a new attempt began even after an error.
             CoreServiceState.setStatus(CoreStatus.Starting)
-            // A profile/kernel switch (or any explicit start) is a deliberate new attempt, not
-            // the watchdog retrying a failure - any stale restart counter from the previous
-            // profile no longer applies.
+            // A deliberate new attempt, not the watchdog retrying - drop any stale restart count.
             CoreServiceState.setRestartAttempt(null)
             context.startForegroundService(Intent(context, CoreService::class.java))
         }
