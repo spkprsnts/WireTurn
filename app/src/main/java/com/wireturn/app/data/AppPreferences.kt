@@ -1067,6 +1067,12 @@ data class WgConfig(
 
     companion object {
         fun parse(text: String): WgConfig {
+            val trimmed = text.trim()
+            // Panels like 3x-ui export WireGuard as a single-line URI instead of a wg-quick
+            // config: wireguard://<urlencoded-private-key>@host:port?address=..&mtu=..&publickey=..#name
+            if (trimmed.startsWith("wireguard://", ignoreCase = true)) {
+                parseUri(trimmed)?.let { return it }
+            }
             var pk = ""
             var ad = ""
             var m = ""
@@ -1097,6 +1103,24 @@ data class WgConfig(
                 }
             }
             return WgConfig(pk, ad, m, pub, ep, pkp)
+        }
+
+        private fun parseUri(uri: String): WgConfig? {
+            return try {
+                val u = Uri.parse(uri)
+                val privateKey = u.encodedUserInfo?.let { Uri.decode(it) } ?: return null
+                val host = u.host ?: return null
+                val port = u.port.takeIf { it != -1 } ?: return null
+                WgConfig(
+                    privateKey = privateKey,
+                    address = u.getQueryParameter("address") ?: "",
+                    mtu = u.getQueryParameter("mtu") ?: "1280",
+                    publicKey = u.getQueryParameter("publickey") ?: u.getQueryParameter("public_key") ?: "",
+                    endpoint = "$host:$port",
+                    persistentKeepalive = u.getQueryParameter("keepalive")
+                        ?: u.getQueryParameter("persistentkeepalive") ?: "25"
+                )
+            } catch (_: Exception) { null }
         }
     }
 }
