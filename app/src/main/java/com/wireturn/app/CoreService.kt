@@ -570,6 +570,20 @@ class CoreService : Service() {
         }
     }
 
+    // Suppressed/CaptchaRequired are their own dedicated states with their own UI - a progress
+    // marker mid-connect shouldn't override either of them.
+    private fun canUpdateConnectingStatus(): Boolean {
+        val status = CoreServiceState.status.value
+        return status !is CoreStatus.Suppressed && status !is CoreStatus.CaptchaRequired
+    }
+
+    private fun markConnecting() {
+        CoreServiceState.setStatus(CoreStatus.Connecting)
+        // null, not the literal text - lets a watchdog restart's "Restarting (N/M)" show through
+        // instead of being clobbered by a redundant "Connecting".
+        CoreServiceState.setStatusText(null)
+    }
+
     private fun handleFreeTurnLog(line: String, lower: String, state: BinaryOutputState): Boolean {
         // 1. Hard Errors
         if (lower.startsWith("panic:") || lower.startsWith("fatal error:") || 
@@ -605,12 +619,8 @@ class CoreService : Service() {
             lower.contains("backing off for") ||
             (lower.contains("[session ") && lower.contains("disconnected") && lower.contains("reconnecting"))
         ) {
-            val currentStatus = CoreServiceState.status.value
-            if (currentStatus !is CoreStatus.Suppressed && currentStatus !is CoreStatus.CaptchaRequired) {
-                CoreServiceState.setStatus(CoreStatus.Connecting)
-                // null, not the literal text - lets a watchdog restart's "Restarting (N/M)"
-                // show through instead of being clobbered by a redundant "Connecting".
-                CoreServiceState.setStatusText(null)
+            if (canUpdateConnectingStatus()) {
+                markConnecting()
                 state.startupEmitted = true
             }
         }
@@ -753,16 +763,12 @@ class CoreService : Service() {
             lower.contains("quota") ||
             (onlineCount != null && onlineCount == 0 && lower.contains("peer offline"))
         ) {
-            val currentStatus = CoreServiceState.status.value
-            if (currentStatus !is CoreStatus.Suppressed && currentStatus !is CoreStatus.CaptchaRequired) {
+            if (canUpdateConnectingStatus()) {
                 if (isNetworkMissingAndHandled()) {
                     state.startupFailed = true
                     return true
                 }
-                CoreServiceState.setStatus(CoreStatus.Connecting)
-                // null, not the literal text - lets a watchdog restart's "Restarting (N/M)"
-                // show through instead of being clobbered by a redundant "Connecting".
-                CoreServiceState.setStatusText(null)
+                markConnecting()
                 state.startupEmitted = true
             }
         }
@@ -780,10 +786,8 @@ class CoreService : Service() {
 
         // pingBackends() logs "OK (<ms>)" per reachable backend - earliest real progress signal.
         if (lower.contains("webdav backend") && lower.contains("ok (")) {
-            val currentStatus = CoreServiceState.status.value
-            if (currentStatus !is CoreStatus.Suppressed && currentStatus !is CoreStatus.CaptchaRequired) {
-                CoreServiceState.setStatus(CoreStatus.Connecting)
-                CoreServiceState.setStatusText(null)
+            if (canUpdateConnectingStatus()) {
+                markConnecting()
             }
         }
 
