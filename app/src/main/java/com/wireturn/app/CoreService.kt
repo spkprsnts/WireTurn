@@ -1701,10 +1701,22 @@ class CoreService : Service() {
         currentRunningCfg.set(null)
         
         CoreServiceState.setStatus(CoreStatus.Idle)
-        
+
         handler.removeCallbacksAndMessages(null)
         unregisterNetworkCallback()
         AppLogsState.addLog(getString(R.string.log_core_stop_ui))
+
+        // Safety net: xraySupervisorJob/vpnSupervisorJob normally tear these down reactively, but
+        // they live on serviceScope, which is cancelled below - if the service dies before they
+        // get to react (e.g. watchdog-exhausted path setting Idle right as it fires), HevVpnService
+        // can be left orphaned with the system VPN/TUN still established. Stop both unconditionally
+        // here so that never depends on supervisor timing.
+        stopService(Intent(this, XrayService::class.java))
+        if (VpnServiceState.state.value != VpnState.Idle) {
+            startService(Intent(this, HevVpnService::class.java).apply {
+                action = HevVpnService.ACTION_STOP
+            })
+        }
 
         serviceScope.launch {
             stopBinaryProcessGracefully()
