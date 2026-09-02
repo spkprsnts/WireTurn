@@ -380,10 +380,30 @@ fun CaptchaWebViewDialog(
                                                     return xhrSend.apply(this, args);
                                                 };
 
+                                                // CSS-правило body > div[style*="z-index:99999"] (см. applyTheme
+                                                // выше) ловит баннер free-turn-proxy по сырой строке атрибута
+                                                // style, а она - это сериализация CSSOM самим WebView/Chromium,
+                                                // не то, что реально передал inject.js в .style.cssText. Движок
+                                                // волен переформатировать её как угодно (например, добавить
+                                                // пробел после "z-index:") и точное совпадение подстроки молча
+                                                // перестаёт работать без единой правки на нашей стороне или
+                                                // стороне free-turn-proxy - поэтому баннер ищем и прячем ещё и
+                                                // тут, через распарсенное CSSOM-свойство style.zIndex, а не через
+                                                // текст атрибута.
+                                                const hideFtpBanner = function() {
+                                                    if (!document.body) return;
+                                                    for (const child of document.body.children) {
+                                                        if (child.tagName === 'DIV' && child.style && String(child.style.zIndex) === '99999') {
+                                                            child.style.setProperty('display', 'none', 'important');
+                                                        }
+                                                    }
+                                                };
+
                                                 // Опрос виден только для авторазмера/показа диалога, к успеху
                                                 // отношения не имеет - за исключением проверки ниже.
                                                 const checkVisibility = function() {
                                                     if (window.__wireturnCaptcha.styleModEnabled) applyTheme();
+                                                    hideFtpBanner();
 
                                                     // free-turn-proxy's own captcha proxy (когда активное ядро -
                                                     // FreeTurn) инжектит свой inject.js прямо в HTML на сервере
