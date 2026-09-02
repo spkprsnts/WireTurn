@@ -139,6 +139,7 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import com.wireturn.app.R
 import com.wireturn.app.ui.theme.ContentAlpha
+import com.wireturn.app.ui.theme.GroupCardCorners
 import com.wireturn.app.viewmodel.UpdateState
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -588,13 +589,8 @@ fun SectionItem(
     val isTop = position == ItemPosition.Top || position == ItemPosition.Single
     val isBottom = position == ItemPosition.Bottom || position == ItemPosition.Single
 
-    // LargeIncreased = 20.dp (for outer group boundaries)
-    // ExtraSmall = 4.dp (for internal joints)
-    val cornerSize = 20.dp
-    val smallCornerSize = 4.dp
-
-    val topRadius by animateDpAsState(targetValue = if (isTop) cornerSize else smallCornerSize, label = "top_corner")
-    val bottomRadius by animateDpAsState(targetValue = if (isBottom) cornerSize else smallCornerSize, label = "bottom_corner")
+    val topRadius by animateDpAsState(targetValue = if (isTop) GroupCardCorners.outer else GroupCardCorners.inner, label = "top_corner")
+    val bottomRadius by animateDpAsState(targetValue = if (isBottom) GroupCardCorners.outer else GroupCardCorners.inner, label = "bottom_corner")
 
     val shape = RoundedCornerShape(
         topStart = topRadius,
@@ -699,7 +695,7 @@ fun CompactItem(
     CompositionLocalProvider(LocalSettingsInteractionSource provides internalInteractionSource) {
         Card(
             modifier = modifier,
-            shape = RoundedCornerShape(percent = 50),
+            shape = CircleShape,
             onClick = onClick ?: {},
             enabled = onClick != null && enabled,
             interactionSource = internalInteractionSource,

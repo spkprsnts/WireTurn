@@ -171,6 +171,7 @@ fun WireturnTheme(
         MaterialExpressiveTheme(
             colorScheme = colorScheme,
             typography = Typography,
+            shapes = AppShapes,
             content = content
         )
     }
