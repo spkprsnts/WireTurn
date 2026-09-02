@@ -117,6 +117,7 @@ import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.VerticalAnimatedText
 import com.wireturn.app.ui.components.CoreToggleButton
 import com.wireturn.app.ui.privacySpoiler
+import com.wireturn.app.ui.theme.ContentAlpha
 import com.wireturn.app.ui.redact
 import com.wireturn.app.ui.showExclusiveToast
 import com.wireturn.app.viewmodel.CoreState
@@ -592,7 +593,7 @@ fun HomeScreen(
                                     Icon(
                                         painter = painterResource(R.drawable.arrow_downward_24px),
                                         contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = ContentAlpha.secondary),
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Column(
@@ -624,7 +625,7 @@ fun HomeScreen(
                                     Icon(
                                         painter = painterResource(R.drawable.arrow_upward_24px),
                                         contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = ContentAlpha.secondary),
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Column(
@@ -1374,7 +1375,7 @@ fun HomeScreen(
                         painter = painterResource(R.drawable.arrow_forward_ios_24px),
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = ContentAlpha.secondary)
                     )
                 }
             }

@@ -138,6 +138,7 @@ import androidx.core.net.toUri
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import com.wireturn.app.R
+import com.wireturn.app.ui.theme.ContentAlpha
 import com.wireturn.app.viewmodel.UpdateState
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -623,7 +624,7 @@ fun SectionItem(
                     .fillMaxWidth()
                     .heightIn(min = 72.dp)
                     .padding(horizontal = 16.dp, vertical = 14.dp)
-                    .let { if (!enabled) it.alpha(0.38f) else it },
+                    .let { if (!enabled) it.alpha(ContentAlpha.disabled) else it },
                 contentAlignment = Alignment.CenterStart
             ) {
                 content()
@@ -670,7 +671,7 @@ fun MainSwitchItem(
                     modifier = Modifier.padding(start = 12.dp),
                     labelColor = contentColor,
                     supportingText = supportingText,
-                    supportingColor = contentColor.copy(alpha = 0.7f)
+                    supportingColor = contentColor.copy(alpha = ContentAlpha.secondary)
                 )
 
                 IconSwitch(
@@ -711,7 +712,7 @@ fun CompactItem(
                 modifier = Modifier
                     .fillMaxHeight()
                     .padding(horizontal = 14.dp, vertical = 8.dp)
-                    .let { if (!enabled) it.alpha(0.38f) else it },
+                    .let { if (!enabled) it.alpha(ContentAlpha.disabled) else it },
                 contentAlignment = Alignment.Center
             ) {
                 content()
@@ -812,7 +813,7 @@ fun SliderRow(
                         painter = painterResource(R.drawable.edit_24px),
                         contentDescription = null,
                         modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = ContentAlpha.secondary)
                     )
                 }
             }
@@ -1152,8 +1153,8 @@ fun TextFieldRow(
                 unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
                 disabledIndicatorColor = Color.Transparent,
                 errorIndicatorColor = MaterialTheme.colorScheme.error,
-                unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = ContentAlpha.secondary),
+                focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = ContentAlpha.secondary)
             )
         )
         if (supportingText?.isNotEmpty() ?: false) {
@@ -1476,7 +1477,7 @@ fun UpdateBlock(
                     )
                 ),
                 style = MaterialTheme.typography.bodySmall,
-                color = contentColor.copy(alpha = 0.7f),
+                color = contentColor.copy(alpha = ContentAlpha.secondary),
                 modifier = Modifier.padding(top = 12.dp)
             )
         }

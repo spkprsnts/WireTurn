@@ -95,6 +95,7 @@ import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.selectableButtonItem
 import com.wireturn.app.ui.showExclusiveToast
+import com.wireturn.app.ui.theme.ContentAlpha
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -882,7 +883,7 @@ private fun AppListItem(
                         painterResource(R.drawable.mobile_24px),
                         null,
                         modifier = Modifier.size(AppExceptionsDefaults.IconSize),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = ContentAlpha.secondary)
                     )
                 }
             }

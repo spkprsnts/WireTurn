@@ -63,6 +63,7 @@ import com.wireturn.app.R
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.components.CoreToggleButton
+import com.wireturn.app.ui.theme.ContentAlpha
 import com.wireturn.app.ui.theme.extendedColorScheme
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
@@ -162,7 +163,7 @@ fun LogsScreen(
                             contentDescription = stringResource(R.string.copy),
                             tint = when {
                                 isCopied -> MaterialTheme.colorScheme.primary
-                                !logs.isNotEmpty() -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                !logs.isNotEmpty() -> MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.disabled)
                                 else -> MaterialTheme.colorScheme.onSurfaceVariant
                             }
                         )
@@ -177,7 +178,6 @@ fun LogsScreen(
                     viewModel = viewModel,
                     modifier = Modifier.navigationBarsPadding(),
                     size = 86.dp,
-                    shape = MaterialTheme.shapes.largeIncreased,
                     onClick = onToggleCore,
                     isFloat = true,
                     isVisible = true

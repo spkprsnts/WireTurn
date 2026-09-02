@@ -66,6 +66,7 @@ import com.wireturn.app.R
 import com.wireturn.app.XrayServiceState
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.VerticalAnimatedText
+import com.wireturn.app.ui.theme.ContentAlpha
 import com.wireturn.app.viewmodel.CoreState
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.XrayState
@@ -172,7 +173,7 @@ fun CoreToggleButton(
             "active" -> MaterialTheme.colorScheme.primary
             "loading" -> MaterialTheme.colorScheme.tertiary
             "error" -> MaterialTheme.colorScheme.error
-            else -> if (autoLaunchSettings.enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.65f)
+            else -> if (autoLaunchSettings.enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.secondary)
         },
         label = "status_color"
     )
