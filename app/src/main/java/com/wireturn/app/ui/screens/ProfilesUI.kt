@@ -94,7 +94,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
@@ -1682,28 +1681,6 @@ private fun ProfileItemRow(
     )
 }
 
-/**
- * Widens the content by [extraWidth] (split evenly on each side) without disturbing how much
- * space this node claims from its own parent - the parent still sees the original width, the
- * content just draws [extraWidth] wider, centered. Used instead of graphicsLayer { scaleX = ... }
- * so animating this doesn't also stretch a simultaneously-animating corner radius or shadow.
- */
-private fun Modifier.horizontalBleed(extraWidth: Dp): Modifier = this.layout { measurable, constraints ->
-    val extraPx = extraWidth.roundToPx().coerceAtLeast(0)
-    if (extraPx == 0) {
-        val placeable = measurable.measure(constraints)
-        return@layout layout(placeable.width, placeable.height) { placeable.placeRelative(0, 0) }
-    }
-    val widenedConstraints = constraints.copy(
-        minWidth = (constraints.minWidth + extraPx).coerceAtLeast(0),
-        maxWidth = if (constraints.hasBoundedWidth) constraints.maxWidth + extraPx else constraints.maxWidth
-    )
-    val placeable = measurable.measure(widenedConstraints)
-    layout(placeable.width - extraPx, placeable.height) {
-        placeable.placeRelative(-extraPx / 2, 0)
-    }
-}
-
 @Composable
 private fun SubscriptionHeaderRow(
     sub: Subscription,
@@ -1737,12 +1714,11 @@ private fun SubscriptionHeaderRow(
     // own timed animation once some threshold is crossed.
     val bottomCorner = lerp(4.dp, 16.dp, stuckProgress)
     val shadowElevation = lerp(0.dp, 6.dp, stuckProgress)
-    // A hair wider than the list around it, so it reads as floating slightly toward the viewer
-    // rather than flush with the same column as everything scrolling underneath it. Widens via
-    // real layout (horizontalBleed) rather than graphicsLayer { scaleX = ... } - a transform would
-    // stretch the corner radius and shadow non-uniformly since both are animating at the same
-    // time as this.
-    val stuckBleed = lerp(0.dp, 8.dp, stuckProgress)
+    // M3(E)'s own collapsing app bars shrink toward a smaller/compact bar on scroll (never grow),
+    // and the standard "more compact" motion cue elsewhere in the system is a scale-down, not up
+    // (e.g. press states settle to ~0.95). So pinned reads as a slightly inset, compact chip -
+    // smaller than the list around it - rather than wider.
+    val stuckInset = lerp(0.dp, 4.dp, stuckProgress)
 
     Surface(
         color = backgroundColor,
@@ -1755,7 +1731,7 @@ private fun SubscriptionHeaderRow(
         modifier = modifier
             .fillMaxWidth()
             .padding(top = 8.dp)
-            .horizontalBleed(stuckBleed)
+            .padding(horizontal = stuckInset)
     ) {
         Row(
             modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 16.dp, end = 8.dp),
