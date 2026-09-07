@@ -27,6 +27,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -87,6 +89,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -261,6 +264,11 @@ fun HomeScreen(
     // once an upward swipe past the point where home content can't scroll any further crosses
     // profilesRevealThresholdPx (or is a fast enough flick), it opens the sheet with its normal
     // entrance animation - the same as tapping the profile row.
+    //
+    // Gated to gestures that already started with nothing left to scroll - otherwise a single
+    // swipe that merely scrolls long content down to its end would also fire the shade in the
+    // same motion. Reaching the bottom mid-gesture doesn't count; only the *next* swipe does.
+    var homeGestureStartedAtBottom by remember { mutableStateOf(false) }
     var profilesRevealDragPx by remember { mutableFloatStateOf(0f) }
     var profilesRevealTriggered by remember { mutableStateOf(false) }
     val profilesRevealThresholdPx = with(LocalDensity.current) { 72.dp.toPx() }
@@ -271,7 +279,11 @@ fun HomeScreen(
                 available: Offset,
                 source: NestedScrollSource
             ): Offset {
-                if (source != NestedScrollSource.UserInput || profilesRevealTriggered || showProfilesDialog.value) {
+                if (source != NestedScrollSource.UserInput ||
+                    !homeGestureStartedAtBottom ||
+                    profilesRevealTriggered ||
+                    showProfilesDialog.value
+                ) {
                     return Offset.Zero
                 }
                 if (available.y >= 0f || homeScrollState.canScrollForward) {
@@ -289,7 +301,11 @@ fun HomeScreen(
 
             override suspend fun onPreFling(available: Velocity): Velocity {
                 profilesRevealDragPx = 0f
-                if (!profilesRevealTriggered && !showProfilesDialog.value && available.y < -2500f) {
+                if (homeGestureStartedAtBottom &&
+                    !profilesRevealTriggered &&
+                    !showProfilesDialog.value &&
+                    available.y < -2500f
+                ) {
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     showProfilesDialog.value = true
                 }
@@ -437,6 +453,14 @@ fun HomeScreen(
                 .padding(padding)
                 .consumeWindowInsets(padding)
                 .imePadding()
+                .pointerInput(Unit) {
+                    // Never consumes - just samples whether this touch began with the content
+                    // already scrolled all the way down (see profilesRevealConnection above).
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false)
+                        homeGestureStartedAtBottom = !homeScrollState.canScrollForward
+                    }
+                }
                 .nestedScroll(profilesRevealConnection)
                 .verticalScroll(homeScrollState)
                 .padding(top = 8.dp)
