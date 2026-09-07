@@ -27,8 +27,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -89,7 +87,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -122,6 +119,7 @@ import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SupportingText
 import com.wireturn.app.ui.SwitchRow
+import com.wireturn.app.ui.trackGestureStartedAtBoundary
 import com.wireturn.app.ui.UpdateBlock
 import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.VerticalAnimatedText
@@ -453,14 +451,10 @@ fun HomeScreen(
                 .padding(padding)
                 .consumeWindowInsets(padding)
                 .imePadding()
-                .pointerInput(Unit) {
-                    // Never consumes - just samples whether this touch began with the content
-                    // already scrolled all the way down (see profilesRevealConnection above).
-                    awaitEachGesture {
-                        awaitFirstDown(requireUnconsumed = false)
-                        homeGestureStartedAtBottom = !homeScrollState.canScrollForward
-                    }
-                }
+                .trackGestureStartedAtBoundary(
+                    atBoundary = { !homeScrollState.canScrollForward },
+                    onGestureStart = { homeGestureStartedAtBottom = it }
+                )
                 .nestedScroll(profilesRevealConnection)
                 .verticalScroll(homeScrollState)
                 .padding(top = 8.dp)

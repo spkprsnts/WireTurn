@@ -1889,6 +1889,23 @@ fun QrCodeDialog(
     )
 }
 
+/**
+ * Samples, once per new touch gesture, whether [atBoundary] holds right as the finger goes down -
+ * never consumes the event. Reports the result via [onGestureStart] so a sibling
+ * NestedScrollConnection can distinguish "a swipe that merely scrolls up to a boundary" from "a
+ * further swipe that starts already sitting there" (e.g. deciding whether a drag-to-dismiss or a
+ * reveal-on-swipe gesture should fire).
+ */
+fun Modifier.trackGestureStartedAtBoundary(
+    atBoundary: () -> Boolean,
+    onGestureStart: (startedAtBoundary: Boolean) -> Unit
+): Modifier = this.pointerInput(Unit) {
+    awaitEachGesture {
+        awaitFirstDown(requireUnconsumed = false)
+        onGestureStart(atBoundary())
+    }
+}
+
 private fun generateQrCode(text: String, size: Int = 512): Bitmap? {
     return try {
         val bitMatrix = QRCodeWriter().encode(text, BarcodeFormat.QR_CODE, size, size)

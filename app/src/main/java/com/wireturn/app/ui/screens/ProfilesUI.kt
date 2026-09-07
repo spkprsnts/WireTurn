@@ -91,8 +91,10 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
@@ -109,6 +111,7 @@ import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.domain.ImportStatus
 import com.wireturn.app.domain.isLocalNetworkHost
 import com.wireturn.app.ui.AppDropdownMenu
+import com.wireturn.app.ui.trackGestureStartedAtBoundary
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.StandardLeadingIcon
@@ -498,24 +501,31 @@ fun ProfilesDialog(
     val subscriptionGroups by remember {
         derivedStateOf { subscriptions.map { sub -> sub to profiles.filter { it.subscriptionId == sub.id } } }
     }
+    // Single source of truth for the visual order: standalone profiles as one implicit group
+    // (null subscription), then each subscription's own group, in list order. findLazyIndex and
+    // the open-time scroll anchor (visualOrderIds, below) both walk this same list instead of
+    // separately re-deriving the grouping/order from standaloneProfiles/subscriptionGroups by
+    // hand, so the two can't silently disagree if the grouping rules change later.
+    val visualGroups by remember {
+        derivedStateOf { listOf<Pair<Subscription?, List<Profile>>>(null to standaloneProfiles) + subscriptionGroups }
+    }
 
     fun findLazyIndex(targetId: String): Int {
-        val hasStandaloneGuard = standaloneProfiles.isNotEmpty()
-        val standaloneIdx = standaloneProfiles.indexOfFirst { it.id == targetId }
-        if (standaloneIdx != -1) {
-            return if (hasStandaloneGuard) standaloneIdx + 1 else standaloneIdx
-        }
-
-        var runningIndex = if (hasStandaloneGuard) standaloneProfiles.size + 1 else standaloneProfiles.size
-        for ((sub, subProfiles) in subscriptionGroups) {
-            if (sub.id == targetId) return runningIndex
-
-            val inSubIdx = subProfiles.indexOfFirst { it.id == targetId }
-            if (inSubIdx != -1) {
-                return runningIndex + 1 + inSubIdx
+        var runningIndex = 0
+        for ((sub, groupProfiles) in visualGroups) {
+            if (sub == null) {
+                // Standalone "group" only gets its 1-item top guard once it's non-empty.
+                val hasGuard = groupProfiles.isNotEmpty()
+                val idx = groupProfiles.indexOfFirst { it.id == targetId }
+                if (idx != -1) return if (hasGuard) idx + 1 else idx
+                runningIndex += if (hasGuard) groupProfiles.size + 1 else groupProfiles.size
+            } else {
+                if (sub.id == targetId) return runningIndex
+                val idx = groupProfiles.indexOfFirst { it.id == targetId }
+                if (idx != -1) return runningIndex + 1 + idx
+                runningIndex += 1 // header
+                runningIndex += if (groupProfiles.isEmpty()) 1 else groupProfiles.size
             }
-            runningIndex += 1 // header
-            runningIndex += if (subProfiles.isEmpty()) 1 else subProfiles.size
         }
         return -1
     }
@@ -679,8 +689,9 @@ fun ProfilesDialog(
                     // subscription id to its header row) - otherwise a profile that's first in
                     // its subscription would land right at the top with its own header scrolled
                     // out of view above it.
-                    val visualOrderIds = standaloneProfiles.map { it.id } +
-                        subscriptionGroups.flatMap { (sub, subProfiles) -> listOf(sub.id) + subProfiles.map { it.id } }
+                    val visualOrderIds = visualGroups.flatMap { (sub, groupProfiles) ->
+                        (if (sub != null) listOf(sub.id) else emptyList()) + groupProfiles.map { it.id }
+                    }
                     val currentVisualIdx = visualOrderIds.indexOf(currentId)
                     val anchorId = if (currentVisualIdx >= 0) {
                         visualOrderIds[(currentVisualIdx - PROFILES_ABOVE_SELECTED_ON_OPEN).coerceAtLeast(0)]
@@ -1112,13 +1123,10 @@ fun ProfilesDialog(
                     .heightIn(max = 640.dp)
                     .fillMaxWidth()
                     .nestedScroll(noDismissNestedScroll)
-                    .pointerInput(Unit) {
-                        // Never consumes - just samples gestureStartedAtTop on each new touch.
-                        awaitEachGesture {
-                            awaitFirstDown(requireUnconsumed = false)
-                            gestureStartedAtTop = !lazyListState.canScrollBackward
-                        }
-                    }
+                    .trackGestureStartedAtBoundary(
+                        atBoundary = { !lazyListState.canScrollBackward },
+                        onGestureStart = { gestureStartedAtTop = it }
+                    )
                     .pointerInput(isSelectionMode) {
                         if (isSelectionMode) return@pointerInput
                         awaitEachGesture {
@@ -1239,15 +1247,21 @@ fun ProfilesDialog(
                         val isUpdating = updatingSubIds.contains(sub.id)
 
                         stickyHeader(key = "sub_header_${sub.id}") {
+                            // findLazyIndex is an O(profiles + subscriptions) scan - resolved only
+                            // when the visual grouping actually changes, not on every pixel of
+                            // scroll (lazyListState.firstVisibleItemIndex/Offset change on every
+                            // pixel, and used to be read inside the same derivedStateOf that also
+                            // called findLazyIndex, re-running the whole scan every scroll frame).
+                            val headerIdx = remember(sub.id, visualGroups) { findLazyIndex(sub.id) }
                             // 0f = resting at its natural spot, 1f = fully pinned. Scrubs with
                             // firstVisibleItemScrollOffset while this header is still the first
                             // visible item (i.e. as soon as scrolling starts eating into it, which
                             // is well before a full item's worth of content has passed underneath
                             // it), then latches to 1f once the list has scrolled past it entirely.
-                            val stuckProgress by remember(sub.id) {
+                            val stuckProgress by remember(headerIdx) {
                                 derivedStateOf {
-                                    val headerIdx = findLazyIndex(sub.id)
                                     when {
+                                        headerIdx == -1 -> 0f
                                         lazyListState.firstVisibleItemIndex > headerIdx -> 1f
                                         lazyListState.firstVisibleItemIndex == headerIdx ->
                                             (lazyListState.firstVisibleItemScrollOffset / headerStuckTransitionPx).coerceIn(0f, 1f)
@@ -1668,6 +1682,28 @@ private fun ProfileItemRow(
     )
 }
 
+/**
+ * Widens the content by [extraWidth] (split evenly on each side) without disturbing how much
+ * space this node claims from its own parent - the parent still sees the original width, the
+ * content just draws [extraWidth] wider, centered. Used instead of graphicsLayer { scaleX = ... }
+ * so animating this doesn't also stretch a simultaneously-animating corner radius or shadow.
+ */
+private fun Modifier.horizontalBleed(extraWidth: Dp): Modifier = this.layout { measurable, constraints ->
+    val extraPx = extraWidth.roundToPx().coerceAtLeast(0)
+    if (extraPx == 0) {
+        val placeable = measurable.measure(constraints)
+        return@layout layout(placeable.width, placeable.height) { placeable.placeRelative(0, 0) }
+    }
+    val widenedConstraints = constraints.copy(
+        minWidth = (constraints.minWidth + extraPx).coerceAtLeast(0),
+        maxWidth = if (constraints.hasBoundedWidth) constraints.maxWidth + extraPx else constraints.maxWidth
+    )
+    val placeable = measurable.measure(widenedConstraints)
+    layout(placeable.width - extraPx, placeable.height) {
+        placeable.placeRelative(-extraPx / 2, 0)
+    }
+}
+
 @Composable
 private fun SubscriptionHeaderRow(
     sub: Subscription,
@@ -1702,8 +1738,11 @@ private fun SubscriptionHeaderRow(
     val bottomCorner = lerp(4.dp, 16.dp, stuckProgress)
     val shadowElevation = lerp(0.dp, 6.dp, stuckProgress)
     // A hair wider than the list around it, so it reads as floating slightly toward the viewer
-    // rather than flush with the same column as everything scrolling underneath it.
-    val stuckWidthScale = 1f + 0.025f * stuckProgress
+    // rather than flush with the same column as everything scrolling underneath it. Widens via
+    // real layout (horizontalBleed) rather than graphicsLayer { scaleX = ... } - a transform would
+    // stretch the corner radius and shadow non-uniformly since both are animating at the same
+    // time as this.
+    val stuckBleed = lerp(0.dp, 8.dp, stuckProgress)
 
     Surface(
         color = backgroundColor,
@@ -1716,7 +1755,7 @@ private fun SubscriptionHeaderRow(
         modifier = modifier
             .fillMaxWidth()
             .padding(top = 8.dp)
-            .graphicsLayer { scaleX = stuckWidthScale }
+            .horizontalBleed(stuckBleed)
     ) {
         Row(
             modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 16.dp, end = 8.dp),
@@ -1815,6 +1854,7 @@ private fun SubscriptionDescriptionText(
                 val placeable = measurable.measure(constraints)
                 layout(placeable.width, 0) {}
             }
+            .clearAndSetSemantics {}
     )
 
     when {
