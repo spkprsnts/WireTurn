@@ -116,6 +116,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
+/** How many profiles to keep visible above the selected one when the sheet first opens. */
+private const val PROFILES_ABOVE_SELECTED_ON_OPEN = 2
+
 /** Small flat rectangular flag for an ISO-3166 alpha-2 country code, fetched from flagcdn.com. */
 @Composable
 private fun FlagImage(countryCode: String, modifier: Modifier = Modifier) {
@@ -645,7 +648,21 @@ fun ProfilesDialog(
                 delay(150.milliseconds) // Wait for layout update
 
                 if (isFirstLoad) {
-                    val targetLazyIndex = findLazyIndex(currentId)
+                    // Land with a couple of profiles already visible above the selected one
+                    // instead of pinning it to the very top edge, so it reads less abruptly.
+                    // Subscription headers count as a block here too (findLazyIndex resolves a
+                    // subscription id to its header row) - otherwise a profile that's first in
+                    // its subscription would land right at the top with its own header scrolled
+                    // out of view above it.
+                    val visualOrderIds = standaloneProfiles.map { it.id } +
+                        subscriptionGroups.flatMap { (sub, subProfiles) -> listOf(sub.id) + subProfiles.map { it.id } }
+                    val currentVisualIdx = visualOrderIds.indexOf(currentId)
+                    val anchorId = if (currentVisualIdx >= 0) {
+                        visualOrderIds[(currentVisualIdx - PROFILES_ABOVE_SELECTED_ON_OPEN).coerceAtLeast(0)]
+                    } else {
+                        currentId
+                    }
+                    val targetLazyIndex = findLazyIndex(anchorId)
                     if (targetLazyIndex != -1) {
                         lazyListState.scrollToItem(targetLazyIndex)
                     }
