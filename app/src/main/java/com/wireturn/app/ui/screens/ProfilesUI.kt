@@ -141,7 +141,7 @@ private fun FlagImage(countryCode: String, modifier: Modifier = Modifier) {
 fun ProfileSummary(
     profile: Profile,
     modifier: Modifier = Modifier,
-    color: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    color: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     useAnimation: Boolean = false,
     countryCode: String? = null
 ) {
@@ -524,12 +524,15 @@ fun ProfilesDialog(
     // Suppresses the drag-reorder swap animation while actively scrolling, so the continuous
     // layout change from the sticky header's stuck transition (see headerStuckTransitionPx)
     // doesn't get misread as "this profile moved in the list" and chased with a lagging spring -
-    // only a genuine reorder while the list is at rest (e.g. after a subscription refresh, or
-    // right after a manual drag ends) still animates.
-    val profileItemPlacementSpec = if (lazyListState.isScrollInProgress) {
+    // only a genuine reorder while the list is at rest (e.g. after a subscription refresh) still
+    // animates. Excludes an active drag (draggedItemId != null) because the drag's own auto-scroll
+    // loop below also drives lazyListState.scrollBy(...), which would otherwise make
+    // isScrollInProgress true and kill the swap animation during the most common way to reorder a
+    // profile that isn't already on screen - dragging it to the edge to trigger auto-scroll.
+    val profileItemPlacementSpec = if (lazyListState.isScrollInProgress && draggedItemId == null) {
         null
     } else {
-        spring<IntOffset>(stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntOffset(1, 1))
+        spring(stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntOffset(1, 1))
     }
     var autoScrollSpeed by remember { mutableFloatStateOf(0f) }
     var fingerAbsoluteY by remember { mutableFloatStateOf(0f) }
@@ -1121,6 +1124,16 @@ fun ProfilesDialog(
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)
                             val longPress = awaitLongPressOrCancellation(down.id) ?: return@awaitEachGesture
+
+                            // A stuck header is rendered pinned at the top, covering whatever
+                            // item is really scrolled underneath it there - that item's true
+                            // (unclamped) offset can still be within touch range, so without this
+                            // guard a long press on the visible header could hit-test straight
+                            // through to the hidden row and start dragging it.
+                            val pinnedHeaderBottom = lazyListState.layoutInfo.visibleItemsInfo
+                                .filter { (it.key as? String)?.startsWith("sub_header_") == true && it.offset <= 0 }
+                                .maxOfOrNull { it.offset + it.size } ?: 0
+                            if (longPress.position.y < pinnedHeaderBottom) return@awaitEachGesture
 
                             val hitItem = lazyListState.layoutInfo.visibleItemsInfo.firstOrNull { item ->
                                 val key = item.key
@@ -1805,6 +1818,14 @@ private fun SubscriptionDescriptionText(
     )
 
     when {
+        // Not yet measured (e.g. this header was just freshly composed already mid-transition,
+        // such as scrolling back into a recycled one) - show unclamped rather than clip to a
+        // stale/zero height for a frame before the probe's onTextLayout above corrects it. text
+        // is always non-blank here (see call site), so naturalHeightPx settles above 0f once
+        // measured and this branch only ever applies on that first, pre-measurement frame.
+        naturalHeightPx <= 0f -> {
+            Text(text = text, style = MaterialTheme.typography.bodySmall, color = color)
+        }
         stuckProgress <= 0f -> {
             Text(text = text, style = MaterialTheme.typography.bodySmall, color = color)
         }
