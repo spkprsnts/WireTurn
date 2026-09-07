@@ -73,6 +73,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -80,15 +81,21 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
@@ -245,6 +252,52 @@ fun HomeScreen(
 
     val proxyTransfer by viewModel.proxyTransfer.collectAsStateWithLifecycle()
     val homeScrollState = rememberScrollState()
+    val showProfilesDialog = rememberSaveable { mutableStateOf(false) }
+
+    // --- Swipe-up-to-open profiles shade ---
+    // The real ModalBottomSheet lives in its own Android Window, so a single continuous touch
+    // starting on this screen can never be handed off to drive it directly - there's no public
+    // API to feed it raw drag deltas either. So this is a threshold trigger, not a live drag:
+    // once an upward swipe past the point where home content can't scroll any further crosses
+    // profilesRevealThresholdPx (or is a fast enough flick), it opens the sheet with its normal
+    // entrance animation - the same as tapping the profile row.
+    var profilesRevealDragPx by remember { mutableFloatStateOf(0f) }
+    var profilesRevealTriggered by remember { mutableStateOf(false) }
+    val profilesRevealThresholdPx = with(LocalDensity.current) { 72.dp.toPx() }
+    val profilesRevealConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                if (source != NestedScrollSource.UserInput || profilesRevealTriggered || showProfilesDialog.value) {
+                    return Offset.Zero
+                }
+                if (available.y >= 0f || homeScrollState.canScrollForward) {
+                    profilesRevealDragPx = 0f
+                    return Offset.Zero
+                }
+                profilesRevealDragPx -= available.y
+                if (profilesRevealDragPx > profilesRevealThresholdPx) {
+                    profilesRevealTriggered = true
+                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                    showProfilesDialog.value = true
+                }
+                return Offset(0f, available.y)
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                profilesRevealDragPx = 0f
+                if (!profilesRevealTriggered && !showProfilesDialog.value && available.y < -2500f) {
+                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                    showProfilesDialog.value = true
+                }
+                profilesRevealTriggered = false
+                return Velocity.Zero
+            }
+        }
+    }
 
     // --- Launchers ---
     val batteryOptLauncher = rememberLauncherForActivityResult(
@@ -384,6 +437,7 @@ fun HomeScreen(
                 .padding(padding)
                 .consumeWindowInsets(padding)
                 .imePadding()
+                .nestedScroll(profilesRevealConnection)
                 .verticalScroll(homeScrollState)
                 .padding(top = 8.dp)
                 .padding(horizontal = 16.dp),
@@ -761,7 +815,6 @@ fun HomeScreen(
             Spacer(Modifier.height(8.dp))
 
             // --- Profiles Section ---
-            val showProfilesDialog = rememberSaveable { mutableStateOf(false) }
             SectionItem(
                 position = ItemPosition.Single,
                 onClick = {
