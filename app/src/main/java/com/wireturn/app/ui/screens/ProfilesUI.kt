@@ -1,5 +1,6 @@
 @file:OptIn(
-    androidx.compose.material3.ExperimentalMaterial3Api::class
+    androidx.compose.material3.ExperimentalMaterial3Api::class,
+    androidx.compose.foundation.ExperimentalFoundationApi::class
 )
 
 package com.wireturn.app.ui.screens
@@ -76,20 +77,26 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -396,6 +403,11 @@ fun ProfilesDialog(
     val context = LocalContext.current
     val density = androidx.compose.ui.platform.LocalDensity.current
 
+    // Distance (in px) over which a subscription header morphs into its stuck appearance -
+    // scrubbed directly by scroll position rather than snapping once fully pinned. Kept fairly
+    // long so the fold reads as gradual rather than a quick snap over a couple of scroll ticks.
+    val headerStuckTransitionPx = with(density) { 96.dp.toPx() }
+
     var draggedItemId by remember { mutableStateOf<String?>(null) }
 
     // Was the list already at rest at the top when the current touch began? Distinguishes a
@@ -509,6 +521,16 @@ fun ProfilesDialog(
     }
 
     val lazyListState = rememberLazyListState()
+    // Suppresses the drag-reorder swap animation while actively scrolling, so the continuous
+    // layout change from the sticky header's stuck transition (see headerStuckTransitionPx)
+    // doesn't get misread as "this profile moved in the list" and chased with a lagging spring -
+    // only a genuine reorder while the list is at rest (e.g. after a subscription refresh, or
+    // right after a manual drag ends) still animates.
+    val profileItemPlacementSpec = if (lazyListState.isScrollInProgress) {
+        null
+    } else {
+        spring<IntOffset>(stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntOffset(1, 1))
+    }
     var autoScrollSpeed by remember { mutableFloatStateOf(0f) }
     var fingerAbsoluteY by remember { mutableFloatStateOf(0f) }
     var dragAnchorOffset by remember { mutableFloatStateOf(0f) }
@@ -1194,7 +1216,7 @@ fun ProfilesDialog(
                             onRename = { showRenameDialog.value = it },
                             onDelete = { showDeleteConfirm.value = it },
                             onOptimisticSelect = { optimisticSelectedId = it },
-                            modifier = Modifier.animateItem()
+                            modifier = Modifier.animateItem(placementSpec = profileItemPlacementSpec)
                         )
                     }
 
@@ -1203,13 +1225,30 @@ fun ProfilesDialog(
                         val isAnySelected = subProfiles.any { it.id == (optimisticSelectedId ?: currentId) }
                         val isUpdating = updatingSubIds.contains(sub.id)
 
-                        item(key = "sub_header_${sub.id}") {
+                        stickyHeader(key = "sub_header_${sub.id}") {
+                            // 0f = resting at its natural spot, 1f = fully pinned. Scrubs with
+                            // firstVisibleItemScrollOffset while this header is still the first
+                            // visible item (i.e. as soon as scrolling starts eating into it, which
+                            // is well before a full item's worth of content has passed underneath
+                            // it), then latches to 1f once the list has scrolled past it entirely.
+                            val stuckProgress by remember(sub.id) {
+                                derivedStateOf {
+                                    val headerIdx = findLazyIndex(sub.id)
+                                    when {
+                                        lazyListState.firstVisibleItemIndex > headerIdx -> 1f
+                                        lazyListState.firstVisibleItemIndex == headerIdx ->
+                                            (lazyListState.firstVisibleItemScrollOffset / headerStuckTransitionPx).coerceIn(0f, 1f)
+                                        else -> 0f
+                                    }
+                                }
+                            }
                             SubscriptionHeaderRow(
                                 sub = sub,
                                 isAnyChildSelected = isAnySelected,
                                 isSelectionMode = isSelectionMode,
                                 isAllSubSelected = subProfiles.isNotEmpty() && subProfiles.all { selectedIds.contains(it.id) },
                                 isUpdating = isUpdating,
+                                stuckProgress = stuckProgress,
                                 onUpdate = { refreshSubscription(sub) },
                                 onSettings = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -1271,7 +1310,7 @@ fun ProfilesDialog(
                                 onRename = { showRenameDialog.value = it },
                                 onDelete = { showDeleteConfirm.value = it },
                                 onOptimisticSelect = { optimisticSelectedId = it },
-                                modifier = Modifier.animateItem()
+                                modifier = Modifier.animateItem(placementSpec = profileItemPlacementSpec)
                             )
                         }
 
@@ -1623,6 +1662,7 @@ private fun SubscriptionHeaderRow(
     isSelectionMode: Boolean,
     isAllSubSelected: Boolean,
     isUpdating: Boolean,
+    stuckProgress: Float,
     onUpdate: () -> Unit,
     onSettings: () -> Unit,
     onSelect: () -> Unit,
@@ -1640,9 +1680,22 @@ private fun SubscriptionHeaderRow(
         label = "sub_header_bg"
     )
 
+    // Pinned at the top, the header is visually detached from the item now scrolled underneath
+    // it, so it reads as a standalone rounded chip (bottom corners matching the top ones, plus a
+    // shadow to sell that it's floating above the content) instead of the "attached to what's
+    // below" look it has at its natural, unpinned position. Driven directly off stuckProgress -
+    // no animate*AsState here - so it scrubs in lockstep with the scroll instead of playing its
+    // own timed animation once some threshold is crossed.
+    val bottomCorner = lerp(4.dp, 16.dp, stuckProgress)
+    val shadowElevation = lerp(0.dp, 6.dp, stuckProgress)
+    // A hair wider than the list around it, so it reads as floating slightly toward the viewer
+    // rather than flush with the same column as everything scrolling underneath it.
+    val stuckWidthScale = 1f + 0.025f * stuckProgress
+
     Surface(
         color = backgroundColor,
-        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 4.dp, bottomEnd = 4.dp),
+        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = bottomCorner, bottomEnd = bottomCorner),
+        shadowElevation = shadowElevation,
         onClick = {
             if (isSelectionMode) onToggleSelection()
             else if (!isAnyChildSelected) onSelect()
@@ -1650,6 +1703,7 @@ private fun SubscriptionHeaderRow(
         modifier = modifier
             .fillMaxWidth()
             .padding(top = 8.dp)
+            .graphicsLayer { scaleX = stuckWidthScale }
     ) {
         Row(
             modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 16.dp, end = 8.dp),
@@ -1664,17 +1718,17 @@ private fun SubscriptionHeaderRow(
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = sub.name, 
+                    text = sub.name,
                     style = MaterialTheme.typography.titleMedium,
                     color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     modifier = Modifier.basicMarquee()
                 )
                 if (!sub.description.isNullOrBlank()) {
-                    Text(
-                        text = sub.description, 
-                        style = MaterialTheme.typography.bodySmall, 
-                        color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.outline
+                    SubscriptionDescriptionText(
+                        text = sub.description,
+                        color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.outline,
+                        stuckProgress = stuckProgress
                     )
                 }
             }
@@ -1697,14 +1751,82 @@ private fun SubscriptionHeaderRow(
                         )
                     } else {
                         Icon(
-                            painter = painterResource(R.drawable.refresh_24px), 
-                            contentDescription = null, 
+                            painter = painterResource(R.drawable.refresh_24px),
+                            contentDescription = null,
                             modifier = Modifier.size(20.dp),
                             tint = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer
                                     else MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Subscription header's description line - clamps to 2 lines with an ellipsis once fully stuck,
+ * but scrubs the height continuously in between instead of snapping, so it folds in lockstep
+ * with the same scroll that drives the header's corner/shadow/scale. An invisible probe copy
+ * (laid out at zero height so it doesn't affect the row) measures the description's natural
+ * height and where its second line ends; those two numbers are then interpolated by
+ * [stuckProgress] to clip the visible copy. The ellipsis itself only ever appears at the fully
+ * stuck endpoint - mid-scroll it's a plain vertical crop, since animating the glyph in/out isn't
+ * possible and a raw crop mid-transition reads fine for something passed through quickly.
+ *
+ * This does change the header item's measured height every scroll frame, which would normally
+ * make profileItemPlacementSpec (see its declaration) chase it with a lagging spring - that's
+ * why profile rows suppress their placement animation while lazyListState.isScrollInProgress.
+ */
+@Composable
+private fun SubscriptionDescriptionText(
+    text: String,
+    color: Color,
+    stuckProgress: Float
+) {
+    var naturalHeightPx by remember(text) { mutableFloatStateOf(0f) }
+    var twoLineHeightPx by remember(text) { mutableFloatStateOf(0f) }
+
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = Color.Transparent,
+        maxLines = Int.MAX_VALUE,
+        onTextLayout = { result ->
+            naturalHeightPx = result.size.height.toFloat()
+            twoLineHeightPx = if (result.lineCount > 2) result.getLineBottom(1) else naturalHeightPx
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints)
+                layout(placeable.width, 0) {}
+            }
+    )
+
+    when {
+        stuckProgress <= 0f -> {
+            Text(text = text, style = MaterialTheme.typography.bodySmall, color = color)
+        }
+        stuckProgress >= 1f -> {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodySmall,
+                color = color,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        else -> {
+            val clampedHeightPx = minOf(naturalHeightPx, twoLineHeightPx)
+            val heightPx = naturalHeightPx + (clampedHeightPx - naturalHeightPx) * stuckProgress
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(with(androidx.compose.ui.platform.LocalDensity.current) { heightPx.toDp() })
+                    .clipToBounds()
+            ) {
+                Text(text = text, style = MaterialTheme.typography.bodySmall, color = color, maxLines = Int.MAX_VALUE)
             }
         }
     }
