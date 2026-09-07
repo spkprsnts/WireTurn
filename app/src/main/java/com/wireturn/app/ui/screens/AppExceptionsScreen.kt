@@ -106,6 +106,7 @@ import kotlin.time.Duration.Companion.milliseconds
 private object AppExceptionsDefaults {
     val IconSize = 32.dp
     val SearchBarTopGap = 8.dp
+    val SearchBarCompressTransition = 24.dp
 }
 
 data class AppInfo(
@@ -363,6 +364,17 @@ fun AppExceptionsScreen(
     val appBarHeightDp = with(density) { appBarHeightPx.toDp() }
     val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
+    val searchBarCompressTransitionPx = with(density) { AppExceptionsDefaults.SearchBarCompressTransition.toPx() }
+    val searchBarCompressProgress by remember {
+        derivedStateOf {
+            if (listState.firstVisibleItemIndex > 0) {
+                1f
+            } else {
+                (listState.firstVisibleItemScrollOffset / searchBarCompressTransitionPx).coerceIn(0f, 1f)
+            }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         val screenBackgroundColor = MaterialTheme.colorScheme.background
 
@@ -380,8 +392,8 @@ fun AppExceptionsScreen(
                         .coerceAtLeast(0.dp)
                 }
             }
-            val finalHorizontalPadding by remember(scrollBehavior.state.collapsedFraction) {
-                derivedStateOf { lerp(16.dp, 24.dp, scrollBehavior.state.collapsedFraction) }
+            val finalHorizontalPadding by remember(searchBarCompressProgress) {
+                derivedStateOf { lerp(16.dp, 24.dp, searchBarCompressProgress) }
             }
 
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
@@ -617,6 +629,7 @@ fun AppExceptionsScreen(
                 SearchBar(
                     state = searchBarState,
                     inputField = inputField,
+                    shadowElevation = lerp(0.dp, 6.dp, searchBarCompressProgress),
                     modifier = Modifier
                         .widthIn(max = 840.dp)
                         .fillMaxWidth()
