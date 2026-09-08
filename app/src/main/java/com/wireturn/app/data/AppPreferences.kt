@@ -766,7 +766,13 @@ data class FreeTurnConfig(
             addProperty("provider", "vk")
             if (provider != "vk") addProperty("provider", provider)
             if (peer.isNotBlank()) addProperty("peer", peer)
-            if (links.isNotBlank()) addProperty("links", links)
+            if (links.isNotBlank()) {
+                addProperty("links", links)
+                // Mirrored under the official turn-proxy-android client's own key too (single
+                // link - it has no notion of our comma-separated multi-account "links"), so a
+                // link shared from here still pre-fills the VK link field over there.
+                addProperty("vk", links.substringBefore(','))
+            }
             if (sub.isNotBlank()) addProperty("sub", sub)
             if (transport != "tcp") addProperty("transport", transport)
             if (obfProfile != "none") {
@@ -847,7 +853,10 @@ data class FreeTurnConfig(
                 FreeTurnConfig(
                     provider = json.get("provider")?.asString ?: current.provider,
                     peer = json.get("peer")?.asString ?: current.peer,
-                    links = json.get("links")?.asString ?: json.get("link")?.asString ?: current.links,
+                    // "vk" is the official turn-proxy-android client's key for this same value -
+                    // read as a last-resort fallback so links it shares still import here.
+                    links = json.get("links")?.asString ?: json.get("link")?.asString
+                        ?: json.get("vk")?.asString ?: current.links,
                     sub = json.get("sub")?.asString ?: current.sub,
                     obfProfile = json.get("obf")?.asString ?: current.obfProfile,
                     obfKey = json.get("key")?.asString ?: current.obfKey,
