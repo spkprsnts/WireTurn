@@ -142,12 +142,13 @@ fun XraySetupScreen(
     var vlessDirectAddress by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.directAddress) }
     var vlessHcInterval by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.hcInterval) }
     var vlessMux by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.mux) }
+    var vlessIsSocks5Chain by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.isSocks5Chain) }
 
     val currentWg = remember(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive) {
         WgConfig(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive)
     }
-    val currentVless = remember(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessMux, initialVlessConfig) {
-        VlessConfig(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessMux)
+    val currentVless = remember(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessMux, vlessIsSocks5Chain, initialVlessConfig) {
+        VlessConfig(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessMux, vlessIsSocks5Chain)
     }
 
     val transportMismatchSocket = remember(kernelConfig, xrayConfiguration, currentVless) {
@@ -236,7 +237,7 @@ fun XraySetupScreen(
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     showExitDialog.value = false
                     val wg = WgConfig(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive)
-                    val vless = VlessConfig(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessMux)
+                    val vless = VlessConfig(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessMux, vlessIsSocks5Chain)
                     onSave(xrayConfiguration, wg, vless)
                 }) {
                     Text(stringResource(R.string.btn_save))
@@ -376,7 +377,7 @@ fun XraySetupScreen(
                     onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         val wg = WgConfig(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive)
-                        val vless = VlessConfig(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessMux)
+                        val vless = VlessConfig(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessMux, vlessIsSocks5Chain)
                         onSave(xrayConfiguration, wg, vless)
                     },
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -515,6 +516,8 @@ fun XraySetupScreen(
                         onVlessHcIntervalChange = { vlessHcInterval = it },
                         vlessMux = vlessMux,
                         onVlessMuxChange = { vlessMux = it },
+                        vlessIsSocks5Chain = vlessIsSocks5Chain,
+                        onVlessIsSocks5ChainChange = { vlessIsSocks5Chain = it },
                         vlessLinkHistory = vlessLinkHistory,
                         onRemoveHistoryItem = onRemoveHistoryItem,
                         initialVlessConfig = initialVlessConfig,
@@ -688,6 +691,7 @@ private fun VlessSettingsBlock(
     vlessDirectAddress: String, onVlessDirectAddressChange: (String) -> Unit,
     vlessHcInterval: String, onVlessHcIntervalChange: (String) -> Unit,
     vlessMux: String, onVlessMuxChange: (String) -> Unit,
+    vlessIsSocks5Chain: Boolean, onVlessIsSocks5ChainChange: (Boolean) -> Unit,
     vlessLinkHistory: List<String>,
     onRemoveHistoryItem: (String) -> Unit,
     initialVlessConfig: VlessConfig,
@@ -767,9 +771,41 @@ private fun VlessSettingsBlock(
 
             Spacer(Modifier.height(12.dp))
 
+            // Only meaningful for socks5-native kernels (olcrtc/webdav) - it chains this link
+            // through the kernel's own local socks5 instead of the kernel providing it directly.
+            if (kernelVariant.isSocks5Native) {
+                val socks5ChainEnabled = detectedUriProtocol != UriProtocol.HYSTERIA2
+                SectionItem(
+                    position = ItemPosition.Single,
+                    enabled = socks5ChainEnabled,
+                    onClick = {
+                        val next = !vlessIsSocks5Chain
+                        HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                        onVlessIsSocks5ChainChange(next)
+                    }
+                ) {
+                    SwitchRow(
+                        label = stringResource(R.string.xray_uri_socks5_chain),
+                        supportingText = if (socks5ChainEnabled)
+                            stringResource(R.string.xray_uri_socks5_chain_desc)
+                        else
+                            stringResource(R.string.xray_uri_socks5_chain_hysteria2_unsupported),
+                        checked = vlessIsSocks5Chain,
+                        enabled = socks5ChainEnabled,
+                        onCheckedChange = { next ->
+                            HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                            onVlessIsSocks5ChainChange(next)
+                        },
+                        isModified = isEditMode && vlessIsSocks5Chain != initialVlessConfig.isSocks5Chain
+                    )
+                }
+
+                Spacer(Modifier.height(12.dp))
+            }
+
             SectionItem(
                 position = if (vlessIsDualRoute) ItemPosition.Top else ItemPosition.Single,
-                onClick = { 
+                onClick = {
                     val next = !vlessIsDualRoute
                     HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
                     onVlessIsDualRouteChange(next)

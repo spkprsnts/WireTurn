@@ -1036,7 +1036,11 @@ data class VlessConfig(
     @SerializedName("isDualRoute") val isDualRoute: Boolean = false,
     @SerializedName("directAddress") val directAddress: String = "",
     @SerializedName("hcInterval") val hcInterval: String = "30",
-    @SerializedName("mux") val mux: String = "0"
+    @SerializedName("mux") val mux: String = "0",
+    // VLESS/Trojan-over-SOCKS5: dials the link's own connection through the socks5-native
+    // kernel's local socks5 (dialerProxy) instead of using it as a plain upstream. Only
+    // meaningful for socks5-native kernels (olcrtc/webdav) - see XrayService.isSocks5Core.
+    @SerializedName("isSocks5Chain") val isSocks5Chain: Boolean = false
 ) {
     fun isValid(): Boolean = ValidatorUtils.isValidVlessLink(vlessLink)
     fun sanitize(): VlessConfig = copy(

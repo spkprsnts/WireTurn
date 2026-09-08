@@ -164,8 +164,8 @@ class XrayService : Service() {
             val isSocks5Core = runningClientConfig.kernelVariant.isSocks5Native
 
             val isConfigValid = if (isSocks5Core) {
-                // For OLCRTC/WebDAV, VLESS/WG config is optional, unless DualRoute is enabled
-                if (isXrayVless && vlessConfig.isDualRoute) {
+                // For OLCRTC/WebDAV, VLESS/WG config is optional, unless DualRoute or Socks5Chain is enabled
+                if (isXrayVless && (vlessConfig.isDualRoute || vlessConfig.isSocks5Chain)) {
                     vlessConfig.isValid()
                 } else {
                     true
@@ -237,7 +237,7 @@ class XrayService : Service() {
                 }
                 
                 val shouldAddLink = if (isSocks5Core) {
-                    vlessConfig.isDualRoute && vlessConfig.vlessLink.isNotBlank()
+                    (vlessConfig.isDualRoute || vlessConfig.isSocks5Chain) && vlessConfig.vlessLink.isNotBlank()
                 } else {
                     true
                 }
@@ -256,6 +256,13 @@ class XrayService : Service() {
                     cmdArgs.add(vlessConfig.directAddress)
                     cmdArgs.add("-hc-interval")
                     cmdArgs.add(vlessConfig.hcInterval)
+                }
+
+                // Only meaningful when -local-socks5 is actually the socks5-native kernel's
+                // proxy (isSocks5Core) - vless-client requires -local-socks5 to be set for
+                // -socks5-chain, and other kernels dial via -local-address instead.
+                if (isSocks5Core && vlessConfig.isSocks5Chain) {
+                    cmdArgs.add("-socks5-chain")
                 }
             } else if (!isSocks5Core) {
                 cmdArgs.addAll(listOf(
