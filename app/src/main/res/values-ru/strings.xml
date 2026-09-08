@@ -421,7 +421,6 @@
     <string name="xray_uri_dual_route_desc">Предпочитать прямое подключение к серверу, используя локальный туннель только при ограничении прямого доступа</string>
     <string name="xray_uri_direct_address">Прямой адрес сервера</string>
     <string name="xray_uri_hc_interval">Интервал проверки (сек)</string>
-    <string name="xray_uri_socks5_chain">Цепочка через SOCKS5</string>
     <string name="xray_uri_socks5_chain_desc">Подключение пойдёт через локальный SOCKS5 ядра, а не напрямую</string>
     <string name="xray_uri_socks5_chain_hysteria2_unsupported">Не поддерживается для ссылок Hysteria2</string>
     <string name="xray_uri_mux">Mux concurrency</string>
@@ -451,7 +450,7 @@
     <string name="qr_force_static_hint">Для сканирования сторонними приложениями, которые не понимают многокадровый формат; может не сканироваться</string>
     <string name="settings_group_turnable">Настройки Turnable / FreeTurn</string>
     <string name="settings_group_olcrtc">Настройки olcRTC / WebDAV</string>
-    <string name="settings_group_xray">Настройки Xray</string>
+    <string name="xray_settings_group_connection">Подключение</string>
     <string name="xray_proxy_auth">Авторизация прокси</string>
     <string name="xray_proxy_auth_desc">Защитить прокси логином и паролем</string>
     <string name="xray_proxy_user">Логин</string>
@@ -459,6 +458,34 @@
     <string name="xray_protocol_desc">Выберите протокол для Xray-core</string>
     <string name="connection_settings_title">Параметры подключения</string>
     <string name="connection_settings_desc">Адреса и порты ядер туннеля</string>
+    <string name="xray_settings_title">Настройки Xray</string>
+    <string name="xray_settings_button_desc">Настройки Xray</string>
+    <string name="xray_settings_group_dns">DNS</string>
+    <string name="xray_settings_dns_label">DNS-серверы</string>
+    <string name="xray_settings_dns_desc">Через запятую, используются Xray для резолва доменов через туннель</string>
+    <string name="xray_settings_fakedns_label">FakeDNS</string>
+    <string name="xray_settings_fakedns_desc">Отдавать синтетические IP и восстанавливать реальный домен снифингом — для приложений, резолвящих адрес до подключения</string>
+    <string name="xray_settings_group_routing">Маршрутизация</string>
+    <string name="xray_settings_route_direct_label">В обход (напрямую)</string>
+    <string name="xray_settings_route_direct_desc">Через запятую: domain:example.com, CIDR, или категории geosite:/geoip: (нужны скачанные гео-ресурсы) — идут напрямую, минуя туннель</string>
+    <string name="xray_settings_route_block_label">Блокировать</string>
+    <string name="xray_settings_route_block_desc">Через запятую: domain:example.com, CIDR, или категории geosite:/geoip: (нужны скачанные гео-ресурсы) — блокируются полностью</string>
+    <string name="xray_settings_group_geo">Гео-ресурсы</string>
+    <string name="geo_resources_dialog_desc">Нужны для записей geosite:/geoip: в правилах маршрутизации выше</string>
+    <string name="geo_variant_runetfreedom" translatable="false">RunetFreedom</string>
+    <string name="geo_variant_runetfreedom_desc">Домены/IP, заблокированные в России (Роскомнадзор), обновляется каждые 6ч</string>
+    <string name="geo_variant_v2fly">v2fly (официальный)</string>
+    <string name="geo_variant_v2fly_desc">Официальные geoip.dat и данные domain-list-community</string>
+    <string name="geo_variant_loyalsoldier">Loyalsoldier (community)</string>
+    <string name="geo_variant_loyalsoldier_desc">Набор правил сообщества с более детальным делением на категории</string>
+    <string name="geo_resources_download">Скачать</string>
+    <string name="geo_resources_downloading">Скачивание…</string>
+    <string name="geo_resources_download_failed">Ошибка загрузки: %1$s</string>
+    <string name="geo_resources_delete">Удалить</string>
+    <string name="geo_resources_delete_confirm_title">Удалить гео-ресурсы?</string>
+    <string name="geo_resources_delete_confirm_desc">Удалит скачанные geoip.dat/geosite.dat. Записи geosite:/geoip: в маршрутизации перестанут работать, пока не скачаете их заново.</string>
+    <string name="geo_resources_updated_at">Обновлено %1$s</string>
+    <string name="geo_resources_not_downloaded">Не скачано</string>
     <string name="connection_details">Детали подключения</string>
     <string name="server_settings_title">Настройки сервера</string>
 

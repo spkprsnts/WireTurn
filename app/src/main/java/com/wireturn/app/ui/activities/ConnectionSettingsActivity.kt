@@ -30,18 +30,15 @@ class ConnectionSettingsActivity : ComponentActivity() {
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
             
             val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
-            val xraySettings by viewModel.xraySettings.collectAsStateWithLifecycle()
             val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
 
             WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
                 ConnectionSettingsScreen(
                     initialClientConfig = clientConfig,
-                    initialXraySettings = xraySettings,
                     privacyMode = privacyMode,
                     onBack = { finish() },
-                    onSave = { client, xray ->
+                    onSave = { client ->
                         viewModel.saveClientConfig(client)
-                        viewModel.updateXraySettings(xray)
                         finish()
                     }
                 )

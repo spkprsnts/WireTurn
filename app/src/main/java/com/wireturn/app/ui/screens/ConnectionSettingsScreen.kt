@@ -53,7 +53,6 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
-import com.wireturn.app.data.XraySettings
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.ExpandableSection
 import com.wireturn.app.ui.HapticUtil
@@ -69,10 +68,9 @@ import com.wireturn.app.ui.redact
 @Composable
 fun ConnectionSettingsScreen(
     initialClientConfig: ClientConfig,
-    initialXraySettings: XraySettings,
     privacyMode: Boolean,
     onBack: () -> Unit,
-    onSave: (ClientConfig, XraySettings) -> Unit,
+    onSave: (ClientConfig) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -92,14 +90,6 @@ fun ConnectionSettingsScreen(
     var olPass by remember { mutableStateOf(initialClientConfig.socksPass) }
     var olPassVisible by rememberSaveable { mutableStateOf(false) }
 
-    // Xray states
-    var xraySocks by remember { mutableStateOf(initialXraySettings.socksBindAddress) }
-    var xrayHttp by remember { mutableStateOf(initialXraySettings.httpBindAddress) }
-    var xrayAuth by remember { mutableStateOf(initialXraySettings.isProxyAuthEnabled) }
-    var xrayUser by remember { mutableStateOf(initialXraySettings.proxyUser) }
-    var xrayPass by remember { mutableStateOf(initialXraySettings.proxyPass) }
-    var xrayPassVisible by rememberSaveable { mutableStateOf(false) }
-
     val scrollState = rememberScrollState()
 
     val currentClientConfig = remember(listenAddr, olSocks, olAuth, olUser, olPass, dns, goDnsGo, useCustomCerts, initialClientConfig) {
@@ -115,17 +105,7 @@ fun ConnectionSettingsScreen(
         )
     }
     
-    val currentXraySettings = remember(xraySocks, xrayHttp, xrayAuth, xrayUser, xrayPass, initialXraySettings) {
-        initialXraySettings.copy(
-            socksBindAddress = xraySocks,
-            httpBindAddress = xrayHttp,
-            isProxyAuthEnabled = xrayAuth,
-            proxyUser = xrayUser,
-            proxyPass = xrayPass
-        )
-    }
-
-    val isModified = remember(currentClientConfig, initialClientConfig, currentXraySettings, initialXraySettings) {
+    val isModified = remember(currentClientConfig, initialClientConfig) {
         currentClientConfig.listenAddr != initialClientConfig.listenAddr ||
         currentClientConfig.dns != initialClientConfig.dns ||
         currentClientConfig.goDnsGo != initialClientConfig.goDnsGo ||
@@ -133,12 +113,7 @@ fun ConnectionSettingsScreen(
         currentClientConfig.socksAddr != initialClientConfig.socksAddr ||
         currentClientConfig.isSocksAuthEnabled != initialClientConfig.isSocksAuthEnabled ||
         currentClientConfig.socksUser != initialClientConfig.socksUser ||
-        currentClientConfig.socksPass != initialClientConfig.socksPass ||
-        currentXraySettings.socksBindAddress != initialXraySettings.socksBindAddress ||
-        currentXraySettings.httpBindAddress != initialXraySettings.httpBindAddress ||
-        currentXraySettings.isProxyAuthEnabled != initialXraySettings.isProxyAuthEnabled ||
-        currentXraySettings.proxyUser != initialXraySettings.proxyUser ||
-        currentXraySettings.proxyPass != initialXraySettings.proxyPass
+        currentClientConfig.socksPass != initialClientConfig.socksPass
     }
 
     val showExitDialog = remember { mutableStateOf(false) }
@@ -171,7 +146,7 @@ fun ConnectionSettingsScreen(
                 TextButton(onClick = {
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     showExitDialog.value = false
-                    onSave(currentClientConfig, currentXraySettings)
+                    onSave(currentClientConfig)
                 }) {
                     Text(stringResource(R.string.btn_save))
                 }
@@ -218,7 +193,7 @@ fun ConnectionSettingsScreen(
                     modifier = Modifier.navigationBarsPadding(),
                     onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                        onSave(currentClientConfig, currentXraySettings)
+                        onSave(currentClientConfig)
                     },
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -400,98 +375,6 @@ fun ConnectionSettingsScreen(
                 }
             }
 
-            // Xray
-            SectionGroup(title = stringResource(R.string.settings_group_xray)) {
-                SectionItem(position = ItemPosition.Top) {
-                    TextFieldRow(
-                        label = stringResource(R.string.socks5),
-                        value = xraySocks.redact(privacyMode),
-                        onValueChange = { if (!privacyMode) xraySocks = it },
-                        placeholder = XraySettings.DEFAULT_SOCKS_BIND_ADDRESS,
-                        isError = !ValidatorUtils.isValidHostPort(xraySocks),
-                        readOnly = privacyMode,
-                        isModified = xraySocks != initialXraySettings.socksBindAddress,
-                        privacyMode = privacyMode
-                    )
-                }
-                
-                SectionItem {
-                    TextFieldRow(
-                        label = stringResource(R.string.xray_http),
-                        value = xrayHttp.redact(privacyMode),
-                        onValueChange = { if (!privacyMode) xrayHttp = it },
-                        placeholder = XraySettings.DEFAULT_HTTP_BIND_ADDRESS,
-                        isError = xrayHttp.isNotEmpty() && !ValidatorUtils.isValidHostPort(xrayHttp),
-                        readOnly = privacyMode,
-                        isModified = xrayHttp != initialXraySettings.httpBindAddress,
-                        privacyMode = privacyMode
-                    )
-                }
-
-                SectionItem(
-                    position = if (xrayAuth) ItemPosition.Middle else ItemPosition.Bottom,
-                    onClick = {
-                        xrayAuth = !xrayAuth
-                        HapticUtil.perform(
-                            context, 
-                            if (xrayAuth) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
-                        )
-                    }
-                ) {
-                    SwitchRow(
-                        label = stringResource(R.string.xray_proxy_auth),
-                        supportingText = stringResource(R.string.xray_proxy_auth_desc),
-                        checked = xrayAuth,
-                        onCheckedChange = { xrayAuth = it },
-                        isModified = xrayAuth != initialXraySettings.isProxyAuthEnabled,
-                    )
-                }
-                
-                ExpandableSection(visible = xrayAuth) {
-                    SectionGroup {
-                        SectionItem {
-                            TextFieldRow(
-                                label = stringResource(R.string.xray_proxy_user),
-                                value = xrayUser.redact(privacyMode),
-                                onValueChange = { if (!privacyMode) xrayUser = it },
-                                placeholder = stringResource(R.string.proxy_user_placeholder),
-                                isError = !ValidatorUtils.isValidProxyUser(xrayUser),
-                                readOnly = privacyMode,
-                                isModified = xrayUser != initialXraySettings.proxyUser,
-                                privacyMode = privacyMode
-                            )
-                        }
-                        SectionItem(position = ItemPosition.Bottom) {
-                            TextFieldRow(
-                                label = stringResource(R.string.xray_proxy_pass),
-                                value = xrayPass.redact(privacyMode),
-                                onValueChange = { if (!privacyMode) xrayPass = it },
-                                placeholder = stringResource(R.string.proxy_pass_placeholder),
-                                isError = !ValidatorUtils.isValidProxyPass(xrayPass),
-                                readOnly = privacyMode,
-                                isModified = xrayPass != initialXraySettings.proxyPass,
-                                privacyMode = privacyMode,
-                                trailingIcon = {
-                                    IconButton(onClick = { xrayPassVisible = !xrayPassVisible }) {
-                                        Icon(
-                                            painter = painterResource(
-                                                if (xrayPassVisible) R.drawable.visibility_24px
-                                                else R.drawable.visibility_off_24px
-                                            ),
-                                            contentDescription = null
-                                        )
-                                    }
-                                },
-                                visualTransformation = if (xrayPassVisible) {
-                                    VisualTransformation.None
-                                } else {
-                                    PasswordVisualTransformation()
-                                }
-                            )
-                        }
-                    }
-                }
-            }
         }
     }
 

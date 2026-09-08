@@ -375,19 +375,46 @@ fun RowLabel(
     modifier: Modifier = Modifier,
     style: TextStyle = MaterialTheme.typography.titleMedium,
     color: Color = Color.Unspecified,
-    isModified: Boolean = false
+    isModified: Boolean = false,
+    marquee: Boolean = false,
+    prefix: String? = null
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
     ) {
-        VerticalAnimatedText(
-            text = text,
-            style = style,
-            color = color.takeOrElse { MaterialTheme.colorScheme.onSurface },
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+        // prefix stays fixed in place even when the main text scrolls via marquee - e.g. "Xray"
+        // never moves while a long protocol name like "SOCKS5 / VLESS" scrolls next to it.
+        if (!prefix.isNullOrEmpty()) {
+            Text(
+                text = prefix,
+                style = style,
+                color = color.takeOrElse { MaterialTheme.colorScheme.onSurface },
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Clip
+            )
+            if (text.isNotEmpty()) {
+                Spacer(Modifier.width(4.dp))
+            }
+        }
+        if (text.isNotEmpty()) {
+            VerticalAnimatedText(
+                text = text,
+                style = style,
+                color = color.takeOrElse { MaterialTheme.colorScheme.onSurface },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                // fill = false: only clamp to the leftover space (so marquee kicks in exactly
+                // when it stops fitting there) without force-stretching short text to fill it.
+                modifier = if (marquee) Modifier.weight(1f, fill = false) else Modifier,
+                textModifier = if (marquee) {
+                    Modifier.basicMarquee(velocity = 20.dp, initialDelayMillis = 2_500)
+                } else {
+                    Modifier
+                }
+            )
+        }
         ModifiedIndicator(isModified)
     }
 }
@@ -407,7 +434,8 @@ fun VerticalAnimatedText(
     softWrap: Boolean = true,
     maxLines: Int = Int.MAX_VALUE,
     contentAlignment: Alignment = Alignment.CenterStart,
-    privacyMode: Boolean = false
+    privacyMode: Boolean = false,
+    textModifier: Modifier = Modifier
 ) {
     val transitionState = remember { MutableTransitionState(text) }
     transitionState.targetState = text
@@ -437,7 +465,7 @@ fun VerticalAnimatedText(
             overflow = overflow,
             softWrap = softWrap,
             maxLines = maxLines,
-            modifier = Modifier.privacySpoiler(privacyMode)
+            modifier = textModifier.privacySpoiler(privacyMode)
         )
     }
 }
@@ -478,14 +506,18 @@ fun LabelGroup(
     labelStyle: TextStyle = MaterialTheme.typography.titleMedium,
     supportingStyle: TextStyle = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp),
     labelColor: Color = Color.Unspecified,
-    supportingColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
+    supportingColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    labelMarquee: Boolean = false,
+    labelPrefix: String? = null
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.Center) {
         RowLabel(
             text = label,
             isModified = isModified,
             style = labelStyle,
-            color = labelColor
+            color = labelColor,
+            marquee = labelMarquee,
+            prefix = labelPrefix
         )
         if (!supportingText.isNullOrBlank()) {
             Spacer(Modifier.height(3.dp))
@@ -970,7 +1002,9 @@ fun SwitchRow(
     interactionSource: MutableInteractionSource? = null,
     clickable: Boolean = true,
     onRowClick: (() -> Unit)? = null,
-    isSplit: Boolean = false
+    isSplit: Boolean = false,
+    labelMarquee: Boolean = false,
+    labelPrefix: String? = null
 ) {
     val parentInteractionSource = LocalSettingsInteractionSource.current
     val internalInteractionSource = interactionSource ?: parentInteractionSource ?: remember { MutableInteractionSource() }
@@ -1021,13 +1055,10 @@ fun SwitchRow(
                     label = label,
                     modifier = Modifier.weight(1f),
                     supportingText = supportingText,
-                    isModified = isModified
+                    isModified = isModified,
+                    labelMarquee = labelMarquee,
+                    labelPrefix = labelPrefix
                 )
-
-                if (trailingContent != null) {
-                    Spacer(Modifier.width(16.dp))
-                    trailingContent()
-                }
             }
         }
 
@@ -1049,6 +1080,11 @@ fun SwitchRow(
             )
             Spacer(Modifier.width(12.dp))
         } else {
+            Spacer(Modifier.width(16.dp))
+        }
+
+        if (trailingContent != null) {
+            trailingContent()
             Spacer(Modifier.width(16.dp))
         }
 

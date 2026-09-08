@@ -147,6 +147,7 @@ fun HomeScreen(
     viewModel: MainViewModel,
     onNavigateToExclusions: () -> Unit,
     onNavigateToXrayConfig: () -> Unit,
+    onNavigateToXraySettings: () -> Unit,
     onNavigateToConnectionSettings: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToLogs: () -> Unit,
@@ -1120,7 +1121,8 @@ fun HomeScreen(
                     }
 
                     SwitchRow(
-                        label = stringResource(R.string.xray_title) + if (configValid && profilesExist) " $xrayProtocol" else "",
+                        labelPrefix = stringResource(R.string.xray_title),
+                        label = if (configValid && profilesExist) xrayProtocol else "",
                         checked = xrayConfig.enabled,
                         onCheckedChange = { next ->
                             HapticUtil.perform(
@@ -1137,6 +1139,7 @@ fun HomeScreen(
                             viewModel.updateXrayConfig(xrayConfig.copy(enabled = next))
                         },
                         isSplit = true,
+                        labelMarquee = true,
                         supportingText = if (!profilesExist) null else if (!configValid) stringResource(
                             R.string.xray_config_invalid
                         ) else {
@@ -1160,7 +1163,21 @@ fun HomeScreen(
                                 XrayState.Starting, XrayState.Connecting -> LoadingIndicator()
                             }
                         },
-                        enabled = configValid && profilesExist
+                        enabled = configValid && profilesExist,
+                        trailingContent = {
+                            FilledTonalIconButton(
+                                onClick = {
+                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                    onNavigateToXraySettings()
+                                }
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.settings_24px),
+                                    contentDescription = stringResource(R.string.xray_settings_button_desc),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
                     )
                 }
 

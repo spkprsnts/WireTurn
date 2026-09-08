@@ -1,5 +1,6 @@
 package com.wireturn.app.viewmodel
 
+import com.wireturn.app.domain.GeoResourceSet
 import kotlinx.coroutines.flow.MutableStateFlow
 
 // Xray states
@@ -48,6 +49,14 @@ val UpdateState.isImportant: Boolean
             this is UpdateState.Downloading ||
             this is UpdateState.ReadyToInstall ||
             this is UpdateState.Error
+
+// Geo resources (geoip.dat/geosite.dat) download states
+sealed class GeoAssetsState {
+    object Idle : GeoAssetsState()
+    data class Downloading(val variant: GeoResourceSet) : GeoAssetsState()
+    object Success : GeoAssetsState()
+    data class Error(val message: String) : GeoAssetsState()
+}
 
 object AppLifecycleState {
     val isAppInForeground = MutableStateFlow(false)

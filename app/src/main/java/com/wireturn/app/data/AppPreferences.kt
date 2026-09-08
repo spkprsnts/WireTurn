@@ -988,7 +988,15 @@ data class XraySettings(
     val httpBindAddress: String = "",
     val isProxyAuthEnabled: Boolean = true,
     val proxyUser: String = "",
-    val proxyPass: String = ""
+    val proxyPass: String = "",
+    // General, profile-independent xray-client settings - see the "Routing (applies to
+    // every mode)" section of external/vless-client/README.md.
+    val dns: String = DEFAULT_DNS,
+    val routeDirect: String = "",
+    val routeBlock: String = "",
+    val fakeDns: Boolean = false,
+    // Which geoip.dat/geosite.dat variant is currently installed - see GeoAssetsManager.
+    val geoVariant: String = "runetfreedom"
 ) {
     fun fillDefaults(): XraySettings {
         val cleanedUser = ValidatorUtils.cleanProxyString(proxyUser)
@@ -1005,7 +1013,10 @@ data class XraySettings(
             socksBindAddress = validSocks,
             httpBindAddress = validHttp,
             proxyUser = cleanedUser,
-            proxyPass = cleanedPass
+            proxyPass = cleanedPass,
+            dns = dns.trim().ifBlank { DEFAULT_DNS },
+            routeDirect = (routeDirect as Any?)?.toString()?.trim() ?: "",
+            routeBlock = (routeBlock as Any?)?.toString()?.trim() ?: ""
         )
 
         if (current.isProxyAuthEnabled && (current.proxyUser.isBlank() || current.proxyPass.isBlank())) {
@@ -1023,6 +1034,7 @@ data class XraySettings(
     companion object {
         const val DEFAULT_SOCKS_BIND_ADDRESS = "127.0.0.1:1080"
         const val DEFAULT_HTTP_BIND_ADDRESS = "127.0.0.1:8080"
+        const val DEFAULT_DNS = "8.8.8.8,1.1.1.1"
     }
 }
 
@@ -1410,6 +1422,11 @@ class AppPreferences(val context: Context) {
         val XRAY_AUTH_ENABLED = booleanPreferencesKey("xray_auth_enabled")
         val XRAY_USER = stringPreferencesKey("xray_user")
         val XRAY_PASS = stringPreferencesKey("xray_pass")
+        val XRAY_DNS = stringPreferencesKey("xray_dns")
+        val XRAY_ROUTE_DIRECT = stringPreferencesKey("xray_route_direct")
+        val XRAY_ROUTE_BLOCK = stringPreferencesKey("xray_route_block")
+        val XRAY_FAKEDNS = booleanPreferencesKey("xray_fakedns")
+        val XRAY_GEO_VARIANT = stringPreferencesKey("xray_geo_variant")
 
         val ACTIVE_KERNEL_JSON = stringPreferencesKey("active_kernel_json")
         val ACTIVE_XRAY_CONFIG_TYPE = stringPreferencesKey("active_xray_config_type")
@@ -1571,7 +1588,12 @@ class AppPreferences(val context: Context) {
                 httpBindAddress = p[XRAY_HTTP_BIND] ?: "",
                 isProxyAuthEnabled = p[XRAY_AUTH_ENABLED] ?: true,
                 proxyUser = p[XRAY_USER] ?: "",
-                proxyPass = p[XRAY_PASS] ?: ""
+                proxyPass = p[XRAY_PASS] ?: "",
+                dns = p[XRAY_DNS] ?: XraySettings.DEFAULT_DNS,
+                routeDirect = p[XRAY_ROUTE_DIRECT] ?: "",
+                routeBlock = p[XRAY_ROUTE_BLOCK] ?: "",
+                fakeDns = p[XRAY_FAKEDNS] ?: false,
+                geoVariant = p[XRAY_GEO_VARIANT] ?: "runetfreedom"
             )
         }.distinctUntilChanged()
 
@@ -1762,6 +1784,11 @@ class AppPreferences(val context: Context) {
             it[XRAY_AUTH_ENABLED] = s.isProxyAuthEnabled
             it[XRAY_USER] = s.proxyUser
             it[XRAY_PASS] = s.proxyPass
+            it[XRAY_DNS] = s.dns
+            it[XRAY_ROUTE_DIRECT] = s.routeDirect
+            it[XRAY_ROUTE_BLOCK] = s.routeBlock
+            it[XRAY_FAKEDNS] = s.fakeDns
+            it[XRAY_GEO_VARIANT] = s.geoVariant
         }
     }
 

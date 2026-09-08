@@ -60,6 +60,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val prefs = AppPreferences(application)
     private val coreManager = CoreManager(application)
     private val appUpdater = AppUpdater(application)
+    private val geoAssetsManager = com.wireturn.app.domain.GeoAssetsManager(application)
     private val profileManager = ProfileManager(
         prefs = prefs,
         scope = ProcessLifecycleOwner.get().lifecycleScope
@@ -71,6 +72,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val logs: StateFlow<List<AppLogsState.LogEntry>> = AppLogsState.logs
     val updateState: StateFlow<UpdateState> = appUpdater.state
     val updateProgress: StateFlow<Int> = appUpdater.downloadProgress
+    val geoAssetsState: StateFlow<GeoAssetsState> = geoAssetsManager.state
+    val geoAssetsProgress: StateFlow<Int> = geoAssetsManager.downloadProgress
+    val geoAssetsInstalledTick: StateFlow<Int> = geoAssetsManager.installedTick
 
     private val _isInitialized = MutableStateFlow(false)
     val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
@@ -565,6 +569,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
     
     fun installUpdate() { appUpdater.installUpdate() }
+
+    fun downloadGeoAssets(variant: com.wireturn.app.domain.GeoResourceSet) {
+        viewModelScope.launch {
+            geoAssetsManager.download(variant)
+            if (geoAssetsManager.state.value is GeoAssetsState.Success) {
+                updateXraySettings(xraySettings.value.copy(geoVariant = variant.id))
+            }
+        }
+    }
+
+    fun cancelGeoAssetsDownload() = geoAssetsManager.cancelDownload()
+
+    fun deleteGeoAssets() {
+        viewModelScope.launch { geoAssetsManager.delete() }
+    }
+
+    fun geoAssetsInstalledAt(): Long = geoAssetsManager.installedUpdatedAt()
+    fun geoAssetsInstalled(): Boolean = geoAssetsManager.installedFilesExist()
 
     fun updateWgConfig(c: WgConfig) {
         _wgConfig.value = c

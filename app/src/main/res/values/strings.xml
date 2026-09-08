@@ -462,7 +462,8 @@
     <string name="xray_uri_direct_address">Direct server address</string>
     <string name="xray_uri_direct_address_placeholder" translatable="false">292.313.32.45:443</string>
     <string name="xray_uri_hc_interval">Health check interval (sec)</string>
-    <string name="xray_uri_socks5_chain">SOCKS5 chain</string>
+    <string name="xray_uri_socks5_chain" translatable="false">SOCKS5 chain</string>
+    <string name="xray_uri_socks5_chain_short" translatable="false">Chain</string>
     <string name="xray_uri_socks5_chain_desc">Route this link\'s connection through the kernel\'s local SOCKS5 instead of using it directly</string>
     <string name="xray_uri_socks5_chain_hysteria2_unsupported">Not supported for Hysteria2 links</string>
     <string name="xray_uri_mux">Mux concurrency</string>
@@ -492,11 +493,41 @@
     <string name="qr_force_static_hint">For scanning with other apps that don\'t support multi-frame codes; may not scan reliably</string>
     <string name="settings_group_turnable">Turnable / FreeTurn settings</string>
     <string name="settings_group_olcrtc">olcRTC / WebDAV settings</string>
-    <string name="settings_group_xray">Xray settings</string>
+    <string name="xray_settings_group_connection">Connection</string>
     <string name="xray_protocol_desc">Choose protocol for Xray-core</string>
     <string name="protocol_wireguard" translatable="false">WireGuard</string>
     <string name="connection_settings_title">Connection Settings</string>
     <string name="connection_settings_desc">Addresses and ports of tunnel cores</string>
+    <string name="xray_settings_title">Xray Settings</string>
+    <string name="xray_settings_button_desc">Xray settings</string>
+    <string name="xray_settings_group_dns">DNS</string>
+    <string name="xray_settings_dns_label">DNS servers</string>
+    <string name="xray_settings_dns_desc">Comma-separated, used by Xray to resolve domains through the tunnel</string>
+    <string name="xray_settings_fakedns_label">FakeDNS</string>
+    <string name="xray_settings_fakedns_desc">Serve synthetic IPs and recover the real domain by sniffing, for apps that resolve before connecting</string>
+    <string name="xray_settings_group_routing">Routing</string>
+    <string name="xray_settings_route_direct_label">Bypass (direct)</string>
+    <string name="xray_settings_route_direct_desc">Comma-separated: domain:example.com, a CIDR range, or geosite:/geoip: categories (need downloaded geo resources) — routed directly, bypassing the tunnel</string>
+    <string name="xray_settings_route_direct_placeholder" translatable="false">geosite:category-ru</string>
+    <string name="xray_settings_route_block_label">Block</string>
+    <string name="xray_settings_route_block_desc">Comma-separated: domain:example.com, a CIDR range, or geosite:/geoip: categories (need downloaded geo resources) — blocked entirely</string>
+    <string name="xray_settings_route_block_placeholder" translatable="false">geosite:category-ads-all</string>
+    <string name="xray_settings_group_geo">Geo resources</string>
+    <string name="geo_resources_dialog_desc">Needed for geosite:/geoip: entries in the routing rules above</string>
+    <string name="geo_variant_runetfreedom" translatable="false">RunetFreedom</string>
+    <string name="geo_variant_runetfreedom_desc">Domains/IPs blocked in Russia (Roskomnadzor), updated every 6h</string>
+    <string name="geo_variant_v2fly">v2fly (official)</string>
+    <string name="geo_variant_v2fly_desc">Official geoip.dat and domain-list-community data</string>
+    <string name="geo_variant_loyalsoldier">Loyalsoldier (community)</string>
+    <string name="geo_variant_loyalsoldier_desc">Community rule set with finer-grained categories</string>
+    <string name="geo_resources_download">Download</string>
+    <string name="geo_resources_downloading">Downloading…</string>
+    <string name="geo_resources_download_failed">Download failed: %1$s</string>
+    <string name="geo_resources_delete">Delete</string>
+    <string name="geo_resources_delete_confirm_title">Delete geo resources?</string>
+    <string name="geo_resources_delete_confirm_desc">Removes the downloaded geoip.dat/geosite.dat. geosite:/geoip: routing entries will stop working until you download them again.</string>
+    <string name="geo_resources_updated_at">Updated %1$s</string>
+    <string name="geo_resources_not_downloaded">Not downloaded</string>
     <string name="connection_details">Connection details</string>
     <string name="server_settings_title">Server settings</string>
     <string name="math_minus" translatable="false">−</string>

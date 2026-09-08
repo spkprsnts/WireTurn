@@ -189,6 +189,9 @@ fun ProfileSummary(
             if (profile.xrayProtocol == XrayConfiguration.VLESS && profile.vlessConfig.isDualRoute) {
                 parts.add(stringResource(R.string.xray_uri_dual_route_short))
             }
+            if (profile.xrayProtocol == XrayConfiguration.VLESS && profile.vlessConfig.isSocks5Chain) {
+                parts.add(stringResource(R.string.xray_uri_socks5_chain_short))
+            }
         }
     }
 

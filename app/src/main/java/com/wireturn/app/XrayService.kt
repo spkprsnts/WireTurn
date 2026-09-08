@@ -212,7 +212,28 @@ class XrayService : Service() {
                 cmdArgs.add("-proxy-pass")
                 cmdArgs.add(xraySettings.proxyPass)
             }
-            
+
+            // Profile-independent settings, applied regardless of kernel/protocol.
+            if (xraySettings.dns.isNotBlank()) {
+                cmdArgs.add("-dns")
+                cmdArgs.add(xraySettings.dns)
+            }
+            if (xraySettings.routeDirect.isNotBlank()) {
+                cmdArgs.add("-route-direct")
+                cmdArgs.add(xraySettings.routeDirect)
+            }
+            if (xraySettings.routeBlock.isNotBlank()) {
+                cmdArgs.add("-route-block")
+                cmdArgs.add(xraySettings.routeBlock)
+            }
+            if (xraySettings.fakeDns) {
+                cmdArgs.add("-fakedns")
+            }
+            if (com.wireturn.app.domain.GeoAssetsManager.filesExist(this@XrayService)) {
+                cmdArgs.add("-assets-path")
+                cmdArgs.add(com.wireturn.app.domain.GeoAssetsManager.assetsDir(this@XrayService).absolutePath)
+            }
+
             if (isSocks5Core) {
                 cmdArgs.add("-local-socks5")
                 // socksAddr can be bound to 0.0.0.0 (e.g. to also serve LAN clients) - Xray connects
