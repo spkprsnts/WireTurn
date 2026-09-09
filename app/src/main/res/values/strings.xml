@@ -271,6 +271,8 @@
     <string name="qwdtt_obfs_label">Obfuscation</string>
     <string name="qwdtt_turn_tcp_label">TURN over TCP</string>
     <string name="qwdtt_turn_tcp_desc">Connect to the TURN relay over TCP instead of UDP</string>
+    <string name="qwdtt_notls_label">Direct mode (no DTLS)</string>
+    <string name="qwdtt_notls_desc">Only enable if the server was started with -listen-direct - otherwise the connection will fail</string>
     <string name="qwdtt_go_dns_label">DNS resolver</string>
     <string name="qwdtt_go_dns_desc">Resolver for VK requests before the tunnel is up: yandex, cloudflare, google, doh-yandex, doh-cloudflare, doh-google, custom:IP or doh:URL</string>
     <string name="error_qwdtt_manual_captcha_unsupported">This server requires manual VK captcha solving, which qWDTT doesn\'t support in WireTurn yet</string>

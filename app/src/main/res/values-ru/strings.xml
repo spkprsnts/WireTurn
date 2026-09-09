@@ -241,6 +241,8 @@
     <string name="qwdtt_obfs_label">Обфускация</string>
     <string name="qwdtt_turn_tcp_label">TURN по TCP</string>
     <string name="qwdtt_turn_tcp_desc">Подключаться к TURN-реле по TCP вместо UDP</string>
+    <string name="qwdtt_notls_label">Прямой режим (без DTLS)</string>
+    <string name="qwdtt_notls_desc">Включайте, только если сервер поднят с -listen-direct — иначе соединение не установится</string>
     <string name="qwdtt_go_dns_label">DNS-резолвер</string>
     <string name="qwdtt_go_dns_desc">Резолвер для запросов к VK до поднятия туннеля: yandex, cloudflare, google, doh-yandex, doh-cloudflare, doh-google, custom:IP или doh:URL</string>
     <string name="error_qwdtt_manual_captcha_unsupported">Этот сервер требует ручного решения VK-капчи, а qWDTT пока не поддерживает это в WireTurn</string>

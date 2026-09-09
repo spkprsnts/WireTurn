@@ -1154,6 +1154,7 @@ class CoreService : Service() {
                     "-obfs", o.obfsMode
                 ))
                 if (o.turnTcp) cmdArgs.add("-turn-tcp")
+                if (o.noTls) cmdArgs.add("-notls")
                 if (o.goDns.isNotBlank() && o.goDns != "yandex") cmdArgs.addAll(listOf("-go-dns", o.goDns))
                 if (cfg.isSocksAuthEnabled) {
                     cmdArgs.add("-socks-auth")

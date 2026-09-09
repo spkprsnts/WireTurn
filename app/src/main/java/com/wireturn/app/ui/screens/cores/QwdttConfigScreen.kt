@@ -413,6 +413,15 @@ fun QwdttConfigScreen(
                         isModified = isEditMode && config.turnTcp != initialConfig.turnTcp
                     )
                 }
+                SectionItem {
+                    SwitchRow(
+                        label = stringResource(R.string.qwdtt_notls_label),
+                        checked = config.noTls,
+                        onCheckedChange = { config = config.copy(noTls = it) },
+                        supportingText = stringResource(R.string.qwdtt_notls_desc),
+                        isModified = isEditMode && config.noTls != initialConfig.noTls
+                    )
+                }
                 SectionItem(position = ItemPosition.Bottom) {
                     TextFieldRow(
                         label = stringResource(R.string.qwdtt_go_dns_label),

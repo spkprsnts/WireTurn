@@ -911,7 +911,11 @@ data class QwdttConfig(
     @SerializedName("workers") val workers: Int = 9,
     @SerializedName("obfs") val obfsMode: String = "audio",
     @SerializedName("turn_tcp") val turnTcp: Boolean = false,
-    @SerializedName("go_dns") val goDns: String = "yandex"
+    @SerializedName("go_dns") val goDns: String = "yandex",
+    // -notls: direct mode, RTP-obfs AEAD without DTLS on top of TURN. Only works if the server was
+    // itself started with -listen-direct - it's a compatibility switch, not a speed/privacy knob,
+    // so it must match whatever the peer server actually expects.
+    @SerializedName("no_tls") val noTls: Boolean = false
 ) {
     fun isValid(): Boolean = peer.isNotBlank() && vkHashes.isNotBlank() && password.isNotBlank()
 
@@ -927,9 +931,9 @@ data class QwdttConfig(
     )
 
     // Deliberately only the official scheme's own fields (name/peer/hashes/workers/pass) - `port`
-    // is read on import (below) but never re-emitted, and obfs/turnTcp/goDns aren't part of that
-    // link format at all - they only travel between WireTurn profiles via the regular kernelConfig
-    // JSON (wireturn:// container / ProfileBundle).
+    // is read on import (below) but never re-emitted, and obfs/turnTcp/goDns/noTls aren't part of
+    // that link format at all - they only travel between WireTurn profiles via the regular
+    // kernelConfig JSON (wireturn:// container / ProfileBundle).
     fun toUri(profileName: String? = null): String {
         fun enc(s: String) = java.net.URLEncoder.encode(s, "UTF-8")
         val sb = StringBuilder("qwdtt://config?peer=").append(enc(peer))
@@ -968,7 +972,8 @@ data class QwdttConfig(
                     workers = current.workers,
                     obfsMode = current.obfsMode,
                     turnTcp = current.turnTcp,
-                    goDns = current.goDns
+                    goDns = current.goDns,
+                    noTls = current.noTls
                 )
             }
 
@@ -997,7 +1002,8 @@ data class QwdttConfig(
                     workers = uri.getQueryParameter("workers")?.toIntOrNull() ?: current.workers,
                     obfsMode = current.obfsMode,
                     turnTcp = current.turnTcp,
-                    goDns = current.goDns
+                    goDns = current.goDns,
+                    noTls = current.noTls
                 )
             } catch (_: Exception) {
                 null
