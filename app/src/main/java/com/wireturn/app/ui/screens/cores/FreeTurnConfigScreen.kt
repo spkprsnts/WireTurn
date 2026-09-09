@@ -345,7 +345,8 @@ fun FreeTurnConfigScreen(
                         readOnly = isPrivacyActive,
                         isModified = isEditMode && config.peer != initialConfig.peer,
                         isError = (config.peer.isBlank() && config.sub.isBlank()) || (config.peer.isNotBlank() && !ValidatorUtils.isValidHostPort(config.peer)),
-                        privacyMode = isPrivacyActive
+                        privacyMode = isPrivacyActive,
+                        placeholder = "203.0.113.10:56000"
                     )
                 }
                 SectionItem {

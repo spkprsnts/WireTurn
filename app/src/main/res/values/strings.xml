@@ -158,9 +158,9 @@
     <string name="pub_key_label">Public key</string>
     <string name="pub_key_desc">Key for a secure connection with the server</string>
     <string name="peers_label">Parallel connections</string>
-    <string name="peers_desc">Number of parallel sessions for better performance</string>
-    <string name="gateway_label">Turnable server address</string>
-    <string name="gateway_desc">Server IP and port from the Turnable configuration</string>
+    <string name="peers_desc">Higher value can improve speed</string>
+    <string name="gateway_label">Server address</string>
+    <string name="gateway_desc">IP and port of the server</string>
     <string name="proto_label">Transport protocol</string>
     <string name="proto_desc">Required for Relay type. SRTP is highly recommended</string>
     <string name="history_label">History</string>
@@ -170,6 +170,7 @@
     <string name="kernel_freeturn" translatable="false">FreeTurn</string>
     <string name="kernel_qwdtt" translatable="false">qWDTT</string>
     <string name="webdav_url_label">WebDAV URL</string>
+    <string name="webdav_url_desc">URL of the WebDAV storage</string>
     <string name="webdav_login_label">Login</string>
     <string name="webdav_password_label">Password</string>
     <string name="webdav_advanced_settings">Advanced Settings</string>
@@ -221,11 +222,11 @@
     <string name="freeturn_sub_label">Subscription URL</string>
     <string name="freeturn_sub_desc">URL to fetch servers automatically</string>
     <string name="freeturn_peer_label">Server address</string>
-    <string name="freeturn_peer_desc">Address of your VPS server (host:port)</string>
-    <string name="freeturn_n_label">TURN Streams</string>
-    <string name="freeturn_n_desc">Higher value = potentially better speed</string>
-    <string name="freeturn_spc_label">Streams per VK persona</string>
-    <string name="freeturn_spc_desc">How many parallel TURN streams share one VK auth before a new one is requested. Fewer auths means lower captcha/ban risk, but they all go down together</string>
+    <string name="freeturn_peer_desc">IP and port of the server</string>
+    <string name="freeturn_n_label">Parallel connections</string>
+    <string name="freeturn_n_desc">Higher value can improve speed</string>
+    <string name="freeturn_spc_label">Connections per VK persona</string>
+    <string name="freeturn_spc_desc">How many parallel connections share one VK auth before a new one is requested. Fewer auths means lower captcha/ban risk, but they all go down together</string>
     <string name="freeturn_obf_profile_label">Obf Profile</string>
     <string name="freeturn_obf_key_label">Obf Key (hex)</string>
     <string name="freeturn_obf_key_desc">32 bytes hex key (64 characters)</string>
@@ -263,14 +264,16 @@
     <string name="freeturn_kcp_acknodelay_label">Send ACKs immediately</string>
     <string name="freeturn_kcp_acknodelay_desc">Lower latency, more overhead</string>
     <string name="qwdtt_peer_label">Server address</string>
+    <string name="qwdtt_peer_desc">IP and port of the server</string>
     <string name="qwdtt_hashes_label">Call IDs</string>
     <string name="qwdtt_hashes_desc">VK: «https://vk.com/call/join/[ID]». Multiple IDs can be separated by commas.</string>
     <string name="qwdtt_password_label">Connection password</string>
-    <string name="qwdtt_workers_label">Workers</string>
+    <string name="qwdtt_workers_label">Parallel connections</string>
+    <string name="qwdtt_workers_desc">Higher value can improve speed</string>
     <string name="qwdtt_advanced_settings">Advanced Settings</string>
     <string name="qwdtt_obfs_label">Obfuscation</string>
-    <string name="qwdtt_turn_tcp_label">TURN over TCP</string>
-    <string name="qwdtt_turn_tcp_desc">Connect to the TURN relay over TCP instead of UDP</string>
+    <string name="qwdtt_turn_tcp_label">Transport to TURN relay</string>
+    <string name="qwdtt_turn_tcp_desc">TCP is more compatible with restrictive networks; UDP can be faster</string>
     <string name="qwdtt_notls_label">Direct mode (no DTLS)</string>
     <string name="qwdtt_notls_desc">Only enable if the server was started with -listen-direct - otherwise the connection will fail</string>
     <string name="qwdtt_manual_captcha_label">Manual Captcha</string>

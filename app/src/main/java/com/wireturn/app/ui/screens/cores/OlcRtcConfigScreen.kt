@@ -405,20 +405,7 @@ fun OlcRtcConfigScreen(
                         privacyMode = isPrivacyActive
                     )
                 }
-                SectionItem(position = ItemPosition.Bottom) {
-                    SwitchRow(
-                        label = stringResource(R.string.olcrtc_restart_on_connection_errors_label),
-                        checked = config.restartOnConnectionErrors,
-                        onCheckedChange = { config = config.copy(restartOnConnectionErrors = it) },
-                        supportingText = stringResource(R.string.olcrtc_restart_on_connection_errors_desc),
-                        isModified = isEditMode && config.restartOnConnectionErrors != initialConfig.restartOnConnectionErrors
-                    )
-                }
-            }
-
-            // Server Settings
-            SectionGroup(title = stringResource(R.string.server_settings_title)) {
-                SectionItem(position = ItemPosition.Single) {
+                SectionItem {
                     TextFieldRow(
                         label = stringResource(R.string.olcrtc_key_label),
                         value = config.key.redact(isPrivacyActive),
@@ -427,6 +414,15 @@ fun OlcRtcConfigScreen(
                         isError = config.key.isBlank(),
                         isModified = isEditMode && config.key != initialConfig.key,
                         privacyMode = isPrivacyActive
+                    )
+                }
+                SectionItem(position = ItemPosition.Bottom) {
+                    SwitchRow(
+                        label = stringResource(R.string.olcrtc_restart_on_connection_errors_label),
+                        checked = config.restartOnConnectionErrors,
+                        onCheckedChange = { config = config.copy(restartOnConnectionErrors = it) },
+                        supportingText = stringResource(R.string.olcrtc_restart_on_connection_errors_desc),
+                        isModified = isEditMode && config.restartOnConnectionErrors != initialConfig.restartOnConnectionErrors
                     )
                 }
             }

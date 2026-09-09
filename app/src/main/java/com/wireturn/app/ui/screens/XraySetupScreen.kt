@@ -710,7 +710,7 @@ private fun VlessSettingsBlock(
         }
     }
 
-    val vlessLinkError = if (kernelVariant == KernelVariant.OLCRTC || kernelVariant == KernelVariant.WEBDAV || kernelVariant == KernelVariant.FREETURN) {
+    val vlessLinkError = if (kernelVariant.isSocks5Native) {
         vlessLink.isNotBlank() && !ValidatorUtils.isValidVlessLink(vlessLink)
     } else {
         !ValidatorUtils.isValidVlessLink(vlessLink)

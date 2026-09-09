@@ -334,7 +334,8 @@ fun WebdavConfigScreen(
                         isError = config.webdav.isBlank(),
                         isModified = isEditMode && config.webdav != initialConfig.webdav,
                         privacyMode = isPrivacyActive,
-                        placeholder = "https://dav.example.com"
+                        placeholder = "https://dav.example.com",
+                        supportingText = stringResource(R.string.webdav_url_desc)
                     )
                 }
                 SectionItem {
@@ -347,7 +348,7 @@ fun WebdavConfigScreen(
                         privacyMode = isPrivacyActive
                     )
                 }
-                SectionItem(position = ItemPosition.Bottom) {
+                SectionItem {
                     TextFieldRow(
                         label = stringResource(R.string.webdav_password_label),
                         value = config.password.redact(isPrivacyActive),
@@ -360,7 +361,7 @@ fun WebdavConfigScreen(
                                 IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                     Icon(
                                         painter = painterResource(
-                                            if (passwordVisible) R.drawable.visibility_24px 
+                                            if (passwordVisible) R.drawable.visibility_24px
                                             else R.drawable.visibility_off_24px
                                         ),
                                         contentDescription = null
@@ -368,15 +369,12 @@ fun WebdavConfigScreen(
                                 }
                             }
                         },
-                        visualTransformation = if (passwordVisible || isPrivacyActive) VisualTransformation.None 
+                        visualTransformation = if (passwordVisible || isPrivacyActive) VisualTransformation.None
                                              else PasswordVisualTransformation()
                     )
                 }
-            }
-
-            SectionGroup {
                 SectionItem(
-                    position = ItemPosition.Single,
+                    position = ItemPosition.Bottom,
                     onClick = {
                         val next = !config.encrypt
                         HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
@@ -469,7 +467,7 @@ fun WebdavConfigScreen(
                         isModified = isEditMode && config.timeout != initialConfig.timeout
                     )
                 }
-                SectionItem(position = ItemPosition.Bottom) {
+                SectionItem {
                     TextFieldRow(
                         label = stringResource(R.string.webdav_coalesce),
                         value = config.coalesce,
@@ -477,10 +475,7 @@ fun WebdavConfigScreen(
                         isModified = isEditMode && config.coalesce != initialConfig.coalesce
                     )
                 }
-            }
-
-            SectionGroup {
-                SectionItem(position = ItemPosition.Top) {
+                SectionItem {
                     TextFieldRow(
                         label = stringResource(R.string.webdav_chunk_size),
                         value = config.chunkSize,

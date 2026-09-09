@@ -66,6 +66,7 @@ import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
+import com.wireturn.app.ui.LabeledButtonGroup
 import com.wireturn.app.ui.QrCodeDialog
 import com.wireturn.app.ui.RowLabel
 import com.wireturn.app.ui.SectionGroup
@@ -80,6 +81,7 @@ import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.redact
 import com.wireturn.app.ui.screens.QrScannerDialog
+import com.wireturn.app.ui.selectableButtonItem
 import com.wireturn.app.ui.showExclusiveToast
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -325,7 +327,8 @@ fun QwdttConfigScreen(
                         isError = config.peer.isBlank(),
                         isModified = isEditMode && config.peer != initialConfig.peer,
                         privacyMode = isPrivacyActive,
-                        placeholder = "1.2.3.4:56000"
+                        placeholder = "203.0.113.10:56000",
+                        supportingText = stringResource(R.string.qwdtt_peer_desc)
                     )
                 }
                 SectionItem {
@@ -370,15 +373,34 @@ fun QwdttConfigScreen(
 
             // Server Settings
             SectionGroup(title = stringResource(R.string.server_settings_title)) {
-                SectionItem(position = ItemPosition.Single) {
+                SectionItem(position = ItemPosition.Top) {
                     SliderRow(
                         label = stringResource(R.string.qwdtt_workers_label),
                         value = config.workers.toFloat(),
                         onValueChange = { config = config.copy(workers = it.roundToInt()) },
                         valueRange = 1f..108f,
                         steps = 106,
+                        supportingText = stringResource(R.string.qwdtt_workers_desc),
                         isModified = isEditMode && config.workers != initialConfig.workers
                     )
+                }
+                SectionItem(position = ItemPosition.Bottom) {
+                    LabeledButtonGroup(
+                        label = stringResource(R.string.qwdtt_turn_tcp_label),
+                        supportingText = stringResource(R.string.qwdtt_turn_tcp_desc),
+                        isModified = isEditMode && config.turnTcp != initialConfig.turnTcp
+                    ) {
+                        val options = listOf("udp", "tcp")
+                        options.forEachIndexed { index, t ->
+                            selectableButtonItem(
+                                selected = config.turnTcp == (t == "tcp"),
+                                onSelect = { config = config.copy(turnTcp = t == "tcp") },
+                                label = t.uppercase(),
+                                index = index,
+                                count = options.size
+                            )
+                        }
+                    }
                 }
             }
 
@@ -403,15 +425,6 @@ fun QwdttConfigScreen(
                             SupportingText(config.obfsMode)
                         }
                     }
-                }
-                SectionItem {
-                    SwitchRow(
-                        label = stringResource(R.string.qwdtt_turn_tcp_label),
-                        checked = config.turnTcp,
-                        onCheckedChange = { config = config.copy(turnTcp = it) },
-                        supportingText = stringResource(R.string.qwdtt_turn_tcp_desc),
-                        isModified = isEditMode && config.turnTcp != initialConfig.turnTcp
-                    )
                 }
                 SectionItem {
                     SwitchRow(

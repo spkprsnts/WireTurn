@@ -375,22 +375,38 @@ fun TurnableConfigScreen(
             }
             // connection details
             SectionGroup(title = stringResource(R.string.connection_details)) {
-                SectionItem(
-                    position = ItemPosition.Top
-                ) {
-                    SliderRow(
-                        label = stringResource(R.string.peers_label),
-                        value = config.peers.toFloat(),
-                        onValueChange = {
-                            config = config.copy(peers = it.roundToInt())
-                        },
-                        valueRange = 1f..32f,
-                        steps = 30,
-                        supportingText = stringResource(R.string.peers_desc),
-                        isModified = isEditMode && config.peers != initialConfig.peers
+                SectionItem(position = ItemPosition.Top) {
+                    LabeledButtonGroup(
+                        label = stringResource(R.string.connection_type_label),
+                        supportingText = stringResource(R.string.connection_type_desc),
+                        isModified = isEditMode && config.type != initialConfig.type
+                    ) {
+                        val types = listOf("relay", "direct")
+                        types.forEachIndexed { index, t ->
+                            selectableButtonItem(
+                                selected = config.type == t,
+                                onSelect = { config = config.copy(type = t) },
+                                label = t.replaceFirstChar { it.uppercase() },
+                                index = index,
+                                count = types.size
+                            )
+                        }
+                    }
+                }
+                SectionItem {
+                    TextFieldRow(
+                        label = stringResource(R.string.gateway_label),
+                        value = config.gateway.redact(isPrivacyActive),
+                        onValueChange = { if (!isPrivacyActive) config = config.copy(gateway = it) },
+                        readOnly = isPrivacyActive,
+                        supportingText = stringResource(R.string.gateway_desc),
+                        isModified = isEditMode && config.gateway != initialConfig.gateway,
+                        isError = !ValidatorUtils.isValidHostPort(config.gateway),
+                        privacyMode = isPrivacyActive,
+                        placeholder = "203.0.113.10:56000"
                     )
                 }
-                SectionItem(position = ItemPosition.Bottom) {
+                SectionItem {
                     TextFieldRow(
                         label = stringResource(R.string.call_id_label),
                         value = config.callId.redact(isPrivacyActive),
@@ -402,11 +418,7 @@ fun TurnableConfigScreen(
                         privacyMode = isPrivacyActive
                     )
                 }
-            }
-
-            // server settings
-            SectionGroup(title = stringResource(R.string.server_settings_title)) {
-                SectionItem(position = ItemPosition.Top) {
+                SectionItem {
                     val isUuidEmpty = config.userUuid.isNullOrBlank()
                     val invalidUuid = config.userUuid?.let { it.isNotBlank() && !ValidatorUtils.isValidUuid4(it) } ?: false
 
@@ -454,24 +466,6 @@ fun TurnableConfigScreen(
                     }
                 }
                 SectionItem {
-                    LabeledButtonGroup(
-                        label = stringResource(R.string.connection_type_label),
-                        supportingText = stringResource(R.string.connection_type_desc),
-                        isModified = isEditMode && config.type != initialConfig.type
-                    ) {
-                        val types = listOf("relay", "direct")
-                        types.forEachIndexed { index, t ->
-                            selectableButtonItem(
-                                selected = config.type == t,
-                                onSelect = { config = config.copy(type = t) },
-                                label = t.replaceFirstChar { it.uppercase() },
-                                index = index,
-                                count = types.size
-                            )
-                        }
-                    }
-                }
-                SectionItem {
                     TextFieldRow(
                         label = stringResource(R.string.pub_key_label),
                         value = (config.pubKey ?: "").redact(isPrivacyActive),
@@ -483,7 +477,7 @@ fun TurnableConfigScreen(
                         privacyMode = isPrivacyActive
                     )
                 }
-                SectionItem {
+                SectionItem(position = ItemPosition.Bottom) {
                     LabeledButtonGroup(
                         label = stringResource(R.string.encryption_label),
                         supportingText = stringResource(R.string.encryption_desc),
@@ -501,16 +495,21 @@ fun TurnableConfigScreen(
                         }
                     }
                 }
-                SectionItem {
-                    TextFieldRow(
-                        label = stringResource(R.string.gateway_label),
-                        value = config.gateway.redact(isPrivacyActive),
-                        onValueChange = { if (!isPrivacyActive) config = config.copy(gateway = it) },
-                        readOnly = isPrivacyActive,
-                        supportingText = stringResource(R.string.gateway_desc),
-                        isModified = isEditMode && config.gateway != initialConfig.gateway,
-                        isError = !ValidatorUtils.isValidHostPort(config.gateway),
-                        privacyMode = isPrivacyActive
+            }
+
+            // server settings
+            SectionGroup(title = stringResource(R.string.server_settings_title)) {
+                SectionItem(position = ItemPosition.Top) {
+                    SliderRow(
+                        label = stringResource(R.string.peers_label),
+                        value = config.peers.toFloat(),
+                        onValueChange = {
+                            config = config.copy(peers = it.roundToInt())
+                        },
+                        valueRange = 1f..32f,
+                        steps = 30,
+                        supportingText = stringResource(R.string.peers_desc),
+                        isModified = isEditMode && config.peers != initialConfig.peers
                     )
                 }
                 SectionItem(position = ItemPosition.Bottom) {
