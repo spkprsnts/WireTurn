@@ -148,8 +148,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val updatingSubIds: StateFlow<Set<String>> = profileManager.updatingSubIds
     val profileCountries: StateFlow<Map<String, String>> = profileManager.profileCountries
 
-    val isArchitectureSupported: Boolean = Build.SUPPORTED_ABIS.any { 
-        it == "arm64-v8a" || it == "x86_64" 
+    val isArchitectureSupported: Boolean = Build.SUPPORTED_ABIS.any {
+        it == "arm64-v8a" || it == "x86_64" || it == "armeabi-v7a" || it == "x86"
     }
     val deviceArchitecture: String = Build.SUPPORTED_ABIS.firstOrNull() ?: "unknown"
 

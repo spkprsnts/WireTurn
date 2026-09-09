@@ -19,6 +19,7 @@ object AppLogsState {
 
     fun addLog(msg: String) {
         val cleanMsg = stripAnsi(msg)
+        android.util.Log.i("WireTurnCore", cleanMsg)
         _logs.update { current ->
             val next = current + LogEntry(nextId++, cleanMsg)
             if (next.size > MAX_LOG_LINES) next.drop(next.size - MAX_LOG_LINES) else next

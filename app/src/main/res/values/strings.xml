@@ -492,7 +492,7 @@
 
     <!-- Warnings -->
     <string name="warn_unsupported_arch_title">Architecture not supported</string>
-    <string name="warn_unsupported_arch_desc">Your device uses an architecture (%1$s) not supported by the built-in binaries. The app may not work correctly or fail to start.\n\nSupported architectures: arm64-v8a, x86_64.</string>
+    <string name="warn_unsupported_arch_desc">Your device uses an architecture (%1$s) not supported by the built-in binaries. The app may not work correctly or fail to start.\n\nSupported architectures: arm64-v8a, x86_64, armeabi-v7a, x86.</string>
 
     <string name="mismatch_title">Protocol mismatch</string>
     <string name="xray_uri_mismatch_tcp">%1$s\'s route only carries TCP (VLESS, Trojan)</string>

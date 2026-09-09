@@ -264,10 +264,14 @@ class AppUpdater(private val context: Context) {
 
         if (apkAssets.isEmpty()) return null
 
-        // 1. Поиск под конкретную архитектуру устройства (в порядке приоритета ОС)
+        // 1. Поиск под конкретную архитектуру устройства (в порядке приоритета ОС).
+        // Матчим по суффиксу "_<abi>.apk" (наш собственный формат имени из build.gradle.kts),
+        // а не по contains() - иначе abi="x86" ложно совпадает с файлом "..._x86_64.apk",
+        // т.к. "x86_64" содержит "x86" как подстроку.
         for (abi in Build.SUPPORTED_ABIS) {
-            val match = apkAssets.find { 
-                it.getString("name").lowercase().contains(abi.lowercase()) 
+            val suffix = "_${abi.lowercase()}.apk"
+            val match = apkAssets.find {
+                it.getString("name").lowercase().endsWith(suffix)
             }
             if (match != null) return match.getString("browser_download_url")
         }

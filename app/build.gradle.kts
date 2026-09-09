@@ -30,7 +30,7 @@ android {
         abi {
             isEnable = true
             reset()
-            include("arm64-v8a", "x86_64")
+            include("arm64-v8a", "x86_64", "armeabi-v7a", "x86")
             isUniversalApk = true
         }
     }
@@ -175,7 +175,7 @@ tasks.register<Exec>("buildCBinaries") {
     description = "Compiles hev-socks5-tunnel (C/Makefile) for Android"
     workingDir = rootDir
     doNotTrackState("hev-socks5-tunnel contains symlinks that Gradle cannot snapshot on Windows")
-    listOf("arm64-v8a", "x86_64").forEach { abi ->
+    listOf("arm64-v8a", "x86_64", "armeabi-v7a", "x86").forEach { abi ->
         outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libhevsocks5.so"))
     }
     configureNdk()
@@ -209,7 +209,7 @@ tasks.register<Exec>("buildGoBinaries") {
         .optional()
     inputs.file(file("${rootDir}/build.sh")).withPathSensitivity(PathSensitivity.RELATIVE)
 
-    listOf("arm64-v8a", "x86_64").forEach { abi ->
+    listOf("arm64-v8a", "x86_64", "armeabi-v7a", "x86").forEach { abi ->
         outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libolcrtc.so"))
         outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libxray.so"))
         outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libturnable.so"))
