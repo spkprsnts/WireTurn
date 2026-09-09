@@ -86,13 +86,18 @@ private suspend fun WebView.evalJs(script: String): String? =
  * (`https://id.vk.ru/not_robot_captcha?...`) and its own completion flow legitimately redirects
  * across VK's own subdomains (id.vk.ru <-> vk.com) - restricting those to `initialHost` alone is
  * what broke it: solving showed nothing further because that later redirect got vetoed here.
+ *
+ * [allowVkDomains] gates the broadened vk.com/vk.ru allowance behind the same condition that
+ * installs the native JS bridge (`useNativeBridge`, qWDTT-only) - FreeTurn's dialog never gets the
+ * bridge, so it has no reason to accept navigation anywhere outside its own local proxy either.
  */
-private fun isAllowedCaptchaNavigationUrl(url: String, initialHost: String?): Boolean {
+private fun isAllowedCaptchaNavigationUrl(url: String, initialHost: String?, allowVkDomains: Boolean): Boolean {
     val uri = url.toUri()
     val scheme = uri.scheme?.lowercase()
     val host = uri.host ?: return false
     if (scheme != "http" && scheme != "https") return false
     if (host == "127.0.0.1" || host == "localhost" || host == initialHost) return true
+    if (!allowVkDomains) return false
     return host == "vk.com" || host == "vk.ru" || host.endsWith(".vk.com") || host.endsWith(".vk.ru")
 }
 
@@ -323,7 +328,7 @@ fun CaptchaWebViewDialog(
                                     override fun shouldOverrideUrlLoading(
                                         view: WebView,
                                         request: WebResourceRequest
-                                    ): Boolean = !isAllowedCaptchaNavigationUrl(request.url.toString(), initialCaptchaHost)
+                                    ): Boolean = !isAllowedCaptchaNavigationUrl(request.url.toString(), initialCaptchaHost, useNativeBridge)
 
                                     override fun onPageFinished(view: WebView?, url: String?) {
                                         super.onPageFinished(view, url)
@@ -528,6 +533,11 @@ fun CaptchaWebViewDialog(
                                 null
                             )
                         },
+                        // The native JS bridge (when installed) captures onSuccess, which closes
+                        // over the caller's Activity/ViewModel chain - without an explicit destroy()
+                        // here, that closure (and everything it holds) stays reachable through the
+                        // WebView for as long as its native backing lives, past this dialog's exit.
+                        onRelease = { it.destroy() },
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer { alpha = contentAlpha }

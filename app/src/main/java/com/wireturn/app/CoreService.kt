@@ -593,6 +593,18 @@ class CoreService : Service() {
         CoreServiceState.setStatusText(null)
     }
 
+    // MainActivity's own LaunchedEffect(captchaSession) would eventually pick a new session up
+    // too, but don't rely solely on that recomposing in time - open the window directly while
+    // the app is foreground. Shared by both FreeTurn's and qWDTT's captcha branches.
+    private fun launchCaptchaActivityIfForeground(url: String) {
+        if (!AppLifecycleState.isAppInForeground.value) return
+        val intent = Intent(this, com.wireturn.app.ui.activities.CaptchaActivity::class.java).apply {
+            putExtra("CAPTCHA_URL", url)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        }
+        startActivity(intent)
+    }
+
     private fun handleFreeTurnLog(line: String, lower: String, state: BinaryOutputState): Boolean {
         // 1. Hard Errors
         if (lower.startsWith("panic:") || lower.startsWith("fatal error:") || 
@@ -696,16 +708,7 @@ class CoreService : Service() {
                         CaptchaSession(redirectUri, state.captchaSessionCounter, needsResultToken = true)
                     )
 
-                    // MainActivity's own LaunchedEffect(captchaSession) would eventually pick this
-                    // up too, but (as with FreeTurn's captcha branch above) don't rely solely on
-                    // that recomposing in time - open the window directly while foreground.
-                    if (AppLifecycleState.isAppInForeground.value) {
-                        val intent = Intent(this, com.wireturn.app.ui.activities.CaptchaActivity::class.java).apply {
-                            putExtra("CAPTCHA_URL", redirectUri)
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                        }
-                        startActivity(intent)
-                    }
+                    launchCaptchaActivityIfForeground(redirectUri)
                 }
             }
             return false
@@ -1026,13 +1029,7 @@ class CoreService : Service() {
             updateNotification(getString(R.string.core_captcha_required))
             
             // Автоматически открываем окно капчи, если приложение активно
-            if (AppLifecycleState.isAppInForeground.value) {
-                val intent = Intent(this, com.wireturn.app.ui.activities.CaptchaActivity::class.java).apply {
-                    putExtra("CAPTCHA_URL", captchaUrl)
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                }
-                startActivity(intent)
-            }
+            launchCaptchaActivityIfForeground(captchaUrl)
         }
 
         if (state.captchaActive && (

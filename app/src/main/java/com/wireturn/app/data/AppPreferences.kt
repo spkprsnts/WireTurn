@@ -985,7 +985,7 @@ data class QwdttConfig(
             if (!trimmed.startsWith("qwdtt://", ignoreCase = true) && !trimmed.startsWith("qwdtt:config", ignoreCase = true)) return null
             return try {
                 val normalized = if (trimmed.startsWith("qwdtt://", ignoreCase = true)) trimmed
-                    else trimmed.replaceFirst("qwdtt:", "qwdtt://")
+                    else trimmed.replaceFirst("qwdtt:", "qwdtt://", ignoreCase = true)
                 val uri = Uri.parse(normalized)
                 val peerRaw = uri.getQueryParameter("peer") ?: current.peer
                 // Some third-party generators send peer as host-only, with the port as a separate
@@ -1103,18 +1103,18 @@ data class ClientConfig(
 
     fun getValidationErrorResId(): Int? = when (val k = kernelConfig) {
         is KernelConfig.Turnable -> if (!k.config.isValid()) R.string.error_settings_empty else null
-        is KernelConfig.Olcrtc -> when {
-            !k.config.isValid() -> R.string.error_settings_empty
-            !isSocksAuthEnabled && !ValidatorUtils.isLoopbackHostPort(socksAddr) -> R.string.error_olcrtc_socks_public_requires_auth
-            else -> null
-        }
+        is KernelConfig.Olcrtc -> socksNativeValidationError(k.config.isValid())
         is KernelConfig.Webdav -> if (!k.config.isValid()) R.string.error_settings_empty else null
         is KernelConfig.FreeTurn -> if (!k.config.isValid()) R.string.error_settings_empty else null
-        is KernelConfig.Qwdtt -> when {
-            !k.config.isValid() -> R.string.error_settings_empty
-            !isSocksAuthEnabled && !ValidatorUtils.isLoopbackHostPort(socksAddr) -> R.string.error_olcrtc_socks_public_requires_auth
-            else -> null
-        }
+        is KernelConfig.Qwdtt -> socksNativeValidationError(k.config.isValid())
+    }
+
+    // Shared by every SOCKS5-native kernel (OLCRTC, qWDTT): besides its own config being filled in,
+    // a public (non-loopback) SOCKS5 listen address must have auth enabled.
+    private fun socksNativeValidationError(configIsValid: Boolean): Int? = when {
+        !configIsValid -> R.string.error_settings_empty
+        !isSocksAuthEnabled && !ValidatorUtils.isLoopbackHostPort(socksAddr) -> R.string.error_olcrtc_socks_public_requires_auth
+        else -> null
     }
 
     val isValid: Boolean get() = getValidationErrorResId() == null
