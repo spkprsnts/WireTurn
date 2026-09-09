@@ -58,6 +58,7 @@ import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.activities.cores.FreeTurnConfigActivity
 import com.wireturn.app.ui.activities.cores.OlcRtcConfigActivity
+import com.wireturn.app.ui.activities.cores.QwdttConfigActivity
 import com.wireturn.app.ui.activities.cores.TurnableConfigActivity
 import com.wireturn.app.ui.activities.cores.WebdavConfigActivity
 import com.wireturn.app.ui.screens.ProfileNameDialog
@@ -396,10 +397,12 @@ class AddProfileActivity : ComponentActivity() {
                     val source = status.source
                     val uriFragment = try { source.toUri().fragment } catch (_: Exception) { null }
                     val olcrtcMimo = if (source.startsWith("olcrtc://") && source.contains("$")) source.substringAfterLast("$") else null
-                    
+                    val qwdttName = try { source.toUri().getQueryParameter("name") } catch (_: Exception) { null }
+
                     val initialNameFromSource = if (status.type == "WebDAV") uriFragment
                     else if (status.type == "olcRTC") olcrtcMimo
                     else if (status.type == "FreeTurn") uriFragment
+                    else if (status.type == "qWDTT") qwdttName
                     else null
 
                     val initialName = if (!initialNameFromSource.isNullOrBlank()) {
@@ -418,6 +421,7 @@ class AddProfileActivity : ComponentActivity() {
                                 "olcRTC" -> Intent(this@AddProfileActivity, OlcRtcConfigActivity::class.java)
                                 "WebDAV" -> Intent(this@AddProfileActivity, WebdavConfigActivity::class.java)
                                 "FreeTurn" -> Intent(this@AddProfileActivity, FreeTurnConfigActivity::class.java)
+                                "qWDTT" -> Intent(this@AddProfileActivity, QwdttConfigActivity::class.java)
                                 else -> null
                             }
                             intent?.let {

@@ -37,6 +37,7 @@
     <string name="olcrtc_core">Ядро туннеля (olcRTC)</string>
     <string name="webdav_core">Ядро туннеля (WebDAV)</string>
     <string name="freeturn_core">Ядро туннеля (FreeTurn)</string>
+    <string name="qwdtt_core">Ядро туннеля (qWDTT)</string>
     <!-- Кнопки и общие действия -->
     <string name="btn_open">Открыть</string>
     <string name="btn_start">Запустить</string>
@@ -109,6 +110,7 @@
     <string name="wg_endpoint">Эндпоинт (локальный)</string>
     <string name="wg_not_used_with_olcrtc">WireGuard не используется с olcRTC</string>
     <string name="wg_not_used_with_webdav">WireGuard не используется с WebDAV</string>
+    <string name="wg_not_used_with_qwdtt">WireGuard не используется с qWDTT</string>
 
     <!-- Настройка клиента (Backend/Proxy) -->
     <string name="route_title">Маршрут</string>
@@ -137,6 +139,7 @@
     <string name="proto_desc">Необходим для типа Relay. Рекомендуется SRTP</string>
     <string name="history_label">История</string>
     <string name="kernel_freeturn">FreeTurn</string>
+    <string name="kernel_qwdtt">qWDTT</string>
     <string name="olcrtc_id_label">ID комнаты</string>
     <string name="olcrtc_key_label">Ключ авторизации</string>
     <string name="olcrtc_carrier_label">Платформа</string>
@@ -184,7 +187,7 @@
     <string name="olcrtc_video_qr_size">Размер QR</string>
     <string name="olcrtc_video_tile_module">Tile Module</string>
     <string name="olcrtc_video_tile_rs">Tile RS</string>
-    <string name="freeturn_links_label">ID звонка</string>
+    <string name="freeturn_links_label">ID звонков</string>
     <string name="freeturn_links_desc">VK: Звонки «https://vk.com/call/join/[ID]». Можно указать несколько через запятую.</string>
     <string name="freeturn_sub_label">URL подписки</string>
     <string name="freeturn_sub_desc">Ссылка для авто-обновления серверов</string>
@@ -229,10 +232,22 @@
     <string name="freeturn_kcp_mtu_desc">Должно совпадать с сервером</string>
     <string name="freeturn_kcp_acknodelay_label">Отправлять ACK немедленно</string>
     <string name="freeturn_kcp_acknodelay_desc">Ниже задержка, больше служебного трафика</string>
+    <string name="qwdtt_peer_label">Адрес сервера</string>
+    <string name="qwdtt_hashes_label">ID звонков</string>
+    <string name="qwdtt_hashes_desc">VK: Звонки «https://vk.com/call/join/[ID]». Можно указать несколько через запятую.</string>
+    <string name="qwdtt_password_label">Пароль подключения</string>
+    <string name="qwdtt_workers_label">Воркеры</string>
+    <string name="qwdtt_advanced_settings">Расширенные настройки</string>
+    <string name="qwdtt_obfs_label">Обфускация</string>
+    <string name="qwdtt_turn_tcp_label">TURN по TCP</string>
+    <string name="qwdtt_turn_tcp_desc">Подключаться к TURN-реле по TCP вместо UDP</string>
+    <string name="qwdtt_go_dns_label">DNS-резолвер</string>
+    <string name="qwdtt_go_dns_desc">Резолвер для запросов к VK до поднятия туннеля: yandex, cloudflare, google, doh-yandex, doh-cloudflare, doh-google, custom:IP или doh:URL</string>
+    <string name="error_qwdtt_manual_captcha_unsupported">Этот сервер требует ручного решения VK-капчи, а qWDTT пока не поддерживает это в WireTurn</string>
     <string name="local_listen_address">Локальный адрес прослушивания</string>
     <string name="local_port_help_text">Turnable и FreeTurn не создают обычный прокси — они поднимают по этому адресу точку входа сырого туннеля.</string>
     <string name="local_port_help_secondary">Встроенный Xray сам подключается сюда, чтобы превратить это в ссылку Xray или VPN. Меняйте адрес только если хотите подключить к туннелю напрямую сторонний VPN-клиент (WireGuard, v2RayTun и др.), в обход Xray.</string>
-    <string name="olcrtc_socks_help_text">olcRTC и WebDAV не используют VPN-протокол — они сразу поднимают по этому адресу локальный SOCKS5-прокси.</string>
+    <string name="olcrtc_socks_help_text">olcRTC, WebDAV и qWDTT не используют VPN-протокол — они сразу поднимают по этому адресу локальный SOCKS5-прокси.</string>
     <string name="olcrtc_socks_help_secondary">Xray использует этот адрес как вышестоящий прокси в режиме Dual-route. Для маршрутизации всего трафика устройства через VPN Xray не обязателен — VPN может подключаться к этому SOCKS5 напрямую. К тому же адресу можно подключить и любое другое приложение с поддержкой SOCKS5.</string>
 
     <!-- Экран логов (Logs) -->
@@ -448,8 +463,8 @@
     <string name="qr_scan_progress">Получено %1$d из %2$d частей — продолжайте сканировать</string>
     <string name="qr_force_static_label">Один QR-код</string>
     <string name="qr_force_static_hint">Для сканирования сторонними приложениями, которые не понимают многокадровый формат; может не сканироваться</string>
-    <string name="settings_group_turnable">Настройки Turnable / FreeTurn</string>
-    <string name="settings_group_olcrtc">Настройки olcRTC / WebDAV</string>
+    <string name="settings_group_turnable">Настройки Turnable / FreeTurn / qWDTT</string>
+    <string name="settings_group_olcrtc">Настройки olcRTC / WebDAV / qWDTT</string>
     <string name="xray_settings_group_connection">Подключение</string>
     <string name="xray_proxy_auth">Авторизация прокси</string>
     <string name="xray_proxy_auth_desc">Защитить прокси логином и паролем</string>

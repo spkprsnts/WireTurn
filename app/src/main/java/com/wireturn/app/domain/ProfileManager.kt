@@ -903,8 +903,8 @@ class ProfileManager(
     private fun tryParseTextSubscription(text: String): ProfileBundle? {
         if (!text.contains("freeturn://") && !text.contains("olcrtc://") &&
             !text.contains("turnable://") && !text.contains("webdav://") &&
-            !text.contains("webdavs://") && !text.contains("wireturn://") &&
-            !text.contains("wt://") && !text.contains("#name:")) return null
+            !text.contains("webdavs://") && !text.contains("qwdtt://") && !text.contains("wdtt://") &&
+            !text.contains("wireturn://") && !text.contains("wt://") && !text.contains("#name:")) return null
 
         val lines = text.lines()
         var subName: String? = null
@@ -972,6 +972,17 @@ class ProfileManager(
                     id = stableTextSubEntryId(trimmed),
                     name = nameFromUri ?: "FreeTurn Server",
                     kernelConfig = KernelConfig.FreeTurn(config)
+                )
+            } else if (trimmed.startsWith("qwdtt://") || trimmed.startsWith("qwdtt:config") || trimmed.startsWith("wdtt://")) {
+                flush()
+                val config = com.wireturn.app.data.QwdttConfig.parse(trimmed) ?: continue
+                val nameFromUri = try { trimmed.toUri().getQueryParameter("name") } catch (_: Exception) { null }
+
+                currentKernelConfig = KernelConfig.Qwdtt(config)
+                currentProfile = Profile(
+                    id = stableTextSubEntryId(trimmed),
+                    name = nameFromUri ?: "qWDTT Server",
+                    kernelConfig = KernelConfig.Qwdtt(config)
                 )
             } else if (trimmed.startsWith("olcrtc://")) {
                 flush()

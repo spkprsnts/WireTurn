@@ -38,6 +38,7 @@
     <string name="olcrtc_core">Tunnel core (olcRTC)</string>
     <string name="webdav_core">Tunnel core (WebDAV)</string>
     <string name="freeturn_core">Tunnel core (FreeTurn)</string>
+    <string name="qwdtt_core">Tunnel core (qWDTT)</string>
     <string name="xray_core_name" translatable="false">vless-client</string>
     <string name="xray_core_original" translatable="false">Xray-core</string>
     <string name="hev_socks5_tunnel" translatable="false">hev-socks5-tunnel</string>
@@ -123,6 +124,7 @@
     <string name="wg_persistent_keepalive_placeholder" translatable="false">25</string>
     <string name="wg_not_used_with_olcrtc">WireGuard is not used with olcRTC</string>
     <string name="wg_not_used_with_webdav">WireGuard is not used with WebDAV</string>
+    <string name="wg_not_used_with_qwdtt">WireGuard is not used with qWDTT</string>
 
     <!-- Xray Setup (SOCKS/HTTP) -->
     <string name="xray_title" translatable="false">Xray</string>
@@ -166,6 +168,7 @@
     <string name="kernel_olcrtc" translatable="false">olcRTC</string>
     <string name="kernel_webdav" translatable="false">WebDAV</string>
     <string name="kernel_freeturn" translatable="false">FreeTurn</string>
+    <string name="kernel_qwdtt" translatable="false">qWDTT</string>
     <string name="webdav_url_label">WebDAV URL</string>
     <string name="webdav_login_label">Login</string>
     <string name="webdav_password_label">Password</string>
@@ -213,7 +216,7 @@
     <string name="olcrtc_video_qr_size">QR Size</string>
     <string name="olcrtc_video_tile_module">Tile Module</string>
     <string name="olcrtc_video_tile_rs">Tile RS</string>
-    <string name="freeturn_links_label">Call ID</string>
+    <string name="freeturn_links_label">Call IDs</string>
     <string name="freeturn_links_desc">VK: «https://vk.com/call/join/[ID]». Multiple IDs can be separated by commas.</string>
     <string name="freeturn_sub_label">Subscription URL</string>
     <string name="freeturn_sub_desc">URL to fetch servers automatically</string>
@@ -259,10 +262,22 @@
     <string name="freeturn_kcp_mtu_desc">Must match the server</string>
     <string name="freeturn_kcp_acknodelay_label">Send ACKs immediately</string>
     <string name="freeturn_kcp_acknodelay_desc">Lower latency, more overhead</string>
+    <string name="qwdtt_peer_label">Server address</string>
+    <string name="qwdtt_hashes_label">Call IDs</string>
+    <string name="qwdtt_hashes_desc">VK: «https://vk.com/call/join/[ID]». Multiple IDs can be separated by commas.</string>
+    <string name="qwdtt_password_label">Connection password</string>
+    <string name="qwdtt_workers_label">Workers</string>
+    <string name="qwdtt_advanced_settings">Advanced Settings</string>
+    <string name="qwdtt_obfs_label">Obfuscation</string>
+    <string name="qwdtt_turn_tcp_label">TURN over TCP</string>
+    <string name="qwdtt_turn_tcp_desc">Connect to the TURN relay over TCP instead of UDP</string>
+    <string name="qwdtt_go_dns_label">DNS resolver</string>
+    <string name="qwdtt_go_dns_desc">Resolver for VK requests before the tunnel is up: yandex, cloudflare, google, doh-yandex, doh-cloudflare, doh-google, custom:IP or doh:URL</string>
+    <string name="error_qwdtt_manual_captcha_unsupported">This server requires manual VK captcha solving, which qWDTT doesn\'t support in WireTurn yet</string>
     <string name="local_listen_address">Local listen address</string>
     <string name="local_port_help_text">Turnable and FreeTurn don\'t produce a standard proxy - they open a raw tunnel endpoint at this address.</string>
     <string name="local_port_help_secondary">The app\'s own Xray connects here automatically to turn it into an Xray link or a VPN. Change this only if you want to point a separate VPN app (WireGuard, v2RayTun, etc.) at the tunnel directly, bypassing Xray.</string>
-    <string name="olcrtc_socks_help_text">olcRTC and WebDAV don\'t use a VPN protocol - they run a local SOCKS5 proxy directly at this address.</string>
+    <string name="olcrtc_socks_help_text">olcRTC, WebDAV and qWDTT don\'t use a VPN protocol - they run a local SOCKS5 proxy directly at this address.</string>
     <string name="olcrtc_socks_help_secondary">Xray uses this address as the upstream for Dual-route. Xray isn\'t required for full-device VPN routing - VPN mode can connect to this SOCKS5 proxy directly. You can also point any other app that supports SOCKS5 proxies at the same address.</string>
 
     <!-- Logs Screen (Logs) -->
@@ -491,8 +506,8 @@
     <string name="qr_scan_progress">Collected %1$d of %2$d parts — keep scanning</string>
     <string name="qr_force_static_label">Single QR code</string>
     <string name="qr_force_static_hint">For scanning with other apps that don\'t support multi-frame codes; may not scan reliably</string>
-    <string name="settings_group_turnable">Turnable / FreeTurn settings</string>
-    <string name="settings_group_olcrtc">olcRTC / WebDAV settings</string>
+    <string name="settings_group_turnable">Turnable / FreeTurn / qWDTT settings</string>
+    <string name="settings_group_olcrtc">olcRTC / WebDAV / qWDTT settings</string>
     <string name="xray_settings_group_connection">Connection</string>
     <string name="xray_protocol_desc">Choose protocol for Xray-core</string>
     <string name="protocol_wireguard" translatable="false">WireGuard</string>

@@ -786,6 +786,17 @@ private fun RepoLinksContent(
 
             item {
                 RepoLinkItem(
+                    title = stringResource(R.string.qwdtt_core),
+                    subtitle = "SpaceNeuroX/proxy-turn-vk-android",
+                    url = "https://github.com/SpaceNeuroX/proxy-turn-vk-android",
+                    containerColor = containerColor,
+                    onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
+                    onOpen = { uriHandler.openUri(it) }
+                )
+            }
+
+            item {
+                RepoLinkItem(
                     title = stringResource(R.string.olcrtc_core),
                     subtitle = "openlibrecommunity/olcrtc",
                     url = "https://github.com/openlibrecommunity/olcrtc",

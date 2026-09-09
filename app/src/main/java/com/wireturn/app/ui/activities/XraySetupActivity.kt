@@ -52,6 +52,11 @@ class XraySetupActivity : ComponentActivity() {
                 val freeturn = if (json != null) Gson().fromJson(json, com.wireturn.app.data.FreeTurnConfig::class.java) ?: com.wireturn.app.data.FreeTurnConfig() else com.wireturn.app.data.FreeTurnConfig()
                 ClientConfig(kernelConfig = KernelConfig.FreeTurn(freeturn))
             }
+            KernelVariant.QWDTT.name -> {
+                val json = intent.getStringExtra("EXTRA_QWDTT_CONFIG_JSON")
+                val qwdtt = if (json != null) Gson().fromJson(json, com.wireturn.app.data.QwdttConfig::class.java) ?: com.wireturn.app.data.QwdttConfig() else com.wireturn.app.data.QwdttConfig()
+                ClientConfig(kernelConfig = KernelConfig.Qwdtt(qwdtt))
+            }
             else -> {
                 val json = intent.getStringExtra("EXTRA_TURNABLE_CONFIG_JSON")
                 val turnable = if (json != null) Gson().fromJson(json, TurnableConfig::class.java) ?: TurnableConfig() else TurnableConfig()

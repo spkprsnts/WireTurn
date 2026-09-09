@@ -807,6 +807,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             trimmed
         )
 
+        val qwdtt = com.wireturn.app.data.QwdttConfig.parse(trimmed)
+        if (qwdtt != null) return com.wireturn.app.domain.ImportStatus.KernelConfigDetected(
+            "qWDTT",
+            com.google.gson.Gson().toJson(qwdtt),
+            trimmed
+        )
+
         return com.wireturn.app.domain.ImportStatus.InvalidFormat
     }
 

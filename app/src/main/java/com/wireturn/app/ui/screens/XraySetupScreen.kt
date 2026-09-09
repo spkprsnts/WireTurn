@@ -114,6 +114,7 @@ fun XraySetupScreen(
         KernelVariant.OLCRTC -> stringResource(R.string.kernel_olcrtc)
         KernelVariant.WEBDAV -> stringResource(R.string.kernel_webdav)
         KernelVariant.FREETURN -> stringResource(R.string.kernel_freeturn)
+        KernelVariant.QWDTT -> stringResource(R.string.kernel_qwdtt)
     }
     val xraySubtitle = if (isEditMode && profileName != null) "$kernelName: $profileName" else null
     val canChangeProtocol = remember(kernelVariant) {
@@ -598,10 +599,11 @@ private fun WireGuardSettingsBlock(
                         )
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        val msg = if (kernelVariant == KernelVariant.OLCRTC)
-                            stringResource(R.string.wg_not_used_with_olcrtc)
-                        else
-                            stringResource(R.string.wg_not_used_with_webdav)
+                        val msg = when (kernelVariant) {
+                            KernelVariant.OLCRTC -> stringResource(R.string.wg_not_used_with_olcrtc)
+                            KernelVariant.QWDTT -> stringResource(R.string.wg_not_used_with_qwdtt)
+                            else -> stringResource(R.string.wg_not_used_with_webdav)
+                        }
                         RowLabel(msg)
                     }
                 }

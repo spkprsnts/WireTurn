@@ -182,6 +182,7 @@ class CoreService : Service() {
             is KernelConfig.Olcrtc -> "Olcrtc (${k.config.provider})"
             is KernelConfig.Webdav -> "WebDAV (${k.config.webdav.take(20)})"
             is KernelConfig.FreeTurn -> "FreeTurn (${k.config.peer})"
+            is KernelConfig.Qwdtt -> "qWDTT (${k.config.peer})"
             else -> "-"
         }
         val xrayInfo = if (xrayConfig.enabled) {
@@ -567,6 +568,7 @@ class CoreService : Service() {
             KernelVariant.OLCRTC -> handleOlcrtcLog(line, lower, state, (cfg.kernelConfig as? KernelConfig.Olcrtc)?.config ?: OlcrtcConfig())
             KernelVariant.WEBDAV -> handleWebdavLog(line, lower, state)
             KernelVariant.FREETURN -> handleFreeTurnLog(line, lower, state)
+            KernelVariant.QWDTT -> handleQwdttLog(line, lower, state)
         }
     }
 
@@ -643,6 +645,65 @@ class CoreService : Service() {
         if (lower.contains("quota")) {
             // Log it but keep running or let watchdog handles it if it exits
             state.startupEmitted = true
+        }
+
+        return false
+    }
+
+    // qWDTT (external/proxy-turn-vk-android/go_client, -mode socks only - see docs). Its
+    // vocabulary is Russian and unrelated to free-turn-proxy's despite the shared VK-TURN idea.
+    private fun handleQwdttLog(line: String, lower: String, state: BinaryOutputState): Boolean {
+        // Benign SOCKS5 IPv6 routing noise (the official qWDTT client filters the same thing) -
+        // not an error, don't touch the status.
+        if (lower.contains("socks") && (lower.contains("blocked by rules") || lower.contains("ipv6"))) {
+            return false
+        }
+
+        // 1. Hard errors
+        if (lower.startsWith("panic") || lower.contains("fatal_auth") ||
+            lower.contains("нужны -peer и -vk") || lower.contains("нужен -password")) {
+            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                CoreServiceState.setStatus(CoreStatus.Error(line))
+                updateNotification(getString(R.string.error_connecting))
+            }
+            state.startupFailed = true
+            return true
+        }
+
+        // 2. Manual captcha - the binary prints "CAPTCHA_SOLVE|mode|redirectURI|sessionToken" and
+        // waits for a token back over a side-channel (WebView bridge) we don't implement yet.
+        if (line.startsWith("CAPTCHA_SOLVE|")) {
+            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_qwdtt_manual_captcha_unsupported)))
+                updateNotification(getString(R.string.error_connecting))
+            }
+            state.startupFailed = true
+            return true
+        }
+
+        // 3. Connected - "[SOCKS] listening" is the definitive signal; the periodic stats line's
+        // "Активных: N" (N>0) is a fallback in case that line scrolled past unseen.
+        val activeMatch = QWDTT_ACTIVE_REGEX.matcher(line)
+        if (lower.contains("[socks] listening") ||
+            (activeMatch.find() && (activeMatch.group(1)?.toIntOrNull() ?: 0) > 0)) {
+            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                CoreServiceState.setStatus(CoreStatus.Connected)
+                updateNotification(getString(R.string.core_active))
+                state.startupEmitted = true
+            }
+        }
+
+        // 4. Connecting / progress - without this the binary never leaves CoreStatus.Starting on
+        // its own and can exceed CoreManager's startup timeout.
+        if (lower.contains("креды ok") || lower.contains("[wrap]") ||
+            (lower.contains("[turn]") && !lower.contains("ошибка") && !lower.contains("не удалось") && !lower.contains("неполный ответ")) ||
+            lower.contains("relay:") || lower.contains("[прямой]") ||
+            lower.contains("[dtls] соединение установлено")
+        ) {
+            if (canUpdateConnectingStatus()) {
+                markConnecting()
+                state.startupEmitted = true
+            }
         }
 
         return false
@@ -989,8 +1050,12 @@ class CoreService : Service() {
     // join links/obf key ride the process command line directly - mask those specific values
     // for the app's own log, which the user may end up sharing for support.
     private fun redactedCommandLog(cmdArgs: List<String>, cfg: ClientConfig): String {
-        if (cfg.kernelConfig !is KernelConfig.FreeTurn) return cmdArgs.joinToString(" ")
-        val sensitiveFlags = setOf("-obf-key", "-links", "-sub")
+        val sensitiveFlags = when (cfg.kernelConfig) {
+            is KernelConfig.FreeTurn -> setOf("-obf-key", "-links", "-sub")
+            // Qwdtt (like FreeTurn) has no file-based config either - -vk/-password ride argv too.
+            is KernelConfig.Qwdtt -> setOf("-vk", "-password", "-socks-user", "-socks-pass")
+            else -> return cmdArgs.joinToString(" ")
+        }
         return CommandLogRedactor.redact(cmdArgs, sensitiveFlags)
     }
 
@@ -1073,6 +1138,27 @@ class CoreService : Service() {
                     if (o.kcpRcvwnd != default.kcpRcvwnd) cmdArgs.addAll(listOf("-kcp-rcvwnd", o.kcpRcvwnd.toString()))
                     if (o.kcpMtu != default.kcpMtu) cmdArgs.addAll(listOf("-kcp-mtu", o.kcpMtu.toString()))
                     if (o.kcpAcknodelay != default.kcpAcknodelay) cmdArgs.addAll(listOf("-kcp-acknodelay", o.kcpAcknodelay.toString()))
+                }
+            }
+            is KernelConfig.Qwdtt -> {
+                val o = k.config
+                cmdArgs.add("${applicationInfo.nativeLibraryDir}/libqwdtt.so")
+                cmdArgs.addAll(listOf(
+                    "-mode", "socks",
+                    "-socks", cfg.socksAddr.ifBlank { ClientConfig.DEFAULT_SOCKS_ADDR },
+                    "-peer", o.peer,
+                    "-vk", o.vkHashes,
+                    "-password", o.password,
+                    "-n", o.workers.toString(),
+                    "-listen", cfg.listenAddr.ifBlank { ClientConfig.DEFAULT_LISTEN_ADDR },
+                    "-obfs", o.obfsMode
+                ))
+                if (o.turnTcp) cmdArgs.add("-turn-tcp")
+                if (o.goDns.isNotBlank() && o.goDns != "yandex") cmdArgs.addAll(listOf("-go-dns", o.goDns))
+                if (cfg.isSocksAuthEnabled) {
+                    cmdArgs.add("-socks-auth")
+                    cmdArgs.addAll(listOf("-socks-user", cfg.socksUser))
+                    cmdArgs.addAll(listOf("-socks-pass", cfg.socksPass))
                 }
             }
         }
@@ -1186,6 +1272,12 @@ class CoreService : Service() {
                 old.socksUser != new.socksUser ||
                 old.socksPass != new.socksPass
             is KernelConfig.FreeTurn -> old.listenAddr != new.listenAddr
+            is KernelConfig.Qwdtt ->
+                old.listenAddr != new.listenAddr ||
+                old.socksAddr != new.socksAddr ||
+                old.isSocksAuthEnabled != new.isSocksAuthEnabled ||
+                old.socksUser != new.socksUser ||
+                old.socksPass != new.socksPass
         }
     }
 
@@ -1739,6 +1831,9 @@ class CoreService : Service() {
         private val FREE_TURN_CAPTCHA_REGEX = Pattern.compile("""(?:manually open this URL|Open this URL in your browser):\s*(https?://\S+)""")
         private val TCP_ACTIVE_REGEX = Pattern.compile("""\[session \d+] (?:connected|disconnected) \(active: (\d+)\)""")
         private val ONLINE_COUNT_REGEX = Pattern.compile("""online=(\d+)""")
+        // go_client's periodic "[СТАТИСТИКА] Активных: N | ..." line - a fallback Connected signal
+        // for when "[SOCKS] listening" was missed (e.g. log ring buffer already rotated past it).
+        private val QWDTT_ACTIVE_REGEX = Pattern.compile("""Активных:\s*(\d+)""")
 
         fun start(context: Context, cfg: ClientConfig) {
             cfg.getValidationErrorResId()?.let { errorRes ->

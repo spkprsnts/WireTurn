@@ -84,6 +84,10 @@ class KernelConfigAdapter : JsonDeserializer<KernelConfig>, JsonSerializer<Kerne
                 jsonObject.addProperty("type", "freeturn")
                 jsonObject.add("config", context.serialize(src.config))
             }
+            is KernelConfig.Qwdtt -> {
+                jsonObject.addProperty("type", "qwdtt")
+                jsonObject.add("config", context.serialize(src.config))
+            }
         }
         return jsonObject
     }
@@ -97,17 +101,18 @@ class KernelConfigAdapter : JsonDeserializer<KernelConfig>, JsonSerializer<Kerne
             "olcrtc" -> KernelConfig.Olcrtc(context.deserialize(configElement, OlcrtcConfig::class.java) ?: OlcrtcConfig())
             "webdav" -> KernelConfig.Webdav(context.deserialize(configElement, WebdavConfig::class.java) ?: WebdavConfig())
             "freeturn" -> KernelConfig.FreeTurn(context.deserialize(configElement, FreeTurnConfig::class.java) ?: FreeTurnConfig())
+            "qwdtt" -> KernelConfig.Qwdtt(context.deserialize(configElement, QwdttConfig::class.java) ?: QwdttConfig())
             else -> KernelConfig.Turnable()
         }
     }
 }
 
 enum class KernelVariant {
-    TURNABLE, OLCRTC, WEBDAV, FREETURN;
+    TURNABLE, OLCRTC, WEBDAV, FREETURN, QWDTT;
 
-    /** OLCRTC and WEBDAV already speak SOCKS5 themselves - Xray's WireGuard overlay is neither
-     * needed nor offered in the UI for them. */
-    val isSocks5Native: Boolean get() = this == OLCRTC || this == WEBDAV
+    /** OLCRTC, WEBDAV and QWDTT already speak SOCKS5 themselves - Xray's WireGuard overlay is
+     * neither needed nor offered in the UI for them. */
+    val isSocks5Native: Boolean get() = this == OLCRTC || this == WEBDAV || this == QWDTT
 }
 enum class XrayConfiguration { WIREGUARD, VLESS }
 enum class ThemeMode { DARK, LIGHT, SYSTEM }
@@ -117,6 +122,7 @@ sealed class KernelConfig {
     data class Olcrtc(val config: OlcrtcConfig = OlcrtcConfig()) : KernelConfig()
     data class Webdav(val config: WebdavConfig = WebdavConfig()) : KernelConfig()
     data class FreeTurn(val config: FreeTurnConfig = FreeTurnConfig()) : KernelConfig()
+    data class Qwdtt(val config: QwdttConfig = QwdttConfig()) : KernelConfig()
 
     companion object {
         // The link's own scheme already identifies the kernel, so a single quick-input
@@ -132,6 +138,9 @@ sealed class KernelConfig {
                     WebdavConfig.parse(trimmed)?.let { Webdav(it) }
                 trimmed.startsWith("freeturn://", ignoreCase = true) ->
                     FreeTurnConfig.parse(trimmed)?.let { FreeTurn(it) }
+                trimmed.startsWith("qwdtt://", ignoreCase = true) || trimmed.startsWith("qwdtt:config", ignoreCase = true) ||
+                    trimmed.startsWith("wdtt://", ignoreCase = true) ->
+                    QwdttConfig.parse(trimmed)?.let { Qwdtt(it) }
                 else -> null
             }
         }
@@ -145,6 +154,7 @@ val KernelConfig.variant: KernelVariant get() = when (this) {
     is KernelConfig.Olcrtc -> KernelVariant.OLCRTC
     is KernelConfig.Webdav -> KernelVariant.WEBDAV
     is KernelConfig.FreeTurn -> KernelVariant.FREETURN
+    is KernelConfig.Qwdtt -> KernelVariant.QWDTT
 }
 
 fun KernelConfig.description(context: Context): String = when (this) {
@@ -157,6 +167,7 @@ fun KernelConfig.description(context: Context): String = when (this) {
     is KernelConfig.Webdav -> context.getString(R.string.kernel_webdav) + " " + WebdavConfig.formatHost(config.webdav) +
         if (config.backends.isNotEmpty()) " +${config.backends.size}" else ""
     is KernelConfig.FreeTurn -> context.getString(R.string.kernel_freeturn) + " " + config.addressLabel()
+    is KernelConfig.Qwdtt -> context.getString(R.string.kernel_qwdtt) + " " + config.addressLabel()
 }
 
 data class TurnableRoute(
@@ -886,6 +897,105 @@ data class FreeTurnConfig(
     }
 }
 
+// Mirrors the official qWDTT client's (github.com/SpaceNeuroX/proxy-turn-vk-android) own
+// `qwdtt://config?...` share-link fields 1:1, since paid ready-made configs for that client are
+// what this kernel exists to accept. Only `-mode socks` is supported (see go_client/main.go) - it
+// terminates the VK-TURN-relayed userspace WireGuard tunnel in-process and exposes it as a plain
+// local SOCKS5, same shape as OLCRTC/WEBDAV, so socksAddr/auth live on ClientConfig, not here.
+// The link's own `port` field (its local UDP listen port) isn't kept either - like Turnable/
+// FreeTurn, that's just ClientConfig.listenAddr, a local machine setting, never shared in a link.
+data class QwdttConfig(
+    @SerializedName("peer") val peer: String = "",
+    @SerializedName("hashes") val vkHashes: String = "",
+    @SerializedName("password") val password: String = "",
+    @SerializedName("workers") val workers: Int = 9,
+    @SerializedName("obfs") val obfsMode: String = "audio",
+    @SerializedName("turn_tcp") val turnTcp: Boolean = false,
+    @SerializedName("go_dns") val goDns: String = "yandex"
+) {
+    fun isValid(): Boolean = peer.isNotBlank() && vkHashes.isNotBlank() && password.isNotBlank()
+
+    fun addressLabel(): String = FreeTurnConfig.maskPeer(peer)
+
+    fun sanitize(): QwdttConfig = copy(
+        peer = (peer as Any?)?.toString()?.trim()?.take(500) ?: "",
+        vkHashes = (vkHashes as Any?)?.toString()?.trim()?.take(2000) ?: "",
+        password = (password as Any?)?.toString()?.trim()?.take(256) ?: "",
+        workers = workers.coerceIn(1, 108),
+        obfsMode = if (obfsMode == "video") "video" else "audio",
+        goDns = ((goDns as Any?)?.toString()?.trim()?.take(100)).let { if (it.isNullOrBlank()) "yandex" else it }
+    )
+
+    // Deliberately only the official scheme's own fields (name/peer/hashes/workers/pass) - `port`
+    // is read on import (below) but never re-emitted, and obfs/turnTcp/goDns aren't part of that
+    // link format at all - they only travel between WireTurn profiles via the regular kernelConfig
+    // JSON (wireturn:// container / ProfileBundle).
+    fun toUri(profileName: String? = null): String {
+        fun enc(s: String) = java.net.URLEncoder.encode(s, "UTF-8")
+        val sb = StringBuilder("qwdtt://config?peer=").append(enc(peer))
+            .append("&hashes=").append(enc(vkHashes))
+            .append("&workers=").append(workers)
+            .append("&pass=").append(enc(password))
+        if (!profileName.isNullOrBlank()) sb.append("&name=").append(enc(profileName))
+        return sb.toString()
+    }
+
+    companion object {
+        // Accepts both "qwdtt://config?..." and the schemeless "qwdtt:config?..." variant some
+        // sellers' tools emit (same query-string shape either way).
+        fun parse(url: String, current: QwdttConfig = QwdttConfig()): QwdttConfig? {
+            val trimmed = url.trim()
+
+            // Legacy scheme from the original (pre-qWDTT) WDTT client - the official client's own
+            // importer still recognizes it too. Positional, not query-string:
+            // wdtt://<server_ip>:<dtls_port>:<wg_port>:<local_port>:<password>:<vk_hash>
+            // wg_port/local_port are parsed there but never actually used (local_port maps to
+            // their own per-profile listen-port field, which we don't keep either - see the
+            // ClientConfig.listenAddr note on this class above), so both are simply skipped here.
+            if (trimmed.startsWith("wdtt://", ignoreCase = true)) {
+                val parts = trimmed.substringAfter("://").split(":")
+                if (parts.size < 6) return null
+                val ip = parts[0]
+                val dtlsPort = parts[1]
+                if (ip.isBlank() || dtlsPort.isBlank()) return null
+                val password = parts[4]
+                val hash = parts.drop(5).joinToString(":")
+                if (hash.isBlank()) return null
+                return QwdttConfig(
+                    peer = "$ip:$dtlsPort",
+                    vkHashes = hash,
+                    password = password,
+                    workers = current.workers,
+                    obfsMode = current.obfsMode,
+                    turnTcp = current.turnTcp,
+                    goDns = current.goDns
+                )
+            }
+
+            if (!trimmed.startsWith("qwdtt://", ignoreCase = true) && !trimmed.startsWith("qwdtt:config", ignoreCase = true)) return null
+            return try {
+                val normalized = if (trimmed.startsWith("qwdtt://", ignoreCase = true)) trimmed
+                    else trimmed.replaceFirst("qwdtt:", "qwdtt://")
+                val uri = Uri.parse(normalized)
+                val peer = uri.getQueryParameter("peer") ?: current.peer
+                val hashes = uri.getQueryParameter("hashes") ?: current.vkHashes
+                if (peer.isBlank() || hashes.isBlank()) return null
+                QwdttConfig(
+                    peer = peer,
+                    vkHashes = hashes,
+                    password = uri.getQueryParameter("pass") ?: uri.getQueryParameter("password") ?: current.password,
+                    workers = uri.getQueryParameter("workers")?.toIntOrNull() ?: current.workers,
+                    obfsMode = current.obfsMode,
+                    turnTcp = current.turnTcp,
+                    goDns = current.goDns
+                )
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+}
+
 data class ClientConfig(
     val listenAddr: String = DEFAULT_LISTEN_ADDR,
     val socksAddr: String = DEFAULT_SOCKS_ADDR,
@@ -962,6 +1072,7 @@ data class ClientConfig(
                 is KernelConfig.Olcrtc -> KernelConfig.Olcrtc(k.config.fillDefaults())
                 is KernelConfig.Webdav -> KernelConfig.Webdav(k.config.fillDefaults())
                 is KernelConfig.FreeTurn -> KernelConfig.FreeTurn(k.config.sanitize())
+                is KernelConfig.Qwdtt -> KernelConfig.Qwdtt(k.config.sanitize())
             }
         )
     }
@@ -977,6 +1088,11 @@ data class ClientConfig(
         }
         is KernelConfig.Webdav -> if (!k.config.isValid()) R.string.error_settings_empty else null
         is KernelConfig.FreeTurn -> if (!k.config.isValid()) R.string.error_settings_empty else null
+        is KernelConfig.Qwdtt -> when {
+            !k.config.isValid() -> R.string.error_settings_empty
+            !isSocksAuthEnabled && !ValidatorUtils.isLoopbackHostPort(socksAddr) -> R.string.error_olcrtc_socks_public_requires_auth
+            else -> null
+        }
     }
 
     val isValid: Boolean get() = getValidationErrorResId() == null
@@ -1167,7 +1283,8 @@ internal data class KernelSnapshot(
     @SerializedName("turnable") val turnable: TurnableConfig? = null,
     @SerializedName("olcrtc") val olcrtc: OlcrtcConfig? = null,
     @SerializedName("webdav") val webdav: WebdavConfig? = null,
-    @SerializedName("freeturn") val freeturn: FreeTurnConfig? = null
+    @SerializedName("freeturn") val freeturn: FreeTurnConfig? = null,
+    @SerializedName("qwdtt") val qwdtt: QwdttConfig? = null
 )
 
 internal data class OldClientConfig(
@@ -1219,12 +1336,14 @@ data class Profile(
     val olcrtcConfig: OlcrtcConfig get() = (kernelConfig as? KernelConfig.Olcrtc)?.config ?: OlcrtcConfig()
     val webdavConfig: WebdavConfig get() = (kernelConfig as? KernelConfig.Webdav)?.config ?: WebdavConfig()
     val freeturnConfig: FreeTurnConfig get() = (kernelConfig as? KernelConfig.FreeTurn)?.config ?: FreeTurnConfig()
+    val qwdttConfig: QwdttConfig get() = (kernelConfig as? KernelConfig.Qwdtt)?.config ?: QwdttConfig()
 
     fun isEmpty(): Boolean = when (val k = kernelConfig) {
         is KernelConfig.Turnable -> !k.config.isValid()
         is KernelConfig.Olcrtc -> !k.config.isValid()
         is KernelConfig.Webdav -> !k.config.isValid()
         is KernelConfig.FreeTurn -> !k.config.isValid()
+        is KernelConfig.Qwdtt -> !k.config.isValid()
     } && !wgConfig.isValid() && !vlessConfig.isValid()
 
     fun sanitize(defaultName: String = "Profile"): Profile {
@@ -1259,6 +1378,7 @@ data class Profile(
                  KernelVariant.OLCRTC -> KernelConfig.Olcrtc(mOlcrtcConfig ?: OlcrtcConfig())
                  KernelVariant.WEBDAV -> KernelConfig.Webdav(mWebdavConfig ?: WebdavConfig())
                  KernelVariant.FREETURN -> currentKc // Not migrated from top-level
+                 KernelVariant.QWDTT -> currentKc // Not migrated from top-level
              }
         }
         // --- END MIGRATION 2 ---
@@ -1287,6 +1407,10 @@ data class Profile(
                     KernelVariant.FREETURN -> {
                         val ftcElement = obj.get("freeturnConfig")
                         KernelConfig.FreeTurn(gson.fromJson(ftcElement, FreeTurnConfig::class.java) ?: FreeTurnConfig())
+                    }
+                    KernelVariant.QWDTT -> {
+                        val qcElement = obj.get("qwdttConfig")
+                        KernelConfig.Qwdtt(gson.fromJson(qcElement, QwdttConfig::class.java) ?: QwdttConfig())
                     }
                 }
             } catch (_: Exception) { }
@@ -1324,6 +1448,7 @@ data class Profile(
             }
             is KernelConfig.Webdav -> KernelConfig.Webdav(currentKc.config.fillDefaults())
             is KernelConfig.FreeTurn -> KernelConfig.FreeTurn(currentKc.config.sanitize())
+            is KernelConfig.Qwdtt -> KernelConfig.Qwdtt(currentKc.config.sanitize())
         }
 
         return copy(
@@ -1566,6 +1691,7 @@ class AppPreferences(val context: Context) {
                     KernelVariant.OLCRTC -> KernelConfig.Olcrtc(snap.olcrtc ?: OlcrtcConfig())
                     KernelVariant.WEBDAV -> KernelConfig.Webdav(snap.webdav ?: WebdavConfig())
                     KernelVariant.FREETURN -> KernelConfig.FreeTurn(snap.freeturn ?: FreeTurnConfig())
+                    KernelVariant.QWDTT -> KernelConfig.Qwdtt(snap.qwdtt ?: QwdttConfig())
                 }
             } ?: run {
                 // Migration from legacy keys
@@ -1575,6 +1701,7 @@ class AppPreferences(val context: Context) {
                     KernelVariant.OLCRTC -> KernelConfig.Olcrtc(gson.fromJson(p[LEGACY_OLCRTC_JSON] ?: "{}", OlcrtcConfig::class.java) ?: OlcrtcConfig())
                     KernelVariant.WEBDAV -> KernelConfig.Webdav(WebdavConfig())
                     KernelVariant.FREETURN -> KernelConfig.FreeTurn(FreeTurnConfig())
+                    KernelVariant.QWDTT -> KernelConfig.Qwdtt(QwdttConfig())
                 }
             }
             ClientConfig(
@@ -1631,6 +1758,7 @@ class AppPreferences(val context: Context) {
         is KernelConfig.Olcrtc -> KernelSnapshot(variant = KernelVariant.OLCRTC.name, olcrtc = k.config)
         is KernelConfig.Webdav -> KernelSnapshot(variant = KernelVariant.WEBDAV.name, webdav = k.config)
         is KernelConfig.FreeTurn -> KernelSnapshot(variant = KernelVariant.FREETURN.name, freeturn = k.config)
+        is KernelConfig.Qwdtt -> KernelSnapshot(variant = KernelVariant.QWDTT.name, qwdtt = k.config)
     }
 
     suspend fun saveFullProfile(id: String, profile: Profile) {
@@ -1816,6 +1944,7 @@ class AppPreferences(val context: Context) {
                 is KernelConfig.Olcrtc -> KernelSnapshot(variant = KernelVariant.OLCRTC.name, olcrtc = k.config)
                 is KernelConfig.Webdav -> KernelSnapshot(variant = KernelVariant.WEBDAV.name, webdav = k.config)
                 is KernelConfig.FreeTurn -> KernelSnapshot(variant = KernelVariant.FREETURN.name, freeturn = k.config)
+                is KernelConfig.Qwdtt -> KernelSnapshot(variant = KernelVariant.QWDTT.name, qwdtt = k.config)
             })
             it.remove(LEGACY_KERNEL_VARIANT); it.remove(LEGACY_TURNABLE_JSON); it.remove(LEGACY_OLCRTC_JSON)
         }

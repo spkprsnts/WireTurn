@@ -28,6 +28,7 @@ private fun kernelDisplayName(kernelConfig: KernelConfig): String = when (kernel
     KernelVariant.OLCRTC -> stringResource(R.string.kernel_olcrtc)
     KernelVariant.WEBDAV -> stringResource(R.string.kernel_webdav)
     KernelVariant.FREETURN -> stringResource(R.string.kernel_freeturn)
+    KernelVariant.QWDTT -> stringResource(R.string.kernel_qwdtt)
 }
 
 @Composable

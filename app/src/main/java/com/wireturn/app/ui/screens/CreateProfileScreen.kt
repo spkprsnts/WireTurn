@@ -117,10 +117,16 @@ fun CreateProfileScreen(
                 }
 
                 SectionItem(
-                    position = ItemPosition.Bottom,
                     onClick = { onSelectType("FreeTurn", null, profileName) }
                 ) {
                     RowLabel(text = stringResource(R.string.kernel_freeturn))
+                }
+
+                SectionItem(
+                    position = ItemPosition.Bottom,
+                    onClick = { onSelectType("qWDTT", null, profileName) }
+                ) {
+                    RowLabel(text = stringResource(R.string.kernel_qwdtt))
                 }
             }
 
