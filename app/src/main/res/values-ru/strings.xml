@@ -40,7 +40,6 @@
     <string name="qwdtt_core">Ядро туннеля (qWDTT)</string>
     <!-- Кнопки и общие действия -->
     <string name="btn_open">Открыть</string>
-    <string name="btn_start">Запустить</string>
     <string name="btn_close">Закрыть</string>
     <string name="btn_save">Сохранить</string>
     <string name="btn_next">Далее</string>
@@ -174,7 +173,6 @@
     <string name="webdav_backend_delete">Удалить бэкенд</string>
     <string name="webdav_backend_label_label">Метка (необязательно)</string>
     <string name="webdav_backend_url_label">URL WebDAV</string>
-    <string name="webdav_backend_empty">Нет дополнительных бэкендов</string>
     <string name="olcrtc_vp8_batch">VP8 Batch</string>
     <string name="olcrtc_sei_fps">SEI FPS</string>
     <string name="olcrtc_sei_batch">SEI Batch</string>
