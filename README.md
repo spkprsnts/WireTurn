@@ -4,7 +4,7 @@
 
 # WireTurn — Android WebRTC & WebDAV Tunnel
 
-Android-клиент для [Turnable](https://github.com/TheAirBlow/Turnable), [olcRTC](https://github.com/openlibrecommunity/olcrtc), [WebDAV](https://github.com/spkprsnts/webdav-tunnel) и [FreeTurn](https://github.com/samosvalishe/free-turn-proxy) — туннелирование трафика через WebRTC и WebDAV.
+Android-клиент для [Turnable](https://github.com/TheAirBlow/Turnable), [olcRTC](https://github.com/openlibrecommunity/olcrtc), [WebDAV](https://github.com/spkprsnts/webdav-tunnel), [FreeTurn](https://github.com/samosvalishe/free-turn-proxy) и [qWDTT](https://github.com/SpaceNeuroX/proxy-turn-vk-android) — туннелирование трафика через WebRTC и WebDAV.
 
 > **Disclaimer:** Проект предназначен исключительно для образовательных и исследовательских целей.
 
@@ -23,6 +23,9 @@ WireTurn упаковывает трафик в стандартные прот�
 
 ### FreeTurn
 Туннелирование через WebRTC поверх UDP с подпиской на список серверов (поддерживаются как обычные, так и Base64-закодированные подписки), гибкой настройкой обфускации/транспорта до TURN-relay и ручным решением капчи через встроенный браузер при необходимости.
+
+### qWDTT
+Ещё одно туннелирование через TURN-инфраструктуру звонков VK: WireGuard поверх DTLS-релея, локальный SOCKS5-прокси на клиенте. Ссылки и QR-коды в формате [qWDTT](https://github.com/SpaceNeuroX/proxy-turn-vk-android) (включая устаревшую схему `wdtt://`) распознаются напрямую.
 
 ## Возможности
 
@@ -56,7 +59,7 @@ WireTurn упаковывает трафик в стандартные прот�
 
 ### Требования
 - Android 8.0+ (API 26), архитектуры `arm64-v8a`/`x86_64`.
-- VPS для серверной части (Turnable, olcRTC, FreeTurn или WebDAV) либо аккаунт в облаке с поддержкой WebDAV.
+- VPS для серверной части (Turnable, olcRTC, WebDAV, FreeTurn или qWDTT).
 
 ### Настройка
 - **[WT Panel](https://github.com/spkprsnts/wt-panel)** — панель для создания и управления серверами
@@ -73,6 +76,7 @@ WireTurn упаковывает трафик в стандартные прот�
 - `libolcrtc.so` — [openlibrecommunity/olcrtc](https://github.com/openlibrecommunity/olcrtc)
 - `libwebdav.so` — [spkprsnts/webdav-tunnel](https://github.com/spkprsnts/webdav-tunnel)
 - `libfreeturn.so` — [samosvalishe/free-turn-proxy](https://github.com/samosvalishe/free-turn-proxy)
+- `libqwdtt.so` — [SpaceNeuroX/proxy-turn-vk-android](https://github.com/SpaceNeuroX/proxy-turn-vk-android) (`go_client`)
 - `libxray.so` — [spkprsnts/vless-client](https://github.com/spkprsnts/vless-client)
 - `libhevsocks5.so` — сетевой стек VPN-режима, [heiher/hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel)
 
@@ -97,6 +101,7 @@ git clone --recursive https://github.com/spkprsnts/WireTurn.git
 - [spkprsnts/webdav-tunnel](https://github.com/spkprsnts/webdav-tunnel) — проект WebDAV Tunnel.
 - [samosvalishe/free-turn-proxy](https://github.com/samosvalishe/free-turn-proxy) — проект FreeTurn.
 - [samosvalishe/turn-proxy-android](https://github.com/samosvalishe/turn-proxy-android) — база UI и логики.
+- [SpaceNeuroX/proxy-turn-vk-android](https://github.com/SpaceNeuroX/proxy-turn-vk-android) — проект qWDTT.
 - [XTLS/Xray-core](https://github.com/XTLS/Xray-core) — кодовая база Xray.
 - [heiher/hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel) — реализация сетевого стека для VPN-режима.
 
