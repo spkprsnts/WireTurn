@@ -939,13 +939,13 @@ data class QwdttConfig(
     // that link format at all - they only travel between WireTurn profiles via the regular
     // kernelConfig JSON (wireturn:// container / ProfileBundle).
     fun toUri(profileName: String? = null): String {
-        fun enc(s: String) = java.net.URLEncoder.encode(s, "UTF-8")
-        val sb = StringBuilder("qwdtt://config?peer=").append(enc(peer))
-            .append("&hashes=").append(enc(vkHashes))
-            .append("&workers=").append(workers)
-            .append("&pass=").append(enc(password))
-        if (!profileName.isNullOrBlank()) sb.append("&name=").append(enc(profileName))
-        return sb.toString()
+        val builder = Uri.Builder().scheme("qwdtt").authority("config")
+            .appendQueryParameter("peer", peer)
+            .appendQueryParameter("hashes", vkHashes)
+            .appendQueryParameter("workers", workers.toString())
+            .appendQueryParameter("pass", password)
+        if (!profileName.isNullOrBlank()) builder.appendQueryParameter("name", profileName)
+        return builder.build().toString()
     }
 
     companion object {

@@ -78,6 +78,7 @@ import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SupportingText
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
+import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.redact
 import com.wireturn.app.ui.screens.QrScannerDialog
@@ -324,7 +325,7 @@ fun QwdttConfigScreen(
                         value = config.peer.redact(isPrivacyActive),
                         onValueChange = { if (!isPrivacyActive) config = config.copy(peer = it) },
                         readOnly = isPrivacyActive,
-                        isError = config.peer.isBlank(),
+                        isError = config.peer.isBlank() || !ValidatorUtils.isValidHostPort(config.peer),
                         isModified = isEditMode && config.peer != initialConfig.peer,
                         privacyMode = isPrivacyActive,
                         placeholder = "203.0.113.10:56000",
