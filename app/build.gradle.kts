@@ -45,6 +45,7 @@ android {
             keepDebugSymbols += "**/libxray.so"
             keepDebugSymbols += "**/libwebdav.so"
             keepDebugSymbols += "**/libfreeturn.so"
+            keepDebugSymbols += "**/libqwdtt.so"
         }
     }
 
@@ -201,14 +202,20 @@ tasks.register<Exec>("buildGoBinaries") {
     inputs.files(file("${rootDir}/external/free-turn-proxy"))
         .withPathSensitivity(PathSensitivity.RELATIVE)
         .optional()
+    // Only go_client, not the whole submodule - it also carries the (much larger, irrelevant)
+    // official Android app and server sources that build.sh never touches.
+    inputs.files(file("${rootDir}/external/proxy-turn-vk-android/go_client"))
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+        .optional()
     inputs.file(file("${rootDir}/build.sh")).withPathSensitivity(PathSensitivity.RELATIVE)
-    
+
     listOf("arm64-v8a", "x86_64").forEach { abi ->
         outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libolcrtc.so"))
         outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libxray.so"))
         outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libturnable.so"))
         outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libwebdav.so"))
         outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libfreeturn.so"))
+        outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libqwdtt.so"))
     }
     configureNdk()
     wslOrBash("./build.sh go")

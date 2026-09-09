@@ -63,6 +63,13 @@ build_go_project() {
     echo "Checking $out_name..."
     cd "$ROOT_DIR/$dir"
 
+    # Most submodules commit go.sum; proxy-turn-vk-android/go_client deliberately gitignores it
+    # upstream, so it's missing right after checkout - regenerate once before the parallel ABI
+    # builds below race on writing it. `go mod tidy` (not `download`) because `download` alone
+    # only fetches the module graph's roots, not every package actually imported by the source -
+    # it silently leaves go.sum incomplete for this module's deep transitive import list.
+    [ ! -f go.sum ] && go mod tidy
+
     local pids=()
     for abi in arm64-v8a x86_64; do
         (
@@ -147,11 +154,13 @@ if [ "$TARGET" = "all" ] || [ "$TARGET" = "go" ]; then
     git submodule update --init --recursive --force external/turnable
     git submodule update --init --recursive --force external/webdav-tunnel
     git submodule update --init --recursive --force external/free-turn-proxy
+    git submodule update --init --recursive --force external/proxy-turn-vk-android
     build_go_project "external/olcrtc"       "libolcrtc.so"     "./cmd/olcrtc"
     build_go_project "external/vless-client"  "libxray.so"      "."
     build_go_project "external/turnable"      "libturnable.so"  "./cmd"
     build_go_project "external/webdav-tunnel" "libwebdav.so"    "."
     build_go_project "external/free-turn-proxy" "libfreeturn.so" "./cmd/client"
+    build_go_project "external/proxy-turn-vk-android/go_client" "libqwdtt.so" "."
 fi
 
 chmod +x "$JNI_LIBS_DIR"/*/*.so 2>/dev/null || true

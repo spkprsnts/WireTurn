@@ -16,3 +16,6 @@
 [submodule "external/free-turn-proxy"]
 	path = external/free-turn-proxy
 	url = https://github.com/samosvalishe/free-turn-proxy
+[submodule "external/proxy-turn-vk-android"]
+	path = external/proxy-turn-vk-android
+	url = https://github.com/SpaceNeuroX/proxy-turn-vk-android.git
