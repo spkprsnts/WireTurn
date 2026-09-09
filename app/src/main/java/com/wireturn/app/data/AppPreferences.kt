@@ -1113,7 +1113,7 @@ data class ClientConfig(
     // a public (non-loopback) SOCKS5 listen address must have auth enabled.
     private fun socksNativeValidationError(configIsValid: Boolean): Int? = when {
         !configIsValid -> R.string.error_settings_empty
-        !isSocksAuthEnabled && !ValidatorUtils.isLoopbackHostPort(socksAddr) -> R.string.error_olcrtc_socks_public_requires_auth
+        !isSocksAuthEnabled && !ValidatorUtils.isLoopbackHostPort(socksAddr) -> R.string.error_socks_public_requires_auth
         else -> null
     }
 
@@ -1569,10 +1569,16 @@ class AppPreferences(val context: Context) {
 
         val CLIENT_LISTEN_ADDR = stringPreferencesKey("client_listen_addr")
         val CLIENT_DNS = stringPreferencesKey("client_dns")
-        val OLCRTC_SOCKS_ADDR = stringPreferencesKey("olcrtc_socks_addr")
-        val OLCRTC_SOCKS_AUTH_ENABLED = booleanPreferencesKey("olcrtc_socks_auth_enabled")
-        val OLCRTC_SOCKS_USER = stringPreferencesKey("olcrtc_socks_user")
-        val OLCRTC_SOCKS_PASS = stringPreferencesKey("olcrtc_socks_pass")
+        val CLIENT_SOCKS_ADDR = stringPreferencesKey("client_socks_addr")
+        val CLIENT_SOCKS_AUTH_ENABLED = booleanPreferencesKey("client_socks_auth_enabled")
+        val CLIENT_SOCKS_USER = stringPreferencesKey("client_socks_user")
+        val CLIENT_SOCKS_PASS = stringPreferencesKey("client_socks_pass")
+        // Legacy keys — shared by every SOCKS5-native kernel (OLCRTC/WEBDAV/QWDTT), not OLCRTC-only;
+        // renamed to CLIENT_SOCKS_* above. Used only for migration on first launch after update.
+        private val LEGACY_OLCRTC_SOCKS_ADDR = stringPreferencesKey("olcrtc_socks_addr")
+        private val LEGACY_OLCRTC_SOCKS_AUTH_ENABLED = booleanPreferencesKey("olcrtc_socks_auth_enabled")
+        private val LEGACY_OLCRTC_SOCKS_USER = stringPreferencesKey("olcrtc_socks_user")
+        private val LEGACY_OLCRTC_SOCKS_PASS = stringPreferencesKey("olcrtc_socks_pass")
         val XRAY_SOCKS_BIND = stringPreferencesKey("xray_socks_bind")
         val XRAY_HTTP_BIND = stringPreferencesKey("xray_http_bind")
         val XRAY_AUTH_ENABLED = booleanPreferencesKey("xray_auth_enabled")
@@ -1689,11 +1695,6 @@ class AppPreferences(val context: Context) {
             (p[VLESS_LINK_HISTORY] ?: "").split("|").filter { it.isNotBlank() }
         }
 
-    val olcrtcSocksAddrFlow: Flow<String> = appCtx.internalDataStore.data.mapPref(OLCRTC_SOCKS_ADDR, ClientConfig.DEFAULT_SOCKS_ADDR)
-    val olcrtcSocksAuthEnabledFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(OLCRTC_SOCKS_AUTH_ENABLED, true)
-    val olcrtcSocksUserFlow: Flow<String> = appCtx.internalDataStore.data.mapPref(OLCRTC_SOCKS_USER, "")
-    val olcrtcSocksPassFlow: Flow<String> = appCtx.internalDataStore.data.mapPref(OLCRTC_SOCKS_PASS, "")
-
     val autoLaunchSettingsFlow: Flow<AutoLaunchSettings> = appCtx.internalDataStore.data
         .map {
             AutoLaunchSettings(
@@ -1728,10 +1729,10 @@ class AppPreferences(val context: Context) {
             }
             ClientConfig(
                 listenAddr = p[CLIENT_LISTEN_ADDR] ?: ClientConfig.DEFAULT_LISTEN_ADDR,
-                socksAddr = p[OLCRTC_SOCKS_ADDR] ?: ClientConfig.DEFAULT_SOCKS_ADDR,
-                isSocksAuthEnabled = p[OLCRTC_SOCKS_AUTH_ENABLED] ?: true,
-                socksUser = p[OLCRTC_SOCKS_USER] ?: "",
-                socksPass = p[OLCRTC_SOCKS_PASS] ?: "",
+                socksAddr = p[CLIENT_SOCKS_ADDR] ?: p[LEGACY_OLCRTC_SOCKS_ADDR] ?: ClientConfig.DEFAULT_SOCKS_ADDR,
+                isSocksAuthEnabled = p[CLIENT_SOCKS_AUTH_ENABLED] ?: p[LEGACY_OLCRTC_SOCKS_AUTH_ENABLED] ?: true,
+                socksUser = p[CLIENT_SOCKS_USER] ?: p[LEGACY_OLCRTC_SOCKS_USER] ?: "",
+                socksPass = p[CLIENT_SOCKS_PASS] ?: p[LEGACY_OLCRTC_SOCKS_PASS] ?: "",
                 dns = p[CLIENT_DNS] ?: "",
                 goDnsGo = p[GO_DNS_GO] ?: false,
                 useCustomCerts = p[USE_CUSTOM_CERTS] ?: true,
@@ -1954,10 +1955,12 @@ class AppPreferences(val context: Context) {
     suspend fun saveClientConfig(c: ClientConfig) {
         appCtx.internalDataStore.edit {
             it[CLIENT_LISTEN_ADDR] = c.listenAddr
-            it[OLCRTC_SOCKS_ADDR] = c.socksAddr
-            it[OLCRTC_SOCKS_AUTH_ENABLED] = c.isSocksAuthEnabled
-            it[OLCRTC_SOCKS_USER] = c.socksUser
-            it[OLCRTC_SOCKS_PASS] = c.socksPass
+            it[CLIENT_SOCKS_ADDR] = c.socksAddr
+            it[CLIENT_SOCKS_AUTH_ENABLED] = c.isSocksAuthEnabled
+            it[CLIENT_SOCKS_USER] = c.socksUser
+            it[CLIENT_SOCKS_PASS] = c.socksPass
+            it.remove(LEGACY_OLCRTC_SOCKS_ADDR); it.remove(LEGACY_OLCRTC_SOCKS_AUTH_ENABLED)
+            it.remove(LEGACY_OLCRTC_SOCKS_USER); it.remove(LEGACY_OLCRTC_SOCKS_PASS)
             it[CLIENT_DNS] = c.dns
             it[GO_DNS_GO] = c.goDnsGo
             it[USE_CUSTOM_CERTS] = c.useCustomCerts

@@ -253,8 +253,8 @@
     <string name="local_listen_address">Локальный адрес прослушивания</string>
     <string name="local_port_help_text">Turnable и FreeTurn не создают обычный прокси — они поднимают по этому адресу точку входа сырого туннеля.</string>
     <string name="local_port_help_secondary">Встроенный Xray сам подключается сюда, чтобы превратить это в ссылку Xray или VPN. Меняйте адрес только если хотите подключить к туннелю напрямую сторонний VPN-клиент (WireGuard, v2RayTun и др.), в обход Xray.</string>
-    <string name="olcrtc_socks_help_text">olcRTC, WebDAV и qWDTT не используют VPN-протокол — они сразу поднимают по этому адресу локальный SOCKS5-прокси.</string>
-    <string name="olcrtc_socks_help_secondary">Xray использует этот адрес как вышестоящий прокси в режиме Dual-route. Для маршрутизации всего трафика устройства через VPN Xray не обязателен — VPN может подключаться к этому SOCKS5 напрямую. К тому же адресу можно подключить и любое другое приложение с поддержкой SOCKS5.</string>
+    <string name="client_socks_help_text">olcRTC, WebDAV и qWDTT не используют VPN-протокол — они сразу поднимают по этому адресу локальный SOCKS5-прокси.</string>
+    <string name="client_socks_help_secondary">Xray использует этот адрес как вышестоящий прокси в режиме Dual-route. Для маршрутизации всего трафика устройства через VPN Xray не обязателен — VPN может подключаться к этому SOCKS5 напрямую. К тому же адресу можно подключить и любое другое приложение с поддержкой SOCKS5.</string>
 
     <!-- Экран логов (Logs) -->
     <string name="logs_title">Логи</string>
@@ -332,7 +332,7 @@
     <!-- Ошибки и системные сообщения -->
     <string name="error_core_crashed">Туннель упал %1$d раз — проверьте настройки</string>
     <string name="error_settings_empty">Не заполнены настройки клиента</string>
-    <string name="error_olcrtc_socks_public_requires_auth">Если адрес SOCKS5 не localhost, необходима аутентификация</string>
+    <string name="error_socks_public_requires_auth">Если адрес SOCKS5 не localhost, необходима аутентификация</string>
     <string name="error_core_not_started">Туннель не запустился</string>
     <string name="log_xray_invalid_config">* [Xray] Некорректный или отсутствующий конфиг, запуск отменен</string>
     <string name="error_update_url_not_found">URL обновления не найден</string>
@@ -470,7 +470,7 @@
     <string name="qr_force_static_label">Один QR-код</string>
     <string name="qr_force_static_hint">Для сканирования сторонними приложениями, которые не понимают многокадровый формат; может не сканироваться</string>
     <string name="settings_group_turnable">Настройки Turnable / FreeTurn / qWDTT</string>
-    <string name="settings_group_olcrtc">Настройки olcRTC / WebDAV / qWDTT</string>
+    <string name="settings_group_client_socks">Настройки olcRTC / WebDAV / qWDTT</string>
     <string name="xray_settings_group_connection">Подключение</string>
     <string name="xray_proxy_auth">Авторизация прокси</string>
     <string name="xray_proxy_auth_desc">Защитить прокси логином и паролем</string>

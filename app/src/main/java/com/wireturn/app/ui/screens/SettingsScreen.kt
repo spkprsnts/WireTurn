@@ -640,11 +640,11 @@ fun SettingsScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
-                        text = stringResource(R.string.olcrtc_socks_help_text),
+                        text = stringResource(R.string.client_socks_help_text),
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Text(
-                        text = stringResource(R.string.olcrtc_socks_help_secondary),
+                        text = stringResource(R.string.client_socks_help_secondary),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

@@ -185,10 +185,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // native state is process-global, so any instance works regardless of which service created it.
     private val hevTunnel by lazy { HevSocks5Tunnel() }
 
-    private val _olcrtcSocksAddr = MutableStateFlow("")
-    private val _olcrtcSocksAuthEnabled = MutableStateFlow(true)
-    private val _olcrtcSocksUser = MutableStateFlow("")
-    private val _olcrtcSocksPass = MutableStateFlow("")
 
     init {
         viewModelScope.launch {
@@ -257,10 +253,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
             }
 
-            launch { prefs.olcrtcSocksAddrFlow.collect { _olcrtcSocksAddr.value = it } }
-            launch { prefs.olcrtcSocksAuthEnabledFlow.collect { _olcrtcSocksAuthEnabled.value = it } }
-            launch { prefs.olcrtcSocksUserFlow.collect { _olcrtcSocksUser.value = it } }
-            launch { prefs.olcrtcSocksPassFlow.collect { _olcrtcSocksPass.value = it } }
         }
 
         viewModelScope.launch { coreManager.observeCoreLifecycle() }

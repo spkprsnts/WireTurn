@@ -80,25 +80,25 @@ fun ConnectionSettingsScreen(
     var goDnsGo by remember { mutableStateOf(initialClientConfig.goDnsGo) }
     var useCustomCerts by remember { mutableStateOf(initialClientConfig.useCustomCerts) }
 
-    // Shared between olcRTC and WebDAV (both SOCKS5-native, see olSocks below)
+    // Shared by every SOCKS5-native kernel (olcRTC, WebDAV, qWDTT - see clientSocks below)
     var dns by remember { mutableStateOf(initialClientConfig.dns) }
 
-    // olcRTC states
-    var olSocks by remember { mutableStateOf(initialClientConfig.socksAddr) }
-    var olAuth by remember { mutableStateOf(initialClientConfig.isSocksAuthEnabled) }
-    var olUser by remember { mutableStateOf(initialClientConfig.socksUser) }
-    var olPass by remember { mutableStateOf(initialClientConfig.socksPass) }
-    var olPassVisible by rememberSaveable { mutableStateOf(false) }
+    // SOCKS5-native kernel states (olcRTC, WebDAV, qWDTT)
+    var clientSocks by remember { mutableStateOf(initialClientConfig.socksAddr) }
+    var clientSocksAuth by remember { mutableStateOf(initialClientConfig.isSocksAuthEnabled) }
+    var clientSocksUser by remember { mutableStateOf(initialClientConfig.socksUser) }
+    var clientSocksPass by remember { mutableStateOf(initialClientConfig.socksPass) }
+    var clientSocksPassVisible by rememberSaveable { mutableStateOf(false) }
 
     val scrollState = rememberScrollState()
 
-    val currentClientConfig = remember(listenAddr, olSocks, olAuth, olUser, olPass, dns, goDnsGo, useCustomCerts, initialClientConfig) {
+    val currentClientConfig = remember(listenAddr, clientSocks, clientSocksAuth, clientSocksUser, clientSocksPass, dns, goDnsGo, useCustomCerts, initialClientConfig) {
         initialClientConfig.copy(
             listenAddr = listenAddr,
-            socksAddr = olSocks,
-            isSocksAuthEnabled = olAuth,
-            socksUser = olUser,
-            socksPass = olPass,
+            socksAddr = clientSocks,
+            isSocksAuthEnabled = clientSocksAuth,
+            socksUser = clientSocksUser,
+            socksPass = clientSocksPass,
             dns = dns,
             goDnsGo = goDnsGo,
             useCustomCerts = useCustomCerts
@@ -278,20 +278,20 @@ fun ConnectionSettingsScreen(
                 }
             }
 
-            // olcRTC
-            val olSocksPublicNeedsAuth = !olAuth && olSocks.isNotEmpty() &&
-                    ValidatorUtils.isValidHostPort(olSocks) && !ValidatorUtils.isLoopbackHostPort(olSocks)
-            SectionGroup(title = stringResource(R.string.settings_group_olcrtc)) {
+            // SOCKS5-native kernels (olcRTC, WebDAV, qWDTT)
+            val clientSocksPublicNeedsAuth = !clientSocksAuth && clientSocks.isNotEmpty() &&
+                    ValidatorUtils.isValidHostPort(clientSocks) && !ValidatorUtils.isLoopbackHostPort(clientSocks)
+            SectionGroup(title = stringResource(R.string.settings_group_client_socks)) {
                 SectionItem(position = ItemPosition.Top) {
                     TextFieldRow(
                         label = stringResource(R.string.socks5),
-                        value = olSocks.redact(privacyMode),
-                        onValueChange = { if (!privacyMode) olSocks = it },
+                        value = clientSocks.redact(privacyMode),
+                        onValueChange = { if (!privacyMode) clientSocks = it },
                         placeholder = ClientConfig.DEFAULT_SOCKS_ADDR,
-                        isError = (olSocks.isNotEmpty() && !ValidatorUtils.isValidHostPort(olSocks)) || olSocksPublicNeedsAuth,
-                        supportingText = if (olSocksPublicNeedsAuth) stringResource(R.string.error_olcrtc_socks_public_requires_auth) else null,
+                        isError = (clientSocks.isNotEmpty() && !ValidatorUtils.isValidHostPort(clientSocks)) || clientSocksPublicNeedsAuth,
+                        supportingText = if (clientSocksPublicNeedsAuth) stringResource(R.string.error_socks_public_requires_auth) else null,
                         readOnly = privacyMode,
-                        isModified = olSocks != initialClientConfig.socksAddr,
+                        isModified = clientSocks != initialClientConfig.socksAddr,
                         onHelpClick = { showSocksHelp.value = true },
                         privacyMode = privacyMode
                     )
@@ -311,60 +311,60 @@ fun ConnectionSettingsScreen(
                 }
 
                 SectionItem(
-                    position = if (olAuth) ItemPosition.Middle else ItemPosition.Bottom,
+                    position = if (clientSocksAuth) ItemPosition.Middle else ItemPosition.Bottom,
                     onClick = {
-                        olAuth = !olAuth
+                        clientSocksAuth = !clientSocksAuth
                         HapticUtil.perform(
                             context, 
-                            if (olAuth) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                            if (clientSocksAuth) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
                         )
                     }
                 ) {
                     SwitchRow(
                         label = stringResource(R.string.xray_proxy_auth),
                         supportingText = stringResource(R.string.xray_proxy_auth_desc),
-                        checked = olAuth,
-                        onCheckedChange = { olAuth = it },
-                        isModified = olAuth != initialClientConfig.isSocksAuthEnabled,
+                        checked = clientSocksAuth,
+                        onCheckedChange = { clientSocksAuth = it },
+                        isModified = clientSocksAuth != initialClientConfig.isSocksAuthEnabled,
                     )
                 }
                 
-                ExpandableSection(visible = olAuth) {
+                ExpandableSection(visible = clientSocksAuth) {
                     SectionGroup {
                         SectionItem {
                             TextFieldRow(
                                 label = stringResource(R.string.xray_proxy_user),
-                                value = olUser.redact(privacyMode),
-                                onValueChange = { if (!privacyMode) olUser = it },
+                                value = clientSocksUser.redact(privacyMode),
+                                onValueChange = { if (!privacyMode) clientSocksUser = it },
                                 placeholder = stringResource(R.string.proxy_user_placeholder),
-                                isError = !ValidatorUtils.isValidProxyUser(olUser),
+                                isError = !ValidatorUtils.isValidProxyUser(clientSocksUser),
                                 readOnly = privacyMode,
-                                isModified = olUser != initialClientConfig.socksUser,
+                                isModified = clientSocksUser != initialClientConfig.socksUser,
                                 privacyMode = privacyMode
                             )
                         }
                         SectionItem(position = ItemPosition.Bottom) {
                             TextFieldRow(
                                 label = stringResource(R.string.xray_proxy_pass),
-                                value = olPass.redact(privacyMode),
-                                onValueChange = { if (!privacyMode) olPass = it },
+                                value = clientSocksPass.redact(privacyMode),
+                                onValueChange = { if (!privacyMode) clientSocksPass = it },
                                 placeholder = stringResource(R.string.proxy_pass_placeholder),
-                                isError = !ValidatorUtils.isValidProxyPass(olPass),
+                                isError = !ValidatorUtils.isValidProxyPass(clientSocksPass),
                                 readOnly = privacyMode,
-                                isModified = olPass != initialClientConfig.socksPass,
+                                isModified = clientSocksPass != initialClientConfig.socksPass,
                                 privacyMode = privacyMode,
                                 trailingIcon = {
-                                    IconButton(onClick = { olPassVisible = !olPassVisible }) {
+                                    IconButton(onClick = { clientSocksPassVisible = !clientSocksPassVisible }) {
                                         Icon(
                                             painter = painterResource(
-                                                if (olPassVisible) R.drawable.visibility_24px
+                                                if (clientSocksPassVisible) R.drawable.visibility_24px
                                                 else R.drawable.visibility_off_24px
                                             ),
                                             contentDescription = null
                                         )
                                     }
                                 },
-                                visualTransformation = if (olPassVisible) {
+                                visualTransformation = if (clientSocksPassVisible) {
                                     VisualTransformation.None
                                 } else {
                                     PasswordVisualTransformation()
@@ -410,11 +410,11 @@ fun ConnectionSettingsScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
-                        text = stringResource(R.string.olcrtc_socks_help_text),
+                        text = stringResource(R.string.client_socks_help_text),
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Text(
-                        text = stringResource(R.string.olcrtc_socks_help_secondary),
+                        text = stringResource(R.string.client_socks_help_secondary),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
