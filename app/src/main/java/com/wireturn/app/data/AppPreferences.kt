@@ -954,6 +954,32 @@ data class QwdttConfig(
         fun parse(url: String, current: QwdttConfig = QwdttConfig()): QwdttConfig? {
             val trimmed = url.trim()
 
+            // WDTT Plus's own modern link format (a different WDTT-family fork, unrelated to the
+            // qwdtt://config scheme below): wdtt://connect?v=1&host=&dtls=&wg=&local=&password=&hashes=
+            // [&name=][&max_workers=]. Must be checked before the legacy positional "wdtt://" scheme
+            // right below, which would otherwise misparse this as garbled positional fields.
+            // wg_port/local_port are accepted but not used, same reasoning as the legacy scheme.
+            if (trimmed.startsWith("wdtt://connect?", ignoreCase = true)) {
+                val uri = Uri.parse(trimmed)
+                if (uri.getQueryParameter("v") != "1") return null
+                val host = uri.getQueryParameter("host")
+                val dtlsPort = uri.getQueryParameter("dtls")
+                val password = uri.getQueryParameter("password")
+                val hashes = uri.getQueryParameter("hashes")
+                if (host.isNullOrBlank() || dtlsPort.isNullOrBlank() || password == null || hashes.isNullOrBlank()) return null
+                return QwdttConfig(
+                    peer = "$host:$dtlsPort",
+                    vkHashes = hashes,
+                    password = password,
+                    workers = uri.getQueryParameter("max_workers")?.toIntOrNull() ?: current.workers,
+                    obfsMode = current.obfsMode,
+                    turnTcp = current.turnTcp,
+                    goDns = current.goDns,
+                    noTls = current.noTls,
+                    manualCaptcha = current.manualCaptcha
+                )
+            }
+
             // Legacy scheme from the original (pre-qWDTT) WDTT client - the official client's own
             // importer still recognizes it too. Positional, not query-string:
             // wdtt://<server_ip>:<dtls_port>:<wg_port>:<local_port>:<password>:<vk_hash>
