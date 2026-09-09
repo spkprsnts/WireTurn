@@ -441,6 +441,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun stopCore() { coreManager.stopCore() }
 
     fun dismissCaptcha() { coreManager.dismissCaptcha() }
+    fun submitCaptchaResult(sessionId: Long, token: String) { CoreServiceState.submitCaptchaResult(sessionId, token) }
     fun clearLogs() { AppLogsState.clearLogs() }
     
     fun saveClientConfig(config: ClientConfig) {

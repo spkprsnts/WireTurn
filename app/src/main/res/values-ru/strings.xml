@@ -243,9 +243,10 @@
     <string name="qwdtt_turn_tcp_desc">Подключаться к TURN-реле по TCP вместо UDP</string>
     <string name="qwdtt_notls_label">Прямой режим (без DTLS)</string>
     <string name="qwdtt_notls_desc">Включайте, только если сервер поднят с -listen-direct — иначе соединение не установится</string>
+    <string name="qwdtt_manual_captcha_label">Ручная капча</string>
+    <string name="qwdtt_manual_captcha_desc">Всегда решать капчу ВК во встроенном браузере, а не давать ядру сначала попробовать решить её самому</string>
     <string name="qwdtt_go_dns_label">DNS-резолвер</string>
     <string name="qwdtt_go_dns_desc">Резолвер для запросов к VK до поднятия туннеля: yandex, cloudflare, google, doh-yandex, doh-cloudflare, doh-google, custom:IP или doh:URL</string>
-    <string name="error_qwdtt_manual_captcha_unsupported">Этот сервер требует ручного решения VK-капчи, а qWDTT пока не поддерживает это в WireTurn</string>
     <string name="local_listen_address">Локальный адрес прослушивания</string>
     <string name="local_port_help_text">Turnable и FreeTurn не создают обычный прокси — они поднимают по этому адресу точку входа сырого туннеля.</string>
     <string name="local_port_help_secondary">Встроенный Xray сам подключается сюда, чтобы превратить это в ссылку Xray или VPN. Меняйте адрес только если хотите подключить к туннелю напрямую сторонний VPN-клиент (WireGuard, v2RayTun и др.), в обход Xray.</string>

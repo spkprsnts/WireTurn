@@ -46,6 +46,7 @@ import java.io.InputStreamReader
 import java.io.InterruptedIOException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import java.util.regex.Pattern
 import kotlin.random.Random
@@ -55,6 +56,11 @@ import kotlin.time.Duration.Companion.milliseconds
 class CoreService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private val process = AtomicReference<Process?>()
+    // Non-null (i.e. != -1) only between a qWDTT "CAPTCHA_SOLVE|manual|..." request and its
+    // resolution - see observeQwdttCaptchaResult(). Read/written from multiple serviceScope
+    // coroutines (Dispatchers.IO is a thread pool, not single-threaded), hence Atomic rather than
+    // a plain var - same reasoning as `process` above.
+    private val pendingQwdttCaptchaSessionId = AtomicLong(-1L)
     private val userStopped = AtomicBoolean(false)
     private val isStarted = AtomicBoolean(false)
     private val currentRunningCfg = AtomicReference<ClientConfig?>(null)
@@ -87,6 +93,7 @@ class CoreService : Service() {
         NotificationHelper.createChannel(this)
         NotificationHelper.observeStates(this, serviceScope)
         observeCaptchaForNotification()
+        observeQwdttCaptchaResult()
         observeErrorForNotification()
         startXraySupervisor()
         startVpnSupervisor()
@@ -670,15 +677,38 @@ class CoreService : Service() {
             return true
         }
 
-        // 2. Manual captcha - the binary prints "CAPTCHA_SOLVE|mode|redirectURI|sessionToken" and
-        // waits for a token back over a side-channel (WebView bridge) we don't implement yet.
+        // 2. Captcha - the binary prints "CAPTCHA_SOLVE|mode|redirectURI|sessionToken" and waits
+        // for a token back over stdin ("CAPTCHA_RESULT|<token>"). mode=auto is a first, ~10s
+        // attempt the binary makes on its own automated chain - not enough time for a human to
+        // react, and it has its own internal fallbacks, so we only step in for mode=manual (the
+        // final fallback once that whole chain is exhausted) or mode=selected (the binary's own
+        // automatic solving is disabled entirely - QwdttConfig.manualCaptcha / "-captcha-mode wv").
+        // Either way the binary times out and retries on its own if we never respond, so silently
+        // ignoring "auto" here is safe.
         if (line.startsWith("CAPTCHA_SOLVE|")) {
-            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
-                CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_qwdtt_manual_captcha_unsupported)))
-                updateNotification(getString(R.string.error_connecting))
+            val parts = line.removePrefix("CAPTCHA_SOLVE|").split("|", limit = 3)
+            if (parts.size == 3 && (parts[0].equals("manual", ignoreCase = true) || parts[0].equals("selected", ignoreCase = true))) {
+                val redirectUri = parts[1]
+                if (redirectUri.isNotBlank() && CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                    state.captchaSessionCounter += 1
+                    pendingQwdttCaptchaSessionId.set(state.captchaSessionCounter)
+                    CoreServiceState.setCaptchaSession(
+                        CaptchaSession(redirectUri, state.captchaSessionCounter, needsResultToken = true)
+                    )
+
+                    // MainActivity's own LaunchedEffect(captchaSession) would eventually pick this
+                    // up too, but (as with FreeTurn's captcha branch above) don't rely solely on
+                    // that recomposing in time - open the window directly while foreground.
+                    if (AppLifecycleState.isAppInForeground.value) {
+                        val intent = Intent(this, com.wireturn.app.ui.activities.CaptchaActivity::class.java).apply {
+                            putExtra("CAPTCHA_URL", redirectUri)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        }
+                        startActivity(intent)
+                    }
+                }
             }
-            state.startupFailed = true
-            return true
+            return false
         }
 
         // 3. Connected - "[SOCKS] listening" is the definitive signal; the periodic stats line's
@@ -694,11 +724,16 @@ class CoreService : Service() {
         }
 
         // 4. Connecting / progress - without this the binary never leaves CoreStatus.Starting on
-        // its own and can exceed CoreManager's startup timeout.
-        if (lower.contains("креды ok") || lower.contains("[wrap]") ||
-            (lower.contains("[turn]") && !lower.contains("ошибка") && !lower.contains("не удалось") && !lower.contains("неполный ответ")) ||
-            lower.contains("relay:") || lower.contains("[прямой]") ||
-            lower.contains("[dtls] соединение установлено")
+        // its own and can exceed CoreManager's startup timeout. "relay:"/"[dtls] соединение
+        // установлено" print once per worker (up to -n of them, staggered over ~1s) - guard on
+        // "not already Connected" so a later worker's turn doesn't flap the status back down
+        // once "[SOCKS] listening"/active-count already declared the tunnel up.
+        if (CoreServiceState.status.value !is CoreStatus.Connected && (
+                lower.contains("креды ok") || lower.contains("[wrap]") ||
+                (lower.contains("[turn]") && !lower.contains("ошибка") && !lower.contains("не удалось") && !lower.contains("неполный ответ")) ||
+                lower.contains("relay:") || lower.contains("[прямой]") ||
+                lower.contains("[dtls] соединение установлено")
+            )
         ) {
             if (canUpdateConnectingStatus()) {
                 markConnecting()
@@ -1155,6 +1190,7 @@ class CoreService : Service() {
                 ))
                 if (o.turnTcp) cmdArgs.add("-turn-tcp")
                 if (o.noTls) cmdArgs.add("-notls")
+                if (o.manualCaptcha) cmdArgs.addAll(listOf("-captcha-mode", "wv"))
                 if (o.goDns.isNotBlank() && o.goDns != "yandex") cmdArgs.addAll(listOf("-go-dns", o.goDns))
                 if (cfg.isSocksAuthEnabled) {
                     cmdArgs.add("-socks-auth")
@@ -1614,6 +1650,43 @@ class CoreService : Service() {
                     NotificationHelper.cancelCaptchaNotification(this@CoreService)
                 }
             }
+        }
+    }
+
+    // Bridges the UI-solved captcha token back into the qWDTT process's stdin. Only qWDTT sets
+    // pendingQwdttCaptchaSessionId (see handleQwdttLog), so this is a no-op for every other kernel's
+    // captcha sessions (FreeTurn detects its own success from its log output, never emits here).
+    private fun observeQwdttCaptchaResult() {
+        serviceScope.launch {
+            CoreServiceState.captchaResult.collect { (sessionId, token) ->
+                // compareAndSet: only the matching, still-pending session acts, and it atomically
+                // clears itself first so the dismiss-watcher below can't also treat the
+                // setCaptchaSession(null) this causes as a cancellation.
+                if (pendingQwdttCaptchaSessionId.compareAndSet(sessionId, -1L)) {
+                    writeQwdttStdin("CAPTCHA_RESULT|$token")
+                    CoreServiceState.setCaptchaSession(null)
+                }
+            }
+        }
+        serviceScope.launch {
+            CoreServiceState.captchaSession.collect { session ->
+                if (session == null) {
+                    val previous = pendingQwdttCaptchaSessionId.getAndSet(-1L)
+                    if (previous != -1L) {
+                        writeQwdttStdin("CAPTCHA_RESULT|error:cancelled")
+                    }
+                }
+            }
+        }
+    }
+
+    private fun writeQwdttStdin(line: String) {
+        try {
+            process.get()?.outputStream?.let {
+                it.write((line + "\n").toByteArray(Charsets.UTF_8))
+                it.flush()
+            }
+        } catch (_: Exception) {
         }
     }
 

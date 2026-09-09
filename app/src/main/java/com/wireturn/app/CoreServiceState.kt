@@ -13,8 +13,14 @@ import kotlinx.coroutines.flow.stateIn
 /**
  * Сессия ручной капчи. sessionId позволяет диалогу различать соседние
  * капча-сессии с одинаковым URL и пересоздавать WebView через `key(sessionId)`.
+ *
+ * needsResultToken: true only for qWDTT (see CoreService.handleQwdttLog) - the solved token has
+ * to be forwarded back to the core over stdin, so the dialog must reliably capture it even across
+ * a same-webview navigation (VK's own completion redirect). FreeTurn doesn't need the token at
+ * all - its own captcha proxy captures success server-side - so it stays on plain polling and
+ * never gets the native JS bridge (see CaptchaWebViewDialog's useNativeBridge doc).
  */
-data class CaptchaSession(val url: String, val sessionId: Long)
+data class CaptchaSession(val url: String, val sessionId: Long, val needsResultToken: Boolean = false)
 
 sealed class CoreStatus {
     data object Idle : CoreStatus()
@@ -49,6 +55,12 @@ object CoreServiceState {
 
     private val _captchaSession = MutableStateFlow<CaptchaSession?>(null)
     val captchaSession: StateFlow<CaptchaSession?> = _captchaSession.asStateFlow()
+
+    // Solved-captcha token, tagged by sessionId so a kernel that needs the token back (qWDTT,
+    // over stdin) can match it to the request it actually made - other kernels (FreeTurn) just
+    // detect success from their own log output and never collect this.
+    private val _captchaResult = MutableSharedFlow<Pair<Long, String>>(extraBufferCapacity = 1)
+    val captchaResult: SharedFlow<Pair<Long, String>> = _captchaResult.asSharedFlow()
 
     private val _session = MutableStateFlow<RunningSession?>(null)
     val session: StateFlow<RunningSession?> = _session.asStateFlow()
@@ -102,6 +114,10 @@ object CoreServiceState {
     fun emitFailed(message: String) {
         _coreFailed.tryEmit(Unit)
         setStatus(CoreStatus.Error(message))
+    }
+
+    fun submitCaptchaResult(sessionId: Long, token: String) {
+        _captchaResult.tryEmit(sessionId to token)
     }
 
     fun setCaptchaSession(session: CaptchaSession?) {

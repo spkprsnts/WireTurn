@@ -45,11 +45,13 @@ class CaptchaActivity : AppCompatActivity() {
                             viewModel.dismissCaptcha()
                             finish()
                         },
-                        onSuccess = {
+                        onSuccess = { token ->
+                            captchaSession?.sessionId?.let { viewModel.submitCaptchaResult(it, token) }
                             // Закрываем окно локально как только WebView обнаружил успех.
                             // MainActivity не откроет его повторно благодаря lastHandledCaptchaSessionId.
                             runOnUiThread { finish() }
-                        }
+                        },
+                        useNativeBridge = captchaSession?.needsResultToken == true
                     )
                 }
             }

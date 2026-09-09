@@ -422,6 +422,15 @@ fun QwdttConfigScreen(
                         isModified = isEditMode && config.noTls != initialConfig.noTls
                     )
                 }
+                SectionItem {
+                    SwitchRow(
+                        label = stringResource(R.string.qwdtt_manual_captcha_label),
+                        checked = config.manualCaptcha,
+                        onCheckedChange = { config = config.copy(manualCaptcha = it) },
+                        supportingText = stringResource(R.string.qwdtt_manual_captcha_desc),
+                        isModified = isEditMode && config.manualCaptcha != initialConfig.manualCaptcha
+                    )
+                }
                 SectionItem(position = ItemPosition.Bottom) {
                     TextFieldRow(
                         label = stringResource(R.string.qwdtt_go_dns_label),

@@ -7,7 +7,10 @@ package com.wireturn.app.ui.screens
 
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
+import android.os.Handler
+import android.os.Looper
 import android.view.ViewGroup
+import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -56,6 +59,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.json.JSONObject
 import org.json.JSONTokener
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -71,18 +75,33 @@ private suspend fun WebView.evalJs(script: String): String? =
         }
     }
 
-/** Только локальный captcha-прокси ядра допускается к загрузке в WebView. */
-private fun isLocalCaptchaUrl(url: String): Boolean {
+/**
+ * What navigation *within* the captcha WebView is allowed to follow, vs. get vetoed (page stays
+ * put, look blank/transparent under `onPageStarted`'s TRANSPARENT background - this is the fully
+ * broken state a vetoed redirect leaves the dialog in, not a crash).
+ *
+ * FreeTurn's captcha is served entirely from its own local proxy (http://127.0.0.1:*) - anything
+ * else is a hijack attempt, so `initialHost` (== "127.0.0.1") alone already covers it correctly.
+ * qWDTT's captcha instead starts already on a real VK domain
+ * (`https://id.vk.ru/not_robot_captcha?...`) and its own completion flow legitimately redirects
+ * across VK's own subdomains (id.vk.ru <-> vk.com) - restricting those to `initialHost` alone is
+ * what broke it: solving showed nothing further because that later redirect got vetoed here.
+ */
+private fun isAllowedCaptchaNavigationUrl(url: String, initialHost: String?): Boolean {
     val uri = url.toUri()
+    val scheme = uri.scheme?.lowercase()
     val host = uri.host ?: return false
-    return uri.scheme?.lowercase() == "http" && (host == "127.0.0.1" || host == "localhost")
+    if (scheme != "http" && scheme != "https") return false
+    if (host == "127.0.0.1" || host == "localhost" || host == initialHost) return true
+    return host == "vk.com" || host == "vk.ru" || host.endsWith(".vk.com") || host.endsWith(".vk.ru")
 }
 
 private const val CAPTCHA_POLL_SCRIPT = """
     JSON.stringify({
         s: !!(window.__wireturnCaptcha && window.__wireturnCaptcha.success),
         h: (window.__wireturnCaptcha && window.__wireturnCaptcha.height) || 0,
-        v: !!(window.__wireturnCaptcha && window.__wireturnCaptcha.visible)
+        v: !!(window.__wireturnCaptcha && window.__wireturnCaptcha.visible),
+        t: (window.__wireturnCaptcha && window.__wireturnCaptcha.token) || ""
     })
 """
 
@@ -92,12 +111,28 @@ fun CaptchaWebViewDialog(
     viewModel: com.wireturn.app.viewmodel.MainViewModel,
     captchaUrl: String,
     onDismiss: () -> Unit,
-    onSuccess: (() -> Unit)? = null
+    // Receives the VK success_token (see markSuccess() in the injected JS below) - FreeTurn's own
+    // captcha proxy captures it server-side and callers just ignore the argument, but qWDTT needs
+    // it forwarded back to the Go process over stdin (see CoreService.observeQwdttCaptchaResult).
+    onSuccess: ((String) -> Unit)? = null,
+    // The default (poll-only) detection can lose the race against a same-webview navigation that
+    // destroys the page's JS context before the next 300ms poll tick reads it - a real problem
+    // for qWDTT, whose VK captcha (a real vk.ru page, not a local proxy) legitimately redirects on
+    // completion. addJavascriptInterface reports success synchronously, in the same JS tick that
+    // detects it, so it can't lose that race - but a Java-backed object under window.* is also a
+    // known automation fingerprinting signal some anti-bot scripts check for (see the class doc
+    // above), so this stays opt-in and off for FreeTurn's already-reliable local-only flow.
+    useNativeBridge: Boolean = false
 ) {
     var isLoading by remember { mutableStateOf(true) }
     val isContentVisible = remember { mutableStateOf(false) }
     var webViewHeight by remember { mutableIntStateOf(0) }
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
+    val initialCaptchaHost = remember(captchaUrl) { runCatching { captchaUrl.toUri().host }.getOrNull() }
+    // Guards against the bridge and the poll both firing for the same success (e.g. the bridge
+    // wins the race, but the poll's in-flight evaluateJavascript call still resolves after).
+    val successHandled = remember { AtomicBoolean(false) }
+    val mainHandler = remember { Handler(Looper.getMainLooper()) }
 
     val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -180,7 +215,9 @@ fun CaptchaWebViewDialog(
                 isContentVisible.value = true
             }
             if (state.optBoolean("s")) {
-                onSuccess?.invoke()
+                if (successHandled.compareAndSet(false, true)) {
+                    onSuccess?.invoke(state.optString("t"))
+                }
                 break
             }
         }
@@ -286,7 +323,7 @@ fun CaptchaWebViewDialog(
                                     override fun shouldOverrideUrlLoading(
                                         view: WebView,
                                         request: WebResourceRequest
-                                    ): Boolean = !isLocalCaptchaUrl(request.url.toString())
+                                    ): Boolean = !isAllowedCaptchaNavigationUrl(request.url.toString(), initialCaptchaHost)
 
                                     override fun onPageFinished(view: WebView?, url: String?) {
                                         super.onPageFinished(view, url)
@@ -349,6 +386,14 @@ fun CaptchaWebViewDialog(
                                                 const markSuccess = function(data) {
                                                     if (data && data.response && data.response.success_token) {
                                                         window.__wireturnCaptcha.success = true;
+                                                        window.__wireturnCaptcha.token = data.response.success_token;
+                                                        // Synchronous native report, ahead of any redirect this same
+                                                        // response handler might trigger next - see useNativeBridge.
+                                                        // No-op when the bridge wasn't installed (window.WireTurnNativeCaptcha
+                                                        // is then undefined) - the poll above still covers that case.
+                                                        if (window.WireTurnNativeCaptcha) {
+                                                            try { window.WireTurnNativeCaptcha.onSuccess(data.response.success_token); } catch (e) {}
+                                                        }
                                                         document.body.style.display = 'none';
                                                     }
                                                 };
@@ -453,6 +498,24 @@ fun CaptchaWebViewDialog(
                                             """.trimIndent(), null
                                         )
                                     }
+                                }
+
+                                if (useNativeBridge) {
+                                    addJavascriptInterface(object {
+                                        // Called synchronously from markSuccess() in the same JS
+                                        // tick that detects success_token - can't lose the race
+                                        // against a subsequent same-webview navigation the way the
+                                        // poll below can. Runs on a WebView worker thread, so hop
+                                        // to main before touching Compose state.
+                                        @JavascriptInterface
+                                        fun onSuccess(token: String) {
+                                            mainHandler.post {
+                                                if (successHandled.compareAndSet(false, true)) {
+                                                    onSuccess?.invoke(token)
+                                                }
+                                            }
+                                        }
+                                    }, "WireTurnNativeCaptcha")
                                 }
 
                                 loadUrl(captchaUrl)

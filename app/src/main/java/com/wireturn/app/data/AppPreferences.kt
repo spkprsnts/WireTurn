@@ -915,7 +915,11 @@ data class QwdttConfig(
     // -notls: direct mode, RTP-obfs AEAD without DTLS on top of TURN. Only works if the server was
     // itself started with -listen-direct - it's a compatibility switch, not a speed/privacy knob,
     // so it must match whatever the peer server actually expects.
-    @SerializedName("no_tls") val noTls: Boolean = false
+    @SerializedName("no_tls") val noTls: Boolean = false,
+    // Maps to "-captcha-mode wv": skips the binary's own automatic captcha-solving chain and
+    // always requests our WebView (see CoreService.handleQwdttLog's "selected" branch). Trades
+    // away the cases auto-solving would have handled silently for a captcha prompt every time.
+    @SerializedName("manual_captcha") val manualCaptcha: Boolean = false
 ) {
     fun isValid(): Boolean = peer.isNotBlank() && vkHashes.isNotBlank() && password.isNotBlank()
 
@@ -973,7 +977,8 @@ data class QwdttConfig(
                     obfsMode = current.obfsMode,
                     turnTcp = current.turnTcp,
                     goDns = current.goDns,
-                    noTls = current.noTls
+                    noTls = current.noTls,
+                    manualCaptcha = current.manualCaptcha
                 )
             }
 
@@ -1003,7 +1008,8 @@ data class QwdttConfig(
                     obfsMode = current.obfsMode,
                     turnTcp = current.turnTcp,
                     goDns = current.goDns,
-                    noTls = current.noTls
+                    noTls = current.noTls,
+                    manualCaptcha = current.manualCaptcha
                 )
             } catch (_: Exception) {
                 null
