@@ -977,7 +977,17 @@ data class QwdttConfig(
                 val normalized = if (trimmed.startsWith("qwdtt://", ignoreCase = true)) trimmed
                     else trimmed.replaceFirst("qwdtt:", "qwdtt://")
                 val uri = Uri.parse(normalized)
-                val peer = uri.getQueryParameter("peer") ?: current.peer
+                val peerRaw = uri.getQueryParameter("peer") ?: current.peer
+                // Some third-party generators send peer as host-only, with the port as a separate
+                // dtls_port/server_port param instead of "host:port" - append it only if peer
+                // doesn't already carry an explicit port (mirrors the official client's own
+                // PeerAddress.ensurePort: an already-present port always wins over these params).
+                val hasExplicitPort = peerRaw.substringAfterLast(':', "").let { it.isNotEmpty() && it.all(Char::isDigit) }
+                val peer = if (!hasExplicitPort) {
+                    val fallbackPort = (uri.getQueryParameter("dtls_port") ?: uri.getQueryParameter("server_port"))
+                        ?.toIntOrNull()?.coerceIn(1, 65535)
+                    if (fallbackPort != null && peerRaw.isNotBlank()) "$peerRaw:$fallbackPort" else peerRaw
+                } else peerRaw
                 val hashes = uri.getQueryParameter("hashes") ?: current.vkHashes
                 if (peer.isBlank() || hashes.isBlank()) return null
                 QwdttConfig(
