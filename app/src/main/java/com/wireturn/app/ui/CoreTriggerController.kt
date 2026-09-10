@@ -16,21 +16,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.data.KernelConfig
-import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.variant
+import com.wireturn.app.kernel.KernelRegistry
 import com.wireturn.app.viewmodel.CoreState
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.vpnConsentIntent
 
 @Composable
-private fun kernelDisplayName(kernelConfig: KernelConfig): String = when (kernelConfig.variant) {
-    KernelVariant.TURNABLE -> stringResource(R.string.kernel_turnable)
-    KernelVariant.OLCRTC -> stringResource(R.string.kernel_olcrtc)
-    KernelVariant.WEBDAV -> stringResource(R.string.kernel_webdav)
-    KernelVariant.FREETURN -> stringResource(R.string.kernel_freeturn)
-    KernelVariant.QWDTT -> stringResource(R.string.kernel_qwdtt)
-    KernelVariant.OPENFLUX -> stringResource(R.string.kernel_openflux)
-}
+private fun kernelDisplayName(kernelConfig: KernelConfig): String =
+    stringResource(KernelRegistry.get(kernelConfig.variant).displayNameRes)
 
 @Composable
 fun CoreTriggerController(

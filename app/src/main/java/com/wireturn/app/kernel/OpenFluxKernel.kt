@@ -1,11 +1,13 @@
 package com.wireturn.app.kernel
 
+import android.content.Context
 import com.wireturn.app.CoreServiceState
 import com.wireturn.app.CoreStatus
 import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
+import com.wireturn.app.ui.activities.cores.OpenFluxConfigActivity
 
 // OpenFlux (external/openflux, upstream p1neappleXpress/OpenFlux). Plain Go log.Printf output, no
 // captcha/multi-step auth flow to handle - just a startup banner, a final "ready" line once
@@ -15,6 +17,27 @@ import com.wireturn.app.data.KernelVariant
 object OpenFluxKernel : Kernel {
     override val variant: KernelVariant = KernelVariant.OPENFLUX
     override val sensitiveCommandFlags: Set<String> = setOf("--maxToken")
+    override val displayNameRes: Int = R.string.kernel_openflux
+    override val configActivityClass = OpenFluxConfigActivity::class.java
+    override val wgNotUsedMessageRes: Int = R.string.wg_not_used_with_openflux
+    // OpenFlux's embedded SOCKS5 server has no auth flags upstream - never offer credentials.
+    override val socks5SupportsAuth: Boolean = false
+
+    override fun description(context: Context, cfg: KernelConfig): String {
+        val config = (cfg as KernelConfig.OpenFlux).config
+        return context.getString(displayNameRes) + " " + config.platformDisplayName
+    }
+
+    override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int = R.drawable.route_24px
+
+    override val defaultProfileName: String = "OpenFlux Server"
+
+    override fun decodeUri(uri: String): KernelConfig? =
+        com.wireturn.app.data.OpenFluxConfig.parse(uri)?.let { KernelConfig.OpenFlux(it) }
+
+    override fun displayNameFromUri(uri: String): String? = try {
+        android.net.Uri.parse(uri).getQueryParameter("name")
+    } catch (_: Exception) { null }
 
     override fun buildCommand(ctx: KernelCommandContext, cfg: ClientConfig): List<String> {
         val cmdArgs = mutableListOf<String>()

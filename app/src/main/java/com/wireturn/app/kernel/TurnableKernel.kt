@@ -1,16 +1,52 @@
 package com.wireturn.app.kernel
 
+import android.content.Context
 import com.wireturn.app.CoreServiceState
 import com.wireturn.app.CoreStatus
 import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
+import com.wireturn.app.ui.activities.cores.TurnableConfigActivity
 import java.io.File
 import java.util.regex.Pattern
 
 object TurnableKernel : Kernel {
     override val variant: KernelVariant = KernelVariant.TURNABLE
+    override val displayNameRes: Int = R.string.kernel_turnable
+    override val configActivityClass = TurnableConfigActivity::class.java
+
+    override fun description(context: Context, cfg: KernelConfig): String {
+        val config = (cfg as KernelConfig.Turnable).config
+        val route = config.routes.find { it.routeId == config.selectedRouteId }
+        val transport = route?.socket?.uppercase()?.ifBlank { null }
+        return context.getString(displayNameRes) + transport?.let { " $it" }.orEmpty()
+    }
+
+    override fun profileSummaryExtra(cfg: KernelConfig): String? =
+        (cfg as KernelConfig.Turnable).config.platformDisplayName
+
+    override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int = when ((cfg as KernelConfig.Turnable).config.platformId) {
+        "vk.com" -> R.drawable.ic_vk
+        else -> if (outlined) R.drawable.mobile_outlined_24px else R.drawable.mobile_24px
+    }
+
+    // Route's own socket type is authoritative (tcp -> VLESS/Trojan, udp -> WireGuard/Hysteria2) -
+    // see external/turnable/docs/REFERENCE.md.
+    override fun requiredTransport(cfg: KernelConfig): String? {
+        val config = (cfg as KernelConfig.Turnable).config
+        return config.routes.find { it.routeId == config.selectedRouteId }
+            ?.socket?.lowercase()?.takeIf { it == "tcp" || it == "udp" }
+    }
+
+    override val defaultProfileName: String = "Turnable Server"
+
+    override fun decodeUri(uri: String): KernelConfig? =
+        com.wireturn.app.data.TurnableConfig.parse(uri)?.let { KernelConfig.Turnable(it) }
+
+    override fun displayNameFromUri(uri: String): String? = try {
+        android.net.Uri.parse(uri).fragment?.split(",")?.firstOrNull()?.trim()
+    } catch (_: Exception) { null }
 
     override fun buildCommand(ctx: KernelCommandContext, cfg: ClientConfig): List<String> {
         val k = cfg.kernelConfig as KernelConfig.Turnable

@@ -7,6 +7,8 @@ import com.google.common.net.InetAddresses
 import com.wireturn.app.R
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.XrayConfiguration
+import com.wireturn.app.data.variant
+import com.wireturn.app.kernel.KernelRegistry
 
 enum class UriProtocol { VLESS, TROJAN, HYSTERIA2 }
 
@@ -149,12 +151,7 @@ object ValidatorUtils {
      * socket ("tcp"/"udp") if it conflicts with what xrayProtocol/vlessLink actually need, else null.
      */
     fun kernelTransportMismatch(kernelConfig: KernelConfig?, xrayProtocol: XrayConfiguration, vlessLink: String): String? {
-        val kernelRequiredSocket = when (kernelConfig) {
-            is KernelConfig.Turnable -> kernelConfig.config.routes.find { it.routeId == kernelConfig.config.selectedRouteId }
-                ?.socket?.lowercase()?.takeIf { it == "tcp" || it == "udp" }
-            is KernelConfig.FreeTurn -> kernelConfig.config.mode.lowercase().takeIf { it == "tcp" || it == "udp" } ?: "udp"
-            else -> null
-        } ?: return null
+        val kernelRequiredSocket = kernelConfig?.let { KernelRegistry.get(it.variant).requiredTransport(it) } ?: return null
 
         val xrayNeedsUdp = when (xrayProtocol) {
             XrayConfiguration.WIREGUARD -> true

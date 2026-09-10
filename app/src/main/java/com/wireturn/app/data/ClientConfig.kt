@@ -1,6 +1,5 @@
 package com.wireturn.app.data
 
-import android.content.Context
 import android.net.Uri
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonDeserializationContext
@@ -114,19 +113,8 @@ val KernelConfig.variant: KernelVariant get() = when (this) {
     is KernelConfig.OpenFlux -> KernelVariant.OPENFLUX
 }
 
-fun KernelConfig.description(context: Context): String = when (this) {
-    is KernelConfig.Turnable -> {
-        val route = config.routes.find { it.routeId == config.selectedRouteId }
-        val transport = route?.socket?.uppercase()?.ifBlank { null }
-        context.getString(R.string.kernel_turnable) + transport?.let { " $it" }.orEmpty()
-    }
-    is KernelConfig.Olcrtc -> context.getString(R.string.kernel_olcrtc) + " " + config.providerDisplayName
-    is KernelConfig.Webdav -> context.getString(R.string.kernel_webdav) + " " + WebdavConfig.formatHost(config.webdav) +
-        if (config.backends.isNotEmpty()) " +${config.backends.size}" else ""
-    is KernelConfig.FreeTurn -> context.getString(R.string.kernel_freeturn) + " " + config.addressLabel()
-    is KernelConfig.Qwdtt -> context.getString(R.string.kernel_qwdtt) + " " + config.addressLabel()
-    is KernelConfig.OpenFlux -> context.getString(R.string.kernel_openflux) + " " + config.platformDisplayName
-}
+// Per-kernel display text (name, icon, config screen, ...) lives on each kernel/*/*.kt's Kernel
+// implementation now - see com.wireturn.app.kernel.KernelRegistry.
 
 data class ClientConfig(
     val listenAddr: String = DEFAULT_LISTEN_ADDR,
@@ -230,8 +218,6 @@ data class ClientConfig(
     }
 
     val isValid: Boolean get() = getValidationErrorResId() == null
-
-    fun getKernelDescription(context: Context): String = kernelConfig.description(context)
 
     companion object {
         const val DEFAULT_LISTEN_ADDR = "127.0.0.1:9000"
@@ -604,6 +590,4 @@ data class Profile(
             wgConfig = wgc
         )
     }
-
-    fun getKernelDescription(context: Context): String = kernelConfig.description(context)
 }

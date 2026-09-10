@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
+import com.wireturn.app.kernel.KernelRegistry
 import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.activities.ProfileDialogActivity
 import com.wireturn.app.viewmodel.VpnState
@@ -131,7 +132,7 @@ object NotificationHelper {
         }
 
         val limitedProfileName = profileNameSnapshot?.take(15)
-        val kernelPart = clientConfig?.getKernelDescription(context)
+        val kernelPart = clientConfig?.let { KernelRegistry.get(it.kernelVariant).description(context, it.kernelConfig) }
         val subText = listOfNotNull(limitedProfileName, kernelPart).joinToString(" • ")
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)

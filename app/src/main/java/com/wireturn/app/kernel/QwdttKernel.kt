@@ -1,11 +1,14 @@
 package com.wireturn.app.kernel
 
+import android.content.Context
 import com.wireturn.app.CaptchaSession
 import com.wireturn.app.CoreServiceState
 import com.wireturn.app.CoreStatus
+import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
+import com.wireturn.app.ui.activities.cores.QwdttConfigActivity
 import java.util.regex.Pattern
 
 // qWDTT (external/proxy-turn-vk-android/go_client, -mode socks only - see docs). Its vocabulary
@@ -13,6 +16,25 @@ import java.util.regex.Pattern
 object QwdttKernel : Kernel {
     override val variant: KernelVariant = KernelVariant.QWDTT
     override val sensitiveCommandFlags: Set<String> = setOf("-vk", "-password", "-socks-user", "-socks-pass")
+    override val displayNameRes: Int = R.string.kernel_qwdtt
+    override val configActivityClass = QwdttConfigActivity::class.java
+    override val wgNotUsedMessageRes: Int = R.string.wg_not_used_with_qwdtt
+
+    override fun description(context: Context, cfg: KernelConfig): String {
+        val config = (cfg as KernelConfig.Qwdtt).config
+        return context.getString(displayNameRes) + " " + config.addressLabel()
+    }
+
+    override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int = R.drawable.ic_vk
+
+    override val defaultProfileName: String = "qWDTT Server"
+
+    override fun decodeUri(uri: String): KernelConfig? =
+        com.wireturn.app.data.QwdttConfig.parse(uri)?.let { KernelConfig.Qwdtt(it) }
+
+    override fun displayNameFromUri(uri: String): String? = try {
+        android.net.Uri.parse(uri).getQueryParameter("name")
+    } catch (_: Exception) { null }
 
     override fun buildCommand(ctx: KernelCommandContext, cfg: ClientConfig): List<String> {
         val cmdArgs = mutableListOf<String>()

@@ -1,8 +1,12 @@
 package com.wireturn.app.kernel
 
+import android.app.Activity
+import android.content.Context
 import com.wireturn.app.CoreServiceState
 import com.wireturn.app.CoreStatus
+import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
+import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
 import java.io.File
 
@@ -100,13 +104,62 @@ interface Kernel {
 
     /** Command-line flags whose values should be redacted in the app's own log (see CoreService). */
     val sensitiveCommandFlags: Set<String> get() = emptySet()
+
+    // --- UI / display metadata (was duplicated per-kernel `when`s across ProfilesUI, XraySetupScreen, CoreTriggerController, ValidatorUtils) ---
+
+    /** Short kernel name, e.g. R.string.kernel_turnable. */
+    val displayNameRes: Int
+
+    /** The config screen Activity for editing a profile of this kernel. */
+    val configActivityClass: Class<out Activity>
+
+    /** One-line description shown in profile lists/notifications (was `KernelConfig.description()`). */
+    fun description(context: Context, cfg: KernelConfig): String
+
+    /** Extra profile-summary text appended after [description], or null if this kernel has none. */
+    fun profileSummaryExtra(cfg: KernelConfig): String? = null
+
+    /** Profile list icon for this kernel's config (outlined variant used where the kernel has none of its own). */
+    fun iconRes(cfg: KernelConfig, outlined: Boolean): Int
+
+    /** "WireGuard isn't used with X" copy shown for SOCKS5-native kernels on the Xray setup screen. */
+    val wgNotUsedMessageRes: Int get() = R.string.wg_not_used_with_webdav
+
+    /**
+     * Whether this kernel's own SOCKS5 listener accepts username/password auth - false only for
+     * OpenFlux, whose embedded server has no auth flags upstream. Irrelevant for non-SOCKS5-native
+     * kernels (Turnable/FreeTurn), which never reach the code paths that check this.
+     */
+    val socks5SupportsAuth: Boolean get() = true
+
+    /**
+     * This kernel's fixed transport requirement ("tcp"/"udp"), if it has one that can conflict
+     * with the Xray protocol/link riding on top of it - only Turnable (route-dependent) and
+     * FreeTurn (mode-dependent) have one; every other kernel returns null.
+     */
+    fun requiredTransport(cfg: KernelConfig): String? = null
+
+    // --- Share-link decoding (was the scheme-dispatch `when` in ProfileManager's text-subscription parser) ---
+
+    /** Parses [uri] into this kernel's config, or null if [uri] isn't (validly) this kernel's scheme. */
+    fun decodeUri(uri: String): KernelConfig?
+
+    /** Best-effort display name pulled from [uri] itself (e.g. a query param or fragment), if any. */
+    fun displayNameFromUri(uri: String): String? = null
+
+    /** Fallback profile name when [displayNameFromUri] found nothing. */
+    val defaultProfileName: String
 }
 
 object KernelRegistry {
-    private val all: List<Kernel> = listOf(
+    val all: List<Kernel> = listOf(
         TurnableKernel, OlcrtcKernel, WebdavKernel, FreeTurnKernel, QwdttKernel, OpenFluxKernel
     )
     private val byVariant = all.associateBy { it.variant }
 
     fun get(variant: KernelVariant): Kernel = byVariant.getValue(variant)
+
+    /** Tries every kernel's [Kernel.decodeUri] and returns the first match, if any. */
+    fun decodeUri(uri: String): Pair<Kernel, KernelConfig>? =
+        all.firstNotNullOfOrNull { k -> k.decodeUri(uri)?.let { k to it } }
 }

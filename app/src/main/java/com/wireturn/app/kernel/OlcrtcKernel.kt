@@ -1,16 +1,47 @@
 package com.wireturn.app.kernel
 
+import android.content.Context
 import com.wireturn.app.CoreServiceState
 import com.wireturn.app.CoreStatus
 import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
-import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.OlcrtcConfig
+import com.wireturn.app.data.KernelVariant
+import com.wireturn.app.ui.activities.cores.OlcRtcConfigActivity
 import java.io.File
 
 object OlcrtcKernel : Kernel {
     override val variant: KernelVariant = KernelVariant.OLCRTC
+    override val displayNameRes: Int = R.string.kernel_olcrtc
+    override val configActivityClass = OlcRtcConfigActivity::class.java
+    override val wgNotUsedMessageRes: Int = R.string.wg_not_used_with_olcrtc
+
+    override fun description(context: Context, cfg: KernelConfig): String {
+        val config = (cfg as KernelConfig.Olcrtc).config
+        return context.getString(displayNameRes) + " " + config.providerDisplayName
+    }
+
+    override fun profileSummaryExtra(cfg: KernelConfig): String? {
+        val config = (cfg as KernelConfig.Olcrtc).config
+        return OlcrtcConfig.getTransportDisplayName(config.transport, short = true)
+    }
+
+    override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int = when ((cfg as KernelConfig.Olcrtc).config.provider) {
+        "wbstream" -> R.drawable.ic_wbstream
+        "telemost" -> R.drawable.ic_telemost
+        "jitsi" -> R.drawable.ic_jitsi
+        else -> if (outlined) R.drawable.mobile_outlined_24px else R.drawable.mobile_24px
+    }
+
+    override val defaultProfileName: String = "Olcrtc Server"
+
+    override fun decodeUri(uri: String): KernelConfig? =
+        OlcrtcConfig.parse(uri)?.let { KernelConfig.Olcrtc(it) }
+
+    // olcrtc://<Provider>?<Transport>@<RoomID>#<EncryptionKey>$<MIMO> - MIMO doubles as the name.
+    override fun displayNameFromUri(uri: String): String? =
+        OlcrtcConfig.parse(uri)?.mimo?.takeIf { it.isNotBlank() }
 
     override fun buildCommand(ctx: KernelCommandContext, cfg: ClientConfig): List<String> {
         val cmdArgs = mutableListOf<String>()

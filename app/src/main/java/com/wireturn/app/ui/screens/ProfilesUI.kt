@@ -103,12 +103,12 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.data.KernelVariant
-import com.wireturn.app.data.OlcrtcConfig.Companion.getTransportDisplayName
 import com.wireturn.app.data.Profile
 import com.wireturn.app.data.Subscription
 import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.domain.ImportStatus
 import com.wireturn.app.domain.isLocalNetworkHost
+import com.wireturn.app.kernel.KernelRegistry
 import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.trackGestureStartedAtBoundary
 import com.wireturn.app.ui.HapticUtil
@@ -117,8 +117,6 @@ import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.VerticalAnimatedText
 import com.wireturn.app.ui.activities.SubscriptionConfigActivity
-import com.wireturn.app.ui.activities.cores.OlcRtcConfigActivity
-import com.wireturn.app.ui.activities.cores.TurnableConfigActivity
 import com.wireturn.app.ui.showExclusiveToast
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
@@ -150,26 +148,9 @@ fun ProfileSummary(
     val parts = mutableListOf<String>()
     val context = LocalContext.current
 
-    parts.add(profile.getKernelDescription(context))
-
-    when (profile.kernelVariant) {
-        KernelVariant.TURNABLE -> {
-            parts.add(profile.turnableConfig.platformDisplayName)
-        }
-
-        KernelVariant.OLCRTC -> {
-            parts.add(getTransportDisplayName(profile.olcrtcConfig.transport, short = true))
-        }
-
-        KernelVariant.WEBDAV -> {
-            val login = profile.webdavConfig.login
-            if (login.isNotBlank()) {
-                parts.add(login.substringBefore('@'))
-            }
-        }
-
-        else -> {}
-    }
+    val kernel = KernelRegistry.get(profile.kernelVariant)
+    parts.add(kernel.description(context, profile.kernelConfig))
+    kernel.profileSummaryExtra(profile.kernelConfig)?.let { parts.add(it) }
 
 
 
@@ -1987,50 +1968,11 @@ private fun shareText(context: Context, text: String, title: String) {
 }
 
 /** The config screen Activity for editing a profile of this core type. */
-private fun configActivityClassFor(variant: KernelVariant): Class<out Activity> = when (variant) {
-    KernelVariant.TURNABLE -> TurnableConfigActivity::class.java
-    KernelVariant.OLCRTC -> OlcRtcConfigActivity::class.java
-    KernelVariant.WEBDAV -> com.wireturn.app.ui.activities.cores.WebdavConfigActivity::class.java
-    KernelVariant.FREETURN -> com.wireturn.app.ui.activities.cores.FreeTurnConfigActivity::class.java
-    KernelVariant.QWDTT -> com.wireturn.app.ui.activities.cores.QwdttConfigActivity::class.java
-    KernelVariant.OPENFLUX -> com.wireturn.app.ui.activities.cores.OpenFluxConfigActivity::class.java
-}
+private fun configActivityClassFor(variant: KernelVariant): Class<out Activity> =
+    KernelRegistry.get(variant).configActivityClass
 
-private fun getProfileIcon(profile: Profile, outlined: Boolean): Int {
-    return when (profile.kernelVariant) {
-        KernelVariant.TURNABLE -> {
-            when (profile.turnableConfig.platformId) {
-                "vk.com" -> R.drawable.ic_vk
-                else -> if (outlined) R.drawable.mobile_outlined_24px else R.drawable.mobile_24px
-            }
-        }
-
-        KernelVariant.OLCRTC -> {
-            when (profile.olcrtcConfig.provider) {
-                "wbstream" -> R.drawable.ic_wbstream
-                "telemost" -> R.drawable.ic_telemost
-                "jitsi" -> R.drawable.ic_jitsi
-                else -> if (outlined) R.drawable.mobile_outlined_24px else R.drawable.mobile_24px
-            }
-        }
-
-        KernelVariant.WEBDAV -> {
-            R.drawable.ic_dav
-        }
-
-        KernelVariant.FREETURN -> {
-            R.drawable.ic_vk
-        }
-
-        KernelVariant.QWDTT -> {
-            R.drawable.ic_vk
-        }
-
-        KernelVariant.OPENFLUX -> {
-            R.drawable.route_24px
-        }
-    }
-}
+private fun getProfileIcon(profile: Profile, outlined: Boolean): Int =
+    KernelRegistry.get(profile.kernelVariant).iconRes(profile.kernelConfig, outlined)
 
 @Composable
 fun ProfileNameDialog(

@@ -1,5 +1,6 @@
 package com.wireturn.app.kernel
 
+import android.content.Context
 import com.wireturn.app.AppLogsState
 import com.wireturn.app.CoreServiceState
 import com.wireturn.app.CoreStatus
@@ -7,10 +8,36 @@ import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
+import com.wireturn.app.data.WebdavConfig
+import com.wireturn.app.ui.activities.cores.WebdavConfigActivity
 import java.io.File
 
 object WebdavKernel : Kernel {
     override val variant: KernelVariant = KernelVariant.WEBDAV
+    override val displayNameRes: Int = R.string.kernel_webdav
+    override val configActivityClass = WebdavConfigActivity::class.java
+
+    override fun description(context: Context, cfg: KernelConfig): String {
+        val config = (cfg as KernelConfig.Webdav).config
+        return context.getString(displayNameRes) + " " + WebdavConfig.formatHost(config.webdav) +
+            if (config.backends.isNotEmpty()) " +${config.backends.size}" else ""
+    }
+
+    override fun profileSummaryExtra(cfg: KernelConfig): String? {
+        val login = (cfg as KernelConfig.Webdav).config.login
+        return login.takeIf { it.isNotBlank() }?.substringBefore('@')
+    }
+
+    override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int = R.drawable.ic_dav
+
+    override val defaultProfileName: String = "WebDAV Server"
+
+    override fun decodeUri(uri: String): KernelConfig? =
+        WebdavConfig.parse(uri)?.let { KernelConfig.Webdav(it) }
+
+    override fun displayNameFromUri(uri: String): String? = try {
+        android.net.Uri.parse(uri).fragment
+    } catch (_: Exception) { null }
 
     override fun buildCommand(ctx: KernelCommandContext, cfg: ClientConfig): List<String> {
         val cmdArgs = mutableListOf<String>()

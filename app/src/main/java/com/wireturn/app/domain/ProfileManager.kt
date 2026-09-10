@@ -1,6 +1,5 @@
 package com.wireturn.app.domain
 
-import androidx.core.net.toUri
 import com.google.gson.JsonParser
 import com.wireturn.app.R
 import com.wireturn.app.data.AppPreferences
@@ -9,6 +8,7 @@ import com.wireturn.app.data.OlcrtcConfig
 import com.wireturn.app.data.Profile
 import com.wireturn.app.data.ProfileBundle
 import com.wireturn.app.data.Subscription
+import com.wireturn.app.kernel.KernelRegistry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -957,86 +957,17 @@ class ProfileManager(
             val trimmed = line.trim()
             if (trimmed.isEmpty()) continue
 
-            if (trimmed.startsWith("freeturn://")) {
+            val kernelMatch = KernelRegistry.all.firstNotNullOfOrNull { k -> k.decodeUri(trimmed)?.let { k to it } }
+            if (kernelMatch != null) {
                 flush()
-                val config = com.wireturn.app.data.FreeTurnConfig.parse(trimmed) ?: continue
-                
-                // Try to extract name from URI if possible
-                val nameFromUri = try {
-                    val base64 = trimmed.substringAfter("freeturn://")
-                    val jsonStr = String(android.util.Base64.decode(base64, android.util.Base64.URL_SAFE))
-                    JsonParser.parseString(jsonStr).asJsonObject.get("name")?.asString
-                } catch(_: Exception) { null }
+                val (kernel, kernelConfig) = kernelMatch
+                val nameFromUri = kernel.displayNameFromUri(trimmed)?.takeIf { it.isNotBlank() }
 
-                currentKernelConfig = KernelConfig.FreeTurn(config)
+                currentKernelConfig = kernelConfig
                 currentProfile = Profile(
                     id = stableTextSubEntryId(trimmed),
-                    name = nameFromUri ?: "FreeTurn Server",
-                    kernelConfig = KernelConfig.FreeTurn(config)
-                )
-            } else if (trimmed.startsWith("qwdtt://") || trimmed.startsWith("qwdtt:config") || trimmed.startsWith("wdtt://")) {
-                flush()
-                val config = com.wireturn.app.data.QwdttConfig.parse(trimmed) ?: continue
-                val nameFromUri = try { trimmed.toUri().getQueryParameter("name") } catch (_: Exception) { null }
-
-                currentKernelConfig = KernelConfig.Qwdtt(config)
-                currentProfile = Profile(
-                    id = stableTextSubEntryId(trimmed),
-                    name = nameFromUri ?: "qWDTT Server",
-                    kernelConfig = KernelConfig.Qwdtt(config)
-                )
-            } else if (trimmed.startsWith("openflux://") || trimmed.startsWith("openflux:config")) {
-                flush()
-                val config = com.wireturn.app.data.OpenFluxConfig.parse(trimmed) ?: continue
-                val nameFromUri = try { trimmed.toUri().getQueryParameter("name") } catch (_: Exception) { null }
-
-                currentKernelConfig = KernelConfig.OpenFlux(config)
-                currentProfile = Profile(
-                    id = stableTextSubEntryId(trimmed),
-                    name = nameFromUri ?: "OpenFlux Server",
-                    kernelConfig = KernelConfig.OpenFlux(config)
-                )
-            } else if (trimmed.startsWith("olcrtc://")) {
-                flush()
-                val config = OlcrtcConfig.parse(trimmed) ?: continue
-                
-                // olcrtc://<Provider>?<Transport>@<RoomID>#<EncryptionKey>$<MIMO>
-                // Use MIMO as name if it's there
-                val nameFromMimo = config.mimo.takeIf { it.isNotBlank() }
-
-                currentKernelConfig = KernelConfig.Olcrtc(config)
-                currentProfile = Profile(
-                    id = stableTextSubEntryId(trimmed),
-                    name = nameFromMimo ?: "Olcrtc Server",
-                    kernelConfig = KernelConfig.Olcrtc(config)
-                )
-            } else if (trimmed.startsWith("turnable://")) {
-                flush()
-                val config = com.wireturn.app.data.TurnableConfig.parse(trimmed) ?: continue
-                
-                // Use fragment as name if it's there
-                val nameFromUri = try {
-                    trimmed.toUri().fragment?.split(",")?.firstOrNull()?.trim() } catch(_: Exception) { null }
-
-                currentKernelConfig = KernelConfig.Turnable(config)
-                currentProfile = Profile(
-                    id = stableTextSubEntryId(trimmed),
-                    name = nameFromUri ?: "Turnable Server",
-                    kernelConfig = KernelConfig.Turnable(config)
-                )
-            } else if (trimmed.startsWith("webdav://") || trimmed.startsWith("webdavs://")) {
-                flush()
-                val config = com.wireturn.app.data.WebdavConfig.parse(trimmed) ?: continue
-                
-                // Use fragment as name if it's there
-                val nameFromUri = try {
-                    trimmed.toUri().fragment } catch(_: Exception) { null }
-
-                currentKernelConfig = KernelConfig.Webdav(config)
-                currentProfile = Profile(
-                    id = stableTextSubEntryId(trimmed),
-                    name = nameFromUri ?: "WebDAV Server",
-                    kernelConfig = KernelConfig.Webdav(config)
+                    name = nameFromUri ?: kernel.defaultProfileName,
+                    kernelConfig = kernelConfig
                 )
             } else if (trimmed.startsWith("wireturn://") || trimmed.startsWith("wt://")) {
                 // A wireturn:// container carries a full Profile (or several) as-is - kernelConfig,

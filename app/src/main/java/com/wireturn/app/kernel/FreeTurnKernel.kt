@@ -1,5 +1,6 @@
 package com.wireturn.app.kernel
 
+import android.content.Context
 import com.wireturn.app.CaptchaSession
 import com.wireturn.app.CoreServiceState
 import com.wireturn.app.CoreStatus
@@ -7,11 +8,39 @@ import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
+import com.wireturn.app.ui.activities.cores.FreeTurnConfigActivity
 import java.util.regex.Pattern
 
 object FreeTurnKernel : Kernel {
     override val variant: KernelVariant = KernelVariant.FREETURN
     override val sensitiveCommandFlags: Set<String> = setOf("-obf-key", "-links", "-sub")
+    override val displayNameRes: Int = R.string.kernel_freeturn
+    override val configActivityClass = FreeTurnConfigActivity::class.java
+
+    override fun description(context: Context, cfg: KernelConfig): String {
+        val config = (cfg as KernelConfig.FreeTurn).config
+        return context.getString(displayNameRes) + " " + config.addressLabel()
+    }
+
+    override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int = R.drawable.ic_vk
+
+    // FreeTurn dropped its tcp tunnel mode entirely (v3.0.0+) - it's udp-only now, unconditionally,
+    // unless the config's own `mode` says otherwise.
+    override fun requiredTransport(cfg: KernelConfig): String? {
+        val config = (cfg as KernelConfig.FreeTurn).config
+        return config.mode.lowercase().takeIf { it == "tcp" || it == "udp" } ?: "udp"
+    }
+
+    override val defaultProfileName: String = "FreeTurn Server"
+
+    override fun decodeUri(uri: String): KernelConfig? =
+        com.wireturn.app.data.FreeTurnConfig.parse(uri)?.let { KernelConfig.FreeTurn(it) }
+
+    override fun displayNameFromUri(uri: String): String? = try {
+        val base64 = uri.substringAfter("freeturn://")
+        val jsonStr = String(android.util.Base64.decode(base64, android.util.Base64.URL_SAFE))
+        com.google.gson.JsonParser.parseString(jsonStr).asJsonObject.get("name")?.asString
+    } catch (_: Exception) { null }
 
     override fun buildCommand(ctx: KernelCommandContext, cfg: ClientConfig): List<String> {
         val cmdArgs = mutableListOf<String>()

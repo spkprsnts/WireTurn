@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
+import com.wireturn.app.kernel.KernelRegistry
 import com.wireturn.app.data.VlessConfig
 import com.wireturn.app.data.WgConfig
 import com.wireturn.app.data.XrayConfig
@@ -109,14 +110,7 @@ fun XraySetupScreen(
     onSave: (XrayConfiguration, WgConfig, VlessConfig) -> Unit
 ) {
     val isPrivacyActive = privacyMode && isEditMode
-    val kernelName = when (kernelVariant) {
-        KernelVariant.TURNABLE -> stringResource(R.string.kernel_turnable)
-        KernelVariant.OLCRTC -> stringResource(R.string.kernel_olcrtc)
-        KernelVariant.WEBDAV -> stringResource(R.string.kernel_webdav)
-        KernelVariant.FREETURN -> stringResource(R.string.kernel_freeturn)
-        KernelVariant.QWDTT -> stringResource(R.string.kernel_qwdtt)
-        KernelVariant.OPENFLUX -> stringResource(R.string.kernel_openflux)
-    }
+    val kernelName = stringResource(KernelRegistry.get(kernelVariant).displayNameRes)
     val xraySubtitle = if (isEditMode && profileName != null) "$kernelName: $profileName" else null
     val canChangeProtocol = remember(kernelVariant) {
         !kernelVariant.isSocks5Core
@@ -600,12 +594,7 @@ private fun WireGuardSettingsBlock(
                         )
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        val msg = when (kernelVariant) {
-                            KernelVariant.OLCRTC -> stringResource(R.string.wg_not_used_with_olcrtc)
-                            KernelVariant.QWDTT -> stringResource(R.string.wg_not_used_with_qwdtt)
-                            KernelVariant.OPENFLUX -> stringResource(R.string.wg_not_used_with_openflux)
-                            else -> stringResource(R.string.wg_not_used_with_webdav)
-                        }
+                        val msg = stringResource(KernelRegistry.get(kernelVariant).wgNotUsedMessageRes)
                         RowLabel(msg)
                     }
                 }
