@@ -15,8 +15,12 @@ import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
-import com.wireturn.app.data.OlcrtcConfig
 import com.wireturn.app.data.VpnSettings
+import com.wireturn.app.kernel.BinaryOutputState
+import com.wireturn.app.kernel.KernelCommandContext
+import com.wireturn.app.kernel.KernelLogContext
+import com.wireturn.app.kernel.KernelRegistry
+import com.wireturn.app.kernel.NetworkQuality
 import com.wireturn.app.viewmodel.AppLifecycleState
 import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.viewmodel.XrayState
@@ -48,7 +52,6 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
-import java.util.regex.Pattern
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -84,6 +87,23 @@ class CoreService : Service() {
     private var xraySupervisorJob: Job? = null
     private var vpnSupervisorJob: Job? = null
     private var networkDebounceJob: Job? = null
+
+    // Adapters handing kernel/*/*.kt implementations only what they need from this Service,
+    // instead of each one needing direct access to CoreService itself.
+    private val commandContext = object : KernelCommandContext {
+        override val filesDir get() = this@CoreService.filesDir
+        override val nativeLibraryDir get() = applicationInfo.nativeLibraryDir
+    }
+    private val logContext = object : KernelLogContext {
+        override fun getString(resId: Int, vararg args: Any) = this@CoreService.getString(resId, *args)
+        override fun updateNotification(text: String) = this@CoreService.updateNotification(text)
+        override fun isNetworkAvailable() = this@CoreService.isNetworkAvailable()
+        override suspend fun getNetworkQuality() = this@CoreService.getNetworkQuality()
+        override suspend fun isNetworkMissingAndHandled() = this@CoreService.isNetworkMissingAndHandled()
+        override fun launchCaptchaActivityIfForeground(url: String) = this@CoreService.launchCaptchaActivityIfForeground(url)
+        override fun setPendingCaptchaSessionId(id: Long) { pendingQwdttCaptchaSessionId.set(id) }
+        override fun setLastFailureReason(reason: String) { lastKnownFailureReason = reason }
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -570,34 +590,12 @@ class CoreService : Service() {
 
     private suspend fun processOutputLine(line: String, state: BinaryOutputState, cfg: ClientConfig): Boolean {
         val lower = line.lowercase()
-
-        return when (cfg.kernelVariant) {
-            KernelVariant.TURNABLE -> handleTurnableLog(line, lower, state)
-            KernelVariant.OLCRTC -> handleOlcrtcLog(line, lower, state, (cfg.kernelConfig as? KernelConfig.Olcrtc)?.config ?: OlcrtcConfig())
-            KernelVariant.WEBDAV -> handleWebdavLog(line, lower, state)
-            KernelVariant.FREETURN -> handleFreeTurnLog(line, lower, state)
-            KernelVariant.QWDTT -> handleQwdttLog(line, lower, state)
-            KernelVariant.OPENFLUX -> handleOpenFluxLog(line, lower, state)
-        }
-    }
-
-    // Suppressed/CaptchaRequired are their own dedicated states with their own UI - a progress
-    // marker mid-connect shouldn't override either of them.
-    private fun canUpdateConnectingStatus(): Boolean {
-        val status = CoreServiceState.status.value
-        return status !is CoreStatus.Suppressed && status !is CoreStatus.CaptchaRequired
-    }
-
-    private fun markConnecting() {
-        CoreServiceState.setStatus(CoreStatus.Connecting)
-        // null, not the literal text - lets a watchdog restart's "Restarting (N/M)" show through
-        // instead of being clobbered by a redundant "Connecting".
-        CoreServiceState.setStatusText(null)
+        return KernelRegistry.get(cfg.kernelVariant).parseLogLine(line, lower, state, logContext, cfg)
     }
 
     // MainActivity's own LaunchedEffect(captchaSession) would eventually pick a new session up
     // too, but don't rely solely on that recomposing in time - open the window directly while
-    // the app is foreground. Shared by both FreeTurn's and qWDTT's captcha branches.
+    // the app is foreground. Shared by every kernel's captcha flow (see kernel/*/*.kt).
     private fun launchCaptchaActivityIfForeground(url: String) {
         if (!AppLifecycleState.isAppInForeground.value) return
         val intent = Intent(this, com.wireturn.app.ui.activities.CaptchaActivity::class.java).apply {
@@ -607,747 +605,18 @@ class CoreService : Service() {
         startActivity(intent)
     }
 
-    private fun handleFreeTurnLog(line: String, lower: String, state: BinaryOutputState): Boolean {
-        // 1. Hard Errors
-        if (lower.startsWith("panic:") || lower.startsWith("fatal error:") || 
-            lower.contains("all vk credentials failed") || lower.contains("fatal_captcha")) {
-            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
-                CoreServiceState.setStatus(CoreStatus.Error(line))
-                updateNotification(getString(R.string.error_connecting))
-            }
-            state.startupFailed = true
-            return true
-        }
-
-        // 2. Connected
-        // Stay Connected while any session in the pool is up, not just on the exact "connected" line.
-        val tcpActiveMatch = TCP_ACTIVE_REGEX.matcher(line)
-
-        // "TURN allocation up" fires once a stream is live; the old "Established DTLS
-        // connection" signal moved to Debugf and we don't pass -debug.
-        if (lower.contains("] turn allocation up") ||
-            (tcpActiveMatch.find() && (tcpActiveMatch.group(1)?.toIntOrNull() ?: 0) > 0)) {
-            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
-                CoreServiceState.setStatus(CoreStatus.Connected)
-                updateNotification(getString(R.string.core_active))
-                state.startupEmitted = true
-            }
-        }
-
-        // 3. Connecting / Progress - without this the binary never leaves CoreStatus.Starting
-        // on its own and can exceed CoreManager's startup timeout.
-        if (lower.contains("provider=") ||
-            lower.contains("[vk auth] connecting identity") ||
-            lower.contains("[vk auth] trying credentials") ||
-            lower.contains("backing off for") ||
-            (lower.contains("[session ") && lower.contains("disconnected") && lower.contains("reconnecting"))
-        ) {
-            if (canUpdateConnectingStatus()) {
-                markConnecting()
-                state.startupEmitted = true
-            }
-        }
-
-        // 4. Captcha
-        handleFreeTurnCaptchaEvents(line, lower, state)
-
-        if (state.captchaActive && (
-                lower.contains("[vk auth] failed") ||
-                lower.contains("[vk auth] success") ||
-                lower.contains("turn allocation up") || // success line is Debugf-only now; this stays Infof
-                (lower.contains("[captcha]") && lower.contains("failed"))
-            )) {
-            CoreServiceState.setCaptchaSession(null)
-            updateNotification(getString(R.string.core_active))
-            state.captchaActive = false
-        }
-
-        // 5. Soft Errors / Progress
-        if (lower.contains("quota")) {
-            // Log it but keep running or let watchdog handles it if it exits
-            state.startupEmitted = true
-        }
-
-        return false
-    }
-
-    // qWDTT (external/proxy-turn-vk-android/go_client, -mode socks only - see docs). Its
-    // vocabulary is Russian and unrelated to free-turn-proxy's despite the shared VK-TURN idea.
-    private fun handleQwdttLog(line: String, lower: String, state: BinaryOutputState): Boolean {
-        // Benign SOCKS5 IPv6 routing noise (the official qWDTT client filters the same thing) -
-        // not an error, don't touch the status.
-        if (lower.contains("socks") && (lower.contains("blocked by rules") || lower.contains("ipv6"))) {
-            return false
-        }
-
-        // 1. Hard errors
-        if (lower.startsWith("panic") || lower.contains("fatal_auth") ||
-            lower.contains("нужны -peer и -vk") || lower.contains("нужен -password")) {
-            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
-                CoreServiceState.setStatus(CoreStatus.Error(line))
-                updateNotification(getString(R.string.error_connecting))
-            }
-            state.startupFailed = true
-            return true
-        }
-
-        // 2. Captcha - the binary prints "CAPTCHA_SOLVE|mode|redirectURI|sessionToken" and waits
-        // for a token back over stdin ("CAPTCHA_RESULT|<token>"). mode=auto is a first, ~10s
-        // attempt the binary makes on its own automated chain - not enough time for a human to
-        // react, and it has its own internal fallbacks, so we only step in for mode=manual (the
-        // final fallback once that whole chain is exhausted) or mode=selected (the binary's own
-        // automatic solving is disabled entirely - QwdttConfig.manualCaptcha / "-captcha-mode wv").
-        // Either way the binary times out and retries on its own if we never respond, so silently
-        // ignoring "auto" here is safe.
-        if (line.startsWith("CAPTCHA_SOLVE|")) {
-            val parts = line.removePrefix("CAPTCHA_SOLVE|").split("|", limit = 3)
-            if (parts.size == 3 && (parts[0].equals("manual", ignoreCase = true) || parts[0].equals("selected", ignoreCase = true))) {
-                val redirectUri = parts[1]
-                if (redirectUri.isNotBlank() && CoreServiceState.status.value !is CoreStatus.Suppressed) {
-                    state.captchaSessionCounter += 1
-                    pendingQwdttCaptchaSessionId.set(state.captchaSessionCounter)
-                    CoreServiceState.setCaptchaSession(
-                        CaptchaSession(redirectUri, state.captchaSessionCounter, needsResultToken = true)
-                    )
-
-                    launchCaptchaActivityIfForeground(redirectUri)
-                }
-            }
-            return false
-        }
-
-        // 3. Connected - "[SOCKS] listening" is the definitive signal; the periodic stats line's
-        // "Активных: N" (N>0) is a fallback in case that line scrolled past unseen.
-        val activeMatch = QWDTT_ACTIVE_REGEX.matcher(line)
-        if (lower.contains("[socks] listening") ||
-            (activeMatch.find() && (activeMatch.group(1)?.toIntOrNull() ?: 0) > 0)) {
-            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
-                CoreServiceState.setStatus(CoreStatus.Connected)
-                updateNotification(getString(R.string.core_active))
-                state.startupEmitted = true
-            }
-        }
-
-        // 4. Connecting / progress - without this the binary never leaves CoreStatus.Starting on
-        // its own and can exceed CoreManager's startup timeout. "relay:"/"[dtls] соединение
-        // установлено" print once per worker (up to -n of them, staggered over ~1s) - guard on
-        // "not already Connected" so a later worker's turn doesn't flap the status back down
-        // once "[SOCKS] listening"/active-count already declared the tunnel up.
-        if (CoreServiceState.status.value !is CoreStatus.Connected && (
-                lower.contains("креды ok") || lower.contains("[wrap]") ||
-                (lower.contains("[turn]") && !lower.contains("ошибка") && !lower.contains("не удалось") && !lower.contains("неполный ответ")) ||
-                lower.contains("relay:") || lower.contains("[прямой]") ||
-                lower.contains("[dtls] соединение установлено")
-            )
-        ) {
-            if (canUpdateConnectingStatus()) {
-                markConnecting()
-                state.startupEmitted = true
-            }
-        }
-
-        return false
-    }
-
-    private suspend fun handleTurnableLog(line: String, lower: String, state: BinaryOutputState): Boolean {
-        // 1. Hard Errors (Watchdog won't help, needs manual fix)
-        if (lower.contains("call not found") || lower.contains("join link is not valid")) {
-            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
-                CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_room_not_found)))
-                updateNotification(getString(R.string.error_connecting))
-            }
-            state.startupFailed = true
-            return true
-        }
-
-        if (lower.contains("vk signaling connect rejected: not authorized") ||
-            lower.contains("failed to validate connection url") ||
-            lower.contains("second shutdown signal received") ||
-            lower.contains("panic") || lower.contains("fatal")
-        ) {
-            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
-                CoreServiceState.setStatus(CoreStatus.Error(line))
-                updateNotification(getString(R.string.error_connecting))
-            }
-            state.startupFailed = true
-            return true
-        }
-
-        // 2. Soft Errors (Transient network issues, watchdog will restart)
-        val isSignalingLoopTerminated = lower.contains("vk signaling loop terminated")
-        val isNormalClose = lower.contains("close 1000 (normal)")
-
-        if (lower.contains("vk authorize anonymous flow failed") ||
-            lower.contains("vk calls login failed") ||
-            lower.contains("vk join conversation failed") ||
-            (isSignalingLoopTerminated && !isNormalClose)
-        ) {
-            // Break reading and let watchdog restart the process
-            state.startupEmitted = true
-            return true
-        }
-
-        // Turnable's PoW-captcha retry loop has no attempt cap and hammers the same broken
-        // request forever - surface a clear error after a few failures instead of relying on
-        // the generic 120s connecting-timeout watchdog. Gated on network being up so a dropped
-        // connection isn't miscounted as a captcha failure.
-        if (lower.contains("vk captcha solve failed") && isNetworkAvailable()) {
-            if (state.vkCaptchaSolveFailCounter.recordAndCheckThreshold()) {
-                // "pow arguments not found" means the captcha page itself is broken (e.g. VK
-                // changed markup) - restarting won't fix that. Anything else is likely transient.
-                if (lower.contains("captcha pow arguments not found")) {
-                    if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
-                        CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_turnable_vk_captcha_failed)))
-                        updateNotification(getString(R.string.error_connecting))
-                    }
-                    state.startupFailed = true
-                } else {
-                    state.startupEmitted = true
-                }
-                return true
-            }
-        }
-
-        if (lower.contains("failed to start vpn client")) {
-            val errorPart = line.substringAfterLast(":").trim()
-            val lowerError = errorPart.lowercase()
-            if (lowerError.contains("read tcp") || lowerError.contains("timeout") || lowerError.contains("abort")) {
-                state.startupEmitted = true
-                return true
-            }
-            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
-                CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_turnable_failed, errorPart)))
-            }
-            state.startupFailed = true
-            return true
-        }
-
-        // 2. Connected
-        val onlineCount = getOnlineCount(lower)
-        if (lower.contains("turnable client started") ||
-            lower.contains("relay client session connected") ||
-            lower.contains("direct session connected") ||
-            (onlineCount != null && onlineCount >= 1 && lower.contains("peer online"))
-        ) {
-            state.peerConnectFailedCount = 0
-            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
-                CoreServiceState.setStatus(CoreStatus.Connected)
-                updateNotification(getString(R.string.core_active))
-                state.startupEmitted = true
-            }
-        }
-
-        // 3. Connecting / Progress / Retries
-        if (lower.contains("starting turnable client") ||
-            lower.contains("starting full reconnect") ||
-            lower.contains("direct: starting full reconnect") ||
-            lower.contains("vk captcha challenge received") ||
-            lower.contains("vk captcha solved") ||
-            lower.contains("all auto captcha attempts exhausted") ||
-            lower.contains("manual captcha solve required") ||
-            lower.contains("vk signaling websocket dial failed") ||
-            lower.contains("turn candidate failed") ||
-            lower.contains("dtls direct connect failed") ||
-            lower.contains("srtp direct connect failed") ||
-            lower.contains("dtls client handshake started") ||
-            lower.contains("srtp client handshake started") ||
-            lower.contains("peer connect failed") ||
-            lower.contains("peer quota reached") ||
-            lower.contains("full reconnect failed") ||
-            lower.contains("direct: full reconnect failed") ||
-            lower.contains("primary handshake failed") ||
-            lower.contains("secondary handshake failed") ||
-            lower.contains("peer reconnect failed") ||
-            lower.contains("scheduling peer retry") ||
-            lower.contains("tinymux client received disconnect") ||
-            lower.contains("tinymux client cut off unexpectedly") ||
-            lower.contains("quota") ||
-            (onlineCount != null && onlineCount == 0 && lower.contains("peer offline"))
-        ) {
-            if (canUpdateConnectingStatus()) {
-                if (isNetworkMissingAndHandled()) {
-                    state.startupFailed = true
-                    return true
-                }
-                markConnecting()
-                state.startupEmitted = true
-            }
-        }
-
-        return false
-    }
-
-    private suspend fun handleWebdavLog(line: String, lower: String, state: BinaryOutputState): Boolean {
-        // pingBackends() logs one "connection failed" per dead backend before the final "all N
-        // unreachable" fatal - swallow those (false, not true: true would break the read loop
-        // here and we'd never see that final line).
-        if (lower.contains("webdav backend") && lower.contains("connection failed")) {
-            return false
-        }
-
-        // pingBackends() logs "OK (<ms>)" per reachable backend - earliest real progress signal.
-        if (lower.contains("webdav backend") && lower.contains("ok (")) {
-            if (canUpdateConnectingStatus()) {
-                markConnecting()
-            }
-        }
-
-        // Marks the process as genuinely started so a later crash goes through the normal
-        // watchdog retry instead of the "no output" hard-stop path.
-        if (lower.contains("socks5 proxy listening on")) {
-            state.startupEmitted = true
-        }
-
-        // All configured backends unreachable - treat as transient (rate limit, brief outage)
-        // and let the normal watchdog retry rather than hard-failing.
-        if (lower.contains("webdav backend(s) unreachable")) {
-            AppLogsState.addLog(getString(R.string.log_core_webdav_backends_unreachable))
-            lastKnownFailureReason = getString(R.string.error_webdav_backend_unreachable)
-            state.startupEmitted = true
-            return true
-        }
-
-        if (lower.contains("server connection lost") || lower.contains("server has not picked up the session")) {
-            if (getNetworkQuality() == NetworkQuality.FAST) {
-                if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
-                    CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_webdav_server_unavailable)))
-                    updateNotification(getString(R.string.error_connecting))
-                }
-                state.startupFailed = true
-            } else {
-                state.startupEmitted = true
-            }
-            return true
-        }
-
-        if (lower.contains("server connected")) {
-            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
-                CoreServiceState.setStatus(CoreStatus.Connected)
-                updateNotification(getString(R.string.core_active))
-                state.startupEmitted = true
-            }
-        }
-
-        if (lower.contains("panic") || lower.contains("fatal") || lower.contains("error starting socks5")) {
-            CoreServiceState.setStatus(CoreStatus.Error(line))
-            state.startupFailed = true
-            return true
-        }
-
-        if (lower.contains("connection refused")) {
-            if (state.webdavConnRefusedCounter.recordAndCheckThreshold()) {
-                AppLogsState.addLog(getString(R.string.log_core_webdav_too_many_refused))
-                state.startupEmitted = true // Trigger watchdog
-                return true
-            }
-        }
-
-        return false
-    }
-
-    // OpenFlux (external/openflux, upstream p1neappleXpress/OpenFlux). Plain Go log.Printf output,
-    // no captcha/multi-step auth flow to handle - just a startup banner, a final "ready" line once
-    // trans.Start() has already succeeded, and log.Fatalf on hard failure (which also exits the
-    // process, so the generic "no output before exit" fallback in runBinary would eventually catch
-    // it too, but matching the line directly gives a much faster, more specific error).
-    private fun handleOpenFluxLog(line: String, lower: String, state: BinaryOutputState): Boolean {
-        // 1. Hard errors (log.Fatalf in main.go - prints then exits)
-        if (lower.startsWith("panic:") ||
-            lower.contains("failed to start transport") ||
-            lower.contains("unknown transport type")) {
-            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
-                CoreServiceState.setStatus(CoreStatus.Error(line))
-                updateNotification(getString(R.string.error_connecting))
-            }
-            state.startupFailed = true
-            return true
-        }
-
-        // 2. Connecting - first banner line, printed before the transport handshake starts.
-        if (lower.contains("=== universal bypass tool ===")) {
-            if (canUpdateConnectingStatus()) {
-                markConnecting()
-            }
-            state.startupEmitted = true
-        }
-
-        // 3. Connected - the last line main.go prints, only reached once trans.Start() (the
-        // Yandex.Docs / MAX login+call handshake) has already returned successfully.
-        if (lower.contains("running as client (socks5 on")) {
-            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
-                CoreServiceState.setStatus(CoreStatus.Connected)
-                updateNotification(getString(R.string.core_active))
-                state.startupEmitted = true
-            }
-        }
-
-        return false
-    }
-
-    private suspend fun handleOlcrtcLog(line: String, lower: String, state: BinaryOutputState, olcrtcConfig: OlcrtcConfig): Boolean {
-        if (lower.contains("join room failed: status 404") || lower.contains("guests cannot create rooms")) {
-            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
-                CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_room_not_found)))
-                updateNotification(getString(R.string.error_connecting))
-            }
-            state.startupFailed = true
-            return true
-        }
-
-        if (lower.contains("socks5 server listening on")) {
-            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
-                CoreServiceState.setStatus(CoreStatus.Connected)
-                updateNotification(getString(R.string.core_active))
-                state.startupEmitted = true
-            }
-        }
-
-        if (lower.contains("setupcipher failed")) {
-            CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_invalid_auth_key)))
-            state.startupFailed = true
-            return true
-        }
-
-        if (lower.contains("failed to connect link") || lower.contains("failed to create link")) {
-            if (getNetworkQuality() == NetworkQuality.FAST) {
-                // Быстрая сеть, но ошибка линка — платформа недоступна
-                CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_platform_unavailable)))
-                state.startupFailed = true
-            } else {
-                // Либо медленная, либо лежит совсем — на откуп watchdog
-                state.startupEmitted = true
-            }
-            return true
-        }
-
-        if (olcrtcConfig.restartOnConnectionErrors && (lower.contains("remote not ready") || lower.contains("openstream failed"))) {
-            if (state.remoteNotReadyCounter.recordAndCheckThreshold()) {
-                AppLogsState.addLog(getString(R.string.log_core_too_many_remote_not_ready))
-                state.startupEmitted = true // Trigger watchdog
-                return true
-            }
-        }
-
-        if (lower.contains("client reconnect attempt=2")) {// reason=carrier
-            AppLogsState.addLog(getString(R.string.log_core_reconnect_restart))
-            state.startupEmitted = true
-            return true
-        }
-
-        if (lower.contains("panic") || lower.contains("fatal") || lower.contains("error starting socks5")) {
-            CoreServiceState.setStatus(CoreStatus.Error(line))
-            state.startupFailed = true
-            return true
-        }
-
-        return false
-    }
-
-    private fun getOnlineCount(lower: String): Int? {
-        val matcher = ONLINE_COUNT_REGEX.matcher(lower)
-        return if (matcher.find()) matcher.group(1)?.toIntOrNull() else null
-    }
-
-    private fun handleFreeTurnCaptchaEvents(line: String, lower: String, state: BinaryOutputState) {
-        if (line.contains("Triggering manual captcha fallback")) {
-            if (CoreServiceState.status.value !is CoreStatus.CaptchaRequired) {
-                state.startupEmitted = true
-            }
-        }
-
-        val captchaMatcher = CAPTCHA_URL_REGEX.matcher(line)
-        val freeTurnMatcher = FREE_TURN_CAPTCHA_REGEX.matcher(line)
-        val finalMatcher = if (freeTurnMatcher.find()) freeTurnMatcher else if (captchaMatcher.find()) captchaMatcher else null
-
-        if (finalMatcher != null) {
-            val captchaUrl = finalMatcher.group(1)!!
-            if (CoreServiceState.captchaSession.value?.url == captchaUrl) return
-
-            state.captchaSessionCounter += 1
-            val session = CaptchaSession(captchaUrl, state.captchaSessionCounter)
-            CoreServiceState.setCaptchaSession(session)
-            state.captchaActive = true
-            updateNotification(getString(R.string.core_captcha_required))
-            
-            // Автоматически открываем окно капчи, если приложение активно
-            launchCaptchaActivityIfForeground(captchaUrl)
-        }
-
-        if (state.captchaActive && (
-                lower.contains("[vk auth] failed") ||
-                lower.contains("[vk auth] success") ||
-                lower.contains("turn allocation up") || // success line is Debugf-only now; this stays Infof
-                (lower.contains("[captcha]") && lower.contains("failed"))
-            )) {
-            CoreServiceState.setCaptchaSession(null)
-            updateNotification(getString(R.string.core_active))
-            state.captchaActive = false
-        }
-    }
-
-    private class BinaryOutputState {
-        var startupEmitted = false
-        var startupFailed = false
-        var captchaActive = false
-        var captchaSessionCounter = 0L
-        var peerConnectFailedCount = 0
-        var connectingSince = 0L
-
-        // "Give up after N repeats" counters for failure patterns that keep recurring without
-        // ever surfacing a terminal error on their own.
-        val remoteNotReadyCounter = LogOccurrenceCounter(windowMs = 10_000, threshold = 7)
-        val webdavConnRefusedCounter = LogOccurrenceCounter(windowMs = 5_000, threshold = 10)
-        val vkCaptchaSolveFailCounter = LogOccurrenceCounter(windowMs = Long.MAX_VALUE, threshold = 5)
-    }
-
-    /**
-     * Counts repeated occurrences of a log pattern, resetting back to 1 once more than [windowMs]
-     * has passed since the last occurrence. [windowMs] = [Long.MAX_VALUE] effectively disables the
-     * reset (every occurrence counts, however far apart). Returns true from [recordAndCheckThreshold]
-     * once [threshold] occurrences have piled up inside the window - the caller decides what to do
-     * then (the counter itself keeps counting past threshold, same as the original ad hoc versions).
-     */
-    private class LogOccurrenceCounter(private val windowMs: Long, private val threshold: Int) {
-        private var count = 0
-        private var lastTime = 0L
-
-        fun recordAndCheckThreshold(): Boolean {
-            val now = System.currentTimeMillis()
-            count = if (now - lastTime > windowMs) 1 else count + 1
-            lastTime = now
-            return count >= threshold
-        }
-    }
-
-    // FreeTurn has no file-based config option upstream (unlike the other kernels), so its
-    // join links/obf key ride the process command line directly - mask those specific values
-    // for the app's own log, which the user may end up sharing for support.
+    // FreeTurn/Qwdtt/OpenFlux have no file-based config option upstream (unlike the other
+    // kernels), so their sensitive values ride the process command line directly - mask those
+    // specific flags for the app's own log, which the user may end up sharing for support.
     private fun redactedCommandLog(cmdArgs: List<String>, cfg: ClientConfig): String {
-        val sensitiveFlags = when (cfg.kernelConfig) {
-            is KernelConfig.FreeTurn -> setOf("-obf-key", "-links", "-sub")
-            // Qwdtt (like FreeTurn) has no file-based config either - -vk/-password ride argv too.
-            is KernelConfig.Qwdtt -> setOf("-vk", "-password", "-socks-user", "-socks-pass")
-            // OpenFlux takes everything as flags too - --maxToken is a bare MAX account auth token.
-            is KernelConfig.OpenFlux -> setOf("--maxToken")
-            else -> return cmdArgs.joinToString(" ")
-        }
+        val sensitiveFlags = KernelRegistry.get(cfg.kernelVariant).sensitiveCommandFlags
+        if (sensitiveFlags.isEmpty()) return cmdArgs.joinToString(" ")
         return CommandLogRedactor.redact(cmdArgs, sensitiveFlags)
     }
 
-    private fun buildCommandArgs(cfg: ClientConfig): List<String> {
-        val cmdArgs = mutableListOf<String>()
-        when (val k = cfg.kernelConfig) {
-            is KernelConfig.Turnable -> {
-                cmdArgs.add("${applicationInfo.nativeLibraryDir}/libturnable.so")
-                // Via -config file rather than as a positional arg (both are supported by
-                // turnable's client subcommand) so the join link/key doesn't end up in the
-                // process command line, which gets written verbatim to the app's own log.
-                val configFile = java.io.File(filesDir, "turnable.json")
-                configFile.writeText(k.config.toUri(true))
-                cmdArgs.addAll(listOf(
-                    "client",
-                    "-l", cfg.listenAddr.ifBlank { ClientConfig.DEFAULT_LISTEN_ADDR },
-                    "-c", configFile.absolutePath
-                ))
-            }
-            is KernelConfig.Olcrtc -> {
-                cmdArgs.add("${applicationInfo.nativeLibraryDir}/libolcrtc.so")
-                val configFile = java.io.File(filesDir, "olcrtc.yaml")
-                configFile.writeText(buildOlcrtcYaml(cfg))
-                cmdArgs.add(configFile.absolutePath)
-            }
-            is KernelConfig.Webdav -> {
-                cmdArgs.add("${applicationInfo.nativeLibraryDir}/libwebdav.so")
-                val configFile = java.io.File(filesDir, "webdav.yaml")
-                configFile.writeText(buildWebdavYaml(cfg))
-                cmdArgs.addAll(listOf("-config", configFile.absolutePath))
-            }
-            is KernelConfig.FreeTurn -> {
-                val o = k.config
-                cmdArgs.add("${applicationInfo.nativeLibraryDir}/libfreeturn.so")
-                cmdArgs.addAll(listOf(
-                    "-listen", cfg.listenAddr.ifBlank { ClientConfig.DEFAULT_LISTEN_ADDR },
-                    "-provider", o.provider,
-                    "-peer", o.peer,
-                    "-n", o.n.toString(),
-                    "-transport", o.transport,
-                    "-obf-profile", o.obfProfile,
-                    "-streams-per-cred", o.streamsPerCred.toString(),
-                    "-dns-mode", o.dnsMode,
-                    "-platform", o.platform
-                ))
-                if (o.obfTiming != "0" && o.obfTiming.isNotBlank()) {
-                    cmdArgs.add("-obf-timing")
-                    cmdArgs.add(o.obfTiming)
-                }
-                if (o.links.isNotBlank()) {
-                    cmdArgs.add("-links")
-                    cmdArgs.add(o.links)
-                }
-                if (o.sub.isNotBlank()) {
-                    cmdArgs.add("-sub")
-                    cmdArgs.add(o.sub)
-                }
-                if (o.obfProfile != "none" && o.obfKey.isNotBlank()) {
-                    cmdArgs.add("-obf-key")
-                    cmdArgs.add(o.obfKey)
-                }
-                if (o.dnsServers.isNotBlank()) {
-                    cmdArgs.add("-dns-servers")
-                    cmdArgs.add(o.dnsServers)
-                }
-                if (o.clientId.isNotBlank()) {
-                    cmdArgs.add("-client-id")
-                    cmdArgs.add(o.clientId)
-                }
-                if (o.manualCaptcha) cmdArgs.add("-manual-captcha")
-                if (o.mode == "tcp") {
-                    cmdArgs.add("-mode")
-                    cmdArgs.add("tcp")
-                    val default = com.wireturn.app.data.FreeTurnConfig()
-                    if (o.kcpNodelay != default.kcpNodelay) cmdArgs.addAll(listOf("-kcp-nodelay", o.kcpNodelay.toString()))
-                    if (o.kcpInterval != default.kcpInterval) cmdArgs.addAll(listOf("-kcp-interval", o.kcpInterval.toString()))
-                    if (o.kcpResend != default.kcpResend) cmdArgs.addAll(listOf("-kcp-resend", o.kcpResend.toString()))
-                    if (o.kcpNc != default.kcpNc) cmdArgs.addAll(listOf("-kcp-nc", o.kcpNc.toString()))
-                    if (o.kcpSndwnd != default.kcpSndwnd) cmdArgs.addAll(listOf("-kcp-sndwnd", o.kcpSndwnd.toString()))
-                    if (o.kcpRcvwnd != default.kcpRcvwnd) cmdArgs.addAll(listOf("-kcp-rcvwnd", o.kcpRcvwnd.toString()))
-                    if (o.kcpMtu != default.kcpMtu) cmdArgs.addAll(listOf("-kcp-mtu", o.kcpMtu.toString()))
-                    if (o.kcpAcknodelay != default.kcpAcknodelay) cmdArgs.addAll(listOf("-kcp-acknodelay", o.kcpAcknodelay.toString()))
-                }
-            }
-            is KernelConfig.Qwdtt -> {
-                val o = k.config
-                cmdArgs.add("${applicationInfo.nativeLibraryDir}/libqwdtt.so")
-                cmdArgs.addAll(listOf(
-                    "-mode", "socks",
-                    "-socks", cfg.socksAddr.ifBlank { ClientConfig.DEFAULT_SOCKS_ADDR },
-                    "-peer", o.peer,
-                    "-vk", o.vkHashes,
-                    "-password", o.password,
-                    "-n", o.workers.toString(),
-                    "-listen", cfg.listenAddr.ifBlank { ClientConfig.DEFAULT_LISTEN_ADDR },
-                    "-obfs", o.obfsMode
-                ))
-                if (o.turnTcp) cmdArgs.add("-turn-tcp")
-                if (o.noTls) cmdArgs.add("-notls")
-                if (o.manualCaptcha) cmdArgs.addAll(listOf("-captcha-mode", "wv"))
-                if (o.goDns.isNotBlank() && o.goDns != "yandex") cmdArgs.addAll(listOf("-go-dns", o.goDns))
-                if (cfg.isSocksAuthEnabled) {
-                    cmdArgs.add("-socks-auth")
-                    cmdArgs.addAll(listOf("-socks-user", cfg.socksUser))
-                    cmdArgs.addAll(listOf("-socks-pass", cfg.socksPass))
-                }
-            }
-            is KernelConfig.OpenFlux -> {
-                val o = k.config
-                cmdArgs.add("${applicationInfo.nativeLibraryDir}/libopenflux.so")
-                cmdArgs.addAll(listOf(
-                    "--client",
-                    "--socks5", cfg.socksAddr.ifBlank { ClientConfig.DEFAULT_SOCKS_ADDR },
-                    "--transport", o.transport
-                ))
-                // No SOCKS5 auth flags exist upstream - cfg.isSocksAuthEnabled/socksUser/socksPass
-                // don't apply to this kernel, unlike Qwdtt above.
-                if (o.transport == "oneme") {
-                    cmdArgs.addAll(listOf("--maxToken", o.maxToken, "--maxUid", o.maxUid))
-                } else {
-                    cmdArgs.addAll(listOf("--url", o.url))
-                }
-                cmdArgs.add("--debug")
-            }
-        }
-        return cmdArgs
-    }
+    private fun buildCommandArgs(cfg: ClientConfig): List<String> =
+        KernelRegistry.get(cfg.kernelVariant).buildCommand(commandContext, cfg)
 
-    private fun buildOlcrtcYaml(cfg: ClientConfig): String {
-        val o = (cfg.kernelConfig as KernelConfig.Olcrtc).config
-        return buildString {
-            appendLine("mode: cnc")
-            appendLine("auth:")
-            appendLine("  provider: ${o.provider}")
-            appendLine("room:")
-            appendLine("  id: \"${o.id}\"")
-            appendLine("crypto:")
-            appendLine("  key: \"${o.key}\"")
-            appendLine("net:")
-            appendLine("  transport: ${o.transport}")
-            // Unlike WebDAV's -dns, olcRTC hard-fails startup ("dns server required") if this is
-            // empty, so fall back to a default rather than ever handing it a blank value.
-            appendLine("  dns: \"${cfg.dns.ifBlank { ClientConfig.DEFAULT_DNS }}\"")
-            appendLine("socks:")
-            appendLine("  host: \"${cfg.socksAddr.substringBefore(':').ifBlank { "127.0.0.1" }}\"")
-            appendLine("  port: ${cfg.socksAddr.substringAfter(':', "9001").ifBlank { "9001" }}")
-            if (cfg.isSocksAuthEnabled) {
-                appendLine("  user: \"${cfg.socksUser}\"")
-                appendLine("  pass: \"${cfg.socksPass}\"")
-            }
-            when (o.transport) {
-                "vp8channel" -> {
-                    appendLine("vp8:")
-                    appendLine("  fps: ${o.vp8Fps}")
-                    appendLine("  batch_size: ${o.vp8Batch}")
-                }
-                "seichannel" -> {
-                    appendLine("sei:")
-                    appendLine("  fps: ${o.seiFps}")
-                    appendLine("  batch_size: ${o.seiBatch}")
-                    appendLine("  fragment_size: ${o.seiFrag}")
-                    appendLine("  ack_timeout_ms: ${o.seiAckMs}")
-                }
-                "videochannel" -> {
-                    appendLine("video:")
-                    appendLine("  codec: ${o.videoCodec}")
-                    appendLine("  width: ${o.videoW}")
-                    appendLine("  height: ${o.videoH}")
-                    appendLine("  fps: ${o.videoFps}")
-                    if (o.videoCodec == "qrcode") {
-                        appendLine("  qr_recovery: ${o.videoQrRecovery}")
-                        appendLine("  qr_size: ${o.videoQrSize}")
-                    } else if (o.videoCodec == "tile") {
-                        appendLine("  tile_module: ${o.videoTileModule}")
-                        appendLine("  tile_rs: ${o.videoTileRs}")
-                    }
-                }
-            }
-        }
-    }
-
-    private fun buildWebdavYaml(cfg: ClientConfig): String {
-        val o = (cfg.kernelConfig as KernelConfig.Webdav).config
-        fun esc(s: String) = s.replace("\\", "\\\\").replace("\"", "\\\"")
-        return buildString {
-            appendLine("mode: client")
-            appendLine("socks-listen: \"${esc(cfg.socksAddr.ifBlank { ClientConfig.DEFAULT_SOCKS_ADDR })}\"")
-            if (cfg.isSocksAuthEnabled) {
-                appendLine("socks-user: \"${esc(cfg.socksUser)}\"")
-                appendLine("socks-pass: \"${esc(cfg.socksPass)}\"")
-            }
-            if (o.encrypt) appendLine("enc: true")
-            appendLine("timeout: \"${esc(o.timeout)}\"")
-            if (cfg.dns.isNotBlank()) appendLine("dns: \"${esc(cfg.dns)}\"")
-
-            appendLine("backends:")
-            appendLine("  - url: \"${esc(o.webdav)}\"")
-            appendLine("    login: \"${esc(o.login)}\"")
-            appendLine("    password: \"${esc(o.password)}\"")
-            for (backend in o.backends) {
-                // BackendConfig (external/webdav-tunnel config.go) only has url/login/password -
-                // the label is purely a local display name, not sent to the tunnel binary.
-                appendLine("  - url: \"${esc(backend.url)}\"")
-                appendLine("    login: \"${esc(backend.login)}\"")
-                appendLine("    password: \"${esc(backend.password)}\"")
-            }
-
-            appendLine("tuning:")
-            appendLine("  poll-min: \"${esc(o.pollMin)}\"")
-            appendLine("  poll-max: \"${esc(o.pollMax)}\"")
-            appendLine("  coalesce: \"${esc(o.coalesce)}\"")
-            appendLine("  chunk-size: ${o.chunkSize.toIntOrNull() ?: 131071}")
-            appendLine("  puts: ${o.puts.toIntOrNull() ?: 8}")
-            appendLine("  read-min: ${o.readMin.toIntOrNull() ?: 3}")
-            appendLine("  read-max: ${o.readMax.toIntOrNull() ?: 8}")
-        }
-    }
 
     private fun requiresBinaryRestart(old: ClientConfig, new: ClientConfig): Boolean {
         if (old.kernelConfig != new.kernelConfig) return true
@@ -1712,9 +981,10 @@ class CoreService : Service() {
         }
     }
 
-    // Bridges the UI-solved captcha token back into the qWDTT process's stdin. Only qWDTT sets
-    // pendingQwdttCaptchaSessionId (see handleQwdttLog), so this is a no-op for every other kernel's
-    // captcha sessions (FreeTurn detects its own success from its log output, never emits here).
+    // Bridges the UI-solved captcha token back into the qWDTT process's stdin. Only QwdttKernel
+    // calls ctx.setPendingCaptchaSessionId() (see kernel/QwdttKernel.kt), so this is a no-op for
+    // every other kernel's captcha sessions (FreeTurn detects its own success from its log output,
+    // never emits here).
     private fun observeQwdttCaptchaResult() {
         serviceScope.launch {
             CoreServiceState.captchaResult.collect { (sessionId, token) ->
@@ -1885,8 +1155,6 @@ class CoreService : Service() {
         return availablePhysicalNetworks.isNotEmpty()
     }
 
-    private enum class NetworkQuality { FAST, SLOW, OFFLINE }
-
     private suspend fun getNetworkQuality(): NetworkQuality = withContext(Dispatchers.IO) {
         val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
         val network = cm.activeNetwork ?: return@withContext NetworkQuality.OFFLINE
@@ -1960,13 +1228,6 @@ class CoreService : Service() {
         const val MAX_RESTARTS = 10
         private const val VPN_TARGET_LOST_GRACE_MS = 5_000L
         private const val VPN_ERROR_RETRY_MS = 15_000L
-        private val CAPTCHA_URL_REGEX = Pattern.compile("""Open this URL in your browser:\s*(https?://\S+)""")
-        private val FREE_TURN_CAPTCHA_REGEX = Pattern.compile("""(?:manually open this URL|Open this URL in your browser):\s*(https?://\S+)""")
-        private val TCP_ACTIVE_REGEX = Pattern.compile("""\[session \d+] (?:connected|disconnected) \(active: (\d+)\)""")
-        private val ONLINE_COUNT_REGEX = Pattern.compile("""online=(\d+)""")
-        // go_client's periodic "[СТАТИСТИКА] Активных: N | ..." line - a fallback Connected signal
-        // for when "[SOCKS] listening" was missed (e.g. log ring buffer already rotated past it).
-        private val QWDTT_ACTIVE_REGEX = Pattern.compile("""Активных:\s*(\d+)""")
 
         fun start(context: Context, cfg: ClientConfig) {
             cfg.getValidationErrorResId()?.let { errorRes ->
