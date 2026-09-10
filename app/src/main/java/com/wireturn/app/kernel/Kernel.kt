@@ -48,6 +48,12 @@ class BinaryOutputState {
     val remoteNotReadyCounter = LogOccurrenceCounter(windowMs = 10_000, threshold = 7)
     val webdavConnRefusedCounter = LogOccurrenceCounter(windowMs = 5_000, threshold = 10)
     val vkCaptchaSolveFailCounter = LogOccurrenceCounter(windowMs = Long.MAX_VALUE, threshold = 5)
+    // OpenFlux's Yandex.Docs transport retries its doc/websocket session internally forever
+    // (MaxReconnectAttempts = 999999, no delay between attempts) and never logs giving up - left
+    // unchecked, a permanently broken doc link would spin invisibly behind an already-"Connected"
+    // status forever. Short window: a fast-failing attempt (e.g. DNS/refused) can repeat rapidly.
+    val openFluxYandexFailureCounter = LogOccurrenceCounter(windowMs = 5_000, threshold = 8)
+    val openFluxMaxFailureCounter = LogOccurrenceCounter(windowMs = 5_000, threshold = 8)
 }
 
 /**
