@@ -478,8 +478,8 @@
     <string name="qr_scan_progress">Получено %1$d из %2$d частей — продолжайте сканировать</string>
     <string name="qr_force_static_label">Один QR-код</string>
     <string name="qr_force_static_hint">Для сканирования сторонними приложениями, которые не понимают многокадровый формат; может не сканироваться</string>
-    <string name="settings_group_turnable">Настройки Turnable / FreeTurn / qWDTT</string>
-    <string name="settings_group_client_socks">Настройки olcRTC / WebDAV / qWDTT / OpenFlux</string>
+    <string name="settings_group_kernel_params">Параметры ядра</string>
+    <string name="settings_group_kernel_socks5">SOCKS5-параметры ядра</string>
     <string name="xray_settings_group_connection">Подключение</string>
     <string name="xray_proxy_auth">Авторизация прокси</string>
     <string name="xray_proxy_auth_desc">Защитить прокси логином и паролем</string>

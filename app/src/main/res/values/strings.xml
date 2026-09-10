@@ -521,8 +521,8 @@
     <string name="qr_scan_progress">Collected %1$d of %2$d parts — keep scanning</string>
     <string name="qr_force_static_label">Single QR code</string>
     <string name="qr_force_static_hint">For scanning with other apps that don\'t support multi-frame codes; may not scan reliably</string>
-    <string name="settings_group_turnable">Turnable / FreeTurn / qWDTT settings</string>
-    <string name="settings_group_client_socks">olcRTC / WebDAV / qWDTT / OpenFlux settings</string>
+    <string name="settings_group_kernel_params">Kernel settings</string>
+    <string name="settings_group_kernel_socks5">Kernel SOCKS5 settings</string>
     <string name="xray_settings_group_connection">Connection</string>
     <string name="xray_protocol_desc">Choose protocol for Xray-core</string>
     <string name="protocol_wireguard" translatable="false">WireGuard</string>

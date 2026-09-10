@@ -261,8 +261,8 @@ fun ConnectionSettingsScreen(
                 }
             }
 
-            // Turnable
-            SectionGroup(title = stringResource(R.string.settings_group_turnable)) {
+            // Local listen port (Turnable / FreeTurn / qWDTT - see the `listenAddr` comment above)
+            SectionGroup(title = stringResource(R.string.settings_group_kernel_params)) {
                 SectionItem(position = ItemPosition.Single) {
                     TextFieldRow(
                         label = stringResource(R.string.local_listen_address),
@@ -278,10 +278,10 @@ fun ConnectionSettingsScreen(
                 }
             }
 
-            // SOCKS5-native kernels (olcRTC, WebDAV, qWDTT)
+            // SOCKS5-native kernels (olcRTC, WebDAV, qWDTT, OpenFlux - see KernelVariant.isSocks5Native)
             val clientSocksPublicNeedsAuth = !clientSocksAuth && clientSocks.isNotEmpty() &&
                     ValidatorUtils.isValidHostPort(clientSocks) && !ValidatorUtils.isLoopbackHostPort(clientSocks)
-            SectionGroup(title = stringResource(R.string.settings_group_client_socks)) {
+            SectionGroup(title = stringResource(R.string.settings_group_kernel_socks5)) {
                 SectionItem(position = ItemPosition.Top) {
                     TextFieldRow(
                         label = stringResource(R.string.socks5),
