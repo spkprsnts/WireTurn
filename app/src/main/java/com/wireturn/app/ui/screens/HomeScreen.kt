@@ -1064,8 +1064,10 @@ fun HomeScreen(
 
             // --- Xray & VPN Settings ---
             val isSettingsValid = if (isSocks5Core) {
-                // For OLCRTC/WebDAV, link is only required if DualRoute is enabled
-                if (activeXrayConfig.protocol == XrayConfiguration.VLESS && activeVlessConfig.isDualRoute) {
+                // For OLCRTC/WebDAV/qWDTT/OpenFlux, link is only required if DualRoute or
+                // Socks5Chain is enabled - matches XrayService's own isConfigValid check.
+                if (activeXrayConfig.protocol == XrayConfiguration.VLESS &&
+                    (activeVlessConfig.isDualRoute || activeVlessConfig.isSocks5Chain)) {
                     activeVlessConfig.isValid()
                 } else {
                     true // WG or VLESS solo mode just uses SOCKS5 from core

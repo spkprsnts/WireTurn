@@ -713,7 +713,11 @@ private fun VlessSettingsBlock(
     }
 
     val vlessLinkError = if (kernelVariant.isSocks5Native) {
-        vlessLink.isNotBlank() && !ValidatorUtils.isValidVlessLink(vlessLink)
+        if (vlessIsDualRoute || vlessIsSocks5Chain) {
+            !ValidatorUtils.isValidVlessLink(vlessLink)
+        } else {
+            vlessLink.isNotBlank() && !ValidatorUtils.isValidVlessLink(vlessLink)
+        }
     } else {
         !ValidatorUtils.isValidVlessLink(vlessLink)
     }
