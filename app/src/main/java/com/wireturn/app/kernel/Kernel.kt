@@ -152,7 +152,7 @@ interface Kernel {
 }
 
 object KernelRegistry {
-    val all: List<Kernel> = listOf(
+    private val all: List<Kernel> = listOf(
         TurnableKernel, OlcrtcKernel, WebdavKernel, FreeTurnKernel, QwdttKernel, OpenFluxKernel
     )
     private val byVariant = all.associateBy { it.variant }

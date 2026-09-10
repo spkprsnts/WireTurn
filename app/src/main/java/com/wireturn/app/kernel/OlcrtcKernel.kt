@@ -22,7 +22,7 @@ object OlcrtcKernel : Kernel {
         return context.getString(displayNameRes) + " " + config.providerDisplayName
     }
 
-    override fun profileSummaryExtra(cfg: KernelConfig): String? {
+    override fun profileSummaryExtra(cfg: KernelConfig): String {
         val config = (cfg as KernelConfig.Olcrtc).config
         return OlcrtcConfig.getTransportDisplayName(config.transport, short = true)
     }

@@ -952,7 +952,7 @@ fun ProfilesDialog(
                     val safeName = profile?.name?.replace(Regex("[\\\\/:*?\"<>| ]"), "_") ?: "profile"
                     "wt_$safeName.zip"
                 } else "wt_profiles_${exportTargetIds.size}.zip"
-                shareFile(context, bytes, fileName, "application/zip")
+                shareFile(context, bytes, fileName)
             }
         }
     }
@@ -1941,7 +1941,7 @@ private fun ExportDropdownMenus(
     }
 }
 
-private fun shareFile(context: Context, bytes: ByteArray, fileName: String, mimeType: String) {
+private fun shareFile(context: Context, bytes: ByteArray, fileName: String) {
     try {
         val file = java.io.File(context.cacheDir, fileName)
         file.writeBytes(bytes)
@@ -1951,7 +1951,7 @@ private fun shareFile(context: Context, bytes: ByteArray, fileName: String, mime
             file
         )
         val intent = Intent(Intent.ACTION_SEND).apply {
-            type = mimeType
+            type = "application/zip"
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }

@@ -1,6 +1,7 @@
 package com.wireturn.app.kernel
 
 import android.content.Context
+import androidx.core.net.toUri
 import com.wireturn.app.CoreServiceState
 import com.wireturn.app.CoreStatus
 import com.wireturn.app.R
@@ -36,7 +37,7 @@ object OpenFluxKernel : Kernel {
         com.wireturn.app.data.OpenFluxConfig.parse(uri)?.let { KernelConfig.OpenFlux(it) }
 
     override fun displayNameFromUri(uri: String): String? = try {
-        android.net.Uri.parse(uri).getQueryParameter("name")
+        uri.toUri().getQueryParameter("name")
     } catch (_: Exception) { null }
 
     override fun buildCommand(ctx: KernelCommandContext, cfg: ClientConfig): List<String> {

@@ -1,6 +1,7 @@
 package com.wireturn.app.kernel
 
 import android.content.Context
+import androidx.core.net.toUri
 import com.wireturn.app.CaptchaSession
 import com.wireturn.app.CoreServiceState
 import com.wireturn.app.CoreStatus
@@ -33,7 +34,7 @@ object QwdttKernel : Kernel {
         com.wireturn.app.data.QwdttConfig.parse(uri)?.let { KernelConfig.Qwdtt(it) }
 
     override fun displayNameFromUri(uri: String): String? = try {
-        android.net.Uri.parse(uri).getQueryParameter("name")
+        uri.toUri().getQueryParameter("name")
     } catch (_: Exception) { null }
 
     override fun buildCommand(ctx: KernelCommandContext, cfg: ClientConfig): List<String> {
@@ -74,7 +75,7 @@ object QwdttKernel : Kernel {
             lower.contains("нужны -peer и -vk") || lower.contains("нужен -password")) {
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                 CoreServiceState.setStatus(CoreStatus.Error(line))
-                ctx.updateNotification(ctx.getString(com.wireturn.app.R.string.error_connecting))
+                ctx.updateNotification(ctx.getString(R.string.error_connecting))
             }
             state.startupFailed = true
             return true
@@ -112,7 +113,7 @@ object QwdttKernel : Kernel {
             (activeMatch.find() && (activeMatch.group(1)?.toIntOrNull() ?: 0) > 0)) {
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                 CoreServiceState.setStatus(CoreStatus.Connected)
-                ctx.updateNotification(ctx.getString(com.wireturn.app.R.string.core_active))
+                ctx.updateNotification(ctx.getString(R.string.core_active))
                 state.startupEmitted = true
             }
         }

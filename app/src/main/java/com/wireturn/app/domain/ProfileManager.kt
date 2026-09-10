@@ -957,7 +957,7 @@ class ProfileManager(
             val trimmed = line.trim()
             if (trimmed.isEmpty()) continue
 
-            val kernelMatch = KernelRegistry.all.firstNotNullOfOrNull { k -> k.decodeUri(trimmed)?.let { k to it } }
+            val kernelMatch = KernelRegistry.decodeUri(trimmed)
             if (kernelMatch != null) {
                 flush()
                 val (kernel, kernelConfig) = kernelMatch

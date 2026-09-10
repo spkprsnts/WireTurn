@@ -1,6 +1,7 @@
 package com.wireturn.app.data
 
 import android.net.Uri
+import androidx.core.net.toUri
 import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonDeserializer
 import com.google.gson.JsonElement
@@ -379,7 +380,7 @@ data class WgConfig(
 
         private fun parseUri(uri: String): WgConfig? {
             return try {
-                val u = Uri.parse(uri)
+                val u = uri.toUri()
                 val privateKey = u.encodedUserInfo?.let { Uri.decode(it) } ?: return null
                 val host = u.host ?: return null
                 val port = u.port.takeIf { it != -1 } ?: return null
@@ -457,8 +458,8 @@ data class Profile(
         val safeName = (name as String?) ?: defaultName
 
         var currentKc = (kernelConfig as KernelConfig?) ?: KernelConfig.Turnable()
-        var prot = (xrayProtocol as XrayConfiguration?) ?: XrayConfiguration.WIREGUARD
-        var en = (xrayEnabled as Boolean?) ?: false
+        val prot = (xrayProtocol as XrayConfiguration?) ?: XrayConfiguration.WIREGUARD
+        val en = (xrayEnabled as Boolean?) ?: false
 
         // Profile generation from quick-input URLs
         if (uri?.isNotBlank() == true) {

@@ -1,6 +1,7 @@
 package com.wireturn.app.kernel
 
 import android.content.Context
+import androidx.core.net.toUri
 import com.wireturn.app.CoreServiceState
 import com.wireturn.app.CoreStatus
 import com.wireturn.app.R
@@ -23,7 +24,7 @@ object TurnableKernel : Kernel {
         return context.getString(displayNameRes) + transport?.let { " $it" }.orEmpty()
     }
 
-    override fun profileSummaryExtra(cfg: KernelConfig): String? =
+    override fun profileSummaryExtra(cfg: KernelConfig): String =
         (cfg as KernelConfig.Turnable).config.platformDisplayName
 
     override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int = when ((cfg as KernelConfig.Turnable).config.platformId) {
@@ -45,7 +46,7 @@ object TurnableKernel : Kernel {
         com.wireturn.app.data.TurnableConfig.parse(uri)?.let { KernelConfig.Turnable(it) }
 
     override fun displayNameFromUri(uri: String): String? = try {
-        android.net.Uri.parse(uri).fragment?.split(",")?.firstOrNull()?.trim()
+        uri.toUri().fragment?.split(",")?.firstOrNull()?.trim()
     } catch (_: Exception) { null }
 
     override fun buildCommand(ctx: KernelCommandContext, cfg: ClientConfig): List<String> {

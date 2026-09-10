@@ -26,7 +26,7 @@ object FreeTurnKernel : Kernel {
 
     // FreeTurn dropped its tcp tunnel mode entirely (v3.0.0+) - it's udp-only now, unconditionally,
     // unless the config's own `mode` says otherwise.
-    override fun requiredTransport(cfg: KernelConfig): String? {
+    override fun requiredTransport(cfg: KernelConfig): String {
         val config = (cfg as KernelConfig.FreeTurn).config
         return config.mode.lowercase().takeIf { it == "tcp" || it == "udp" } ?: "udp"
     }

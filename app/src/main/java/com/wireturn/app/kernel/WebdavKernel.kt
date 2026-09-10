@@ -1,6 +1,7 @@
 package com.wireturn.app.kernel
 
 import android.content.Context
+import androidx.core.net.toUri
 import com.wireturn.app.AppLogsState
 import com.wireturn.app.CoreServiceState
 import com.wireturn.app.CoreStatus
@@ -36,7 +37,7 @@ object WebdavKernel : Kernel {
         WebdavConfig.parse(uri)?.let { KernelConfig.Webdav(it) }
 
     override fun displayNameFromUri(uri: String): String? = try {
-        android.net.Uri.parse(uri).fragment
+        uri.toUri().fragment
     } catch (_: Exception) { null }
 
     override fun buildCommand(ctx: KernelCommandContext, cfg: ClientConfig): List<String> {
