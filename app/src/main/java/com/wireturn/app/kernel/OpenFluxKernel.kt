@@ -30,7 +30,11 @@ object OpenFluxKernel : Kernel {
         return context.getString(displayNameRes) + " " + config.platformDisplayName
     }
 
-    override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int = R.drawable.route_24px
+    override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int = when ((cfg as KernelConfig.OpenFlux).config.transport) {
+        "yandex" -> R.drawable.ic_yandex_docs
+        "oneme" -> R.drawable.ic_max
+        else -> R.drawable.route_24px
+    }
 
     override val defaultProfileName: String = "OpenFlux Server"
 
