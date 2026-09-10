@@ -177,7 +177,7 @@ fun KernelConfig.description(context: Context): String = when (this) {
         if (config.backends.isNotEmpty()) " +${config.backends.size}" else ""
     is KernelConfig.FreeTurn -> context.getString(R.string.kernel_freeturn) + " " + config.addressLabel()
     is KernelConfig.Qwdtt -> context.getString(R.string.kernel_qwdtt) + " " + config.addressLabel()
-    is KernelConfig.OpenFlux -> context.getString(R.string.kernel_openflux) + " " + config.transport
+    is KernelConfig.OpenFlux -> context.getString(R.string.kernel_openflux) + " " + config.platformDisplayName
 }
 
 data class TurnableRoute(
@@ -1069,6 +1069,12 @@ data class OpenFluxConfig(
     // MAX user id of the exit-node's account being called - required for "oneme".
     @SerializedName("max_uid") val maxUid: String = ""
 ) {
+    val platformDisplayName: String
+        get() = when (transport) {
+            "oneme" -> "MAX (oneme)"
+            else -> "Yandex.Docs"
+        }
+
     fun isValid(): Boolean = when (transport) {
         "oneme" -> maxToken.isNotBlank() && maxUid.isNotBlank()
         else -> url.isNotBlank()
@@ -1082,8 +1088,6 @@ data class OpenFluxConfig(
     )
 
     fun fillDefaults(): OpenFluxConfig = sanitize()
-
-    fun addressLabel(): String = if (transport == "oneme") "MAX #$maxUid" else url
 
     fun toUri(profileName: String? = null): String {
         val builder = Uri.Builder().scheme("openflux").authority("config")

@@ -349,7 +349,7 @@ fun OpenFluxConfigScreen(
                                 isModified = isEditMode && config.transport != initialConfig.transport
                             )
                             Spacer(Modifier.height(2.dp))
-                            SupportingText(openFluxPlatformDisplayName(config.transport))
+                            SupportingText(config.platformDisplayName)
                         }
                     }
                 }
@@ -467,13 +467,6 @@ fun OpenFluxConfigScreen(
     }
 }
 
-// "yandex" (Yandex.Docs cursor-message transport) and "oneme" (MAX WebRTC DataChannel transport) -
-// the exact values OpenFlux's own `-transport` CLI flag accepts.
-private fun openFluxPlatformDisplayName(transport: String): String = when (transport) {
-    "oneme" -> "MAX (oneme)"
-    else -> "Yandex.Docs"
-}
-
 private fun getOpenFluxPlatformIcon(transport: String): Int = when (transport) {
     "oneme" -> R.drawable.data_array_24px
     else -> R.drawable.globe_book_24px
@@ -505,7 +498,7 @@ private fun OpenFluxPlatformDialog(
                 )
             }
             Text(
-                text = openFluxPlatformDisplayName(value),
+                text = OpenFluxConfig(transport = value).platformDisplayName,
                 modifier = Modifier.weight(1f)
             )
         }
