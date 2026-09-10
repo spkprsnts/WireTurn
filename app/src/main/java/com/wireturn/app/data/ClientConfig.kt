@@ -1,7 +1,6 @@
 package com.wireturn.app.data
 
 import android.net.Uri
-import com.google.gson.GsonBuilder
 import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonDeserializer
 import com.google.gson.JsonElement
@@ -408,13 +407,6 @@ internal data class KernelSnapshot(
     @SerializedName("openflux") val openflux: OpenFluxConfig? = null
 )
 
-internal data class OldClientConfig(
-    @SerializedName("kernelVariant") val kernelVariant: KernelVariant = KernelVariant.TURNABLE,
-    @SerializedName("turnableConfig") val turnableConfig: TurnableConfig = TurnableConfig(),
-    @SerializedName("olcrtcConfig") val olcrtcConfig: OlcrtcConfig = OlcrtcConfig(),
-    @SerializedName("webdavConfig") val webdavConfig: WebdavConfig = WebdavConfig()
-)
-
 data class Profile(
     @SerializedName("id") val id: String,
     @SerializedName("name") val name: String,
@@ -440,16 +432,6 @@ data class Profile(
     @SerializedName("webdavUrl") private val webdavUrl: String? = null
     @SerializedName("freeturnUrl") private val freeturnUrl: String? = null
     // --- END STABLE INPUT FIELDS ---
-
-    // --- TEMPORARY MIGRATION FIELDS (Will be removed in future versions) ---
-    @SerializedName("kernelVariant") private val mKernelVariant: KernelVariant? = null
-    @SerializedName("turnableConfig") private val mTurnableConfig: TurnableConfig? = null
-    @SerializedName("olcrtcConfig") private val mOlcrtcConfig: OlcrtcConfig? = null
-    @SerializedName("webdavConfig") private val mWebdavConfig: WebdavConfig? = null
-    @SerializedName("clientConfig") private val oldClientConfig: JsonElement? = null
-    @SerializedName("xraySettings") private val oldXraySettings: JsonElement? = null
-    @SerializedName("xrayConfig") private val oldXrayConfig: JsonElement? = null
-    // --- END TEMPORARY MIGRATION FIELDS ---
 
     val kernelVariant: KernelVariant get() = kernelConfig.variant
 
@@ -478,9 +460,7 @@ data class Profile(
         var prot = (xrayProtocol as XrayConfiguration?) ?: XrayConfiguration.WIREGUARD
         var en = (xrayEnabled as Boolean?) ?: false
 
-        val gson = GsonBuilder().registerTypeAdapterFactory(SafeEnumTypeAdapterFactory()).create()
-
-        // 1. INPUT: Profile generation from URLs (STABLE)
+        // Profile generation from quick-input URLs
         if (uri?.isNotBlank() == true) {
             KernelConfig.parseUri(uri)?.let { currentKc = it }
         } else if (turnableUrl?.isNotBlank() == true) {
@@ -492,75 +472,6 @@ data class Profile(
         } else if (freeturnUrl?.isNotBlank() == true) {
             FreeTurnConfig.parse(freeturnUrl)?.let { currentKc = KernelConfig.FreeTurn(it) }
         }
-        // --- END INPUT ---
-
-        // 2. MIGRATION: Old top-level fields (TEMPORARY)
-        if (mKernelVariant != null && (mTurnableConfig != null || mOlcrtcConfig != null || mWebdavConfig != null)) {
-             currentKc = when(mKernelVariant) {
-                 KernelVariant.TURNABLE -> KernelConfig.Turnable(mTurnableConfig ?: TurnableConfig())
-                 KernelVariant.OLCRTC -> KernelConfig.Olcrtc(mOlcrtcConfig ?: OlcrtcConfig())
-                 KernelVariant.WEBDAV -> KernelConfig.Webdav(mWebdavConfig ?: WebdavConfig())
-                 KernelVariant.FREETURN -> currentKc // Not migrated from top-level
-                 KernelVariant.QWDTT -> currentKc // Not migrated from top-level
-                 KernelVariant.OPENFLUX -> currentKc // Not migrated from top-level
-             }
-        }
-        // --- END MIGRATION 2 ---
-
-        // 3. MIGRATION: Old nested ClientConfig format (TEMPORARY)
-        if (oldClientConfig != null && oldClientConfig.isJsonObject &&
-            (currentKc !is KernelConfig.Turnable || currentKc.config.routes.isEmpty())) {
-            try {
-                val obj = oldClientConfig.asJsonObject
-                val variantStr = obj.get("kernelVariant")?.asString
-                val variant = try { KernelVariant.valueOf(variantStr ?: "") } catch (_: Exception) { KernelVariant.TURNABLE }
-
-                currentKc = when (variant) {
-                    KernelVariant.TURNABLE -> {
-                        val tcElement = obj.get("turnableConfig")
-                        KernelConfig.Turnable(gson.fromJson(tcElement, TurnableConfig::class.java) ?: TurnableConfig())
-                    }
-                    KernelVariant.OLCRTC -> {
-                        val ocElement = obj.get("olcrtcConfig")
-                        KernelConfig.Olcrtc(gson.fromJson(ocElement, OlcrtcConfig::class.java) ?: OlcrtcConfig())
-                    }
-                    KernelVariant.WEBDAV -> {
-                        val wdcElement = obj.get("webdavConfig")
-                        KernelConfig.Webdav(gson.fromJson(wdcElement, WebdavConfig::class.java) ?: WebdavConfig())
-                    }
-                    KernelVariant.FREETURN -> {
-                        val ftcElement = obj.get("freeturnConfig")
-                        KernelConfig.FreeTurn(gson.fromJson(ftcElement, FreeTurnConfig::class.java) ?: FreeTurnConfig())
-                    }
-                    KernelVariant.QWDTT -> {
-                        val qcElement = obj.get("qwdttConfig")
-                        KernelConfig.Qwdtt(gson.fromJson(qcElement, QwdttConfig::class.java) ?: QwdttConfig())
-                    }
-                    KernelVariant.OPENFLUX -> {
-                        val ofcElement = obj.get("openFluxConfig")
-                        KernelConfig.OpenFlux(gson.fromJson(ofcElement, OpenFluxConfig::class.java) ?: OpenFluxConfig())
-                    }
-                }
-            } catch (_: Exception) { }
-        }
-        // --- END MIGRATION 3 ---
-
-        // 4. MIGRATION: Old nested Xray format - xraySettings (TEMPORARY)
-        if (oldXraySettings != null && oldXraySettings.isJsonObject) {
-            val obj = oldXraySettings.asJsonObject
-            if (!en) {
-                en = try { obj.get("xrayEnabled")?.asBoolean ?: obj.get("enabled")?.asBoolean ?: false } catch (_: Exception) { false }
-            }
-        }
-        // --- END MIGRATION 4 ---
-
-        // 5. MIGRATION: Old nested Xray format - xrayConfig (TEMPORARY)
-        if (oldXrayConfig != null && oldXrayConfig.isJsonObject && (prot == XrayConfiguration.WIREGUARD)) {
-            val obj = oldXrayConfig.asJsonObject
-            val oldType = try { obj.get("xrayConfiguration")?.asString ?: obj.get("protocol")?.asString } catch (_: Exception) { null }
-            if (oldType != null) try { prot = XrayConfiguration.valueOf(oldType) } catch(_: Exception) {}
-        }
-        // --- END MIGRATION 5 ---
 
         // Deep safety for WG and VLESS
         val wgc = (wgConfig as Any? as? WgConfig ?: WgConfig()).fillDefaults()

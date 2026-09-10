@@ -117,10 +117,6 @@ class AppPreferences(val context: Context) {
 
         val ACTIVE_KERNEL_JSON = stringPreferencesKey("active_kernel_json")
         val ACTIVE_XRAY_CONFIG_TYPE = stringPreferencesKey("active_xray_config_type")
-        // Legacy keys — used only for migration on first launch after update
-        private val LEGACY_KERNEL_VARIANT = stringPreferencesKey("active_kernel_variant")
-        private val LEGACY_TURNABLE_JSON = stringPreferencesKey("active_turnable_json")
-        private val LEGACY_OLCRTC_JSON = stringPreferencesKey("active_olcrtc_json")
         val ACTIVE_XRAY_ENABLED = booleanPreferencesKey("active_xray_enabled")
         val ACTIVE_WG_JSON = stringPreferencesKey("active_wg_json")
         val ACTIVE_VLESS_JSON = stringPreferencesKey("active_vless_json")
@@ -132,7 +128,7 @@ class AppPreferences(val context: Context) {
     val onboardingDoneFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(ONBOARDING_DONE, false)
 
     suspend fun hasActiveProfile(): Boolean =
-        appCtx.internalDataStore.data.map { it[ACTIVE_KERNEL_JSON] != null || it[LEGACY_KERNEL_VARIANT] != null }.first()
+        appCtx.internalDataStore.data.map { it[ACTIVE_KERNEL_JSON] != null }.first()
 
     val themeModeFlow: Flow<ThemeMode> = appCtx.internalDataStore.data
         .map { ThemeMode.valueOf(it[THEME_MODE] ?: ThemeMode.SYSTEM.name) }
@@ -242,18 +238,7 @@ class AppPreferences(val context: Context) {
                     KernelVariant.QWDTT -> KernelConfig.Qwdtt(snap.qwdtt ?: QwdttConfig())
                     KernelVariant.OPENFLUX -> KernelConfig.OpenFlux(snap.openflux ?: OpenFluxConfig())
                 }
-            } ?: run {
-                // Migration from legacy keys
-                val variant = try { KernelVariant.valueOf(p[LEGACY_KERNEL_VARIANT] ?: KernelVariant.TURNABLE.name) } catch (_: Exception) { KernelVariant.TURNABLE }
-                when (variant) {
-                    KernelVariant.TURNABLE -> KernelConfig.Turnable(gson.fromJson(p[LEGACY_TURNABLE_JSON] ?: "{}", TurnableConfig::class.java) ?: TurnableConfig())
-                    KernelVariant.OLCRTC -> KernelConfig.Olcrtc(gson.fromJson(p[LEGACY_OLCRTC_JSON] ?: "{}", OlcrtcConfig::class.java) ?: OlcrtcConfig())
-                    KernelVariant.WEBDAV -> KernelConfig.Webdav(WebdavConfig())
-                    KernelVariant.FREETURN -> KernelConfig.FreeTurn(FreeTurnConfig())
-                    KernelVariant.QWDTT -> KernelConfig.Qwdtt(QwdttConfig())
-                    KernelVariant.OPENFLUX -> KernelConfig.OpenFlux(OpenFluxConfig())
-                }
-            }
+            } ?: KernelConfig.Turnable()
             ClientConfig(
                 listenAddr = p[CLIENT_LISTEN_ADDR] ?: ClientConfig.DEFAULT_LISTEN_ADDR,
                 socksAddr = p[CLIENT_SOCKS_ADDR] ?: p[LEGACY_OLCRTC_SOCKS_ADDR] ?: ClientConfig.DEFAULT_SOCKS_ADDR,
@@ -320,7 +305,6 @@ class AppPreferences(val context: Context) {
             p[ACTIVE_XRAY_ENABLED] = profile.xrayEnabled
             p[ACTIVE_WG_JSON] = gson.toJson(profile.wgConfig)
             p[ACTIVE_VLESS_JSON] = gson.toJson(profile.vlessConfig)
-            p.remove(LEGACY_KERNEL_VARIANT); p.remove(LEGACY_TURNABLE_JSON); p.remove(LEGACY_OLCRTC_JSON)
         }
     }
 
@@ -500,7 +484,6 @@ class AppPreferences(val context: Context) {
                 is KernelConfig.Qwdtt -> KernelSnapshot(variant = KernelVariant.QWDTT.name, qwdtt = k.config)
                 is KernelConfig.OpenFlux -> KernelSnapshot(variant = KernelVariant.OPENFLUX.name, openflux = k.config)
             })
-            it.remove(LEGACY_KERNEL_VARIANT); it.remove(LEGACY_TURNABLE_JSON); it.remove(LEGACY_OLCRTC_JSON)
         }
     }
 
@@ -515,7 +498,6 @@ class AppPreferences(val context: Context) {
             p[ACTIVE_XRAY_ENABLED] = profile.xrayEnabled
             p[ACTIVE_WG_JSON] = gson.toJson(profile.wgConfig)
             p[ACTIVE_VLESS_JSON] = gson.toJson(profile.vlessConfig)
-            p.remove(LEGACY_KERNEL_VARIANT); p.remove(LEGACY_TURNABLE_JSON); p.remove(LEGACY_OLCRTC_JSON)
         }
     }
 
@@ -527,7 +509,6 @@ class AppPreferences(val context: Context) {
             p.remove(ACTIVE_WG_JSON)
             p.remove(ACTIVE_VLESS_JSON)
             p.remove(CURRENT_PROFILE_ID)
-            p.remove(LEGACY_KERNEL_VARIANT); p.remove(LEGACY_TURNABLE_JSON); p.remove(LEGACY_OLCRTC_JSON)
         }
     }
 }
