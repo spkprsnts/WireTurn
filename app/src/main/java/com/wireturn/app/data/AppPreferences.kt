@@ -117,7 +117,7 @@ enum class KernelVariant {
 
     /** OLCRTC, WEBDAV, QWDTT and OPENFLUX already speak SOCKS5 themselves - Xray's WireGuard overlay is
      * neither needed nor offered in the UI for them. */
-    val isSocks5Native: Boolean get() = this == OLCRTC || this == WEBDAV || this == QWDTT || this == OPENFLUX
+    val isSocks5Core: Boolean get() = this == OLCRTC || this == WEBDAV || this == QWDTT || this == OPENFLUX
 }
 enum class XrayConfiguration { WIREGUARD, VLESS }
 enum class ThemeMode { DARK, LIGHT, SYSTEM }

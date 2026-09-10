@@ -1060,7 +1060,7 @@ fun HomeScreen(
                 null -> {}
             }
 
-            val isSocks5Core = activeConfig.kernelVariant.isSocks5Native
+            val isSocks5Core = activeConfig.kernelVariant.isSocks5Core
 
             // --- Xray & VPN Settings ---
             val isSettingsValid = if (isSocks5Core) {
