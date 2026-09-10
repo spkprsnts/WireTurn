@@ -3,7 +3,7 @@
     ExperimentalMaterial3ExpressiveApi::class,
 )
 
-package com.wireturn.app.ui.screens.cores
+package com.wireturn.app.ui.screens.kernel
 
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult

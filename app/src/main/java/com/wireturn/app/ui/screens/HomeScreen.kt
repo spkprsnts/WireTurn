@@ -1060,10 +1060,10 @@ fun HomeScreen(
                 null -> {}
             }
 
-            val isSocks5Core = activeConfig.kernelVariant.isSocks5Core
+            val isSocks5Native = activeConfig.kernelVariant.isSocks5Native
 
             // --- Xray & VPN Settings ---
-            val isSettingsValid = if (isSocks5Core) {
+            val isSettingsValid = if (isSocks5Native) {
                 // For OLCRTC/WebDAV/qWDTT/OpenFlux, link is only required if DualRoute or
                 // Socks5Chain is enabled - matches XrayService's own isConfigValid check.
                 if (activeXrayConfig.protocol == XrayConfiguration.VLESS &&
@@ -1080,7 +1080,7 @@ fun HomeScreen(
             val activeVlessProtocolLabel = stringResource(ValidatorUtils.uriProtocolStringRes(activeVlessConfig.vlessLink))
 
             val xrayProtocol = when {
-                isSocks5Core -> {
+                isSocks5Native -> {
                     when (xrayState) {
                         XrayState.DirectRoute -> activeVlessProtocolLabel
                         XrayState.Running -> stringResource(R.string.socks5)
@@ -1135,7 +1135,7 @@ fun HomeScreen(
 
                             // OLCRTC/WEBDAV run their own socks5, so VPN mode keeps working
                             // without Xray for those - only warn when it truly can't.
-                            if (!next && vpnEnabled && !isSocks5Core) {
+                            if (!next && vpnEnabled && !isSocks5Native) {
                                 showVpnWarning()
                             }
 
@@ -1190,7 +1190,7 @@ fun HomeScreen(
                         if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
                     )
 
-                    if (next && !xrayConfig.enabled && !isSocks5Core) {
+                    if (next && !xrayConfig.enabled && !isSocks5Native) {
                         showVpnWarning()
                     }
 
@@ -1216,7 +1216,7 @@ fun HomeScreen(
                         onCheckedChange = toggleVpnAction,
                         isModified = xraySession?.wg != null && vpnEnabled != (vpnServiceState == VpnState.Running),
                         supportingText = when {
-                            vpnEnabled && !xrayConfig.enabled && !isSocks5Core -> stringResource(R.string.vpn_status_xray_needed)
+                            vpnEnabled && !xrayConfig.enabled && !isSocks5Native -> stringResource(R.string.vpn_status_xray_needed)
                             vpnServiceState == VpnState.Starting -> stringResource(R.string.starting)
                             vpnServiceState == VpnState.Running -> stringResource(R.string.running)
                             vpnServiceState is VpnState.Error -> (vpnServiceState as VpnState.Error).message
@@ -1281,7 +1281,7 @@ fun HomeScreen(
 
             val displaySocksAddr = when {
                 showXray -> activeXraySettings.socksBindAddress
-                isSocks5Core -> activeConfig.socksAddr
+                isSocks5Native -> activeConfig.socksAddr
                 else -> activeXraySettings.socksBindAddress
             }
 
@@ -1293,7 +1293,7 @@ fun HomeScreen(
                     activeXraySettings.isProxyAuthEnabled
                 )
 
-                isSocks5Core -> formatProxyAddr(
+                isSocks5Native -> formatProxyAddr(
                     activeConfig.socksAddr,
                     activeConfig.socksUser,
                     activeConfig.socksPass,
@@ -1313,7 +1313,7 @@ fun HomeScreen(
 
             val displayHttpAddr = when {
                 showXray -> activeXraySettings.httpBindAddress
-                isSocks5Core -> ""
+                isSocks5Native -> ""
                 else -> activeXraySettings.httpBindAddress
             }
 
@@ -1325,7 +1325,7 @@ fun HomeScreen(
                     activeXraySettings.isProxyAuthEnabled
                 )
 
-                isSocks5Core -> ""
+                isSocks5Native -> ""
                 else -> formatProxyAddr(
                     activeXraySettings.httpBindAddress,
                     activeXraySettings.proxyUser,
@@ -1336,7 +1336,7 @@ fun HomeScreen(
 
             val isSocksModified = when {
                 showXray -> xraySession != null && activeXraySettings.socksBindAddress != xraySession?.settings?.socksBindAddress
-                isSocks5Core -> proxySession != null && activeConfig.socksAddr != proxySession?.clientConfig?.socksAddr
+                isSocks5Native -> proxySession != null && activeConfig.socksAddr != proxySession?.clientConfig?.socksAddr
                 else -> xraySession != null && activeXraySettings.socksBindAddress != xraySession?.settings?.socksBindAddress
             }
 
@@ -1347,7 +1347,7 @@ fun HomeScreen(
 
             SectionGroup(
                 modifier = Modifier.graphicsLayer {
-                    alpha = if (showXray || isSocks5Core) 1f else 0.38f
+                    alpha = if (showXray || isSocks5Native) 1f else 0.38f
                 }
             ) {
                 val clipboard = LocalClipboard.current
@@ -1366,7 +1366,7 @@ fun HomeScreen(
 
                 SectionItem(
                     position = ItemPosition.Top,
-                    enabled = showXray || isSocks5Core,
+                    enabled = showXray || isSocks5Native,
                     onClick = {
                         if (privacyMode) return@SectionItem
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -1388,7 +1388,7 @@ fun HomeScreen(
                             Icon(
                                 painter = painterResource(R.drawable.lan_24px),
                                 contentDescription = null,
-                                tint = if (showXray || isSocks5Core) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                tint = if (showXray || isSocks5Native) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(
                                     alpha = 0.38f
                                 )
                             )

@@ -8,7 +8,7 @@ import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
-import com.wireturn.app.ui.activities.cores.FreeTurnConfigActivity
+import com.wireturn.app.ui.activities.kernel.FreeTurnConfigActivity
 import java.util.regex.Pattern
 
 object FreeTurnKernel : Kernel {

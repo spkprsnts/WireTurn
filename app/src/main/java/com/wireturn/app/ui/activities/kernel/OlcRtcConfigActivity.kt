@@ -1,4 +1,4 @@
-package com.wireturn.app.ui.activities.cores
+package com.wireturn.app.ui.activities.kernel
 
 import android.content.Intent
 import android.os.Bundle
@@ -12,13 +12,13 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.gson.Gson
 import com.wireturn.app.data.KernelConfig
-import com.wireturn.app.data.WebdavConfig
+import com.wireturn.app.data.OlcrtcConfig
 import com.wireturn.app.ui.activities.XraySetupActivity
-import com.wireturn.app.ui.screens.cores.WebdavConfigScreen
+import com.wireturn.app.ui.screens.kernel.OlcRtcConfigScreen
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
 
-class WebdavConfigActivity : ComponentActivity() {
+class OlcRtcConfigActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,18 +45,18 @@ class WebdavConfigActivity : ComponentActivity() {
 
             val initialConfig = remember(clientConfig, profiles) {
                 if (configJson != null) {
-                    try { Gson().fromJson(configJson, WebdavConfig::class.java) } catch (_: Exception) { WebdavConfig() }
+                    try { Gson().fromJson(configJson, OlcrtcConfig::class.java) } catch (_: Exception) { OlcrtcConfig() }
                 } else if (profileId != null) {
-                    profiles.find { it.id == profileId }?.webdavConfig ?: WebdavConfig()
+                    profiles.find { it.id == profileId }?.olcrtcConfig ?: OlcrtcConfig()
                 } else if (isEditMode) {
-                    (clientConfig.kernelConfig as? KernelConfig.Webdav)?.config ?: WebdavConfig()
+                    (clientConfig.kernelConfig as? KernelConfig.Olcrtc)?.config ?: OlcrtcConfig()
                 } else {
-                    WebdavConfig()
+                    OlcrtcConfig()
                 }
             }
 
             WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
-                WebdavConfigScreen(
+                OlcRtcConfigScreen(
                     isEditMode = isEditMode,
                     initialConfig = initialConfig,
                     profileName = profileName,
@@ -65,22 +65,22 @@ class WebdavConfigActivity : ComponentActivity() {
                     onSave = { config ->
                         if (isEditMode) {
                             if (profileId != null) {
-                                viewModel.updateProfileById(profileId) { it.copy(kernelConfig = KernelConfig.Webdav(config)) }
+                                viewModel.updateProfileById(profileId) { it.copy(kernelConfig = KernelConfig.Olcrtc(config)) }
                                 if (profileId == viewModel.currentProfileId.value) {
                                     // The edited profile is the active one: also push the change
                                     // into the live config, otherwise CoreService keeps using the
                                     // stale config until the profile is reselected.
-                                    viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Webdav(config)))
+                                    viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Olcrtc(config)))
                                 }
                             } else {
-                                viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Webdav(config)))
+                                viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Olcrtc(config)))
                             }
                             finish()
                         } else {
                             val intent = Intent(this, XraySetupActivity::class.java).apply {
                                 putExtra("EXTRA_PROFILE_NAME", profileName)
-                                putExtra("EXTRA_KERNEL_VARIANT", "WEBDAV")
-                                putExtra("EXTRA_WEBDAV_CONFIG_JSON", Gson().toJson(config))
+                                putExtra("EXTRA_KERNEL_VARIANT", "OLCRTC")
+                                putExtra("EXTRA_OLCRTC_CONFIG_JSON", Gson().toJson(config))
                             }
                             startActivity(intent)
                         }

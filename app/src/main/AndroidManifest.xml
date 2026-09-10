@@ -138,32 +138,32 @@
             android:windowSoftInputMode="adjustResize" />
 
         <activity
-            android:name=".ui.activities.cores.TurnableConfigActivity"
+            android:name=".ui.activities.kernel.TurnableConfigActivity"
             android:theme="@style/Theme.wireturn"
             android:windowSoftInputMode="adjustResize" />
 
         <activity
-            android:name=".ui.activities.cores.OlcRtcConfigActivity"
+            android:name=".ui.activities.kernel.OlcRtcConfigActivity"
             android:theme="@style/Theme.wireturn"
             android:windowSoftInputMode="adjustResize" />
 
         <activity
-            android:name=".ui.activities.cores.WebdavConfigActivity"
+            android:name=".ui.activities.kernel.WebdavConfigActivity"
             android:theme="@style/Theme.wireturn"
             android:windowSoftInputMode="adjustResize" />
 
         <activity
-            android:name=".ui.activities.cores.FreeTurnConfigActivity"
+            android:name=".ui.activities.kernel.FreeTurnConfigActivity"
             android:theme="@style/Theme.wireturn"
             android:windowSoftInputMode="adjustResize" />
 
         <activity
-            android:name=".ui.activities.cores.QwdttConfigActivity"
+            android:name=".ui.activities.kernel.QwdttConfigActivity"
             android:theme="@style/Theme.wireturn"
             android:windowSoftInputMode="adjustResize" />
 
         <activity
-            android:name=".ui.activities.cores.OpenFluxConfigActivity"
+            android:name=".ui.activities.kernel.OpenFluxConfigActivity"
             android:theme="@style/Theme.wireturn"
             android:windowSoftInputMode="adjustResize" />
 

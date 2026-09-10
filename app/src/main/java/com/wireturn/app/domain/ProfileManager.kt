@@ -135,7 +135,7 @@ fun activeLocalSocksProxy(): java.net.Proxy {
                     s.proxyPass
                 )
             }
-            coreIsWorking && coreSess != null && coreSess.clientConfig.kernelVariant.isSocks5Core -> {
+            coreIsWorking && coreSess != null && coreSess.clientConfig.kernelVariant.isSocks5Native -> {
                 val cc = coreSess.clientConfig
                 ActiveSocksTarget(
                     cc.socksAddr.replace("0.0.0.0:", "127.0.0.1:"),

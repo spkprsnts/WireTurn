@@ -1,4 +1,4 @@
-package com.wireturn.app.ui.activities.cores
+package com.wireturn.app.ui.activities.kernel
 
 import android.content.Intent
 import android.os.Bundle
@@ -11,14 +11,15 @@ import androidx.compose.runtime.remember
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.gson.Gson
+import com.wireturn.app.data.FreeTurnConfig
 import com.wireturn.app.data.KernelConfig
-import com.wireturn.app.data.QwdttConfig
+import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.ui.activities.XraySetupActivity
-import com.wireturn.app.ui.screens.cores.QwdttConfigScreen
+import com.wireturn.app.ui.screens.kernel.FreeTurnConfigScreen
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
 
-class QwdttConfigActivity : ComponentActivity() {
+class FreeTurnConfigActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,9 +35,6 @@ class QwdttConfigActivity : ComponentActivity() {
         val profileId = intent.getStringExtra("EXTRA_PROFILE_ID")
 
         setContent {
-            val isInitialized by viewModel.isInitialized.collectAsStateWithLifecycle()
-            if (!isInitialized) return@setContent
-
             val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
             val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
@@ -45,42 +43,45 @@ class QwdttConfigActivity : ComponentActivity() {
 
             val initialConfig = remember(clientConfig, profiles) {
                 if (configJson != null) {
-                    try { Gson().fromJson(configJson, QwdttConfig::class.java) } catch (_: Exception) { QwdttConfig() }
+                    try { Gson().fromJson(configJson, FreeTurnConfig::class.java) } catch (_: Exception) { FreeTurnConfig() }
                 } else if (profileId != null) {
-                    profiles.find { it.id == profileId }?.qwdttConfig ?: QwdttConfig()
+                    profiles.find { it.id == profileId }?.freeturnConfig ?: FreeTurnConfig()
                 } else if (isEditMode) {
-                    (clientConfig.kernelConfig as? KernelConfig.Qwdtt)?.config ?: QwdttConfig()
+                    (clientConfig.kernelConfig as? KernelConfig.FreeTurn)?.config ?: FreeTurnConfig()
                 } else {
-                    QwdttConfig()
+                    FreeTurnConfig()
                 }
             }
 
             WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
-                QwdttConfigScreen(
+                FreeTurnConfigScreen(
                     isEditMode = isEditMode,
                     initialConfig = initialConfig,
-                    profileName = profileName,
+                    profileName = profileName.ifBlank { null },
                     privacyMode = privacyMode,
                     onBack = { finish() },
                     onSave = { config ->
                         if (isEditMode) {
                             if (profileId != null) {
-                                viewModel.updateProfileById(profileId) { it.copy(kernelConfig = KernelConfig.Qwdtt(config)) }
+                                viewModel.updateProfileById(profileId) { it.copy(kernelConfig = KernelConfig.FreeTurn(config)) }
                                 if (profileId == viewModel.currentProfileId.value) {
-                                    // The edited profile is the active one: also push the change
-                                    // into the live config, otherwise CoreService keeps using the
-                                    // stale config until the profile is reselected.
-                                    viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Qwdtt(config)))
+                                    viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.FreeTurn(config)))
                                 }
                             } else {
-                                viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Qwdtt(config)))
+                                viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.FreeTurn(config)))
                             }
                             finish()
                         } else {
                             val intent = Intent(this, XraySetupActivity::class.java).apply {
                                 putExtra("EXTRA_PROFILE_NAME", profileName)
-                                putExtra("EXTRA_KERNEL_VARIANT", "QWDTT")
-                                putExtra("EXTRA_QWDTT_CONFIG_JSON", Gson().toJson(config))
+                                putExtra(
+                                    "EXTRA_DEFAULT_PROTOCOL",
+                                    if (config.mode == "tcp") XrayConfiguration.VLESS.name
+                                    else XrayConfiguration.WIREGUARD.name
+                                )
+
+                                putExtra("EXTRA_KERNEL_VARIANT", "FREETURN")
+                                putExtra("EXTRA_FREETURN_CONFIG_JSON", Gson().toJson(config))
                             }
                             startActivity(intent)
                         }

@@ -162,9 +162,9 @@ class XrayService : Service() {
             
             val isXrayVless = xrayConfig.protocol == com.wireturn.app.data.XrayConfiguration.VLESS
 
-            val isSocks5Core = runningClientConfig.kernelVariant.isSocks5Core
+            val isSocks5Native = runningClientConfig.kernelVariant.isSocks5Native
 
-            val isConfigValid = if (isSocks5Core) {
+            val isConfigValid = if (isSocks5Native) {
                 // For OLCRTC/WebDAV, VLESS/WG config is optional, unless DualRoute or Socks5Chain is enabled
                 if (isXrayVless && (vlessConfig.isDualRoute || vlessConfig.isSocks5Chain)) {
                     vlessConfig.isValid()
@@ -235,7 +235,7 @@ class XrayService : Service() {
                 cmdArgs.add(com.wireturn.app.domain.GeoAssetsManager.assetsDir(this@XrayService).absolutePath)
             }
 
-            if (isSocks5Core) {
+            if (isSocks5Native) {
                 cmdArgs.add("-local-socks5")
                 // socksAddr can be bound to 0.0.0.0 (e.g. to also serve LAN clients) - Xray connects
                 // to this as a literal destination, so it needs the loopback form, same as the
@@ -262,7 +262,7 @@ class XrayService : Service() {
                     prefs.addVlessLinkToHistory(vlessConfig.vlessLink)
                 }
                 
-                val shouldAddLink = if (isSocks5Core) {
+                val shouldAddLink = if (isSocks5Native) {
                     (vlessConfig.isDualRoute || vlessConfig.isSocks5Chain) && vlessConfig.vlessLink.isNotBlank()
                 } else {
                     true
@@ -285,12 +285,12 @@ class XrayService : Service() {
                 }
 
                 // Only meaningful when -local-socks5 is actually the socks5-native kernel's
-                // proxy (isSocks5Core) - vless-client requires -local-socks5 to be set for
+                // proxy (isSocks5Native) - vless-client requires -local-socks5 to be set for
                 // -socks5-chain, and other kernels dial via -local-address instead.
-                if (isSocks5Core && vlessConfig.isSocks5Chain) {
+                if (isSocks5Native && vlessConfig.isSocks5Chain) {
                     cmdArgs.add("-socks5-chain")
                 }
-            } else if (!isSocks5Core) {
+            } else if (!isSocks5Native) {
                 cmdArgs.addAll(listOf(
                     "-wg-private-key", wgConfig.privateKey,
                     "-wg-public-key", wgConfig.publicKey,

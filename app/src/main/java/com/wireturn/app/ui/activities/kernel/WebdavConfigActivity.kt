@@ -1,4 +1,4 @@
-package com.wireturn.app.ui.activities.cores
+package com.wireturn.app.ui.activities.kernel
 
 import android.content.Intent
 import android.os.Bundle
@@ -12,14 +12,13 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.gson.Gson
 import com.wireturn.app.data.KernelConfig
-import com.wireturn.app.data.TurnableConfig
-import com.wireturn.app.data.XrayConfiguration
+import com.wireturn.app.data.WebdavConfig
 import com.wireturn.app.ui.activities.XraySetupActivity
-import com.wireturn.app.ui.screens.cores.TurnableConfigScreen
+import com.wireturn.app.ui.screens.kernel.WebdavConfigScreen
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
 
-class TurnableConfigActivity : ComponentActivity() {
+class WebdavConfigActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,6 +34,9 @@ class TurnableConfigActivity : ComponentActivity() {
         val profileId = intent.getStringExtra("EXTRA_PROFILE_ID")
 
         setContent {
+            val isInitialized by viewModel.isInitialized.collectAsStateWithLifecycle()
+            if (!isInitialized) return@setContent
+
             val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
             val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
@@ -43,48 +45,42 @@ class TurnableConfigActivity : ComponentActivity() {
 
             val initialConfig = remember(clientConfig, profiles) {
                 if (configJson != null) {
-                    try { Gson().fromJson(configJson, TurnableConfig::class.java) } catch (_: Exception) { TurnableConfig() }
+                    try { Gson().fromJson(configJson, WebdavConfig::class.java) } catch (_: Exception) { WebdavConfig() }
                 } else if (profileId != null) {
-                    profiles.find { it.id == profileId }?.turnableConfig ?: TurnableConfig()
+                    profiles.find { it.id == profileId }?.webdavConfig ?: WebdavConfig()
                 } else if (isEditMode) {
-                    (clientConfig.kernelConfig as? KernelConfig.Turnable)?.config ?: TurnableConfig()
+                    (clientConfig.kernelConfig as? KernelConfig.Webdav)?.config ?: WebdavConfig()
                 } else {
-                    TurnableConfig()
+                    WebdavConfig()
                 }
             }
 
             WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
-                TurnableConfigScreen(
+                WebdavConfigScreen(
                     isEditMode = isEditMode,
                     initialConfig = initialConfig,
-                    profileName = profileName.ifBlank { null },
+                    profileName = profileName,
                     privacyMode = privacyMode,
                     onBack = { finish() },
                     onSave = { config ->
                         if (isEditMode) {
                             if (profileId != null) {
-                                viewModel.updateProfileById(profileId) { it.copy(kernelConfig = KernelConfig.Turnable(config)) }
+                                viewModel.updateProfileById(profileId) { it.copy(kernelConfig = KernelConfig.Webdav(config)) }
                                 if (profileId == viewModel.currentProfileId.value) {
                                     // The edited profile is the active one: also push the change
                                     // into the live config, otherwise CoreService keeps using the
                                     // stale config until the profile is reselected.
-                                    viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Turnable(config)))
+                                    viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Webdav(config)))
                                 }
                             } else {
-                                viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Turnable(config)))
+                                viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Webdav(config)))
                             }
                             finish()
                         } else {
-                            val selectedRoute = config.routes.find { it.routeId == config.selectedRouteId } ?: config.routes.firstOrNull()
-                            val isTcp = selectedRoute?.socket?.lowercase() == "tcp"
-
                             val intent = Intent(this, XraySetupActivity::class.java).apply {
                                 putExtra("EXTRA_PROFILE_NAME", profileName)
-                                if (isTcp) {
-                                    putExtra("EXTRA_DEFAULT_PROTOCOL", XrayConfiguration.VLESS.name)
-                                }
-                                putExtra("EXTRA_KERNEL_VARIANT", "TURNABLE")
-                                putExtra("EXTRA_TURNABLE_CONFIG_JSON", Gson().toJson(config))
+                                putExtra("EXTRA_KERNEL_VARIANT", "WEBDAV")
+                                putExtra("EXTRA_WEBDAV_CONFIG_JSON", Gson().toJson(config))
                             }
                             startActivity(intent)
                         }

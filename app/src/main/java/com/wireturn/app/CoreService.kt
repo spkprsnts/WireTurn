@@ -700,8 +700,8 @@ class CoreService : Service() {
                         status !is CoreStatus.Error &&
                         status !is CoreStatus.WaitingForNetwork
 
-                val connectionTarget = if (clientConfig.kernelVariant.isSocks5Core) clientConfig.socksAddr else clientConfig.listenAddr
-                val connectionAuth = if (clientConfig.kernelVariant.isSocks5Core) {
+                val connectionTarget = if (clientConfig.kernelVariant.isSocks5Native) clientConfig.socksAddr else clientConfig.listenAddr
+                val connectionAuth = if (clientConfig.kernelVariant.isSocks5Native) {
                     Triple(clientConfig.isSocksAuthEnabled, clientConfig.socksUser, clientConfig.socksPass)
                 } else null
 
@@ -814,7 +814,7 @@ class CoreService : Service() {
                         terminalError = false
                     )
                 } else if (coreSession != null &&
-                    coreSession.clientConfig.kernelVariant.isSocks5Core &&
+                    coreSession.clientConfig.kernelVariant.isSocks5Native &&
                     coreStatus !is CoreStatus.Idle && coreStatus !is CoreStatus.Error && coreStatus !is CoreStatus.WaitingForNetwork
                 ) {
                     val cc = coreSession.clientConfig

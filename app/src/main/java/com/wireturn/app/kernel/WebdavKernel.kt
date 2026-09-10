@@ -9,7 +9,7 @@ import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.WebdavConfig
-import com.wireturn.app.ui.activities.cores.WebdavConfigActivity
+import com.wireturn.app.ui.activities.kernel.WebdavConfigActivity
 import java.io.File
 
 object WebdavKernel : Kernel {

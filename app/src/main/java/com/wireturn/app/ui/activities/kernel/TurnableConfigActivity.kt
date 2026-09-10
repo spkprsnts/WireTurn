@@ -1,4 +1,4 @@
-package com.wireturn.app.ui.activities.cores
+package com.wireturn.app.ui.activities.kernel
 
 import android.content.Intent
 import android.os.Bundle
@@ -12,13 +12,14 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.gson.Gson
 import com.wireturn.app.data.KernelConfig
-import com.wireturn.app.data.OlcrtcConfig
+import com.wireturn.app.data.TurnableConfig
+import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.ui.activities.XraySetupActivity
-import com.wireturn.app.ui.screens.cores.OlcRtcConfigScreen
+import com.wireturn.app.ui.screens.kernel.TurnableConfigScreen
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
 
-class OlcRtcConfigActivity : ComponentActivity() {
+class TurnableConfigActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,9 +35,6 @@ class OlcRtcConfigActivity : ComponentActivity() {
         val profileId = intent.getStringExtra("EXTRA_PROFILE_ID")
 
         setContent {
-            val isInitialized by viewModel.isInitialized.collectAsStateWithLifecycle()
-            if (!isInitialized) return@setContent
-
             val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
             val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
@@ -45,42 +43,48 @@ class OlcRtcConfigActivity : ComponentActivity() {
 
             val initialConfig = remember(clientConfig, profiles) {
                 if (configJson != null) {
-                    try { Gson().fromJson(configJson, OlcrtcConfig::class.java) } catch (_: Exception) { OlcrtcConfig() }
+                    try { Gson().fromJson(configJson, TurnableConfig::class.java) } catch (_: Exception) { TurnableConfig() }
                 } else if (profileId != null) {
-                    profiles.find { it.id == profileId }?.olcrtcConfig ?: OlcrtcConfig()
+                    profiles.find { it.id == profileId }?.turnableConfig ?: TurnableConfig()
                 } else if (isEditMode) {
-                    (clientConfig.kernelConfig as? KernelConfig.Olcrtc)?.config ?: OlcrtcConfig()
+                    (clientConfig.kernelConfig as? KernelConfig.Turnable)?.config ?: TurnableConfig()
                 } else {
-                    OlcrtcConfig()
+                    TurnableConfig()
                 }
             }
 
             WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
-                OlcRtcConfigScreen(
+                TurnableConfigScreen(
                     isEditMode = isEditMode,
                     initialConfig = initialConfig,
-                    profileName = profileName,
+                    profileName = profileName.ifBlank { null },
                     privacyMode = privacyMode,
                     onBack = { finish() },
                     onSave = { config ->
                         if (isEditMode) {
                             if (profileId != null) {
-                                viewModel.updateProfileById(profileId) { it.copy(kernelConfig = KernelConfig.Olcrtc(config)) }
+                                viewModel.updateProfileById(profileId) { it.copy(kernelConfig = KernelConfig.Turnable(config)) }
                                 if (profileId == viewModel.currentProfileId.value) {
                                     // The edited profile is the active one: also push the change
                                     // into the live config, otherwise CoreService keeps using the
                                     // stale config until the profile is reselected.
-                                    viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Olcrtc(config)))
+                                    viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Turnable(config)))
                                 }
                             } else {
-                                viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Olcrtc(config)))
+                                viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Turnable(config)))
                             }
                             finish()
                         } else {
+                            val selectedRoute = config.routes.find { it.routeId == config.selectedRouteId } ?: config.routes.firstOrNull()
+                            val isTcp = selectedRoute?.socket?.lowercase() == "tcp"
+
                             val intent = Intent(this, XraySetupActivity::class.java).apply {
                                 putExtra("EXTRA_PROFILE_NAME", profileName)
-                                putExtra("EXTRA_KERNEL_VARIANT", "OLCRTC")
-                                putExtra("EXTRA_OLCRTC_CONFIG_JSON", Gson().toJson(config))
+                                if (isTcp) {
+                                    putExtra("EXTRA_DEFAULT_PROTOCOL", XrayConfiguration.VLESS.name)
+                                }
+                                putExtra("EXTRA_KERNEL_VARIANT", "TURNABLE")
+                                putExtra("EXTRA_TURNABLE_CONFIG_JSON", Gson().toJson(config))
                             }
                             startActivity(intent)
                         }

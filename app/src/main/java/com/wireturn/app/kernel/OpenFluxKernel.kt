@@ -7,7 +7,7 @@ import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
-import com.wireturn.app.ui.activities.cores.OpenFluxConfigActivity
+import com.wireturn.app.ui.activities.kernel.OpenFluxConfigActivity
 
 // OpenFlux (external/openflux, upstream p1neappleXpress/OpenFlux). Plain Go log.Printf output, no
 // captcha/multi-step auth flow to handle - just a startup banner, a final "ready" line once

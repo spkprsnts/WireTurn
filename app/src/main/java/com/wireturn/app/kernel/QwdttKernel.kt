@@ -8,7 +8,7 @@ import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
-import com.wireturn.app.ui.activities.cores.QwdttConfigActivity
+import com.wireturn.app.ui.activities.kernel.QwdttConfigActivity
 import java.util.regex.Pattern
 
 // qWDTT (external/proxy-turn-vk-android/go_client, -mode socks only - see docs). Its vocabulary

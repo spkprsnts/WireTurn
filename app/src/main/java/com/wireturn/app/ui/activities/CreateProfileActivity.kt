@@ -8,9 +8,9 @@ import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.wireturn.app.ui.activities.cores.OlcRtcConfigActivity
-import com.wireturn.app.ui.activities.cores.TurnableConfigActivity
-import com.wireturn.app.ui.activities.cores.WebdavConfigActivity
+import com.wireturn.app.ui.activities.kernel.OlcRtcConfigActivity
+import com.wireturn.app.ui.activities.kernel.TurnableConfigActivity
+import com.wireturn.app.ui.activities.kernel.WebdavConfigActivity
 import com.wireturn.app.ui.screens.CreateProfileScreen
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
@@ -38,9 +38,9 @@ class CreateProfileActivity : ComponentActivity() {
                             "Turnable" -> android.content.Intent(this, TurnableConfigActivity::class.java)
                             "olcRTC" -> android.content.Intent(this, OlcRtcConfigActivity::class.java)
                             "WebDAV" -> android.content.Intent(this, WebdavConfigActivity::class.java)
-                            "FreeTurn" -> android.content.Intent(this, com.wireturn.app.ui.activities.cores.FreeTurnConfigActivity::class.java)
-                            "qWDTT" -> android.content.Intent(this, com.wireturn.app.ui.activities.cores.QwdttConfigActivity::class.java)
-                            "OpenFlux" -> android.content.Intent(this, com.wireturn.app.ui.activities.cores.OpenFluxConfigActivity::class.java)
+                            "FreeTurn" -> android.content.Intent(this, com.wireturn.app.ui.activities.kernel.FreeTurnConfigActivity::class.java)
+                            "qWDTT" -> android.content.Intent(this, com.wireturn.app.ui.activities.kernel.QwdttConfigActivity::class.java)
+                            "OpenFlux" -> android.content.Intent(this, com.wireturn.app.ui.activities.kernel.OpenFluxConfigActivity::class.java)
                             else -> null
                         }
                         intent?.let {

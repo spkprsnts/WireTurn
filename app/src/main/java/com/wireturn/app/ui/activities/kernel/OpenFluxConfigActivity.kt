@@ -1,4 +1,4 @@
-package com.wireturn.app.ui.activities.cores
+package com.wireturn.app.ui.activities.kernel
 
 import android.content.Intent
 import android.os.Bundle
@@ -14,7 +14,7 @@ import com.google.gson.Gson
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.OpenFluxConfig
 import com.wireturn.app.ui.activities.XraySetupActivity
-import com.wireturn.app.ui.screens.cores.OpenFluxConfigScreen
+import com.wireturn.app.ui.screens.kernel.OpenFluxConfigScreen
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
 

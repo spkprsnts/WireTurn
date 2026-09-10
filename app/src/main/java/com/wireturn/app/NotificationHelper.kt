@@ -103,7 +103,7 @@ object NotificationHelper {
         }
         
         val xrayProtocolLabel = when {
-            clientConfig?.kernelVariant?.isSocks5Core == true -> {
+            clientConfig?.kernelVariant?.isSocks5Native == true -> {
                 when (xrayState) {
                     XrayState.DirectRoute -> vlessProtocolLabel
                     XrayState.Running -> context.getString(R.string.socks5)

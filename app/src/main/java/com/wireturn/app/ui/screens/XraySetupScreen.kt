@@ -113,7 +113,7 @@ fun XraySetupScreen(
     val kernelName = stringResource(KernelRegistry.get(kernelVariant).displayNameRes)
     val xraySubtitle = if (isEditMode && profileName != null) "$kernelName: $profileName" else null
     val canChangeProtocol = remember(kernelVariant) {
-        !kernelVariant.isSocks5Core
+        !kernelVariant.isSocks5Native
     }
 
     var xrayConfiguration by remember(initialXrayConfig, kernelVariant, canChangeProtocol) {
@@ -579,7 +579,7 @@ private fun WireGuardSettingsBlock(
     isEditMode: Boolean
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(19.dp)) {
-        if (kernelVariant.isSocks5Core) {
+        if (kernelVariant.isSocks5Native) {
             SectionItem(position = ItemPosition.Single) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -701,7 +701,7 @@ private fun VlessSettingsBlock(
         }
     }
 
-    val vlessLinkError = if (kernelVariant.isSocks5Core) {
+    val vlessLinkError = if (kernelVariant.isSocks5Native) {
         if (vlessIsDualRoute || vlessIsSocks5Chain) {
             !ValidatorUtils.isValidVlessLink(vlessLink)
         } else {
@@ -770,7 +770,7 @@ private fun VlessSettingsBlock(
 
             // Only meaningful for socks5-native kernels (olcrtc/webdav) - it chains this link
             // through the kernel's own local socks5 instead of the kernel providing it directly.
-            if (kernelVariant.isSocks5Core) {
+            if (kernelVariant.isSocks5Native) {
                 val socks5ChainEnabled = detectedUriProtocol != UriProtocol.HYSTERIA2
                 SectionItem(
                     position = ItemPosition.Single,
