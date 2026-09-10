@@ -58,6 +58,7 @@ import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.activities.cores.FreeTurnConfigActivity
 import com.wireturn.app.ui.activities.cores.OlcRtcConfigActivity
+import com.wireturn.app.ui.activities.cores.OpenFluxConfigActivity
 import com.wireturn.app.ui.activities.cores.QwdttConfigActivity
 import com.wireturn.app.ui.activities.cores.TurnableConfigActivity
 import com.wireturn.app.ui.activities.cores.WebdavConfigActivity
@@ -398,11 +399,13 @@ class AddProfileActivity : ComponentActivity() {
                     val uriFragment = try { source.toUri().fragment } catch (_: Exception) { null }
                     val olcrtcMimo = if (source.startsWith("olcrtc://") && source.contains("$")) source.substringAfterLast("$") else null
                     val qwdttName = try { source.toUri().getQueryParameter("name") } catch (_: Exception) { null }
+                    val openfluxName = try { source.toUri().getQueryParameter("name") } catch (_: Exception) { null }
 
                     val initialNameFromSource = if (status.type == "WebDAV") uriFragment
                     else if (status.type == "olcRTC") olcrtcMimo
                     else if (status.type == "FreeTurn") uriFragment
                     else if (status.type == "qWDTT") qwdttName
+                    else if (status.type == "OpenFlux") openfluxName
                     else null
 
                     val initialName = if (!initialNameFromSource.isNullOrBlank()) {
@@ -422,6 +425,7 @@ class AddProfileActivity : ComponentActivity() {
                                 "WebDAV" -> Intent(this@AddProfileActivity, WebdavConfigActivity::class.java)
                                 "FreeTurn" -> Intent(this@AddProfileActivity, FreeTurnConfigActivity::class.java)
                                 "qWDTT" -> Intent(this@AddProfileActivity, QwdttConfigActivity::class.java)
+                                "OpenFlux" -> Intent(this@AddProfileActivity, OpenFluxConfigActivity::class.java)
                                 else -> null
                             }
                             intent?.let {

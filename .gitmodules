@@ -19,3 +19,6 @@
 [submodule "external/proxy-turn-vk-android"]
 	path = external/proxy-turn-vk-android
 	url = https://github.com/SpaceNeuroX/proxy-turn-vk-android.git
+[submodule "external/openflux"]
+	path = external/openflux
+	url = https://github.com/p1neappleXpress/OpenFlux.git

@@ -199,12 +199,14 @@ if [ "$TARGET" = "all" ] || [ "$TARGET" = "go" ]; then
     git submodule update --init --recursive --force external/webdav-tunnel
     git submodule update --init --recursive --force external/free-turn-proxy
     git submodule update --init --recursive --force external/proxy-turn-vk-android
+    git submodule update --init --recursive --force external/openflux
     build_go_project "external/olcrtc"       "libolcrtc.so"     "./cmd/olcrtc"
     build_go_project "external/vless-client"  "libxray.so"      "."
     build_go_project "external/turnable"      "libturnable.so"  "./cmd"
     build_go_project "external/webdav-tunnel" "libwebdav.so"    "."
     build_go_project "external/free-turn-proxy" "libfreeturn.so" "./cmd/client"
     build_go_project "external/proxy-turn-vk-android/go_client" "libqwdtt.so" "."
+    build_go_project "external/openflux"      "libopenflux.so"  "."
 fi
 
 chmod +x "$JNI_LIBS_DIR"/*/*.so 2>/dev/null || true

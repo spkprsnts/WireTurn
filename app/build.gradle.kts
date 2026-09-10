@@ -46,6 +46,7 @@ android {
             keepDebugSymbols += "**/libwebdav.so"
             keepDebugSymbols += "**/libfreeturn.so"
             keepDebugSymbols += "**/libqwdtt.so"
+            keepDebugSymbols += "**/libopenflux.so"
         }
     }
 
@@ -207,6 +208,9 @@ tasks.register<Exec>("buildGoBinaries") {
     inputs.files(file("${rootDir}/external/proxy-turn-vk-android/go_client"))
         .withPathSensitivity(PathSensitivity.RELATIVE)
         .optional()
+    inputs.files(file("${rootDir}/external/openflux"))
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+        .optional()
     inputs.file(file("${rootDir}/build.sh")).withPathSensitivity(PathSensitivity.RELATIVE)
 
     listOf("arm64-v8a", "x86_64", "armeabi-v7a", "x86").forEach { abi ->
@@ -216,6 +220,7 @@ tasks.register<Exec>("buildGoBinaries") {
         outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libwebdav.so"))
         outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libfreeturn.so"))
         outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libqwdtt.so"))
+        outputs.file(file("${projectDir}/src/main/jniLibs/$abi/libopenflux.so"))
     }
     configureNdk()
     wslOrBash("./build.sh go")

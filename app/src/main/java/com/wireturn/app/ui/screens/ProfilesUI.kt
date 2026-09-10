@@ -1993,6 +1993,7 @@ private fun configActivityClassFor(variant: KernelVariant): Class<out Activity> 
     KernelVariant.WEBDAV -> com.wireturn.app.ui.activities.cores.WebdavConfigActivity::class.java
     KernelVariant.FREETURN -> com.wireturn.app.ui.activities.cores.FreeTurnConfigActivity::class.java
     KernelVariant.QWDTT -> com.wireturn.app.ui.activities.cores.QwdttConfigActivity::class.java
+    KernelVariant.OPENFLUX -> com.wireturn.app.ui.activities.cores.OpenFluxConfigActivity::class.java
 }
 
 private fun getProfileIcon(profile: Profile, outlined: Boolean): Int {
@@ -2023,6 +2024,10 @@ private fun getProfileIcon(profile: Profile, outlined: Boolean): Int {
 
         KernelVariant.QWDTT -> {
             R.drawable.ic_vk
+        }
+
+        KernelVariant.OPENFLUX -> {
+            R.drawable.route_24px
         }
     }
 }

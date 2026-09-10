@@ -190,6 +190,7 @@ class CoreService : Service() {
             is KernelConfig.Webdav -> "WebDAV (${k.config.webdav.take(20)})"
             is KernelConfig.FreeTurn -> "FreeTurn (${k.config.peer})"
             is KernelConfig.Qwdtt -> "qWDTT (${k.config.peer})"
+            is KernelConfig.OpenFlux -> "OpenFlux (${k.config.transport})"
             else -> "-"
         }
         val xrayInfo = if (xrayConfig.enabled) {
@@ -576,6 +577,7 @@ class CoreService : Service() {
             KernelVariant.WEBDAV -> handleWebdavLog(line, lower, state)
             KernelVariant.FREETURN -> handleFreeTurnLog(line, lower, state)
             KernelVariant.QWDTT -> handleQwdttLog(line, lower, state)
+            KernelVariant.OPENFLUX -> handleOpenFluxLog(line, lower, state)
         }
     }
 
@@ -943,6 +945,45 @@ class CoreService : Service() {
         return false
     }
 
+    // OpenFlux (external/openflux, upstream p1neappleXpress/OpenFlux). Plain Go log.Printf output,
+    // no captcha/multi-step auth flow to handle - just a startup banner, a final "ready" line once
+    // trans.Start() has already succeeded, and log.Fatalf on hard failure (which also exits the
+    // process, so the generic "no output before exit" fallback in runBinary would eventually catch
+    // it too, but matching the line directly gives a much faster, more specific error).
+    private fun handleOpenFluxLog(line: String, lower: String, state: BinaryOutputState): Boolean {
+        // 1. Hard errors (log.Fatalf in main.go - prints then exits)
+        if (lower.startsWith("panic:") ||
+            lower.contains("failed to start transport") ||
+            lower.contains("unknown transport type")) {
+            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                CoreServiceState.setStatus(CoreStatus.Error(line))
+                updateNotification(getString(R.string.error_connecting))
+            }
+            state.startupFailed = true
+            return true
+        }
+
+        // 2. Connecting - first banner line, printed before the transport handshake starts.
+        if (lower.contains("=== universal bypass tool ===")) {
+            if (canUpdateConnectingStatus()) {
+                markConnecting()
+            }
+            state.startupEmitted = true
+        }
+
+        // 3. Connected - the last line main.go prints, only reached once trans.Start() (the
+        // Yandex.Docs / MAX login+call handshake) has already returned successfully.
+        if (lower.contains("running as client (socks5 on")) {
+            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                CoreServiceState.setStatus(CoreStatus.Connected)
+                updateNotification(getString(R.string.core_active))
+                state.startupEmitted = true
+            }
+        }
+
+        return false
+    }
+
     private suspend fun handleOlcrtcLog(line: String, lower: String, state: BinaryOutputState, olcrtcConfig: OlcrtcConfig): Boolean {
         if (lower.contains("join room failed: status 404") || lower.contains("guests cannot create rooms")) {
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
@@ -1086,6 +1127,8 @@ class CoreService : Service() {
             is KernelConfig.FreeTurn -> setOf("-obf-key", "-links", "-sub")
             // Qwdtt (like FreeTurn) has no file-based config either - -vk/-password ride argv too.
             is KernelConfig.Qwdtt -> setOf("-vk", "-password", "-socks-user", "-socks-pass")
+            // OpenFlux takes everything as flags too - --maxToken is a bare MAX account auth token.
+            is KernelConfig.OpenFlux -> setOf("--maxToken")
             else -> return cmdArgs.joinToString(" ")
         }
         return CommandLogRedactor.redact(cmdArgs, sensitiveFlags)
@@ -1194,6 +1237,23 @@ class CoreService : Service() {
                     cmdArgs.addAll(listOf("-socks-user", cfg.socksUser))
                     cmdArgs.addAll(listOf("-socks-pass", cfg.socksPass))
                 }
+            }
+            is KernelConfig.OpenFlux -> {
+                val o = k.config
+                cmdArgs.add("${applicationInfo.nativeLibraryDir}/libopenflux.so")
+                cmdArgs.addAll(listOf(
+                    "--client",
+                    "--socks5", cfg.socksAddr.ifBlank { ClientConfig.DEFAULT_SOCKS_ADDR },
+                    "--transport", o.transport
+                ))
+                // No SOCKS5 auth flags exist upstream - cfg.isSocksAuthEnabled/socksUser/socksPass
+                // don't apply to this kernel, unlike Qwdtt above.
+                if (o.transport == "oneme") {
+                    cmdArgs.addAll(listOf("--maxToken", o.maxToken, "--maxUid", o.maxUid))
+                } else {
+                    cmdArgs.addAll(listOf("--url", o.url))
+                }
+                cmdArgs.add("--debug")
             }
         }
         return cmdArgs
@@ -1312,6 +1372,8 @@ class CoreService : Service() {
                 old.isSocksAuthEnabled != new.isSocksAuthEnabled ||
                 old.socksUser != new.socksUser ||
                 old.socksPass != new.socksPass
+            // No SOCKS5 auth flags exist upstream - only socksAddr matters (see buildCommandArgs).
+            is KernelConfig.OpenFlux -> old.socksAddr != new.socksAddr
         }
     }
 

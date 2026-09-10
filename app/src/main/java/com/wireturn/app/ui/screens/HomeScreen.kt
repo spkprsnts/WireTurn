@@ -107,6 +107,7 @@ import com.wireturn.app.CoreServiceState
 import com.wireturn.app.R
 import com.wireturn.app.VpnServiceState
 import com.wireturn.app.XrayServiceState
+import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.ui.AppExclusionTooltip
 import com.wireturn.app.ui.CompactItem
@@ -1294,7 +1295,11 @@ fun HomeScreen(
                     activeConfig.socksAddr,
                     activeConfig.socksUser,
                     activeConfig.socksPass,
-                    activeConfig.isSocksAuthEnabled
+                    // OpenFlux's embedded SOCKS5 server has no auth support upstream (see
+                    // CoreService.buildCommandArgs / XrayService's own OPENFLUX guard) - never show
+                    // credentials that would make an external client attempt an auth handshake it
+                    // doesn't understand.
+                    activeConfig.isSocksAuthEnabled && activeConfig.kernelVariant != KernelVariant.OPENFLUX
                 )
 
                 else -> formatProxyAddr(

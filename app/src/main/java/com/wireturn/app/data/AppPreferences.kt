@@ -88,6 +88,10 @@ class KernelConfigAdapter : JsonDeserializer<KernelConfig>, JsonSerializer<Kerne
                 jsonObject.addProperty("type", "qwdtt")
                 jsonObject.add("config", context.serialize(src.config))
             }
+            is KernelConfig.OpenFlux -> {
+                jsonObject.addProperty("type", "openflux")
+                jsonObject.add("config", context.serialize(src.config))
+            }
         }
         return jsonObject
     }
@@ -102,17 +106,18 @@ class KernelConfigAdapter : JsonDeserializer<KernelConfig>, JsonSerializer<Kerne
             "webdav" -> KernelConfig.Webdav(context.deserialize(configElement, WebdavConfig::class.java) ?: WebdavConfig())
             "freeturn" -> KernelConfig.FreeTurn(context.deserialize(configElement, FreeTurnConfig::class.java) ?: FreeTurnConfig())
             "qwdtt" -> KernelConfig.Qwdtt(context.deserialize(configElement, QwdttConfig::class.java) ?: QwdttConfig())
+            "openflux" -> KernelConfig.OpenFlux(context.deserialize(configElement, OpenFluxConfig::class.java) ?: OpenFluxConfig())
             else -> KernelConfig.Turnable()
         }
     }
 }
 
 enum class KernelVariant {
-    TURNABLE, OLCRTC, WEBDAV, FREETURN, QWDTT;
+    TURNABLE, OLCRTC, WEBDAV, FREETURN, QWDTT, OPENFLUX;
 
-    /** OLCRTC, WEBDAV and QWDTT already speak SOCKS5 themselves - Xray's WireGuard overlay is
+    /** OLCRTC, WEBDAV, QWDTT and OPENFLUX already speak SOCKS5 themselves - Xray's WireGuard overlay is
      * neither needed nor offered in the UI for them. */
-    val isSocks5Native: Boolean get() = this == OLCRTC || this == WEBDAV || this == QWDTT
+    val isSocks5Native: Boolean get() = this == OLCRTC || this == WEBDAV || this == QWDTT || this == OPENFLUX
 }
 enum class XrayConfiguration { WIREGUARD, VLESS }
 enum class ThemeMode { DARK, LIGHT, SYSTEM }
@@ -123,6 +128,7 @@ sealed class KernelConfig {
     data class Webdav(val config: WebdavConfig = WebdavConfig()) : KernelConfig()
     data class FreeTurn(val config: FreeTurnConfig = FreeTurnConfig()) : KernelConfig()
     data class Qwdtt(val config: QwdttConfig = QwdttConfig()) : KernelConfig()
+    data class OpenFlux(val config: OpenFluxConfig = OpenFluxConfig()) : KernelConfig()
 
     companion object {
         // The link's own scheme already identifies the kernel, so a single quick-input
@@ -141,6 +147,8 @@ sealed class KernelConfig {
                 trimmed.startsWith("qwdtt://", ignoreCase = true) || trimmed.startsWith("qwdtt:config", ignoreCase = true) ||
                     trimmed.startsWith("wdtt://", ignoreCase = true) ->
                     QwdttConfig.parse(trimmed)?.let { Qwdtt(it) }
+                trimmed.startsWith("openflux://", ignoreCase = true) || trimmed.startsWith("openflux:config", ignoreCase = true) ->
+                    OpenFluxConfig.parse(trimmed)?.let { OpenFlux(it) }
                 else -> null
             }
         }
@@ -155,6 +163,7 @@ val KernelConfig.variant: KernelVariant get() = when (this) {
     is KernelConfig.Webdav -> KernelVariant.WEBDAV
     is KernelConfig.FreeTurn -> KernelVariant.FREETURN
     is KernelConfig.Qwdtt -> KernelVariant.QWDTT
+    is KernelConfig.OpenFlux -> KernelVariant.OPENFLUX
 }
 
 fun KernelConfig.description(context: Context): String = when (this) {
@@ -168,6 +177,7 @@ fun KernelConfig.description(context: Context): String = when (this) {
         if (config.backends.isNotEmpty()) " +${config.backends.size}" else ""
     is KernelConfig.FreeTurn -> context.getString(R.string.kernel_freeturn) + " " + config.addressLabel()
     is KernelConfig.Qwdtt -> context.getString(R.string.kernel_qwdtt) + " " + config.addressLabel()
+    is KernelConfig.OpenFlux -> context.getString(R.string.kernel_openflux) + " " + config.transport
 }
 
 data class TurnableRoute(
@@ -1044,6 +1054,76 @@ data class QwdttConfig(
     }
 }
 
+// OpenFlux (external/openflux, upstream https://github.com/p1neappleXpress/OpenFlux) - a plain
+// TCP tunnel with pluggable transports. Client mode only here (the app never runs --exit-node);
+// its own embedded SOCKS5 server binds cfg.socksAddr directly (see CoreService.buildCommandArgs),
+// so like olcRTC/WebDAV/qWDTT it's socks5-native and speaks no auth flags of its own.
+data class OpenFluxConfig(
+    // "yandex" (Yandex.Docs cursor-message transport, needs `url`) or "oneme" (MAX WebRTC
+    // DataChannel transport, needs maxToken/maxUid) - the exact values OpenFlux's own
+    // `-transport` flag accepts (the CLI arg is literally "oneme", not "max").
+    @SerializedName("transport") val transport: String = "yandex",
+    @SerializedName("url") val url: String = "",
+    // Client's own MAX account auth token, passed to LoginByToken - required for "oneme".
+    @SerializedName("max_token") val maxToken: String = "",
+    // MAX user id of the exit-node's account being called - required for "oneme".
+    @SerializedName("max_uid") val maxUid: String = ""
+) {
+    fun isValid(): Boolean = when (transport) {
+        "oneme" -> maxToken.isNotBlank() && maxUid.isNotBlank()
+        else -> url.isNotBlank()
+    }
+
+    fun sanitize(): OpenFluxConfig = copy(
+        transport = if ((transport as Any?)?.toString() == "oneme") "oneme" else "yandex",
+        url = (url as Any?)?.toString()?.trim()?.take(2000) ?: "",
+        maxToken = (maxToken as Any?)?.toString()?.trim()?.take(4096) ?: "",
+        maxUid = (maxUid as Any?)?.toString()?.trim()?.filter(Char::isDigit)?.take(32) ?: ""
+    )
+
+    fun fillDefaults(): OpenFluxConfig = sanitize()
+
+    fun addressLabel(): String = if (transport == "oneme") "MAX #$maxUid" else url
+
+    fun toUri(profileName: String? = null): String {
+        val builder = Uri.Builder().scheme("openflux").authority("config")
+            .appendQueryParameter("transport", transport)
+        if (transport == "oneme") {
+            builder.appendQueryParameter("token", maxToken)
+                .appendQueryParameter("uid", maxUid)
+        } else {
+            builder.appendQueryParameter("url", url)
+        }
+        if (!profileName.isNullOrBlank()) builder.appendQueryParameter("name", profileName)
+        return builder.build().toString()
+    }
+
+    companion object {
+        fun parse(url: String, current: OpenFluxConfig = OpenFluxConfig()): OpenFluxConfig? {
+            val trimmed = url.trim()
+            if (!trimmed.startsWith("openflux://", ignoreCase = true) && !trimmed.startsWith("openflux:config", ignoreCase = true)) return null
+            return try {
+                val normalized = if (trimmed.startsWith("openflux://", ignoreCase = true)) trimmed
+                    else trimmed.replaceFirst("openflux:", "openflux://", ignoreCase = true)
+                val uri = Uri.parse(normalized)
+                val transport = if (uri.getQueryParameter("transport") == "oneme") "oneme" else "yandex"
+                if (transport == "oneme") {
+                    val token = uri.getQueryParameter("token") ?: current.maxToken
+                    val uid = uri.getQueryParameter("uid") ?: current.maxUid
+                    if (token.isBlank() || uid.isBlank()) return null
+                    OpenFluxConfig(transport = "oneme", url = current.url, maxToken = token, maxUid = uid)
+                } else {
+                    val docUrl = uri.getQueryParameter("url") ?: current.url
+                    if (docUrl.isBlank()) return null
+                    OpenFluxConfig(transport = "yandex", url = docUrl, maxToken = current.maxToken, maxUid = current.maxUid)
+                }
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+}
+
 data class ClientConfig(
     val listenAddr: String = DEFAULT_LISTEN_ADDR,
     val socksAddr: String = DEFAULT_SOCKS_ADDR,
@@ -1121,6 +1201,7 @@ data class ClientConfig(
                 is KernelConfig.Webdav -> KernelConfig.Webdav(k.config.fillDefaults())
                 is KernelConfig.FreeTurn -> KernelConfig.FreeTurn(k.config.sanitize())
                 is KernelConfig.Qwdtt -> KernelConfig.Qwdtt(k.config.sanitize())
+                is KernelConfig.OpenFlux -> KernelConfig.OpenFlux(k.config.fillDefaults())
             }
         )
     }
@@ -1133,6 +1214,7 @@ data class ClientConfig(
         is KernelConfig.Webdav -> if (!k.config.isValid()) R.string.error_settings_empty else null
         is KernelConfig.FreeTurn -> if (!k.config.isValid()) R.string.error_settings_empty else null
         is KernelConfig.Qwdtt -> socksNativeValidationError(k.config.isValid())
+        is KernelConfig.OpenFlux -> socksNativeValidationError(k.config.isValid())
     }
 
     // Shared by every SOCKS5-native kernel (OLCRTC, qWDTT): besides its own config being filled in,
@@ -1332,7 +1414,8 @@ internal data class KernelSnapshot(
     @SerializedName("olcrtc") val olcrtc: OlcrtcConfig? = null,
     @SerializedName("webdav") val webdav: WebdavConfig? = null,
     @SerializedName("freeturn") val freeturn: FreeTurnConfig? = null,
-    @SerializedName("qwdtt") val qwdtt: QwdttConfig? = null
+    @SerializedName("qwdtt") val qwdtt: QwdttConfig? = null,
+    @SerializedName("openflux") val openflux: OpenFluxConfig? = null
 )
 
 internal data class OldClientConfig(
@@ -1385,6 +1468,7 @@ data class Profile(
     val webdavConfig: WebdavConfig get() = (kernelConfig as? KernelConfig.Webdav)?.config ?: WebdavConfig()
     val freeturnConfig: FreeTurnConfig get() = (kernelConfig as? KernelConfig.FreeTurn)?.config ?: FreeTurnConfig()
     val qwdttConfig: QwdttConfig get() = (kernelConfig as? KernelConfig.Qwdtt)?.config ?: QwdttConfig()
+    val openFluxConfig: OpenFluxConfig get() = (kernelConfig as? KernelConfig.OpenFlux)?.config ?: OpenFluxConfig()
 
     fun isEmpty(): Boolean = when (val k = kernelConfig) {
         is KernelConfig.Turnable -> !k.config.isValid()
@@ -1392,6 +1476,7 @@ data class Profile(
         is KernelConfig.Webdav -> !k.config.isValid()
         is KernelConfig.FreeTurn -> !k.config.isValid()
         is KernelConfig.Qwdtt -> !k.config.isValid()
+        is KernelConfig.OpenFlux -> !k.config.isValid()
     } && !wgConfig.isValid() && !vlessConfig.isValid()
 
     fun sanitize(defaultName: String = "Profile"): Profile {
@@ -1427,6 +1512,7 @@ data class Profile(
                  KernelVariant.WEBDAV -> KernelConfig.Webdav(mWebdavConfig ?: WebdavConfig())
                  KernelVariant.FREETURN -> currentKc // Not migrated from top-level
                  KernelVariant.QWDTT -> currentKc // Not migrated from top-level
+                 KernelVariant.OPENFLUX -> currentKc // Not migrated from top-level
              }
         }
         // --- END MIGRATION 2 ---
@@ -1459,6 +1545,10 @@ data class Profile(
                     KernelVariant.QWDTT -> {
                         val qcElement = obj.get("qwdttConfig")
                         KernelConfig.Qwdtt(gson.fromJson(qcElement, QwdttConfig::class.java) ?: QwdttConfig())
+                    }
+                    KernelVariant.OPENFLUX -> {
+                        val ofcElement = obj.get("openFluxConfig")
+                        KernelConfig.OpenFlux(gson.fromJson(ofcElement, OpenFluxConfig::class.java) ?: OpenFluxConfig())
                     }
                 }
             } catch (_: Exception) { }
@@ -1497,6 +1587,7 @@ data class Profile(
             is KernelConfig.Webdav -> KernelConfig.Webdav(currentKc.config.fillDefaults())
             is KernelConfig.FreeTurn -> KernelConfig.FreeTurn(currentKc.config.sanitize())
             is KernelConfig.Qwdtt -> KernelConfig.Qwdtt(currentKc.config.sanitize())
+            is KernelConfig.OpenFlux -> KernelConfig.OpenFlux(currentKc.config.sanitize())
         }
 
         return copy(
@@ -1741,6 +1832,7 @@ class AppPreferences(val context: Context) {
                     KernelVariant.WEBDAV -> KernelConfig.Webdav(snap.webdav ?: WebdavConfig())
                     KernelVariant.FREETURN -> KernelConfig.FreeTurn(snap.freeturn ?: FreeTurnConfig())
                     KernelVariant.QWDTT -> KernelConfig.Qwdtt(snap.qwdtt ?: QwdttConfig())
+                    KernelVariant.OPENFLUX -> KernelConfig.OpenFlux(snap.openflux ?: OpenFluxConfig())
                 }
             } ?: run {
                 // Migration from legacy keys
@@ -1751,6 +1843,7 @@ class AppPreferences(val context: Context) {
                     KernelVariant.WEBDAV -> KernelConfig.Webdav(WebdavConfig())
                     KernelVariant.FREETURN -> KernelConfig.FreeTurn(FreeTurnConfig())
                     KernelVariant.QWDTT -> KernelConfig.Qwdtt(QwdttConfig())
+                    KernelVariant.OPENFLUX -> KernelConfig.OpenFlux(OpenFluxConfig())
                 }
             }
             ClientConfig(
@@ -1808,6 +1901,7 @@ class AppPreferences(val context: Context) {
         is KernelConfig.Webdav -> KernelSnapshot(variant = KernelVariant.WEBDAV.name, webdav = k.config)
         is KernelConfig.FreeTurn -> KernelSnapshot(variant = KernelVariant.FREETURN.name, freeturn = k.config)
         is KernelConfig.Qwdtt -> KernelSnapshot(variant = KernelVariant.QWDTT.name, qwdtt = k.config)
+        is KernelConfig.OpenFlux -> KernelSnapshot(variant = KernelVariant.OPENFLUX.name, openflux = k.config)
     }
 
     suspend fun saveFullProfile(id: String, profile: Profile) {
@@ -1996,6 +2090,7 @@ class AppPreferences(val context: Context) {
                 is KernelConfig.Webdav -> KernelSnapshot(variant = KernelVariant.WEBDAV.name, webdav = k.config)
                 is KernelConfig.FreeTurn -> KernelSnapshot(variant = KernelVariant.FREETURN.name, freeturn = k.config)
                 is KernelConfig.Qwdtt -> KernelSnapshot(variant = KernelVariant.QWDTT.name, qwdtt = k.config)
+                is KernelConfig.OpenFlux -> KernelSnapshot(variant = KernelVariant.OPENFLUX.name, openflux = k.config)
             })
             it.remove(LEGACY_KERNEL_VARIANT); it.remove(LEGACY_TURNABLE_JSON); it.remove(LEGACY_OLCRTC_JSON)
         }

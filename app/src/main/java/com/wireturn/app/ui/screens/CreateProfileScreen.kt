@@ -123,10 +123,16 @@ fun CreateProfileScreen(
                 }
 
                 SectionItem(
-                    position = ItemPosition.Bottom,
                     onClick = { onSelectType("qWDTT", null, profileName) }
                 ) {
                     RowLabel(text = stringResource(R.string.kernel_qwdtt))
+                }
+
+                SectionItem(
+                    position = ItemPosition.Bottom,
+                    onClick = { onSelectType("OpenFlux", null, profileName) }
+                ) {
+                    RowLabel(text = stringResource(R.string.kernel_openflux))
                 }
             }
 

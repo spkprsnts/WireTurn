@@ -124,6 +124,7 @@
     <string name="wg_not_used_with_olcrtc">WireGuard is not used with olcRTC</string>
     <string name="wg_not_used_with_webdav">WireGuard is not used with WebDAV</string>
     <string name="wg_not_used_with_qwdtt">WireGuard is not used with qWDTT</string>
+    <string name="wg_not_used_with_openflux">WireGuard is not used with OpenFlux</string>
 
     <!-- Xray Setup (SOCKS/HTTP) -->
     <string name="xray_title" translatable="false">Xray</string>
@@ -168,6 +169,16 @@
     <string name="kernel_webdav" translatable="false">WebDAV</string>
     <string name="kernel_freeturn" translatable="false">FreeTurn</string>
     <string name="kernel_qwdtt" translatable="false">qWDTT</string>
+    <string name="kernel_openflux" translatable="false">OpenFlux</string>
+    <string name="openflux_platform_label">Platform</string>
+    <string name="openflux_yandex_settings_title">Yandex.Docs</string>
+    <string name="openflux_oneme_settings_title">MAX</string>
+    <string name="openflux_url_label">Document URL</string>
+    <string name="openflux_url_desc">Yandex.Docs document URL shared with the exit node</string>
+    <string name="openflux_max_token_label">MAX token</string>
+    <string name="openflux_max_token_desc">Your own MAX account auth token</string>
+    <string name="openflux_max_uid_label">MAX user ID</string>
+    <string name="openflux_max_uid_desc">MAX account ID of the exit node being called</string>
     <string name="webdav_url_label">WebDAV URL</string>
     <string name="webdav_url_desc">URL of the WebDAV storage</string>
     <string name="webdav_login_label">Login</string>
@@ -281,7 +292,7 @@
     <string name="local_listen_address">Local listen address</string>
     <string name="local_port_help_text">Turnable and FreeTurn don\'t produce a standard proxy - they open a raw tunnel endpoint at this address.</string>
     <string name="local_port_help_secondary">The app\'s own Xray connects here automatically to turn it into an Xray link or a VPN. Change this only if you want to point a separate VPN app (WireGuard, v2RayTun, etc.) at the tunnel directly, bypassing Xray.</string>
-    <string name="client_socks_help_text">olcRTC, WebDAV and qWDTT don\'t use a VPN protocol - they run a local SOCKS5 proxy directly at this address.</string>
+    <string name="client_socks_help_text">olcRTC, WebDAV, qWDTT and OpenFlux don\'t use a VPN protocol - they run a local SOCKS5 proxy directly at this address.</string>
     <string name="client_socks_help_secondary">Xray uses this address as the upstream for Dual-route. Xray isn\'t required for full-device VPN routing - VPN mode can connect to this SOCKS5 proxy directly. You can also point any other app that supports SOCKS5 proxies at the same address.</string>
 
     <!-- Logs Screen (Logs) -->
@@ -511,7 +522,7 @@
     <string name="qr_force_static_label">Single QR code</string>
     <string name="qr_force_static_hint">For scanning with other apps that don\'t support multi-frame codes; may not scan reliably</string>
     <string name="settings_group_turnable">Turnable / FreeTurn / qWDTT settings</string>
-    <string name="settings_group_client_socks">olcRTC / WebDAV / qWDTT settings</string>
+    <string name="settings_group_client_socks">olcRTC / WebDAV / qWDTT / OpenFlux settings</string>
     <string name="xray_settings_group_connection">Connection</string>
     <string name="xray_protocol_desc">Choose protocol for Xray-core</string>
     <string name="protocol_wireguard" translatable="false">WireGuard</string>

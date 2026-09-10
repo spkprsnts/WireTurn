@@ -904,6 +904,7 @@ class ProfileManager(
         if (!text.contains("freeturn://") && !text.contains("olcrtc://") &&
             !text.contains("turnable://") && !text.contains("webdav://") &&
             !text.contains("webdavs://") && !text.contains("qwdtt://") && !text.contains("qwdtt:config") && !text.contains("wdtt://") &&
+            !text.contains("openflux://") && !text.contains("openflux:config") &&
             !text.contains("wireturn://") && !text.contains("wt://") && !text.contains("#name:")) return null
 
         val lines = text.lines()
@@ -983,6 +984,17 @@ class ProfileManager(
                     id = stableTextSubEntryId(trimmed),
                     name = nameFromUri ?: "qWDTT Server",
                     kernelConfig = KernelConfig.Qwdtt(config)
+                )
+            } else if (trimmed.startsWith("openflux://") || trimmed.startsWith("openflux:config")) {
+                flush()
+                val config = com.wireturn.app.data.OpenFluxConfig.parse(trimmed) ?: continue
+                val nameFromUri = try { trimmed.toUri().getQueryParameter("name") } catch (_: Exception) { null }
+
+                currentKernelConfig = KernelConfig.OpenFlux(config)
+                currentProfile = Profile(
+                    id = stableTextSubEntryId(trimmed),
+                    name = nameFromUri ?: "OpenFlux Server",
+                    kernelConfig = KernelConfig.OpenFlux(config)
                 )
             } else if (trimmed.startsWith("olcrtc://")) {
                 flush()

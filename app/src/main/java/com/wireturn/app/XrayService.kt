@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.IBinder
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.ClientConfig
+import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.VlessConfig
 import com.wireturn.app.data.WgConfig
 import com.wireturn.app.data.XrayConfig
@@ -240,7 +241,11 @@ class XrayService : Service() {
                 // to this as a literal destination, so it needs the loopback form, same as the
                 // -local-address branch below already does via connectableAddress.
                 val connectableSocksAddr = runningClientConfig.socksAddr.replace("0.0.0.0:", "127.0.0.1:")
-                val socksAddr = if (runningClientConfig.isSocksAuthEnabled && runningClientConfig.socksUser.isNotBlank()) {
+                // OpenFlux's embedded SOCKS5 server has no auth flags upstream (see
+                // CoreService.buildCommandArgs) - it never expects credentials, unlike
+                // OLCRTC/WEBDAV/QWDTT's, so never offer them here regardless of isSocksAuthEnabled.
+                val socksAddr = if (runningClientConfig.kernelVariant != KernelVariant.OPENFLUX &&
+                    runningClientConfig.isSocksAuthEnabled && runningClientConfig.socksUser.isNotBlank()) {
                     "${runningClientConfig.socksUser}:${runningClientConfig.socksPass}@$connectableSocksAddr"
                 } else {
                     connectableSocksAddr

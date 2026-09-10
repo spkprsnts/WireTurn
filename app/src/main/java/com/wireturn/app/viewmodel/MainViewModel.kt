@@ -807,6 +807,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             trimmed
         )
 
+        val openflux = com.wireturn.app.data.OpenFluxConfig.parse(trimmed)
+        if (openflux != null) return com.wireturn.app.domain.ImportStatus.KernelConfigDetected(
+            "OpenFlux",
+            com.google.gson.Gson().toJson(openflux),
+            trimmed
+        )
+
         return com.wireturn.app.domain.ImportStatus.InvalidFormat
     }
 
