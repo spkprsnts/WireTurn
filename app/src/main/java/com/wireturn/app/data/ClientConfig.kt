@@ -66,6 +66,10 @@ enum class KernelVariant {
     /** OLCRTC, WEBDAV, QWDTT and OPENFLUX already speak SOCKS5 themselves - Xray's WireGuard overlay is
      * neither needed nor offered in the UI for them. */
     val isSocks5Native: Boolean get() = this == OLCRTC || this == WEBDAV || this == QWDTT || this == OPENFLUX
+
+    /** OpenFlux's embedded SOCKS5 server has no auth flags upstream - it never expects credentials,
+     * unlike the other SOCKS5-native kernels. See ClientConfig.socksNativeValidationError. */
+    val socks5SupportsAuth: Boolean get() = this != OPENFLUX
 }
 enum class XrayConfiguration { WIREGUARD, VLESS }
 
@@ -209,10 +213,13 @@ data class ClientConfig(
         is KernelConfig.OpenFlux -> socksNativeValidationError(k.config.isValid())
     }
 
-    // Shared by every SOCKS5-native kernel (OLCRTC, qWDTT): besides its own config being filled in,
-    // a public (non-loopback) SOCKS5 listen address must have auth enabled.
+    // Shared by every SOCKS5-native kernel: besides its own config being filled in, a public
+    // (non-loopback) SOCKS5 listen address must have auth enabled - except OpenFlux, whose
+    // binary can't authenticate at all, so a public bind is never allowed for it regardless of
+    // the isSocksAuthEnabled toggle (that toggle would otherwise give a false sense of security).
     private fun socksNativeValidationError(configIsValid: Boolean): Int? = when {
         !configIsValid -> R.string.error_settings_empty
+        !ValidatorUtils.isLoopbackHostPort(socksAddr) && !kernelVariant.socks5SupportsAuth -> R.string.error_socks_public_no_auth_support
         !isSocksAuthEnabled && !ValidatorUtils.isLoopbackHostPort(socksAddr) -> R.string.error_socks_public_requires_auth
         else -> null
     }

@@ -316,6 +316,11 @@
 
     <string name="client_dns_label">DNS-сервер</string>
     <string name="client_dns_desc">Используется olcRTC и WebDAV для резолвинга точки входа до запуска туннеля.</string>
+    <string name="client_socks_auth">Авторизация SOCKS5</string>
+    <string name="client_socks_auth_desc">Защитить собственный SOCKS5 ядра логином и паролем</string>
+    <string name="client_socks_auth_not_supported_by_kernel">Не применимо — %1$s не поддерживает авторизацию SOCKS5</string>
+    <string name="client_socks_user">Логин</string>
+    <string name="client_socks_pass">Пароль</string>
 
     <string name="go_internal_dns_title">Внутренний резолвер Go</string>
     <string name="go_internal_dns_desc">Принудительно использовать встроенный резолвер Go. Может помочь при проблемах с IPv6.</string>
@@ -342,6 +347,7 @@
     <string name="error_core_crashed">Туннель упал %1$d раз — проверьте настройки</string>
     <string name="error_settings_empty">Не заполнены настройки клиента</string>
     <string name="error_socks_public_requires_auth">Если адрес SOCKS5 не localhost, необходима аутентификация</string>
+    <string name="error_socks_public_no_auth_support">Это ядро не поддерживает аутентификацию SOCKS5 — используйте адрес localhost</string>
     <string name="error_core_not_started">Туннель не запустился</string>
     <string name="log_xray_invalid_config">* [Xray] Некорректный или отсутствующий конфиг, запуск отменен</string>
     <string name="error_update_url_not_found">URL обновления не найден</string>

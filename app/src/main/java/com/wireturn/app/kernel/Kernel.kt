@@ -128,9 +128,11 @@ interface Kernel {
     /**
      * Whether this kernel's own SOCKS5 listener accepts username/password auth - false only for
      * OpenFlux, whose embedded server has no auth flags upstream. Irrelevant for non-SOCKS5-native
-     * kernels (Turnable/FreeTurn), which never reach the code paths that check this.
+     * kernels (Turnable/FreeTurn), which never reach the code paths that check this. Mirrors
+     * [KernelVariant.socks5SupportsAuth] (the canonical, data-layer source of this fact - also
+     * consulted by ClientConfig.socksNativeValidationError) so both stay in sync automatically.
      */
-    val socks5SupportsAuth: Boolean get() = true
+    val socks5SupportsAuth: Boolean get() = variant.socks5SupportsAuth
 
     /**
      * This kernel's fixed transport requirement ("tcp"/"udp"), if it has one that can conflict

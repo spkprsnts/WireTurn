@@ -347,6 +347,11 @@
 
     <string name="client_dns_label">DNS server</string>
     <string name="client_dns_desc">Used by olcRTC and WebDAV to resolve their entry point before the tunnel is up.</string>
+    <string name="client_socks_auth">SOCKS5 authentication</string>
+    <string name="client_socks_auth_desc">Protect the kernel\'s own SOCKS5 with login and password</string>
+    <string name="client_socks_auth_not_supported_by_kernel">Not applicable - %1$s\'s SOCKS5 doesn\'t support authentication</string>
+    <string name="client_socks_user">Username</string>
+    <string name="client_socks_pass">Password</string>
 
     <string name="go_internal_dns_title">Go internal resolver</string>
     <string name="go_internal_dns_desc">Force Go core to use its internal resolver. Can help with IPv6 issues.</string>
@@ -373,6 +378,7 @@
     <string name="error_core_crashed">Tunnel crashed %1$d times — check settings</string>
     <string name="error_settings_empty">Client settings not filled</string>
     <string name="error_socks_public_requires_auth">SOCKS5 auth is required when the listen address is not localhost</string>
+    <string name="error_socks_public_no_auth_support">This kernel\'s SOCKS5 doesn\'t support authentication - use a localhost address</string>
     <string name="error_core_not_started">Tunnel failed to start</string>
     <string name="log_xray_invalid_config">* [Xray] Invalid or missing config, startup canceled</string>
     <string name="error_update_url_not_found">Update URL not found</string>

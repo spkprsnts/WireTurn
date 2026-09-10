@@ -53,6 +53,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
+import com.wireturn.app.kernel.KernelRegistry
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.ExpandableSection
 import com.wireturn.app.ui.HapticUtil
@@ -279,8 +280,13 @@ fun ConnectionSettingsScreen(
             }
 
             // SOCKS5-native kernels (olcRTC, WebDAV, qWDTT, OpenFlux - see KernelVariant.isSocks5Native)
-            val clientSocksPublicNeedsAuth = !clientSocksAuth && clientSocks.isNotEmpty() &&
+            val kernelSupportsSocksAuth = initialClientConfig.kernelVariant.socks5SupportsAuth
+            val clientSocksIsPublic = clientSocks.isNotEmpty() &&
                     ValidatorUtils.isValidHostPort(clientSocks) && !ValidatorUtils.isLoopbackHostPort(clientSocks)
+            // Mirrors ClientConfig.socksNativeValidationError: OpenFlux can't authenticate at all,
+            // so a public bind is never allowed for it, regardless of the auth toggle below.
+            val clientSocksPublicNoAuthSupport = clientSocksIsPublic && !kernelSupportsSocksAuth
+            val clientSocksPublicNeedsAuth = clientSocksIsPublic && kernelSupportsSocksAuth && !clientSocksAuth
             SectionGroup(title = stringResource(R.string.settings_group_kernel_socks5)) {
                 SectionItem(position = ItemPosition.Top) {
                     TextFieldRow(
@@ -288,8 +294,12 @@ fun ConnectionSettingsScreen(
                         value = clientSocks.redact(privacyMode),
                         onValueChange = { if (!privacyMode) clientSocks = it },
                         placeholder = ClientConfig.DEFAULT_SOCKS_ADDR,
-                        isError = (clientSocks.isNotEmpty() && !ValidatorUtils.isValidHostPort(clientSocks)) || clientSocksPublicNeedsAuth,
-                        supportingText = if (clientSocksPublicNeedsAuth) stringResource(R.string.error_socks_public_requires_auth) else null,
+                        isError = (clientSocks.isNotEmpty() && !ValidatorUtils.isValidHostPort(clientSocks)) || clientSocksPublicNeedsAuth || clientSocksPublicNoAuthSupport,
+                        supportingText = when {
+                            clientSocksPublicNoAuthSupport -> stringResource(R.string.error_socks_public_no_auth_support)
+                            clientSocksPublicNeedsAuth -> stringResource(R.string.error_socks_public_requires_auth)
+                            else -> null
+                        },
                         readOnly = privacyMode,
                         isModified = clientSocks != initialClientConfig.socksAddr,
                         onHelpClick = { showSocksHelp.value = true },
@@ -315,25 +325,32 @@ fun ConnectionSettingsScreen(
                     onClick = {
                         clientSocksAuth = !clientSocksAuth
                         HapticUtil.perform(
-                            context, 
+                            context,
                             if (clientSocksAuth) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
                         )
                     }
                 ) {
                     SwitchRow(
-                        label = stringResource(R.string.xray_proxy_auth),
-                        supportingText = stringResource(R.string.xray_proxy_auth_desc),
+                        label = stringResource(R.string.client_socks_auth),
+                        supportingText = if (kernelSupportsSocksAuth) {
+                            stringResource(R.string.client_socks_auth_desc)
+                        } else {
+                            stringResource(
+                                R.string.client_socks_auth_not_supported_by_kernel,
+                                stringResource(KernelRegistry.get(initialClientConfig.kernelVariant).displayNameRes)
+                            )
+                        },
                         checked = clientSocksAuth,
                         onCheckedChange = { clientSocksAuth = it },
                         isModified = clientSocksAuth != initialClientConfig.isSocksAuthEnabled,
                     )
                 }
-                
+
                 ExpandableSection(visible = clientSocksAuth) {
                     SectionGroup {
                         SectionItem {
                             TextFieldRow(
-                                label = stringResource(R.string.xray_proxy_user),
+                                label = stringResource(R.string.client_socks_user),
                                 value = clientSocksUser.redact(privacyMode),
                                 onValueChange = { if (!privacyMode) clientSocksUser = it },
                                 placeholder = stringResource(R.string.proxy_user_placeholder),
@@ -345,7 +362,7 @@ fun ConnectionSettingsScreen(
                         }
                         SectionItem(position = ItemPosition.Bottom) {
                             TextFieldRow(
-                                label = stringResource(R.string.xray_proxy_pass),
+                                label = stringResource(R.string.client_socks_pass),
                                 value = clientSocksPass.redact(privacyMode),
                                 onValueChange = { if (!privacyMode) clientSocksPass = it },
                                 placeholder = stringResource(R.string.proxy_pass_placeholder),

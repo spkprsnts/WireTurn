@@ -34,7 +34,13 @@ object QwdttKernel : Kernel {
         com.wireturn.app.data.QwdttConfig.parse(uri)?.let { KernelConfig.Qwdtt(it) }
 
     override fun displayNameFromUri(uri: String): String? = try {
-        uri.toUri().getQueryParameter("name")
+        // Mirror QwdttConfig.parse's own normalization - the schemeless "qwdtt:config?..." form
+        // has no "//", so Uri treats it as opaque and getQueryParameter() throws on it. The
+        // "wdtt://..." forms already have "//" and don't start with "qwdtt:", so they pass
+        // through unchanged (neither carries a "name" param, same as before this fix).
+        val normalized = if (uri.startsWith("qwdtt://", ignoreCase = true)) uri
+            else uri.replaceFirst("qwdtt:", "qwdtt://", ignoreCase = true)
+        normalized.toUri().getQueryParameter("name")
     } catch (_: Exception) { null }
 
     override fun buildCommand(ctx: KernelCommandContext, cfg: ClientConfig): List<String> {

@@ -17,12 +17,13 @@ import com.wireturn.app.ui.activities.kernel.OpenFluxConfigActivity
 // eventually catch it too, but matching the line directly gives a much faster, more specific error).
 object OpenFluxKernel : Kernel {
     override val variant: KernelVariant = KernelVariant.OPENFLUX
-    override val sensitiveCommandFlags: Set<String> = setOf("--maxToken")
+    // --url carries the Yandex.Docs document link, which is effectively the shared secret/
+    // rendezvous point for that transport - as sensitive as FreeTurn's -links/-sub.
+    override val sensitiveCommandFlags: Set<String> = setOf("--maxToken", "--url")
     override val displayNameRes: Int = R.string.kernel_openflux
     override val configActivityClass = OpenFluxConfigActivity::class.java
     override val wgNotUsedMessageRes: Int = R.string.wg_not_used_with_openflux
-    // OpenFlux's embedded SOCKS5 server has no auth flags upstream - never offer credentials.
-    override val socks5SupportsAuth: Boolean = false
+    // socks5SupportsAuth comes from the default (KernelVariant.socks5SupportsAuth = variant != OPENFLUX).
 
     override fun description(context: Context, cfg: KernelConfig): String {
         val config = (cfg as KernelConfig.OpenFlux).config
@@ -37,7 +38,11 @@ object OpenFluxKernel : Kernel {
         com.wireturn.app.data.OpenFluxConfig.parse(uri)?.let { KernelConfig.OpenFlux(it) }
 
     override fun displayNameFromUri(uri: String): String? = try {
-        uri.toUri().getQueryParameter("name")
+        // Mirror OpenFluxConfig.parse's own normalization - the schemeless "openflux:config?..."
+        // form has no "//", so Uri treats it as opaque and getQueryParameter() throws on it.
+        val normalized = if (uri.startsWith("openflux://", ignoreCase = true)) uri
+            else uri.replaceFirst("openflux:", "openflux://", ignoreCase = true)
+        normalized.toUri().getQueryParameter("name")
     } catch (_: Exception) { null }
 
     override fun buildCommand(ctx: KernelCommandContext, cfg: ClientConfig): List<String> {
