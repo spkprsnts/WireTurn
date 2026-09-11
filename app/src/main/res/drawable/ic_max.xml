@@ -5,9 +5,13 @@
   ~ min/max over every anchor and control point in the path (a cubic Bezier always lies within
   ~ the convex hull of its 4 control points, so this bounding box can't clip any curve).
   ~ Used to represent the "MAX (oneme)" OpenFlux transport.
+  ~
+  ~ width/height are kept proportional to the (near-square but not exactly square) viewport -
+  ~ VectorDrawable maps the viewport directly onto the declared width/height, so a mismatched
+  ~ aspect ratio there bakes a stretch into the drawable's own intrinsic size.
   -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
+    android:width="23.27dp"
     android:height="24dp"
     android:viewportWidth="192"
     android:viewportHeight="198"

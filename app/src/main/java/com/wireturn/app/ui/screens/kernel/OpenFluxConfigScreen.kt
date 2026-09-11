@@ -468,8 +468,8 @@ fun OpenFluxConfigScreen(
 }
 
 private fun getOpenFluxPlatformIcon(transport: String): Int = when (transport) {
-    "oneme" -> R.drawable.data_array_24px
-    else -> R.drawable.globe_book_24px
+    "oneme" -> R.drawable.ic_max
+    else -> R.drawable.ic_yandex_docs
 }
 
 @Composable
