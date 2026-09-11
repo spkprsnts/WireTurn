@@ -819,6 +819,17 @@ private fun RepoLinksContent(
 
             item {
                 RepoLinkItem(
+                    title = stringResource(R.string.openflux_core),
+                    subtitle = "p1neappleXpress/OpenFlux",
+                    url = "https://github.com/p1neappleXpress/OpenFlux",
+                    containerColor = containerColor,
+                    onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
+                    onOpen = { uriHandler.openUri(it) }
+                )
+            }
+
+            item {
+                RepoLinkItem(
                     title = stringResource(R.string.xray_core_name),
                     subtitle = "spkprsnts/vless-client",
                     url = "https://github.com/spkprsnts/vless-client",

@@ -4,7 +4,7 @@
 
 # WireTurn — Android WebRTC & WebDAV Tunnel
 
-Android-клиент для [Turnable](https://github.com/TheAirBlow/Turnable), [olcRTC](https://github.com/openlibrecommunity/olcrtc), [WebDAV](https://github.com/spkprsnts/webdav-tunnel), [FreeTurn](https://github.com/samosvalishe/free-turn-proxy) и [qWDTT](https://github.com/SpaceNeuroX/proxy-turn-vk-android) — туннелирование трафика через WebRTC и WebDAV.
+Android-клиент для [Turnable](https://github.com/TheAirBlow/Turnable), [olcRTC](https://github.com/openlibrecommunity/olcrtc), [WebDAV](https://github.com/spkprsnts/webdav-tunnel), [FreeTurn](https://github.com/samosvalishe/free-turn-proxy), [qWDTT](https://github.com/SpaceNeuroX/proxy-turn-vk-android) и [OpenFlux](https://github.com/p1neappleXpress/OpenFlux) — туннелирование трафика через WebRTC, WebDAV и сторонние сервисы (Яндекс.Документы, MAX).
 
 > **Disclaimer:** Проект предназначен исключительно для образовательных и исследовательских целей.
 
@@ -27,10 +27,14 @@ WireTurn упаковывает трафик в стандартные прот�
 ### qWDTT
 Ещё одно туннелирование через TURN-инфраструктуру звонков VK: WireGuard поверх DTLS-релея, локальный SOCKS5-прокси на клиенте. Ссылки и QR-коды в формате [qWDTT](https://github.com/SpaceNeuroX/proxy-turn-vk-android) (включая устаревшую схему `wdtt://`) распознаются напрямую.
 
+### OpenFlux
+Туннелирование без выделенного сервера через легитимные сторонние сервисы: **Yandex.Docs** (курсор совместного редактирования как канал передачи данных) или **MAX** (WebRTC DataChannel внутри голосового звонка). Локальный SOCKS5-прокси на клиенте, без поддержки авторизации на нём (ограничение самого ядра).
+
 ## Возможности
 
 - **Xray-core** — встроенный движок для VLESS/Trojan/Hysteria2 и WireGuard в режиме локального SOCKS5/HTTP-прокси.
 - **Dual-route** — автоматическое переключение на прямой адрес сервера при его доступности, минуя WebRTC-туннель, для снижения задержек.
+- **SOCKS5 Chain** — для SOCKS5-нативных ядер (olcRTC, WebDAV, qWDTT, OpenFlux) подключается к VLESS/Trojan-серверу через локальный SOCKS5 ядра вместо прямого соединения (недоступно для Hysteria2).
 - **VPN-режим и Split Tunneling** — полноценный TUN-режим с исключением (Bypass) или включением (Include) конкретных приложений.
 - **Профили и подписки** — независимые конфигурации, массовый импорт, автообновление по расписанию с учётом квоты трафика; импорт по диплинкам `wireturn://` и `wt://`. Подробности — в [спецификации подписок и профилей](docs/subscriptions.md).
 - **Быстрое управление** — смена профиля из уведомления, Quick Settings Tile и Intent API.
@@ -59,7 +63,7 @@ WireTurn упаковывает трафик в стандартные прот�
 
 ### Требования
 - Android 8.0+ (API 26), архитектуры `arm64-v8a`/`x86_64`.
-- VPS для серверной части (Turnable, olcRTC, WebDAV, FreeTurn или qWDTT).
+- VPS для серверной части (Turnable, olcRTC, WebDAV, FreeTurn или qWDTT) — не требуется для OpenFlux, у него нет отдельного сервера.
 
 ### Настройка
 - **[WT Panel](https://github.com/spkprsnts/wt-panel)** — панель для создания и управления серверами
@@ -77,6 +81,7 @@ WireTurn упаковывает трафик в стандартные прот�
 - `libwebdav.so` — [spkprsnts/webdav-tunnel](https://github.com/spkprsnts/webdav-tunnel)
 - `libfreeturn.so` — [samosvalishe/free-turn-proxy](https://github.com/samosvalishe/free-turn-proxy)
 - `libqwdtt.so` — [SpaceNeuroX/proxy-turn-vk-android](https://github.com/SpaceNeuroX/proxy-turn-vk-android) (`go_client`)
+- `libopenflux.so` — [p1neappleXpress/OpenFlux](https://github.com/p1neappleXpress/OpenFlux)
 - `libxray.so` — [spkprsnts/vless-client](https://github.com/spkprsnts/vless-client)
 - `libhevsocks5.so` — сетевой стек VPN-режима, [heiher/hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel)
 
@@ -102,6 +107,7 @@ git clone --recursive https://github.com/spkprsnts/WireTurn.git
 - [samosvalishe/free-turn-proxy](https://github.com/samosvalishe/free-turn-proxy) — проект FreeTurn.
 - [samosvalishe/turn-proxy-android](https://github.com/samosvalishe/turn-proxy-android) — база UI и логики.
 - [SpaceNeuroX/proxy-turn-vk-android](https://github.com/SpaceNeuroX/proxy-turn-vk-android) — проект qWDTT.
+- [p1neappleXpress/OpenFlux](https://github.com/p1neappleXpress/OpenFlux) — проект OpenFlux.
 - [XTLS/Xray-core](https://github.com/XTLS/Xray-core) — кодовая база Xray.
 - [heiher/hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel) — реализация сетевого стека для VPN-режима.
 

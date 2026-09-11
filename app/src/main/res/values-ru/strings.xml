@@ -38,6 +38,7 @@
     <string name="webdav_core">Ядро туннеля (WebDAV)</string>
     <string name="freeturn_core">Ядро туннеля (FreeTurn)</string>
     <string name="qwdtt_core">Ядро туннеля (qWDTT)</string>
+    <string name="openflux_core">Ядро туннеля (OpenFlux)</string>
     <!-- Кнопки и общие действия -->
     <string name="btn_open">Открыть</string>
     <string name="btn_close">Закрыть</string>
