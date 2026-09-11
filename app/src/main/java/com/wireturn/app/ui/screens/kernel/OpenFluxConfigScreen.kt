@@ -364,67 +364,69 @@ fun OpenFluxConfigScreen(
             val onemeVisible = remember { MutableTransitionState(initialConfig.transport == "oneme") }
             onemeVisible.targetState = config.transport == "oneme"
 
-            AnimatedVisibility(
-                visibleState = yandexVisible,
-                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
-                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec())
-            ) {
-                SectionGroup(title = stringResource(R.string.openflux_yandex_settings_title)) {
-                    SectionItem(position = ItemPosition.Single) {
-                        TextFieldRow(
-                            label = stringResource(R.string.openflux_url_label),
-                            value = config.url,
-                            onValueChange = { config = config.copy(url = it) },
-                            isError = config.transport != "oneme" && config.url.isBlank(),
-                            isModified = isEditMode && config.url != initialConfig.url,
-                            supportingText = stringResource(R.string.openflux_url_desc)
-                        )
+            Column {
+                AnimatedVisibility(
+                    visibleState = yandexVisible,
+                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
+                    exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec())
+                ) {
+                    SectionGroup(title = stringResource(R.string.openflux_yandex_settings_title)) {
+                        SectionItem(position = ItemPosition.Single) {
+                            TextFieldRow(
+                                label = stringResource(R.string.openflux_url_label),
+                                value = config.url,
+                                onValueChange = { config = config.copy(url = it) },
+                                isError = config.transport != "oneme" && config.url.isBlank(),
+                                isModified = isEditMode && config.url != initialConfig.url,
+                                supportingText = stringResource(R.string.openflux_url_desc)
+                            )
+                        }
                     }
                 }
-            }
 
-            AnimatedVisibility(
-                visibleState = onemeVisible,
-                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
-                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec())
-            ) {
-                SectionGroup(title = stringResource(R.string.openflux_oneme_settings_title)) {
-                    SectionItem(position = ItemPosition.Top) {
-                        TextFieldRow(
-                            label = stringResource(R.string.openflux_max_token_label),
-                            value = config.maxToken.redact(isPrivacyActive),
-                            onValueChange = { if (!isPrivacyActive) config = config.copy(maxToken = it) },
-                            readOnly = isPrivacyActive,
-                            isError = config.transport == "oneme" && config.maxToken.isBlank(),
-                            isModified = isEditMode && config.maxToken != initialConfig.maxToken,
-                            privacyMode = isPrivacyActive,
-                            supportingText = stringResource(R.string.openflux_max_token_desc),
-                            trailingIcon = {
-                                if (!isPrivacyActive) {
-                                    IconButton(onClick = { tokenVisible = !tokenVisible }) {
-                                        Icon(
-                                            painter = painterResource(
-                                                if (tokenVisible) R.drawable.visibility_24px
-                                                else R.drawable.visibility_off_24px
-                                            ),
-                                            contentDescription = null
-                                        )
+                AnimatedVisibility(
+                    visibleState = onemeVisible,
+                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
+                    exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec())
+                ) {
+                    SectionGroup(title = stringResource(R.string.openflux_oneme_settings_title)) {
+                        SectionItem(position = ItemPosition.Top) {
+                            TextFieldRow(
+                                label = stringResource(R.string.openflux_max_token_label),
+                                value = config.maxToken.redact(isPrivacyActive),
+                                onValueChange = { if (!isPrivacyActive) config = config.copy(maxToken = it) },
+                                readOnly = isPrivacyActive,
+                                isError = config.transport == "oneme" && config.maxToken.isBlank(),
+                                isModified = isEditMode && config.maxToken != initialConfig.maxToken,
+                                privacyMode = isPrivacyActive,
+                                supportingText = stringResource(R.string.openflux_max_token_desc),
+                                trailingIcon = {
+                                    if (!isPrivacyActive) {
+                                        IconButton(onClick = { tokenVisible = !tokenVisible }) {
+                                            Icon(
+                                                painter = painterResource(
+                                                    if (tokenVisible) R.drawable.visibility_24px
+                                                    else R.drawable.visibility_off_24px
+                                                ),
+                                                contentDescription = null
+                                            )
+                                        }
                                     }
-                                }
-                            },
-                            visualTransformation = if (tokenVisible || isPrivacyActive) VisualTransformation.None
-                                else PasswordVisualTransformation()
-                        )
-                    }
-                    SectionItem(position = ItemPosition.Bottom) {
-                        TextFieldRow(
-                            label = stringResource(R.string.openflux_max_uid_label),
-                            value = config.maxUid,
-                            onValueChange = { config = config.copy(maxUid = it) },
-                            isError = config.transport == "oneme" && config.maxUid.isBlank(),
-                            isModified = isEditMode && config.maxUid != initialConfig.maxUid,
-                            supportingText = stringResource(R.string.openflux_max_uid_desc)
-                        )
+                                },
+                                visualTransformation = if (tokenVisible || isPrivacyActive) VisualTransformation.None
+                                    else PasswordVisualTransformation()
+                            )
+                        }
+                        SectionItem(position = ItemPosition.Bottom) {
+                            TextFieldRow(
+                                label = stringResource(R.string.openflux_max_uid_label),
+                                value = config.maxUid,
+                                onValueChange = { config = config.copy(maxUid = it) },
+                                isError = config.transport == "oneme" && config.maxUid.isBlank(),
+                                isModified = isEditMode && config.maxUid != initialConfig.maxUid,
+                                supportingText = stringResource(R.string.openflux_max_uid_desc)
+                            )
+                        }
                     }
                 }
             }

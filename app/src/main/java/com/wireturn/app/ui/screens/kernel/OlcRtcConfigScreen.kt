@@ -443,171 +443,173 @@ fun OlcRtcConfigScreen(
             }
             transportVideoVisible.targetState = config.transport == "videochannel"
 
-            AnimatedVisibility(
-                visibleState = transportVp8Visible,
-                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
-                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec())
-            ) {
-                SectionGroup(title = stringResource(R.string.olcrtc_vp8_settings_title)) {
-                    SectionItem(position = ItemPosition.Top) {
-                        SliderRow(
-                            label = stringResource(R.string.olcrtc_vp8_fps),
-                            value = config.vp8Fps.toFloat(),
-                            onValueChange = { config = config.copy(vp8Fps = it.roundToInt()) },
-                            valueRange = 1f..60f,
-                            steps = 59,
-                            isModified = isEditMode && config.vp8Fps != initialConfig.vp8Fps
-                        )
-                    }
-                    SectionItem(position = ItemPosition.Bottom) {
-                        SliderRow(
-                            label = stringResource(R.string.olcrtc_vp8_batch),
-                            value = config.vp8Batch.toFloat(),
-                            onValueChange = { config = config.copy(vp8Batch = it.roundToInt()) },
-                            valueRange = 1f..100f,
-                            steps = 99,
-                            isModified = isEditMode && config.vp8Batch != initialConfig.vp8Batch
-                        )
-                    }
-                }
-            }
-
-            AnimatedVisibility(
-                visibleState = transportSeiVisible,
-                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
-                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec())
-            ) {
-                SectionGroup(title = stringResource(R.string.olcrtc_sei_settings_title)) {
-                    SectionItem(position = ItemPosition.Top) {
-                        SliderRow(
-                            label = stringResource(R.string.olcrtc_sei_fps),
-                            value = config.seiFps.toFloat(),
-                            onValueChange = { config = config.copy(seiFps = it.roundToInt()) },
-                            valueRange = 1f..120f,
-                            steps = 119,
-                            isModified = isEditMode && config.seiFps != initialConfig.seiFps
-                        )
-                    }
-                    SectionItem {
-                        SliderRow(
-                            label = stringResource(R.string.olcrtc_sei_batch),
-                            value = config.seiBatch.toFloat(),
-                            onValueChange = { config = config.copy(seiBatch = it.roundToInt()) },
-                            valueRange = 1f..256f,
-                            steps = 255,
-                            isModified = isEditMode && config.seiBatch != initialConfig.seiBatch
-                        )
-                    }
-                    SectionItem {
-                        SliderRow(
-                            label = stringResource(R.string.olcrtc_sei_frag),
-                            value = config.seiFrag.toFloat(),
-                            onValueChange = { config = config.copy(seiFrag = it.roundToInt()) },
-                            valueRange = 100f..1500f,
-                            steps = 140,
-                            isModified = isEditMode && config.seiFrag != initialConfig.seiFrag
-                        )
-                    }
-                    SectionItem(position = ItemPosition.Bottom) {
-                        SliderRow(
-                            label = stringResource(R.string.olcrtc_sei_ack_ms),
-                            value = config.seiAckMs.toFloat(),
-                            onValueChange = { config = config.copy(seiAckMs = it.roundToInt()) },
-                            valueRange = 100f..5000f,
-                            steps = 49,
-                            isModified = isEditMode && config.seiAckMs != initialConfig.seiAckMs
-                        )
-                    }
-                }
-            }
-
-            AnimatedVisibility(
-                visibleState = transportVideoVisible,
-                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
-                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec())
-            ) {
-                SectionGroup(title = stringResource(R.string.olcrtc_video_settings_title)) {
-                    SectionItem(position = ItemPosition.Top) {
-                        TextFieldRow(
-                            label = stringResource(R.string.olcrtc_video_codec),
-                            value = config.videoCodec,
-                            onValueChange = { config = config.copy(videoCodec = it) },
-                            isModified = isEditMode && config.videoCodec != initialConfig.videoCodec
-                        )
-                    }
-                    SectionItem {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            TextFieldRow(
-                                label = stringResource(R.string.olcrtc_video_width),
-                                value = if (config.videoW == 0) "" else config.videoW.toString(),
-                                onValueChange = { config = config.copy(videoW = it.toIntOrNull() ?: 0) },
-                                modifier = Modifier.weight(1f),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                isError = config.videoW != 0 &&
-                                        config.videoW !in OlcrtcConfig.VIDEO_MIN_DIMENSION..OlcrtcConfig.VIDEO_MAX_DIMENSION,
-                                isModified = isEditMode && config.videoW != initialConfig.videoW
+            Column {
+                AnimatedVisibility(
+                    visibleState = transportVp8Visible,
+                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
+                    exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec())
+                ) {
+                    SectionGroup(title = stringResource(R.string.olcrtc_vp8_settings_title)) {
+                        SectionItem(position = ItemPosition.Top) {
+                            SliderRow(
+                                label = stringResource(R.string.olcrtc_vp8_fps),
+                                value = config.vp8Fps.toFloat(),
+                                onValueChange = { config = config.copy(vp8Fps = it.roundToInt()) },
+                                valueRange = 1f..60f,
+                                steps = 59,
+                                isModified = isEditMode && config.vp8Fps != initialConfig.vp8Fps
                             )
-                            TextFieldRow(
-                                label = stringResource(R.string.olcrtc_video_height),
-                                value = if (config.videoH == 0) "" else config.videoH.toString(),
-                                onValueChange = { config = config.copy(videoH = it.toIntOrNull() ?: 0) },
-                                modifier = Modifier.weight(1f),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                isError = config.videoH != 0 &&
-                                        config.videoH !in OlcrtcConfig.VIDEO_MIN_DIMENSION..OlcrtcConfig.VIDEO_MAX_DIMENSION,
-                                isModified = isEditMode && config.videoH != initialConfig.videoH
+                        }
+                        SectionItem(position = ItemPosition.Bottom) {
+                            SliderRow(
+                                label = stringResource(R.string.olcrtc_vp8_batch),
+                                value = config.vp8Batch.toFloat(),
+                                onValueChange = { config = config.copy(vp8Batch = it.roundToInt()) },
+                                valueRange = 1f..100f,
+                                steps = 99,
+                                isModified = isEditMode && config.vp8Batch != initialConfig.vp8Batch
                             )
                         }
                     }
-                    SectionItem {
-                        SliderRow(
-                            label = stringResource(R.string.olcrtc_video_fps),
-                            value = config.videoFps.toFloat(),
-                            onValueChange = { config = config.copy(videoFps = it.roundToInt()) },
-                            valueRange = 1f..60f,
-                            steps = 59,
-                            isModified = isEditMode && config.videoFps != initialConfig.videoFps
-                        )
+                }
+
+                AnimatedVisibility(
+                    visibleState = transportSeiVisible,
+                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
+                    exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec())
+                ) {
+                    SectionGroup(title = stringResource(R.string.olcrtc_sei_settings_title)) {
+                        SectionItem(position = ItemPosition.Top) {
+                            SliderRow(
+                                label = stringResource(R.string.olcrtc_sei_fps),
+                                value = config.seiFps.toFloat(),
+                                onValueChange = { config = config.copy(seiFps = it.roundToInt()) },
+                                valueRange = 1f..120f,
+                                steps = 119,
+                                isModified = isEditMode && config.seiFps != initialConfig.seiFps
+                            )
+                        }
+                        SectionItem {
+                            SliderRow(
+                                label = stringResource(R.string.olcrtc_sei_batch),
+                                value = config.seiBatch.toFloat(),
+                                onValueChange = { config = config.copy(seiBatch = it.roundToInt()) },
+                                valueRange = 1f..256f,
+                                steps = 255,
+                                isModified = isEditMode && config.seiBatch != initialConfig.seiBatch
+                            )
+                        }
+                        SectionItem {
+                            SliderRow(
+                                label = stringResource(R.string.olcrtc_sei_frag),
+                                value = config.seiFrag.toFloat(),
+                                onValueChange = { config = config.copy(seiFrag = it.roundToInt()) },
+                                valueRange = 100f..1500f,
+                                steps = 140,
+                                isModified = isEditMode && config.seiFrag != initialConfig.seiFrag
+                            )
+                        }
+                        SectionItem(position = ItemPosition.Bottom) {
+                            SliderRow(
+                                label = stringResource(R.string.olcrtc_sei_ack_ms),
+                                value = config.seiAckMs.toFloat(),
+                                onValueChange = { config = config.copy(seiAckMs = it.roundToInt()) },
+                                valueRange = 100f..5000f,
+                                steps = 49,
+                                isModified = isEditMode && config.seiAckMs != initialConfig.seiAckMs
+                            )
+                        }
                     }
-                    SectionItem {
-                        TextFieldRow(
-                            label = stringResource(R.string.olcrtc_video_qr_recovery),
-                            value = config.videoQrRecovery,
-                            onValueChange = { config = config.copy(videoQrRecovery = it) },
-                            isError = config.videoQrRecovery.isNotBlank() &&
-                                    config.videoQrRecovery !in OlcrtcConfig.VIDEO_QR_RECOVERY_LEVELS,
-                            isModified = isEditMode && config.videoQrRecovery != initialConfig.videoQrRecovery
-                        )
-                    }
-                    SectionItem {
-                        SliderRow(
-                            label = stringResource(R.string.olcrtc_video_qr_size),
-                            value = config.videoQrSize.toFloat(),
-                            onValueChange = { config = config.copy(videoQrSize = it.roundToInt()) },
-                            valueRange = 0f..1000f,
-                            steps = 100,
-                            isModified = isEditMode && config.videoQrSize != initialConfig.videoQrSize
-                        )
-                    }
-                    SectionItem {
-                        SliderRow(
-                            label = stringResource(R.string.olcrtc_video_tile_module),
-                            value = config.videoTileModule.toFloat(),
-                            onValueChange = { config = config.copy(videoTileModule = it.roundToInt()) },
-                            valueRange = 1f..32f,
-                            steps = 31,
-                            isModified = isEditMode && config.videoTileModule != initialConfig.videoTileModule
-                        )
-                    }
-                    SectionItem(position = ItemPosition.Bottom) {
-                        SliderRow(
-                            label = stringResource(R.string.olcrtc_video_tile_rs),
-                            value = config.videoTileRs.toFloat(),
-                            onValueChange = { config = config.copy(videoTileRs = it.roundToInt()) },
-                            valueRange = 0f..100f,
-                            steps = 100,
-                            isModified = isEditMode && config.videoTileRs != initialConfig.videoTileRs
-                        )
+                }
+
+                AnimatedVisibility(
+                    visibleState = transportVideoVisible,
+                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
+                    exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec())
+                ) {
+                    SectionGroup(title = stringResource(R.string.olcrtc_video_settings_title)) {
+                        SectionItem(position = ItemPosition.Top) {
+                            TextFieldRow(
+                                label = stringResource(R.string.olcrtc_video_codec),
+                                value = config.videoCodec,
+                                onValueChange = { config = config.copy(videoCodec = it) },
+                                isModified = isEditMode && config.videoCodec != initialConfig.videoCodec
+                            )
+                        }
+                        SectionItem {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                TextFieldRow(
+                                    label = stringResource(R.string.olcrtc_video_width),
+                                    value = if (config.videoW == 0) "" else config.videoW.toString(),
+                                    onValueChange = { config = config.copy(videoW = it.toIntOrNull() ?: 0) },
+                                    modifier = Modifier.weight(1f),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    isError = config.videoW != 0 &&
+                                            config.videoW !in OlcrtcConfig.VIDEO_MIN_DIMENSION..OlcrtcConfig.VIDEO_MAX_DIMENSION,
+                                    isModified = isEditMode && config.videoW != initialConfig.videoW
+                                )
+                                TextFieldRow(
+                                    label = stringResource(R.string.olcrtc_video_height),
+                                    value = if (config.videoH == 0) "" else config.videoH.toString(),
+                                    onValueChange = { config = config.copy(videoH = it.toIntOrNull() ?: 0) },
+                                    modifier = Modifier.weight(1f),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    isError = config.videoH != 0 &&
+                                            config.videoH !in OlcrtcConfig.VIDEO_MIN_DIMENSION..OlcrtcConfig.VIDEO_MAX_DIMENSION,
+                                    isModified = isEditMode && config.videoH != initialConfig.videoH
+                                )
+                            }
+                        }
+                        SectionItem {
+                            SliderRow(
+                                label = stringResource(R.string.olcrtc_video_fps),
+                                value = config.videoFps.toFloat(),
+                                onValueChange = { config = config.copy(videoFps = it.roundToInt()) },
+                                valueRange = 1f..60f,
+                                steps = 59,
+                                isModified = isEditMode && config.videoFps != initialConfig.videoFps
+                            )
+                        }
+                        SectionItem {
+                            TextFieldRow(
+                                label = stringResource(R.string.olcrtc_video_qr_recovery),
+                                value = config.videoQrRecovery,
+                                onValueChange = { config = config.copy(videoQrRecovery = it) },
+                                isError = config.videoQrRecovery.isNotBlank() &&
+                                        config.videoQrRecovery !in OlcrtcConfig.VIDEO_QR_RECOVERY_LEVELS,
+                                isModified = isEditMode && config.videoQrRecovery != initialConfig.videoQrRecovery
+                            )
+                        }
+                        SectionItem {
+                            SliderRow(
+                                label = stringResource(R.string.olcrtc_video_qr_size),
+                                value = config.videoQrSize.toFloat(),
+                                onValueChange = { config = config.copy(videoQrSize = it.roundToInt()) },
+                                valueRange = 0f..1000f,
+                                steps = 100,
+                                isModified = isEditMode && config.videoQrSize != initialConfig.videoQrSize
+                            )
+                        }
+                        SectionItem {
+                            SliderRow(
+                                label = stringResource(R.string.olcrtc_video_tile_module),
+                                value = config.videoTileModule.toFloat(),
+                                onValueChange = { config = config.copy(videoTileModule = it.roundToInt()) },
+                                valueRange = 1f..32f,
+                                steps = 31,
+                                isModified = isEditMode && config.videoTileModule != initialConfig.videoTileModule
+                            )
+                        }
+                        SectionItem(position = ItemPosition.Bottom) {
+                            SliderRow(
+                                label = stringResource(R.string.olcrtc_video_tile_rs),
+                                value = config.videoTileRs.toFloat(),
+                                onValueChange = { config = config.copy(videoTileRs = it.roundToInt()) },
+                                valueRange = 0f..100f,
+                                steps = 100,
+                                isModified = isEditMode && config.videoTileRs != initialConfig.videoTileRs
+                            )
+                        }
                     }
                 }
             }
