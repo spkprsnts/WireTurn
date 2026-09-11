@@ -98,7 +98,7 @@ sealed class KernelConfig {
                 trimmed.startsWith("qwdtt://", ignoreCase = true) || trimmed.startsWith("qwdtt:config", ignoreCase = true) ||
                     trimmed.startsWith("wdtt://", ignoreCase = true) ->
                     QwdttConfig.parse(trimmed)?.let { Qwdtt(it) }
-                trimmed.startsWith("openflux://", ignoreCase = true) || trimmed.startsWith("openflux:config", ignoreCase = true) ->
+                trimmed.startsWith("openflux://", ignoreCase = true) ->
                     OpenFluxConfig.parse(trimmed)?.let { OpenFlux(it) }
                 else -> null
             }

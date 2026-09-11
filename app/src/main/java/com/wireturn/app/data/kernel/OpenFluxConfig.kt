@@ -54,11 +54,9 @@ data class OpenFluxConfig(
     companion object {
         fun parse(url: String, current: OpenFluxConfig = OpenFluxConfig()): OpenFluxConfig? {
             val trimmed = url.trim()
-            if (!trimmed.startsWith("openflux://", ignoreCase = true) && !trimmed.startsWith("openflux:config", ignoreCase = true)) return null
+            if (!trimmed.startsWith("openflux://", ignoreCase = true)) return null
             return try {
-                val normalized = if (trimmed.startsWith("openflux://", ignoreCase = true)) trimmed
-                    else trimmed.replaceFirst("openflux:", "openflux://", ignoreCase = true)
-                val uri = Uri.parse(normalized)
+                val uri = Uri.parse(trimmed)
                 val transport = if (uri.getQueryParameter("transport") == "oneme") "oneme" else "yandex"
                 if (transport == "oneme") {
                     val token = uri.getQueryParameter("token") ?: current.maxToken

@@ -904,7 +904,7 @@ class ProfileManager(
         if (!text.contains("freeturn://") && !text.contains("olcrtc://") &&
             !text.contains("turnable://") && !text.contains("webdav://") &&
             !text.contains("webdavs://") && !text.contains("qwdtt://") && !text.contains("qwdtt:config") && !text.contains("wdtt://") &&
-            !text.contains("openflux://") && !text.contains("openflux:config") &&
+            !text.contains("openflux://") &&
             !text.contains("wireturn://") && !text.contains("wt://") && !text.contains("#name:")) return null
 
         val lines = text.lines()

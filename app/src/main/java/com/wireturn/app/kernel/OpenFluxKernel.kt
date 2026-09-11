@@ -43,11 +43,7 @@ object OpenFluxKernel : Kernel {
         com.wireturn.app.data.OpenFluxConfig.parse(uri)?.let { KernelConfig.OpenFlux(it) }
 
     override fun displayNameFromUri(uri: String): String? = try {
-        // Mirror OpenFluxConfig.parse's own normalization - the schemeless "openflux:config?..."
-        // form has no "//", so Uri treats it as opaque and getQueryParameter() throws on it.
-        val normalized = if (uri.startsWith("openflux://", ignoreCase = true)) uri
-            else uri.replaceFirst("openflux:", "openflux://", ignoreCase = true)
-        normalized.toUri().getQueryParameter("name")
+        uri.toUri().getQueryParameter("name")
     } catch (_: Exception) { null }
 
     override fun buildCommand(ctx: KernelCommandContext, cfg: ClientConfig): List<String> {
@@ -119,10 +115,15 @@ object OpenFluxKernel : Kernel {
         // 4. Yandex.Docs transport (--debug required, see buildCommand): fetchDocInfo/WebSocket
         // dial/read failures inside transport/yandex.go's connectToDoc() are the only signal this
         // transport ever gives - there's no log line for success, and MaxReconnectAttempts is
-        // effectively infinite (999999, no delay) with no "giving up" message either. So a
-        // permanently broken doc link would otherwise spin forever behind an already-"Connected"
-        // status. Once repeated failures pile up within the window, treat it as dead and force a
-        // real process restart (fresh CoreService backoff, fresh attempt=0 on relaunch).
+        // effectively infinite (999999, no delay) with no "giving up" message either. A "Read
+        // error" here is routine - the doc's WebSocket session gets recycled periodically (e.g.
+        // "close 1005 (no status)") and connectToDoc() reconnects transparently, traffic keeps
+        // flowing right through it - so this must NOT touch CoreStatus below the threshold: since
+        // there is no "reconnected" line to ever bring it back from Connecting, doing so would
+        // leave the status stuck on Connecting forever after the very first routine reconnect.
+        // Only once repeated failures pile up within the window (a genuinely dead doc link, not a
+        // routine recycle) do we intervene, forcing a real process restart (fresh CoreService
+        // backoff, fresh attempt=0 on relaunch).
         if (transport != "oneme" && (
                 lower.contains("[ydocs] fetchdocinfo failed") ||
                 lower.contains("[ydocs] websocket dial failed") ||
@@ -134,9 +135,6 @@ object OpenFluxKernel : Kernel {
                 ctx.updateNotification(ctx.getString(R.string.error_connecting))
                 state.startupFailed = true
                 return true
-            }
-            if (canUpdateConnectingStatus()) {
-                markConnecting()
             }
             state.startupEmitted = true
         }
