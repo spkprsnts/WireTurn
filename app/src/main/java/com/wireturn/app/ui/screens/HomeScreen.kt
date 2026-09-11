@@ -835,17 +835,13 @@ fun HomeScreen(
             Spacer(Modifier.height(8.dp))
 
             // --- Profiles Section ---
-            SectionItem(
-                position = ItemPosition.Single,
+            ProfilesBlock(
+                viewModel = viewModel,
                 onClick = {
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     showProfilesDialog.value = true
                 }
-            ) {
-                ProfilesBlock(
-                    viewModel = viewModel
-                )
-            }
+            )
 
             Spacer(Modifier.height(24.dp))
 
@@ -1083,11 +1079,7 @@ fun HomeScreen(
                 isSocks5Native -> {
                     when (xrayState) {
                         XrayState.DirectRoute -> activeVlessProtocolLabel
-                        XrayState.Running -> stringResource(R.string.socks5)
-                        else -> {
-                            if (activeVlessConfig.isDualRoute) "${stringResource(R.string.socks5)} / $activeVlessProtocolLabel"
-                            else stringResource(R.string.socks5)
-                        }
+                        else -> stringResource(R.string.socks5)
                     }
                 }
 
@@ -1101,87 +1093,102 @@ fun HomeScreen(
             }
 
             val profilesExist = profiles.isNotEmpty()
+            val currentProfile = profiles.find { it.id == currentProfileId } ?: profiles.firstOrNull()
             SectionGroup {
-                SectionItem(
-                    position = ItemPosition.Top,
-                    onClick = {
-                        if (profilesExist) {
-                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                            onNavigateToXrayConfig()
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    SectionItem(
+                        position = ItemPosition.Top,
+                        onClick = {
+                            if (profilesExist) {
+                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                onNavigateToXrayConfig()
+                            }
                         }
-                    }
-                ) {
-                    LaunchedEffect(
-                        configValid,
-                        xrayConfig.enabled,
-                        currentProfileId,
-                        autoLaunchSettings.enabled
                     ) {
-                        delay(300.milliseconds)
-                        if (!configValid && xrayConfig.enabled && !autoLaunchSettings.enabled) {
-                            viewModel.updateXrayConfig(viewModel.xrayConfig.value.copy(enabled = false))
+                        LaunchedEffect(
+                            configValid,
+                            xrayConfig.enabled,
+                            currentProfileId,
+                            autoLaunchSettings.enabled
+                        ) {
+                            delay(300.milliseconds)
+                            if (!configValid && xrayConfig.enabled && !autoLaunchSettings.enabled) {
+                                viewModel.updateXrayConfig(viewModel.xrayConfig.value.copy(enabled = false))
+                            }
                         }
+
+                        SwitchRow(
+                            labelPrefix = stringResource(R.string.xray_title),
+                            label = if (configValid && profilesExist) xrayProtocol else "",
+                            checked = xrayConfig.enabled,
+                            onCheckedChange = { next ->
+                                HapticUtil.perform(
+                                    context,
+                                    if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                                )
+
+                                // OLCRTC/WEBDAV run their own socks5, so VPN mode keeps working
+                                // without Xray for those - only warn when it truly can't.
+                                if (!next && vpnEnabled && !isSocks5Native) {
+                                    showVpnWarning()
+                                }
+
+                                viewModel.updateXrayConfig(xrayConfig.copy(enabled = next))
+                            },
+                            isSplit = true,
+                            labelMarquee = true,
+                            supportingText = if (!profilesExist) null else if (!configValid) stringResource(
+                                R.string.xray_config_invalid
+                            ) else {
+                                when (xrayState) {
+                                    XrayState.Starting -> stringResource(R.string.starting)
+                                    XrayState.Connecting -> stringResource(R.string.connecting)
+                                    XrayState.Running -> stringResource(R.string.running)
+                                    XrayState.DirectRoute -> stringResource(R.string.direct_route_active)
+                                    else -> stringResource(R.string.idle)
+                                }
+                            },
+                            supportingSingleLine = true,
+                            useLargeIcon = true,
+                            leadingIcon = {
+                                when (xrayState) {
+                                    XrayState.Idle, XrayState.Running, XrayState.DirectRoute -> Icon(
+                                        painter = painterResource(R.drawable.ic_xray_24px),
+                                        contentDescription = null,
+                                        tint = if (xrayState == XrayState.Idle || !profilesExist) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary
+                                    )
+
+                                    XrayState.Starting, XrayState.Connecting -> LoadingIndicator()
+                                }
+                            },
+                            enabled = configValid && profilesExist,
+                            trailingContent = {
+                                FilledTonalIconButton(
+                                    onClick = {
+                                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                        onNavigateToXraySettings()
+                                    }
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.settings_24px),
+                                        contentDescription = stringResource(R.string.xray_settings_button_desc),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
+                        )
                     }
 
-                    SwitchRow(
-                        labelPrefix = stringResource(R.string.xray_title),
-                        label = if (configValid && profilesExist) xrayProtocol else "",
-                        checked = xrayConfig.enabled,
-                        onCheckedChange = { next ->
-                            HapticUtil.perform(
-                                context,
-                                if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
-                            )
-
-                            // OLCRTC/WEBDAV run their own socks5, so VPN mode keeps working
-                            // without Xray for those - only warn when it truly can't.
-                            if (!next && vpnEnabled && !isSocks5Native) {
-                                showVpnWarning()
-                            }
-
-                            viewModel.updateXrayConfig(xrayConfig.copy(enabled = next))
-                        },
-                        isSplit = true,
-                        labelMarquee = true,
-                        supportingText = if (!profilesExist) null else if (!configValid) stringResource(
-                            R.string.xray_config_invalid
-                        ) else {
-                            when (xrayState) {
-                                XrayState.Starting -> stringResource(R.string.starting)
-                                XrayState.Connecting -> stringResource(R.string.connecting)
-                                XrayState.Running -> stringResource(R.string.running)
-                                XrayState.DirectRoute -> stringResource(R.string.direct_route_active)
-                                else -> stringResource(R.string.idle)
-                            }
-                        },
-                        useLargeIcon = true,
-                        leadingIcon = {
-                            when (xrayState) {
-                                XrayState.Idle, XrayState.Running, XrayState.DirectRoute -> Icon(
-                                    painter = painterResource(R.drawable.ic_xray_24px),
-                                    contentDescription = null,
-                                    tint = if (xrayState == XrayState.Idle || !profilesExist) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary
-                                )
-
-                                XrayState.Starting, XrayState.Connecting -> LoadingIndicator()
-                            }
-                        },
-                        enabled = configValid && profilesExist,
-                        trailingContent = {
-                            FilledTonalIconButton(
-                                onClick = {
-                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                    onNavigateToXraySettings()
-                                }
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.settings_24px),
-                                    contentDescription = stringResource(R.string.xray_settings_button_desc),
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                        }
-                    )
+                    // Xray-setting tags (protocol, dual-route, chain) - kernel tags stay on the
+                    // profile block instead, see ProfilesBlock's own corner chip row.
+                    if (currentProfile != null) {
+                        ProfileTagChipRow(
+                            tags = profileSummaryParts(currentProfile).xrayTags,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .offset(x = (-12).dp, y = (-8).dp)
+                        )
+                    }
                 }
 
                 val toggleVpnAction = { next: Boolean ->
@@ -1222,6 +1229,7 @@ fun HomeScreen(
                             vpnServiceState is VpnState.Error -> (vpnServiceState as VpnState.Error).message
                             else -> stringResource(R.string.idle)
                         },
+                        supportingSingleLine = true,
                         useLargeIcon = true,
                         leadingIcon = {
                             when (vpnServiceState) {

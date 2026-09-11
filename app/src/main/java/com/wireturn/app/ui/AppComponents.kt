@@ -480,7 +480,8 @@ fun SupportingText(
     style: TextStyle = MaterialTheme.typography.bodyMedium,
     color: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     textAlign: TextAlign? = null,
-    contentAlignment: Alignment = Alignment.CenterStart
+    contentAlignment: Alignment = Alignment.CenterStart,
+    singleLine: Boolean = false
 ) {
     if (text.isNullOrBlank()) return
 
@@ -490,7 +491,10 @@ fun SupportingText(
         color = color,
         modifier = modifier,
         textAlign = textAlign,
-        contentAlignment = contentAlignment
+        contentAlignment = contentAlignment,
+        maxLines = if (singleLine) 1 else Int.MAX_VALUE,
+        softWrap = !singleLine,
+        overflow = if (singleLine) TextOverflow.Ellipsis else TextOverflow.Clip
     )
 }
 
@@ -508,7 +512,8 @@ fun LabelGroup(
     labelColor: Color = Color.Unspecified,
     supportingColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     labelMarquee: Boolean = false,
-    labelPrefix: String? = null
+    labelPrefix: String? = null,
+    supportingSingleLine: Boolean = false
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.Center) {
         RowLabel(
@@ -524,7 +529,8 @@ fun LabelGroup(
             SupportingText(
                 text = supportingText,
                 style = supportingStyle,
-                color = supportingColor
+                color = supportingColor,
+                singleLine = supportingSingleLine
             )
         }
     }
@@ -1004,7 +1010,8 @@ fun SwitchRow(
     onRowClick: (() -> Unit)? = null,
     isSplit: Boolean = false,
     labelMarquee: Boolean = false,
-    labelPrefix: String? = null
+    labelPrefix: String? = null,
+    supportingSingleLine: Boolean = false
 ) {
     val parentInteractionSource = LocalSettingsInteractionSource.current
     val internalInteractionSource = interactionSource ?: parentInteractionSource ?: remember { MutableInteractionSource() }
@@ -1057,7 +1064,8 @@ fun SwitchRow(
                     supportingText = supportingText,
                     isModified = isModified,
                     labelMarquee = labelMarquee,
-                    labelPrefix = labelPrefix
+                    labelPrefix = labelPrefix,
+                    supportingSingleLine = supportingSingleLine
                 )
             }
         }

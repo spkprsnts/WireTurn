@@ -21,7 +21,7 @@ data class OpenFluxConfig(
     val platformDisplayName: String
         get() = when (transport) {
             "oneme" -> "MAX (oneme)"
-            else -> "Yandex.Docs"
+            else -> "Y.Docs"
         }
 
     fun isValid(): Boolean = when (transport) {

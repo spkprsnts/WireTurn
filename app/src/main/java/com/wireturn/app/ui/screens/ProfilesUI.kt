@@ -17,6 +17,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.MarqueeSpacing
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -36,6 +37,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -59,6 +61,7 @@ import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -112,7 +115,9 @@ import com.wireturn.app.kernel.KernelRegistry
 import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.trackGestureStartedAtBoundary
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LargeLeadingIcon
+import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.VerticalAnimatedText
@@ -137,23 +142,29 @@ private fun FlagImage(countryCode: String, modifier: Modifier = Modifier) {
     )
 }
 
-@Composable
-fun ProfileSummary(
-    profile: Profile,
-    modifier: Modifier = Modifier,
-    color: Color = MaterialTheme.colorScheme.onSurfaceVariant,
-    useAnimation: Boolean = false,
-    countryCode: String? = null
+/**
+ * [primary] is the kernel description shown as plain text; [kernelTags] and [xrayTags] are the
+ * rest of what [ProfileSummary] used to join with " • ", now shown as separate chip clusters -
+ * kernel tags on the profile block, Xray tags on the Xray row (see HomeScreen), both combined in
+ * the profiles list where there's no separate Xray row to split them onto.
+ */
+internal class ProfileSummaryParts(
+    val primary: String,
+    val kernelTags: List<String>,
+    val xrayTags: List<String>
 ) {
-    val parts = mutableListOf<String>()
+    val extraTags: List<String> get() = kernelTags + xrayTags
+}
+
+@Composable
+internal fun profileSummaryParts(profile: Profile): ProfileSummaryParts {
     val context = LocalContext.current
 
     val kernel = KernelRegistry.get(profile.kernelVariant)
-    parts.add(kernel.description(context, profile.kernelConfig))
-    kernel.profileSummaryExtra(profile.kernelConfig)?.let { parts.add(it) }
+    val primary = kernel.description(context, profile.kernelConfig)
+    val kernelTags = listOfNotNull(kernel.profileSummaryExtra(profile.kernelConfig))
 
-
-
+    val xrayTags = mutableListOf<String>()
     if (profile.xrayEnabled) {
         val isValid = when (profile.xrayProtocol) {
             XrayConfiguration.VLESS -> profile.vlessConfig.isValid()
@@ -161,20 +172,36 @@ fun ProfileSummary(
         }
 
         if (isValid) {
-            parts.add(
+            xrayTags.add(
                 when (profile.xrayProtocol) {
                     XrayConfiguration.VLESS -> stringResource(ValidatorUtils.uriProtocolStringRes(profile.vlessConfig.vlessLink))
                     XrayConfiguration.WIREGUARD -> stringResource(R.string.wg_short)
                 }
             )
             if (profile.xrayProtocol == XrayConfiguration.VLESS && profile.vlessConfig.isDualRoute) {
-                parts.add(stringResource(R.string.xray_uri_dual_route_short))
+                xrayTags.add(stringResource(R.string.xray_uri_dual_route_short))
             }
             if (profile.xrayProtocol == XrayConfiguration.VLESS && profile.vlessConfig.isSocks5Chain) {
-                parts.add(stringResource(R.string.xray_uri_socks5_chain_short))
+                xrayTags.add(stringResource(R.string.xray_uri_socks5_chain_short))
             }
         }
     }
+
+    return ProfileSummaryParts(primary, kernelTags, xrayTags)
+}
+
+@Composable
+fun ProfileSummary(
+    profile: Profile,
+    modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    useAnimation: Boolean = false,
+    countryCode: String? = null,
+    maxParts: Int? = null
+) {
+    val summary = profileSummaryParts(profile)
+    val allParts = listOf(summary.primary) + summary.extraTags
+    val parts = if (maxParts != null) allParts.take(maxParts) else allParts
 
     if (parts.isNotEmpty()) {
         val text = parts.joinToString(" • ")
@@ -215,9 +242,62 @@ fun ProfileSummary(
     }
 }
 
+/**
+ * Small tonal pill for a single summary fragment - see [ProfileTagChipRow]. Defaults to
+ * secondaryContainer, but callers can override both colors - the profiles list's selected row is
+ * already secondaryContainer, so it passes the inverted pair instead of letting chips disappear
+ * into it.
+ */
+@Composable
+private fun ProfileTagChip(
+    text: String,
+    modifier: Modifier = Modifier,
+    containerColor: Color = MaterialTheme.colorScheme.secondaryContainer,
+    contentColor: Color = MaterialTheme.colorScheme.onSecondaryContainer
+) {
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.small,
+        color = containerColor,
+        contentColor = contentColor
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+        )
+    }
+}
+
+/**
+ * Row of [ProfileTagChip]s for extra summary fragments - used both as a corner cluster
+ * overlapping a card's top edge (home screen's profile block and Xray row) and, contained within
+ * its own row's bounds, in the profiles list. [modifier] controls the positioning/offset in each
+ * case; this composable itself only lays the chips out horizontally.
+ */
+@Composable
+internal fun ProfileTagChipRow(
+    tags: List<String>,
+    modifier: Modifier = Modifier,
+    containerColor: Color = MaterialTheme.colorScheme.secondaryContainer,
+    contentColor: Color = MaterialTheme.colorScheme.onSecondaryContainer
+) {
+    if (tags.isEmpty()) return
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        tags.forEach { label ->
+            ProfileTagChip(text = label, containerColor = containerColor, contentColor = contentColor)
+        }
+    }
+}
+
 @Composable
 fun ProfilesBlock(
     viewModel: MainViewModel,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
@@ -226,90 +306,128 @@ fun ProfilesBlock(
     val context = LocalContext.current
     val profileCountries by viewModel.profileCountries.collectAsStateWithLifecycle()
 
-    if (currentProfile != null) {
-        Row(
-            modifier = modifier
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+    Box(modifier = modifier) {
+        SectionItem(
+            position = ItemPosition.Single,
+            onClick = onClick
         ) {
-            LargeLeadingIcon {
-                Icon(
-                    painter = painterResource(getProfileIcon(currentProfile, outlined = false)),
-                    contentDescription = null,
-                    modifier = Modifier.size(32.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                VerticalAnimatedText(
-                    text = currentProfile.name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    softWrap = false,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .basicMarquee()
-                )
-                ProfileSummary(
-                    profile = currentProfile,
+            if (currentProfile != null) {
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    useAnimation = true,
-                    countryCode = profileCountries[currentProfile.id]
-                )
-            }
-            FilledTonalIconButton(onClick = {
-                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                val intent = Intent(context, configActivityClassFor(currentProfile.kernelVariant))
-                intent.putExtra("EXTRA_EDIT_MODE", true)
-                intent.putExtra("EXTRA_PROFILE_NAME", currentProfile.name)
-                context.startActivity(intent)
-            }) {
-                Icon(
-                    painter = painterResource(R.drawable.edit_square_24px),
-                    contentDescription = null
-                )
-            }
-        }
-    } else {
-        Row(
-            modifier = modifier
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            LargeLeadingIcon {
-                Icon(
-                    painter = painterResource(R.drawable.mobile_outlined_24px),
-                    contentDescription = null,
-                    modifier = Modifier.size(32.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.profile_none_selected),
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilledTonalIconButton(onClick = {
-                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                    context.startActivity(
-                        Intent(
-                            context,
-                            com.wireturn.app.ui.activities.AddProfileActivity::class.java
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    LargeLeadingIcon {
+                        Icon(
+                            painter = painterResource(getProfileIcon(currentProfile, outlined = false)),
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.primary
                         )
-                    )
-                }) {
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        VerticalAnimatedText(
+                            text = currentProfile.name,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            softWrap = false,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .basicMarquee()
+                        )
+                        // Only the first summary fragment (kernel description) stays here as
+                        // text - the rest (protocol, dual-route, chain, ...) show as chips
+                        // overlapping the card's top-right corner instead, see below.
+                        ProfileSummary(
+                            profile = currentProfile,
+                            modifier = Modifier.fillMaxWidth(),
+                            useAnimation = true,
+                            countryCode = profileCountries[currentProfile.id],
+                            maxParts = 1
+                        )
+                    }
+                    // Same forward-arrow + divider used elsewhere for "tap this row to open a
+                    // list" (see AppComponents.kt's CompactItem) - hints that the row itself (not
+                    // just the edit button) opens the profile list. Leading gap keeps the arrow
+                    // clear of the name/summary marquee when it's mid-scroll.
+                    Spacer(Modifier.width(12.dp))
                     Icon(
-                        painter = painterResource(R.drawable.add_24px),
-                        contentDescription = stringResource(R.string.profile_create)
+                        painter = painterResource(R.drawable.arrow_forward_ios_24px),
+                        contentDescription = null,
+                        modifier = Modifier.size(12.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Spacer(Modifier.width(11.dp))
+                    VerticalDivider(
+                        modifier = Modifier.height(39.dp),
+                        thickness = 1.5.dp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .5f)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    FilledTonalIconButton(onClick = {
+                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                        val intent = Intent(context, configActivityClassFor(currentProfile.kernelVariant))
+                        intent.putExtra("EXTRA_EDIT_MODE", true)
+                        intent.putExtra("EXTRA_PROFILE_NAME", currentProfile.name)
+                        context.startActivity(intent)
+                    }) {
+                        Icon(
+                            painter = painterResource(R.drawable.edit_square_24px),
+                            contentDescription = null
+                        )
+                    }
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    LargeLeadingIcon {
+                        Icon(
+                            painter = painterResource(R.drawable.mobile_outlined_24px),
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.profile_none_selected),
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilledTonalIconButton(onClick = {
+                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                            context.startActivity(
+                                Intent(
+                                    context,
+                                    com.wireturn.app.ui.activities.AddProfileActivity::class.java
+                                )
+                            )
+                        }) {
+                            Icon(
+                                painter = painterResource(R.drawable.add_24px),
+                                contentDescription = stringResource(R.string.profile_create)
+                            )
+                        }
+                    }
                 }
             }
+        }
+
+        // Kernel-related tags only, overlapping the card's top edge like a badge cluster - Xray
+        // setting tags (protocol, dual-route, chain) show on the Xray row instead, see HomeScreen.
+        if (currentProfile != null) {
+            ProfileTagChipRow(
+                tags = profileSummaryParts(currentProfile).kernelTags,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = (-12).dp, y = (-8).dp)
+            )
         }
     }
 }
@@ -338,6 +456,10 @@ fun ProfileListItem(
         label = "profile_item_bg"
     )
 
+    val summary = profileSummaryParts(profile)
+    val summaryColor = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer
+    else MaterialTheme.colorScheme.outline
+
     Surface(
         onClick = onClick,
         shape = shape,
@@ -362,12 +484,73 @@ fun ProfileListItem(
                     maxLines = 1,
                     modifier = Modifier.basicMarquee()
                 )
-                ProfileSummary(
-                    profile = profile,
-                    color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer
-                    else MaterialTheme.colorScheme.outline,
-                    countryCode = countryCode
-                )
+                // Same spot the old bullet-joined summary text used to occupy. Flag + kernel
+                // description stay put (matches the profile name above never scrolling either);
+                // only the extra tags after them marquee within the remaining width if they don't
+                // fit, instead of dragging the description along with them.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (countryCode != null) {
+                        FlagImage(
+                            countryCode = countryCode,
+                            modifier = Modifier
+                                .padding(end = 4.dp)
+                                .size(width = 12.dp, height = 9.dp)
+                        )
+                    }
+                    Text(
+                        text = summary.primary,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = summaryColor,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
+                        // weight(fill=false) bounds it to the row's available width (ellipsizing
+                        // instead of overflowing past it) without forcing it to stretch when
+                        // short - e.g. a WebDAV profile's host+login can get long now that the
+                        // login is folded into this text instead of its own chip.
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            // Matches ProfileTagChip's own vertical padding so this row is always
+                            // the same height whether or not tags are present - otherwise
+                            // centering only pushed the text down when the (taller, padded) chips
+                            // were there too.
+                            .padding(vertical = 3.dp)
+                    )
+                    if (summary.extraTags.isNotEmpty()) {
+                        Spacer(Modifier.width(4.dp))
+                        Row(
+                            modifier = Modifier
+                                .weight(1f, fill = false)
+                                // Default basicMarquee() stops for good after 3 passes (mirrors
+                                // classic TextView marquee) - loops forever instead, since this
+                                // keeps scrolling as long as the row is visible. Default spacing
+                                // is 1/3 of the container width; half that reads better in this
+                                // narrow chip row.
+                                .basicMarquee(
+                                    iterations = Int.MAX_VALUE,
+                                    spacing = MarqueeSpacing.fractionOfContainer(1f / 6f)
+                                ),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            summary.extraTags.forEach { label ->
+                                ProfileTagChip(
+                                    text = label,
+                                    // Inverted on the selected row, whose background is already
+                                    // secondaryContainer - the chips' default colors - so they'd
+                                    // otherwise disappear into it.
+                                    containerColor = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer
+                                    else MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = if (isSelected) MaterialTheme.colorScheme.secondaryContainer
+                                    else MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                        }
+                    }
+                }
             }
             if (trailingContent != null) {
                 Spacer(Modifier.width(12.dp))

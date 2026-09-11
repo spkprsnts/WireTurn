@@ -20,13 +20,10 @@ object WebdavKernel : Kernel {
 
     override fun description(context: Context, cfg: KernelConfig): String {
         val config = (cfg as KernelConfig.Webdav).config
+        val login = config.login.takeIf { it.isNotBlank() }?.substringBefore('@')
         return context.getString(displayNameRes) + " " + WebdavConfig.formatHost(config.webdav) +
+            (login?.let { " ($it)" } ?: "") +
             if (config.backends.isNotEmpty()) " +${config.backends.size}" else ""
-    }
-
-    override fun profileSummaryExtra(cfg: KernelConfig): String? {
-        val login = (cfg as KernelConfig.Webdav).config.login
-        return login.takeIf { it.isNotBlank() }?.substringBefore('@')
     }
 
     override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int = R.drawable.ic_dav
