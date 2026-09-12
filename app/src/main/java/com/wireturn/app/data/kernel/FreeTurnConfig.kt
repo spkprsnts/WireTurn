@@ -1,6 +1,5 @@
 package com.wireturn.app.data
 
-import android.net.Uri
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.annotations.SerializedName
@@ -32,22 +31,6 @@ data class FreeTurnConfig(
     @SerializedName("kcp_acknodelay") val kcpAcknodelay: Boolean = true
 ) {
     fun isValid(): Boolean = links.isNotBlank() && (peer.isNotBlank() || sub.isNotBlank())
-
-    /**
-     * Masked address for display: the peer host:port if set, otherwise the subscription URL's
-     * host (peer is optional when a subscription supplies the server list - see [isValid]), or
-     * finally the provider name if neither is set.
-     */
-    fun addressLabel(): String {
-        // When both are set, the running client actually uses the subscription's node - it
-        // fetches -sub and unconditionally overwrites -peer with the node's own address
-        // (see external/free-turn-proxy: cmd/client/main.go + internal/config/raw.go
-        // applyURI's `if u.Peer != "" { r.Peer = u.Peer }`), so sub must win here too.
-        val subHost = if (sub.isNotBlank()) try { Uri.parse(sub).host } catch (_: Exception) { null } else null
-        if (!subHost.isNullOrBlank()) return maskPeer(subHost)
-        if (peer.isNotBlank()) return maskPeer(peer)
-        return provider
-    }
 
     fun sanitize(): FreeTurnConfig = copy(
         provider = (provider as Any?)?.toString()?.trim()?.take(32) ?: "vk",

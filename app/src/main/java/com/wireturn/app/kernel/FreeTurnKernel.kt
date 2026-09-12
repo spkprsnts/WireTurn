@@ -19,7 +19,7 @@ object FreeTurnKernel : Kernel {
 
     override fun description(context: Context, cfg: KernelConfig): String {
         val config = (cfg as KernelConfig.FreeTurn).config
-        return context.getString(displayNameRes) + " " + config.addressLabel()
+        return context.getString(displayNameRes) + " " + config.mode.uppercase()
     }
 
     override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int = R.drawable.ic_vk
