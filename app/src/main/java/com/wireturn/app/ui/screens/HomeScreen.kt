@@ -254,6 +254,7 @@ fun HomeScreen(
     }
 
     val proxyTransfer by viewModel.proxyTransfer.collectAsStateWithLifecycle()
+    val profilesGestureEnabled by viewModel.profilesGestureEnabled.collectAsStateWithLifecycle()
     val homeScrollState = rememberScrollState()
     val showProfilesDialog = rememberSaveable { mutableStateOf(false) }
 
@@ -279,7 +280,8 @@ fun HomeScreen(
                 available: Offset,
                 source: NestedScrollSource
             ): Offset {
-                if (source != NestedScrollSource.UserInput ||
+                if (!profilesGestureEnabled ||
+                    source != NestedScrollSource.UserInput ||
                     !homeGestureStartedAtBottom ||
                     profilesRevealTriggered ||
                     showProfilesDialog.value
@@ -301,7 +303,8 @@ fun HomeScreen(
 
             override suspend fun onPreFling(available: Velocity): Velocity {
                 profilesRevealDragPx = 0f
-                if (homeGestureStartedAtBottom &&
+                if (profilesGestureEnabled &&
+                    homeGestureStartedAtBottom &&
                     !profilesRevealTriggered &&
                     !showProfilesDialog.value &&
                     available.y < -2500f

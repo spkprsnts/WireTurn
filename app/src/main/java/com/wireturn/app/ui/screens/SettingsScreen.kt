@@ -93,6 +93,7 @@ fun SettingsScreen(
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
     val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
+    val profilesGestureEnabled by viewModel.profilesGestureEnabled.collectAsStateWithLifecycle()
     val allowUnstableUpdates by viewModel.allowUnstableUpdates.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
     val updateProgress by viewModel.updateProgress.collectAsStateWithLifecycle()
@@ -249,6 +250,27 @@ fun SettingsScreen(
                         supportingText = stringResource(R.string.privacy_mode_desc),
                         checked = privacyMode,
                         onCheckedChange = { viewModel.setPrivacyMode(it) }
+                    )
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                SectionItem(
+                    position = ItemPosition.Single,
+                    onClick = {
+                        val next = !profilesGestureEnabled
+                        HapticUtil.perform(
+                            context,
+                            if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                        )
+                        viewModel.setProfilesGestureEnabled(next)
+                    }
+                ) {
+                    SwitchRow(
+                        label = stringResource(R.string.profiles_gesture_title),
+                        supportingText = stringResource(R.string.profiles_gesture_desc),
+                        checked = profilesGestureEnabled,
+                        onCheckedChange = { viewModel.setProfilesGestureEnabled(it) }
                     )
                 }
             }

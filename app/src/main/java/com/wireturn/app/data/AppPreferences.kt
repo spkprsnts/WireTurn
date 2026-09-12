@@ -91,6 +91,7 @@ class AppPreferences(val context: Context) {
         val CAPTCHA_STYLE_MOD = booleanPreferencesKey("captcha_style_mod")
         val CAPTCHA_FORCE_TINT = booleanPreferencesKey("captcha_force_tint")
         val PRIVACY_MODE = booleanPreferencesKey("privacy_mode")
+        val PROFILES_GESTURE_ENABLED = booleanPreferencesKey("profiles_gesture_enabled")
         val GO_DNS_GO = booleanPreferencesKey("go_dns_go")
         val USE_CUSTOM_CERTS = booleanPreferencesKey("use_custom_certs")
 
@@ -157,6 +158,7 @@ class AppPreferences(val context: Context) {
     val captchaStyleModFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(CAPTCHA_STYLE_MOD, true)
     val captchaForceTintFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(CAPTCHA_FORCE_TINT, true)
     val privacyModeFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(PRIVACY_MODE, false)
+    val profilesGestureEnabledFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(PROFILES_GESTURE_ENABLED, true)
     val appLanguageFlow: Flow<String> = appCtx.internalDataStore.data.mapPref(APP_LANGUAGE, "system")
     // Blank = the built-in default (see MainViewModel.DEFAULT_PING_URL) - kept blank here rather
     // than baking the URL into this default, same fallback shape as ClientConfig.dns/hcDestination.
@@ -386,6 +388,10 @@ class AppPreferences(val context: Context) {
 
     suspend fun setPrivacyMode(v: Boolean) {
         appCtx.internalDataStore.edit { it[PRIVACY_MODE] = v }
+    }
+
+    suspend fun setProfilesGestureEnabled(v: Boolean) {
+        appCtx.internalDataStore.edit { it[PROFILES_GESTURE_ENABLED] = v }
     }
 
     suspend fun saveProfileCountry(profileId: String, countryCode: String) {

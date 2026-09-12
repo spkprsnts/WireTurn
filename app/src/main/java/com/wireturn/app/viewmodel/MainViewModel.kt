@@ -119,6 +119,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         initialValue = false
     )
 
+    val profilesGestureEnabled: StateFlow<Boolean> = prefs.profilesGestureEnabledFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = true
+    )
+
     private val _appLanguage = MutableStateFlow("system")
     val appLanguage: StateFlow<String> = _appLanguage.asStateFlow()
 
@@ -384,8 +390,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { prefs.setThemeMode(mode) } 
     }
 
-    fun setPrivacyMode(enabled: Boolean) { 
-        viewModelScope.launch { prefs.setPrivacyMode(enabled) } 
+    fun setPrivacyMode(enabled: Boolean) {
+        viewModelScope.launch { prefs.setPrivacyMode(enabled) }
+    }
+
+    fun setProfilesGestureEnabled(enabled: Boolean) {
+        viewModelScope.launch { prefs.setProfilesGestureEnabled(enabled) }
     }
 
     fun updateAutoLaunchSettings(settings: AutoLaunchSettings) {
