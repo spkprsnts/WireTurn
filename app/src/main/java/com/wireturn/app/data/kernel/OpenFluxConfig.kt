@@ -8,19 +8,25 @@ import com.google.gson.annotations.SerializedName
 // its own embedded SOCKS5 server binds cfg.socksAddr directly (see CoreService.buildCommandArgs),
 // so like olcRTC/WebDAV/qWDTT it's socks5-native and speaks no auth flags of its own.
 data class OpenFluxConfig(
-    // "yandex" (Yandex.Docs cursor-message transport, needs `url`) or "oneme" (MAX WebRTC
-    // DataChannel transport, needs maxToken/maxUid) - the exact values OpenFlux's own
-    // `-transport` flag accepts (the CLI arg is literally "oneme", not "max").
+    // "yandex" (Yandex.Docs cursor-message transport, needs `url`), "vyandex" (Yandex.Docs
+    // "Volga" realtime-collab transport - same `url`, a rewritten disguise/backend on Yandex's
+    // side) or "oneme" (MAX WebRTC DataChannel transport, needs maxToken/maxUid) - the exact
+    // values OpenFlux's own `-transport` flag accepts (the CLI arg is literally "oneme", not "max").
     @SerializedName("transport") val transport: String = "yandex",
     @SerializedName("url") val url: String = "",
     // Client's own MAX account auth token, passed to LoginByToken - required for "oneme".
     @SerializedName("max_token") val maxToken: String = "",
     // MAX user id of the exit-node's account being called - required for "oneme".
-    @SerializedName("max_uid") val maxUid: String = ""
+    @SerializedName("max_uid") val maxUid: String = "",
+    // Optional AES-256-GCM shared secret (>=16 chars) layered on top of whichever transport
+    // above - both peers must set the same value. Blank disables it entirely (the binary's own
+    // default, unencrypted-at-this-layer behavior); works with all three transports.
+    @SerializedName("encryption_key") val encryptionKey: String = ""
 ) {
     val platformDisplayName: String
         get() = when (transport) {
             "oneme" -> "MAX (oneme)"
+            "vyandex" -> "Volga Y.Docs"
             else -> "Y.Docs"
         }
 
@@ -30,10 +36,15 @@ data class OpenFluxConfig(
     }
 
     fun sanitize(): OpenFluxConfig = copy(
-        transport = if ((transport as Any?)?.toString() == "oneme") "oneme" else "yandex",
+        transport = when ((transport as Any?)?.toString()) {
+            "oneme" -> "oneme"
+            "vyandex" -> "vyandex"
+            else -> "yandex"
+        },
         url = (url as Any?)?.toString()?.trim()?.take(2000) ?: "",
         maxToken = (maxToken as Any?)?.toString()?.trim()?.take(4096) ?: "",
-        maxUid = (maxUid as Any?)?.toString()?.trim()?.filter(Char::isDigit)?.take(32) ?: ""
+        maxUid = (maxUid as Any?)?.toString()?.trim()?.filter(Char::isDigit)?.take(32) ?: "",
+        encryptionKey = (encryptionKey as Any?)?.toString()?.trim()?.take(4096) ?: ""
     )
 
     fun fillDefaults(): OpenFluxConfig = sanitize()
@@ -47,6 +58,7 @@ data class OpenFluxConfig(
         } else {
             builder.appendQueryParameter("url", url)
         }
+        if (encryptionKey.isNotBlank()) builder.appendQueryParameter("enc", encryptionKey)
         if (!profileName.isNullOrBlank()) builder.appendQueryParameter("name", profileName)
         return builder.build().toString()
     }
@@ -57,16 +69,21 @@ data class OpenFluxConfig(
             if (!trimmed.startsWith("openflux://", ignoreCase = true)) return null
             return try {
                 val uri = Uri.parse(trimmed)
-                val transport = if (uri.getQueryParameter("transport") == "oneme") "oneme" else "yandex"
+                val transport = when (uri.getQueryParameter("transport")) {
+                    "oneme" -> "oneme"
+                    "vyandex" -> "vyandex"
+                    else -> "yandex"
+                }
+                val encryptionKey = uri.getQueryParameter("enc") ?: current.encryptionKey
                 if (transport == "oneme") {
                     val token = uri.getQueryParameter("token") ?: current.maxToken
                     val uid = uri.getQueryParameter("uid") ?: current.maxUid
                     if (token.isBlank() || uid.isBlank()) return null
-                    OpenFluxConfig(transport = "oneme", url = current.url, maxToken = token, maxUid = uid)
+                    OpenFluxConfig(transport = "oneme", url = current.url, maxToken = token, maxUid = uid, encryptionKey = encryptionKey)
                 } else {
                     val docUrl = uri.getQueryParameter("url") ?: current.url
                     if (docUrl.isBlank()) return null
-                    OpenFluxConfig(transport = "yandex", url = docUrl, maxToken = current.maxToken, maxUid = current.maxUid)
+                    OpenFluxConfig(transport = transport, url = docUrl, maxToken = current.maxToken, maxUid = current.maxUid, encryptionKey = encryptionKey)
                 }
             } catch (_: Exception) {
                 null

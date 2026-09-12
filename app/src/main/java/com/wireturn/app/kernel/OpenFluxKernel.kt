@@ -9,13 +9,15 @@ import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.ui.activities.kernel.OpenFluxConfigActivity
+import java.io.File
 
 // OpenFlux (external/openflux, upstream p1neappleXpress/OpenFlux). No captcha flow, but no single
-// clean "connected" line either - the two transports it wraps (Yandex.Docs, MAX/oneme) differ a
-// lot in how much they actually log, so parseLogLine's connected/error detection is split by
-// transport below. log.Fatalf hard failures in main.go also exit the process, so the generic "no
-// output before exit" fallback in CoreService.runBinary would eventually catch those too, but
-// matching the line directly gives a much faster, more specific error.
+// clean "connected" line either - the three transports it wraps (Yandex.Docs, vyandex/"Volga",
+// MAX/oneme) differ a lot in how much they actually log, so parseLogLine's connected/error
+// detection is split by transport below. log.Fatalf hard failures in main.go also exit the
+// process, so the generic "no output before exit" fallback in CoreService.runBinary would
+// eventually catch those too, but matching the line directly gives a much faster, more specific
+// error.
 object OpenFluxKernel : Kernel {
     override val variant: KernelVariant = KernelVariant.OPENFLUX
     // --url carries the Yandex.Docs document link, which is effectively the shared secret/
@@ -32,7 +34,7 @@ object OpenFluxKernel : Kernel {
     }
 
     override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int = when ((cfg as KernelConfig.OpenFlux).config.transport) {
-        "yandex" -> R.drawable.ic_yandex_docs
+        "yandex", "vyandex" -> R.drawable.ic_yandex_docs
         "oneme" -> R.drawable.ic_max
         else -> R.drawable.route_24px
     }
@@ -67,6 +69,14 @@ object OpenFluxKernel : Kernel {
         // Yandex.Docs handshake/reconnect loop (utils.Debugf in transport/yandex) is a no-op
         // without this - see parseLogLine below, which depends on it to detect a dead session.
         cmdArgs.add("--debug")
+        // Optional end-to-end encryption on top of the transport (--encryption-key-file, added
+        // upstream alongside vyandex) - the flag takes a file path, not the secret itself, so it
+        // gets written out fresh on every start rather than passed inline like -maxToken/-url.
+        if (o.encryptionKey.isNotBlank()) {
+            val keyFile = File(ctx.filesDir, "openflux_key.txt")
+            keyFile.writeText(o.encryptionKey)
+            cmdArgs.addAll(listOf("--encryption-key-file", keyFile.absolutePath))
+        }
         return cmdArgs
     }
 
@@ -131,6 +141,26 @@ object OpenFluxKernel : Kernel {
             )
         ) {
             if (state.openFluxYandexFailureCounter.recordAndCheckThreshold()) {
+                CoreServiceState.setStatus(CoreStatus.Error(line))
+                ctx.updateNotification(ctx.getString(R.string.error_connecting))
+                state.startupFailed = true
+                return true
+            }
+            state.startupEmitted = true
+        }
+
+        // 4b. vyandex ("Volga") transport: Start() itself is synchronous (auth happens before
+        // "Running as CLIENT" ever prints), so an auth failure is already caught by point 1
+        // above via main.go's own "failed to start transport" fatal line - no heuristic needed
+        // for that part, unlike classic Yandex. Once running, though, its WS listener reconnects
+        // forever on its own with backoff, same silent-spin risk as classic Yandex's read-error
+        // loop above.
+        if (transport == "vyandex" && (
+                lower.contains("[volga] ws error") ||
+                lower.contains("[volga] batch send failed")
+            )
+        ) {
+            if (state.openFluxVolgaFailureCounter.recordAndCheckThreshold()) {
                 CoreServiceState.setStatus(CoreStatus.Error(line))
                 ctx.updateNotification(ctx.getString(R.string.error_connecting))
                 state.startupFailed = true

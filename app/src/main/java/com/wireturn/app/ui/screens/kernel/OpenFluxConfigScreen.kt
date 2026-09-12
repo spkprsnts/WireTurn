@@ -101,6 +101,7 @@ fun OpenFluxConfigScreen(
 
     var config by remember(initialConfig) { mutableStateOf(initialConfig) }
     var tokenVisible by rememberSaveable { mutableStateOf(false) }
+    var encryptionKeyVisible by rememberSaveable { mutableStateOf(false) }
 
     val isModified = config != initialConfig
 
@@ -370,7 +371,12 @@ fun OpenFluxConfigScreen(
                     enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
                     exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec())
                 ) {
-                    SectionGroup(title = stringResource(R.string.openflux_yandex_settings_title)) {
+                    SectionGroup(
+                        title = stringResource(
+                            if (config.transport == "vyandex") R.string.openflux_vyandex_settings_title
+                            else R.string.openflux_yandex_settings_title
+                        )
+                    ) {
                         SectionItem(position = ItemPosition.Single) {
                             TextFieldRow(
                                 label = stringResource(R.string.openflux_url_label),
@@ -430,6 +436,37 @@ fun OpenFluxConfigScreen(
                     }
                 }
             }
+
+            // Optional, transport-agnostic - works on top of yandex/vyandex/oneme alike.
+            SectionGroup(title = stringResource(R.string.openflux_encryption_settings_title)) {
+                SectionItem(position = ItemPosition.Single) {
+                    TextFieldRow(
+                        label = stringResource(R.string.openflux_encryption_key_label),
+                        value = config.encryptionKey.redact(isPrivacyActive),
+                        onValueChange = { if (!isPrivacyActive) config = config.copy(encryptionKey = it) },
+                        readOnly = isPrivacyActive,
+                        isError = config.encryptionKey.isNotEmpty() && config.encryptionKey.trim().length < 16,
+                        isModified = isEditMode && config.encryptionKey != initialConfig.encryptionKey,
+                        privacyMode = isPrivacyActive,
+                        supportingText = stringResource(R.string.openflux_encryption_key_desc),
+                        trailingIcon = {
+                            if (!isPrivacyActive) {
+                                IconButton(onClick = { encryptionKeyVisible = !encryptionKeyVisible }) {
+                                    Icon(
+                                        painter = painterResource(
+                                            if (encryptionKeyVisible) R.drawable.visibility_24px
+                                            else R.drawable.visibility_off_24px
+                                        ),
+                                        contentDescription = null
+                                    )
+                                }
+                            }
+                        },
+                        visualTransformation = if (encryptionKeyVisible || isPrivacyActive) VisualTransformation.None
+                            else PasswordVisualTransformation()
+                    )
+                }
+            }
         }
     }
 
@@ -480,7 +517,7 @@ private fun OpenFluxPlatformDialog(
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val platforms = listOf("yandex", "oneme")
+    val platforms = listOf("yandex", "vyandex", "oneme")
 
     SelectionDialog(
         title = stringResource(R.string.openflux_platform_label),

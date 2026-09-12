@@ -54,6 +54,10 @@ class BinaryOutputState {
     // status forever. Short window: a fast-failing attempt (e.g. DNS/refused) can repeat rapidly.
     val openFluxYandexFailureCounter = LogOccurrenceCounter(windowMs = 5_000, threshold = 8)
     val openFluxMaxFailureCounter = LogOccurrenceCounter(windowMs = 5_000, threshold = 8)
+    // vyandex ("Volga" transport)'s own WS listener also reconnects forever, with exponential
+    // backoff up to 30s between attempts - same silent-spin risk as the classic counter above,
+    // just a much slower cadence once backoff kicks in, hence the wider window/lower threshold.
+    val openFluxVolgaFailureCounter = LogOccurrenceCounter(windowMs = 60_000, threshold = 6)
 }
 
 /**
