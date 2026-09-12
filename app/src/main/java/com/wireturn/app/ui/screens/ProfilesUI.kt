@@ -507,16 +507,7 @@ fun ProfileListItem(
                         maxLines = 1,
                         softWrap = false,
                         overflow = TextOverflow.Ellipsis,
-                        // weight(fill=false) bounds it to the row's available width (ellipsizing
-                        // instead of overflowing past it) without forcing it to stretch when
-                        // short - e.g. a WebDAV profile's host+login can get long now that the
-                        // login is folded into this text instead of its own chip.
                         modifier = Modifier
-                            .weight(1f, fill = false)
-                            // Matches ProfileTagChip's own vertical padding so this row is always
-                            // the same height whether or not tags are present - otherwise
-                            // centering only pushed the text down when the (taller, padded) chips
-                            // were there too.
                             .padding(vertical = 3.dp)
                     )
                     if (summary.extraTags.isNotEmpty()) {
@@ -524,11 +515,6 @@ fun ProfileListItem(
                         Row(
                             modifier = Modifier
                                 .weight(1f, fill = false)
-                                // Default basicMarquee() stops for good after 3 passes (mirrors
-                                // classic TextView marquee) - loops forever instead, since this
-                                // keeps scrolling as long as the row is visible. Default spacing
-                                // is 1/3 of the container width; half that reads better in this
-                                // narrow chip row.
                                 .basicMarquee(
                                     iterations = Int.MAX_VALUE,
                                     spacing = MarqueeSpacing.fractionOfContainer(1f / 6f)
@@ -539,9 +525,6 @@ fun ProfileListItem(
                             summary.extraTags.forEach { label ->
                                 ProfileTagChip(
                                     text = label,
-                                    // Inverted on the selected row, whose background is already
-                                    // secondaryContainer - the chips' default colors - so they'd
-                                    // otherwise disappear into it.
                                     containerColor = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer
                                     else MaterialTheme.colorScheme.secondaryContainer,
                                     contentColor = if (isSelected) MaterialTheme.colorScheme.secondaryContainer
