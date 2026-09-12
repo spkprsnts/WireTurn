@@ -800,10 +800,10 @@ private fun VlessSettingsBlock(
                         isModified = isEditMode && vlessIsSocks5Chain != initialVlessConfig.isSocks5Chain
                     )
                 }
-
-                Spacer(Modifier.height(12.dp))
             }
+        }
 
+        SectionGroup(title = stringResource(R.string.xray_uri_dual_route_settings_title)) {
             SectionItem(
                 position = if (vlessIsDualRoute) ItemPosition.Top else ItemPosition.Single,
                 onClick = {
