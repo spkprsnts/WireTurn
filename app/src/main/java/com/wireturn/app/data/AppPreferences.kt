@@ -77,6 +77,8 @@ class AppPreferences(val context: Context) {
         val VPN_GROUP_APPS_BY_LETTER = booleanPreferencesKey("vpn_group_apps_by_letter")
         val VPN_EXCLUDED_APPS = stringSetPreferencesKey("proxy_excluded_apps")
         val APP_LANGUAGE = stringPreferencesKey("app_language")
+        val PING_URL = stringPreferencesKey("ping_url")
+        val COUNTRY_DETECTION_METHOD = stringPreferencesKey("country_detection_method")
         val AUTO_LAUNCH_ENABLED = booleanPreferencesKey("auto_launch_enabled")
         val AUTO_LAUNCH_URL = stringPreferencesKey("auto_launch_url")
         val AUTO_LAUNCH_INTERVAL = intPreferencesKey("auto_launch_interval")
@@ -156,6 +158,12 @@ class AppPreferences(val context: Context) {
     val captchaForceTintFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(CAPTCHA_FORCE_TINT, true)
     val privacyModeFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(PRIVACY_MODE, false)
     val appLanguageFlow: Flow<String> = appCtx.internalDataStore.data.mapPref(APP_LANGUAGE, "system")
+    // Blank = the built-in default (see MainViewModel.DEFAULT_PING_URL) - kept blank here rather
+    // than baking the URL into this default, same fallback shape as ClientConfig.dns/hcDestination.
+    val pingUrlFlow: Flow<String> = appCtx.internalDataStore.data.mapPref(PING_URL, "")
+    // "auto" (default), "ipwhois", "ipsb", "ipapico", "ipinfo", or "cloudflare" - a real setting
+    // (not hardcoded) so more methods can be added later without a migration.
+    val countryDetectionMethodFlow: Flow<String> = appCtx.internalDataStore.data.mapPref(COUNTRY_DETECTION_METHOD, "auto")
 
     val profilesFlow: Flow<List<Profile>> = appCtx.internalDataStore.data
         .map { p ->
@@ -338,6 +346,14 @@ class AppPreferences(val context: Context) {
 
     suspend fun setAppLanguage(l: String) {
         appCtx.internalDataStore.edit { it[APP_LANGUAGE] = l }
+    }
+
+    suspend fun setPingUrl(url: String) {
+        appCtx.internalDataStore.edit { it[PING_URL] = url }
+    }
+
+    suspend fun setCountryDetectionMethod(method: String) {
+        appCtx.internalDataStore.edit { it[COUNTRY_DETECTION_METHOD] = method }
     }
 
     suspend fun setBatteryNotificationDismissed(v: Boolean) {

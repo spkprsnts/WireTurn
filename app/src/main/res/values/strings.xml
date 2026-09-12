@@ -494,6 +494,15 @@
     <string name="settings_auto_launch_desc">Start tunnel only when internet is restricted</string>
     <string name="settings_auto_launch_url">Check URL</string>
     <string name="settings_auto_launch_interval">Check interval (min)</string>
+    <string name="diagnostics_settings_title">Diagnostics</string>
+    <string name="settings_ping_url">Ping address</string>
+    <string name="settings_country_detection_title">Exit country detection</string>
+    <string name="country_detection_auto">Auto (try all)</string>
+    <string name="country_detection_cloudflare">Cloudflare</string>
+    <string name="country_detection_ipinfo" translatable="false">ipinfo.io</string>
+    <string name="country_detection_ipwhois" translatable="false">ipwho.is</string>
+    <string name="country_detection_ipsb" translatable="false">ip.sb</string>
+    <string name="country_detection_ipapico" translatable="false">ipapi.co</string>
     <string name="auto_launch_override_title">Manual control disabled</string>
     <string name="auto_launch_override_desc">Tunnel is currently managed by auto-launch. To perform manual control, you need to disable auto-launch.</string>
     <string name="auto_launch_disable_and_continue">Disable and continue</string>

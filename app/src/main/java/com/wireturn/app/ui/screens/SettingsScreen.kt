@@ -68,8 +68,11 @@ import com.wireturn.app.ui.ExpandableSection
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LabeledButtonGroup
+import com.wireturn.app.ui.RowLabel
 import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
+import com.wireturn.app.ui.SelectionDialog
+import com.wireturn.app.ui.SupportingText
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.UpdateBlock
@@ -254,6 +257,8 @@ fun SettingsScreen(
             val waitForNetwork by viewModel.waitForNetwork.collectAsStateWithLifecycle()
             val restartOnNetworkChange by viewModel.restartOnNetworkChange.collectAsStateWithLifecycle()
             val autoLaunchSettings by viewModel.autoLaunchSettings.collectAsStateWithLifecycle()
+            val pingUrl by viewModel.pingUrl.collectAsStateWithLifecycle()
+            val countryDetectionMethod by viewModel.countryDetectionMethod.collectAsStateWithLifecycle()
 
             SectionGroup(title = stringResource(R.string.network_settings_title)) {
                 SectionItem(
@@ -390,6 +395,77 @@ fun SettingsScreen(
                         isError = !isIntervalValid && localInterval.isNotBlank(),
                         placeholder = defaultInterval.toString(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
+            }
+
+            // 2.2 Диагностика (пинг и определение страны выхода)
+            var localPingUrl by rememberSaveable { mutableStateOf(pingUrl) }
+            val isPingUrlValid = localPingUrl.isBlank() || localPingUrl.startsWith("http://") || localPingUrl.startsWith("https://")
+
+            LaunchedEffect(pingUrl) {
+                if (localPingUrl.isEmpty()) localPingUrl = pingUrl
+            }
+
+            LaunchedEffect(localPingUrl, isPingUrlValid) {
+                if (isPingUrlValid && localPingUrl != pingUrl) {
+                    delay(400.milliseconds)
+                    if (localPingUrl != pingUrl) {
+                        viewModel.setPingUrl(localPingUrl)
+                    }
+                }
+            }
+
+            val countryMethods = listOf("auto", "ipwhois", "ipsb", "ipapico", "ipinfo", "cloudflare")
+            val countryMethodLabels = mapOf(
+                "auto" to stringResource(R.string.country_detection_auto),
+                "ipwhois" to stringResource(R.string.country_detection_ipwhois),
+                "ipsb" to stringResource(R.string.country_detection_ipsb),
+                "ipapico" to stringResource(R.string.country_detection_ipapico),
+                "ipinfo" to stringResource(R.string.country_detection_ipinfo),
+                "cloudflare" to stringResource(R.string.country_detection_cloudflare)
+            )
+            val showCountryMethodDialog = remember { mutableStateOf(false) }
+
+            SectionGroup(title = stringResource(R.string.diagnostics_settings_title)) {
+                SectionItem(position = ItemPosition.Top) {
+                    TextFieldRow(
+                        label = stringResource(R.string.settings_ping_url),
+                        value = localPingUrl,
+                        onValueChange = { localPingUrl = it },
+                        isError = !isPingUrlValid,
+                        placeholder = MainViewModel.DEFAULT_PING_URL
+                    )
+                }
+                SectionItem(
+                    position = ItemPosition.Bottom,
+                    onClick = {
+                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                        showCountryMethodDialog.value = true
+                    }
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        RowLabel(text = stringResource(R.string.settings_country_detection_title))
+                        Spacer(Modifier.height(2.dp))
+                        SupportingText(countryMethodLabels[countryDetectionMethod] ?: countryDetectionMethod)
+                    }
+                }
+            }
+
+            if (showCountryMethodDialog.value) {
+                SelectionDialog(
+                    title = stringResource(R.string.settings_country_detection_title),
+                    items = countryMethods,
+                    isSelected = { it == countryDetectionMethod },
+                    onSelect = {
+                        viewModel.setCountryDetectionMethod(it)
+                        showCountryMethodDialog.value = false
+                    },
+                    onDismiss = { showCountryMethodDialog.value = false }
+                ) { method, _ ->
+                    Text(
+                        text = countryMethodLabels[method] ?: method,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)
                     )
                 }
             }

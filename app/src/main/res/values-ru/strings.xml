@@ -454,6 +454,15 @@
     <string name="settings_auto_launch_desc">Запуск туннеля только при ограничении интернета</string>
     <string name="settings_auto_launch_url">URL для проверки</string>
     <string name="settings_auto_launch_interval">Интервал проверки (мин)</string>
+    <string name="diagnostics_settings_title">Диагностика</string>
+    <string name="settings_ping_url">Адрес для пинга</string>
+    <string name="settings_country_detection_title">Определение страны выхода</string>
+    <string name="country_detection_auto">Автоматически (перебор)</string>
+    <string name="country_detection_cloudflare">Cloudflare</string>
+    <string name="country_detection_ipinfo" translatable="false">ipinfo.io</string>
+    <string name="country_detection_ipwhois" translatable="false">ipwho.is</string>
+    <string name="country_detection_ipsb" translatable="false">ip.sb</string>
+    <string name="country_detection_ipapico" translatable="false">ipapi.co</string>
     <string name="auto_launch_override_title">Ручное управление заблокировано</string>
     <string name="auto_launch_override_desc">Сейчас туннель управляется автозапуском. Чтобы управлять вручную, необходимо отключить режим автозапуска.</string>
     <string name="auto_launch_disable_and_continue">Отключить и продолжить</string>

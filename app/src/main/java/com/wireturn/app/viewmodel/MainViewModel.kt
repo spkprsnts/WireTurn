@@ -47,6 +47,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -121,6 +122,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _appLanguage = MutableStateFlow("system")
     val appLanguage: StateFlow<String> = _appLanguage.asStateFlow()
 
+    // Blank = DEFAULT_PING_URL (see checkProxyPing()).
+    private val _pingUrl = MutableStateFlow("")
+    val pingUrl: StateFlow<String> = _pingUrl.asStateFlow()
+
+    // "auto" (default, tries them all in order), "ipwhois", "ipsb", "ipapico", "ipinfo", or
+    // "cloudflare" - see checkExitCountry()/resolveCountryViaMethod().
+    private val _countryDetectionMethod = MutableStateFlow("auto")
+    val countryDetectionMethod: StateFlow<String> = _countryDetectionMethod.asStateFlow()
+
     private val _wgConfig = MutableStateFlow(WgConfig())
     val wgConfig: StateFlow<WgConfig> = _wgConfig.asStateFlow()
 
@@ -162,6 +172,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _isHomeScreenActive = MutableStateFlow(false)
 
     private var pingJob: Job? = null
+    private var countryJob: Job? = null
     private var metricsJob: Job? = null
 
     sealed class PingResult {
@@ -240,6 +251,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.captchaStyleModFlow.collect { _captchaStyleMod.value = it } }
             launch { prefs.captchaForceTintFlow.collect { _captchaForceTint.value = it } }
             launch { prefs.appLanguageFlow.collect { _appLanguage.value = it } }
+            launch { prefs.pingUrlFlow.collect { _pingUrl.value = it } }
+            launch { prefs.countryDetectionMethodFlow.collect { _countryDetectionMethod.value = it } }
             launch { prefs.autoLaunchSettingsFlow.collect { _autoLaunchSettings.value = it; updateAutoLaunchJob(it) } }
             launch { prefs.vlessLinkHistoryFlow.collect { _vlessLinkHistory.value = it } }
 
@@ -274,6 +287,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     stopMetricsPoller()
                 }
             }
+        }
+        viewModelScope.launch {
+            coreState.map { it is CoreState.Connected || it is CoreState.Suppressed }
+                .distinctUntilChanged()
+                .collect { active -> if (active) checkExitCountry() }
         }
         coreManager.syncInitialState()
     }
@@ -486,12 +504,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { prefs.setCaptchaForceTint(v) } 
     }
     
-    fun setAppLanguage(l: String) { 
+    fun setAppLanguage(l: String) {
         _appLanguage.value = l
-        viewModelScope.launch { 
+        viewModelScope.launch {
             prefs.setAppLanguage(l)
-            applyLanguage(l) 
-        } 
+            applyLanguage(l)
+        }
+    }
+
+    fun setPingUrl(url: String) {
+        viewModelScope.launch { prefs.setPingUrl(url) }
+    }
+
+    fun setCountryDetectionMethod(method: String) {
+        viewModelScope.launch { prefs.setCountryDetectionMethod(method) }
     }
 
     private fun applyLanguage(lang: String) {
@@ -504,6 +530,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         pingJob = viewModelScope.launch {
             _proxyPing.value = PingResult.Loading
             var sawProxy = false
+            val target = _pingUrl.value.ifBlank { DEFAULT_PING_URL }
             repeat(10) { attempt ->
                 // Re-resolved every attempt: works for Xray or VPN-mode-without-Xray alike, and
                 // naturally follows the active source if it changes mid-sequence (Xray priority).
@@ -517,31 +544,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     if (delayFirst && attempt == 0) delay(1_000.milliseconds)
                     val res = withContext(Dispatchers.IO) {
                         try {
-                            // Cloudflare's trace endpoint doubles as the ping target and the exit-country
-                            // source: timing conn.responseCode gives the same latency reading the old "/"
-                            // request did, and the body echoes back a "loc=XX" line - the ISO-3166 country
-                            // Cloudflare geolocated the *connecting* IP to. One request instead of two, and
-                            // it re-runs on the same cadence as the ping (incl. right after a hot profile
-                            // switch), so the flag no longer goes stale between connect/disconnect edges.
-                            val conn = java.net.URL("https://1.1.1.1/cdn-cgi/trace").openConnection(proxy) as java.net.HttpURLConnection
+                            val conn = java.net.URL(target).openConnection(proxy) as java.net.HttpURLConnection
                             conn.connectTimeout = 3000
                             conn.readTimeout = 3000
                             conn.instanceFollowRedirects = false
                             val elapsed = measureTimeMillis { conn.responseCode }
-                            val country = conn.inputStream.bufferedReader().use { it.readText() }
-                                .let { body -> Regex("(?m)^loc=([A-Z]{2})$").find(body)?.groupValues?.get(1) }
-                            PingResult.Success(elapsed) to country
+                            conn.disconnect()
+                            PingResult.Success(elapsed)
                         } catch (_: Exception) {
                             // AppLogsState.addLog("* [Ping] Error: ${e.message}")
                             null
                         }
                     }
                     if (res != null) {
-                        val (pingResult, country) = res
-                        _proxyPing.value = pingResult
-                        if (country != null) {
-                            profileManager.saveProfileCountry(currentProfileId.value, country)
-                        }
+                        _proxyPing.value = res
                         return@launch
                     }
                 }
@@ -549,6 +565,74 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             _proxyPing.value = if (sawProxy) PingResult.Error else null
         }
+    }
+
+    fun checkExitCountry() {
+        countryJob?.cancel()
+        val targetProfileId = currentProfileId.value
+        countryJob = viewModelScope.launch {
+            repeat(2) { pass ->
+                if (pass > 0) delay(10_000.milliseconds)
+                resolveExitCountryOnce(targetProfileId)
+            }
+        }
+    }
+
+    private suspend fun resolveExitCountryOnce(profileId: String) {
+        repeat(10) { attempt ->
+            val proxy = activeLocalSocksProxy()
+            if (proxy != Proxy.NO_PROXY) {
+                if (attempt == 0) delay(1_000.milliseconds)
+                val method = _countryDetectionMethod.value
+                // "auto" tries every real method in order until one succeeds, same fallback-chain
+                // idea Hiddify's ProxyRepositoryImpl uses (ipwho.is -> ip.sb -> ipapi.co -> ipinfo.io)
+                // - useful since any single one of these can be blocked/down in a given region.
+                val methodsToTry = if (method == "auto") COUNTRY_DETECTION_AUTO_ORDER else listOf(method)
+                val country = withContext(Dispatchers.IO) {
+                    methodsToTry.firstNotNullOfOrNull { m ->
+                        try { resolveCountryViaMethod(m, proxy) } catch (_: Exception) { null }
+                    }
+                }
+                if (country != null) {
+                    profileManager.saveProfileCountry(profileId, country)
+                    return
+                }
+            }
+            delay(1_000.milliseconds)
+        }
+    }
+
+    // All of these geolocate the *connecting* IP (i.e. the exit, once dialed through `proxy`) -
+    // none take an explicit IP argument, so none need a prior "what's my IP" round trip.
+    private fun resolveCountryViaMethod(method: String, proxy: Proxy): String? = when (method) {
+        // Plain-text body, just the ISO-3166 code (e.g. "US\n") - no JSON parsing needed beyond
+        // trimming and a sanity check on shape.
+        "ipinfo" -> {
+            val body = httpGetThroughProxy("https://ipinfo.io/country", proxy).trim()
+            body.takeIf { Regex("^[A-Z]{2}$").matches(it) }
+        }
+        // ipwho.is / api.ip.sb / ipapi.co all happen to share the same top-level JSON field name.
+        "ipwhois" -> COUNTRY_CODE_JSON_REGEX.find(httpGetThroughProxy("https://ipwho.is/", proxy))?.groupValues?.get(1)
+        "ipsb" -> COUNTRY_CODE_JSON_REGEX.find(httpGetThroughProxy("https://api.ip.sb/geoip/", proxy))?.groupValues?.get(1)
+        "ipapico" -> COUNTRY_CODE_JSON_REGEX.find(httpGetThroughProxy("https://ipapi.co/json/", proxy))?.groupValues?.get(1)
+        // Cloudflare's trace endpoint echoes the connecting IP's geolocation back as a
+        // "loc=XX" (ISO-3166) line in the body - the fallback for "cloudflare" and anything
+        // unrecognized.
+        else -> {
+            val body = httpGetThroughProxy("https://1.1.1.1/cdn-cgi/trace", proxy)
+            Regex("(?m)^loc=([A-Z]{2})$").find(body)?.groupValues?.get(1)
+        }
+    }
+
+    private fun httpGetThroughProxy(url: String, proxy: Proxy): String {
+        val conn = java.net.URL(url).openConnection(proxy) as java.net.HttpURLConnection
+        conn.connectTimeout = 3000
+        conn.readTimeout = 3000
+        conn.instanceFollowRedirects = false
+        conn.responseCode
+        val body = conn.inputStream.bufferedReader().use { it.readText() }
+        conn.disconnect()
+        return body
     }
 
     fun checkForUpdate() {
@@ -849,5 +933,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     companion object {
         private var autoLaunchJob: Job? = null
+        const val DEFAULT_PING_URL = "https://www.google.com/generate_204"
+
+        // Same order Hiddify's own ProxyRepositoryImpl tries its 4 shared sources in, plus our
+        // own Cloudflare method appended at the end.
+        private val COUNTRY_DETECTION_AUTO_ORDER =
+            listOf("ipwhois", "ipsb", "ipapico", "ipinfo", "cloudflare")
+
+        private val COUNTRY_CODE_JSON_REGEX = Regex("\"country_code\"\\s*:\\s*\"([A-Z]{2})\"")
     }
 }
