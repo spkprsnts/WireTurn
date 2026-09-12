@@ -61,7 +61,6 @@ import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -119,6 +118,7 @@ import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.StandardLeadingIcon
+import com.wireturn.app.ui.TappableRowIndicator
 import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.VerticalAnimatedText
 import com.wireturn.app.ui.activities.SubscriptionConfigActivity
@@ -347,24 +347,9 @@ fun ProfilesBlock(
                             maxParts = 1
                         )
                     }
-                    // Same forward-arrow + divider used elsewhere for "tap this row to open a
-                    // list" (see AppComponents.kt's CompactItem) - hints that the row itself (not
-                    // just the edit button) opens the profile list. Leading gap keeps the arrow
-                    // clear of the name/summary marquee when it's mid-scroll.
-                    Spacer(Modifier.width(12.dp))
-                    Icon(
-                        painter = painterResource(R.drawable.arrow_forward_ios_24px),
-                        contentDescription = null,
-                        modifier = Modifier.size(12.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.width(11.dp))
-                    VerticalDivider(
-                        modifier = Modifier.height(39.dp),
-                        thickness = 1.5.dp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .5f)
-                    )
-                    Spacer(Modifier.width(12.dp))
+                    // Same indicator SwitchRow's isSplit uses for "tap this row to open a list" -
+                    // hints that the row itself (not just the edit button) opens the profile list.
+                    TappableRowIndicator()
                     FilledTonalIconButton(onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         val intent = Intent(context, configActivityClassFor(currentProfile.kernelVariant))

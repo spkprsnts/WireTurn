@@ -755,6 +755,28 @@ fun CompactItem(
     }
 }
 
+// Forward-arrow + vertical divider hinting that a row is itself tappable to navigate somewhere -
+// shared by SwitchRow's isSplit/onRowClick (Xray/VPN mode rows) and HomeScreen's profile card.
+@Composable
+fun TappableRowIndicator(modifier: Modifier = Modifier) {
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        Spacer(Modifier.width(12.dp))
+        Icon(
+            painter = painterResource(R.drawable.arrow_forward_ios_24px),
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.width(8.dp))
+        VerticalDivider(
+            modifier = Modifier.height(40.dp),
+            thickness = 1.1.dp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .6f)
+        )
+        Spacer(Modifier.width(12.dp))
+    }
+}
+
 @Composable
 fun SliderRow(
     label: String,
@@ -1071,22 +1093,7 @@ fun SwitchRow(
         }
 
         if (onRowClick != null || isSplit) {
-            Spacer(Modifier.width(12.dp))
-            // Forward Arrow
-            Icon(
-                painter = painterResource(R.drawable.arrow_forward_ios_24px),
-                contentDescription = null,
-                modifier = Modifier.size(12.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.width(11.dp))
-            // Vertical Divider
-            VerticalDivider(
-                modifier = Modifier.height(39.dp),
-                thickness = 1.5.dp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .5f)
-            )
-            Spacer(Modifier.width(12.dp))
+            TappableRowIndicator()
         } else {
             Spacer(Modifier.width(16.dp))
         }
