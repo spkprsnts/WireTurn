@@ -300,6 +300,8 @@ data class VlessConfig(
     @SerializedName("isDualRoute") val isDualRoute: Boolean = false,
     @SerializedName("directAddress") val directAddress: String = "",
     @SerializedName("hcInterval") val hcInterval: String = "30",
+    // Blank = vless-client's own default (connectivitycheck.gstatic.com/generate_204).
+    @SerializedName("hcDestination") val hcDestination: String = "",
     @SerializedName("mux") val mux: String = "0",
     // VLESS/Trojan-over-SOCKS5: dials the link's own connection through the socks5-native
     // kernel's local socks5 (dialerProxy) instead of using it as a plain upstream. Only
@@ -311,6 +313,7 @@ data class VlessConfig(
         vlessLink = (vlessLink as Any?)?.toString()?.take(4096) ?: "",
         directAddress = (directAddress as Any?)?.toString()?.take(500) ?: "",
         hcInterval = (hcInterval as Any?)?.toString()?.take(20) ?: "30",
+        hcDestination = (hcDestination as Any?)?.toString()?.trim()?.take(500) ?: "",
         mux = (mux as Any?)?.toString()?.take(20) ?: "0"
     )
 

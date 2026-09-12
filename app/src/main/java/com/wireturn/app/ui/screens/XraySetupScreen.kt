@@ -137,14 +137,15 @@ fun XraySetupScreen(
     var vlessIsDualRoute by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.isDualRoute) }
     var vlessDirectAddress by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.directAddress) }
     var vlessHcInterval by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.hcInterval) }
+    var vlessHcDestination by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.hcDestination) }
     var vlessMux by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.mux) }
     var vlessIsSocks5Chain by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.isSocks5Chain) }
 
     val currentWg = remember(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive) {
         WgConfig(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive)
     }
-    val currentVless = remember(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessMux, vlessIsSocks5Chain, initialVlessConfig) {
-        VlessConfig(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessMux, vlessIsSocks5Chain)
+    val currentVless = remember(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessHcDestination, vlessMux, vlessIsSocks5Chain, initialVlessConfig) {
+        VlessConfig(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessHcDestination, vlessMux, vlessIsSocks5Chain)
     }
 
     val transportMismatchSocket = remember(kernelConfig, xrayConfiguration, currentVless) {
@@ -233,7 +234,7 @@ fun XraySetupScreen(
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     showExitDialog.value = false
                     val wg = WgConfig(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive)
-                    val vless = VlessConfig(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessMux, vlessIsSocks5Chain)
+                    val vless = VlessConfig(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessHcDestination, vlessMux, vlessIsSocks5Chain)
                     onSave(xrayConfiguration, wg, vless)
                 }) {
                     Text(stringResource(R.string.btn_save))
@@ -373,7 +374,7 @@ fun XraySetupScreen(
                     onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         val wg = WgConfig(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive)
-                        val vless = VlessConfig(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessMux, vlessIsSocks5Chain)
+                        val vless = VlessConfig(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessHcDestination, vlessMux, vlessIsSocks5Chain)
                         onSave(xrayConfiguration, wg, vless)
                     },
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -510,6 +511,8 @@ fun XraySetupScreen(
                         onVlessDirectAddressChange = { if (!isPrivacyActive) vlessDirectAddress = it },
                         vlessHcInterval = vlessHcInterval,
                         onVlessHcIntervalChange = { vlessHcInterval = it },
+                        vlessHcDestination = vlessHcDestination,
+                        onVlessHcDestinationChange = { vlessHcDestination = it },
                         vlessMux = vlessMux,
                         onVlessMuxChange = { vlessMux = it },
                         vlessIsSocks5Chain = vlessIsSocks5Chain,
@@ -683,6 +686,7 @@ private fun VlessSettingsBlock(
     vlessIsDualRoute: Boolean, onVlessIsDualRouteChange: (Boolean) -> Unit,
     vlessDirectAddress: String, onVlessDirectAddressChange: (String) -> Unit,
     vlessHcInterval: String, onVlessHcIntervalChange: (String) -> Unit,
+    vlessHcDestination: String, onVlessHcDestinationChange: (String) -> Unit,
     vlessMux: String, onVlessMuxChange: (String) -> Unit,
     vlessIsSocks5Chain: Boolean, onVlessIsSocks5ChainChange: (Boolean) -> Unit,
     vlessLinkHistory: List<String>,
@@ -853,7 +857,7 @@ private fun VlessSettingsBlock(
                             }
                         )
                     }
-                    SectionItem(position = ItemPosition.Bottom) {
+                    SectionItem {
                         TextFieldRow(
                             label = stringResource(R.string.xray_uri_hc_interval),
                             value = vlessHcInterval,
@@ -862,6 +866,16 @@ private fun VlessSettingsBlock(
                             isError = vlessHcInterval.isNotEmpty() && vlessHcInterval.toIntOrNull() == null,
                             isModified = isEditMode && vlessHcInterval != initialVlessConfig.hcInterval,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        )
+                    }
+                    SectionItem(position = ItemPosition.Bottom) {
+                        TextFieldRow(
+                            label = stringResource(R.string.xray_uri_hc_destination),
+                            value = vlessHcDestination,
+                            onValueChange = onVlessHcDestinationChange,
+                            placeholder = "http://connectivitycheck.gstatic.com/generate_204",
+                            isModified = isEditMode && vlessHcDestination != initialVlessConfig.hcDestination,
+                            supportingText = stringResource(R.string.xray_uri_hc_destination_desc)
                         )
                     }
                 }

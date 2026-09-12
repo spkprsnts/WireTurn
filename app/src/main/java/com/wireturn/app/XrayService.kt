@@ -282,6 +282,10 @@ class XrayService : Service() {
                     cmdArgs.add(vlessConfig.directAddress)
                     cmdArgs.add("-hc-interval")
                     cmdArgs.add(vlessConfig.hcInterval)
+                    if (vlessConfig.hcDestination.isNotBlank()) {
+                        cmdArgs.add("-hc-destination")
+                        cmdArgs.add(vlessConfig.hcDestination)
+                    }
                 }
 
                 // Only meaningful when -local-socks5 is actually the socks5-native kernel's

@@ -508,6 +508,8 @@
     <string name="xray_uri_direct_address">Direct server address</string>
     <string name="xray_uri_direct_address_placeholder" translatable="false">292.313.32.45:443</string>
     <string name="xray_uri_hc_interval">Health check interval (sec)</string>
+    <string name="xray_uri_hc_destination">Dual route URL</string>
+    <string name="xray_uri_hc_destination_desc">URL probed by the load balancer to pick the healthy route</string>
     <string name="xray_uri_socks5_chain" translatable="false">SOCKS5 chain</string>
     <string name="xray_uri_socks5_chain_short" translatable="false">Chain</string>
     <string name="xray_uri_socks5_chain_desc">Route this link\'s connection through the kernel\'s local SOCKS5 instead of using it directly</string>
