@@ -58,7 +58,9 @@ object WebdavKernel : Kernel {
             }
             if (o.encrypt) appendLine("enc: true")
             appendLine("timeout: \"${esc(o.timeout)}\"")
-            if (cfg.dns.isNotBlank()) appendLine("dns: \"${esc(cfg.dns)}\"")
+            // Purely per-profile - unlike olcRTC's dns, this never falls back to the global
+            // ConnectionSettingsScreen default (WebDAV's own binary tolerates a blank -dns fine).
+            if (o.dns.isNotBlank()) appendLine("dns: \"${esc(o.dns)}\"")
 
             appendLine("backends:")
             appendLine("  - url: \"${esc(o.webdav)}\"")

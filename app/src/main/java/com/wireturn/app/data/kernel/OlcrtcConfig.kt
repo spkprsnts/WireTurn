@@ -8,6 +8,11 @@ data class OlcrtcConfig(
     @SerializedName("transport") val transport: String = "datachannel",
     @SerializedName("id") val id: String = "",
     @SerializedName("key") val key: String = "",
+    // Resolves the signaling provider's domain before the tunnel is even up. Blank means "fall
+    // back to the global DNS server" (ConnectionSettingsScreen/ClientConfig.dns) - unlike WebDAV,
+    // olcRTC's binary hard-fails startup on a truly empty dns, so that global setting always has
+    // a non-blank value of its own to land on (ClientConfig.DEFAULT_DNS).
+    @SerializedName("dns") val dns: String = "",
     @SerializedName("mimo") val mimo: String = "",
     @SerializedName("vp8_fps") val vp8Fps: Int = 60,
     @SerializedName("vp8_batch") val vp8Batch: Int = 64,
@@ -42,6 +47,7 @@ data class OlcrtcConfig(
             transport = (transport as Any?)?.toString()?.take(100) ?: "datachannel",
             id = (id as Any?)?.toString()?.take(200) ?: "",
             key = (key as Any?)?.toString()?.take(1000) ?: "",
+            dns = (dns as Any?)?.toString()?.take(200) ?: "",
             mimo = (mimo as Any?)?.toString()?.take(500) ?: "",
             videoW = if (videoW <= 0) 1080 else videoW,
             videoH = if (videoH <= 0) 1080 else videoH
@@ -213,6 +219,7 @@ data class OlcrtcConfig(
                     transport = params["transport"] ?: params["t"] ?: current.transport,
                     vp8Fps = (params["vp8_fps"] ?: params["f"])?.toIntOrNull() ?: current.vp8Fps,
                     vp8Batch = (params["vp8_batch"] ?: params["b"])?.toIntOrNull() ?: current.vp8Batch,
+                    dns = params["dns"] ?: params["d"] ?: current.dns,
                     mimo = Uri.decode(fragment).ifBlank { current.mimo }
                 )
             } catch (_: Exception) {

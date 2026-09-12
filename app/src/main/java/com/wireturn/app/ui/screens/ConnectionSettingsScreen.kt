@@ -81,7 +81,8 @@ fun ConnectionSettingsScreen(
     var goDnsGo by remember { mutableStateOf(initialClientConfig.goDnsGo) }
     var useCustomCerts by remember { mutableStateOf(initialClientConfig.useCustomCerts) }
 
-    // Shared by every SOCKS5-native kernel (olcRTC, WebDAV, qWDTT - see clientSocks below)
+    // Default for olcRTC profiles that leave their own dns blank - WebDAV always uses its own
+    // per-profile dns instead, never this one (see OlcrtcConfig.dns/WebdavConfig.dns).
     var dns by remember { mutableStateOf(initialClientConfig.dns) }
 
     // SOCKS5-native kernel states (olcRTC, WebDAV, qWDTT)
@@ -308,11 +309,18 @@ fun ConnectionSettingsScreen(
                 }
 
                 SectionItem {
+                    // Blank is valid here (falls back to the OS resolver - see ClientConfig.dns's
+                    // own doc comment) - only a non-empty value has to be a real host:port, same
+                    // rule and isError-only treatment as clientSocks/listenAddr above. An
+                    // unvalidated value used to be able to reach the kernel binary's -dns flag
+                    // as-is and hard-crash the tunnel with an opaque Go dial error instead of
+                    // failing here with a clear signal.
                     TextFieldRow(
                         label = stringResource(R.string.client_dns_label),
                         value = dns.redact(privacyMode),
                         onValueChange = { if (!privacyMode) dns = it },
                         placeholder = ClientConfig.DEFAULT_DNS,
+                        isError = dns.isNotEmpty() && !ValidatorUtils.isValidHostPort(dns),
                         supportingText = stringResource(R.string.client_dns_desc),
                         readOnly = privacyMode,
                         isModified = dns != initialClientConfig.dns,

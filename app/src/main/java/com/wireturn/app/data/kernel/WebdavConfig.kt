@@ -58,6 +58,11 @@ data class WebdavConfig(
     @SerializedName("webdav") val webdav: String = "",
     @SerializedName("login") val login: String = "",
     @SerializedName("password") val password: String = "",
+    // Overrides how the WebDAV backend's own hostname is resolved - useful when the OS resolver
+    // is unreliable/filtered. Has no effect on SOCKS5-tunneled traffic, which is always resolved
+    // server-side. Purely per-profile - unlike olcRTC's dns, this never falls back to the global
+    // ConnectionSettingsScreen/ClientConfig.dns setting; blank just means "use the OS resolver".
+    @SerializedName("dns") val dns: String = "",
     // Additional WebDAV backends beyond the primary one above - the client rotates new sessions
     // round-robin across all of them, skipping any that are rate-limited/unreachable. See
     // external/webdav-tunnel docs/config.md#multi-backend-rotation.
@@ -121,6 +126,7 @@ data class WebdavConfig(
         builder.appendQueryParameter("read-min", readMin)
         builder.appendQueryParameter("read-max", readMax)
         if (encrypt) builder.appendQueryParameter("enc", "1")
+        if (dns.isNotBlank()) builder.appendQueryParameter("dns", dns)
         for (backend in backends) {
             if (backend.isValid()) builder.appendQueryParameter("backend", backend.toNestedUri())
         }
@@ -158,6 +164,7 @@ data class WebdavConfig(
                     webdav = webdav,
                     login = login,
                     password = password,
+                    dns = uri.getQueryParameter("dns") ?: current.dns,
                     backends = backends.ifEmpty { current.backends },
                     timeout = uri.getQueryParameter("timeout") ?: current.timeout,
                     pollMin = uri.getQueryParameter("poll-min") ?: current.pollMin,

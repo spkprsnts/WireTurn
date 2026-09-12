@@ -153,6 +153,9 @@
     <string name="openflux_max_uid_desc">ID аккаунта MAX exit-node, которому звоним</string>
     <string name="olcrtc_id_label">ID комнаты</string>
     <string name="olcrtc_key_label">Ключ авторизации</string>
+    <string name="olcrtc_dns_label">DNS-сервер</string>
+    <string name="olcrtc_dns_desc">Используется для резолвинга сигнального провайдера до поднятия туннеля — сервер должен быть доступен при ограничениях по белым спискам. Оставьте пустым, чтобы использовать общий DNS-сервер (Параметры подключения).</string>
+    <string name="olcrtc_dns_placeholder" translatable="false">77.88.8.8:53</string>
     <string name="olcrtc_carrier_label">Платформа</string>
     <string name="turnable_carrier_label">Платформа</string>
     <string name="olcrtc_transport_label">Транспорт</string>
@@ -178,6 +181,8 @@
     <string name="webdav_timeout">Timeout</string>
     <string name="webdav_encrypt">Шифрование (AES-256-GCM)</string>
     <string name="webdav_encrypt_desc">Должно быть включено и на стороне сервера</string>
+    <string name="webdav_dns_label">DNS-сервер</string>
+    <string name="webdav_dns_desc">Определяет только адрес сервера WebDAV — на туннелируемый трафик не влияет. Оставьте пустым, чтобы использовать системный резолвер.</string>
     <string name="webdav_backends_title">Дополнительные бэкенды</string>
     <string name="webdav_backends_desc">Новые сессии распределяются по всем бэкендам по очереди; недоступность одного не блокирует остальные</string>
     <string name="webdav_backend_add">Добавить бэкенд</string>
@@ -316,7 +321,7 @@
     <string name="restart_on_network_change_desc">Автоматически перезапускать туннель при переключении между Wi-Fi и мобильной сетью</string>
 
     <string name="client_dns_label">DNS-сервер</string>
-    <string name="client_dns_desc">Используется olcRTC и WebDAV для резолвинга точки входа до запуска туннеля.</string>
+    <string name="client_dns_desc">Значение по умолчанию для профилей olcRTC, у которых не задан свой DNS-сервер.</string>
     <string name="client_socks_auth">Авторизация SOCKS5</string>
     <string name="client_socks_auth_desc">Защитить собственный SOCKS5 ядра логином и паролем</string>
     <string name="client_socks_auth_not_supported_by_kernel">Не применимо — %1$s не поддерживает авторизацию SOCKS5</string>

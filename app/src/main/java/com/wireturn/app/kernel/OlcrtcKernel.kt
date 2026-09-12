@@ -64,9 +64,10 @@ object OlcrtcKernel : Kernel {
             appendLine("  key: \"${o.key}\"")
             appendLine("net:")
             appendLine("  transport: ${o.transport}")
-            // Unlike WebDAV's -dns, olcRTC hard-fails startup ("dns server required") if this is
-            // empty, so fall back to a default rather than ever handing it a blank value.
-            appendLine("  dns: \"${cfg.dns.ifBlank { ClientConfig.DEFAULT_DNS }}\"")
+            // Per-profile dns first, then the global ConnectionSettingsScreen default, then the
+            // hardcoded fallback - unlike WebDAV's -dns, olcRTC hard-fails startup ("dns server
+            // required") if this ends up empty, so this chain must never bottom out blank.
+            appendLine("  dns: \"${o.dns.ifBlank { cfg.dns }.ifBlank { ClientConfig.DEFAULT_DNS }}\"")
             appendLine("socks:")
             appendLine("  host: \"${cfg.socksAddr.substringBefore(':').ifBlank { "127.0.0.1" }}\"")
             appendLine("  port: ${cfg.socksAddr.substringAfter(':', "9001").ifBlank { "9001" }}")

@@ -83,6 +83,7 @@ import com.wireturn.app.ui.ShareDropdownMenu
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
+import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.redact
 import com.wireturn.app.ui.screens.QrScannerDialog
@@ -387,6 +388,22 @@ fun WebdavConfigScreen(
                         onCheckedChange = { config = config.copy(encrypt = it) },
                         supportingText = stringResource(R.string.webdav_encrypt_desc),
                         isModified = isEditMode && config.encrypt != initialConfig.encrypt
+                    )
+                }
+            }
+
+            SectionGroup {
+                SectionItem(
+                    position = ItemPosition.Single
+                ) {
+                    TextFieldRow(
+                        label = stringResource(R.string.webdav_dns_label),
+                        value = config.dns,
+                        onValueChange = { config = config.copy(dns = it) },
+                        placeholder = "1.1.1.1:53",
+                        isError = config.dns.isNotEmpty() && !ValidatorUtils.isValidHostPort(config.dns),
+                        supportingText = stringResource(R.string.webdav_dns_desc),
+                        isModified = isEditMode && config.dns != initialConfig.dns
                     )
                 }
             }
