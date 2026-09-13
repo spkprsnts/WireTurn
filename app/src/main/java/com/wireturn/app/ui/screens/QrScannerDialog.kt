@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -179,8 +180,13 @@ fun QrScannerDialog(
                             style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        // Re-set every recomposition, not just on creation - zoom also changes
+                        // from pinch-to-zoom on the camera preview (onZoomChange above), which
+                        // the slider thumb needs to reflect too, not just its own drags.
+                        val zoomSliderState = remember { SliderState(zoom) }
+                        zoomSliderState.value = zoom
                         Slider(
-                            value = zoom,
+                            state = zoomSliderState,
                             onValueChange = { zoom = it },
                             modifier = Modifier.weight(1f).padding(horizontal = 12.dp)
                         )

@@ -76,6 +76,7 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -874,11 +875,14 @@ fun SliderRow(
                 }
             }
         }
+        // SliderState isn't keyed on `value` itself (only steps/valueRange) since it's meant to
+        // own the value once created - re-set it every recomposition so this stays a fully
+        // controlled component, same as the old value/onValueChange overload did internally.
+        val sliderState = remember(steps, valueRange) { SliderState(value, steps, valueRange) }
+        sliderState.value = value
         Slider(
-            value = value,
+            state = sliderState,
             onValueChange = onValueChange,
-            valueRange = valueRange,
-            steps = steps,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 8.dp)
