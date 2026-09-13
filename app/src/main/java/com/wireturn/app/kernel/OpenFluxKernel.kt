@@ -112,14 +112,20 @@ object OpenFluxKernel : Kernel {
 
         // 3. SOCKS5 listener is up - the transport handshake itself may still be running in the
         // background (see the class-level note above). Only a real "Connected" for Yandex, which
-        // never logs a definite success of its own - see point 4. oneme and cupsonline both have
-        // their own definite success signal (points 5 and 6), so they stay on Connecting here.
+        // never logs a definite success of its own - see point 4. oneme has its own definite
+        // success signal (point 5) that always logs *after* this line, so marking Connecting here
+        // in the meantime is safe for it. cupsonline is different: trans.Start() (which is where
+        // its "[CUPS] transport started" success line - point 6 - comes from) runs *before* this
+        // "Running as CLIENT" line in main.go, so by the time this line arrives cupsonline may
+        // already be Connected - calling markConnecting() unconditionally here would stomp that
+        // back to Connecting with no later line to ever set it again. So cupsonline is left alone
+        // entirely at this point; state.startupEmitted is already true from point 2 either way.
         if (lower.contains("running as client (socks5 on")) {
             state.startupEmitted = true
             if (transport != "oneme" && transport != "cupsonline" && CoreServiceState.status.value !is CoreStatus.Suppressed) {
                 CoreServiceState.setStatus(CoreStatus.Connected)
                 ctx.updateNotification(ctx.getString(R.string.core_active))
-            } else if (canUpdateConnectingStatus()) {
+            } else if (transport != "cupsonline" && canUpdateConnectingStatus()) {
                 markConnecting()
             }
         }
