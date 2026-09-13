@@ -1479,8 +1479,8 @@ fun HomeScreen(
                     Icon(
                         painter = painterResource(R.drawable.arrow_forward_ios_24px),
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = ContentAlpha.secondary)
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -1584,9 +1584,7 @@ private fun ProxyAddressRow(
             painter = painterResource(if (isCopied) R.drawable.check_circle_24px else R.drawable.content_copy_24px),
             contentDescription = null,
             modifier = Modifier.size(20.dp),
-            tint = if (isCopied) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                alpha = 0.6f
-            )
+            tint = if (isCopied) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
