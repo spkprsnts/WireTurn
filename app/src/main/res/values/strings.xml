@@ -175,8 +175,11 @@
     <string name="openflux_yandex_settings_title">Yandex.Docs</string>
     <string name="openflux_vyandex_settings_title">Volga Yandex.Docs</string>
     <string name="openflux_oneme_settings_title">MAX</string>
+    <string name="openflux_cupsonline_settings_title">Cups.online</string>
     <string name="openflux_url_label">Document URL</string>
     <string name="openflux_url_desc">Yandex.Docs document URL shared with the exit node</string>
+    <string name="openflux_cups_url_label">Room list</string>
+    <string name="openflux_cups_url_desc">Base64 room list printed by the exit node on startup (--transport cupsonline)</string>
     <string name="openflux_max_token_label">MAX token</string>
     <string name="openflux_max_token_desc">Your own MAX account auth token</string>
     <string name="openflux_max_uid_label">MAX user ID</string>

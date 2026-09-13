@@ -373,20 +373,29 @@ fun OpenFluxConfigScreen(
                 ) {
                     SectionGroup(
                         title = stringResource(
-                            if (config.transport == "vyandex") R.string.openflux_vyandex_settings_title
-                            else R.string.openflux_yandex_settings_title
+                            when (config.transport) {
+                                "vyandex" -> R.string.openflux_vyandex_settings_title
+                                "cupsonline" -> R.string.openflux_cupsonline_settings_title
+                                else -> R.string.openflux_yandex_settings_title
+                            }
                         )
                     ) {
                         SectionItem(position = ItemPosition.Single) {
                             TextFieldRow(
-                                label = stringResource(R.string.openflux_url_label),
+                                label = stringResource(
+                                    if (config.transport == "cupsonline") R.string.openflux_cups_url_label
+                                    else R.string.openflux_url_label
+                                ),
                                 value = config.url.redact(isPrivacyActive),
                                 onValueChange = { if (!isPrivacyActive) config = config.copy(url = it) },
                                 readOnly = isPrivacyActive,
                                 isError = config.transport != "oneme" && config.url.isBlank(),
                                 isModified = isEditMode && config.url != initialConfig.url,
                                 privacyMode = isPrivacyActive,
-                                supportingText = stringResource(R.string.openflux_url_desc)
+                                supportingText = stringResource(
+                                    if (config.transport == "cupsonline") R.string.openflux_cups_url_desc
+                                    else R.string.openflux_url_desc
+                                )
                             )
                         }
                     }
@@ -510,6 +519,7 @@ fun OpenFluxConfigScreen(
 
 private fun getOpenFluxPlatformIcon(transport: String): Int = when (transport) {
     "oneme" -> R.drawable.ic_max
+    "cupsonline" -> R.drawable.ic_cupsonline
     else -> R.drawable.ic_yandex_docs
 }
 
@@ -519,7 +529,7 @@ private fun OpenFluxPlatformDialog(
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val platforms = listOf("yandex", "vyandex", "oneme")
+    val platforms = listOf("yandex", "vyandex", "oneme", "cupsonline")
 
     SelectionDialog(
         title = stringResource(R.string.openflux_platform_label),

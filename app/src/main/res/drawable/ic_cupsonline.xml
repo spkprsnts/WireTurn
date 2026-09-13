@@ -1,0 +1,40 @@
+<!--
+  ~ Monochrome mark for the "Cups.online" OpenFlux transport. Cups.online's own brand mark is a
+  ~ two-tone faceted diamond with a white cup/goblet glyph (bowl + stem + two flanking wing
+  ~ flourishes) knocked out on top, followed by a "cups" wordmark - unlike ic_max/ic_yandex_docs
+  ~ (extracted whole from an app's own adaptive-icon monochrome layer), there is no such
+  ~ single-color layer to pull from here, so this keeps only the cup/goblet glyph itself (the
+  ~ part that reads as a mark on its own) and drops the diamond background and wordmark, the same
+  ~ foreground-only reduction Android's own monochrome adaptive-icon layers apply. Path data is
+  ~ untouched from the source artwork; only the fill (flattened to one color) and the crop
+  ~ (translation to content bounds, computed the same min/max-over-anchors-and-control-points way
+  ~ as ic_max, since a cubic Bezier always lies within the convex hull of its control points) were
+  ~ changed.
+  ~
+  ~ width/height are kept proportional to the viewport - VectorDrawable maps the viewport directly
+  ~ onto the declared width/height, so a mismatched aspect ratio there bakes a stretch into the
+  ~ drawable's own intrinsic size.
+  -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="18.35dp"
+    android:viewportWidth="24.6678"
+    android:viewportHeight="18.8606"
+    android:tint="?attr/colorControlNormal">
+    <group
+        android:translateX="-5.19141"
+        android:translateY="-10.2788">
+        <path
+            android:fillColor="@android:color/white"
+            android:pathData="M10.1357 10.2788V17.1152C10.1357 21.0424 13.4479 24.2909 17.551 24.2909C21.6541 24.2909 24.9662 21.0909 24.9662 17.1152V10.2788H10.1357Z"/>
+        <path
+            android:fillColor="@android:color/white"
+            android:pathData="M21.8003 29.1394L17.4995 24.9697L13.248 29.1394H17.4995H21.8003Z"/>
+        <path
+            android:fillColor="@android:color/white"
+            android:pathData="M25.6572 19.2H27.7335L29.8592 12.897H27.7829Z"/>
+        <path
+            android:fillColor="@android:color/white"
+            android:pathData="M9.34395 19.2H7.31711L5.19141 12.897H7.21824Z"/>
+    </group>
+</vector>

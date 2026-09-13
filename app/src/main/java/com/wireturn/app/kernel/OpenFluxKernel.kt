@@ -12,12 +12,12 @@ import com.wireturn.app.ui.activities.kernel.OpenFluxConfigActivity
 import java.io.File
 
 // OpenFlux (external/openflux, upstream p1neappleXpress/OpenFlux). No captcha flow, but no single
-// clean "connected" line either - the three transports it wraps (Yandex.Docs, vyandex/"Volga",
-// MAX/oneme) differ a lot in how much they actually log, so parseLogLine's connected/error
-// detection is split by transport below. log.Fatalf hard failures in main.go also exit the
-// process, so the generic "no output before exit" fallback in CoreService.runBinary would
-// eventually catch those too, but matching the line directly gives a much faster, more specific
-// error.
+// clean "connected" line either - the four transports it wraps (Yandex.Docs, vyandex/"Volga",
+// MAX/oneme, cups.online) differ a lot in how much they actually log, so parseLogLine's
+// connected/error detection is split by transport below. log.Fatalf hard failures in main.go also
+// exit the process, so the generic "no output before exit" fallback in CoreService.runBinary
+// would eventually catch those too, but matching the line directly gives a much faster, more
+// specific error.
 object OpenFluxKernel : Kernel {
     override val variant: KernelVariant = KernelVariant.OPENFLUX
     // --url carries the Yandex.Docs document link, which is effectively the shared secret/
@@ -36,6 +36,7 @@ object OpenFluxKernel : Kernel {
     override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int = when ((cfg as KernelConfig.OpenFlux).config.transport) {
         "yandex", "vyandex" -> R.drawable.ic_yandex_docs
         "oneme" -> R.drawable.ic_max
+        "cupsonline" -> R.drawable.ic_cupsonline
         else -> R.drawable.route_24px
     }
 
@@ -111,10 +112,11 @@ object OpenFluxKernel : Kernel {
 
         // 3. SOCKS5 listener is up - the transport handshake itself may still be running in the
         // background (see the class-level note above). Only a real "Connected" for Yandex, which
-        // never logs a definite success of its own - see point 4.
+        // never logs a definite success of its own - see point 4. oneme and cupsonline both have
+        // their own definite success signal (points 5 and 6), so they stay on Connecting here.
         if (lower.contains("running as client (socks5 on")) {
             state.startupEmitted = true
-            if (transport != "oneme" && CoreServiceState.status.value !is CoreStatus.Suppressed) {
+            if (transport != "oneme" && transport != "cupsonline" && CoreServiceState.status.value !is CoreStatus.Suppressed) {
                 CoreServiceState.setStatus(CoreStatus.Connected)
                 ctx.updateNotification(ctx.getString(R.string.core_active))
             } else if (canUpdateConnectingStatus()) {
@@ -216,6 +218,33 @@ object OpenFluxKernel : Kernel {
             ) {
                 if (canUpdateConnectingStatus()) {
                     markConnecting()
+                }
+                state.startupEmitted = true
+            }
+        }
+
+        // 6. cups.online transport (external/openflux transport/cupsonline/cupsonline.go). Room
+        // joins happen synchronously inside Start(): if every room fails, Start() returns "no
+        // rooms joined" and main.go's own log.Fatalf already trips point 1 above via "failed to
+        // start transport" - no heuristic needed for a total failure. "[CUPS] transport started"
+        // is the definite success signal (all requested channels are up and dialing), taking over
+        // from "Running as CLIENT" at point 3, which this transport is excluded from above.
+        // Each channel's own WebSocket then reconnects forever with backoff (up to 10s) on its
+        // own, same silent-spin risk as Yandex/vyandex above - "[CUPS] ws error" is that loop's
+        // only signal, so it gets its own counter tuned to the faster backoff cap.
+        if (transport == "cupsonline") {
+            if (lower.contains("[cups] transport started")) {
+                if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                    CoreServiceState.setStatus(CoreStatus.Connected)
+                    ctx.updateNotification(ctx.getString(R.string.core_active))
+                }
+                state.startupEmitted = true
+            } else if (lower.contains("[cups] ws error")) {
+                if (state.openFluxCupsFailureCounter.recordAndCheckThreshold()) {
+                    CoreServiceState.setStatus(CoreStatus.Error(line))
+                    ctx.updateNotification(ctx.getString(R.string.error_connecting))
+                    state.startupFailed = true
+                    return true
                 }
                 state.startupEmitted = true
             }

@@ -10,9 +10,12 @@ import com.google.gson.annotations.SerializedName
 data class OpenFluxConfig(
     // "yandex" (Yandex.Docs cursor-message transport, needs `url`), "vyandex" (Yandex.Docs
     // "Volga" realtime-collab transport - same `url`, a rewritten disguise/backend on Yandex's
-    // side) or "oneme" (MAX WebRTC DataChannel transport, needs maxToken/maxUid) - the exact
-    // values OpenFlux's own `-transport` flag accepts (the CLI arg is literally "oneme", not "max").
+    // side), "oneme" (MAX WebRTC DataChannel transport, needs maxToken/maxUid) or "cupsonline"
+    // (cups.online live-coding-room transport - same `url` slot, but it holds the base64 room
+    // list the exit node prints at startup, not a document link) - the exact values OpenFlux's
+    // own `-transport` flag accepts (the CLI arg is literally "oneme", not "max").
     @SerializedName("transport") val transport: String = "yandex",
+    // Yandex.Docs document URL for yandex/vyandex; base64 room list for cupsonline.
     @SerializedName("url") val url: String = "",
     // Client's own MAX account auth token, passed to LoginByToken - required for "oneme".
     @SerializedName("max_token") val maxToken: String = "",
@@ -27,6 +30,7 @@ data class OpenFluxConfig(
         get() = when (transport) {
             "oneme" -> "MAX (oneme)"
             "vyandex" -> "Volga Y.Docs"
+            "cupsonline" -> "Cups.online"
             else -> "Y.Docs"
         }
 
@@ -39,6 +43,7 @@ data class OpenFluxConfig(
         transport = when ((transport as Any?)?.toString()) {
             "oneme" -> "oneme"
             "vyandex" -> "vyandex"
+            "cupsonline" -> "cupsonline"
             else -> "yandex"
         },
         url = (url as Any?)?.toString()?.trim()?.take(2000) ?: "",
@@ -72,6 +77,7 @@ data class OpenFluxConfig(
                 val transport = when (uri.getQueryParameter("transport")) {
                     "oneme" -> "oneme"
                     "vyandex" -> "vyandex"
+                    "cupsonline" -> "cupsonline"
                     else -> "yandex"
                 }
                 val encryptionKey = uri.getQueryParameter("enc") ?: current.encryptionKey

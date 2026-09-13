@@ -146,8 +146,11 @@
     <string name="openflux_yandex_settings_title">Яндекс.Документы</string>
     <string name="openflux_vyandex_settings_title">Volga Яндекс.Документы</string>
     <string name="openflux_oneme_settings_title">MAX</string>
+    <string name="openflux_cupsonline_settings_title">Cups.online</string>
     <string name="openflux_url_label">URL документа</string>
     <string name="openflux_url_desc">URL документа Яндекс.Документов, общий с exit-node</string>
+    <string name="openflux_cups_url_label">Список комнат</string>
+    <string name="openflux_cups_url_desc">Base64-список комнат, который exit-node печатает при запуске (--transport cupsonline)</string>
     <string name="openflux_max_token_label">MAX-токен</string>
     <string name="openflux_max_token_desc">Токен авторизации вашего аккаунта MAX</string>
     <string name="openflux_max_uid_label">MAX ID пользователя</string>

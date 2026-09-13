@@ -58,6 +58,11 @@ class BinaryOutputState {
     // backoff up to 30s between attempts - same silent-spin risk as the classic counter above,
     // just a much slower cadence once backoff kicks in, hence the wider window/lower threshold.
     val openFluxVolgaFailureCounter = LogOccurrenceCounter(windowMs = 60_000, threshold = 6)
+    // cupsonline transport: each room's own WebSocket goroutine reconnects forever with backoff
+    // capped at 10s (vs Volga's 30s) - same silent-spin risk, tuned to the faster cadence. Rooms
+    // are joined in parallel (4 by default), so a fully dead room list fires several of these per
+    // backoff round.
+    val openFluxCupsFailureCounter = LogOccurrenceCounter(windowMs = 30_000, threshold = 6)
 }
 
 /**
