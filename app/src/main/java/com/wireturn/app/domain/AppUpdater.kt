@@ -175,8 +175,7 @@ class AppUpdater(private val context: Context) {
 
     fun installUpdate() {
         AppLogsState.addLog("Launching APK installer")
-        
-        // Проверка разрешения на установку из неизвестных источников (Android 8.0+)
+
         if (!context.packageManager.canRequestPackageInstalls()) {
             AppLogsState.addLog("Requesting unknown sources permission")
             val intent = Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
@@ -312,7 +311,7 @@ class AppUpdater(private val context: Context) {
         private var activeJob: Job? = null
 
         fun isNewer(remote: String, current: String, remoteBody: String = ""): Boolean {
-            // Вспомогательная функция для получения списка чисел из версии (напр. "1.0.2-unstable" -> [1, 0, 2])
+            // "1.0.2-unstable" -> [1, 0, 2]
             fun String.toVersionList(): List<Int> {
                 val basePart = this.split("-").first()
                 return basePart.split(".")

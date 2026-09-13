@@ -85,7 +85,6 @@ fun CreateProfileScreen(
                 .padding(top = 14.dp),
             verticalArrangement = Arrangement.spacedBy(19.dp)
         ) {
-            // Profile Name Input
             SectionItem(position = ItemPosition.Single) {
                 TextFieldRow(
                     label = stringResource(R.string.profile_name_label),
@@ -95,7 +94,6 @@ fun CreateProfileScreen(
                 )
             }
 
-            // Manual Setup Group
             SectionGroup(title = stringResource(R.string.profile_manual_setup)) {
                 SectionItem(
                     position = ItemPosition.Top,

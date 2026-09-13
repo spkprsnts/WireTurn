@@ -28,9 +28,6 @@ class CoreTileService : TileService() {
     companion object {
         const val EXTRA_REQUEST_VPN_CONSENT = "REQUEST_VPN_CONSENT"
 
-        /**
-         * Запрашивает обновление состояния плитки у системы.
-         */
         fun requestUpdate(context: Context) {
             try {
                 requestListeningState(context, ComponentName(context, CoreTileService::class.java))
@@ -127,7 +124,6 @@ class CoreTileService : TileService() {
         val prefs = AppPreferences(this)
         val autoLaunch = runBlocking { prefs.autoLaunchSettingsFlow.first() }
 
-        // Если работает прокси ИЛИ включен автозапуск — мы нажимаем, чтобы ВЫКЛЮЧИТЬ
         val turningOff = currentlyRunning || autoLaunch.enabled
         
         // Оптимистичное обновление: сразу ставим целевое состояние (если выключаем - гасим плитку мгновенно)

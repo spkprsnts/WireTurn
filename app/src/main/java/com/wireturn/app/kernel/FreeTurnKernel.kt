@@ -182,8 +182,6 @@ object FreeTurnKernel : Kernel {
             CoreServiceState.setCaptchaSession(session)
             state.captchaActive = true
             ctx.updateNotification(ctx.getString(R.string.core_captcha_required))
-
-            // Автоматически открываем окно капчи, если приложение активно
             ctx.launchCaptchaActivityIfForeground(captchaUrl)
         }
 

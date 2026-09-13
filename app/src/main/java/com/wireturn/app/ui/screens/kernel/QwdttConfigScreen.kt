@@ -317,7 +317,6 @@ fun QwdttConfigScreen(
                 .padding(bottom = 80.dp),
             verticalArrangement = Arrangement.spacedBy(19.dp)
         ) {
-            // Connection Details
             SectionGroup(title = stringResource(R.string.connection_details)) {
                 SectionItem(position = ItemPosition.Top) {
                     TextFieldRow(
@@ -372,7 +371,6 @@ fun QwdttConfigScreen(
                 }
             }
 
-            // Server Settings
             SectionGroup(title = stringResource(R.string.server_settings_title)) {
                 SectionItem(position = ItemPosition.Top) {
                     SliderRow(
@@ -405,7 +403,6 @@ fun QwdttConfigScreen(
                 }
             }
 
-            // Advanced Settings
             SectionGroup(title = stringResource(R.string.qwdtt_advanced_settings)) {
                 SectionItem(
                     position = ItemPosition.Top,

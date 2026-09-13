@@ -321,7 +321,6 @@ fun OlcRtcConfigScreen(
                 .padding(bottom = 80.dp),
             verticalArrangement = Arrangement.spacedBy(19.dp)
         ) {
-            // Connection Details
             SectionGroup(title = stringResource(R.string.connection_details)) {
                 SectionItem(
                     position = ItemPosition.Top,

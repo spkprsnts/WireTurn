@@ -46,34 +46,15 @@ class XrayService : Service() {
         super.onCreate()
         NotificationHelper.createChannel(this)
         NotificationHelper.observeStates(this, serviceScope)
-        caBundlePath = ensureCaBundle()
+        caBundlePath = CaBundleUtil.ensure(this)
     }
 
-    // See CoreService.ensureCaBundle() — same rationale: don't depend on the
-    // device's (possibly stale) system CA trust store for TLS verification.
     // Masks credentials/keys for the app's own log, which the user may end up sharing for
     // support - the actual cmdArgs passed to the process are untouched.
     private fun redactedCommandLog(cmdArgs: List<String>): String {
         val sensitiveFlags = setOf("-proxy-user", "-proxy-pass", "-local-socks5", "-link", "-wg-private-key")
         return CommandLogRedactor.redact(cmdArgs, sensitiveFlags)
     }
-
-    private fun ensureCaBundle(): String? {
-        val target = java.io.File(filesDir, "cacert.pem")
-        return try {
-            val assetBytes = assets.open("cacert.pem").use { it.readBytes() }
-            if (!target.exists() || target.length() != assetBytes.size.toLong()) {
-                target.writeBytes(assetBytes)
-            }
-            target.absolutePath
-        } catch (e: Exception) {
-            AppLogsState.addLog("CA bundle extract failed: ${e.message}")
-            null
-        }
-    }
-
-    // Removed observeLifecycle() to prevent race conditions during ProxyService restarts.
-    // ProxyService is now solely responsible for managing XrayService lifecycle.
 
     // VPN mode (HevVpnService) is supervised centrally from CoreService.startVpnSupervisor() -
     // CoreService's lifecycle spans the whole "any core running" duration, whereas XrayService is
@@ -88,8 +69,7 @@ class XrayService : Service() {
 
         userStopped.set(false)
         restartCount = 0
-        
-        // Предотвращаем запуск нескольких процессов одновременно
+
         xrayJob?.cancel()
         process.getAndSet(null)?.destroyForcibly()
         
@@ -237,9 +217,7 @@ class XrayService : Service() {
 
             if (isSocks5Native) {
                 cmdArgs.add("-local-socks5")
-                // socksAddr can be bound to 0.0.0.0 (e.g. to also serve LAN clients) - Xray connects
-                // to this as a literal destination, so it needs the loopback form, same as the
-                // -local-address branch below already does via connectableAddress.
+                // socksAddr may be bound to 0.0.0.0; Xray needs a literal destination.
                 val connectableSocksAddr = runningClientConfig.socksAddr.replace("0.0.0.0:", "127.0.0.1:")
                 // Some kernels' embedded SOCKS5 server has no auth flags upstream (see
                 // Kernel.socks5SupportsAuth) - never offer credentials it doesn't expect,

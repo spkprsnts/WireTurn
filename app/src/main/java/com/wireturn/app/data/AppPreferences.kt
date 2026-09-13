@@ -298,19 +298,19 @@ class AppPreferences(val context: Context) {
         .map { (gson.fromJson(it[ACTIVE_VLESS_JSON] ?: "{}", VlessConfig::class.java) ?: VlessConfig()) }
         .distinctUntilChanged()
 
-    private fun kernelSnapshotOf(profile: Profile): KernelSnapshot = when (val k = profile.kernelConfig) {
-        is KernelConfig.Turnable -> KernelSnapshot(variant = KernelVariant.TURNABLE.name, turnable = k.config)
-        is KernelConfig.Olcrtc -> KernelSnapshot(variant = KernelVariant.OLCRTC.name, olcrtc = k.config)
-        is KernelConfig.Webdav -> KernelSnapshot(variant = KernelVariant.WEBDAV.name, webdav = k.config)
-        is KernelConfig.FreeTurn -> KernelSnapshot(variant = KernelVariant.FREETURN.name, freeturn = k.config)
-        is KernelConfig.Qwdtt -> KernelSnapshot(variant = KernelVariant.QWDTT.name, qwdtt = k.config)
-        is KernelConfig.OpenFlux -> KernelSnapshot(variant = KernelVariant.OPENFLUX.name, openflux = k.config)
+    private fun kernelSnapshotOf(kernelConfig: KernelConfig): KernelSnapshot = when (kernelConfig) {
+        is KernelConfig.Turnable -> KernelSnapshot(variant = KernelVariant.TURNABLE.name, turnable = kernelConfig.config)
+        is KernelConfig.Olcrtc -> KernelSnapshot(variant = KernelVariant.OLCRTC.name, olcrtc = kernelConfig.config)
+        is KernelConfig.Webdav -> KernelSnapshot(variant = KernelVariant.WEBDAV.name, webdav = kernelConfig.config)
+        is KernelConfig.FreeTurn -> KernelSnapshot(variant = KernelVariant.FREETURN.name, freeturn = kernelConfig.config)
+        is KernelConfig.Qwdtt -> KernelSnapshot(variant = KernelVariant.QWDTT.name, qwdtt = kernelConfig.config)
+        is KernelConfig.OpenFlux -> KernelSnapshot(variant = KernelVariant.OPENFLUX.name, openflux = kernelConfig.config)
     }
 
     suspend fun saveFullProfile(id: String, profile: Profile) {
         appCtx.internalDataStore.edit { p ->
             p[CURRENT_PROFILE_ID] = id
-            p[ACTIVE_KERNEL_JSON] = gson.toJson(kernelSnapshotOf(profile))
+            p[ACTIVE_KERNEL_JSON] = gson.toJson(kernelSnapshotOf(profile.kernelConfig))
             p[ACTIVE_XRAY_CONFIG_TYPE] = profile.xrayProtocol.name
             p[ACTIVE_XRAY_ENABLED] = profile.xrayEnabled
             p[ACTIVE_WG_JSON] = gson.toJson(profile.wgConfig)
@@ -498,14 +498,7 @@ class AppPreferences(val context: Context) {
             it[CLIENT_DNS] = c.dns
             it[GO_DNS_GO] = c.goDnsGo
             it[USE_CUSTOM_CERTS] = c.useCustomCerts
-            it[ACTIVE_KERNEL_JSON] = gson.toJson(when (val k = c.kernelConfig) {
-                is KernelConfig.Turnable -> KernelSnapshot(variant = KernelVariant.TURNABLE.name, turnable = k.config)
-                is KernelConfig.Olcrtc -> KernelSnapshot(variant = KernelVariant.OLCRTC.name, olcrtc = k.config)
-                is KernelConfig.Webdav -> KernelSnapshot(variant = KernelVariant.WEBDAV.name, webdav = k.config)
-                is KernelConfig.FreeTurn -> KernelSnapshot(variant = KernelVariant.FREETURN.name, freeturn = k.config)
-                is KernelConfig.Qwdtt -> KernelSnapshot(variant = KernelVariant.QWDTT.name, qwdtt = k.config)
-                is KernelConfig.OpenFlux -> KernelSnapshot(variant = KernelVariant.OPENFLUX.name, openflux = k.config)
-            })
+            it[ACTIVE_KERNEL_JSON] = gson.toJson(kernelSnapshotOf(c.kernelConfig))
         }
     }
 
@@ -515,7 +508,7 @@ class AppPreferences(val context: Context) {
 
     suspend fun saveActiveProfilePart(profile: Profile) {
         appCtx.internalDataStore.edit { p ->
-            p[ACTIVE_KERNEL_JSON] = gson.toJson(kernelSnapshotOf(profile))
+            p[ACTIVE_KERNEL_JSON] = gson.toJson(kernelSnapshotOf(profile.kernelConfig))
             p[ACTIVE_XRAY_CONFIG_TYPE] = profile.xrayProtocol.name
             p[ACTIVE_XRAY_ENABLED] = profile.xrayEnabled
             p[ACTIVE_WG_JSON] = gson.toJson(profile.wgConfig)

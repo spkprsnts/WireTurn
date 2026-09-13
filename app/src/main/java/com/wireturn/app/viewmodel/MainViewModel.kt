@@ -562,7 +562,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             conn.disconnect()
                             PingResult.Success(elapsed)
                         } catch (_: Exception) {
-                            // AppLogsState.addLog("* [Ping] Error: ${e.message}")
                             null
                         }
                     }

@@ -67,9 +67,7 @@ class OpenFluxConfigActivity : ComponentActivity() {
                             if (profileId != null) {
                                 viewModel.updateProfileById(profileId) { it.copy(kernelConfig = KernelConfig.OpenFlux(config)) }
                                 if (profileId == viewModel.currentProfileId.value) {
-                                    // The edited profile is the active one: also push the change
-                                    // into the live config, otherwise CoreService keeps using the
-                                    // stale config until the profile is reselected.
+                                    // Also update the live config so CoreService doesn't keep using the stale one.
                                     viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.OpenFlux(config)))
                                 }
                             } else {

@@ -43,34 +43,23 @@ class BinaryOutputState {
     var peerConnectFailedCount = 0
     var connectingSince = 0L
 
-    // "Give up after N repeats" counters for failure patterns that keep recurring without
-    // ever surfacing a terminal error on their own.
+    // "Give up after N repeats" counters for failure patterns that keep recurring without ever
+    // surfacing a terminal error on their own (e.g. a transport that reconnects forever with its
+    // own backoff and never logs giving up). Each window must stay comfortably above that
+    // transport's own worst-case gap between failures (backoff cap + any hung-attempt timeout on
+    // top), or the counter keeps resetting to 1 before ever reaching threshold and never fires.
     val remoteNotReadyCounter = LogOccurrenceCounter(windowMs = 10_000, threshold = 7)
     val webdavConnRefusedCounter = LogOccurrenceCounter(windowMs = 5_000, threshold = 10)
     val vkCaptchaSolveFailCounter = LogOccurrenceCounter(windowMs = Long.MAX_VALUE, threshold = 5)
-    // OpenFlux's Yandex.Docs transport retries its doc/websocket session internally forever
-    // (MaxReconnectAttempts = 999999) and never logs giving up - left unchecked, a permanently
-    // broken doc link would spin invisibly behind an already-"Connected" status forever.
-    // reconnectBackoff() (transport/yandex/yandex.go) is exponential from 500ms, capped at 15s,
-    // plus up to +50% jitter - up to 22.5s between attempts once it saturates - and fetchDocInfo
-    // itself carries its own 15s HTTP timeout on top of that if the attempt hangs rather than
-    // failing fast, so two consecutive failures can be up to ~37.5s apart. The window here MUST
-    // stay comfortably above that worst case or the counter keeps resetting to 1 before ever
-    // reaching threshold and this "give up" path never fires at all - confirmed live: a windowMs
-    // of 5_000 (this counter's value before this comment) never once tripped on a deliberately
-    // invalid doc URL, no matter how long it was left running.
+    // Yandex.Docs (transport/yandex/yandex.go): backoff to 15s +50% jitter, plus a 15s fetch
+    // timeout on top -> worst case ~37.5s between failures.
     val openFluxYandexFailureCounter = LogOccurrenceCounter(windowMs = 90_000, threshold = 8)
     val openFluxMaxFailureCounter = LogOccurrenceCounter(windowMs = 5_000, threshold = 8)
-    // vyandex ("Volga" transport)'s own WS listener also reconnects forever, with exponential
-    // backoff up to 30s (transport/yandex/vyandex.go) plus its own 30s auth HTTP timeout on top
-    // if an attempt hangs - worst case ~60s between failures, same margin reasoning as the
-    // classic-Yandex counter above (a window sized exactly at the worst case, as this one used to
-    // be, leaves zero room for jitter/scheduling overhead pushing a gap slightly past it).
+    // Volga/vyandex (transport/yandex/vyandex.go): backoff to 30s, plus a 30s auth timeout on top
+    // -> worst case ~60s between failures.
     val openFluxVolgaFailureCounter = LogOccurrenceCounter(windowMs = 90_000, threshold = 6)
-    // cupsonline transport: each room's own WebSocket goroutine reconnects forever with backoff
-    // capped at 10s (transport/cupsonline/cupsonline.go), plus up to 15s WS handshake timeout per
-    // attempt if it hangs - worst case ~25s between failures. Rooms are joined in parallel (4 by
-    // default), so a fully dead room list fires several of these per backoff round.
+    // cupsonline (transport/cupsonline/cupsonline.go): per-room backoff to 10s, plus a 15s
+    // handshake timeout on top -> worst case ~25s; rooms retry in parallel (4 by default).
     val openFluxCupsFailureCounter = LogOccurrenceCounter(windowMs = 45_000, threshold = 6)
 }
 

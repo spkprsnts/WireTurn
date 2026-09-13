@@ -373,7 +373,6 @@ fun TurnableConfigScreen(
                     }
                 }
             }
-            // connection details
             SectionGroup(title = stringResource(R.string.connection_details)) {
                 SectionItem(position = ItemPosition.Top) {
                     LabeledButtonGroup(
@@ -497,7 +496,6 @@ fun TurnableConfigScreen(
                 }
             }
 
-            // server settings
             SectionGroup(title = stringResource(R.string.server_settings_title)) {
                 SectionItem(position = ItemPosition.Top) {
                     SliderRow(
@@ -571,7 +569,6 @@ fun TurnableConfigScreen(
             route = routeToEdit,
             onSave = { newRoute ->
                 if (routeToEdit != null) {
-                    // Update
                     val newRoutes = config.routes.map {
                         if (it.routeId == routeToEdit.routeId) newRoute else it
                     }
@@ -580,7 +577,6 @@ fun TurnableConfigScreen(
                         selectedRouteId = if (config.selectedRouteId == routeToEdit.routeId) newRoute.routeId else config.selectedRouteId
                     )
                 } else {
-                    // Add
                     config = config.copy(
                         routes = config.routes + newRoute,
                         selectedRouteId = if (config.routes.isEmpty()) newRoute.routeId else config.selectedRouteId

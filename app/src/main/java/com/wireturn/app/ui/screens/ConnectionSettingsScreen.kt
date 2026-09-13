@@ -222,7 +222,6 @@ fun ConnectionSettingsScreen(
                 .padding(bottom = 80.dp),
             verticalArrangement = Arrangement.spacedBy(19.dp)
         ) {
-            // General
             SectionGroup(title = stringResource(R.string.network_settings_title)) {
                 SectionItem(
                     position = ItemPosition.Top,

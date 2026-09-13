@@ -21,6 +21,8 @@ import com.wireturn.app.kernel.KernelCommandContext
 import com.wireturn.app.kernel.KernelLogContext
 import com.wireturn.app.kernel.KernelRegistry
 import com.wireturn.app.kernel.NetworkQuality
+import com.wireturn.app.kernel.canUpdateConnectingStatus
+import com.wireturn.app.kernel.markConnecting
 import com.wireturn.app.viewmodel.AppLifecycleState
 import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.viewmodel.XrayState
@@ -117,26 +119,7 @@ class CoreService : Service() {
         observeErrorForNotification()
         startXraySupervisor()
         startVpnSupervisor()
-        caBundlePath = ensureCaBundle()
-    }
-
-    /**
-     * Go binaries on Android only trust /system/etc/security/cacerts, which on old/unpatched
-     * devices (no OTA updates, no GMS) may be missing CAs that sites rotated in since. Bundling
-     * our own up-to-date root store and pointing SSL_CERT_FILE at it sidesteps that entirely.
-     */
-    private fun ensureCaBundle(): String? {
-        val target = java.io.File(filesDir, "cacert.pem")
-        return try {
-            val assetBytes = assets.open("cacert.pem").use { it.readBytes() }
-            if (!target.exists() || target.length() != assetBytes.size.toLong()) {
-                target.writeBytes(assetBytes)
-            }
-            target.absolutePath
-        } catch (e: Exception) {
-            AppLogsState.addLog("CA bundle extract failed: ${e.message}")
-            null
-        }
+        caBundlePath = CaBundleUtil.ensure(this)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -267,7 +250,6 @@ class CoreService : Service() {
     private suspend fun mainSupervisor() = coroutineScope {
         val prefs = AppPreferences(applicationContext)
 
-        // Реактивное управление состоянием паузы (Suppressed)
         launch {
             combine(
                 XrayServiceState.state,
@@ -332,8 +314,6 @@ class CoreService : Service() {
                     if (!newCfg.isValid) {
                         val errorRes = newCfg.getValidationErrorResId() ?: R.string.error_settings_empty
                         CoreServiceState.setStatus(CoreStatus.Error(getString(errorRes)))
-                        
-                        // Stop current binary as we are moving to an invalid state
                         stopBinaryProcessGracefully()
 
                         delay(3_000.milliseconds)
@@ -373,7 +353,6 @@ class CoreService : Service() {
 
         while (isActive && !userStopped.get()) {
             if (CoreServiceState.status.value is CoreStatus.Suppressed) {
-                // Если мы в режиме паузы, просто ждем сигнала к пробуждению
                 delay(1_000.milliseconds)
                 continue
             }
@@ -385,7 +364,6 @@ class CoreService : Service() {
             }
 
             if (CoreServiceState.status.value is CoreStatus.CaptchaRequired) {
-                // Ждем решения капчи, не перезапуская бинарник
                 delay(1_000.milliseconds)
                 continue
             }
@@ -407,12 +385,10 @@ class CoreService : Service() {
                 continue
             }
 
-            // В ЛЮБОМ СЛУЧАЕ проверяем сеть, если процесс упал не по воле пользователя
             if (isNetworkMissingAndHandled()) {
                 continue
             }
 
-            // Check for rapid failure
             val currentStatus = CoreServiceState.status.value
             if (!startupSuccessful || currentStatus is CoreStatus.Error) {
                 if (currentStatus !is CoreStatus.Error) {
@@ -427,7 +403,6 @@ class CoreService : Service() {
                 break
             }
 
-            // Logic for restarts
             if (duration > 300_000) {
                 restartCount = 0
             }
@@ -512,11 +487,8 @@ class CoreService : Service() {
 
             if (cfg.kernelVariant == KernelVariant.OLCRTC) {
                 state.startupEmitted = true
-                if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
-                    CoreServiceState.setStatus(CoreStatus.Connecting)
-                    // null, not the literal text - lets a watchdog restart's "Restarting (N/M)"
-                    // show through instead of being clobbered by a redundant "Connecting".
-                    CoreServiceState.setStatusText(null)
+                if (canUpdateConnectingStatus()) {
+                    markConnecting()
                 }
             }
 

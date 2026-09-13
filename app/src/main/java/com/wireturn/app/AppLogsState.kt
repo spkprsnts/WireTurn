@@ -5,9 +5,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-/**
- * Глобальное состояние логов приложения (прокси, Xray, VPN и др.)
- */
 object AppLogsState {
     
     data class LogEntry(val id: Long, val message: String)

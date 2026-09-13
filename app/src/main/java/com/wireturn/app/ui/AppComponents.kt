@@ -289,7 +289,6 @@ fun Modifier.privacySpoiler(
 
     return this.drawWithContent {
         if (enabled) {
-            // Background mask
             drawRect(color = containerColor)
             
             // Стабильный seed на основе размера, чтобы не было мерцания при микро-изменениях size

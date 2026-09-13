@@ -94,7 +94,6 @@ fun OnboardingScreen(
         modifier = modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.surface
     ) {
-        // Subtle background decoration for depth
         Box(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
@@ -120,12 +119,10 @@ fun OnboardingScreen(
         ) {
             Spacer(Modifier.weight(1f))
 
-            // Hero section with animated illustration
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier.size(240.dp)
             ) {
-                // Pulse background ring
                 Surface(
                     modifier = Modifier
                         .size(180.dp)
@@ -134,7 +131,6 @@ fun OnboardingScreen(
                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
                 ) {}
 
-                // Main icon container
                 Surface(
                     modifier = Modifier.size(128.dp),
                     shape = CircleShape,
@@ -154,7 +150,6 @@ fun OnboardingScreen(
 
             Spacer(Modifier.height(48.dp))
 
-            // Text content with M3 typography hierarchy
             Text(
                 text = stringResource(R.string.onboarding_title),
                 style = MaterialTheme.typography.headlineLarge,
@@ -175,7 +170,6 @@ fun OnboardingScreen(
 
             Spacer(Modifier.weight(1.2f))
 
-            // Primary action button
             Button(
                 onClick = {
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)

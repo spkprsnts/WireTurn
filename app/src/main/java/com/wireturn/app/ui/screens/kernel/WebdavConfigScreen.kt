@@ -324,7 +324,6 @@ fun WebdavConfigScreen(
                 .padding(bottom = 80.dp),
             verticalArrangement = Arrangement.spacedBy(19.dp)
         ) {
-            // Connection Details
             SectionGroup(title = stringResource(R.string.connection_details)) {
                 SectionItem(position = ItemPosition.Top) {
                     TextFieldRow(
@@ -458,7 +457,6 @@ fun WebdavConfigScreen(
                 }
             }
 
-            // Advanced Settings
             SectionGroup(title = stringResource(R.string.webdav_advanced_settings)) {
                 SectionItem(position = ItemPosition.Top) {
                     TextFieldRow(
