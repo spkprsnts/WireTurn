@@ -380,10 +380,12 @@ fun OpenFluxConfigScreen(
                         SectionItem(position = ItemPosition.Single) {
                             TextFieldRow(
                                 label = stringResource(R.string.openflux_url_label),
-                                value = config.url,
-                                onValueChange = { config = config.copy(url = it) },
+                                value = config.url.redact(isPrivacyActive),
+                                onValueChange = { if (!isPrivacyActive) config = config.copy(url = it) },
+                                readOnly = isPrivacyActive,
                                 isError = config.transport != "oneme" && config.url.isBlank(),
                                 isModified = isEditMode && config.url != initialConfig.url,
+                                privacyMode = isPrivacyActive,
                                 supportingText = stringResource(R.string.openflux_url_desc)
                             )
                         }
