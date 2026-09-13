@@ -4,7 +4,7 @@
 
 # WireTurn — Android WebRTC & WebDAV Tunnel
 
-Android-клиент для [Turnable](https://github.com/TheAirBlow/Turnable), [olcRTC](https://github.com/openlibrecommunity/olcrtc), [WebDAV](https://github.com/spkprsnts/webdav-tunnel), [FreeTurn](https://github.com/samosvalishe/free-turn-proxy), [qWDTT](https://github.com/SpaceNeuroX/proxy-turn-vk-android) и [OpenFlux](https://github.com/p1neappleXpress/OpenFlux) — туннелирование трафика через WebRTC, WebDAV и сторонние сервисы (Яндекс.Документы, MAX).
+Android-клиент для [Turnable](https://github.com/TheAirBlow/Turnable), [olcRTC](https://github.com/openlibrecommunity/olcrtc), [WebDAV](https://github.com/spkprsnts/webdav-tunnel), [FreeTurn](https://github.com/samosvalishe/free-turn-proxy), [qWDTT](https://github.com/SpaceNeuroX/proxy-turn-vk-android) и [OpenFlux](https://github.com/p1neappleXpress/OpenFlux) — туннелирование трафика через WebRTC и WebDAV.
 
 > **Disclaimer:** Проект предназначен исключительно для образовательных и исследовательских целей.
 
@@ -56,14 +56,13 @@ WireTurn упаковывает трафик в стандартные прот�
   <img src="docs/screenshots/screenshot_4.png" width="130" alt="Screenshot 4" />
   <img src="docs/screenshots/screenshot_5.png" width="130" alt="Screenshot 5" />
   <img src="docs/screenshots/screenshot_6.png" width="130" alt="Screenshot 6" />
-  <img src="docs/screenshots/screenshot_7.png" width="130" alt="Screenshot 7" />
 </p>
 
 ## Быстрый старт
 
 ### Требования
-- Android 8.0+ (API 26), архитектуры `arm64-v8a`/`x86_64`.
-- VPS для серверной части (Turnable, olcRTC, WebDAV, FreeTurn или qWDTT) — не требуется для OpenFlux, у него нет отдельного сервера.
+- Android 8.0+ (API 26), архитектуры `arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86`.
+- VPS для серверной части (Turnable, olcRTC, WebDAV, FreeTurn, qWDTT или OpenFlux).
 
 ### Настройка
 - **[WT Panel](https://github.com/spkprsnts/wt-panel)** — панель для создания и управления серверами

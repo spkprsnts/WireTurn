@@ -259,26 +259,28 @@ qwdtt://config?peer=1.2.3.4:56000&hashes=abc123def&pass=Sup3rSecret&workers=9&na
 ### 2.6 `openflux://`
 
 ```
-openflux://config?transport=[yandex|oneme]&url=[doc_url]&token=[max_token]&uid=[max_uid]&name=[name]
+openflux://config?transport=[yandex|vyandex|oneme]&url=[doc_url]&token=[max_token]&uid=[max_uid]&enc=[shared_secret]&name=[name]
 ```
 
-В отличие от остальных схем этого раздела, у OpenFlux (`libopenflux.so`, апстрим [`p1neappleXpress/OpenFlux`](https://github.com/p1neappleXpress/OpenFlux)) нет собственного share-link формата — апстрим экспонирует только CLI-флаги бинарника (`--transport`, `--url`, `--maxToken`, `--maxUid`), без каких-либо ссылок/диплинков. Эта схема — целиком изобретение WireTurn, один в один зеркалирующее те же флаги под query-параметры (по аналогии со схемой qWDTT).
+В отличие от остальных схем этого раздела, у OpenFlux (`libopenflux.so`, апстрим [`p1neappleXpress/OpenFlux`](https://github.com/p1neappleXpress/OpenFlux)) нет собственного share-link формата — апстрим экспонирует только CLI-флаги бинарника (`--transport`, `--url`, `--maxToken`, `--maxUid`, `--encryption-key-file`), без каких-либо ссылок/диплинков. Эта схема — целиком изобретение WireTurn, один в один зеркалирующее те же флаги под query-параметры (по аналогии со схемой qWDTT).
 
 | Параметр | Описание |
 | :--- | :--- |
-| `transport` | `yandex` (по умолчанию) — канал через курсор совместного редактирования в Yandex.Docs, или `oneme` — WebRTC DataChannel внутри звонка MAX. |
-| `url` | Ссылка на документ Yandex.Docs. **Обязателен**, если `transport=yandex`; для `oneme` не используется. |
-| `token` | Auth-токен аккаунта MAX, с которого совершается вызов. **Обязателен**, если `transport=oneme`; для `yandex` не используется. |
-| `uid` | User id вызываемого (exit-node) аккаунта MAX. **Обязателен**, если `transport=oneme`; для `yandex` не используется. |
+| `transport` | `yandex` (по умолчанию) и `vyandex` — оба канал через Yandex.Docs (первый — курсор совместного редактирования, второй — переписанный апстримом "Volga"-бэкенд, маскирующийся под операции редактирования), или `oneme` — WebRTC DataChannel внутри звонка MAX. |
+| `url` | Ссылка на документ Yandex.Docs. **Обязателен**, если `transport=yandex` или `vyandex`; для `oneme` не используется. |
+| `token` | Auth-токен аккаунта MAX, с которого совершается вызов. **Обязателен**, если `transport=oneme`; для `yandex`/`vyandex` не используется. |
+| `uid` | User id вызываемого (exit-node) аккаунта MAX. **Обязателен**, если `transport=oneme`; для `yandex`/`vyandex` не используется. |
+| `enc` | Необязательно: общий секрет (от 16 символов) для дополнительного AES-256-GCM шифрования поверх транспорта — на обоих концах должен быть одинаковый. Работает с любым `transport`. |
 | `name` | Необязательно: имя профиля (используется только при разборе текстовых подписок, см. §5.5). |
 
 Примеры:
 ```
 openflux://config?transport=yandex&url=https%3A%2F%2Fexample.com%2Fdoc%2F...&name=Yandex-1
+openflux://config?transport=vyandex&url=https%3A%2F%2Fexample.com%2Fdoc%2F...&enc=shared-secret-16plus&name=Volga-1
 openflux://config?transport=oneme&token=abc123&uid=123456789&name=MAX-1
 ```
 
-Профиль валиден, если для `transport=yandex` заполнен `url`, а для `transport=oneme` — оба `token` и `uid`.
+Профиль валиден, если для `transport=yandex`/`vyandex` заполнен `url`, а для `transport=oneme` — оба `token` и `uid`.
 
 **Серверная часть подключается через сам сервис.** OpenFlux (`--exit-node`, апстрим-флаг; WireTurn его сам не запускает) по-прежнему нужен на другой стороне — но клиент и сервер рандеву через документ Yandex.Docs или звонок MAX, а не по прямому сетевому адресу.
 
