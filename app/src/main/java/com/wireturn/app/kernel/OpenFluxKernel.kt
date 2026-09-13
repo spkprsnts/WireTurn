@@ -148,6 +148,17 @@ object OpenFluxKernel : Kernel {
                 lower.contains("[ydocs] read error")
             )
         ) {
+            // Check real device connectivity before burning through the failure counter above -
+            // if the phone has no network at all, this is not "the doc link is dead", it's just
+            // offline, and isNetworkMissingAndHandled() already flips CoreStatus to
+            // WaitingForNetwork itself (see TurnableKernel for the same pattern). Otherwise the
+            // outer CoreService watchdog loop would eventually reach the same conclusion on its
+            // own (it re-checks network state once this process exits either way), but only after
+            // the full ~90s threshold window above has already elapsed for nothing.
+            if (ctx.isNetworkMissingAndHandled()) {
+                state.startupFailed = true
+                return true
+            }
             if (state.openFluxYandexFailureCounter.recordAndCheckThreshold()) {
                 CoreServiceState.setStatus(CoreStatus.Error(line))
                 ctx.updateNotification(ctx.getString(R.string.error_connecting))
@@ -168,6 +179,10 @@ object OpenFluxKernel : Kernel {
                 lower.contains("[volga] batch send failed")
             )
         ) {
+            if (ctx.isNetworkMissingAndHandled()) {
+                state.startupFailed = true
+                return true
+            }
             if (state.openFluxVolgaFailureCounter.recordAndCheckThreshold()) {
                 CoreServiceState.setStatus(CoreStatus.Error(line))
                 ctx.updateNotification(ctx.getString(R.string.error_connecting))
@@ -204,6 +219,10 @@ object OpenFluxKernel : Kernel {
                 lower.contains("] ice error")
             ) {
                 // Transient - max_call.go retries these on its own (e.g. "Reconnecting in 1s...").
+                if (ctx.isNetworkMissingAndHandled()) {
+                    state.startupFailed = true
+                    return true
+                }
                 if (state.openFluxMaxFailureCounter.recordAndCheckThreshold()) {
                     CoreServiceState.setStatus(CoreStatus.Error(line))
                     ctx.updateNotification(ctx.getString(R.string.error_connecting))
@@ -246,6 +265,10 @@ object OpenFluxKernel : Kernel {
                 }
                 state.startupEmitted = true
             } else if (lower.contains("[cups] ws error")) {
+                if (ctx.isNetworkMissingAndHandled()) {
+                    state.startupFailed = true
+                    return true
+                }
                 if (state.openFluxCupsFailureCounter.recordAndCheckThreshold()) {
                     CoreServiceState.setStatus(CoreStatus.Error(line))
                     ctx.updateNotification(ctx.getString(R.string.error_connecting))
