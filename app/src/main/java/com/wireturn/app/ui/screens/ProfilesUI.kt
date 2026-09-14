@@ -37,7 +37,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -53,6 +52,7 @@ import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.ModalBottomSheet
@@ -63,6 +63,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -96,10 +97,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -115,6 +118,7 @@ import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.trackGestureStartedAtBoundary
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
+import com.wireturn.app.ui.LabelGroupDefaults
 import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.StandardLeadingIcon
@@ -222,7 +226,7 @@ fun ProfileSummary(
             if (useAnimation) {
                 VerticalAnimatedText(
                     text = text,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp),
                     color = color,
                     maxLines = 1,
                     softWrap = false,
@@ -306,113 +310,111 @@ fun ProfilesBlock(
     val context = LocalContext.current
     val profileCountries by viewModel.profileCountries.collectAsStateWithLifecycle()
 
-    Box(modifier = modifier) {
-        SectionItem(
-            position = ItemPosition.Single,
-            onClick = onClick
-        ) {
-            if (currentProfile != null) {
+    SectionItem(
+        position = ItemPosition.Single,
+        onClick = onClick,
+        modifier = modifier
+    ) {
+        if (currentProfile != null) {
+            Column(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    LargeLeadingIcon {
-                        Icon(
-                            painter = painterResource(getProfileIcon(currentProfile, outlined = false)),
-                            contentDescription = null,
-                            modifier = Modifier.size(32.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        VerticalAnimatedText(
-                            text = currentProfile.name,
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            softWrap = false,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .basicMarquee()
-                        )
-                        // Only the first summary fragment (kernel description) stays here as
-                        // text - the rest (protocol, dual-route, chain, ...) show as chips
-                        // overlapping the card's top-right corner instead, see below.
-                        ProfileSummary(
-                            profile = currentProfile,
-                            modifier = Modifier.fillMaxWidth(),
-                            useAnimation = true,
-                            countryCode = profileCountries[currentProfile.id],
-                            maxParts = 1
-                        )
-                    }
-                    // Same indicator SwitchRow's isSplit uses for "tap this row to open a list" -
-                    // hints that the row itself (not just the edit button) opens the profile list.
-                    TappableRowIndicator()
-                    FilledTonalIconButton(onClick = {
-                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                        val intent = Intent(context, configActivityClassFor(currentProfile.kernelVariant))
-                        intent.putExtra("EXTRA_EDIT_MODE", true)
-                        intent.putExtra("EXTRA_PROFILE_NAME", currentProfile.name)
-                        context.startActivity(intent)
-                    }) {
-                        Icon(
-                            painter = painterResource(R.drawable.edit_square_24px),
-                            contentDescription = null
-                        )
-                    }
-                }
-            } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    LargeLeadingIcon {
-                        Icon(
-                            painter = painterResource(R.drawable.mobile_outlined_24px),
-                            contentDescription = null,
-                            modifier = Modifier.size(32.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.profile_none_selected),
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
+                        LargeLeadingIcon {
+                            Icon(
+                                painter = painterResource(getProfileIcon(currentProfile, outlined = false)),
+                                contentDescription = null,
+                                modifier = Modifier.size(32.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            VerticalAnimatedText(
+                                text = currentProfile.name,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                softWrap = false,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .basicMarquee()
+                            )
+                            Spacer(Modifier.height(LabelGroupDefaults.SupportingGap))
+                            // Only the first summary fragment (kernel description) stays here as
+                            // text - the rest (protocol, dual-route, chain, ...) show as a chip
+                            // row on their own third line below, see kernelTags below.
+                            ProfileSummary(
+                                profile = currentProfile,
+                                modifier = Modifier.fillMaxWidth(),
+                                useAnimation = true,
+                                countryCode = profileCountries[currentProfile.id],
+                                maxParts = 1
+                            )
+                        }
+                        // Same indicator SwitchRow's isSplit uses for "tap this row to open a
+                        // list" - hints that the row itself (not just the edit button) opens it.
+                        TappableRowIndicator()
                         FilledTonalIconButton(onClick = {
                             HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                            context.startActivity(
-                                Intent(
-                                    context,
-                                    com.wireturn.app.ui.activities.AddProfileActivity::class.java
-                                )
-                            )
+                            val intent = Intent(context, configActivityClassFor(currentProfile.kernelVariant))
+                            intent.putExtra("EXTRA_EDIT_MODE", true)
+                            intent.putExtra("EXTRA_PROFILE_NAME", currentProfile.name)
+                            context.startActivity(intent)
                         }) {
                             Icon(
-                                painter = painterResource(R.drawable.add_24px),
-                                contentDescription = stringResource(R.string.profile_create)
+                                painter = painterResource(R.drawable.edit_square_24px),
+                                contentDescription = null
                             )
                         }
                     }
                 }
+                val kernelTags = profileSummaryParts(currentProfile).kernelTags
+                if (kernelTags.isNotEmpty()) {
+                    Spacer(Modifier.height(4.dp))
+                    ProfileTagChipRow(tags = kernelTags, modifier = Modifier.padding(start = 52.dp))
+                }
             }
-        }
-
-        // Kernel-related tags only, overlapping the card's top edge like a badge cluster - Xray
-        // setting tags (protocol, dual-route, chain) show on the Xray row instead, see HomeScreen.
-        if (currentProfile != null) {
-            ProfileTagChipRow(
-                tags = profileSummaryParts(currentProfile).kernelTags,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .offset(x = (-12).dp, y = (-8).dp)
-            )
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                LargeLeadingIcon {
+                    Icon(
+                        painter = painterResource(R.drawable.mobile_outlined_24px),
+                        contentDescription = null,
+                        modifier = Modifier.size(32.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.profile_none_selected),
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilledTonalIconButton(onClick = {
+                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                        context.startActivity(
+                            Intent(
+                                context,
+                                com.wireturn.app.ui.activities.AddProfileActivity::class.java
+                            )
+                        )
+                    }) {
+                        Icon(
+                            painter = painterResource(R.drawable.add_24px),
+                            contentDescription = stringResource(R.string.profile_create)
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -453,76 +455,73 @@ fun ProfileListItem(
             .fillMaxWidth()
             .heightIn(min = 74.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            if (leadingContent != null) {
-                StandardLeadingIcon(content = leadingContent)
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = profile.name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-                    color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    modifier = Modifier.basicMarquee()
-                )
-                // Same spot the old bullet-joined summary text used to occupy. Flag + kernel
-                // description stay put (matches the profile name above never scrolling either);
-                // only the extra tags after them marquee within the remaining width if they don't
-                // fit, instead of dragging the description along with them.
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (countryCode != null) {
-                        FlagImage(
-                            countryCode = countryCode,
-                            modifier = Modifier
-                                .padding(end = 4.dp)
-                                .size(width = 12.dp, height = 9.dp)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (leadingContent != null) {
+                    LargeLeadingIcon(content = leadingContent)
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = profile.name,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        modifier = Modifier.basicMarquee()
+                    )
+                    Spacer(Modifier.height(LabelGroupDefaults.SupportingGap))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (countryCode != null) {
+                            FlagImage(
+                                countryCode = countryCode,
+                                modifier = Modifier
+                                    .padding(end = 5.dp)
+                                    .size(width = 14.dp, height = 10.5.dp)
+                            )
+                        }
+                        Text(
+                            text = summary.primary,
+                            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp),
+                            color = summaryColor,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
-                    Text(
-                        text = summary.primary,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = summaryColor,
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .padding(vertical = 3.dp)
-                    )
-                    if (summary.extraTags.isNotEmpty()) {
-                        Spacer(Modifier.width(4.dp))
-                        Row(
-                            modifier = Modifier
-                                .weight(1f, fill = false)
-                                .basicMarquee(
-                                    iterations = Int.MAX_VALUE,
-                                    spacing = MarqueeSpacing.fractionOfContainer(1f / 6f)
-                                ),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            summary.extraTags.forEach { label ->
-                                ProfileTagChip(
-                                    text = label,
-                                    containerColor = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer
-                                    else MaterialTheme.colorScheme.secondaryContainer,
-                                    contentColor = if (isSelected) MaterialTheme.colorScheme.secondaryContainer
-                                    else MaterialTheme.colorScheme.onSecondaryContainer
-                                )
-                            }
-                        }
-                    }
+                }
+                if (trailingContent != null) {
+                    Spacer(Modifier.width(12.dp))
+                    trailingContent()
                 }
             }
-            if (trailingContent != null) {
-                Spacer(Modifier.width(12.dp))
-                trailingContent()
+            if (summary.extraTags.isNotEmpty()) {
+                Spacer(Modifier.height(LabelGroupDefaults.SupportingGap))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = if (leadingContent != null) 52.dp else 0.dp)
+                        .basicMarquee(
+                            iterations = Int.MAX_VALUE,
+                            spacing = MarqueeSpacing.fractionOfContainer(1f / 6f)
+                        ),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    summary.extraTags.forEach { label ->
+                        ProfileTagChip(
+                            text = label,
+                            containerColor = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer
+                            else MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = if (isSelected) MaterialTheme.colorScheme.secondaryContainer
+                            else MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                }
             }
         }
     }
@@ -1670,6 +1669,7 @@ private fun ProfileItemRow(
             Icon(
                 painter = painterResource(getProfileIcon(profile, outlined = !isSelected)),
                 contentDescription = null,
+                modifier = Modifier.size(32.dp),
                 tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
             )
         },
@@ -1882,7 +1882,8 @@ private fun SubscriptionHeaderRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = sub.name,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
                     color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     modifier = Modifier.basicMarquee()
@@ -1949,10 +1950,12 @@ private fun SubscriptionDescriptionText(
 ) {
     var naturalHeightPx by remember(text) { mutableFloatStateOf(0f) }
     var twoLineHeightPx by remember(text) { mutableFloatStateOf(0f) }
+    // Same size/weight as the kernel description in ProfileListItem/ProfilesBlock.
+    val style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp)
 
     Text(
         text = text,
-        style = MaterialTheme.typography.bodySmall,
+        style = style,
         color = Color.Transparent,
         maxLines = Int.MAX_VALUE,
         onTextLayout = { result ->
@@ -1975,15 +1978,15 @@ private fun SubscriptionDescriptionText(
         // is always non-blank here (see call site), so naturalHeightPx settles above 0f once
         // measured and this branch only ever applies on that first, pre-measurement frame.
         naturalHeightPx <= 0f -> {
-            Text(text = text, style = MaterialTheme.typography.bodySmall, color = color)
+            Text(text = text, style = style, color = color)
         }
         stuckProgress <= 0f -> {
-            Text(text = text, style = MaterialTheme.typography.bodySmall, color = color)
+            Text(text = text, style = style, color = color)
         }
         stuckProgress >= 1f -> {
             Text(
                 text = text,
-                style = MaterialTheme.typography.bodySmall,
+                style = style,
                 color = color,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
@@ -1998,7 +2001,7 @@ private fun SubscriptionDescriptionText(
                     .height(with(androidx.compose.ui.platform.LocalDensity.current) { heightPx.toDp() })
                     .clipToBounds()
             ) {
-                Text(text = text, style = MaterialTheme.typography.bodySmall, color = color, maxLines = Int.MAX_VALUE)
+                Text(text = text, style = style, color = color, maxLines = Int.MAX_VALUE)
             }
         }
     }

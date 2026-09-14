@@ -499,6 +499,15 @@ fun SupportingText(
 }
 
 /**
+ * Shared with call sites that build their own label+supporting-text layout instead of using
+ * [LabelGroup] directly (e.g. composite supporting content, inverted label/indicator placement),
+ * so the gap between the two lines stays consistent across the app either way.
+ */
+object LabelGroupDefaults {
+    val SupportingGap = 2.5.dp
+}
+
+/**
  * A combined component for a label and its supporting text.
  */
 @Composable
@@ -525,7 +534,7 @@ fun LabelGroup(
             prefix = labelPrefix
         )
         if (!supportingText.isNullOrBlank()) {
-            Spacer(Modifier.height(3.dp))
+            Spacer(Modifier.height(LabelGroupDefaults.SupportingGap))
             SupportingText(
                 text = supportingText,
                 style = supportingStyle,

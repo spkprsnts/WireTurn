@@ -114,6 +114,7 @@ import com.wireturn.app.ui.CompactItem
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LabelGroup
+import com.wireturn.app.ui.LabelGroupDefaults
 import com.wireturn.app.ui.ModifiedIndicator
 import com.wireturn.app.ui.RowLabel
 import com.wireturn.app.ui.SectionGroup
@@ -1099,16 +1100,16 @@ fun HomeScreen(
             val profilesExist = profiles.isNotEmpty()
             val currentProfile = profiles.find { it.id == currentProfileId } ?: profiles.firstOrNull()
             SectionGroup {
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    SectionItem(
-                        position = ItemPosition.Top,
-                        onClick = {
-                            if (profilesExist) {
-                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                onNavigateToXrayConfig()
-                            }
+                SectionItem(
+                    position = ItemPosition.Top,
+                    onClick = {
+                        if (profilesExist) {
+                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                            onNavigateToXrayConfig()
                         }
-                    ) {
+                    }
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         LaunchedEffect(
                             configValid,
                             xrayConfig.enabled,
@@ -1167,17 +1168,21 @@ fun HomeScreen(
                             },
                             enabled = configValid && profilesExist
                         )
-                    }
 
-                    // Xray-setting tags (protocol, dual-route, chain) - kernel tags stay on the
-                    // profile block instead, see ProfilesBlock's own corner chip row.
-                    if (currentProfile != null) {
-                        ProfileTagChipRow(
-                            tags = profileSummaryParts(currentProfile).xrayTags,
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .offset(x = (-12).dp, y = (-8).dp)
-                        )
+                        // Xray-setting tags (protocol, dual-route, chain) as a third line under
+                        // the status text, lined up under the label (52dp = large leading icon's
+                        // 40dp box + 12dp trailing padding) - kernel tags stay on the profile
+                        // block instead, see ProfilesBlock.
+                        if (currentProfile != null) {
+                            val xrayTags = profileSummaryParts(currentProfile).xrayTags
+                            if (xrayTags.isNotEmpty()) {
+                                Spacer(Modifier.height(4.dp))
+                                ProfileTagChipRow(
+                                    tags = xrayTags,
+                                    modifier = Modifier.padding(start = 52.dp)
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -1586,7 +1591,7 @@ private fun ProxyAddressRow(
                 else MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.privacySpoiler(privacyMode)
             )
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(LabelGroupDefaults.SupportingGap))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     label,
