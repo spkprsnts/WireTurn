@@ -278,14 +278,15 @@
     <string name="client_socks_help_text">olcRTC, WebDAV, qWDTT и OpenFlux не используют VPN-протокол — они сразу поднимают по этому адресу локальный SOCKS5-прокси.</string>
     <string name="client_socks_help_secondary">Xray использует этот адрес как вышестоящий прокси в режиме Dual-route. Для маршрутизации всего трафика устройства через VPN Xray не обязателен — VPN может подключаться к этому SOCKS5 напрямую. К тому же адресу можно подключить и любое другое приложение с поддержкой SOCKS5.</string>
 
-    <!-- Экран логов (Logs) -->
-    <string name="logs_title">Логи</string>
+    <!-- Общие действия (General Actions) -->
     <string name="copy">Копировать</string>
     <string name="share">Поделиться</string>
-    <string name="share_profile">Поделиться</string>
-    <string name="show_qr_code">Показать QR-код</string>
+    <string name="save">Сохранить</string>
     <string name="clear">Очистить</string>
     <string name="more_options">Ещё</string>
+
+    <!-- Экран логов (Logs) -->
+    <string name="logs_title">Логи</string>
     <string name="no_logs">Нет логов</string>
     <string name="new_logs">Новые логи</string>
 
@@ -556,6 +557,8 @@
     <string name="profiles_title">Профили</string>
     <string name="profile_actions">Действия с профилем</string>
     <string name="notification_btn_change_profile">Профиль</string>
+    <string name="share_profile">Поделиться</string>
+    <string name="show_qr_code">Показать QR-код</string>
     <string name="profile_create">Создать профиль</string>
     <string name="profile_create_hint">Настройте параметры подключения вручную</string>
     <string name="profile_create_title">Создать</string>

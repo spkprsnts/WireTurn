@@ -7,6 +7,8 @@ package com.wireturn.app.ui.screens
 
 import android.content.ClipData
 import androidx.compose.animation.AnimatedVisibility
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -67,6 +69,11 @@ import com.wireturn.app.ui.theme.ContentAlpha
 import com.wireturn.app.ui.theme.extendedColorScheme
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
@@ -130,6 +137,26 @@ fun LogsScreen(
                 scrollBehavior = scrollBehavior,
                 actions = {
                     var isCopied by remember { mutableStateOf(false) }
+                    
+                    val saveLauncher = rememberLauncherForActivityResult(
+                        contract = ActivityResultContracts.CreateDocument("text/plain")
+                    ) { uri ->
+                        if (uri != null) {
+                            scope.launch(Dispatchers.IO) {
+                                try {
+                                    context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                                        outputStream.write(logs.joinToString("\n") { it.message }.toByteArray())
+                                    }
+                                    withContext(Dispatchers.Main) {
+                                        HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
+                                    }
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                }
+                            }
+                        }
+                    }
+
                     LaunchedEffect(isCopied) {
                         if (isCopied) {
                             kotlinx.coroutines.delay(1_500.milliseconds)
@@ -166,6 +193,20 @@ fun LogsScreen(
                                 !logs.isNotEmpty() -> MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.disabled)
                                 else -> MaterialTheme.colorScheme.onSurfaceVariant
                             }
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                            val timestamp = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault()).format(Date())
+                            saveLauncher.launch("wireturn_logs_$timestamp.txt")
+                        },
+                        enabled = logs.isNotEmpty()
+                    ) {
+                        Icon(
+                            painterResource(R.drawable.save_24px),
+                            contentDescription = stringResource(R.string.save),
+                            tint = if (logs.isNotEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.disabled)
                         )
                     }
                 }
