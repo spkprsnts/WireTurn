@@ -522,7 +522,7 @@
     <string name="connection_settings_title">Параметры подключения</string>
     <string name="connection_settings_desc">Адреса и порты ядер туннеля</string>
     <string name="xray_settings_title">Настройки Xray</string>
-    <string name="xray_settings_button_desc">Настройки Xray</string>
+    <string name="xray_settings_desc">DNS, маршрутизация и другие параметры Xray</string>
     <string name="xray_settings_group_dns">DNS</string>
     <string name="xray_settings_dns_label">DNS-серверы</string>
     <string name="xray_settings_dns_desc">Через запятую, используются Xray для резолва доменов через туннель</string>

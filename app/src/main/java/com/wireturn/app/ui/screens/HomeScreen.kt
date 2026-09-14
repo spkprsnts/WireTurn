@@ -113,6 +113,7 @@ import com.wireturn.app.ui.AppExclusionTooltip
 import com.wireturn.app.ui.CompactItem
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
+import com.wireturn.app.ui.LabelGroup
 import com.wireturn.app.ui.ModifiedIndicator
 import com.wireturn.app.ui.RowLabel
 import com.wireturn.app.ui.SectionGroup
@@ -1164,21 +1165,7 @@ fun HomeScreen(
                                     XrayState.Starting, XrayState.Connecting -> LoadingIndicator()
                                 }
                             },
-                            enabled = configValid && profilesExist,
-                            trailingContent = {
-                                FilledTonalIconButton(
-                                    onClick = {
-                                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                        onNavigateToXraySettings()
-                                    }
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.settings_24px),
-                                        contentDescription = stringResource(R.string.xray_settings_button_desc),
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
-                            }
+                            enabled = configValid && profilesExist
                         )
                     }
 
@@ -1458,7 +1445,7 @@ fun HomeScreen(
 
             Spacer(Modifier.height(2.dp))
             SectionItem(
-                position = ItemPosition.Bottom,
+                position = ItemPosition.Middle,
                 onClick = {
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     onNavigateToConnectionSettings()
@@ -1472,10 +1459,40 @@ fun HomeScreen(
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
-                    Column(modifier = Modifier.weight(1f)) {
-                        RowLabel(stringResource(R.string.connection_settings_title))
-                        SupportingText(stringResource(R.string.connection_settings_desc))
+                    LabelGroup(
+                        label = stringResource(R.string.connection_settings_title),
+                        supportingText = stringResource(R.string.connection_settings_desc),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        painter = painterResource(R.drawable.arrow_forward_ios_24px),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Spacer(Modifier.height(2.dp))
+            SectionItem(
+                position = ItemPosition.Bottom,
+                onClick = {
+                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                    onNavigateToXraySettings()
+                }
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    StandardLeadingIcon {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_xray_24px),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
+                    LabelGroup(
+                        label = stringResource(R.string.xray_settings_title),
+                        supportingText = stringResource(R.string.xray_settings_desc),
+                        modifier = Modifier.weight(1f)
+                    )
                     Icon(
                         painter = painterResource(R.drawable.arrow_forward_ios_24px),
                         contentDescription = null,

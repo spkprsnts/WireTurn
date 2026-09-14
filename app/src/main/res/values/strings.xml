@@ -562,7 +562,7 @@
     <string name="connection_settings_title">Connection Settings</string>
     <string name="connection_settings_desc">Addresses and ports of tunnel cores</string>
     <string name="xray_settings_title">Xray Settings</string>
-    <string name="xray_settings_button_desc">Xray settings</string>
+    <string name="xray_settings_desc">DNS, routing and other advanced Xray options</string>
     <string name="xray_settings_group_dns">DNS</string>
     <string name="xray_settings_dns_label">DNS servers</string>
     <string name="xray_settings_dns_desc">Comma-separated, used by Xray to resolve domains through the tunnel</string>
