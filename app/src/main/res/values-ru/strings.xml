@@ -519,8 +519,8 @@
     <string name="xray_proxy_user">Логин</string>
     <string name="xray_proxy_pass">Пароль</string>
     <string name="xray_protocol_desc">Выберите протокол для Xray-core</string>
-    <string name="connection_settings_title">Параметры подключения</string>
-    <string name="connection_settings_desc">Адреса и порты ядер туннеля</string>
+    <string name="connection_settings_title">Расширенные настройки</string>
+    <string name="connection_settings_desc">Адреса туннеля, DNS и настройки Xray</string>
     <string name="xray_settings_title">Настройки Xray</string>
     <string name="xray_settings_desc">DNS, маршрутизация и другие параметры Xray</string>
     <string name="xray_settings_group_dns">DNS</string>

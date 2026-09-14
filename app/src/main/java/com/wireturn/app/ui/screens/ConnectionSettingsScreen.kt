@@ -15,6 +15,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
@@ -58,8 +60,10 @@ import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.ExpandableSection
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
+import com.wireturn.app.ui.LabelGroup
 import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
+import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.ValidatorUtils
@@ -72,6 +76,7 @@ fun ConnectionSettingsScreen(
     privacyMode: Boolean,
     onBack: () -> Unit,
     onSave: (ClientConfig) -> Unit,
+    onNavigateToXraySettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -222,6 +227,35 @@ fun ConnectionSettingsScreen(
                 .padding(bottom = 80.dp),
             verticalArrangement = Arrangement.spacedBy(19.dp)
         ) {
+            SectionItem(
+                position = ItemPosition.Single,
+                onClick = {
+                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                    onNavigateToXraySettings()
+                }
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    StandardLeadingIcon {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_xray_24px),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    LabelGroup(
+                        label = stringResource(R.string.xray_settings_title),
+                        supportingText = stringResource(R.string.xray_settings_desc),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        painter = painterResource(R.drawable.arrow_forward_ios_24px),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
             SectionGroup(title = stringResource(R.string.network_settings_title)) {
                 SectionItem(
                     position = ItemPosition.Top,
@@ -398,7 +432,6 @@ fun ConnectionSettingsScreen(
                     }
                 }
             }
-
         }
     }
 

@@ -49,9 +49,6 @@ fun AppNavigation(
                         intent.putExtra("EXTRA_PROFILE_ID", viewModel.currentProfileId.value)
                         context.startActivity(intent)
                     },
-                    onNavigateToXraySettings = {
-                        context.startActivity(Intent(context, com.wireturn.app.ui.activities.XraySettingsActivity::class.java))
-                    },
                     onNavigateToConnectionSettings = {
                         context.startActivity(Intent(context, com.wireturn.app.ui.activities.ConnectionSettingsActivity::class.java))
                     },

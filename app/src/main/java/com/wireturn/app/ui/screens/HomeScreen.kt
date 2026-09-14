@@ -150,7 +150,6 @@ fun HomeScreen(
     viewModel: MainViewModel,
     onNavigateToExclusions: () -> Unit,
     onNavigateToXrayConfig: () -> Unit,
-    onNavigateToXraySettings: () -> Unit,
     onNavigateToConnectionSettings: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToLogs: () -> Unit,
@@ -1450,7 +1449,7 @@ fun HomeScreen(
 
             Spacer(Modifier.height(2.dp))
             SectionItem(
-                position = ItemPosition.Middle,
+                position = ItemPosition.Bottom,
                 onClick = {
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     onNavigateToConnectionSettings()
@@ -1467,35 +1466,6 @@ fun HomeScreen(
                     LabelGroup(
                         label = stringResource(R.string.connection_settings_title),
                         supportingText = stringResource(R.string.connection_settings_desc),
-                        modifier = Modifier.weight(1f)
-                    )
-                    Icon(
-                        painter = painterResource(R.drawable.arrow_forward_ios_24px),
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            Spacer(Modifier.height(2.dp))
-            SectionItem(
-                position = ItemPosition.Bottom,
-                onClick = {
-                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                    onNavigateToXraySettings()
-                }
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    StandardLeadingIcon {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_xray_24px),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    LabelGroup(
-                        label = stringResource(R.string.xray_settings_title),
-                        supportingText = stringResource(R.string.xray_settings_desc),
                         modifier = Modifier.weight(1f)
                     )
                     Icon(

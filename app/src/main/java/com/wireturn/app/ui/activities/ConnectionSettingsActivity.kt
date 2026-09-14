@@ -1,5 +1,6 @@
 package com.wireturn.app.ui.activities
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -40,6 +41,9 @@ class ConnectionSettingsActivity : ComponentActivity() {
                     onSave = { client ->
                         viewModel.saveClientConfig(client)
                         finish()
+                    },
+                    onNavigateToXraySettings = {
+                        startActivity(Intent(this@ConnectionSettingsActivity, XraySettingsActivity::class.java))
                     }
                 )
             }

@@ -559,8 +559,8 @@
     <string name="xray_settings_group_connection">Connection</string>
     <string name="xray_protocol_desc">Choose protocol for Xray-core</string>
     <string name="protocol_wireguard" translatable="false">WireGuard</string>
-    <string name="connection_settings_title">Connection Settings</string>
-    <string name="connection_settings_desc">Addresses and ports of tunnel cores</string>
+    <string name="connection_settings_title">Advanced Settings</string>
+    <string name="connection_settings_desc">Tunnel addresses, DNS, and Xray settings</string>
     <string name="xray_settings_title">Xray Settings</string>
     <string name="xray_settings_desc">DNS, routing and other advanced Xray options</string>
     <string name="xray_settings_group_dns">DNS</string>
