@@ -71,6 +71,7 @@ import com.wireturn.app.data.XrayConfig
 import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.AppTopAppBar
+import com.wireturn.app.ui.ScreenSubtitle
 import com.wireturn.app.ui.ExpandableSection
 import com.wireturn.app.ui.FieldTrailingIcons
 import com.wireturn.app.ui.HapticUtil
@@ -257,7 +258,6 @@ fun XraySetupScreen(
         topBar = {
             AppTopAppBar(
                 title = stringResource(R.string.xray_title),
-                subtitle = xraySubtitle,
                 onBack = handleBack,
                 scrollBehavior = scrollBehavior,
                 actions = {
@@ -411,6 +411,10 @@ fun XraySetupScreen(
                 .padding(bottom = 80.dp),
             verticalArrangement = Arrangement.spacedBy(19.dp)
         ) {
+            if (xraySubtitle != null) {
+                ScreenSubtitle(xraySubtitle)
+            }
+
             // Выбор протокола
             if (canChangeProtocol) {
                 SectionGroup {

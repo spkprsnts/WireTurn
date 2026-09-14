@@ -48,6 +48,7 @@ import com.wireturn.app.R
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
+import com.wireturn.app.ui.ScreenSubtitle
 import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.SwitchRow
@@ -129,7 +130,6 @@ class SubscriptionConfigActivity : ComponentActivity() {
                     topBar = {
                         AppTopAppBar(
                             title = stringResource(R.string.subscription_settings),
-                            subtitle = sub.name,
                             onBack = handleBack,
                             scrollBehavior = scrollBehavior
                         )
@@ -180,6 +180,8 @@ class SubscriptionConfigActivity : ComponentActivity() {
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
+                        ScreenSubtitle(sub.name)
+
                         SectionGroup(title = stringResource(R.string.subscription_info)) {
                             SectionItem(position = ItemPosition.Single) {
                                 TextFieldRow(

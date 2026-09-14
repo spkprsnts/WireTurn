@@ -121,7 +121,6 @@ import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LabelGroupDefaults
 import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.SectionItem
-import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.TappableRowIndicator
 import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.VerticalAnimatedText

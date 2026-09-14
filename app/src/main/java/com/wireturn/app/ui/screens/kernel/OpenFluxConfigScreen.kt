@@ -70,6 +70,7 @@ import com.wireturn.app.R
 import com.wireturn.app.data.OpenFluxConfig
 import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.AppTopAppBar
+import com.wireturn.app.ui.ScreenSubtitle
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LargeLeadingIcon
@@ -187,7 +188,6 @@ fun OpenFluxConfigScreen(
         topBar = {
             AppTopAppBar(
                 title = stringResource(R.string.kernel_openflux),
-                subtitle = if (isEditMode) profileName else null,
                 onBack = handleBack,
                 scrollBehavior = scrollBehavior,
                 actions = {
@@ -319,6 +319,10 @@ fun OpenFluxConfigScreen(
                 .padding(bottom = 80.dp),
             verticalArrangement = Arrangement.spacedBy(19.dp)
         ) {
+            if (isEditMode && profileName != null) {
+                ScreenSubtitle(profileName)
+            }
+
             // Connection Details - platform picker, same clickable-row-opens-a-dialog shape as
             // olcRTC's own carrier picker (OlcRtcConfigScreen): "yandex"/"oneme" are two different
             // host platforms being tunneled through (Yandex.Docs, MAX), same idea as olcRTC's

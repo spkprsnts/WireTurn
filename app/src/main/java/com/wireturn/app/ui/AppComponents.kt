@@ -49,6 +49,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -1587,7 +1588,6 @@ fun TopAppBarScrollBehavior.noFlingExpandConnection(): NestedScrollConnection {
 fun AppTopAppBar(
     title: String,
     modifier: Modifier = Modifier,
-    subtitle: String? = null,
     onBack: (() -> Unit)? = null,
     actions: @Composable (RowScope.() -> Unit)? = null,
     scrollBehavior: TopAppBarScrollBehavior? = null,
@@ -1625,13 +1625,9 @@ fun AppTopAppBar(
         measuredText.lineCount > 1
     }
 
-    val finalExpandedHeight = remember(isMultiLine, subtitle, expandedHeight) {
+    val finalExpandedHeight = remember(isMultiLine, expandedHeight) {
         if (expandedHeight != Dp.Unspecified) return@remember expandedHeight
-        
-        when {
-            subtitle != null -> if (isMultiLine) 262.dp else 222.dp
-            else -> if (isMultiLine) 212.dp else 179.dp
-        }
+        if (isMultiLine) 212.dp else 179.dp
     }
 
     if (startCollapsed && scrollBehavior != null) {
@@ -1656,17 +1652,6 @@ fun AppTopAppBar(
                     .padding(top = if (isExpanded) 28.dp else 0.dp)
                     .padding(bottom = if (isExpanded) 24.dp else 0.dp)
             )
-        },
-        subtitle = { isExpanded ->
-            if (isExpanded && subtitle != null) {
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier
-                        .padding(horizontal = 8.dp)
-                        .padding(bottom = 24.dp)
-                )
-            }
         },
         modifier = modifier.fillMaxWidth(),
         navigationIcon = {
@@ -1696,6 +1681,29 @@ fun AppTopAppBar(
             actionIconContentColor = MaterialTheme.colorScheme.onSurface,
             subtitleContentColor = MaterialTheme.colorScheme.onSurface
         )
+    )
+}
+
+/**
+ * Description line for a screen, meant as the first item in its scrollable body content - not
+ * [AppTopAppBar]'s own subtitle slot, since that's tied to the app bar's expand/collapse
+ * animation and disappears once the bar collapses on scroll. This instead behaves like Android
+ * Settings' own screen descriptions: part of the normal content, always there right under the
+ * (possibly already-collapsed) app bar, scrolling away with the rest of the content.
+ */
+@Composable
+fun ScreenSubtitle(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = modifier
+            .fillMaxWidth()
+            // Closes the gap to the app bar above (the screen's own top padding already
+            // reserves more than this needs) without touching that shared, screen-wide value.
+            .offset(y = (-8).dp)
+            .padding(horizontal = 8.dp)
+            .padding(bottom = 10.dp)
     )
 }
 

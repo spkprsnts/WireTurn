@@ -64,6 +64,7 @@ import com.wireturn.app.R
 import com.wireturn.app.data.FreeTurnConfig
 import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.AppTopAppBar
+import com.wireturn.app.ui.ScreenSubtitle
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LabeledButtonGroup
@@ -185,7 +186,6 @@ fun FreeTurnConfigScreen(
         topBar = {
             AppTopAppBar(
                 title = stringResource(R.string.kernel_freeturn),
-                subtitle = if (isEditMode) profileName else null,
                 onBack = handleBack,
                 scrollBehavior = scrollBehavior,
                 actions = {
@@ -317,6 +317,10 @@ fun FreeTurnConfigScreen(
                 .padding(bottom = 80.dp),
             verticalArrangement = Arrangement.spacedBy(19.dp)
         ) {
+            if (isEditMode && profileName != null) {
+                ScreenSubtitle(profileName)
+            }
+
             SectionGroup(title = stringResource(R.string.connection_details)) {
                 SectionItem(position = ItemPosition.Top) {
                     LabeledButtonGroup(
