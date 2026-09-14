@@ -51,8 +51,8 @@ class BinaryOutputState {
     val remoteNotReadyCounter = LogOccurrenceCounter(windowMs = 10_000, threshold = 7)
     val webdavConnRefusedCounter = LogOccurrenceCounter(windowMs = 5_000, threshold = 10)
     val vkCaptchaSolveFailCounter = LogOccurrenceCounter(windowMs = Long.MAX_VALUE, threshold = 5)
-    // Yandex.Docs (transport/yandex/yandex.go): backoff to 15s +50% jitter, plus a 15s fetch
-    // timeout on top -> worst case ~37.5s between failures.
+    // Yandex.Docs (transport/yandex/yandex.go): backoff to 30s +50% jitter, plus a 15s fetch
+    // timeout on top -> worst case ~60s between failures.
     val openFluxYandexFailureCounter = LogOccurrenceCounter(windowMs = 90_000, threshold = 8)
     val openFluxMaxFailureCounter = LogOccurrenceCounter(windowMs = 5_000, threshold = 8)
     // Volga/vyandex (transport/yandex/vyandex.go): backoff to 30s, plus a 30s auth timeout on top
