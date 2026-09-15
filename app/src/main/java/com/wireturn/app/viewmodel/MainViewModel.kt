@@ -32,6 +32,12 @@ import com.wireturn.app.data.VpnSettings
 import com.wireturn.app.data.WgConfig
 import com.wireturn.app.data.XrayConfig
 import com.wireturn.app.data.XraySettings
+import com.wireturn.app.data.kernel.FreeTurnConfig
+import com.wireturn.app.data.kernel.OlcrtcConfig
+import com.wireturn.app.data.kernel.OpenFluxConfig
+import com.wireturn.app.data.kernel.QwdttConfig
+import com.wireturn.app.data.kernel.TurnableConfig
+import com.wireturn.app.data.kernel.WebdavConfig
 import com.wireturn.app.domain.AppUpdater
 import com.wireturn.app.domain.CoreManager
 import com.wireturn.app.domain.ProfileManager
@@ -865,42 +871,42 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         // 4. Kernel Configs (raw URIs)
-        val turnable = com.wireturn.app.data.TurnableConfig.parse(trimmed)
+        val turnable = TurnableConfig.parse(trimmed)
         if (turnable != null) return com.wireturn.app.domain.ImportStatus.KernelConfigDetected(
             "Turnable",
             com.google.gson.Gson().toJson(turnable),
             trimmed
         )
 
-        val olcrtc = com.wireturn.app.data.OlcrtcConfig.parse(trimmed)
+        val olcrtc = OlcrtcConfig.parse(trimmed)
         if (olcrtc != null) return com.wireturn.app.domain.ImportStatus.KernelConfigDetected(
             "olcRTC",
             com.google.gson.Gson().toJson(olcrtc),
             trimmed
         )
 
-        val webdav = com.wireturn.app.data.WebdavConfig.parse(trimmed)
+        val webdav = WebdavConfig.parse(trimmed)
         if (webdav != null) return com.wireturn.app.domain.ImportStatus.KernelConfigDetected(
             "WebDAV",
             com.google.gson.Gson().toJson(webdav),
             trimmed
         )
 
-        val freeturn = com.wireturn.app.data.FreeTurnConfig.parse(trimmed)
+        val freeturn = FreeTurnConfig.parse(trimmed)
         if (freeturn != null) return com.wireturn.app.domain.ImportStatus.KernelConfigDetected(
             "FreeTurn",
             com.google.gson.Gson().toJson(freeturn),
             trimmed
         )
 
-        val qwdtt = com.wireturn.app.data.QwdttConfig.parse(trimmed)
+        val qwdtt = QwdttConfig.parse(trimmed)
         if (qwdtt != null) return com.wireturn.app.domain.ImportStatus.KernelConfigDetected(
             "qWDTT",
             com.google.gson.Gson().toJson(qwdtt),
             trimmed
         )
 
-        val openflux = com.wireturn.app.data.OpenFluxConfig.parse(trimmed)
+        val openflux = OpenFluxConfig.parse(trimmed)
         if (openflux != null) return com.wireturn.app.domain.ImportStatus.KernelConfigDetected(
             "OpenFlux",
             com.google.gson.Gson().toJson(openflux),

@@ -13,9 +13,12 @@ import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
-import com.wireturn.app.data.OlcrtcConfig
-import com.wireturn.app.data.TurnableConfig
-import com.wireturn.app.data.WebdavConfig
+import com.wireturn.app.data.kernel.OlcrtcConfig
+import com.wireturn.app.data.kernel.TurnableConfig
+import com.wireturn.app.data.kernel.WebdavConfig
+import com.wireturn.app.data.kernel.FreeTurnConfig
+import com.wireturn.app.data.kernel.OpenFluxConfig
+import com.wireturn.app.data.kernel.QwdttConfig
 import com.wireturn.app.ui.screens.XraySetupScreen
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
@@ -49,17 +52,17 @@ class XraySetupActivity : ComponentActivity() {
             }
             KernelVariant.FREETURN.name -> {
                 val json = intent.getStringExtra("EXTRA_FREETURN_CONFIG_JSON")
-                val freeturn = if (json != null) Gson().fromJson(json, com.wireturn.app.data.FreeTurnConfig::class.java) ?: com.wireturn.app.data.FreeTurnConfig() else com.wireturn.app.data.FreeTurnConfig()
+                val freeturn = if (json != null) Gson().fromJson(json, FreeTurnConfig::class.java) ?: FreeTurnConfig() else FreeTurnConfig()
                 ClientConfig(kernelConfig = KernelConfig.FreeTurn(freeturn))
             }
             KernelVariant.QWDTT.name -> {
                 val json = intent.getStringExtra("EXTRA_QWDTT_CONFIG_JSON")
-                val qwdtt = if (json != null) Gson().fromJson(json, com.wireturn.app.data.QwdttConfig::class.java) ?: com.wireturn.app.data.QwdttConfig() else com.wireturn.app.data.QwdttConfig()
+                val qwdtt = if (json != null) Gson().fromJson(json, QwdttConfig::class.java) ?: QwdttConfig() else QwdttConfig()
                 ClientConfig(kernelConfig = KernelConfig.Qwdtt(qwdtt))
             }
             KernelVariant.OPENFLUX.name -> {
                 val json = intent.getStringExtra("EXTRA_OPENFLUX_CONFIG_JSON")
-                val openflux = if (json != null) Gson().fromJson(json, com.wireturn.app.data.OpenFluxConfig::class.java) ?: com.wireturn.app.data.OpenFluxConfig() else com.wireturn.app.data.OpenFluxConfig()
+                val openflux = if (json != null) Gson().fromJson(json, OpenFluxConfig::class.java) ?: OpenFluxConfig() else OpenFluxConfig()
                 ClientConfig(kernelConfig = KernelConfig.OpenFlux(openflux))
             }
             else -> {

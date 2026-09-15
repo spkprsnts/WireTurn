@@ -70,8 +70,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
-import com.wireturn.app.data.TurnableConfig
-import com.wireturn.app.data.TurnableRoute
+import com.wireturn.app.data.kernel.TurnableConfig
+import com.wireturn.app.data.kernel.TurnableRoute
 import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.ScreenSubtitle

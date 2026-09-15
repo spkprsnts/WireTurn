@@ -23,10 +23,14 @@
 -keep class com.wireturn.app.data.Profile { *; }
 -keep class com.wireturn.app.data.KernelConfig { *; }
 -keep class com.wireturn.app.data.KernelConfig$* { *; }
--keep class com.wireturn.app.data.TurnableConfig { *; }
--keep class com.wireturn.app.data.TurnableRoute { *; }
--keep class com.wireturn.app.data.OlcrtcConfig { *; }
--keep class com.wireturn.app.data.WebdavConfig { *; }
+-keep class com.wireturn.app.data.kernel.TurnableConfig { *; }
+-keep class com.wireturn.app.data.kernel.TurnableRoute { *; }
+-keep class com.wireturn.app.data.kernel.OlcrtcConfig { *; }
+-keep class com.wireturn.app.data.kernel.WebdavConfig { *; }
+-keep class com.wireturn.app.data.kernel.WebdavBackend { *; }
+-keep class com.wireturn.app.data.kernel.FreeTurnConfig { *; }
+-keep class com.wireturn.app.data.kernel.QwdttConfig { *; }
+-keep class com.wireturn.app.data.kernel.OpenFluxConfig { *; }
 -keep class com.wireturn.app.data.WgConfig { *; }
 -keep class com.wireturn.app.data.VlessConfig { *; }
 -keep class com.wireturn.app.data.ClientConfig { *; }
@@ -35,7 +39,6 @@
 -keep class com.wireturn.app.data.VpnSettings { *; }
 -keep class com.wireturn.app.data.AutoLaunchSettings { *; }
 -keep class com.wireturn.app.data.KernelSnapshot { *; }
--keep class com.wireturn.app.data.OldClientConfig { *; }
 
 # Keep enums and their members for GSON and reflection (valueOf)
 -keep enum com.wireturn.app.data.** { *; }

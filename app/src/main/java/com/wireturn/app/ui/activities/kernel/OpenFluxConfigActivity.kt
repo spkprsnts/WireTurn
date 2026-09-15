@@ -12,7 +12,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.gson.Gson
 import com.wireturn.app.data.KernelConfig
-import com.wireturn.app.data.OpenFluxConfig
+import com.wireturn.app.data.kernel.OpenFluxConfig
 import com.wireturn.app.ui.activities.XraySetupActivity
 import com.wireturn.app.ui.screens.kernel.OpenFluxConfigScreen
 import com.wireturn.app.ui.theme.WireturnTheme

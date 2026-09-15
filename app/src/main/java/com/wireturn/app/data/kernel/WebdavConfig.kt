@@ -1,7 +1,8 @@
-package com.wireturn.app.data
+package com.wireturn.app.data.kernel
 
 import android.net.Uri
 import com.google.gson.annotations.SerializedName
+import java.util.Locale
 
 data class WebdavBackend(
     @SerializedName("label") val label: String = "",
@@ -194,9 +195,9 @@ data class WebdavConfig(
             val parts = host.split('.')
             return if (parts.size >= 2) {
                 // webdav.yandex.ru -> Yandex
-                parts[parts.size - 2].replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() } + port
+                parts[parts.size - 2].replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() } + port
             } else {
-                host.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() } + port
+                host.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() } + port
             }
         }
     }

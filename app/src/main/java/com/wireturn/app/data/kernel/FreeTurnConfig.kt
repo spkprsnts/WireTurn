@@ -1,5 +1,6 @@
-package com.wireturn.app.data
+package com.wireturn.app.data.kernel
 
+import android.util.Base64
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.annotations.SerializedName
@@ -96,7 +97,7 @@ data class FreeTurnConfig(
             if (!profileName.isNullOrBlank()) addProperty("name", profileName)
         }
         val bytes = json.toString().toByteArray()
-        val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING)
+        val base64 = Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
         return "freeturn://$base64"
     }
 
@@ -127,7 +128,7 @@ data class FreeTurnConfig(
             if (!url.startsWith("freeturn://", ignoreCase = true)) return null
             return try {
                 val base64 = url.substringAfter("freeturn://")
-                val jsonStr = String(android.util.Base64.decode(base64, android.util.Base64.URL_SAFE))
+                val jsonStr = String(Base64.decode(base64, Base64.URL_SAFE))
                 val json = Gson().fromJson(jsonStr, JsonObject::class.java)
 
                 if (json.get("v")?.asInt != 1) return null

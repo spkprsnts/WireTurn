@@ -67,7 +67,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
-import com.wireturn.app.data.OpenFluxConfig
+import com.wireturn.app.data.kernel.OpenFluxConfig
 import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.ScreenSubtitle

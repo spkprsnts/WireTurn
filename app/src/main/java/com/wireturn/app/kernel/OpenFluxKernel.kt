@@ -8,6 +8,7 @@ import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
+import com.wireturn.app.data.kernel.OpenFluxConfig
 import com.wireturn.app.ui.activities.kernel.OpenFluxConfigActivity
 import java.io.File
 
@@ -50,7 +51,7 @@ object OpenFluxKernel : Kernel {
     override val defaultProfileName: String = "OpenFlux Server"
 
     override fun decodeUri(uri: String): KernelConfig? =
-        com.wireturn.app.data.OpenFluxConfig.parse(uri)?.let { KernelConfig.OpenFlux(it) }
+        OpenFluxConfig.parse(uri)?.let { KernelConfig.OpenFlux(it) }
 
     override fun displayNameFromUri(uri: String): String? = try {
         val u = uri.toUri()

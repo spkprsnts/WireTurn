@@ -1,4 +1,4 @@
-package com.wireturn.app.data
+package com.wireturn.app.data.kernel
 
 import android.net.Uri
 import com.google.gson.annotations.SerializedName

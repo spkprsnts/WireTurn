@@ -9,6 +9,7 @@ import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
+import com.wireturn.app.data.kernel.QwdttConfig
 import com.wireturn.app.ui.activities.kernel.QwdttConfigActivity
 import java.util.regex.Pattern
 
@@ -42,7 +43,7 @@ object QwdttKernel : Kernel {
     override val defaultProfileName: String = "qWDTT Server"
 
     override fun decodeUri(uri: String): KernelConfig? =
-        com.wireturn.app.data.QwdttConfig.parse(uri)?.let { KernelConfig.Qwdtt(it) }
+        QwdttConfig.parse(uri)?.let { KernelConfig.Qwdtt(it) }
 
     override fun displayNameFromUri(uri: String): String? = try {
         // Mirror QwdttConfig.parse's own normalization - the schemeless "qwdtt:config?..." form

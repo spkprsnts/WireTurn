@@ -1,4 +1,4 @@
-package com.wireturn.app.data
+package com.wireturn.app.data.kernel
 
 import android.net.Uri
 import com.google.gson.annotations.SerializedName
@@ -78,25 +78,29 @@ data class OpenFluxConfig(
                 // dialect below uses "yandex" or leaves it blank, so that's a safe way to tell them
                 // apart without a dedicated marker param.
                 if (uri.authority != "config") return parseOlConnectDialect(uri, current)
-                val transport = when (uri.getQueryParameter("transport")) {
-                    "oneme" -> "oneme"
-                    "vyandex" -> "vyandex"
-                    "cupsonline" -> "cupsonline"
-                    else -> "yandex"
-                }
-                val encryptionKey = uri.getQueryParameter("enc") ?: current.encryptionKey
-                if (transport == "oneme") {
-                    val token = uri.getQueryParameter("token") ?: current.maxToken
-                    val uid = uri.getQueryParameter("uid") ?: current.maxUid
-                    if (token.isBlank() || uid.isBlank()) return null
-                    OpenFluxConfig(transport = "oneme", url = current.url, maxToken = token, maxUid = uid, encryptionKey = encryptionKey)
-                } else {
-                    val docUrl = uri.getQueryParameter("url") ?: current.url
-                    if (docUrl.isBlank()) return null
-                    OpenFluxConfig(transport = transport, url = docUrl, maxToken = current.maxToken, maxUid = current.maxUid, encryptionKey = encryptionKey)
-                }
+                parseNative(uri, current)
             } catch (_: Exception) {
                 null
+            }
+        }
+
+        private fun parseNative(uri: Uri, current: OpenFluxConfig): OpenFluxConfig? {
+            val transport = when (uri.getQueryParameter("transport")) {
+                "oneme" -> "oneme"
+                "vyandex" -> "vyandex"
+                "cupsonline" -> "cupsonline"
+                else -> "yandex"
+            }
+            val encryptionKey = uri.getQueryParameter("enc") ?: current.encryptionKey
+            return if (transport == "oneme") {
+                val token = uri.getQueryParameter("token") ?: current.maxToken
+                val uid = uri.getQueryParameter("uid") ?: current.maxUid
+                if (token.isBlank() || uid.isBlank()) return null
+                OpenFluxConfig(transport = "oneme", url = current.url, maxToken = token, maxUid = uid, encryptionKey = encryptionKey)
+            } else {
+                val docUrl = uri.getQueryParameter("url") ?: current.url
+                if (docUrl.isBlank()) return null
+                OpenFluxConfig(transport = transport, url = docUrl, maxToken = current.maxToken, maxUid = current.maxUid, encryptionKey = encryptionKey)
             }
         }
 

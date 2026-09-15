@@ -61,7 +61,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
-import com.wireturn.app.data.FreeTurnConfig
+import com.wireturn.app.data.kernel.FreeTurnConfig
 import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.ScreenSubtitle

@@ -11,7 +11,7 @@ import androidx.compose.runtime.remember
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.gson.Gson
-import com.wireturn.app.data.FreeTurnConfig
+import com.wireturn.app.data.kernel.FreeTurnConfig
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.XrayConfiguration
 import com.wireturn.app.ui.activities.XraySetupActivity

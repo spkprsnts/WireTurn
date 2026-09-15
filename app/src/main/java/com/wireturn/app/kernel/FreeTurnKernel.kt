@@ -8,6 +8,7 @@ import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
+import com.wireturn.app.data.kernel.FreeTurnConfig
 import com.wireturn.app.ui.activities.kernel.FreeTurnConfigActivity
 import java.util.regex.Pattern
 
@@ -43,7 +44,7 @@ object FreeTurnKernel : Kernel {
     override val defaultProfileName: String = "FreeTurn Server"
 
     override fun decodeUri(uri: String): KernelConfig? =
-        com.wireturn.app.data.FreeTurnConfig.parse(uri)?.let { KernelConfig.FreeTurn(it) }
+        FreeTurnConfig.parse(uri)?.let { KernelConfig.FreeTurn(it) }
 
     override fun displayNameFromUri(uri: String): String? = try {
         val base64 = uri.substringAfter("freeturn://")
@@ -94,7 +95,7 @@ object FreeTurnKernel : Kernel {
         if (o.mode == "tcp") {
             cmdArgs.add("-mode")
             cmdArgs.add("tcp")
-            val default = com.wireturn.app.data.FreeTurnConfig()
+            val default = FreeTurnConfig()
             if (o.kcpNodelay != default.kcpNodelay) cmdArgs.addAll(listOf("-kcp-nodelay", o.kcpNodelay.toString()))
             if (o.kcpInterval != default.kcpInterval) cmdArgs.addAll(listOf("-kcp-interval", o.kcpInterval.toString()))
             if (o.kcpResend != default.kcpResend) cmdArgs.addAll(listOf("-kcp-resend", o.kcpResend.toString()))
