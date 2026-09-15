@@ -96,6 +96,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -1864,7 +1865,7 @@ fun QrCodeDialog(
     val isChunkable = autoFrames.size > 1
     var forceStaticQr by remember(text) { mutableStateOf(false) }
     val frames = if (isChunkable && forceStaticQr) listOf(text) else autoFrames
-    var frameIndex by remember { mutableStateOf(0) }
+    var frameIndex by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(frames) {
         frameIndex = 0
