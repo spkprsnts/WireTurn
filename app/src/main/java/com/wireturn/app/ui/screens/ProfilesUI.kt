@@ -165,7 +165,7 @@ internal fun profileSummaryParts(profile: Profile): ProfileSummaryParts {
 
     val kernel = KernelRegistry.get(profile.kernelVariant)
     val primary = kernel.description(context, profile.kernelConfig)
-    val kernelTags = listOfNotNull(kernel.profileSummaryExtra(profile.kernelConfig))
+    val kernelTags = kernel.profileSummaryExtra(context, profile.kernelConfig)
 
     val xrayTags = mutableListOf<String>()
     if (profile.xrayEnabled) {

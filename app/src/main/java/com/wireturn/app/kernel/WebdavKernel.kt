@@ -26,6 +26,13 @@ object WebdavKernel : Kernel {
             if (config.backends.isNotEmpty()) " +${config.backends.size}" else ""
     }
 
+    override fun profileSummaryExtra(context: Context, cfg: KernelConfig): List<String> {
+        val config = (cfg as KernelConfig.Webdav).config
+        return listOfNotNull(
+            context.getString(R.string.kernel_tag_encrypted).takeIf { config.encrypt }
+        )
+    }
+
     override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int = R.drawable.ic_dav
 
     override val defaultProfileName: String = "WebDAV Server"

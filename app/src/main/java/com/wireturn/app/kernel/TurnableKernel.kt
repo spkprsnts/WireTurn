@@ -24,8 +24,14 @@ object TurnableKernel : Kernel {
         return context.getString(displayNameRes) + transport?.let { " $it" }.orEmpty()
     }
 
-    override fun profileSummaryExtra(cfg: KernelConfig): String =
-        (cfg as KernelConfig.Turnable).config.platformDisplayName
+    override fun profileSummaryExtra(context: Context, cfg: KernelConfig): List<String> {
+        val config = (cfg as KernelConfig.Turnable).config
+        return listOfNotNull(
+            config.platformDisplayName,
+            context.getString(R.string.kernel_tag_full_encryption).takeIf { config.encryption == "full" },
+            config.cloak?.takeIf { it.isNotBlank() && it != "none" }?.replaceFirstChar(Char::uppercase)
+        )
+    }
 
     override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int = when ((cfg as KernelConfig.Turnable).config.platformId) {
         "vk.com" -> R.drawable.ic_vk

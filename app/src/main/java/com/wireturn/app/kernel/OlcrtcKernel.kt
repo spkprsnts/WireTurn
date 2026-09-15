@@ -22,9 +22,18 @@ object OlcrtcKernel : Kernel {
         return context.getString(displayNameRes) + " " + config.providerDisplayName
     }
 
-    override fun profileSummaryExtra(cfg: KernelConfig): String {
+    override fun profileSummaryExtra(context: Context, cfg: KernelConfig): List<String> {
         val config = (cfg as KernelConfig.Olcrtc).config
-        return OlcrtcConfig.getTransportDisplayName(config.transport, short = true)
+        return listOfNotNull(
+            OlcrtcConfig.getTransportDisplayName(config.transport, short = true),
+            when {
+                config.transport != "videochannel" -> null
+                config.videoCodec == "qrcode" -> context.getString(R.string.kernel_tag_qr)
+                config.videoCodec == "tile" -> context.getString(R.string.kernel_tag_tile)
+                else -> null
+            },
+            context.getString(R.string.kernel_tag_no_auto_restart).takeIf { !config.restartOnConnectionErrors }
+        )
     }
 
     override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int = when ((cfg as KernelConfig.Olcrtc).config.provider) {

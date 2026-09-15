@@ -33,6 +33,13 @@ object OpenFluxKernel : Kernel {
         return context.getString(displayNameRes) + " " + config.platformDisplayName
     }
 
+    override fun profileSummaryExtra(context: Context, cfg: KernelConfig): List<String> {
+        val config = (cfg as KernelConfig.OpenFlux).config
+        return listOfNotNull(
+            context.getString(R.string.kernel_tag_encrypted).takeIf { config.encryptionKey.isNotBlank() }
+        )
+    }
+
     override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int = when ((cfg as KernelConfig.OpenFlux).config.transport) {
         "yandex", "vyandex" -> R.drawable.ic_yandex_docs
         "oneme" -> R.drawable.ic_max

@@ -129,8 +129,8 @@ interface Kernel {
     /** One-line description shown in profile lists/notifications (was `KernelConfig.description()`). */
     fun description(context: Context, cfg: KernelConfig): String
 
-    /** Extra profile-summary text appended after [description], or null if this kernel has none. */
-    fun profileSummaryExtra(cfg: KernelConfig): String? = null
+    /** Extra profile-summary tags shown alongside [description] (e.g. non-default security/transport options), empty if this kernel has none. */
+    fun profileSummaryExtra(context: Context, cfg: KernelConfig): List<String> = emptyList()
 
     /** Profile list icon for this kernel's config (outlined variant used where the kernel has none of its own). */
     fun iconRes(cfg: KernelConfig, outlined: Boolean): Int

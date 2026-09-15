@@ -22,6 +22,15 @@ object FreeTurnKernel : Kernel {
         return context.getString(displayNameRes) + " " + config.mode.uppercase()
     }
 
+    override fun profileSummaryExtra(context: Context, cfg: KernelConfig): List<String> {
+        val config = (cfg as KernelConfig.FreeTurn).config
+        val callCount = config.links.split(",").count { it.isNotBlank() }
+        return listOfNotNull(
+            config.obfProfile.takeIf { it.isNotBlank() && it != "none" }?.replaceFirstChar(Char::uppercase),
+            context.getString(R.string.kernel_tag_call_count, callCount).takeIf { callCount > 1 }
+        )
+    }
+
     override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int = R.drawable.ic_vk
 
     // FreeTurn dropped its tcp tunnel mode entirely (v3.0.0+) - it's udp-only now, unconditionally,

@@ -26,6 +26,17 @@ object QwdttKernel : Kernel {
         return context.getString(displayNameRes) + " " + config.addressLabel()
     }
 
+    override fun profileSummaryExtra(context: Context, cfg: KernelConfig): List<String> {
+        val config = (cfg as KernelConfig.Qwdtt).config
+        val callCount = config.vkHashes.split(",").count { it.isNotBlank() }
+        return listOfNotNull(
+            context.getString(R.string.kernel_tag_video_obfs).takeIf { config.obfsMode == "video" },
+            context.getString(R.string.kernel_tag_no_tls).takeIf { config.noTls },
+            context.getString(R.string.kernel_tag_turn_tcp).takeIf { config.turnTcp },
+            context.getString(R.string.kernel_tag_call_count, callCount).takeIf { callCount > 1 }
+        )
+    }
+
     override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int = R.drawable.ic_vk
 
     override val defaultProfileName: String = "qWDTT Server"

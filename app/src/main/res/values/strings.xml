@@ -530,6 +530,19 @@
     <string name="xray_uri_socks5_chain_short" translatable="false">Chain</string>
     <string name="xray_uri_socks5_chain_desc">Route this link\'s connection through the kernel\'s local SOCKS5 instead of using it directly</string>
     <string name="xray_uri_socks5_chain_hysteria2_unsupported">Not supported for Hysteria2 links</string>
+
+    <!-- Profile summary tags (kernel-specific non-default options) - deliberately untranslated,
+         same as other short jargon-y kernel tags (e.g. xray_uri_socks5_chain_short above). -->
+    <string name="kernel_tag_call_count" translatable="false">×%1$d</string>
+    <string name="kernel_tag_full_encryption" translatable="false">Full Enc</string>
+    <string name="kernel_tag_no_auto_restart" translatable="false">No Auto-Restart</string>
+    <string name="kernel_tag_encrypted" translatable="false">Encrypted</string>
+    <string name="kernel_tag_no_tls" translatable="false">No TLS</string>
+    <string name="kernel_tag_turn_tcp" translatable="false">TURN-TCP</string>
+    <string name="kernel_tag_video_obfs" translatable="false">Video Obfs</string>
+    <string name="kernel_tag_qr" translatable="false">QR</string>
+    <string name="kernel_tag_tile" translatable="false">Tile</string>
+
     <string name="xray_uri_mux">Mux concurrency</string>
     <string name="xray_uri_mux_desc">Enable Mux multiplexing. 0 disables, >0 sets concurrency. Incompatible with XTLS Vision.</string>
     <string name="xray_uri_parse_from_link">Parse from link</string>
