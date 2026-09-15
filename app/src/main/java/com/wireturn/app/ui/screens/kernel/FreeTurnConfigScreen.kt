@@ -361,7 +361,10 @@ fun FreeTurnConfigScreen(
                         readOnly = isPrivacyActive,
                         isModified = isEditMode && config.links != initialConfig.links,
                         isError = config.links.isBlank(),
-                        privacyMode = isPrivacyActive
+                        privacyMode = isPrivacyActive,
+                        singleLine = false,
+                        minLines = 1,
+                        maxLines = 5
                     )
                 }
                 SectionItem(position = ItemPosition.Bottom) {
@@ -374,7 +377,10 @@ fun FreeTurnConfigScreen(
                         isModified = isEditMode && config.sub != initialConfig.sub,
                         isError = (config.peer.isBlank() && config.sub.isBlank()) ||
                             (config.sub.isNotBlank() && !ValidatorUtils.isValidUrl(config.sub)),
-                        privacyMode = isPrivacyActive
+                        privacyMode = isPrivacyActive,
+                        singleLine = false,
+                        minLines = 1,
+                        maxLines = 5
                     )
                 }
             }
@@ -628,7 +634,10 @@ fun FreeTurnConfigScreen(
                         placeholder = stringResource(R.string.freeturn_dns_servers_placeholder),
                         readOnly = isPrivacyActive,
                         isModified = isEditMode && config.dnsServers != initialConfig.dnsServers,
-                        privacyMode = isPrivacyActive
+                        privacyMode = isPrivacyActive,
+                        singleLine = false,
+                        minLines = 1,
+                        maxLines = 5
                     )
                 }
                 SectionItem {

@@ -396,6 +396,9 @@ fun OpenFluxConfigScreen(
                                 isError = config.transport != "oneme" && config.url.isBlank(),
                                 isModified = isEditMode && config.url != initialConfig.url,
                                 privacyMode = isPrivacyActive,
+                                singleLine = false,
+                                minLines = 1,
+                                maxLines = 5,
                                 supportingText = stringResource(
                                     if (config.transport == "cupsonline") R.string.openflux_cups_url_desc
                                     else R.string.openflux_url_desc
@@ -420,6 +423,9 @@ fun OpenFluxConfigScreen(
                                 isError = config.transport == "oneme" && config.maxToken.isBlank(),
                                 isModified = isEditMode && config.maxToken != initialConfig.maxToken,
                                 privacyMode = isPrivacyActive,
+                                singleLine = false,
+                                minLines = 1,
+                                maxLines = 5,
                                 supportingText = stringResource(R.string.openflux_max_token_desc),
                                 trailingIcon = {
                                     if (!isPrivacyActive) {

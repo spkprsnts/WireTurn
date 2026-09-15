@@ -477,7 +477,10 @@ fun TurnableConfigScreen(
                         supportingText = stringResource(R.string.pub_key_desc),
                         isModified = isEditMode && config.pubKey != initialConfig.pubKey,
                         isError = config.pubKey.isNullOrBlank(),
-                        privacyMode = isPrivacyActive
+                        privacyMode = isPrivacyActive,
+                        singleLine = false,
+                        minLines = 1,
+                        maxLines = 5
                     )
                 }
                 SectionItem(position = ItemPosition.Bottom) {

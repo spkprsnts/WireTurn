@@ -189,7 +189,10 @@ class SubscriptionConfigActivity : ComponentActivity() {
                                     value = url,
                                     onValueChange = { url = it },
                                     isModified = url != sub.url,
-                                    isError = url.isNotBlank() && !ValidatorUtils.isValidUrl(url)
+                                    isError = url.isNotBlank() && !ValidatorUtils.isValidUrl(url),
+                                    singleLine = false,
+                                    minLines = 1,
+                                    maxLines = 5
                                 )
                             }
                         }

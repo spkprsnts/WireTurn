@@ -417,7 +417,10 @@ fun OlcRtcConfigScreen(
                         readOnly = isPrivacyActive,
                         isError = config.key.isBlank(),
                         isModified = isEditMode && config.key != initialConfig.key,
-                        privacyMode = isPrivacyActive
+                        privacyMode = isPrivacyActive,
+                        singleLine = false,
+                        minLines = 1,
+                        maxLines = 5
                     )
                 }
                 SectionItem {

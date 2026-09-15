@@ -339,7 +339,10 @@ fun WebdavConfigScreen(
                         isModified = isEditMode && config.webdav != initialConfig.webdav,
                         privacyMode = isPrivacyActive,
                         placeholder = "https://dav.example.com",
-                        supportingText = stringResource(R.string.webdav_url_desc)
+                        supportingText = stringResource(R.string.webdav_url_desc),
+                        singleLine = false,
+                        minLines = 1,
+                        maxLines = 5
                     )
                 }
                 SectionItem {

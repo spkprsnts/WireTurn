@@ -344,6 +344,9 @@ fun QwdttConfigScreen(
                         isError = config.vkHashes.isBlank(),
                         isModified = isEditMode && config.vkHashes != initialConfig.vkHashes,
                         privacyMode = isPrivacyActive,
+                        singleLine = false,
+                        minLines = 1,
+                        maxLines = 5,
                         supportingText = stringResource(R.string.qwdtt_hashes_desc)
                     )
                 }

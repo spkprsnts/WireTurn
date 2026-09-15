@@ -363,7 +363,10 @@ fun XraySettingsScreen(
                         supportingText = stringResource(R.string.xray_settings_dns_desc),
                         readOnly = privacyMode,
                         isModified = dns != initialXraySettings.dns,
-                        privacyMode = privacyMode
+                        privacyMode = privacyMode,
+                        singleLine = false,
+                        minLines = 1,
+                        maxLines = 5
                     )
                 }
 
@@ -397,7 +400,10 @@ fun XraySettingsScreen(
                         supportingText = stringResource(R.string.xray_settings_route_direct_desc),
                         readOnly = privacyMode,
                         isModified = routeDirect != initialXraySettings.routeDirect,
-                        privacyMode = privacyMode
+                        privacyMode = privacyMode,
+                        singleLine = false,
+                        minLines = 1,
+                        maxLines = 5
                     )
                 }
 
@@ -410,7 +416,10 @@ fun XraySettingsScreen(
                         supportingText = stringResource(R.string.xray_settings_route_block_desc),
                         readOnly = privacyMode,
                         isModified = routeBlock != initialXraySettings.routeBlock,
-                        privacyMode = privacyMode
+                        privacyMode = privacyMode,
+                        singleLine = false,
+                        minLines = 1,
+                        maxLines = 5
                     )
                 }
             }

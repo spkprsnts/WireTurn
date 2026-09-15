@@ -403,7 +403,10 @@ fun SettingsScreen(
                         value = localUrl,
                         onValueChange = { localUrl = it },
                         isError = !isUrlValid && localUrl.isNotBlank(),
-                        placeholder = defaultUrl
+                        placeholder = defaultUrl,
+                        singleLine = false,
+                        minLines = 1,
+                        maxLines = 5
                     )
                 }
 
@@ -456,7 +459,10 @@ fun SettingsScreen(
                         value = localPingUrl,
                         onValueChange = { localPingUrl = it },
                         isError = !isPingUrlValid,
-                        placeholder = MainViewModel.DEFAULT_PING_URL
+                        placeholder = MainViewModel.DEFAULT_PING_URL,
+                        singleLine = false,
+                        minLines = 1,
+                        maxLines = 5
                     )
                 }
                 SectionItem(
