@@ -10,6 +10,12 @@ import com.google.gson.JsonSerializationContext
 import com.google.gson.JsonSerializer
 import com.google.gson.annotations.SerializedName
 import com.wireturn.app.R
+import com.wireturn.app.data.kernel.FreeTurnConfig
+import com.wireturn.app.data.kernel.OlcrtcConfig
+import com.wireturn.app.data.kernel.OpenFluxConfig
+import com.wireturn.app.data.kernel.QwdttConfig
+import com.wireturn.app.data.kernel.TurnableConfig
+import com.wireturn.app.data.kernel.WebdavConfig
 import com.wireturn.app.ui.ValidatorUtils
 
 class KernelConfigAdapter : JsonDeserializer<KernelConfig>, JsonSerializer<KernelConfig> {
@@ -89,7 +95,7 @@ sealed class KernelConfig {
             return when {
                 trimmed.startsWith("turnable://", ignoreCase = true) ->
                     TurnableConfig.parse(trimmed)?.let { Turnable(it) }
-                trimmed.startsWith("olcrtc://", ignoreCase = true) ->
+                trimmed.startsWith("olcrtc://", ignoreCase = true) || trimmed.startsWith("olconnect://", ignoreCase = true) ->
                     OlcrtcConfig.parse(trimmed)?.let { Olcrtc(it) }
                 trimmed.startsWith("webdav://", ignoreCase = true) || trimmed.startsWith("webdavs://", ignoreCase = true) ->
                     WebdavConfig.parse(trimmed)?.let { Webdav(it) }

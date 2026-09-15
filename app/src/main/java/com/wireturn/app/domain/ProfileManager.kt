@@ -4,7 +4,7 @@ import com.google.gson.JsonParser
 import com.wireturn.app.R
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.KernelConfig
-import com.wireturn.app.data.OlcrtcConfig
+import com.wireturn.app.data.kernel.OlcrtcConfig
 import com.wireturn.app.data.Profile
 import com.wireturn.app.data.ProfileBundle
 import com.wireturn.app.data.Subscription
@@ -903,7 +903,7 @@ class ProfileManager(
         UUID.nameUUIDFromBytes(rawUriLine.toByteArray(Charsets.UTF_8)).toString()
 
     private fun tryParseTextSubscription(text: String): ProfileBundle? {
-        if (!text.contains("freeturn://") && !text.contains("olcrtc://") &&
+        if (!text.contains("freeturn://") && !text.contains("olcrtc://") && !text.contains("olconnect://") &&
             !text.contains("turnable://") && !text.contains("webdav://") &&
             !text.contains("webdavs://") && !text.contains("qwdtt://") && !text.contains("qwdtt:config") && !text.contains("wdtt://") &&
             !text.contains("openflux://") &&

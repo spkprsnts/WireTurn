@@ -397,7 +397,14 @@ class AddProfileActivity : ComponentActivity() {
                     // Try to extract name from source if possible
                     val source = status.source
                     val uriFragment = try { source.toUri().fragment } catch (_: Exception) { null }
-                    val olcrtcMimo = if (source.startsWith("olcrtc://") && source.contains("$")) source.substringAfterLast("$") else null
+                    // The spec grammar's own $MIMO (unencoded) only ever appears with "olcrtc://";
+                    // the panel's internal olconnect:// dialect has no $MIMO at all and puts the
+                    // name in the URL-encoded fragment instead (see OlcrtcConfig.parseUrlEmbeddedDialect).
+                    val olcrtcMimo = if (source.startsWith("olcrtc://") && source.contains("$")) {
+                        source.substringAfterLast("$")
+                    } else if (source.startsWith("olconnect://")) {
+                        try { source.toUri().encodedFragment?.replace("+", "%20")?.let(android.net.Uri::decode)?.takeIf(String::isNotBlank) } catch (_: Exception) { null }
+                    } else null
                     val qwdttName = try { source.toUri().getQueryParameter("name") } catch (_: Exception) { null }
                     val openfluxName = try { source.toUri().getQueryParameter("name") } catch (_: Exception) { null }
 

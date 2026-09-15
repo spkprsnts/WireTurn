@@ -1,4 +1,4 @@
-package com.wireturn.app.data
+package com.wireturn.app.data.kernel
 
 import android.net.Uri
 import com.google.gson.annotations.SerializedName
@@ -127,19 +127,29 @@ data class OlcrtcConfig(
         }
 
         fun parse(url: String, current: OlcrtcConfig = OlcrtcConfig()): OlcrtcConfig? {
-            if (!url.startsWith("olcrtc://", ignoreCase = true)) return null
-            // The Olcrtc_manager admin panel (https://github.com/Oleglog/Olcrtc_manager) emits its own
-            // bespoke deep-link/QR dialect instead of this project's own documented uri.md grammar.
-            // Its own store.go unconditionally backfills "core=legacy" onto every URI it persists -
-            // including ones an operator pastes in manually without it - specifically so downstream
-            // consumers can recognize its dialect; "core" isn't a real olcrtc config/auth field (absent
-            // from the actual binary), so this can't collide with a native link. Trust that one marker,
-            // the same way olcbox's own parser trusts the native grammar's delimiters without trying to
-            // infer anything from the room id's shape - jitsi's native RoomID is itself a URL, which is
-            // exactly what made an earlier shape-based heuristic here misfire on real links.
+            val isOlcrtcScheme = url.startsWith("olcrtc://", ignoreCase = true)
+            val isOlConnectScheme = url.startsWith("olconnect://", ignoreCase = true)
+            if (!isOlcrtcScheme && !isOlConnectScheme) return null
+            // The Olcrtc_manager admin panel (renamed to https://github.com/Oleglog/OlConnect_manager)
+            // emits its own bespoke deep-link/QR dialect instead of this project's own documented
+            // uri.md grammar. Its own store.go unconditionally backfills "core=legacy" onto every URI
+            // it persists - including ones an operator pastes in manually without it - specifically so
+            // downstream consumers can recognize its dialect; "core" isn't a real olcrtc config/auth
+            // field (absent from the actual binary), so this can't collide with a native link. Trust
+            // that one marker, the same way olcbox's own parser trusts the native grammar's delimiters
+            // without trying to infer anything from the room id's shape - jitsi's native RoomID is
+            // itself a URL, which is exactly what made an earlier shape-based heuristic here misfire on
+            // real links. The panel's rename from Olcrtc_manager to OlConnect_manager also switched
+            // this dialect's own scheme from "olcrtc://" to "olconnect://" (both buildCompactURIWith
+            // and buildURIWith in its api_instances.go emit "olconnect://" now) while its "Spec URI"
+            // toggle (buildSpecURIWith) still emits "olcrtc://" per the documented grammar below - so
+            // both schemes are accepted here and routed to this dialect, in case an older panel
+            // version or a cached link still carries "olcrtc://...core=legacy" too.
             if (url.contains("core=legacy", ignoreCase = true)) {
-                return parseUrlEmbeddedDialect(url.substringAfter("olcrtc://"), current)
+                val afterScheme = if (isOlcrtcScheme) url.substringAfter("olcrtc://") else url.substringAfter("olconnect://")
+                return parseUrlEmbeddedDialect(afterScheme, current)
             }
+            if (!isOlcrtcScheme) return null // the documented uri.md grammar is olcrtc:// only
             return try {
                 val provider = url.substringAfter("olcrtc://").substringBefore("?")
                 val transportPart = url.substringAfter("?").substringBefore("@")
