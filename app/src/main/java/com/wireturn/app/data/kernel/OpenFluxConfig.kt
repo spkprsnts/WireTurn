@@ -74,6 +74,10 @@ data class OpenFluxConfig(
             if (!trimmed.startsWith("openflux://", ignoreCase = true)) return null
             return try {
                 val uri = Uri.parse(trimmed)
+                // Our own toUri() always hardcodes the host to "config" (see above); OlConnect's
+                // dialect below uses "yandex" or leaves it blank, so that's a safe way to tell them
+                // apart without a dedicated marker param.
+                if (uri.authority != "config") return parseOlConnectDialect(uri, current)
                 val transport = when (uri.getQueryParameter("transport")) {
                     "oneme" -> "oneme"
                     "vyandex" -> "vyandex"
@@ -94,6 +98,22 @@ data class OpenFluxConfig(
             } catch (_: Exception) {
                 null
             }
+        }
+
+        // github.com/Oleglog/OlConnect's own openflux:// dialect (unrelated to this project's
+        // scheme): openflux://yandex?url=<doc_url>&t=<transport>&d=<dns>#<ProfileName>, with "u"/
+        // "transport" accepted as aliases for "url"/"t". Only the Yandex.Docs family is
+        // representable there ("auto"/"yandex"/"vyandex" - "auto" and anything unrecognized
+        // collapse to plain "yandex"); it has no oneme/cupsonline equivalent, and its "d"/"dns"
+        // param has no matching field on our side (OpenFlux's binary has no --dns flag at all), so
+        // it's dropped on import. The profile name (if any) travels in the fragment, not a query
+        // param - see OpenFluxKernel.displayNameFromUri.
+        private fun parseOlConnectDialect(uri: Uri, current: OpenFluxConfig): OpenFluxConfig? {
+            val docUrl = uri.getQueryParameter("url") ?: uri.getQueryParameter("u") ?: return null
+            if (docUrl.isBlank()) return null
+            val transportParam = uri.getQueryParameter("t") ?: uri.getQueryParameter("transport")
+            val transport = if (transportParam == "vyandex") "vyandex" else "yandex"
+            return current.copy(transport = transport, url = docUrl, maxToken = current.maxToken, maxUid = current.maxUid)
         }
     }
 }
