@@ -51,6 +51,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,6 +60,8 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
 import com.wireturn.app.data.kernel.FreeTurnConfig
@@ -109,6 +112,7 @@ fun FreeTurnConfigScreen(
     val showQrScanner = remember { mutableStateOf(false) }
     val showMenu = remember { mutableStateOf(false) }
     val showObfDialog = remember { mutableStateOf(false) }
+    var obfKeyVisible by rememberSaveable { mutableStateOf(false) }
 
     val handleBack = {
         if (isEditMode && isModified) {
@@ -593,7 +597,22 @@ fun FreeTurnConfigScreen(
                         readOnly = isPrivacyActive,
                         isModified = isEditMode && config.obfKey != initialConfig.obfKey,
                         isError = config.obfProfile != "none" && config.obfKey.length != 64,
-                        privacyMode = isPrivacyActive
+                        privacyMode = isPrivacyActive,
+                        trailingIcon = {
+                            if (!isPrivacyActive) {
+                                IconButton(onClick = { obfKeyVisible = !obfKeyVisible }) {
+                                    Icon(
+                                        painter = painterResource(
+                                            if (obfKeyVisible) R.drawable.visibility_24px
+                                            else R.drawable.visibility_off_24px
+                                        ),
+                                        contentDescription = null
+                                    )
+                                }
+                            }
+                        },
+                        visualTransformation = if (obfKeyVisible || isPrivacyActive) VisualTransformation.None
+                            else PasswordVisualTransformation()
                     )
                 }
                 SectionItem {

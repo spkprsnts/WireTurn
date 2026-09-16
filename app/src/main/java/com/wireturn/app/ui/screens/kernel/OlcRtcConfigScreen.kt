@@ -55,6 +55,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,6 +65,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
 import com.wireturn.app.data.kernel.OlcrtcConfig
@@ -111,6 +114,7 @@ fun OlcRtcConfigScreen(
     val showQrDialog = remember { mutableStateOf(false) }
     val showQrScanner = remember { mutableStateOf(false) }
     val showMenu = remember { mutableStateOf(false) }
+    var keyVisible by rememberSaveable { mutableStateOf(false) }
 
     val handleBack = {
         if (isEditMode && isModified) {
@@ -420,7 +424,22 @@ fun OlcRtcConfigScreen(
                         privacyMode = isPrivacyActive,
                         singleLine = false,
                         minLines = 1,
-                        maxLines = 5
+                        maxLines = 5,
+                        trailingIcon = {
+                            if (!isPrivacyActive) {
+                                IconButton(onClick = { keyVisible = !keyVisible }) {
+                                    Icon(
+                                        painter = painterResource(
+                                            if (keyVisible) R.drawable.visibility_24px
+                                            else R.drawable.visibility_off_24px
+                                        ),
+                                        contentDescription = null
+                                    )
+                                }
+                            }
+                        },
+                        visualTransformation = if (keyVisible || isPrivacyActive) VisualTransformation.None
+                            else PasswordVisualTransformation()
                     )
                 }
                 SectionItem {
