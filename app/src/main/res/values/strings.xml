@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Main Screen (Home) -->
     <string name="app_settings_title">Settings</string>
@@ -181,7 +181,7 @@
     <string name="openflux_url_desc">Yandex.Docs document URL shared with the exit node</string>
     <string name="openflux_mailru_url_desc">Mail.ru Docs public document URL shared with the exit node</string>
     <string name="openflux_cups_url_label">Room list</string>
-    <string name="openflux_cups_url_desc">Base64 room list printed by the exit node on startup (--transport cupsonline)</string>
+    <string name="openflux_cups_url_desc" tools:ignore="TypographyDashes">Base64 room list printed by the exit node on startup (--transport cupsonline)</string>
     <string name="openflux_max_token_label">MAX token</string>
     <string name="openflux_max_token_desc">Your own MAX account auth token</string>
     <string name="openflux_max_uid_label">MAX user ID</string>

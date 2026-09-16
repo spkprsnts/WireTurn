@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Главный экран (Home) -->
     <string name="app_settings_title">Настройки</string>
@@ -152,7 +152,7 @@
     <string name="openflux_url_desc">URL документа Яндекс.Документов, общий с exit-node</string>
     <string name="openflux_mailru_url_desc">URL публичного документа Mail.ru Документов, общий с exit-node</string>
     <string name="openflux_cups_url_label">Список комнат</string>
-    <string name="openflux_cups_url_desc">Base64-список комнат, который exit-node печатает при запуске (--transport cupsonline)</string>
+    <string name="openflux_cups_url_desc" tools:ignore="TypographyDashes">Base64-список комнат, который exit-node печатает при запуске (--transport cupsonline)</string>
     <string name="openflux_max_token_label">MAX-токен</string>
     <string name="openflux_max_token_desc">Токен авторизации вашего аккаунта MAX</string>
     <string name="openflux_max_uid_label">MAX ID пользователя</string>
