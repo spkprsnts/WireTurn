@@ -102,8 +102,6 @@ fun OpenFluxConfigScreen(
     val isPrivacyActive = privacyMode && isEditMode
 
     var config by remember(initialConfig) { mutableStateOf(initialConfig) }
-    var tokenVisible by rememberSaveable { mutableStateOf(false) }
-    var encryptionKeyVisible by rememberSaveable { mutableStateOf(false) }
 
     val isModified = config != initialConfig
 
@@ -432,21 +430,7 @@ fun OpenFluxConfigScreen(
                                 minLines = 1,
                                 maxLines = 5,
                                 supportingText = stringResource(R.string.openflux_max_token_desc),
-                                trailingIcon = {
-                                    if (!isPrivacyActive) {
-                                        IconButton(onClick = { tokenVisible = !tokenVisible }) {
-                                            Icon(
-                                                painter = painterResource(
-                                                    if (tokenVisible) R.drawable.visibility_24px
-                                                    else R.drawable.visibility_off_24px
-                                                ),
-                                                contentDescription = null
-                                            )
-                                        }
-                                    }
-                                },
-                                visualTransformation = if (tokenVisible || isPrivacyActive) VisualTransformation.None
-                                    else PasswordVisualTransformation()
+                                isSecret = true
                             )
                         }
                         SectionItem(position = ItemPosition.Bottom) {
@@ -489,21 +473,7 @@ fun OpenFluxConfigScreen(
                         isModified = isEditMode && config.encryptionKey != initialConfig.encryptionKey,
                         privacyMode = isPrivacyActive,
                         supportingText = stringResource(R.string.openflux_encryption_key_desc),
-                        trailingIcon = {
-                            if (!isPrivacyActive) {
-                                IconButton(onClick = { encryptionKeyVisible = !encryptionKeyVisible }) {
-                                    Icon(
-                                        painter = painterResource(
-                                            if (encryptionKeyVisible) R.drawable.visibility_24px
-                                            else R.drawable.visibility_off_24px
-                                        ),
-                                        contentDescription = null
-                                    )
-                                }
-                            }
-                        },
-                        visualTransformation = if (encryptionKeyVisible || isPrivacyActive) VisualTransformation.None
-                            else PasswordVisualTransformation()
+                        isSecret = true
                     )
                 }
             }

@@ -106,7 +106,6 @@ fun XraySettingsScreen(
     var xrayAuth by remember { mutableStateOf(initialXraySettings.isProxyAuthEnabled) }
     var xrayUser by remember { mutableStateOf(initialXraySettings.proxyUser) }
     var xrayPass by remember { mutableStateOf(initialXraySettings.proxyPass) }
-    var xrayPassVisible by rememberSaveable { mutableStateOf(false) }
 
     var dns by remember { mutableStateOf(initialXraySettings.dns) }
     var routeDirect by remember { mutableStateOf(initialXraySettings.routeDirect) }
@@ -331,22 +330,7 @@ fun XraySettingsScreen(
                                 readOnly = privacyMode,
                                 isModified = xrayPass != initialXraySettings.proxyPass,
                                 privacyMode = privacyMode,
-                                trailingIcon = {
-                                    IconButton(onClick = { xrayPassVisible = !xrayPassVisible }) {
-                                        Icon(
-                                            painter = painterResource(
-                                                if (xrayPassVisible) R.drawable.visibility_24px
-                                                else R.drawable.visibility_off_24px
-                                            ),
-                                            contentDescription = null
-                                        )
-                                    }
-                                },
-                                visualTransformation = if (xrayPassVisible) {
-                                    VisualTransformation.None
-                                } else {
-                                    PasswordVisualTransformation()
-                                }
+                                isSecret = true
                             )
                         }
                     }

@@ -51,7 +51,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,8 +60,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
 import com.wireturn.app.data.KernelConfig
@@ -588,7 +585,6 @@ private fun WireGuardSettingsBlock(
     kernelVariant: KernelVariant,
     isEditMode: Boolean
 ) {
-    var wgPrivateKeyVisible by rememberSaveable { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(19.dp)) {
         if (kernelVariant.isSocks5Native) {
             SectionItem(position = ItemPosition.Single) {
@@ -623,21 +619,7 @@ private fun WireGuardSettingsBlock(
                     readOnly = isPrivacyActive,
                     isModified = isEditMode && privateKey != initialWgConfig.privateKey,
                     privacyMode = isPrivacyActive,
-                    trailingIcon = {
-                        if (!isPrivacyActive) {
-                            IconButton(onClick = { wgPrivateKeyVisible = !wgPrivateKeyVisible }) {
-                                Icon(
-                                    painter = painterResource(
-                                        if (wgPrivateKeyVisible) R.drawable.visibility_24px
-                                        else R.drawable.visibility_off_24px
-                                    ),
-                                    contentDescription = null
-                                )
-                            }
-                        }
-                    },
-                    visualTransformation = if (wgPrivateKeyVisible || isPrivacyActive) VisualTransformation.None
-                        else PasswordVisualTransformation()
+                    isSecret = true
                 )
             }
             SectionItem {

@@ -100,6 +100,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -1147,9 +1148,36 @@ fun TextFieldRow(
     isModified: Boolean = false,
     onHelpClick: (() -> Unit)? = null,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
-    privacyMode: Boolean = false
+    privacyMode: Boolean = false,
+    // Owns its own reveal/hide toggle (eye icon + PasswordVisualTransformation) instead of the
+    // caller wiring trailingIcon/visualTransformation by hand for the same thing - mutually
+    // exclusive with passing a custom trailingIcon/visualTransformation, which this ignores.
+    isSecret: Boolean = false
 ) {
     val context = LocalContext.current
+    var secretRevealed by rememberSaveable { mutableStateOf(false) }
+    val effectiveTrailingIcon: (@Composable () -> Unit)? = if (isSecret) {
+        {
+            if (!privacyMode) {
+                IconButton(onClick = {
+                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                    secretRevealed = !secretRevealed
+                }) {
+                    Icon(
+                        painter = painterResource(
+                            if (secretRevealed) R.drawable.visibility_24px else R.drawable.visibility_off_24px
+                        ),
+                        contentDescription = null
+                    )
+                }
+            }
+        }
+    } else trailingIcon
+    val effectiveVisualTransformation = if (isSecret && !secretRevealed) {
+        PasswordVisualTransformation()
+    } else {
+        visualTransformation
+    }
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -1201,8 +1229,8 @@ fun TextFieldRow(
                     }
                 }
             },
-            trailingIcon = trailingIcon,
-            visualTransformation = if (privacyMode) PasswordVisualTransformation() else visualTransformation,
+            trailingIcon = effectiveTrailingIcon,
+            visualTransformation = if (privacyMode) PasswordVisualTransformation() else effectiveVisualTransformation,
             keyboardOptions = keyboardOptions,
             shape = MaterialTheme.shapes.small,
             colors = TextFieldDefaults.colors(

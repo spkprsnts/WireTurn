@@ -114,7 +114,6 @@ fun OlcRtcConfigScreen(
     val showQrDialog = remember { mutableStateOf(false) }
     val showQrScanner = remember { mutableStateOf(false) }
     val showMenu = remember { mutableStateOf(false) }
-    var keyVisible by rememberSaveable { mutableStateOf(false) }
 
     val handleBack = {
         if (isEditMode && isModified) {
@@ -425,21 +424,7 @@ fun OlcRtcConfigScreen(
                         singleLine = false,
                         minLines = 1,
                         maxLines = 5,
-                        trailingIcon = {
-                            if (!isPrivacyActive) {
-                                IconButton(onClick = { keyVisible = !keyVisible }) {
-                                    Icon(
-                                        painter = painterResource(
-                                            if (keyVisible) R.drawable.visibility_24px
-                                            else R.drawable.visibility_off_24px
-                                        ),
-                                        contentDescription = null
-                                    )
-                                }
-                            }
-                        },
-                        visualTransformation = if (keyVisible || isPrivacyActive) VisualTransformation.None
-                            else PasswordVisualTransformation()
+                        isSecret = true
                     )
                 }
                 SectionItem {

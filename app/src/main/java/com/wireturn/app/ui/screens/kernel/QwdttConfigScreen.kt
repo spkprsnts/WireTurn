@@ -100,7 +100,6 @@ fun QwdttConfigScreen(
     val isPrivacyActive = privacyMode && isEditMode
 
     var config by remember(initialConfig) { mutableStateOf(initialConfig) }
-    var passwordVisible by rememberSaveable { mutableStateOf(false) }
 
     val isModified = config != initialConfig
 
@@ -359,21 +358,7 @@ fun QwdttConfigScreen(
                         isError = config.password.isBlank(),
                         isModified = isEditMode && config.password != initialConfig.password,
                         privacyMode = isPrivacyActive,
-                        trailingIcon = {
-                            if (!isPrivacyActive) {
-                                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                    Icon(
-                                        painter = painterResource(
-                                            if (passwordVisible) R.drawable.visibility_24px
-                                            else R.drawable.visibility_off_24px
-                                        ),
-                                        contentDescription = null
-                                    )
-                                }
-                            }
-                        },
-                        visualTransformation = if (passwordVisible || isPrivacyActive) VisualTransformation.None
-                            else PasswordVisualTransformation()
+                        isSecret = true
                     )
                 }
             }

@@ -110,7 +110,6 @@ fun WebdavConfigScreen(
     val showQrDialog = remember { mutableStateOf(false) }
     val showQrScanner = remember { mutableStateOf(false) }
     val showMenu = remember { mutableStateOf(false) }
-    var passwordVisible by rememberSaveable { mutableStateOf(false) }
 
     val showBackendsDialog = remember { mutableStateOf(false) }
     val editingBackend = remember { mutableStateOf<WebdavBackend?>(null) }
@@ -363,21 +362,7 @@ fun WebdavConfigScreen(
                         readOnly = isPrivacyActive,
                         isModified = isEditMode && config.password != initialConfig.password,
                         privacyMode = isPrivacyActive,
-                        trailingIcon = {
-                            if (!isPrivacyActive) {
-                                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                    Icon(
-                                        painter = painterResource(
-                                            if (passwordVisible) R.drawable.visibility_24px
-                                            else R.drawable.visibility_off_24px
-                                        ),
-                                        contentDescription = null
-                                    )
-                                }
-                            }
-                        },
-                        visualTransformation = if (passwordVisible || isPrivacyActive) VisualTransformation.None
-                                             else PasswordVisualTransformation()
+                        isSecret = true
                     )
                 }
                 SectionItem(

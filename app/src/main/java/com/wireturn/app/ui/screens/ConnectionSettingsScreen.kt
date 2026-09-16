@@ -95,7 +95,6 @@ fun ConnectionSettingsScreen(
     var clientSocksAuth by remember { mutableStateOf(initialClientConfig.isSocksAuthEnabled) }
     var clientSocksUser by remember { mutableStateOf(initialClientConfig.socksUser) }
     var clientSocksPass by remember { mutableStateOf(initialClientConfig.socksPass) }
-    var clientSocksPassVisible by rememberSaveable { mutableStateOf(false) }
 
     val scrollState = rememberScrollState()
 
@@ -411,22 +410,7 @@ fun ConnectionSettingsScreen(
                                 readOnly = privacyMode,
                                 isModified = clientSocksPass != initialClientConfig.socksPass,
                                 privacyMode = privacyMode,
-                                trailingIcon = {
-                                    IconButton(onClick = { clientSocksPassVisible = !clientSocksPassVisible }) {
-                                        Icon(
-                                            painter = painterResource(
-                                                if (clientSocksPassVisible) R.drawable.visibility_24px
-                                                else R.drawable.visibility_off_24px
-                                            ),
-                                            contentDescription = null
-                                        )
-                                    }
-                                },
-                                visualTransformation = if (clientSocksPassVisible) {
-                                    VisualTransformation.None
-                                } else {
-                                    PasswordVisualTransformation()
-                                }
+                                isSecret = true
                             )
                         }
                     }
