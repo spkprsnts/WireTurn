@@ -82,6 +82,7 @@ import com.wireturn.app.ui.SelectionDialog
 import com.wireturn.app.ui.ShareDropdownMenu
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SupportingText
+import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.redact
@@ -380,6 +381,7 @@ fun OpenFluxConfigScreen(
                             when (config.transport) {
                                 "vyandex" -> R.string.openflux_vyandex_settings_title
                                 "cupsonline" -> R.string.openflux_cupsonline_settings_title
+                                "mailru" -> R.string.openflux_mailru_settings_title
                                 else -> R.string.openflux_yandex_settings_title
                             }
                         )
@@ -400,8 +402,11 @@ fun OpenFluxConfigScreen(
                                 minLines = 1,
                                 maxLines = 5,
                                 supportingText = stringResource(
-                                    if (config.transport == "cupsonline") R.string.openflux_cups_url_desc
-                                    else R.string.openflux_url_desc
+                                    when (config.transport) {
+                                        "cupsonline" -> R.string.openflux_cups_url_desc
+                                        "mailru" -> R.string.openflux_mailru_url_desc
+                                        else -> R.string.openflux_url_desc
+                                    }
                                 )
                             )
                         }
@@ -455,6 +460,20 @@ fun OpenFluxConfigScreen(
                             )
                         }
                     }
+                }
+            }
+
+            // Transport-agnostic, like Encryption below - the binary wraps every transport
+            // (including oneme) with the same codec layer.
+            SectionGroup(title = stringResource(R.string.openflux_advanced_settings_title)) {
+                SectionItem(position = ItemPosition.Single) {
+                    SwitchRow(
+                        label = stringResource(R.string.openflux_legacy_codec_label),
+                        checked = config.legacyCodec,
+                        onCheckedChange = { config = config.copy(legacyCodec = it) },
+                        supportingText = stringResource(R.string.openflux_legacy_codec_desc),
+                        isModified = isEditMode && config.legacyCodec != initialConfig.legacyCodec
+                    )
                 }
             }
 
@@ -530,6 +549,7 @@ fun OpenFluxConfigScreen(
 private fun getOpenFluxPlatformIcon(transport: String): Int = when (transport) {
     "oneme" -> R.drawable.ic_max
     "cupsonline" -> R.drawable.ic_cupsonline
+    "mailru" -> R.drawable.ic_mailru
     else -> R.drawable.ic_yandex_docs
 }
 
@@ -539,7 +559,7 @@ private fun OpenFluxPlatformDialog(
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val platforms = listOf("yandex", "vyandex", "oneme", "cupsonline")
+    val platforms = listOf("yandex", "vyandex", "oneme", "cupsonline", "mailru")
 
     SelectionDialog(
         title = stringResource(R.string.openflux_platform_label),

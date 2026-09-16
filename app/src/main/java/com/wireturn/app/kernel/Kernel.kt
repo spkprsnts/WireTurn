@@ -58,6 +58,9 @@ class BinaryOutputState {
     // Volga/vyandex (transport/yandex/vyandex.go): backoff to 30s, plus a 30s auth timeout on top
     // -> worst case ~60s between failures.
     val openFluxVolgaFailureCounter = LogOccurrenceCounter(windowMs = 90_000, threshold = 6)
+    // Mail.ru Docs (transport/mailru/mailru.go): backoff to 15s +50% jitter, plus a 15s
+    // fetch/dial timeout on top -> worst case ~37.5s between failures.
+    val openFluxMailruFailureCounter = LogOccurrenceCounter(windowMs = 60_000, threshold = 8)
     // cupsonline (transport/cupsonline/cupsonline.go): per-room backoff to 10s, plus a 15s
     // handshake timeout on top -> worst case ~25s; rooms retry in parallel (4 by default).
     val openFluxCupsFailureCounter = LogOccurrenceCounter(windowMs = 45_000, threshold = 6)

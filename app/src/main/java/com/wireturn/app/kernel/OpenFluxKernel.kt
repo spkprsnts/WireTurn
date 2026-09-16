@@ -13,8 +13,8 @@ import com.wireturn.app.ui.activities.kernel.OpenFluxConfigActivity
 import java.io.File
 
 // OpenFlux (external/openflux, upstream p1neappleXpress/OpenFlux). No captcha flow, but no single
-// clean "connected" line either - the four transports it wraps (Yandex.Docs, vyandex/"Volga",
-// MAX/oneme, cups.online) differ a lot in how much they actually log, so parseLogLine's
+// clean "connected" line either - the five transports it wraps (Yandex.Docs, vyandex/"Volga",
+// MAX/oneme, cups.online, Mail.ru Docs) differ a lot in how much they actually log, so parseLogLine's
 // connected/error detection is split by transport below. log.Fatalf hard failures in main.go also
 // exit the process, so the generic "no output before exit" fallback in CoreService.runBinary
 // would eventually catch those too, but matching the line directly gives a much faster, more
@@ -37,7 +37,8 @@ object OpenFluxKernel : Kernel {
     override fun profileSummaryExtra(context: Context, cfg: KernelConfig): List<String> {
         val config = (cfg as KernelConfig.OpenFlux).config
         return listOfNotNull(
-            context.getString(R.string.kernel_tag_encrypted).takeIf { config.encryptionKey.isNotBlank() }
+            context.getString(R.string.kernel_tag_encrypted).takeIf { config.encryptionKey.isNotBlank() },
+            context.getString(R.string.kernel_tag_legacy_codec).takeIf { config.legacyCodec }
         )
     }
 
@@ -45,6 +46,7 @@ object OpenFluxKernel : Kernel {
         "yandex", "vyandex" -> R.drawable.ic_yandex_docs
         "oneme" -> R.drawable.ic_max
         "cupsonline" -> R.drawable.ic_cupsonline
+        "mailru" -> R.drawable.ic_mailru
         else -> R.drawable.route_24px
     }
 
@@ -66,7 +68,11 @@ object OpenFluxKernel : Kernel {
         val o = (cfg.kernelConfig as KernelConfig.OpenFlux).config
         cmdArgs.add("${ctx.nativeLibraryDir}/libopenflux.so")
         cmdArgs.addAll(listOf(
-            "--client",
+            // "--client" still works (kept as a deprecated alias for one release upstream) but is
+            // slated for removal in v2 - "--role client" is the flag that replaces it.
+            "--role", "client",
+            // "--inbound" deliberately left unset: it defaults to socks5 on every non-macOS
+            // platform (Android included), which is what cfg.socksAddr below expects.
             "--socks5", cfg.socksAddr.ifBlank { ClientConfig.DEFAULT_SOCKS_ADDR },
             "--transport", o.transport
         ))
@@ -76,6 +82,13 @@ object OpenFluxKernel : Kernel {
             cmdArgs.addAll(listOf("--maxToken", o.maxToken, "--maxUid", o.maxUid))
         } else {
             cmdArgs.addAll(listOf("--url", o.url))
+        }
+        // The binary's own default codec is "batched" (zstd + coalescing) - both ends of the
+        // tunnel must use the same one, it isn't negotiated, so this only gets passed to fall
+        // back to the old per-packet-LZ4 behavior for an exit-node that hasn't been updated past
+        // the point batching was introduced.
+        if (o.legacyCodec) {
+            cmdArgs.addAll(listOf("--codec", "legacy"))
         }
         // Needed for real log visibility: main.go's own client/transport lines (banner, "Running
         // as CLIENT", fatal errors) print unconditionally either way, but everything from the
@@ -196,6 +209,29 @@ object OpenFluxKernel : Kernel {
                 return true
             }
             if (state.openFluxVolgaFailureCounter.recordAndCheckThreshold()) {
+                CoreServiceState.setStatus(CoreStatus.Error(line))
+                ctx.updateNotification(ctx.getString(R.string.error_connecting))
+                state.startupFailed = true
+                return true
+            }
+            state.startupEmitted = true
+        }
+
+        // 4c. Mail.ru Docs transport (transport/mailru/mailru.go, --debug required): same shape
+        // as classic Yandex above - fetchDocInfo/WebSocket dial/read failures inside connectToDoc()
+        // are the only signal, no definite "connected" line of its own beyond "Running as CLIENT"
+        // (point 3), and it reconnects forever on its own with backoff - same silent-spin risk.
+        if (transport == "mailru" && (
+                lower.contains("[m-docs] fetchdocinfo failed") ||
+                lower.contains("[m-docs] websocket dial failed") ||
+                lower.contains("[m-docs] read error")
+            )
+        ) {
+            if (ctx.isNetworkMissingAndHandled()) {
+                state.startupFailed = true
+                return true
+            }
+            if (state.openFluxMailruFailureCounter.recordAndCheckThreshold()) {
                 CoreServiceState.setStatus(CoreStatus.Error(line))
                 ctx.updateNotification(ctx.getString(R.string.error_connecting))
                 state.startupFailed = true
