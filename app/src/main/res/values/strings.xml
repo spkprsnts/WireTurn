@@ -473,6 +473,10 @@
     <string name="error_kernel_or_settings">Problem with core or settings</string>
     <string name="error_webdav_backend_unreachable">WebDAV backend is unreachable</string>
     <string name="error_webdav_server_unavailable">WebDAV tunnel server is unavailable</string>
+    <string name="error_openflux_vyandex_wrong_doc">Not a Volga document</string>
+    <string name="error_openflux_yandex_wrong_doc">Document needs Volga transport</string>
+    <string name="error_openflux_doc_not_found">Document not found</string>
+    <string name="error_openflux_dns_lookup_failed">DNS lookup failed: %1$s</string>
 
     <!-- Notifications -->
     <string name="notification_title" translatable="false">WireTurn</string>

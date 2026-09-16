@@ -29,6 +29,11 @@ object OpenFluxKernel : Kernel {
     override val wgNotUsedMessageRes: Int = R.string.wg_not_used_with_openflux
     // socks5SupportsAuth comes from the default (KernelVariant.socks5SupportsAuth = variant != OPENFLUX).
 
+    // Go's net.DNSError always renders as "... lookup <host>: no such host" - pulls the host back
+    // out for error_openflux_dns_lookup_failed (see parseLogLine point 0d) instead of asserting
+    // it's the document URL, since a device-level DNS interceptor can be what's actually failing.
+    private val DNS_LOOKUP_HOST_REGEX = Regex("lookup ([^:]+): no such host")
+
     override fun description(context: Context, cfg: KernelConfig): String {
         val config = (cfg as KernelConfig.OpenFlux).config
         return context.getString(displayNameRes) + " " + config.platformDisplayName
@@ -115,6 +120,91 @@ object OpenFluxKernel : Kernel {
     override suspend fun parseLogLine(line: String, lower: String, state: BinaryOutputState, ctx: KernelLogContext, cfg: ClientConfig): Boolean {
         val transport = (cfg.kernelConfig as? KernelConfig.OpenFlux)?.config?.transport ?: "yandex"
 
+        // 0a. Volga auth failure (transport/yandex/vyandex.go): "action_url missing" means the
+        // shared link is a classic Yandex.Docs document with no Volga real-time-editor backend -
+        // vyandex can never authenticate against it, no matter how long it retries. Checked before
+        // the generic "failed to start transport" catch-all below, which would otherwise show this
+        // exact log line (with the doc's raw office-metadata key dump) as the error message.
+        if (transport == "vyandex" && lower.contains("action_url missing")) {
+            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                CoreServiceState.setStatus(CoreStatus.Error(ctx.getString(R.string.error_openflux_vyandex_wrong_doc)))
+                ctx.updateNotification(ctx.getString(R.string.error_connecting))
+            }
+            state.startupFailed = true
+            return true
+        }
+
+        // 0b. The mirror image of 0a: classic yandex transport (transport/yandex/yandex.go
+        // fetchDocInfo) pointed at a Volga-only document. "officeActionData"/"editor_config"/
+        // "balancer_url" missing are all read from the same already-fetched, already-parsed page -
+        // structural for this doc, not a transient fetch hiccup - despite each one's own "will
+        // reconnect" wording (point 4 below still retries these forever via
+        // openFluxYandexFailureCounter, but that's tuned for routine network noise: 8 occurrences
+        // with a growing backoff between them means minutes of a falsely "Connected" status - see
+        // point 3 - before it finally gives up). Same idea as 0a: catch it immediately instead.
+        if (transport == "yandex" && (
+                lower.contains("officeactiondata missing") ||
+                lower.contains("editor_config nil") ||
+                lower.contains("officeactiondata.balancer_url missing")
+            )
+        ) {
+            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                CoreServiceState.setStatus(CoreStatus.Error(ctx.getString(R.string.error_openflux_yandex_wrong_doc)))
+                ctx.updateNotification(ctx.getString(R.string.error_connecting))
+            }
+            state.startupFailed = true
+            return true
+        }
+
+        // 0c. Doc URL points nowhere valid: yandex.go's fetchDocInfo says "config not found: ...",
+        // vyandex.go's says "client-config not found in ...", both cases where the page fetched
+        // successfully but wasn't a real Yandex.Docs/Volga document page (deleted, private, wrong
+        // link entirely). Same idea as 0a/0b - deterministic given this exact URL, not routine.
+        if (transport != "oneme" && lower.contains("config not found")) {
+            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                CoreServiceState.setStatus(CoreStatus.Error(ctx.getString(R.string.error_openflux_doc_not_found)))
+                ctx.updateNotification(ctx.getString(R.string.error_connecting))
+            }
+            state.startupFailed = true
+            return true
+        }
+
+        // 0d. Some hostname failed to resolve - Go's net.DNSError text is always "... lookup
+        // <host>: no such host", regardless of transport. Deterministic (retrying won't make a
+        // nonexistent hostname start resolving) - but NOT necessarily about the document URL
+        // itself: a device-level DNS interceptor (some VPN/antivirus apps redirect or hijack
+        // system DNS) can just as easily be what's actually failing to resolve, for a completely
+        // different host than the one the user typed. Show the exact host from the log rather than
+        // asserting "invalid document URL" - a surprising/unrelated hostname here is itself the
+        // useful signal that this isn't about the link at all.
+        if (transport != "oneme" && lower.contains("no such host")) {
+            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                val host = DNS_LOOKUP_HOST_REGEX.find(line)?.groupValues?.get(1) ?: line
+                CoreServiceState.setStatus(CoreStatus.Error(ctx.getString(R.string.error_openflux_dns_lookup_failed, host)))
+                ctx.updateNotification(ctx.getString(R.string.error_connecting))
+            }
+            state.startupFailed = true
+            return true
+        }
+
+        // 0e. Mail.ru's own analogue of 0c: mailru.go's fetchDocInfo wraps ANY non-200 response
+        // from cloud.mail.ru/api/v4/r7/edit as "API returned status %d" - most of that range is
+        // routine and stays on the counter below (429/5xx are legitimately transient), but 400
+        // (malformed weblink) and 404 (deleted/wrong id) are deterministic given this exact link,
+        // same as "config not found" for yandex/vyandex.
+        if (transport == "mailru" && (
+                lower.contains("api returned status 400") ||
+                lower.contains("api returned status 404")
+            )
+        ) {
+            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                CoreServiceState.setStatus(CoreStatus.Error(ctx.getString(R.string.error_openflux_doc_not_found)))
+                ctx.updateNotification(ctx.getString(R.string.error_connecting))
+            }
+            state.startupFailed = true
+            return true
+        }
+
         // 1. Hard errors (log.Fatalf in main.go - prints then exits)
         if (lower.startsWith("panic:") ||
             lower.contains("failed to start transport") ||
@@ -154,6 +244,17 @@ object OpenFluxKernel : Kernel {
                 markConnecting()
             }
         }
+
+        // NOTE: "[BATCH] decode error" (transport/batched.go's BatchedTransport, the --codec
+        // batched layer) was tried as a fast-fail signal for a client/exit-node --codec mismatch
+        // here, but turned out unreliable specifically for vyandex: that transport has its own,
+        // older internal batching (transport/yandex/vyandex.go's own decodeBatch, predating the
+        // shared --codec layer) with a fallback that can hand a stray leftover fragment up to the
+        // outer BatchedTransport as if it were a whole frame - triggering this same log line on a
+        // perfectly healthy, already-transmitting session (observed: real traffic flowing per
+        // [VOLGA-STATS] for several seconds, then one single-byte fragment tripped it and killed
+        // the tunnel). Since that fallback can produce any of decodeBatch's error variants
+        // (not just this one), there's no substring here that's safe to treat as fatal - removed.
 
         // 4. Yandex.Docs transport (--debug required, see buildCommand): fetchDocInfo/WebSocket
         // dial/read failures inside transport/yandex.go's connectToDoc() are the only signal this

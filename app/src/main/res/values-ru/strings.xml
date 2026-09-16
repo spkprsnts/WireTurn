@@ -442,6 +442,10 @@
     <string name="error_kernel_or_settings">Проблема с ядром или настройками</string>
     <string name="error_webdav_backend_unreachable">Бэкенд WebDAV недоступен</string>
     <string name="error_webdav_server_unavailable">Сервер туннеля WebDAV недоступен</string>
+    <string name="error_openflux_vyandex_wrong_doc">Это не Volga-документ</string>
+    <string name="error_openflux_yandex_wrong_doc">Документу нужен транспорт Volga</string>
+    <string name="error_openflux_doc_not_found">Документ не найден</string>
+    <string name="error_openflux_dns_lookup_failed">Хост не найден: %1$s</string>
 
     <!-- Уведомления -->
     <string name="notification_channel_description">Уведомление о состоянии и для управления</string>
