@@ -64,14 +64,13 @@ import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
-import com.wireturn.app.kernel.KernelRegistry
 import com.wireturn.app.data.VlessConfig
 import com.wireturn.app.data.WgConfig
 import com.wireturn.app.data.XrayConfig
 import com.wireturn.app.data.XrayConfiguration
+import com.wireturn.app.kernel.KernelRegistry
 import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.AppTopAppBar
-import com.wireturn.app.ui.ScreenSubtitle
 import com.wireturn.app.ui.ExpandableSection
 import com.wireturn.app.ui.FieldTrailingIcons
 import com.wireturn.app.ui.HapticUtil
@@ -80,6 +79,7 @@ import com.wireturn.app.ui.LabeledButtonGroup
 import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.QrCodeDialog
 import com.wireturn.app.ui.RowLabel
+import com.wireturn.app.ui.ScreenSubtitle
 import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.ShareDropdownMenu

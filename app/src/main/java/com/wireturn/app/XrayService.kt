@@ -8,11 +8,11 @@ import android.os.Build
 import android.os.IBinder
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.ClientConfig
-import com.wireturn.app.kernel.KernelRegistry
 import com.wireturn.app.data.VlessConfig
 import com.wireturn.app.data.WgConfig
 import com.wireturn.app.data.XrayConfig
 import com.wireturn.app.data.XraySettings
+import com.wireturn.app.kernel.KernelRegistry
 import com.wireturn.app.viewmodel.XrayState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope

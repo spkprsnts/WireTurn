@@ -107,8 +107,8 @@ import com.wireturn.app.CoreServiceState
 import com.wireturn.app.R
 import com.wireturn.app.VpnServiceState
 import com.wireturn.app.XrayServiceState
-import com.wireturn.app.kernel.KernelRegistry
 import com.wireturn.app.data.XrayConfiguration
+import com.wireturn.app.kernel.KernelRegistry
 import com.wireturn.app.ui.AppExclusionTooltip
 import com.wireturn.app.ui.CompactItem
 import com.wireturn.app.ui.HapticUtil
@@ -122,15 +122,15 @@ import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SupportingText
 import com.wireturn.app.ui.SwitchRow
-import com.wireturn.app.ui.trackGestureStartedAtBoundary
 import com.wireturn.app.ui.UpdateBlock
 import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.VerticalAnimatedText
 import com.wireturn.app.ui.components.CoreToggleButton
 import com.wireturn.app.ui.privacySpoiler
-import com.wireturn.app.ui.theme.ContentAlpha
 import com.wireturn.app.ui.redact
 import com.wireturn.app.ui.showExclusiveToast
+import com.wireturn.app.ui.theme.ContentAlpha
+import com.wireturn.app.ui.trackGestureStartedAtBoundary
 import com.wireturn.app.viewmodel.CoreState
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.UpdateState

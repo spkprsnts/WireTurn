@@ -6,8 +6,8 @@ import com.wireturn.app.CoreStatus
 import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
-import com.wireturn.app.data.kernel.OlcrtcConfig
 import com.wireturn.app.data.KernelVariant
+import com.wireturn.app.data.kernel.OlcrtcConfig
 import com.wireturn.app.ui.activities.kernel.OlcRtcConfigActivity
 import java.io.File
 

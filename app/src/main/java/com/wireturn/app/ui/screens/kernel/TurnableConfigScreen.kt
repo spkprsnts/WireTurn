@@ -74,7 +74,6 @@ import com.wireturn.app.data.kernel.TurnableConfig
 import com.wireturn.app.data.kernel.TurnableRoute
 import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.AppTopAppBar
-import com.wireturn.app.ui.ScreenSubtitle
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LabeledButtonGroup
@@ -82,6 +81,7 @@ import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.ModifiedIndicator
 import com.wireturn.app.ui.QrCodeDialog
 import com.wireturn.app.ui.RowLabel
+import com.wireturn.app.ui.ScreenSubtitle
 import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.SelectionDialog
