@@ -160,7 +160,9 @@ object OpenFluxKernel : Kernel {
         // vyandex.go's says "client-config not found in ...", both cases where the page fetched
         // successfully but wasn't a real Yandex.Docs/Volga document page (deleted, private, wrong
         // link entirely). Same idea as 0a/0b - deterministic given this exact URL, not routine.
-        if (transport != "oneme" && lower.contains("config not found")) {
+        // Scoped to yandex/vyandex specifically (not just "!= oneme") since neither cupsonline nor
+        // mailru's own fetch code ever produces this exact phrase - see 0e for mailru's equivalent.
+        if ((transport == "yandex" || transport == "vyandex") && lower.contains("config not found")) {
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                 CoreServiceState.setStatus(CoreStatus.Error(ctx.getString(R.string.error_openflux_doc_not_found)))
                 ctx.updateNotification(ctx.getString(R.string.error_connecting))
@@ -170,14 +172,21 @@ object OpenFluxKernel : Kernel {
         }
 
         // 0d. Some hostname failed to resolve - Go's net.DNSError text is always "... lookup
-        // <host>: no such host", regardless of transport. Deterministic (retrying won't make a
-        // nonexistent hostname start resolving) - but NOT necessarily about the document URL
-        // itself: a device-level DNS interceptor (some VPN/antivirus apps redirect or hijack
-        // system DNS) can just as easily be what's actually failing to resolve, for a completely
-        // different host than the one the user typed. Show the exact host from the log rather than
-        // asserting "invalid document URL" - a surprising/unrelated hostname here is itself the
-        // useful signal that this isn't about the link at all.
-        if (transport != "oneme" && lower.contains("no such host")) {
+        // <host>: no such host". Deterministic *given a real HTTP round-trip attempt* (retrying
+        // won't make a nonexistent hostname start resolving) - but the same text is exactly what a
+        // device with no network at all produces too (DNS server unreachable), same as every other
+        // network-shaped failure below, so check isNetworkMissingAndHandled() first like they do -
+        // otherwise a brief connectivity blip (Wi-Fi/mobile handoff) shows a misleading permanent
+        // error instead of the WaitingForNetwork state every sibling check falls back to. Excludes
+        // cupsonline: it joins several rooms in parallel and tolerates any single room's own DNS
+        // hiccup via its own per-room retry (state.openFluxCupsFailureCounter below already owns
+        // that transport's failure handling) - one room's transient "no such host" isn't fatal to
+        // the others, so it must not be intercepted here.
+        if (transport != "oneme" && transport != "cupsonline" && lower.contains("no such host")) {
+            if (ctx.isNetworkMissingAndHandled()) {
+                state.startupFailed = true
+                return true
+            }
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                 val host = DNS_LOOKUP_HOST_REGEX.find(line)?.groupValues?.get(1) ?: line
                 CoreServiceState.setStatus(CoreStatus.Error(ctx.getString(R.string.error_openflux_dns_lookup_failed, host)))
