@@ -87,7 +87,7 @@ object TurnableKernel : Kernel {
         if (lower.contains("vk signaling connect rejected: not authorized") ||
             lower.contains("failed to validate connection url") ||
             lower.contains("second shutdown signal received") ||
-            lower.contains("panic") || lower.contains("fatal")
+            ((lower.contains("panic") || lower.contains("fatal")) && !lower.contains("[info]"))
         ) {
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                 CoreServiceState.setStatus(CoreStatus.Error(line))
