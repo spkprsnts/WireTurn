@@ -635,8 +635,12 @@ fun HomeScreen(
             // Works off Xray when it's running, or off VPN mode's own hev-socks5-tunnel counters
             // when VPN is up without Xray (e.g. straight OLCRTC/WEBDAV) - see MainViewModel.
             AnimatedVisibility(
-                visible = (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute || vpnServiceState == VpnState.Running) &&
-                    (proxyState is CoreState.Connected || proxyState is CoreState.Suppressed),
+                // Only once the tunnel is really up ("Tunnel active" / "Direct route"): a running
+                // Xray or VPN alone isn't enough while the core is still connecting, and Suppressed
+                // counts only after Xray has actually switched over to the direct route.
+                visible = (proxyState is CoreState.Connected &&
+                    (xrayState == XrayState.Running || vpnServiceState == VpnState.Running)) ||
+                    (proxyState is CoreState.Suppressed && xrayState == XrayState.DirectRoute),
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
