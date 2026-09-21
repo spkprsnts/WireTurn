@@ -516,20 +516,36 @@ class CoreService : Service() {
                 }
             }
 
+            var forceKillJob: Job? = null
             try {
                 withContext(Dispatchers.IO) {
                     BufferedReader(InputStreamReader(proc.inputStream)).use { reader ->
+                        var stopping = false
                         for (rawLine in reader.lineSequence()) {
                             if (!isActive) break
                             val line = AppLogsState.stripAnsi(rawLine)
                             AppLogsState.addLog(line)
                             // Process was intentionally killed (hot-reload/stop) — log but don't update status
                             if (process.get() == null) continue
-                            if (processOutputLine(line, state, cfg)) break
+                            if (stopping) continue
+                            if (processOutputLine(line, state, cfg)) {
+                                // Closing the pipe under a live process kills it with SIGPIPE (exit
+                                // 141) before it can clean up - e.g. Go cores never get to release
+                                // their TURN allocations, which keeps VK's quota held and makes the
+                                // next start hit "Allocation Quota Reached". Ask it to stop with
+                                // SIGTERM and keep draining its output until it actually exits.
+                                stopping = true
+                                sendSigTerm(proc)
+                                forceKillJob = this@coroutineScope.launch {
+                                    delay(5_000.milliseconds)
+                                    proc.destroyForcibly()
+                                }
+                            }
                         }
                     }
                 }
             } finally {
+                forceKillJob?.cancel()
                 connectionWatchdog.cancel()
             }
 
