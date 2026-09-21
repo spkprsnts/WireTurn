@@ -87,7 +87,7 @@ object TurnableKernel : Kernel {
         if (lower.contains("vk signaling connect rejected: not authorized") ||
             lower.contains("failed to validate connection url") ||
             lower.contains("second shutdown signal received") ||
-            ((lower.contains("panic") || lower.contains("fatal")) && !lower.contains("[info]"))
+            ((lower.contains("panic") || lower.contains("fatal")) && !lower.contains("[info]") && !lower.contains("[warn]"))
         ) {
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                 CoreServiceState.setStatus(CoreStatus.Error(line))
@@ -102,7 +102,6 @@ object TurnableKernel : Kernel {
         val isNormalClose = lower.contains("close 1000 (normal)")
 
         if (lower.contains("vk authorize anonymous flow failed") ||
-            lower.contains("vk calls login failed") ||
             lower.contains("vk join conversation failed") ||
             (isSignalingLoopTerminated && !isNormalClose)
         ) {
@@ -146,13 +145,11 @@ object TurnableKernel : Kernel {
             return true
         }
 
-        // 2. Connected
+        // 2. Connected. Only the first "peer online" counts: "turnable client started" is printed
+        // as soon as the local listener is up (before VK auth/captcha/peers), and "relay client
+        // session started" before any peer has handshaked.
         val onlineCount = getOnlineCount(lower)
-        if (lower.contains("turnable client started") ||
-            lower.contains("relay client session connected") ||
-            lower.contains("direct session connected") ||
-            (onlineCount != null && onlineCount >= 1 && lower.contains("peer online"))
-        ) {
+        if (onlineCount != null && onlineCount >= 1 && lower.contains("peer online")) {
             state.peerConnectFailedCount = 0
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                 CoreServiceState.setStatus(CoreStatus.Connected)
@@ -162,32 +159,30 @@ object TurnableKernel : Kernel {
         }
 
         // 3. Connecting / Progress / Retries
-        if (lower.contains("starting turnable client") ||
-            lower.contains("starting full reconnect") ||
-            lower.contains("direct: starting full reconnect") ||
+        // Lines that mean the whole session is (re)starting or is gone: always drop to Connecting.
+        val sessionLost = lower.contains("starting turnable client") ||
+            lower.contains("starting reconnect") ||
+            lower.contains("reconnect attempt failed") ||
+            lower.contains("waiting for connectivity") ||
+            lower.contains("peer connection failed with turn error") ||
             lower.contains("vk captcha challenge received") ||
             lower.contains("vk captcha solved") ||
             lower.contains("all auto captcha attempts exhausted") ||
             lower.contains("manual captcha solve required") ||
             lower.contains("vk signaling websocket dial failed") ||
-            lower.contains("turn candidate failed") ||
+            lower.contains("tinymux client received disconnect") ||
+            lower.contains("tinymux client cut off unexpectedly") ||
+            (onlineCount != null && onlineCount == 0 && lower.contains("peer offline"))
+        // Per-peer noise (one of N peers failing to dial, direct->turn fallback): progress while
+        // still connecting, but must not knock an already-established tunnel back to Connecting.
+        val peerNoise = lower.contains("peer dial failed") ||
+            lower.contains("quota") ||
             lower.contains("dtls direct connect failed") ||
             lower.contains("srtp direct connect failed") ||
             lower.contains("dtls client handshake started") ||
-            lower.contains("srtp client handshake started") ||
-            lower.contains("peer connect failed") ||
-            lower.contains("peer quota reached") ||
-            lower.contains("full reconnect failed") ||
-            lower.contains("direct: full reconnect failed") ||
-            lower.contains("primary handshake failed") ||
-            lower.contains("secondary handshake failed") ||
-            lower.contains("peer reconnect failed") ||
-            lower.contains("scheduling peer retry") ||
-            lower.contains("tinymux client received disconnect") ||
-            lower.contains("tinymux client cut off unexpectedly") ||
-            lower.contains("quota") ||
-            (onlineCount != null && onlineCount == 0 && lower.contains("peer offline"))
-        ) {
+            lower.contains("srtp client handshake started")
+
+        if (sessionLost || (peerNoise && CoreServiceState.status.value !is CoreStatus.Connected)) {
             if (canUpdateConnectingStatus()) {
                 if (ctx.isNetworkMissingAndHandled()) {
                     state.startupFailed = true
