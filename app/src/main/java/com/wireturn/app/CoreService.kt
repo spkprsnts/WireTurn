@@ -84,6 +84,10 @@ class CoreService : Service() {
     // generic core_failed message if the watchdog exhausts MAX_RESTARTS.
     private var lastKnownFailureReason: String? = null
     private var minRestartDelayMs = 0L
+    // Set right before a deliberate stop of the running binary (hot-reload, network change) so the
+    // supervisor loop restarts it straight away instead of treating the exit as a crash and
+    // showing a watchdog "attempt N/M" for it.
+    private val plannedRestart = AtomicBoolean(false)
 
     private lateinit var serviceScope: CoroutineScope
     private var coreJob: Job? = null
@@ -347,6 +351,7 @@ class CoreService : Service() {
                             AppLogsState.addLog(getString(R.string.log_core_config_changed))
                             CoreServiceState.setStatusText(null)
                             CoreServiceState.setStatus(CoreStatus.Stopping)
+                            if (process.get() != null) plannedRestart.set(true)
                             stopBinaryProcessGracefully()
                         }
                     }
@@ -385,6 +390,14 @@ class CoreService : Service() {
             // мы НЕ должны запускать логику вотчдога.
             if (CoreServiceState.status.value is CoreStatus.Suppressed) {
                 restartCount = 0
+                continue
+            }
+
+            if (plannedRestart.getAndSet(false)) {
+                restartCount = 0
+                CoreServiceState.setRestartAttempt(null)
+                CoreServiceState.setStatusText(null)
+                CoreServiceState.setStatus(CoreStatus.Connecting)
                 continue
             }
 
@@ -1043,6 +1056,7 @@ class CoreService : Service() {
                         AppLogsState.addLog(getString(R.string.log_core_network_change))
                         updateNotification(getString(R.string.notification_network_change))
                         restartCount = 0
+                        plannedRestart.set(true)
                         stopBinaryProcessGracefully()
                     }
                 }
