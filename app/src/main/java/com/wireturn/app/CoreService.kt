@@ -83,6 +83,7 @@ class CoreService : Service() {
     // Specific reason for the current failure, if a handler knows one - shown instead of the
     // generic core_failed message if the watchdog exhausts MAX_RESTARTS.
     private var lastKnownFailureReason: String? = null
+    private var minRestartDelayMs = 0L
 
     private lateinit var serviceScope: CoroutineScope
     private var coreJob: Job? = null
@@ -105,6 +106,7 @@ class CoreService : Service() {
         override fun launchCaptchaActivityIfForeground(url: String) = this@CoreService.launchCaptchaActivityIfForeground(url)
         override fun setPendingCaptchaSessionId(id: Long) { pendingQwdttCaptchaSessionId.set(id) }
         override fun setLastFailureReason(reason: String) { lastKnownFailureReason = reason }
+        override fun setMinRestartDelay(delayMs: Long) { minRestartDelayMs = delayMs }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -373,6 +375,7 @@ class CoreService : Service() {
             // Reset so a stale reason from an earlier, unrelated cycle can't outlive it - only
             // this run's own handler (if any) should set it before the failure check below reads it.
             lastKnownFailureReason = null
+            minRestartDelayMs = 0L
             val startupSuccessful = runBinary(cfg)
             val duration = System.currentTimeMillis() - startTime
             
@@ -425,6 +428,7 @@ class CoreService : Service() {
                 AppLogsState.addLog(getString(R.string.log_core_slow_network_watchdog))
                 baseDelay = maxOf(baseDelay, 5000L)
             }
+            baseDelay = maxOf(baseDelay, minRestartDelayMs)
             val delayMs = baseDelay + Random.nextLong(0, 500)
             
             AppLogsState.addLog(getString(R.string.log_core_watchdog_restart, delayMs, restartCount, MAX_RESTARTS))

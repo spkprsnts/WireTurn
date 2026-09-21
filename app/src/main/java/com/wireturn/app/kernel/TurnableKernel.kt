@@ -97,6 +97,15 @@ object TurnableKernel : Kernel {
             return true
         }
 
+        // VK's anti-flood rejects joins while we keep hammering it, and restarting within seconds
+        // only extends the block - wait it out, and surface this reason if the watchdog gives up.
+        if (lower.contains("participant.check.flood")) {
+            ctx.setLastFailureReason(ctx.getString(R.string.error_turnable_vk_flood))
+            ctx.setMinRestartDelay(VK_FLOOD_RESTART_DELAY_MS)
+            state.startupEmitted = true
+            return true
+        }
+
         // 2. Soft Errors (Transient network issues, watchdog will restart)
         val isSignalingLoopTerminated = lower.contains("vk signaling loop terminated")
         val isNormalClose = lower.contains("close 1000 (normal)")
@@ -200,6 +209,8 @@ object TurnableKernel : Kernel {
         val matcher = ONLINE_COUNT_REGEX.matcher(lower)
         return if (matcher.find()) matcher.group(1)?.toIntOrNull() else null
     }
+
+    private const val VK_FLOOD_RESTART_DELAY_MS = 20_000L
 
     private val ONLINE_COUNT_REGEX = Pattern.compile("""online=(\d+)""")
 }

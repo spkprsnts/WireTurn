@@ -32,6 +32,9 @@ interface KernelLogContext {
     // Shown instead of the generic core_failed message if the watchdog exhausts MAX_RESTARTS -
     // only WebdavKernel sets this today, a no-op default keeps every other kernel from having to.
     fun setLastFailureReason(reason: String) {}
+    // Lower bound for the watchdog's next restart delay (this run only) - for failures that a
+    // quick restart makes worse, e.g. an upstream rate limit. A no-op default for other kernels.
+    fun setMinRestartDelay(delayMs: Long) {}
 }
 
 /** Per-run mutable state threaded through repeated [Kernel.parseLogLine] calls for one binary run. */
