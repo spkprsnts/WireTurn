@@ -531,7 +531,7 @@
     <string name="xray_proxy_pass">Пароль</string>
     <string name="xray_protocol_desc">Выберите протокол для Xray-core</string>
     <string name="connection_settings_title">Расширенные настройки</string>
-    <string name="connection_settings_desc">Адреса туннеля, DNS и настройки Xray</string>
+    <string name="connection_settings_desc">Адреса туннеля, DNS, настройки Xray и VPN</string>
     <string name="xray_settings_title">Настройки Xray</string>
     <string name="xray_settings_desc">DNS, маршрутизация и другие параметры Xray</string>
     <string name="xray_settings_group_dns">DNS</string>
@@ -625,4 +625,13 @@
     <string name="guide_wt_panel">WT Panel — создание и управление серверами</string>
     <string name="guide_turnable">Инструкция по настройке сервера Turnable</string>
     <string name="guide_olcrtc">Инструкция по настройке сервера olcRTC</string>
+    <string name="vpn_settings_title">Настройки VPN</string>
+    <string name="vpn_settings_desc">MTU, IPv6, ICMP и маршрутизация приложений</string>
+    <string name="vpn_settings_mtu_label">MTU</string>
+    <string name="vpn_settings_mtu_desc">Размер пакета в туннеле, %1$d–%2$d. Уменьшите, если сайты зависают или медленно грузятся</string>
+    <string name="vpn_settings_ipv6_label">IPv6</string>
+    <string name="vpn_settings_ipv6_desc">Пускать IPv6 через туннель. Если выключено, IPv6-трафик идёт мимо VPN</string>
+    <string name="vpn_settings_icmp_label">Ответы на ICMP</string>
+    <string name="vpn_settings_icmp_desc">Отвечать на ping локально, чтобы приложения, проверяющие связь через ICMP, не считали сеть недоступной</string>
+    <string name="vpn_settings_apps_desc">Выбор приложений, работающих через VPN</string>
 </resources>

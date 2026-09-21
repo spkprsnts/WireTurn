@@ -11,6 +11,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.ParcelFileDescriptor
 import com.wireturn.app.data.AppPreferences
+import com.wireturn.app.data.VpnSettings
 import com.wireturn.app.data.XraySettings.Companion.DEFAULT_SOCKS_BIND_ADDRESS
 import com.wireturn.app.viewmodel.VpnState
 import kotlinx.coroutines.CoroutineScope
@@ -200,7 +201,7 @@ class HevVpnService : VpnService() {
         return START_STICKY
     }
 
-    private fun buildConfigYaml(socks5Addr: String, socks5User: String?, socks5Pass: String?): String {
+    private fun buildConfigYaml(vpnSettings: VpnSettings, socks5Addr: String, socks5User: String?, socks5Pass: String?): String {
         val lastColon = socks5Addr.lastIndexOf(':')
         val socks5Host = if (lastColon > 0) socks5Addr.substring(0, lastColon) else socks5Addr
         val socks5Port = if (lastColon > 0) socks5Addr.substring(lastColon + 1).toIntOrNull() ?: 1080 else 1080
@@ -213,7 +214,8 @@ class HevVpnService : VpnService() {
 
         return """
 tunnel:
-  mtu: $TUN_MTU
+  mtu: ${vpnSettings.mtu}
+  icmp: '${if (vpnSettings.icmpReply) "reply" else "off"}'
 socks5:
   port: $socks5Port
   address: '$socks5Host'
@@ -255,7 +257,8 @@ misc:
             }
 
             val configFile = File(filesDir, "hev-socks5-tunnel.yaml")
-            configFile.writeText(buildConfigYaml(socks5Addr, socks5User, socks5Pass))
+            val vpnSettings = AppPreferences(applicationContext).vpnSettingsFlow.first()
+            configFile.writeText(buildConfigYaml(vpnSettings, socks5Addr, socks5User, socks5Pass))
 
             AppLogsState.addLog(getString(R.string.log_vpn_retarget, socks5Addr))
             val success = withContext(Dispatchers.IO) {
@@ -285,12 +288,13 @@ misc:
 
             val builder = this.Builder()
                 .setSession("wireturn VPN")
-                .setMtu(TUN_MTU)
+                .setMtu(vpnSettings.mtu)
                 .addAddress(TUN_IPV4_ADDRESS, 24)
-                // Without this, Android never captures IPv6 into the tun - it leaks straight
-                // out over the underlying network instead, unprotected.
-                .addAddress(TUN_IPV6_ADDRESS, 128)
                 .addDnsServer(MAPDNS_ADDRESS)
+            // Without an IPv6 address Android never captures IPv6 into the tun - it goes straight
+            // out over the underlying network instead, unprotected. That's what turning IPv6 off
+            // in the settings means.
+            if (vpnSettings.ipv6) builder.addAddress(TUN_IPV6_ADDRESS, 128)
 
             val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
             (underlyingNetwork ?: cm.activeNetwork)?.let { builder.setUnderlyingNetworks(arrayOf(it)) }
@@ -300,12 +304,12 @@ misc:
 
             if (!vpnSettings.filteringEnabled) {
                 builder.addRoute("0.0.0.0", 0)
-                builder.addRoute("::", 0)
+                if (vpnSettings.ipv6) builder.addRoute("::", 0)
                 builder.addDisallowedApplication(packageName)
                 AppLogsState.addLog(getString(R.string.log_vpn_filtering_disabled))
             } else if (vpnSettings.bypassMode) {
                 builder.addRoute("0.0.0.0", 0)
-                builder.addRoute("::", 0)
+                if (vpnSettings.ipv6) builder.addRoute("::", 0)
                 builder.addDisallowedApplication(packageName)
                 vpnSettings.excludedApps.forEach { pkg ->
                     try { builder.addDisallowedApplication(pkg) }
@@ -314,7 +318,7 @@ misc:
             } else {
                 if (vpnSettings.excludedApps.isNotEmpty()) {
                     builder.addRoute("0.0.0.0", 0)
-                    builder.addRoute("::", 0)
+                    if (vpnSettings.ipv6) builder.addRoute("::", 0)
                     vpnSettings.excludedApps.forEach { pkg ->
                         try { builder.addAllowedApplication(pkg) }
                         catch (e: Exception) { AppLogsState.addLog(getString(R.string.log_vpn_include_failed, pkg, e.message ?: "Unknown")) }
@@ -346,7 +350,7 @@ misc:
 
             val tunFd = established.fd
             val configFile = File(filesDir, "hev-socks5-tunnel.yaml")
-            configFile.writeText(buildConfigYaml(socks5Addr, socks5User, socks5Pass))
+            configFile.writeText(buildConfigYaml(vpnSettings, socks5Addr, socks5User, socks5Pass))
 
             nativeLock.withLock {
                 if (isStopping.get()) {
@@ -473,7 +477,6 @@ misc:
         const val EXTRA_SOCKS5_USER = "socks5_user"
         const val EXTRA_SOCKS5_PASS = "socks5_pass"
 
-        private const val TUN_MTU = 1280
         private const val TUN_IPV4_ADDRESS = "10.0.88.88"
         // ULA (RFC 4193), same convention hev-socks5-tunnel's own README example uses.
         private const val TUN_IPV6_ADDRESS = "fc00::1"

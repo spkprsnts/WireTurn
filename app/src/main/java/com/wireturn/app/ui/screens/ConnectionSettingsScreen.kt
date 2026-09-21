@@ -73,6 +73,7 @@ fun ConnectionSettingsScreen(
     onBack: () -> Unit,
     onSave: (ClientConfig) -> Unit,
     onNavigateToXraySettings: () -> Unit,
+    onNavigateToVpnSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -240,6 +241,35 @@ fun ConnectionSettingsScreen(
                     LabelGroup(
                         label = stringResource(R.string.xray_settings_title),
                         supportingText = stringResource(R.string.xray_settings_desc),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        painter = painterResource(R.drawable.arrow_forward_ios_24px),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            SectionItem(
+                position = ItemPosition.Single,
+                onClick = {
+                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                    onNavigateToVpnSettings()
+                }
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    StandardLeadingIcon {
+                        Icon(
+                            painter = painterResource(R.drawable.vpn_key_24px),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    LabelGroup(
+                        label = stringResource(R.string.vpn_settings_title),
+                        supportingText = stringResource(R.string.vpn_settings_desc),
                         modifier = Modifier.weight(1f)
                     )
                     Icon(

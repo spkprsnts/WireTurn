@@ -188,6 +188,11 @@
             android:windowSoftInputMode="adjustResize" />
 
         <activity
+            android:name=".ui.activities.VpnSettingsActivity"
+            android:theme="@style/Theme.wireturn"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
             android:name=".ui.activities.SettingsActivity"
             android:theme="@style/Theme.wireturn"
             android:windowSoftInputMode="adjustResize" />

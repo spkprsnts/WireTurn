@@ -585,7 +585,7 @@
     <string name="xray_protocol_desc">Choose protocol for Xray-core</string>
     <string name="protocol_wireguard" translatable="false">WireGuard</string>
     <string name="connection_settings_title">Advanced Settings</string>
-    <string name="connection_settings_desc">Tunnel addresses, DNS, and Xray settings</string>
+    <string name="connection_settings_desc">Tunnel addresses, DNS, Xray and VPN settings</string>
     <string name="xray_settings_title">Xray Settings</string>
     <string name="xray_settings_desc">DNS, routing and other advanced Xray options</string>
     <string name="xray_settings_group_dns">DNS</string>
@@ -683,4 +683,13 @@
     <string name="guide_wt_panel">WT Panel — server creation &amp; management</string>
     <string name="guide_turnable">Server setup guide: Turnable</string>
     <string name="guide_olcrtc">Server setup guide: olcRTC</string>
+    <string name="vpn_settings_title">VPN Settings</string>
+    <string name="vpn_settings_desc">MTU, IPv6, ICMP and app routing</string>
+    <string name="vpn_settings_mtu_label">MTU</string>
+    <string name="vpn_settings_mtu_desc">Tunnel packet size, %1$d–%2$d. Lower it if some sites hang or load slowly</string>
+    <string name="vpn_settings_ipv6_label">IPv6</string>
+    <string name="vpn_settings_ipv6_desc">Route IPv6 through the tunnel. When off, IPv6 traffic bypasses the VPN</string>
+    <string name="vpn_settings_icmp_label">ICMP replies</string>
+    <string name="vpn_settings_icmp_desc">Answer ping locally so apps that check connectivity with ICMP keep working</string>
+    <string name="vpn_settings_apps_desc">Choose which apps go through the VPN</string>
 </resources>

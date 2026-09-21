@@ -81,6 +81,9 @@ class AppPreferences(val context: Context) {
         val VPN_BYPASS_MODE = booleanPreferencesKey("vpn_bypass_mode")
         val VPN_FILTERING_ENABLED = booleanPreferencesKey("vpn_filtering_enabled")
         val VPN_GROUP_APPS_BY_LETTER = booleanPreferencesKey("vpn_group_apps_by_letter")
+        val VPN_MTU = intPreferencesKey("vpn_mtu")
+        val VPN_IPV6 = booleanPreferencesKey("vpn_ipv6")
+        val VPN_ICMP_REPLY = booleanPreferencesKey("vpn_icmp_reply")
         val VPN_EXCLUDED_APPS = stringSetPreferencesKey("proxy_excluded_apps")
         val APP_LANGUAGE = stringPreferencesKey("app_language")
         val PING_URL = stringPreferencesKey("ping_url")
@@ -152,7 +155,10 @@ class AppPreferences(val context: Context) {
                 bypassMode = it[VPN_BYPASS_MODE] ?: true,
                 filteringEnabled = it[VPN_FILTERING_ENABLED] ?: true,
                 groupAppsByLetter = it[VPN_GROUP_APPS_BY_LETTER] ?: true,
-                excludedApps = it[VPN_EXCLUDED_APPS] ?: emptySet()
+                excludedApps = it[VPN_EXCLUDED_APPS] ?: emptySet(),
+                mtu = it[VPN_MTU] ?: VpnSettings.DEFAULT_MTU,
+                ipv6 = it[VPN_IPV6] ?: true,
+                icmpReply = it[VPN_ICMP_REPLY] ?: true
             )
         }.distinctUntilChanged()
 
@@ -451,6 +457,9 @@ class AppPreferences(val context: Context) {
             it[VPN_FILTERING_ENABLED] = s.filteringEnabled
             it[VPN_GROUP_APPS_BY_LETTER] = s.groupAppsByLetter
             it[VPN_EXCLUDED_APPS] = s.excludedApps
+            it[VPN_MTU] = s.mtu
+            it[VPN_IPV6] = s.ipv6
+            it[VPN_ICMP_REPLY] = s.icmpReply
         }
     }
 
