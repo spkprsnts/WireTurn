@@ -52,15 +52,17 @@ object OpenFluxKernel : Kernel {
             "action_url missing" in it
         },
         // 0b. The mirror image of 0a: classic yandex transport (transport/yandex/yandex.go
-        // fetchDocInfo) pointed at a Volga-only document. "officeActionData"/"editor_config"/
-        // "balancer_url" missing are all read from the same already-fetched, already-parsed page -
-        // structural for this doc, not a transient fetch hiccup - despite each one's own "will
-        // reconnect" wording (point 4 below still retries these forever via
-        // openFluxYandexFailureCounter, but that's tuned for routine network noise: 8 occurrences
-        // with a growing backoff between them means minutes of a falsely "Connected" status - see
-        // point 3 - before it finally gives up).
+        // fetchDocInfo) pointed at a Volga-only document. All six of these are read from the same
+        // already-fetched, already-parsed client-config page - structural for this doc (Yandex
+        // migrated it off the legacy editor to only_office/volga, see openflux#10/#31/#86), not a
+        // transient fetch hiccup - despite each one's own "will reconnect" wording (point 4 below
+        // still retries these forever via openFluxYandexFailureCounter, but that's tuned for
+        // routine network noise: 8 occurrences with a growing backoff between them means minutes
+        // of a falsely "Connected" status - see point 3 - before it finally gives up).
         FastFailRule(setOf("yandex"), R.string.error_openflux_yandex_wrong_doc) {
-            "officeactiondata missing" in it || "editor_config nil" in it || "officeactiondata.balancer_url missing" in it
+            "officeactiondata missing" in it || "editor_config nil" in it ||
+                "officeactiondata.balancer_url missing" in it || "editor_config.document missing" in it ||
+                "editor_config.token missing" in it || "editor_config.document.key missing" in it
         },
         // 0c. Doc URL points nowhere valid: yandex.go's fetchDocInfo says "config not found: ...",
         // vyandex.go's says "client-config not found in ...", both cases where the page fetched
