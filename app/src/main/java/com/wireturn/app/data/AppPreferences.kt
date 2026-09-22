@@ -157,7 +157,7 @@ class AppPreferences(val context: Context) {
                 groupAppsByLetter = it[VPN_GROUP_APPS_BY_LETTER] ?: true,
                 excludedApps = it[VPN_EXCLUDED_APPS] ?: emptySet(),
                 mtu = it[VPN_MTU] ?: VpnSettings.DEFAULT_MTU,
-                ipv6 = it[VPN_IPV6] ?: true,
+                ipv6 = it[VPN_IPV6] ?: VpnSettings.DEFAULT_IPV6,
                 icmpReply = it[VPN_ICMP_REPLY] ?: true
             )
         }.distinctUntilChanged()

@@ -12,13 +12,14 @@ data class VpnSettings(
     val groupAppsByLetter: Boolean = true,
     val excludedApps: Set<String> = emptySet(),
     val mtu: Int = DEFAULT_MTU,
-    val ipv6: Boolean = true,
+    val ipv6: Boolean = false,
     val icmpReply: Boolean = true
 ) {
     companion object {
         const val DEFAULT_MTU = 1350
         const val MIN_MTU = 576
         const val MAX_MTU = 9000
+        const val DEFAULT_IPV6 = false
     }
 }
 
