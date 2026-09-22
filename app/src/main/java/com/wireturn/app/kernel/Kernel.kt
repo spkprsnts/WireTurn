@@ -45,6 +45,8 @@ class BinaryOutputState {
     var captchaSessionCounter = 0L
     var peerConnectFailedCount = 0
     var connectingSince = 0L
+    // When Yandex.Docs' WebSocket last came up - see OpenFluxKernel point 4.
+    var yandexConnectedAt = 0L
 
     // "Give up after N repeats" counters for failure patterns that keep recurring without ever
     // surfacing a terminal error on their own (e.g. a transport that reconnects forever with its
@@ -85,6 +87,11 @@ class LogOccurrenceCounter(private val windowMs: Long, private val threshold: In
         count = if (now - lastTime > windowMs) 1 else count + 1
         lastTime = now
         return count >= threshold
+    }
+
+    fun reset() {
+        count = 0
+        lastTime = 0L
     }
 }
 

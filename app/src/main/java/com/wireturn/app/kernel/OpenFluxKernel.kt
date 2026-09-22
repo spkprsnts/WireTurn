@@ -34,6 +34,9 @@ object OpenFluxKernel : Kernel {
     // it's the document URL, since a device-level DNS interceptor can be what's actually failing.
     private val DNS_LOOKUP_HOST_REGEX = Regex("lookup ([^:]+): no such host")
 
+    // Same "healthy session" cutoff yandex.go uses before resetting its own reconnect backoff.
+    private const val YANDEX_HEALTHY_SESSION_MS = 15_000L
+
     // One entry per deterministic "this exact link/config can never work" signal - matched against
     // an already-lowercased log line, scoped to the transport(s) whose own Go source actually
     // produces that wording, so a new transport just adds a row here instead of a new if-block.
@@ -260,6 +263,10 @@ object OpenFluxKernel : Kernel {
         // Only once repeated failures pile up within the window (a genuinely dead doc link, not a
         // routine recycle) do we intervene, forcing a real process restart (fresh CoreService
         // backoff, fresh attempt=0 on relaunch).
+        if (transport != "oneme" && lower.contains("[ydocs] websocket connected")) {
+            state.yandexConnectedAt = System.currentTimeMillis()
+        }
+
         if (transport != "oneme" && (
                 lower.contains("[ydocs] fetchdocinfo failed") ||
                 lower.contains("[ydocs] websocket dial failed") ||
@@ -277,7 +284,18 @@ object OpenFluxKernel : Kernel {
                 state.startupFailed = true
                 return true
             }
-            if (state.openFluxYandexFailureCounter.recordAndCheckThreshold()) {
+            // The server recycles a healthy session's WebSocket every ~65-85s ("close 1005") and
+            // connectToDoc() reconnects within seconds. Those gaps are shorter than the counter's
+            // window, so counting them would never let it reset and the Nth routine recycle would
+            // wrongly kill a working tunnel. yandex.go itself treats a session that lasted more
+            // than 15s as healthy (attempt reset) - do the same: only a connection that dropped
+            // quickly, or a failed fetch/dial, counts as a failure.
+            val healthySessionEnded = lower.contains("[ydocs] read error") &&
+                state.yandexConnectedAt != 0L &&
+                System.currentTimeMillis() - state.yandexConnectedAt > YANDEX_HEALTHY_SESSION_MS
+            if (healthySessionEnded) {
+                state.openFluxYandexFailureCounter.reset()
+            } else if (state.openFluxYandexFailureCounter.recordAndCheckThreshold()) {
                 CoreServiceState.setStatus(CoreStatus.Error(line))
                 ctx.updateNotification(ctx.getString(R.string.error_connecting))
                 state.startupFailed = true
