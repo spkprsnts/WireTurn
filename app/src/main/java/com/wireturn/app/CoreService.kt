@@ -1124,11 +1124,9 @@ class CoreService : Service() {
             // Explicitly stop Xray and VPN mode when tunnel stops
             withContext(Dispatchers.Main) {
                 stopService(Intent(this@CoreService, XrayService::class.java))
-                if (VpnServiceState.state.value != VpnState.Idle) {
-                    startService(Intent(this@CoreService, HevVpnService::class.java).apply {
-                        action = HevVpnService.ACTION_STOP
-                    })
-                }
+                startService(Intent(this@CoreService, HevVpnService::class.java).apply {
+                    action = HevVpnService.ACTION_STOP
+                })
             }
 
             stopBinaryProcessGracefully()
