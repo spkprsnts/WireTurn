@@ -53,6 +53,13 @@ object OpenFluxKernel : Kernel {
     // it's the document URL, since a device-level DNS interceptor can be what's actually failing.
     private val DNS_LOOKUP_HOST_REGEX = Regex("lookup ([^:]+): no such host")
 
+    // Lines from the document transports themselves (their own log prefixes, the shared Yandex
+    // captcha solver, and main.go's fatal for a synchronous Start() failure) - as opposed to the
+    // SOCKS5 inbound's per-connection lines, see parseLogLine point 0d.
+    private val TRANSPORT_LOG_MARKERS = listOf(
+        "[ydocs]", "[volga]", "[boards]", "[m-docs]", "[captcha]", "failed to start transport"
+    )
+
     // Same "healthy session" cutoff yandex.go uses before resetting its own reconnect backoff.
     private const val YANDEX_HEALTHY_SESSION_MS = 15_000L
 
@@ -235,8 +242,14 @@ object OpenFluxKernel : Kernel {
         // cupsonline: it joins several rooms in parallel and tolerates any single room's own DNS
         // hiccup via its own per-room retry (state.openFluxCupsFailureCounter below already owns
         // that transport's failure handling) - one room's transient "no such host" isn't fatal to
-        // the others, so it must not be intercepted here.
-        if (transport != "oneme" && transport != "cupsonline" && lower.contains("no such host")) {
+        // the others, so it must not be intercepted here. Only the transport's own lookups count
+        // (TRANSPORT_LOG_MARKERS): every app connection through the SOCKS5 inbound logs the same
+        // text for its own dead domain ("[SOCKS5] Dial failed: resolve: lookup <host>: no such
+        // host" - e.g. a ColorOS system app probing a nonexistent host, WireTurn#35), which says
+        // nothing about the tunnel.
+        if (transport != "oneme" && transport != "cupsonline" && lower.contains("no such host") &&
+            TRANSPORT_LOG_MARKERS.any { lower.contains(it) }
+        ) {
             if (ctx.isNetworkMissingAndHandled()) {
                 state.startupFailed = true
                 return true
