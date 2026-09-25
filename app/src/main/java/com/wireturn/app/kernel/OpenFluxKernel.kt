@@ -48,6 +48,17 @@ object OpenFluxKernel : Kernel {
     // don't match and fall back to LogLevels.detect.
     private val STD_LOG_PREFIX = Regex("""^\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}\.\d+ (\S+\.go:\d+: )?""")
 
+    // Routine socket recycles: Yandex.Docs, Mail.ru and Boards servers close a healthy WebSocket
+    // with 1005 every ~20-60s, and the transport is back within a second or two - its first
+    // reconnect after a healthy session is always "(attempt 0)", later ones mean real failures.
+    // parseLogLine still gets these; they just don't read as errors in the log.
+    override fun isNoise(line: String): Boolean =
+        ROUTINE_RECYCLE.containsMatchIn(line) || ROUTINE_RECONNECT.containsMatchIn(line)
+
+    private val ROUTINE_RECYCLE =
+        Regex("""\[(?:YDOCS] Read error|M-DOCS] Read error|BOARDS] ws error): (?:read: )?websocket: close 1005""")
+    private val ROUTINE_RECONNECT = Regex("""\[(?:YDOCS|M-DOCS)] reconnecting in \S+ \(attempt 0\)""")
+
     // Go's net.DNSError always renders as "... lookup <host>: no such host" - pulls the host back
     // out for error_openflux_dns_lookup_failed (see parseLogLine point 0d) instead of asserting
     // it's the document URL, since a device-level DNS interceptor can be what's actually failing.
