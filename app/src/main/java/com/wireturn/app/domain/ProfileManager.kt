@@ -971,6 +971,16 @@ class ProfileManager(
                     name = nameFromUri ?: kernel.defaultProfileName,
                     kernelConfig = kernelConfig
                 )
+                // A freeturn:// link from the official client may carry the WireGuard config too.
+                if (kernelConfig is KernelConfig.FreeTurn) {
+                    com.wireturn.app.data.kernel.FreeTurnConfig.parseWg(trimmed)?.let { wg ->
+                        currentProfile = currentProfile?.copy(
+                            xrayEnabled = true,
+                            xrayProtocol = com.wireturn.app.data.XrayConfiguration.WIREGUARD,
+                            wgConfig = wg
+                        )
+                    }
+                }
             } else if (trimmed.startsWith("wireturn://") || trimmed.startsWith("wt://")) {
                 // A wireturn:// container carries a full Profile (or several) as-is - kernelConfig,
                 // xrayEnabled/xrayProtocol, vlessConfig/wgConfig and its own stable `id`, all together.

@@ -355,6 +355,23 @@ data class WgConfig(
         "[Interface]\nPrivateKey = $privateKey\nAddress = $address\nMTU = $mtu\n\n[Peer]\nPublicKey = $publicKey\nEndpoint = $endpoint\nPersistentKeepalive = $persistentKeepalive"
 
     companion object {
+        // AmneziaWG's extra [Interface]/[Peer] keys (mirrors turn-proxy-android's CoreConfigJson,
+        // itself mirroring free-turn-proxy's internal/tunnel/wgconf). Xray's WireGuard has no
+        // AmneziaWG support and would silently drop them, never getting through to an AWG server.
+        private val AMNEZIA_KEYS = setOf(
+            "jc", "jmin", "jmax", "s1", "s2", "s3", "s4",
+            "h1", "h2", "h3", "h4", "headerprotectionkey",
+            "i1", "i2", "i3", "i4", "i5",
+            "contentpaddingaddition", "rekeyaftertime", "rekeytimeout",
+            "rejectaftertime", "keepalivetimeout", "maxhandshakeattempts",
+            "randomtrailers", "disablecookies"
+        )
+
+        fun isAmneziaConfig(text: String): Boolean =
+            text.lineSequence().any { line ->
+                line.substringBefore('#').substringBefore(';').substringBefore('=').trim().lowercase() in AMNEZIA_KEYS
+            }
+
         fun parse(text: String): WgConfig {
             val trimmed = text.trim()
             // Panels like 3x-ui export WireGuard as a single-line URI instead of a wg-quick

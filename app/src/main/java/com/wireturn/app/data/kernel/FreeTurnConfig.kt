@@ -4,6 +4,7 @@ import android.util.Base64
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.annotations.SerializedName
+import com.wireturn.app.data.WgConfig
 
 data class FreeTurnConfig(
     @SerializedName("provider") val provider: String = "vk",
@@ -194,6 +195,28 @@ data class FreeTurnConfig(
                     kcpAcknodelay = kcp?.get("acknodelay")?.asBoolean ?: current.kcpAcknodelay,
                     bond = json.get("bond")?.asBoolean ?: current.bond
                 )
+            } catch (_: Exception) {
+                null
+            }
+        }
+
+        // The official turn-proxy-android client (4.3+) ships the WireGuard side of the profile in
+        // the same link: "wg" holds a whole wg-quick config as text. It's not part of the kernel's
+        // own config, so it's read separately and lands on the profile's Xray WireGuard leg.
+        // An AmneziaWG config is skipped (see WgConfig.isAmneziaConfig) - check hasAmneziaWg.
+        fun parseWg(url: String): WgConfig? {
+            val text = wgText(url)?.takeUnless(WgConfig::isAmneziaConfig) ?: return null
+            return WgConfig.parse(text).fillDefaults().takeIf { it.isValid() }
+        }
+
+        fun hasAmneziaWg(url: String): Boolean = wgText(url)?.let(WgConfig::isAmneziaConfig) == true
+
+        private fun wgText(url: String): String? {
+            if (!url.startsWith("freeturn://", ignoreCase = true)) return null
+            return try {
+                val base64 = url.substringAfter("freeturn://")
+                val json = Gson().fromJson(String(Base64.decode(base64, Base64.URL_SAFE)), JsonObject::class.java)
+                json.get("wg")?.asString?.takeIf { it.isNotBlank() }
             } catch (_: Exception) {
                 null
             }

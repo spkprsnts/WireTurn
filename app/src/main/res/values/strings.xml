@@ -88,6 +88,7 @@
     <string name="import_error_connection">Connection failed. Check your internet.</string>
     <string name="import_error_server">Server returned an error: %1$d</string>
     <string name="import_error_empty">Server returned empty response</string>
+    <string name="import_amneziawg_unsupported">AmneziaWG from the link is not supported, WireGuard not filled in</string>
     <string name="profile_import_partial_failure">Imported, but %1$d of %2$d files failed</string>
 
     <!-- wireturn:// / wt:// deep link import confirmation -->

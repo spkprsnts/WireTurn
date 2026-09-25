@@ -33,6 +33,9 @@ class FreeTurnConfigActivity : ComponentActivity() {
         val profileName = intent.getStringExtra("EXTRA_PROFILE_NAME") ?: ""
         val configJson = intent.getStringExtra("EXTRA_CONFIG_JSON")
         val profileId = intent.getStringExtra("EXTRA_PROFILE_ID")
+        // WireGuard config imported from the link itself (see FreeTurnConfig.parseWg) - passed
+        // through to the Xray setup step.
+        val wgConfigJson = intent.getStringExtra("EXTRA_WG_CONFIG_JSON")
 
         setContent {
             val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
@@ -82,6 +85,7 @@ class FreeTurnConfigActivity : ComponentActivity() {
 
                                 putExtra("EXTRA_KERNEL_VARIANT", "FREETURN")
                                 putExtra("EXTRA_FREETURN_CONFIG_JSON", Gson().toJson(config))
+                                wgConfigJson?.let { putExtra("EXTRA_WG_CONFIG_JSON", it) }
                             }
                             startActivity(intent)
                         }

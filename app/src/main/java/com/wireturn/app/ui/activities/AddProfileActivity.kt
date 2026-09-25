@@ -94,6 +94,7 @@ class AddProfileActivity : ComponentActivity() {
             val errorInvalidProfile = stringResource(R.string.import_error_invalid_profile)
             val errorConnection = stringResource(R.string.import_error_connection)
             val errorEmpty = stringResource(R.string.import_error_empty)
+            val amneziaWgUnsupported = stringResource(R.string.import_amneziawg_unsupported)
             val scrollState = rememberScrollState()
 
             fun handleImportResult(status: ImportStatus) {
@@ -410,7 +411,7 @@ class AddProfileActivity : ComponentActivity() {
 
                     val initialNameFromSource = if (status.type == "WebDAV") uriFragment
                     else if (status.type == "olcRTC") olcrtcMimo
-                    else if (status.type == "FreeTurn") uriFragment
+                    else if (status.type == "FreeTurn") com.wireturn.app.kernel.FreeTurnKernel.displayNameFromUri(source) ?: uriFragment
                     else if (status.type == "qWDTT") qwdttName
                     else if (status.type == "OpenFlux") openfluxName
                     else null
@@ -438,6 +439,14 @@ class AddProfileActivity : ComponentActivity() {
                             intent?.let {
                                 it.putExtra("EXTRA_PROFILE_NAME", name)
                                 it.putExtra("EXTRA_CONFIG_JSON", status.json)
+                                if (status.type == "FreeTurn") {
+                                    com.wireturn.app.data.kernel.FreeTurnConfig.parseWg(source)?.let { wg ->
+                                        it.putExtra("EXTRA_WG_CONFIG_JSON", com.google.gson.Gson().toJson(wg))
+                                    }
+                                    if (com.wireturn.app.data.kernel.FreeTurnConfig.hasAmneziaWg(source)) {
+                                        this@AddProfileActivity.showExclusiveToast(amneziaWgUnsupported)
+                                    }
+                                }
                                 startActivity(it)
                             }
                             detectedKernelConfig.value = null

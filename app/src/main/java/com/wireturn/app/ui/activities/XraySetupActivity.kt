@@ -13,6 +13,7 @@ import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
+import com.wireturn.app.data.WgConfig
 import com.wireturn.app.data.kernel.FreeTurnConfig
 import com.wireturn.app.data.kernel.OlcrtcConfig
 import com.wireturn.app.data.kernel.OpenFluxConfig
@@ -39,6 +40,9 @@ class XraySetupActivity : ComponentActivity() {
         } else null
 
         val profileName = intent.getStringExtra("EXTRA_PROFILE_NAME") ?: getString(R.string.profile_default_name)
+        val initialWgConfig = intent.getStringExtra("EXTRA_WG_CONFIG_JSON")?.let {
+            try { Gson().fromJson(it, WgConfig::class.java) } catch (_: Exception) { null }
+        } ?: WgConfig()
         val clientConfigFromIntent = when (intent.getStringExtra("EXTRA_KERNEL_VARIANT")) {
             KernelVariant.OLCRTC.name -> {
                 val json = intent.getStringExtra("EXTRA_OLCRTC_CONFIG_JSON")
@@ -87,6 +91,7 @@ class XraySetupActivity : ComponentActivity() {
                 XraySetupScreen(
                     isEditMode = false,
                     defaultProtocol = defaultProtocol,
+                    initialWgConfig = initialWgConfig,
                     privacyMode = privacyMode,
                     kernelVariant = clientConfigFromIntent.kernelVariant,
                     kernelConfig = clientConfigFromIntent.kernelConfig,

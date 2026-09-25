@@ -84,6 +84,7 @@
     <string name="import_error_connection">Ошибка подключения. Проверьте интернет.</string>
     <string name="import_error_server">Ошибка сервера: %1$d</string>
     <string name="import_error_empty">Сервер вернул пустой ответ</string>
+    <string name="import_amneziawg_unsupported">AmneziaWG из ссылки не поддерживается, WireGuard не заполнен</string>
     <string name="profile_import_partial_failure">Импортировано, но %1$d из %2$d файлов не удалось обработать</string>
 
     <!-- Подтверждение импорта по диплинку wireturn:// / wt:// -->
