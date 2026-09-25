@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.core.net.toUri
 import com.wireturn.app.CoreServiceState
 import com.wireturn.app.CoreStatus
+import com.wireturn.app.LogLevel
+import com.wireturn.app.LogLevels
 import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
@@ -28,6 +30,23 @@ object OpenFluxKernel : Kernel {
     override val configActivityClass = OpenFluxConfigActivity::class.java
     override val wgNotUsedMessageRes: Int = R.string.wg_not_used_with_openflux
     // socks5SupportsAuth comes from the default (KernelVariant.socks5SupportsAuth = variant != OPENFLUX).
+
+    // --debug is always on (see buildCommand) and parseLogLine depends on its output.
+    override val parsesDebugLines: Boolean = true
+
+    // utils.EnableDebug gives the std logger Lshortfile ("... 15:04:05.000000 main.go:42: msg"),
+    // while utils.Debugf writes through a second logger without it ("... 15:04:05.000000 msg").
+    // Upstream reports transport failures through Debugf too, so a debug-shaped line only drops to
+    // DEBUG when its text doesn't read as a warning/error.
+    override fun logLevel(line: String): LogLevel? {
+        val prefix = STD_LOG_PREFIX.find(line) ?: return null
+        if (prefix.groups[1] != null) return null
+        return LogLevels.fromKeywords(line).takeIf { it != LogLevel.INFO } ?: LogLevel.DEBUG
+    }
+
+    // Microseconds only appear once EnableDebug has run - earlier lines (deprecated-flag warnings)
+    // don't match and fall back to LogLevels.detect.
+    private val STD_LOG_PREFIX = Regex("""^\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}\.\d+ (\S+\.go:\d+: )?""")
 
     // Go's net.DNSError always renders as "... lookup <host>: no such host" - pulls the host back
     // out for error_openflux_dns_lookup_failed (see parseLogLine point 0d) instead of asserting

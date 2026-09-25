@@ -324,6 +324,11 @@
     <string name="logs_title">Logs</string>
     <string name="no_logs">No logs</string>
     <string name="new_logs">New logs</string>
+    <string name="logs_filter">Log level</string>
+    <string name="logs_level_all">All</string>
+    <string name="logs_level_info">Info and above</string>
+    <string name="logs_level_warn">Warnings and errors</string>
+    <string name="logs_level_error">Errors only</string>
 
     <!-- Onboarding Screen (Onboarding) -->
     <string name="onboarding_title" translatable="false">WireTurn</string>

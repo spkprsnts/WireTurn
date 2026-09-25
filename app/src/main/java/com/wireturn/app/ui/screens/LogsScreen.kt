@@ -5,7 +5,6 @@
 
 package com.wireturn.app.ui.screens
 
-import android.content.ClipData
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -14,6 +13,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -33,6 +33,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,23 +46,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.wireturn.app.AppLogsState
+import com.wireturn.app.LogLevel
 import com.wireturn.app.R
+import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.components.CoreToggleButton
@@ -74,7 +76,6 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun LogsScreen(
@@ -84,14 +85,17 @@ fun LogsScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val logs by viewModel.logs.collectAsStateWithLifecycle()
+    val minLevel by viewModel.logsMinLevel.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
 
-    var lastLogsSize by remember { mutableIntStateOf(logs.size) }
     var lastLogId by remember { mutableStateOf(logs.lastOrNull()?.id) }
     var showScrollButton by remember { mutableStateOf(false) }
+    // Whether new lines scroll the list to the end. Only the user's own scrolling changes it:
+    // deciding from where the list sits when new lines land broke under a flood of output - the
+    // layout lags the list by a frame or more, and one bad read stopped autoscroll for good.
+    var followTail by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
         if (logs.isNotEmpty()) {
@@ -105,24 +109,48 @@ fun LogsScreen(
         }
     }
 
+    LaunchedEffect(listState) {
+        var userScrolling = false
+        launch {
+            listState.interactionSource.interactions.collect {
+                if (it is DragInteraction.Start) {
+                    userScrolling = true
+                    followTail = false
+                }
+            }
+        }
+        snapshotFlow { listState.isScrollInProgress }.collect { inProgress ->
+            if (!inProgress && userScrolling) {
+                userScrolling = false
+                // Near the end rather than exactly at it - lines keep arriving while the fling
+                // settles. layoutInfo's own item count keeps both sides from the same frame.
+                val info = listState.layoutInfo
+                val lastVisible = info.visibleItemsInfo.lastOrNull()
+                followTail = lastVisible == null || lastVisible.index >= info.totalItemsCount - 2
+            }
+        }
+    }
+
     LaunchedEffect(logs) {
         val currentLastId = logs.lastOrNull()?.id
-        if (currentLastId != null && currentLastId != lastLogId) {
-            val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
-            val wasAtBottom = lastVisibleItem == null || lastVisibleItem.index >= lastLogsSize - 2
-
-            if (wasAtBottom) {
+        if (currentLastId == null) showScrollButton = false
+        // Ids only grow, so a smaller or equal last id isn't new output - it's the buffer being
+        // trimmed (raising the log level drops stored lines, possibly including the last one).
+        if (currentLastId != null && currentLastId > (lastLogId ?: -1L)) {
+            if (followTail) {
                 listState.scrollToItem(logs.lastIndex)
             } else {
                 showScrollButton = true
             }
-            lastLogId = currentLastId
         }
-        lastLogsSize = logs.size
+        lastLogId = currentLastId
     }
 
     LaunchedEffect(isAtBottom) {
-        if (isAtBottom) showScrollButton = false
+        if (isAtBottom) {
+            showScrollButton = false
+            followTail = true
+        }
     }
 
     val topAppBarState = rememberTopAppBarState()
@@ -136,8 +164,6 @@ fun LogsScreen(
                 onBack = onBack,
                 scrollBehavior = scrollBehavior,
                 actions = {
-                    var isCopied by remember { mutableStateOf(false) }
-                    
                     val saveLauncher = rememberLauncherForActivityResult(
                         contract = ActivityResultContracts.CreateDocument("text/plain")
                     ) { uri ->
@@ -157,12 +183,10 @@ fun LogsScreen(
                         }
                     }
 
-                    LaunchedEffect(isCopied) {
-                        if (isCopied) {
-                            kotlinx.coroutines.delay(1_500.milliseconds)
-                            isCopied = false
-                        }
-                    }
+                    LogLevelFilterButton(
+                        selected = minLevel,
+                        onSelect = viewModel::setLogsMinLevel
+                    )
                     IconButton(
                         onClick = {
                             HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -173,26 +197,6 @@ fun LogsScreen(
                         Icon(
                             painterResource(R.drawable.delete_24px),
                             contentDescription = stringResource(R.string.clear)
-                        )
-                    }
-                    IconButton(
-                        onClick = {
-                            isCopied = true
-                            scope.launch {
-                                clipboard.setClipEntry(ClipData.newPlainText("wireturn logs", logs.joinToString("\n") { it.message }).toClipEntry())
-                                HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
-                            }
-                        },
-                        enabled = logs.isNotEmpty()
-                    ) {
-                        Icon(
-                            painterResource(if (isCopied) R.drawable.check_circle_24px else R.drawable.content_copy_24px),
-                            contentDescription = stringResource(R.string.copy),
-                            tint = when {
-                                isCopied -> MaterialTheme.colorScheme.primary
-                                !logs.isNotEmpty() -> MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.disabled)
-                                else -> MaterialTheme.colorScheme.onSurfaceVariant
-                            }
                         )
                     }
                     IconButton(
@@ -257,12 +261,14 @@ fun LogsScreen(
                     contentPadding = PaddingValues(bottom = 148.dp)
                 ) {
                     items(logs, key = { it.id }) { entry ->
-                        LogLine(line = entry.message)
+                        LogLine(entry = entry)
                     }
                 }
 
                 AnimatedVisibility(
-                    visible = showScrollButton,
+                    // A trimmed list can end up fitting the screen with the flag still set, and
+                    // then isAtBottom never changes again to clear it.
+                    visible = showScrollButton && !isAtBottom,
                     enter = fadeIn() + scaleIn(),
                     exit = fadeOut() + scaleOut(),
                     modifier = Modifier
@@ -271,6 +277,7 @@ fun LogsScreen(
                 ) {
                     ElevatedButton(
                         onClick = {
+                            followTail = true
                             scope.launch {
                                 if (logs.isNotEmpty()) {
                                     listState.animateScrollToItem(logs.lastIndex)
@@ -298,42 +305,92 @@ fun LogsScreen(
 }
 
 
+private val LOG_LEVEL_OPTIONS = listOf(
+    LogLevel.DEBUG to R.string.logs_level_all,
+    LogLevel.INFO to R.string.logs_level_info,
+    LogLevel.WARN to R.string.logs_level_warn,
+    LogLevel.ERROR to R.string.logs_level_error
+)
+
 @Composable
-private fun LogLine(line: String) {
-    val lower = line.lowercase()
+private fun LogLevelFilterButton(
+    selected: LogLevel,
+    onSelect: (LogLevel) -> Unit
+) {
+    val context = LocalContext.current
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(
+            onClick = {
+                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                expanded = true
+            }
+        ) {
+            Icon(
+                painterResource(R.drawable.filter_list_24px),
+                contentDescription = stringResource(R.string.logs_filter),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        AppDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            title = stringResource(R.string.logs_filter)
+        ) {
+            LOG_LEVEL_OPTIONS.forEach { (level, labelRes) ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(labelRes)) },
+                    onClick = {
+                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                        onSelect(level)
+                        expanded = false
+                    },
+                    trailingIcon = if (level == selected) {
+                        {
+                            Icon(
+                                painterResource(R.drawable.check_24px),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    } else null
+                )
+            }
+        }
+    }
+}
+
+private val SUCCESS_KEYWORDS = listOf(
+    "запущен", "подключен", "success", "started", "established", "connected",
+    "received handshake", "peer online", "turn allocation up"
+)
+
+@Composable
+private fun LogLine(entry: AppLogsState.LogEntry) {
+    val line = entry.message
     val isHeader = line.startsWith("*")
-    val isInternalLog = lower.startsWith("* [")
-    val isError = lower.contains("ошибка") || lower.contains("error") ||
-                  lower.contains("критическая") || lower.contains("failed") ||
-                  lower.contains("fatal") || lower.contains("panic") ||
-                  lower.contains("did not complete") || lower.contains("could not")
-    val isWarning = lower.contains("watchdog") || lower.contains("перезапуск") ||
-                    lower.contains("quota") || lower.contains("warn") ||
-                    lower.contains(">>>") || lower.contains("stopped") ||
-                    lower.contains("connection lost") || lower.contains("reconnecting") ||
-                    lower.contains("restart") || lower.contains("timeout") ||
-                    lower.contains("captcha") || lower.contains("refused") ||
-                    lower.contains("offline")
-    val isSuccess = lower.contains("запущен") || lower.contains("подключен") ||
-                    lower.contains("success") || lower.contains("started") ||
-                    lower.contains("established") || lower.contains("connected") ||
-                    lower.contains("received handshake") || lower.contains("peer online") ||
-                    lower.contains("turn allocation up")
+    val isInternalLog = line.startsWith("* [")
+    val isSuccess = entry.level == LogLevel.INFO && line.lowercase().let { lower ->
+        SUCCESS_KEYWORDS.any { lower.contains(it) }
+    }
 
     val textColor = when {
-        isError   -> MaterialTheme.colorScheme.error
-        isWarning -> MaterialTheme.extendedColorScheme.warning
+        entry.level == LogLevel.ERROR -> MaterialTheme.colorScheme.error
+        entry.level == LogLevel.WARN  -> MaterialTheme.extendedColorScheme.warning
+        entry.level == LogLevel.DEBUG -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = ContentAlpha.secondary)
         isSuccess -> MaterialTheme.extendedColorScheme.success
         isHeader  -> MaterialTheme.colorScheme.primary
         else      -> MaterialTheme.colorScheme.onSurfaceVariant
     }
+    val hasDot = entry.level == LogLevel.ERROR || entry.level == LogLevel.WARN ||
+        (entry.level == LogLevel.INFO && (isSuccess || isHeader))
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 3.dp),
         verticalAlignment = Alignment.Top
     ) {
-        if (isHeader || isError || isWarning || isSuccess) {
+        if (hasDot) {
             Box(
                 modifier = Modifier
                     .padding(top = 5.dp, end = 6.dp)
@@ -349,7 +406,7 @@ private fun LogLine(line: String) {
                 style = MaterialTheme.typography.bodySmall.copy(
                     fontFamily = FontFamily.Monospace,
                     fontWeight = when {
-                        isHeader || isInternalLog -> FontWeight.SemiBold
+                        entry.level != LogLevel.DEBUG && (isHeader || isInternalLog) -> FontWeight.SemiBold
                         else -> FontWeight.Normal
                     }
                 ),

@@ -3,6 +3,7 @@ package com.wireturn.app.kernel
 import android.content.Context
 import com.wireturn.app.CoreServiceState
 import com.wireturn.app.CoreStatus
+import com.wireturn.app.LogLevel
 import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
@@ -64,6 +65,8 @@ object OlcrtcKernel : Kernel {
     private fun buildOlcrtcYaml(cfg: ClientConfig): String {
         val o = (cfg.kernelConfig as KernelConfig.Olcrtc).config
         return buildString {
+            // logger.Debugf/Verbosef + pion DEBUG/TRACE - kept or dropped by the log level setting.
+            appendLine("debug: true")
             appendLine("mode: cnc")
             appendLine("auth:")
             appendLine("  provider: ${o.provider}")
@@ -114,6 +117,19 @@ object OlcrtcKernel : Kernel {
             }
         }
     }
+
+    // olcrtc's own Debugf lines carry no level prefix, so they can't be told apart from Info ones
+    // (pion's "[scope] DEBUG:" lines can, see LogLevels). The one worth catching is the periodic
+    // failover status: its last_error= quotes past failures ("failed to connect link: ...") long
+    // after recovering, which parseLogLine would take for a fresh failure.
+    override fun logLevel(line: String): LogLevel? =
+        if (line.contains("failover status cycle=")) LogLevel.DEBUG else null
+
+    // One Info line per SOCKS5 connection (internal/client/tunnel.go) - failures are logged
+    // separately as "sid=N connect failed".
+    override fun isNoise(line: String): Boolean = SOCKS_TUNNEL_LINE.containsMatchIn(line)
+
+    private val SOCKS_TUNNEL_LINE = Regex("""\bsid=\d+ tunnel to """)
 
     override suspend fun parseLogLine(line: String, lower: String, state: BinaryOutputState, ctx: KernelLogContext, cfg: ClientConfig): Boolean {
         val olcrtcConfig = (cfg.kernelConfig as? KernelConfig.Olcrtc)?.config ?: OlcrtcConfig()

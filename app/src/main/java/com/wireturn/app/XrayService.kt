@@ -179,7 +179,9 @@ class XrayService : Service() {
             val cmdArgs = mutableListOf(
                 executable,
                 "-listen", xraySettings.socksBindAddress,
-                "-stats-socket", socketName
+                "-stats-socket", socketName,
+                // xray loglevel debug + access log - kept or dropped by the log level setting.
+                "-debug"
             )
 
             if (xraySettings.httpBindAddress.isNotBlank()) {
@@ -301,7 +303,7 @@ class XrayService : Service() {
                 while (true) {
                     val rawLine = reader.readLine() ?: break
                     val cleanLine = AppLogsState.stripAnsi(rawLine)
-                    AppLogsState.addLog("* [Xray] $cleanLine")
+                    AppLogsState.addLog("* [Xray] $cleanLine", xrayLogLevel(cleanLine))
                     linesProcessed++
 
                     if (!started && (cleanLine.contains("Xray started") || 
@@ -354,6 +356,20 @@ class XrayService : Service() {
                 scheduleWatchdogRestart(snapshot)
             }
         }
+    }
+
+    // xray-core's [Info] is per-connection chatter (dispatcher detours, inbound requests) - the
+    // lines worth seeing at a glance (start, dual-route switches) are vless-client's own, which
+    // carry no level prefix. The access log (one line per proxied connection, "from <src>
+    // accepted <dst> [in >> out]") has no prefix either - noise too unless a connection was refused.
+    // Dual-route's burstObservatory pings both routes every hc-interval (3 samples each) and logs
+    // every failed sample as a [Warning] - routine while direct is blocked; vless-client's own
+    // "active route: ..." line already reports the outcome, and only when it changes.
+    private fun xrayLogLevel(line: String): LogLevel {
+        if (line.contains("app/observatory/burst:")) return LogLevel.DEBUG
+        LogLevels.fromMarker(line)?.let { return if (it == LogLevel.INFO) LogLevel.DEBUG else it }
+        val access = XRAY_ACCESS_LOG.find(line) ?: return LogLevels.fromKeywords(line)
+        return if (access.groupValues[1] == "rejected") LogLevel.WARN else LogLevel.DEBUG
     }
 
     private fun handleDualRouteLog(line: String, socketName: String) {
@@ -444,5 +460,6 @@ class XrayService : Service() {
 
     companion object {
         private const val MAX_RESTARTS = 3
+        private val XRAY_ACCESS_LOG = Regex(""" from \S+ (accepted|rejected) """)
     }
 }

@@ -18,6 +18,7 @@ import com.wireturn.app.CoreServiceState
 import com.wireturn.app.CoreStatus
 import com.wireturn.app.CoreTileService
 import com.wireturn.app.HevSocks5Tunnel
+import com.wireturn.app.LogLevel
 import com.wireturn.app.R
 import com.wireturn.app.VpnServiceState
 import com.wireturn.app.XrayService
@@ -123,6 +124,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
         initialValue = false
+    )
+
+    val logsMinLevel: StateFlow<LogLevel> = prefs.logsMinLevelFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = LogLevel.INFO
     )
 
     val profilesGestureEnabled: StateFlow<Boolean> = prefs.profilesGestureEnabledFlow.stateIn(
@@ -394,6 +401,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     
     fun setThemeMode(mode: ThemeMode) { 
         viewModelScope.launch { prefs.setThemeMode(mode) } 
+    }
+
+    fun setLogsMinLevel(level: LogLevel) {
+        // Right away rather than via WireTurnApp's prefs collector, so the open Logs screen
+        // updates without waiting on the DataStore write.
+        AppLogsState.setMinLevel(level)
+        viewModelScope.launch { prefs.setLogsMinLevel(level) }
     }
 
     fun setPrivacyMode(enabled: Boolean) {

@@ -534,13 +534,16 @@ class CoreService : Service() {
                 withContext(Dispatchers.IO) {
                     BufferedReader(InputStreamReader(proc.inputStream)).use { reader ->
                         var stopping = false
+                        val kernel = KernelRegistry.get(cfg.kernelVariant)
                         for (rawLine in reader.lineSequence()) {
                             if (!isActive) break
                             val line = AppLogsState.stripAnsi(rawLine)
-                            AppLogsState.addLog(line)
+                            val level = kernel.logLevel(line) ?: LogLevels.detect(line)
+                            AppLogsState.addLog(line, if (kernel.isNoise(line)) LogLevel.DEBUG else level)
                             // Process was intentionally killed (hot-reload/stop) — log but don't update status
                             if (process.get() == null) continue
                             if (stopping) continue
+                            if (level == LogLevel.DEBUG && !kernel.parsesDebugLines) continue
                             if (processOutputLine(line, state, cfg)) {
                                 // Closing the pipe under a live process kills it with SIGPIPE (exit
                                 // 141) before it can clean up - e.g. Go cores never get to release

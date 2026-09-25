@@ -4,6 +4,8 @@ import android.app.Activity
 import android.content.Context
 import com.wireturn.app.CoreServiceState
 import com.wireturn.app.CoreStatus
+import com.wireturn.app.LogLevel
+import com.wireturn.app.LogLevels
 import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
@@ -127,6 +129,24 @@ interface Kernel {
      * failure the watchdog should retry) - same contract as the original per-kernel handlers.
      */
     suspend fun parseLogLine(line: String, lower: String, state: BinaryOutputState, ctx: KernelLogContext, cfg: ClientConfig): Boolean
+
+    /** Level of one line of this kernel's output, or null to fall back to [LogLevels.detect]. */
+    fun logLevel(line: String): LogLevel? = null
+
+    /**
+     * Whether [parseLogLine] also gets [LogLevel.DEBUG] lines. Every kernel runs with its debug
+     * output on (the log level setting decides what's kept), but the status heuristics were written
+     * against the non-debug output - debug lines reusing the same words (a failed captcha-proxy
+     * request, a credential retry) would trip them. Only OpenFlux relies on debug lines.
+     */
+    val parsesDebugLines: Boolean get() = false
+
+    /**
+     * Chatty lines the binary logs above debug level (per connection, per retry, periodic stats):
+     * shown as [LogLevel.DEBUG], but unlike real debug lines still handed to [parseLogLine] -
+     * some of them are status signals too (a per-connection "connection refused", qWDTT's "Relay:").
+     */
+    fun isNoise(line: String): Boolean = false
 
     /** Command-line flags whose values should be redacted in the app's own log (see CoreService). */
     val sensitiveCommandFlags: Set<String> get() = emptySet()

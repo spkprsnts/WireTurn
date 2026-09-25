@@ -68,10 +68,23 @@ object TurnableKernel : Kernel {
         cmdArgs.addAll(listOf(
             "client",
             "-l", cfg.listenAddr.ifBlank { ClientConfig.DEFAULT_LISTEN_ADDR },
-            "-c", configFile.absolutePath
+            "-c", configFile.absolutePath,
+            // slog DEBUG level - kept or dropped by the log level setting; parseLogLine
+            // never sees these lines (see Kernel.parsesDebugLines).
+            "--verbose"
         ))
         return cmdArgs
     }
+
+    // Per-peer dial retries run to hundreds of lines per session on a bad network, and a TURN
+    // failure that matters is summed up separately ("peer connection failed with TURN error,
+    // triggering full reconnect"). Also pion's TURN client chatter and VK credential-cache
+    // bookkeeping repeated on every reconnect.
+    override fun isNoise(line: String): Boolean =
+        line.contains("peer dial failed") ||
+            line.contains("scope=turnc") ||
+            line.contains("vk authorize reused cached") ||
+            line.contains("vk cached turn credentials invalidated")
 
     override suspend fun parseLogLine(line: String, lower: String, state: BinaryOutputState, ctx: KernelLogContext, cfg: ClientConfig): Boolean {
         // 1. Hard Errors (Watchdog won't help, needs manual fix)

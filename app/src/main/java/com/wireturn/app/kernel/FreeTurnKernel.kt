@@ -65,7 +65,10 @@ object FreeTurnKernel : Kernel {
             "-obf-profile", o.obfProfile,
             "-streams-per-cred", o.streamsPerCred.toString(),
             "-dns-mode", o.dnsMode,
-            "-platform", o.platform
+            "-platform", o.platform,
+            // internal/logx "[DEBUG]" lines - kept or dropped by the log level setting;
+            // parseLogLine never sees them (see Kernel.parsesDebugLines).
+            "-debug"
         ))
         if (o.obfTiming != "0" && o.obfTiming.isNotBlank()) {
             cmdArgs.add("-obf-timing")
@@ -108,6 +111,11 @@ object FreeTurnKernel : Kernel {
         return cmdArgs
     }
 
+    // pion's TURN client warnings, bridged per stream by internal/transport/turndial/logbridge.go
+    // ("[STREAM N] [turnc] Failed to refresh permissions ..."). permwatch.go already watches them
+    // and logs its own "TURN channel-bind умер - рецикл allocation" once the channel is really dead.
+    override fun isNoise(line: String): Boolean = line.contains("] [turnc] ")
+
     override suspend fun parseLogLine(line: String, lower: String, state: BinaryOutputState, ctx: KernelLogContext, cfg: ClientConfig): Boolean {
         // 1. Hard Errors
         if (lower.startsWith("panic:") || lower.startsWith("fatal error:") ||
@@ -125,7 +133,7 @@ object FreeTurnKernel : Kernel {
         val tcpActiveMatch = TCP_ACTIVE_REGEX.matcher(line)
 
         // "TURN allocation up" fires once a stream is live; the old "Established DTLS
-        // connection" signal moved to Debugf and we don't pass -debug.
+        // connection" signal moved to Debugf, and debug lines never reach this parser.
         if (lower.contains("] turn allocation up") ||
             (tcpActiveMatch.find() && (tcpActiveMatch.group(1)?.toIntOrNull() ?: 0) > 0)) {
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {

@@ -81,6 +81,27 @@ object QwdttKernel : Kernel {
         return cmdArgs
     }
 
+    // go_client has no debug level: its own "[ДЕБАГ]"-tagged lines, periodic stats (still parsed
+    // for "Активных:", see below), Raw TUN timing diagnostics, and the per-stream/per-worker steps
+    // of every (re)connect - VK Calls auth steps, the TURN URL dump, cached-creds reuse, worker
+    // registration and TURN transport choice.
+    override fun isNoise(line: String): Boolean =
+        QWDTT_NOISE_MARKERS.any { line.contains(it) } ||
+            (line.contains("[VKCalls] step") && line.contains(" OK,"))
+
+    private val QWDTT_NOISE_MARKERS = listOf(
+        "[ДЕБАГ]",
+        "[СТАТИСТИКА]",
+        "[RAW-DIAG ",
+        "[VK Auth] TURN urls (",
+        "[VK Auth]   [",
+        "[VK Auth] Using cached credentials",
+        "[VK Auth] Throttling",
+        "[ДИСП] Воркер #",
+        "] TURN UDP (",
+        "] TURN TCP ("
+    )
+
     override suspend fun parseLogLine(line: String, lower: String, state: BinaryOutputState, ctx: KernelLogContext, cfg: ClientConfig): Boolean {
         // Benign SOCKS5 IPv6 routing noise (the official qWDTT client filters the same thing) -
         // not an error, don't touch the status.

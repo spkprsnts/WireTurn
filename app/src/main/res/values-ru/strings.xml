@@ -294,6 +294,11 @@
     <string name="logs_title">Логи</string>
     <string name="no_logs">Нет логов</string>
     <string name="new_logs">Новые логи</string>
+    <string name="logs_filter">Уровень логов</string>
+    <string name="logs_level_all">Все</string>
+    <string name="logs_level_info">Инфо и выше</string>
+    <string name="logs_level_warn">Предупреждения и ошибки</string>
+    <string name="logs_level_error">Только ошибки</string>
 
     <!-- Экран приветствия (Onboarding) -->
     <string name="onboarding_subtitle">Свободный интернет через протоколы видеозвонков</string>
