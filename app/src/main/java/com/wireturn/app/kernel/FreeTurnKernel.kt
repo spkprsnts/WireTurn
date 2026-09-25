@@ -67,7 +67,7 @@ object FreeTurnKernel : Kernel {
             "-dns-mode", o.dnsMode,
             "-platform", o.platform,
             // internal/logx "[DEBUG]" lines - kept or dropped by the log level setting;
-            // parseLogLine never sees them (see Kernel.parsesDebugLines).
+            // parseLogLine only sees the DTLS session ones (see parsesDebugLine).
             "-debug"
         ))
         if (o.obfTiming != "0" && o.obfTiming.isNotBlank()) {
@@ -116,6 +116,11 @@ object FreeTurnKernel : Kernel {
     // and logs its own "TURN channel-bind умер - рецикл allocation" once the channel is really dead.
     override fun isNoise(line: String): Boolean = line.contains("] [turnc] ")
 
+    // UDP mode's per-stream DTLS session to the server (internal/proxy/udprelay/loop.go) - the
+    // only proof the tunnel reaches our server, see point 2 of parseLogLine.
+    override fun parsesDebugLine(line: String): Boolean =
+        DTLS_ESTABLISHED_REGEX.containsMatchIn(line) || DTLS_CLOSED_REGEX.containsMatchIn(line)
+
     override suspend fun parseLogLine(line: String, lower: String, state: BinaryOutputState, ctx: KernelLogContext, cfg: ClientConfig): Boolean {
         // 1. Hard Errors
         if (lower.startsWith("panic:") || lower.startsWith("fatal error:") ||
@@ -129,16 +134,31 @@ object FreeTurnKernel : Kernel {
         }
 
         // 2. Connected
-        // Stay Connected while any session in the pool is up, not just on the exact "connected" line.
+        // TCP mode: stay Connected while any session in the pool is up, not just on the exact
+        // "connected" line.
         val tcpActiveMatch = TCP_ACTIVE_REGEX.matcher(line)
+        if (tcpActiveMatch.find() && (tcpActiveMatch.group(1)?.toIntOrNull() ?: 0) > 0) {
+            markConnected(state, ctx)
+        }
 
-        // "TURN allocation up" fires once a stream is live; the old "Established DTLS
-        // connection" signal moved to Debugf, and debug lines never reach this parser.
-        if (lower.contains("] turn allocation up") ||
-            (tcpActiveMatch.find() && (tcpActiveMatch.group(1)?.toIntOrNull() ?: 0) > 0)) {
-            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
-                CoreServiceState.setStatus(CoreStatus.Connected)
-                ctx.updateNotification(ctx.getString(R.string.core_active))
+        // UDP mode: "TURN allocation up" only means VK's relay handed out an allocation - a wrong
+        // peer address or obf key still gets one. The stream's DTLS handshake then runs through
+        // that allocation to our server, so an established DTLS session is the real signal, and
+        // the tunnel is down once the last one closes ("Closed" is only logged for sessions that
+        // got established, so the count stays balanced).
+        if (DTLS_ESTABLISHED_REGEX.containsMatchIn(line)) {
+            state.freeTurnDtlsOpen++
+            markConnected(state, ctx)
+        } else if (DTLS_CLOSED_REGEX.containsMatchIn(line)) {
+            state.freeTurnDtlsOpen = (state.freeTurnDtlsOpen - 1).coerceAtLeast(0)
+            if (state.freeTurnDtlsOpen == 0 && CoreServiceState.status.value is CoreStatus.Connected) {
+                markConnecting()
+            }
+        } else if (lower.contains("] turn allocation up") && state.freeTurnDtlsOpen == 0) {
+            // Progress while nothing is up yet; with other streams already carrying traffic, a
+            // re-allocation of one of them says nothing about the tunnel as a whole.
+            if (canUpdateConnectingStatus()) {
+                markConnecting()
                 state.startupEmitted = true
             }
         }
@@ -215,6 +235,16 @@ object FreeTurnKernel : Kernel {
         }
     }
 
+    private fun markConnected(state: BinaryOutputState, ctx: KernelLogContext) {
+        if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+            CoreServiceState.setStatus(CoreStatus.Connected)
+            ctx.updateNotification(ctx.getString(R.string.core_active))
+            state.startupEmitted = true
+        }
+    }
+
+    private val DTLS_ESTABLISHED_REGEX = Regex("""\[STREAM \d+] Established DTLS connection""")
+    private val DTLS_CLOSED_REGEX = Regex("""\[STREAM \d+] Closed DTLS connection""")
     private val TCP_ACTIVE_REGEX = Pattern.compile("""\[session \d+] (?:connected|disconnected) \(active: (\d+)\)""")
     private val CAPTCHA_URL_REGEX = Pattern.compile("""Open this URL in your browser:\s*(https?://\S+)""")
     private val FREE_TURN_CAPTCHA_REGEX = Pattern.compile("""(?:manually open this URL|Open this URL in your browser):\s*(https?://\S+)""")

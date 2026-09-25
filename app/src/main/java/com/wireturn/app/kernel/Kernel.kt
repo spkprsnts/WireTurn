@@ -49,6 +49,10 @@ class BinaryOutputState {
     var connectingSince = 0L
     // When Yandex.Docs' WebSocket last came up - see OpenFluxKernel point 4.
     var yandexConnectedAt = 0L
+    // FreeTurn UDP mode: DTLS sessions to the server currently up - see FreeTurnKernel point 2.
+    var freeTurnDtlsOpen = 0
+    // olcrtc: the local SOCKS5 listener is up, i.e. the first session came up - see OlcrtcKernel.
+    var olcrtcSocksReady = false
 
     // "Give up after N repeats" counters for failure patterns that keep recurring without ever
     // surfacing a terminal error on their own (e.g. a transport that reconnects forever with its
@@ -134,12 +138,12 @@ interface Kernel {
     fun logLevel(line: String): LogLevel? = null
 
     /**
-     * Whether [parseLogLine] also gets [LogLevel.DEBUG] lines. Every kernel runs with its debug
-     * output on (the log level setting decides what's kept), but the status heuristics were written
-     * against the non-debug output - debug lines reusing the same words (a failed captcha-proxy
-     * request, a credential retry) would trip them. Only OpenFlux relies on debug lines.
+     * Whether [parseLogLine] gets this [LogLevel.DEBUG] line. Every kernel runs with its debug
+     * output on (the log level setting decides what's kept), but debug lines reusing the words the
+     * status heuristics look for (a failed captcha-proxy request, a credential retry) would trip
+     * them - so each kernel lets through only the debug lines it actually uses.
      */
-    val parsesDebugLines: Boolean get() = false
+    fun parsesDebugLine(line: String): Boolean = false
 
     /**
      * Chatty lines the binary logs above debug level (per connection, per retry, periodic stats):

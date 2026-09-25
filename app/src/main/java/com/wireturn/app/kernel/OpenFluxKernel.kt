@@ -32,7 +32,7 @@ object OpenFluxKernel : Kernel {
     // socks5SupportsAuth comes from the default (KernelVariant.socks5SupportsAuth = variant != OPENFLUX).
 
     // --debug is always on (see buildCommand) and parseLogLine depends on its output.
-    override val parsesDebugLines: Boolean = true
+    override fun parsesDebugLine(line: String): Boolean = true
 
     // utils.EnableDebug gives the std logger Lshortfile ("... 15:04:05.000000 main.go:42: msg"),
     // while utils.Debugf writes through a second logger without it ("... 15:04:05.000000 msg").

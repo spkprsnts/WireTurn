@@ -126,8 +126,10 @@ object OlcrtcKernel : Kernel {
         if (line.contains("failover status cycle=")) LogLevel.DEBUG else null
 
     // One Info line per SOCKS5 connection (internal/client/tunnel.go) - failures are logged
-    // separately as "sid=N connect failed".
-    override fun isNoise(line: String): Boolean = SOCKS_TUNNEL_LINE.containsMatchIn(line)
+    // separately as "sid=N connect failed". And the control-stream ping every 10s (still parsed,
+    // see parseLogLine).
+    override fun isNoise(line: String): Boolean =
+        SOCKS_TUNNEL_LINE.containsMatchIn(line) || line.contains("control alive ")
 
     private val SOCKS_TUNNEL_LINE = Regex("""\bsid=\d+ tunnel to """)
 
@@ -148,6 +150,23 @@ object OlcrtcKernel : Kernel {
                 CoreServiceState.setStatus(CoreStatus.Connected)
                 ctx.updateNotification(ctx.getString(R.string.core_active))
                 state.startupEmitted = true
+            }
+            state.olcrtcSocksReady = true
+        }
+
+        // Once the first session is up, olcrtc rebuilds it in place when the control stream dies
+        // (internal/client/link.go): the tunnel is down from "client reconnect reason=..." until
+        // "session ... reopened". "control unhealthy" (pongs missing) is the earlier warning, and a
+        // pong coming back ("control alive", every 10s) recovers from it without a reconnect.
+        // Only Connected <-> Connecting here - never over an error, captcha or suppressed state.
+        if (state.olcrtcSocksReady) {
+            if (lower.contains("client reconnect reason=") || lower.contains("control unhealthy")) {
+                if (CoreServiceState.status.value is CoreStatus.Connected) markConnecting()
+            } else if (lower.contains(" reopened (device=") || lower.contains("control alive ")) {
+                if (CoreServiceState.status.value is CoreStatus.Connecting) {
+                    CoreServiceState.setStatus(CoreStatus.Connected)
+                    ctx.updateNotification(ctx.getString(R.string.core_active))
+                }
             }
         }
 

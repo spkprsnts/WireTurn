@@ -69,8 +69,8 @@ object TurnableKernel : Kernel {
             "client",
             "-l", cfg.listenAddr.ifBlank { ClientConfig.DEFAULT_LISTEN_ADDR },
             "-c", configFile.absolutePath,
-            // slog DEBUG level - kept or dropped by the log level setting; parseLogLine
-            // never sees these lines (see Kernel.parsesDebugLines).
+            // slog DEBUG level - kept or dropped by the log level setting; parseLogLine only
+            // sees the few of these it uses (see parsesDebugLine).
             "--verbose"
         ))
         return cmdArgs
@@ -85,6 +85,18 @@ object TurnableKernel : Kernel {
             line.contains("scope=turnc") ||
             line.contains("vk authorize reused cached") ||
             line.contains("vk cached turn credentials invalidated")
+
+    // Lines parseLogLine already checks for but Turnable logs at DEBUG: the tinymux session dying
+    // (always followed by Turnable's own "tinymux session died" full reconnect, so a fresh
+    // "peer online" brings Connected back) and the SRTP handshake starting.
+    override fun parsesDebugLine(line: String): Boolean =
+        TINYMUX_SESSION_LOST.any { line.contains(it) } || line.contains("srtp client handshake started")
+
+    private val TINYMUX_SESSION_LOST = listOf(
+        "tinymux client received disconnect",
+        "tinymux client cut off unexpectedly",
+        "tinymux client pong timeout"
+    )
 
     override suspend fun parseLogLine(line: String, lower: String, state: BinaryOutputState, ctx: KernelLogContext, cfg: ClientConfig): Boolean {
         // 1. Hard Errors (Watchdog won't help, needs manual fix)
@@ -104,6 +116,21 @@ object TurnableKernel : Kernel {
         ) {
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                 CoreServiceState.setStatus(CoreStatus.Error(line))
+                ctx.updateNotification(ctx.getString(R.string.error_connecting))
+            }
+            state.startupFailed = true
+            return true
+        }
+
+        // Once its auto-solver gives up, Turnable falls back to a manual captcha that needs a
+        // userscript installed in a desktop browser (served on localhost:1984) - nothing the app
+        // can drive. Waiting only runs into its 10-minute timeout, and a restart just asks VK for
+        // another captcha, so stop with a readable reason instead.
+        if (lower.contains("all auto captcha attempts exhausted") ||
+            lower.contains("manual captcha solve required")
+        ) {
+            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                CoreServiceState.setStatus(CoreStatus.Error(ctx.getString(R.string.error_turnable_vk_captcha_failed)))
                 ctx.updateNotification(ctx.getString(R.string.error_connecting))
             }
             state.startupFailed = true
@@ -189,11 +216,8 @@ object TurnableKernel : Kernel {
             lower.contains("peer connection failed with turn error") ||
             lower.contains("vk captcha challenge received") ||
             lower.contains("vk captcha solved") ||
-            lower.contains("all auto captcha attempts exhausted") ||
-            lower.contains("manual captcha solve required") ||
             lower.contains("vk signaling websocket dial failed") ||
-            lower.contains("tinymux client received disconnect") ||
-            lower.contains("tinymux client cut off unexpectedly") ||
+            TINYMUX_SESSION_LOST.any { lower.contains(it) } ||
             (onlineCount != null && onlineCount == 0 && lower.contains("peer offline"))
         // Per-peer noise (one of N peers failing to dial, direct->turn fallback): progress while
         // still connecting, but must not knock an already-established tunnel back to Connecting.
@@ -201,7 +225,6 @@ object TurnableKernel : Kernel {
             lower.contains("quota") ||
             lower.contains("dtls direct connect failed") ||
             lower.contains("srtp direct connect failed") ||
-            lower.contains("dtls client handshake started") ||
             lower.contains("srtp client handshake started")
 
         if (sessionLost || (peerNoise && CoreServiceState.status.value !is CoreStatus.Connected)) {

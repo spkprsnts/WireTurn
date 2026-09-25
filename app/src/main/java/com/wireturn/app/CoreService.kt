@@ -543,7 +543,7 @@ class CoreService : Service() {
                             // Process was intentionally killed (hot-reload/stop) — log but don't update status
                             if (process.get() == null) continue
                             if (stopping) continue
-                            if (level == LogLevel.DEBUG && !kernel.parsesDebugLines) continue
+                            if (level == LogLevel.DEBUG && !kernel.parsesDebugLine(line)) continue
                             if (processOutputLine(line, state, cfg)) {
                                 // Closing the pipe under a live process kills it with SIGPIPE (exit
                                 // 141) before it can clean up - e.g. Go cores never get to release
