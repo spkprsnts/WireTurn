@@ -15,9 +15,9 @@ import com.wireturn.app.ui.activities.kernel.OpenFluxConfigActivity
 import java.io.File
 
 // OpenFlux (external/openflux, upstream p1neappleXpress/OpenFlux). No captcha flow, but no single
-// clean "connected" line either - the five transports it wraps (Yandex.Docs, vyandex/"Volga",
-// MAX/oneme, cups.online, Mail.ru Docs) differ a lot in how much they actually log, so parseLogLine's
-// connected/error detection is split by transport below. log.Fatalf hard failures in main.go also
+// clean "connected" line either - the six transports it wraps (Yandex.Docs, vyandex/"Volga",
+// Yandex Boards, MAX/oneme, cups.online, Mail.ru Docs) differ a lot in how much they actually log,
+// so parseLogLine's connected/error detection is split by transport below. log.Fatalf hard failures in main.go also
 // exit the process, so the generic "no output before exit" fallback in CoreService.runBinary
 // would eventually catch those too, but matching the line directly gives a much faster, more
 // specific error.
@@ -108,6 +108,12 @@ object OpenFluxKernel : Kernel {
         },
         FastFailRule(setOf("yandex", "vyandex"), R.string.error_openflux_yandex_login) {
             "yandex docs: login required" in it
+        },
+        // 0g. Boards' own take on 0f: boards.go only knows the PoW captcha, so anything its solver
+        // can't get through (a SmartCaptcha behind it) fails Start() as "boards auth: captcha
+        // solve: ...".
+        FastFailRule(setOf("boards"), R.string.error_openflux_yandex_captcha) {
+            "boards auth: captcha solve" in it
         }
     )
 
@@ -141,6 +147,7 @@ object OpenFluxKernel : Kernel {
         "oneme" -> R.drawable.ic_max
         "cupsonline" -> R.drawable.ic_cupsonline
         "mailru" -> R.drawable.ic_mailru
+        "boards" -> R.drawable.ic_yandex_boards
         else -> R.drawable.route_24px
     }
 
@@ -263,9 +270,16 @@ object OpenFluxKernel : Kernel {
         // already be Connected - calling markConnecting() unconditionally here would stomp that
         // back to Connecting with no later line to ever set it again. So cupsonline is left alone
         // entirely at this point; state.startupEmitted is already true from point 2 either way.
+        // boards is like cupsonline in that its own definite signal (point 7) can already have
+        // arrived - its WebSocket connects in the background right after the synchronous auth in
+        // Start() - so it only moves to Connecting here if it isn't Connected yet.
         if (lower.contains("running as client (socks5 on")) {
             state.startupEmitted = true
-            if (transport != "oneme" && transport != "cupsonline" && CoreServiceState.status.value !is CoreStatus.Suppressed) {
+            if (transport == "boards") {
+                if (CoreServiceState.status.value !is CoreStatus.Connected && canUpdateConnectingStatus()) {
+                    markConnecting()
+                }
+            } else if (transport != "oneme" && transport != "cupsonline" && CoreServiceState.status.value !is CoreStatus.Suppressed) {
                 CoreServiceState.setStatus(CoreStatus.Connected)
                 ctx.updateNotification(ctx.getString(R.string.core_active))
             } else if (transport != "cupsonline" && canUpdateConnectingStatus()) {
@@ -466,6 +480,44 @@ object OpenFluxKernel : Kernel {
                     ctx.updateNotification(ctx.getString(R.string.error_connecting))
                     state.startupFailed = true
                     return true
+                }
+                state.startupEmitted = true
+            }
+        }
+
+        // 7. Yandex Boards transport (transport/yandex/boards.go, --debug required). Auth runs
+        // synchronously in Start() (failures trip point 1 / 0g via main.go's "Failed to start
+        // transport"), then the WebSocket connects in the background: "[BOARDS] handshake done"
+        // is the definite ready signal, and "[BOARDS] ws error" is its reconnect loop's only
+        // failure signal, retried forever with backoff. Unlike classic Yandex there's a line for
+        // coming back, so a drop can show as Connecting. A session that lasted past the same
+        // 15s "healthy" cutoff as point 4 resets the counter instead of counting towards it.
+        if (transport == "boards") {
+            if (lower.contains("[boards] handshake done")) {
+                state.boardsConnectedAt = System.currentTimeMillis()
+                if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                    CoreServiceState.setStatus(CoreStatus.Connected)
+                    ctx.updateNotification(ctx.getString(R.string.core_active))
+                }
+                state.startupEmitted = true
+            } else if (lower.contains("[boards] ws error")) {
+                if (ctx.isNetworkMissingAndHandled()) {
+                    state.startupFailed = true
+                    return true
+                }
+                val healthySessionEnded = state.boardsConnectedAt != 0L &&
+                    System.currentTimeMillis() - state.boardsConnectedAt > YANDEX_HEALTHY_SESSION_MS
+                state.boardsConnectedAt = 0L
+                if (healthySessionEnded) {
+                    state.openFluxBoardsFailureCounter.reset()
+                } else if (state.openFluxBoardsFailureCounter.recordAndCheckThreshold()) {
+                    CoreServiceState.setStatus(CoreStatus.Error(line))
+                    ctx.updateNotification(ctx.getString(R.string.error_connecting))
+                    state.startupFailed = true
+                    return true
+                }
+                if (CoreServiceState.status.value is CoreStatus.Connected) {
+                    markConnecting()
                 }
                 state.startupEmitted = true
             }

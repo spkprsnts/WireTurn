@@ -49,6 +49,8 @@ class BinaryOutputState {
     var connectingSince = 0L
     // When Yandex.Docs' WebSocket last came up - see OpenFluxKernel point 4.
     var yandexConnectedAt = 0L
+    // When the Yandex Boards WebSocket handshake last completed - see OpenFluxKernel point 7.
+    var boardsConnectedAt = 0L
     // FreeTurn UDP mode: DTLS sessions to the server currently up - see FreeTurnKernel point 2.
     var freeTurnDtlsOpen = 0
     // olcrtc: the local SOCKS5 listener is up, i.e. the first session came up - see OlcrtcKernel.
@@ -75,6 +77,9 @@ class BinaryOutputState {
     // cupsonline (transport/cupsonline/cupsonline.go): per-room backoff to 10s, plus a 15s
     // handshake timeout on top -> worst case ~25s; rooms retry in parallel (4 by default).
     val openFluxCupsFailureCounter = LogOccurrenceCounter(windowMs = 45_000, threshold = 6)
+    // Yandex Boards (transport/yandex/boards.go): backoff to 8s +50% jitter, plus a 15s dial and
+    // up to ~30s of socket.io handshake waits on top -> worst case ~55s between failures.
+    val openFluxBoardsFailureCounter = LogOccurrenceCounter(windowMs = 90_000, threshold = 8)
 }
 
 /**

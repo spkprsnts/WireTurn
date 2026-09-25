@@ -14,8 +14,9 @@ data class OpenFluxConfig(
     // (cups.online live-coding-room transport - same `url` slot, but it holds the base64 room
     // list the exit node prints at startup, not a document link) or "mailru" (Mail.ru Docs
     // cursor-message transport, same idea as classic yandex but riding a public cloud.mail.ru
-    // document instead - `url` holds that document's weblink) - the exact values OpenFlux's own
-    // `-transport` flag accepts (the CLI arg is literally "oneme", not "max").
+    // document instead - `url` holds that document's weblink) or "boards" (Yandex Boards
+    // whiteboard transport, `url` holds the board link with its ?hash=) - the exact values
+    // OpenFlux's own `-transport` flag accepts (the CLI arg is literally "oneme", not "max").
     @SerializedName("transport") val transport: String = "yandex",
     // Yandex.Docs/Mail.ru document URL for yandex/vyandex/mailru; base64 room list for cupsonline.
     @SerializedName("url") val url: String = "",
@@ -39,11 +40,15 @@ data class OpenFluxConfig(
             "vyandex" -> "Volga Y.Docs"
             "cupsonline" -> "Cups.online"
             "mailru" -> "Mail.ru Docs"
+            "boards" -> "Y.Boards"
             else -> "Y.Docs"
         }
 
     fun isValid(): Boolean = when (transport) {
         "oneme" -> maxToken.isNotBlank() && maxUid.isNotBlank()
+        // boards.go's Start() reads the board id from the link's own ?hash= and fails right away
+        // without it ("boards: no hash in URL").
+        "boards" -> url.contains("hash=")
         else -> url.isNotBlank()
     }
 
@@ -53,6 +58,7 @@ data class OpenFluxConfig(
             "vyandex" -> "vyandex"
             "cupsonline" -> "cupsonline"
             "mailru" -> "mailru"
+            "boards" -> "boards"
             else -> "yandex"
         },
         url = (url as Any?)?.toString()?.trim()?.take(2000) ?: "",
@@ -100,6 +106,7 @@ data class OpenFluxConfig(
                 "vyandex" -> "vyandex"
                 "cupsonline" -> "cupsonline"
                 "mailru" -> "mailru"
+                "boards" -> "boards"
                 else -> "yandex"
             }
             val encryptionKey = uri.getQueryParameter("enc") ?: current.encryptionKey

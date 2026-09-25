@@ -377,6 +377,7 @@ fun OpenFluxConfigScreen(
                                 "vyandex" -> R.string.openflux_vyandex_settings_title
                                 "cupsonline" -> R.string.openflux_cupsonline_settings_title
                                 "mailru" -> R.string.openflux_mailru_settings_title
+                                "boards" -> R.string.openflux_boards_settings_title
                                 else -> R.string.openflux_yandex_settings_title
                             }
                         )
@@ -390,7 +391,7 @@ fun OpenFluxConfigScreen(
                                 value = config.url.redact(isPrivacyActive),
                                 onValueChange = { if (!isPrivacyActive) config = config.copy(url = it) },
                                 readOnly = isPrivacyActive,
-                                isError = config.transport != "oneme" && config.url.isBlank(),
+                                isError = config.transport != "oneme" && !config.isValid(),
                                 isModified = isEditMode && config.url != initialConfig.url,
                                 privacyMode = isPrivacyActive,
                                 singleLine = false,
@@ -400,6 +401,7 @@ fun OpenFluxConfigScreen(
                                     when (config.transport) {
                                         "cupsonline" -> R.string.openflux_cups_url_desc
                                         "mailru" -> R.string.openflux_mailru_url_desc
+                                        "boards" -> R.string.openflux_boards_url_desc
                                         else -> R.string.openflux_url_desc
                                     }
                                 )
@@ -517,6 +519,7 @@ private fun getOpenFluxPlatformIcon(transport: String): Int = when (transport) {
     "oneme" -> R.drawable.ic_max
     "cupsonline" -> R.drawable.ic_cupsonline
     "mailru" -> R.drawable.ic_mailru
+    "boards" -> R.drawable.ic_yandex_boards
     else -> R.drawable.ic_yandex_docs
 }
 
@@ -526,7 +529,7 @@ private fun OpenFluxPlatformDialog(
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val platforms = listOf("yandex", "vyandex", "oneme", "cupsonline", "mailru")
+    val platforms = listOf("yandex", "vyandex", "boards", "oneme", "cupsonline", "mailru")
 
     SelectionDialog(
         title = stringResource(R.string.openflux_platform_label),

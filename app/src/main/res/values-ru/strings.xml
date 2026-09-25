@@ -148,9 +148,11 @@
     <string name="openflux_oneme_settings_title">MAX</string>
     <string name="openflux_cupsonline_settings_title">Cups.online</string>
     <string name="openflux_mailru_settings_title">Mail.ru Документы</string>
+    <string name="openflux_boards_settings_title">Яндекс Доски</string>
     <string name="openflux_url_label">URL документа</string>
     <string name="openflux_url_desc">URL документа Яндекс.Документов, общий с exit-node</string>
     <string name="openflux_mailru_url_desc">URL публичного документа Mail.ru Документов, общий с exit-node</string>
+    <string name="openflux_boards_url_desc">Ссылка на доску Яндекс Досок (с ?hash=), общая с exit-node</string>
     <string name="openflux_cups_url_label">Список комнат</string>
     <string name="openflux_cups_url_desc" tools:ignore="TypographyDashes">Base64-список комнат, который exit-node печатает при запуске (--transport cupsonline)</string>
     <string name="openflux_max_token_label">MAX-токен</string>
