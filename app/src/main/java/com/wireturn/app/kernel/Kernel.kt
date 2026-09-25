@@ -64,6 +64,10 @@ class BinaryOutputState {
     val remoteNotReadyCounter = LogOccurrenceCounter(windowMs = 10_000, threshold = 7)
     val webdavConnRefusedCounter = LogOccurrenceCounter(windowMs = 5_000, threshold = 10)
     val vkCaptchaSolveFailCounter = LogOccurrenceCounter(windowMs = Long.MAX_VALUE, threshold = 5)
+    // FreeTurn 4.x: Client ID never acknowledged. Certain with a pre-4.0 server, but the same error
+    // after 7s of total packet loss right after a DTLS handshake - so one isn't proof. An old server
+    // repeats it at once across VK's streams, or on the next 10-30s DTLS retry with direct's one.
+    val freeTurnNoIdAckCounter = LogOccurrenceCounter(windowMs = 120_000, threshold = 2)
     // Yandex.Docs (transport/yandex/yandex.go): backoff to 30s +50% jitter, plus a 15s fetch
     // timeout on top -> worst case ~60s between failures.
     val openFluxYandexFailureCounter = LogOccurrenceCounter(windowMs = 90_000, threshold = 8)

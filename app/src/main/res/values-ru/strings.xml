@@ -245,6 +245,8 @@
     <string name="freeturn_manual_captcha_label">Ручная капча</string>
     <string name="freeturn_manual_captcha_desc">Решать капчу ВК во встроенном браузере</string>
     <string name="freeturn_mode_label">Режим туннеля</string>
+    <string name="freeturn_provider_label">Маршрут</string>
+    <string name="freeturn_provider_direct_desc">Подключение напрямую к серверу</string>
     <string name="freeturn_bond_label">Объединение сессий (bond)</string>
     <string name="freeturn_bond_desc">Распределять каждое TCP-соединение по всем сессиям</string>
     <string name="freeturn_kcp_settings_title">KCP (режим TCP)</string>
@@ -443,6 +445,7 @@
     <string name="error_room_not_found">Комната не найдена</string>
     <string name="error_turnable_vk_captcha_failed">Не удалось пройти капчу</string>
     <string name="error_turnable_vk_flood">VK: флуд-лимит</string>
+    <string name="error_freeturn_server_outdated">Обновите сервер FreeTurn</string>
 
     <string name="error_release_info_failed">Не удалось получить информацию о релизе</string>
     <string name="error_process_no_output">Процесс завершился без вывода (код: %1$d)</string>

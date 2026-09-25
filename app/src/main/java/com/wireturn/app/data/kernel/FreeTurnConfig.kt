@@ -32,10 +32,14 @@ data class FreeTurnConfig(
     @SerializedName("kcp_acknodelay") val kcpAcknodelay: Boolean = true,
     @SerializedName("bond") val bond: Boolean = false
 ) {
-    fun isValid(): Boolean = links.isNotBlank() && (peer.isNotBlank() || sub.isNotBlank())
+    // "direct" (4.0+): the same obfuscated DTLS straight to the server, no VK TURN relay - so no
+    // call links, VK auth or captcha, and nothing to get past whitelists that block the VPS itself.
+    val isDirect: Boolean get() = provider == PROVIDER_DIRECT
+
+    fun isValid(): Boolean = (isDirect || links.isNotBlank()) && (peer.isNotBlank() || sub.isNotBlank())
 
     fun sanitize(): FreeTurnConfig = copy(
-        provider = (provider as Any?)?.toString()?.trim()?.take(32) ?: "vk",
+        provider = if ((provider as Any?)?.toString()?.trim() == PROVIDER_DIRECT) PROVIDER_DIRECT else PROVIDER_VK,
         peer = (peer as Any?)?.toString()?.trim()?.take(500) ?: "",
         links = (links as Any?)?.toString()?.trim()?.take(4096) ?: "",
         obfKey = (obfKey as Any?)?.toString()?.trim()?.take(64) ?: "",
@@ -108,6 +112,14 @@ data class FreeTurnConfig(
     }
 
     companion object {
+        const val PROVIDER_VK = "vk"
+        const val PROVIDER_DIRECT = "direct"
+
+        // Upstream's own -n defaults per provider (docs/flags.md): a direct link has no relay limits
+        // to spread across, so extra streams only split the same queue.
+        const val DEFAULT_N_VK = 10
+        const val DEFAULT_N_DIRECT = 1
+
         /**
          * `-obf-timing` is a Go duration ("20ms", "1s"); freeturn:// links from upstream carry it as
          * whole milliseconds instead. Null when it doesn't parse or isn't a whole number of ms.

@@ -286,6 +286,10 @@
     <string name="freeturn_manual_captcha_label">Manual Captcha</string>
     <string name="freeturn_manual_captcha_desc">Solve VK captcha in app browser</string>
     <string name="freeturn_mode_label">Tunnel mode</string>
+    <string name="freeturn_provider_label">Route</string>
+    <string name="freeturn_provider_vk" translatable="false">VK</string>
+    <string name="freeturn_provider_direct" translatable="false">Direct</string>
+    <string name="freeturn_provider_direct_desc">Connects straight to the server</string>
     <string name="freeturn_bond_label">Bond sessions</string>
     <string name="freeturn_bond_desc">Spread each TCP connection across all sessions</string>
     <string name="freeturn_kcp_settings_title">KCP (TCP mode)</string>
@@ -485,6 +489,7 @@
     <string name="error_room_not_found">Room not found</string>
     <string name="error_turnable_vk_captcha_failed">VK captcha failed</string>
     <string name="error_turnable_vk_flood">VK flood limit</string>
+    <string name="error_freeturn_server_outdated">Update the FreeTurn server</string>
 
     <string name="error_release_info_failed">Could not get release information</string>
     <string name="error_process_no_output">Process finished with no output (code: %1$d)</string>
@@ -571,6 +576,7 @@
     <string name="kernel_tag_no_auto_restart" translatable="false">No Auto-Restart</string>
     <string name="kernel_tag_encrypted" translatable="false">Encrypted</string>
     <string name="kernel_tag_bond" translatable="false">Bond</string>
+    <string name="kernel_tag_direct" translatable="false">Direct</string>
     <string name="kernel_tag_no_tls" translatable="false">No TLS</string>
     <string name="kernel_tag_turn_tcp" translatable="false">TURN-TCP</string>
     <string name="kernel_tag_video_obfs" translatable="false">Video Obfs</string>

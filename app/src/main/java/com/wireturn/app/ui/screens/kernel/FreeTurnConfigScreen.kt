@@ -323,6 +323,38 @@ fun FreeTurnConfigScreen(
 
             SectionGroup(title = stringResource(R.string.connection_details)) {
                 SectionItem(position = ItemPosition.Top) {
+                    val providerOptions = listOf(
+                        FreeTurnConfig.PROVIDER_VK to stringResource(R.string.freeturn_provider_vk),
+                        FreeTurnConfig.PROVIDER_DIRECT to stringResource(R.string.freeturn_provider_direct)
+                    )
+                    LabeledButtonGroup(
+                        label = stringResource(R.string.freeturn_provider_label),
+                        supportingText = if (config.isDirect) stringResource(R.string.freeturn_provider_direct_desc) else null,
+                        isModified = isEditMode && config.provider != initialConfig.provider
+                    ) {
+                        providerOptions.forEachIndexed { index, (provider, providerLabel) ->
+                            selectableButtonItem(
+                                selected = config.provider == provider,
+                                onSelect = {
+                                    if (provider == config.provider) return@selectableButtonItem
+                                    // Carry the stream count over to the new provider's own default
+                                    // only if it was still on the old one's - a hand-tuned value stays.
+                                    val direct = provider == FreeTurnConfig.PROVIDER_DIRECT
+                                    val oldDefault = if (direct) FreeTurnConfig.DEFAULT_N_VK else FreeTurnConfig.DEFAULT_N_DIRECT
+                                    val newDefault = if (direct) FreeTurnConfig.DEFAULT_N_DIRECT else FreeTurnConfig.DEFAULT_N_VK
+                                    config = config.copy(
+                                        provider = provider,
+                                        n = if (config.n == oldDefault) newDefault else config.n
+                                    )
+                                },
+                                label = providerLabel,
+                                index = index,
+                                count = providerOptions.size
+                            )
+                        }
+                    }
+                }
+                SectionItem {
                     LabeledButtonGroup(
                         label = stringResource(R.string.freeturn_mode_label),
                         isModified = isEditMode && config.mode != initialConfig.mode
@@ -352,20 +384,22 @@ fun FreeTurnConfigScreen(
                         placeholder = "203.0.113.10:56000"
                     )
                 }
-                SectionItem {
-                    TextFieldRow(
-                        label = stringResource(R.string.freeturn_links_label),
-                        supportingText = stringResource(R.string.freeturn_links_desc),
-                        value = config.links.redact(isPrivacyActive),
-                        onValueChange = { if (!isPrivacyActive) config = config.copy(links = it) },
-                        readOnly = isPrivacyActive,
-                        isModified = isEditMode && config.links != initialConfig.links,
-                        isError = config.links.isBlank(),
-                        privacyMode = isPrivacyActive,
-                        singleLine = false,
-                        minLines = 1,
-                        maxLines = 5
-                    )
+                if (!config.isDirect) {
+                    SectionItem {
+                        TextFieldRow(
+                            label = stringResource(R.string.freeturn_links_label),
+                            supportingText = stringResource(R.string.freeturn_links_desc),
+                            value = config.links.redact(isPrivacyActive),
+                            onValueChange = { if (!isPrivacyActive) config = config.copy(links = it) },
+                            readOnly = isPrivacyActive,
+                            isModified = isEditMode && config.links != initialConfig.links,
+                            isError = config.links.isBlank(),
+                            privacyMode = isPrivacyActive,
+                            singleLine = false,
+                            minLines = 1,
+                            maxLines = 5
+                        )
+                    }
                 }
                 SectionItem(position = ItemPosition.Bottom) {
                     TextFieldRow(
@@ -386,7 +420,7 @@ fun FreeTurnConfigScreen(
             }
 
             SectionGroup(title = stringResource(R.string.server_settings_title)) {
-                SectionItem(position = ItemPosition.Top) {
+                SectionItem(position = if (config.isDirect) ItemPosition.Single else ItemPosition.Top) {
                     SliderRow(
                         label = stringResource(R.string.freeturn_n_label),
                         supportingText = stringResource(R.string.freeturn_n_desc),
@@ -397,52 +431,55 @@ fun FreeTurnConfigScreen(
                         isModified = isEditMode && config.n != initialConfig.n
                     )
                 }
-                SectionItem {
-                    SliderRow(
-                        label = stringResource(R.string.freeturn_spc_label),
-                        supportingText = stringResource(R.string.freeturn_spc_desc),
-                        value = config.streamsPerCred.toFloat(),
-                        onValueChange = { config = config.copy(streamsPerCred = it.roundToInt()) },
-                        valueRange = 1f..64f,
-                        steps = 62,
-                        isModified = isEditMode && config.streamsPerCred != initialConfig.streamsPerCred
-                    )
-                }
-                SectionItem {
-                    LabeledButtonGroup(
-                        label = stringResource(R.string.freeturn_platform_label),
-                        supportingText = stringResource(R.string.freeturn_platform_desc),
-                        isModified = isEditMode && config.platform != initialConfig.platform
-                    ) {
-                        val options = listOf("desktop", "mobile")
-                        options.forEachIndexed { index, p ->
-                            selectableButtonItem(
-                                selected = config.platform == p,
-                                onSelect = { config = config.copy(platform = p) },
-                                label = p.replaceFirstChar { it.uppercase() },
-                                index = index,
-                                count = options.size
-                            )
+                // The rest is the VK relay's own tuning - the direct provider has no relay.
+                if (!config.isDirect) {
+                    SectionItem {
+                        SliderRow(
+                            label = stringResource(R.string.freeturn_spc_label),
+                            supportingText = stringResource(R.string.freeturn_spc_desc),
+                            value = config.streamsPerCred.toFloat(),
+                            onValueChange = { config = config.copy(streamsPerCred = it.roundToInt()) },
+                            valueRange = 1f..64f,
+                            steps = 62,
+                            isModified = isEditMode && config.streamsPerCred != initialConfig.streamsPerCred
+                        )
+                    }
+                    SectionItem {
+                        LabeledButtonGroup(
+                            label = stringResource(R.string.freeturn_platform_label),
+                            supportingText = stringResource(R.string.freeturn_platform_desc),
+                            isModified = isEditMode && config.platform != initialConfig.platform
+                        ) {
+                            val options = listOf("desktop", "mobile")
+                            options.forEachIndexed { index, p ->
+                                selectableButtonItem(
+                                    selected = config.platform == p,
+                                    onSelect = { config = config.copy(platform = p) },
+                                    label = p.replaceFirstChar { it.uppercase() },
+                                    index = index,
+                                    count = options.size
+                                )
+                            }
                         }
                     }
-                }
-                SectionItem(
-                    position = ItemPosition.Bottom
-                ) {
-                    LabeledButtonGroup(
-                        label = stringResource(R.string.freeturn_transport_label),
-                        supportingText = stringResource(R.string.freeturn_transport_desc),
-                        isModified = isEditMode && config.transport != initialConfig.transport
+                    SectionItem(
+                        position = ItemPosition.Bottom
                     ) {
-                        val options = listOf("tcp", "udp")
-                        options.forEachIndexed { index, t ->
-                            selectableButtonItem(
-                                selected = config.transport == t,
-                                onSelect = { config = config.copy(transport = t) },
-                                label = t.uppercase(),
-                                index = index,
-                                count = options.size
-                            )
+                        LabeledButtonGroup(
+                            label = stringResource(R.string.freeturn_transport_label),
+                            supportingText = stringResource(R.string.freeturn_transport_desc),
+                            isModified = isEditMode && config.transport != initialConfig.transport
+                        ) {
+                            val options = listOf("tcp", "udp")
+                            options.forEachIndexed { index, t ->
+                                selectableButtonItem(
+                                    selected = config.transport == t,
+                                    onSelect = { config = config.copy(transport = t) },
+                                    label = t.uppercase(),
+                                    index = index,
+                                    count = options.size
+                                )
+                            }
                         }
                     }
                 }
@@ -660,7 +697,7 @@ fun FreeTurnConfigScreen(
                         maxLines = 5
                     )
                 }
-                SectionItem {
+                SectionItem(position = if (config.isDirect) ItemPosition.Bottom else ItemPosition.Middle) {
                     TextFieldRow(
                         label = stringResource(R.string.freeturn_client_id_label),
                         supportingText = stringResource(R.string.freeturn_client_id_desc),
@@ -671,21 +708,24 @@ fun FreeTurnConfigScreen(
                         privacyMode = isPrivacyActive
                     )
                 }
-                SectionItem(
-                    position = ItemPosition.Bottom,
-                    onClick = {
-                        val next = !config.manualCaptcha
-                        HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
-                        config = config.copy(manualCaptcha = next)
+                // No VK in direct mode, so no captcha either.
+                if (!config.isDirect) {
+                    SectionItem(
+                        position = ItemPosition.Bottom,
+                        onClick = {
+                            val next = !config.manualCaptcha
+                            HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                            config = config.copy(manualCaptcha = next)
+                        }
+                    ) {
+                        SwitchRow(
+                            label = stringResource(R.string.freeturn_manual_captcha_label),
+                            supportingText = stringResource(R.string.freeturn_manual_captcha_desc),
+                            checked = config.manualCaptcha,
+                            onCheckedChange = { config = config.copy(manualCaptcha = it) },
+                            isModified = isEditMode && config.manualCaptcha != initialConfig.manualCaptcha
+                        )
                     }
-                ) {
-                    SwitchRow(
-                        label = stringResource(R.string.freeturn_manual_captcha_label),
-                        supportingText = stringResource(R.string.freeturn_manual_captcha_desc),
-                        checked = config.manualCaptcha,
-                        onCheckedChange = { config = config.copy(manualCaptcha = it) },
-                        isModified = isEditMode && config.manualCaptcha != initialConfig.manualCaptcha
-                    )
                 }
             }
         }

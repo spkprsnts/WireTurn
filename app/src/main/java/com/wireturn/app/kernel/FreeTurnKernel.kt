@@ -27,13 +27,16 @@ object FreeTurnKernel : Kernel {
         val config = (cfg as KernelConfig.FreeTurn).config
         val callCount = config.links.split(",").count { it.isNotBlank() }
         return listOfNotNull(
+            context.getString(R.string.kernel_tag_direct).takeIf { config.isDirect },
             config.obfProfile.takeIf { it.isNotBlank() && it != "none" }?.replaceFirstChar(Char::uppercase),
             context.getString(R.string.kernel_tag_bond).takeIf { config.mode == "tcp" && config.bond },
             context.getString(R.string.kernel_tag_call_count, callCount).takeIf { callCount > 1 }
         )
     }
 
-    override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int = R.drawable.ic_vk
+    // Direct skips VK entirely - same mark as the app's own direct-route state.
+    override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int =
+        if ((cfg as KernelConfig.FreeTurn).config.isDirect) R.drawable.ethernet_24px else R.drawable.ic_vk
 
     // FreeTurn dropped its tcp tunnel mode entirely (v3.0.0+) - it's udp-only now, unconditionally,
     // unless the config's own `mode` says otherwise.
@@ -62,22 +65,29 @@ object FreeTurnKernel : Kernel {
             "-provider", o.provider,
             "-peer", o.peer,
             "-n", o.n.toString(),
-            "-transport", o.transport,
             "-obf-profile", o.obfProfile,
-            "-streams-per-cred", o.streamsPerCred.toString(),
             "-dns-mode", o.dnsMode,
-            "-platform", o.platform,
             // internal/logx "[DEBUG]" lines - kept or dropped by the log level setting;
             // parseLogLine only sees the DTLS session ones (see parsesDebugLine).
             "-debug"
         ))
+        // The VK relay's own settings - the direct provider ignores all of these upstream, so
+        // they're left out rather than shown in the logged command as if they applied.
+        if (!o.isDirect) {
+            cmdArgs.addAll(listOf(
+                "-transport", o.transport,
+                "-streams-per-cred", o.streamsPerCred.toString(),
+                "-platform", o.platform
+            ))
+            if (o.links.isNotBlank()) {
+                cmdArgs.add("-links")
+                cmdArgs.add(o.links)
+            }
+            if (o.manualCaptcha) cmdArgs.add("-manual-captcha")
+        }
         if (o.obfTiming != "0" && o.obfTiming.isNotBlank()) {
             cmdArgs.add("-obf-timing")
             cmdArgs.add(o.obfTiming)
-        }
-        if (o.links.isNotBlank()) {
-            cmdArgs.add("-links")
-            cmdArgs.add(o.links)
         }
         if (o.sub.isNotBlank()) {
             cmdArgs.add("-sub")
@@ -95,7 +105,6 @@ object FreeTurnKernel : Kernel {
             cmdArgs.add("-client-id")
             cmdArgs.add(o.clientId)
         }
-        if (o.manualCaptcha) cmdArgs.add("-manual-captcha")
         if (o.mode == "tcp") {
             cmdArgs.add("-mode")
             cmdArgs.add("tcp")
@@ -129,6 +138,23 @@ object FreeTurnKernel : Kernel {
             lower.contains("all vk credentials failed") || lower.contains("fatal_captcha")) {
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                 CoreServiceState.setStatus(CoreStatus.Error(line))
+                ctx.updateNotification(ctx.getString(R.string.error_connecting))
+            }
+            state.startupFailed = true
+            return true
+        }
+
+        // 4.x waits for the server to acknowledge its Client ID, which pre-4.0 servers never do -
+        // but only after "Established DTLS connection", so without this the status would flap
+        // Connected/Connecting on every 10-30s retry while nothing ever gets through. Logged as
+        // "[STREAM N] DTLS: failed to write client ID: ..." (UDP) or "[session N] setup error:
+        // send client ID: ..." (TCP), both carrying clientsdb.ErrNoIDAck's own text. Needs a repeat
+        // (see BinaryOutputState.freeTurnNoIdAckCounter) - a single one can be plain packet loss.
+        if (lower.contains("server did not acknowledge client id") &&
+            state.freeTurnNoIdAckCounter.recordAndCheckThreshold()
+        ) {
+            if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                CoreServiceState.setStatus(CoreStatus.Error(ctx.getString(R.string.error_freeturn_server_outdated)))
                 ctx.updateNotification(ctx.getString(R.string.error_connecting))
             }
             state.startupFailed = true
