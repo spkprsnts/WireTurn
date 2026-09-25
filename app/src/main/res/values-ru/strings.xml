@@ -461,6 +461,8 @@
     <string name="error_openflux_doc_not_found">Документ не найден</string>
     <string name="error_openflux_yandex_captcha">Яндекс требует капчу</string>
     <string name="error_openflux_yandex_login">Документ требует входа в Яндекс</string>
+    <string name="error_openflux_cups_rooms_gone">Комнаты Cups закрыты, пересоздайте их на ноде</string>
+    <string name="error_openflux_cups_rooms_unreachable">Комнаты Cups не отвечают</string>
     <string name="error_openflux_dns_lookup_failed">Хост не найден: %1$s</string>
 
     <!-- Уведомления -->

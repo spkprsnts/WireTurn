@@ -71,6 +71,9 @@ object OpenFluxKernel : Kernel {
         "[ydocs]", "[volga]", "[boards]", "[m-docs]", "[captcha]", "failed to start transport"
     )
 
+    // cupsonline.go's reportRooms: "[CUPS] Cups: живых комнат <alive>/<total>".
+    private val CUPS_ALIVE_ROOMS_REGEX = Regex("""живых комнат (\d+)/(\d+)""")
+
     // Same "healthy session" cutoff yandex.go uses before resetting its own reconnect backoff.
     private const val YANDEX_HEALTHY_SESSION_MS = 15_000L
 
@@ -132,6 +135,12 @@ object OpenFluxKernel : Kernel {
         // solve: ...".
         FastFailRule(setOf("boards"), R.string.error_openflux_yandex_captcha) {
             "boards auth: captcha solve" in it
+        },
+        // 0h. Every room in the cupsonline room list answered as closed (cupsonline.go's
+        // enterRooms: "no rooms joined: all rooms are gone") - only a fresh list from the exit
+        // node helps. Rooms that merely didn't answer are point 6's retry instead.
+        FastFailRule(setOf("cupsonline"), R.string.error_openflux_cups_rooms_gone) {
+            "all rooms are gone" in it
         }
     )
 
@@ -251,8 +260,8 @@ object OpenFluxKernel : Kernel {
         // otherwise a brief connectivity blip (Wi-Fi/mobile handoff) shows a misleading permanent
         // error instead of the WaitingForNetwork state every sibling check falls back to. Excludes
         // cupsonline: it joins several rooms in parallel and tolerates any single room's own DNS
-        // hiccup via its own per-room retry (state.openFluxCupsFailureCounter below already owns
-        // that transport's failure handling) - one room's transient "no such host" isn't fatal to
+        // hiccup via its own per-room retry (point 6 below owns that transport's failure
+        // handling, by how many rooms are still alive) - one room's transient "no such host" isn't fatal to
         // the others, so it must not be intercepted here. Only the transport's own lookups count
         // (TRANSPORT_LOG_MARKERS): every app connection through the SOCKS5 inbound logs the same
         // text for its own dead domain ("[SOCKS5] Dial failed: resolve: lookup <host>: no such
@@ -267,6 +276,18 @@ object OpenFluxKernel : Kernel {
             }
             val host = DNS_LOOKUP_HOST_REGEX.find(line)?.groupValues?.get(1) ?: line
             return failFast(ctx.getString(R.string.error_openflux_dns_lookup_failed, host), state, ctx)
+        }
+
+        // 6a. cupsonline couldn't enter any room, but not every one is closed (0h) - a network or
+        // cups.online hiccup, so the watchdog retries instead of point 1 failing for good.
+        if (transport == "cupsonline" && lower.contains("failed to start transport") && lower.contains("no rooms joined")) {
+            if (ctx.isNetworkMissingAndHandled()) {
+                state.startupFailed = true
+                return true
+            }
+            ctx.setLastFailureReason(ctx.getString(R.string.error_openflux_cups_rooms_unreachable))
+            state.startupEmitted = true
+            return true
         }
 
         // 1. Hard errors (log.Fatalf in main.go - prints then exits)
@@ -479,33 +500,43 @@ object OpenFluxKernel : Kernel {
         }
 
         // 6. cups.online transport (external/openflux transport/cupsonline/cupsonline.go). Room
-        // joins happen synchronously inside Start(): if every room fails, Start() returns "no
-        // rooms joined" and main.go's own log.Fatalf already trips point 1 above via "failed to
-        // start transport" - no heuristic needed for a total failure. "[CUPS] transport started"
-        // is the definite success signal (all requested channels are up and dialing), taking over
-        // from "Running as CLIENT" at point 3, which this transport is excluded from above.
-        // Each channel's own WebSocket then reconnects forever with backoff (up to 10s) on its
-        // own, same silent-spin risk as Yandex/vyandex above - "[CUPS] ws error" is that loop's
-        // only signal, so it gets its own counter tuned to the faster backoff cap.
+        // joins happen synchronously inside Start() - a total failure there is 0h/6a above.
+        // "[CUPS] transport started" is the definite success signal (at least one room entered),
+        // taking over from "Running as CLIENT" at point 3, which this transport is excluded from.
+        // Each room's WebSocket then reconnects on its own; after 5 failed connects in a row (or
+        // the room page saying so) the room counts as closed and is only re-probed every 1-30 min.
+        // Every such change logs "живых комнат N/M" - traffic keeps flowing while N > 0, so that's
+        // the status. At 0 it goes to Connecting rather than an error: 5 failed connects can also
+        // be a cups.online outage, and the watchdog's restart re-enters the rooms, where 0h/6a
+        // tell a closed list from an unreachable one. A plain "[CUPS] ws error" is no signal of
+        // its own any more - a single dying room logs 5 of them in seconds while the rest work.
         if (transport == "cupsonline") {
+            val rooms = CUPS_ALIVE_ROOMS_REGEX.find(line)
             if (lower.contains("[cups] transport started")) {
                 if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                     CoreServiceState.setStatus(CoreStatus.Connected)
                     ctx.updateNotification(ctx.getString(R.string.core_active))
                 }
                 state.startupEmitted = true
+            } else if (rooms != null) {
+                if (rooms.groupValues[1] != "0") {
+                    if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+                        CoreServiceState.setStatus(CoreStatus.Connected)
+                        ctx.updateNotification(ctx.getString(R.string.core_active))
+                    }
+                } else {
+                    if (ctx.isNetworkMissingAndHandled()) {
+                        state.startupFailed = true
+                        return true
+                    }
+                    ctx.setLastFailureReason(ctx.getString(R.string.error_openflux_cups_rooms_unreachable))
+                    if (canUpdateConnectingStatus()) markConnecting()
+                }
             } else if (lower.contains("[cups] ws error")) {
                 if (ctx.isNetworkMissingAndHandled()) {
                     state.startupFailed = true
                     return true
                 }
-                if (state.openFluxCupsFailureCounter.recordAndCheckThreshold()) {
-                    CoreServiceState.setStatus(CoreStatus.Error(line))
-                    ctx.updateNotification(ctx.getString(R.string.error_connecting))
-                    state.startupFailed = true
-                    return true
-                }
-                state.startupEmitted = true
             }
         }
 

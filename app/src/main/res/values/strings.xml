@@ -505,6 +505,8 @@
     <string name="error_openflux_doc_not_found">Document not found</string>
     <string name="error_openflux_yandex_captcha">Yandex requires a captcha</string>
     <string name="error_openflux_yandex_login">Document requires a Yandex login</string>
+    <string name="error_openflux_cups_rooms_gone">Cups rooms are closed, recreate them on the exit node</string>
+    <string name="error_openflux_cups_rooms_unreachable">Cups rooms are not responding</string>
     <string name="error_openflux_dns_lookup_failed">DNS lookup failed: %1$s</string>
 
     <!-- Notifications -->
