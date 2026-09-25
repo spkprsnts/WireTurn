@@ -91,7 +91,7 @@ data class OpenFluxConfig(
             return try {
                 val uri = Uri.parse(trimmed)
                 // Our own toUri() always hardcodes the host to "config" (see above); OlConnect's
-                // dialect below uses "yandex" or leaves it blank, so that's a safe way to tell them
+                // dialect below uses "yandex"/"mailru" or leaves it blank, so that's a safe way to tell them
                 // apart without a dedicated marker param.
                 if (uri.authority != "config") return parseOlConnectDialect(uri, current)
                 parseNative(uri, current)
@@ -128,19 +128,36 @@ data class OpenFluxConfig(
         }
 
         // github.com/Oleglog/OlConnect's own openflux:// dialect (unrelated to this project's
-        // scheme): openflux://yandex?url=<doc_url>&t=<transport>&d=<dns>#<ProfileName>, with "u"/
-        // "transport" accepted as aliases for "url"/"t". Only the Yandex.Docs family is
-        // representable there ("auto"/"yandex"/"vyandex" - "auto" and anything unrecognized
-        // collapse to plain "yandex"); it has no oneme/cupsonline equivalent, and its "d"/"dns"
-        // param has no matching field on our side (OpenFlux's binary has no --dns flag at all), so
-        // it's dropped on import. The profile name (if any) travels in the fragment, not a query
-        // param - see OpenFluxKernel.displayNameFromUri.
+        // scheme), as its app (profile/openflux/OpenFluxUri.kt) and its OlConnect_manager panel
+        // write it: openflux://<yandex|mailru>?url=<doc_url>&t=<transport>&c=<codec>&d=<dns>
+        // &k=<encryption_key>#<ProfileName>, with "u"/"transport"/"codec"/"dns"/"key" accepted as
+        // aliases. Only document transports exist there: "auto"/"yandex"/"vyandex"/"mailru" -
+        // "auto" (or none, or anything unrecognized) goes by the host/link instead, Mail.ru if
+        // either says so, else plain yandex. "d"/"dns" has no matching field on our side
+        // (OpenFlux's binary has no --dns flag at all), so it's dropped on import. The profile
+        // name (if any) travels in the fragment, not a query param - see
+        // OpenFluxKernel.displayNameFromUri.
         private fun parseOlConnectDialect(uri: Uri, current: OpenFluxConfig): OpenFluxConfig? {
             val docUrl = uri.getQueryParameter("url") ?: uri.getQueryParameter("u") ?: return null
             if (docUrl.isBlank()) return null
-            val transportParam = uri.getQueryParameter("t") ?: uri.getQueryParameter("transport")
-            val transport = if (transportParam == "vyandex") "vyandex" else "yandex"
-            return current.copy(transport = transport, url = docUrl, maxToken = current.maxToken, maxUid = current.maxUid)
+            val transport = when ((uri.getQueryParameter("t") ?: uri.getQueryParameter("transport"))?.trim()?.lowercase()) {
+                "vyandex" -> "vyandex"
+                "yandex" -> "yandex"
+                "mailru" -> "mailru"
+                else -> if (uri.host == "mailru" || docUrl.contains("mail.ru")) "mailru" else "yandex"
+            }
+            val encryptionKey = uri.getQueryParameter("k") ?: uri.getQueryParameter("key") ?: current.encryptionKey
+            val legacyCodec = when ((uri.getQueryParameter("c") ?: uri.getQueryParameter("codec"))?.trim()?.lowercase()) {
+                "legacy" -> true
+                "batched" -> false
+                else -> current.legacyCodec
+            }
+            return current.copy(
+                transport = transport,
+                url = docUrl,
+                encryptionKey = encryptionKey,
+                legacyCodec = legacyCodec
+            )
         }
     }
 }
