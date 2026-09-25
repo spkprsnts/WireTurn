@@ -451,6 +451,8 @@
     <string name="error_openflux_vyandex_wrong_doc">Документ не поддерживает Volga — переключитесь на транспорт yandex</string>
     <string name="error_openflux_yandex_wrong_doc">Документ работает только через транспорт Volga (vyandex)</string>
     <string name="error_openflux_doc_not_found">Документ не найден</string>
+    <string name="error_openflux_yandex_captcha">Яндекс требует капчу</string>
+    <string name="error_openflux_yandex_login">Документ требует входа в Яндекс</string>
     <string name="error_openflux_dns_lookup_failed">Хост не найден: %1$s</string>
 
     <!-- Уведомления -->

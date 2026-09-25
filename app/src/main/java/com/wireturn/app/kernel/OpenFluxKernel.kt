@@ -96,6 +96,18 @@ object OpenFluxKernel : Kernel {
         // (malformed weblink) and 404 (deleted/wrong id) are deterministic given this exact link.
         FastFailRule(setOf("mailru"), R.string.error_openflux_doc_not_found) {
             "api returned status 400" in it || "api returned status 404" in it
+        },
+        // 0f. Yandex answered with a SmartCaptcha (unlike the PoW showcaptchafast one, which the
+        // transport solves itself) or a passport.yandex login redirect (document not open to
+        // anonymous access). Since 0.0.5 only a negotiated session can hand these to the app over
+        // --ipc-socket; in plain single-transport mode yandex.go just re-fetches every 30s
+        // forever ("fetchDocInfo needs external help: ...") and vyandex.go fails Start()
+        // ("Failed to start transport: auth: ..."). Both carry the sentinel error's own text.
+        FastFailRule(setOf("yandex", "vyandex"), R.string.error_openflux_yandex_captcha) {
+            "yandex docs: captcha required" in it
+        },
+        FastFailRule(setOf("yandex", "vyandex"), R.string.error_openflux_yandex_login) {
+            "yandex docs: login required" in it
         }
     )
 
@@ -197,7 +209,7 @@ object OpenFluxKernel : Kernel {
     override suspend fun parseLogLine(line: String, lower: String, state: BinaryOutputState, ctx: KernelLogContext, cfg: ClientConfig): Boolean {
         val transport = (cfg.kernelConfig as? KernelConfig.OpenFlux)?.config?.transport ?: "yandex"
 
-        // 0a/0b/0c/0e (see FAST_FAIL_RULES above for what each one matches and why). Checked before
+        // 0a/0b/0c/0e/0f (see FAST_FAIL_RULES above for what each one matches and why). Checked before
         // the generic "failed to start transport" catch-all further below, which would otherwise
         // show the raw log line (doc's office-metadata key dump, HTTP status, ...) as the error.
         for (rule in FAST_FAIL_RULES) {

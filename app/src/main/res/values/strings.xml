@@ -482,6 +482,8 @@
     <string name="error_openflux_vyandex_wrong_doc">Document doesn\'t support Volga — switch to the yandex transport</string>
     <string name="error_openflux_yandex_wrong_doc">Document only works with the Volga (vyandex) transport</string>
     <string name="error_openflux_doc_not_found">Document not found</string>
+    <string name="error_openflux_yandex_captcha">Yandex requires a captcha</string>
+    <string name="error_openflux_yandex_login">Document requires a Yandex login</string>
     <string name="error_openflux_dns_lookup_failed">DNS lookup failed: %1$s</string>
 
     <!-- Notifications -->
