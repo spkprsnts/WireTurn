@@ -2,20 +2,21 @@
   ~ Monochrome mark for the "Yandex Boards" (Доски) OpenFlux transport - Yandex's own 24x24 board
   ~ glyph, with its currentColor fill swapped for a tinted white fill like the other transport icons.
   ~
-  ~ Cropped to the path's own bounds (x 2.159..21.934, y 1.926..22.436 in the original 24x24) so it
-  ~ fills its slot like the other transport marks instead of keeping Material's 2-unit padding.
-  ~ width/height follow the (slightly taller than wide) viewport's aspect ratio - see
-  ~ ic_yandex_docs for why a mismatch there would bake in a stretch.
+  ~ Fit into Material's 24x24 box with 2 units of padding: the group's scale/translate map
+  ~ the paths' exact bounds onto the central 20x20, centered, like every other platform mark,
+  ~ so they all render the same size. Path data itself is untouched.
   -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="23.14dp"
+    android:width="24dp"
     android:height="24dp"
-    android:viewportWidth="19.775"
-    android:viewportHeight="20.51"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
     android:tint="?attr/colorControlNormal">
     <group
-        android:translateX="-2.159"
-        android:translateY="-1.926">
+        android:scaleX="0.97515"
+        android:scaleY="0.97515"
+        android:translateX="0.25264"
+        android:translateY="0.1215">
         <path
             android:fillColor="@android:color/white"
             android:pathData="M7.275,3.258a1.79,1.79 0,0 1,2.196 -1.27l11.136,2.987a1.79,1.79 0,0 1,1.266 2.194l-3.344,12.463a1.8,1.8 0,0 1,-0.39 0.723l-1.204,1.359q-0.032,0.034 -0.066,0.066c-0.328,0.4 -0.826,0.656 -1.384,0.656H12.23l-0.164,-0.004a3.3,3.3 0,0 1,-1.066 -0.24v0.005l-0.084,-0.037 -0.03,-0.012a3,3 0,0 1,-0.247 -0.125l-0.019,-0.01a3,3 0,0 1,-0.234 -0.145l-0.031,-0.021a3.3,3.3 0,0 1,-0.447 -0.372l-6.787,-6.788 -0.112,-0.118 -0.017,-0.02a3,3 0,0 1,-0.163 -0.198l-0.058,-0.082a3,3 0,0 1,-0.159 -0.243L2.596,14h0.002a3.3,3.3 0,0 1,-0.439 -1.634V9.11l0.009,-0.183a1.79,1.79 0,0 1,1.599 -1.598l0.183,-0.01h2.248zM4.16,12.365l0.006,0.127c0.03,0.294 0.16,0.57 0.37,0.78l0.227,0.227H9.21l0.234,0.012a2.29,2.29 0,0 1,2.056 2.28v4.416c0.213,0.148 0.467,0.229 0.73,0.229h3.046V9.318H4.16z" />
