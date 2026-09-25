@@ -184,8 +184,9 @@ object OpenFluxKernel : Kernel {
         OpenFluxConfig.parse(uri)?.let { KernelConfig.OpenFlux(it) }
 
     override fun displayNameFromUri(uri: String): String? = try {
+        OpenFluxConfig.decodeV1(uri)?.let { return it.get("name")?.asString?.takeIf(String::isNotBlank) }
         val u = uri.toUri()
-        // Our own scheme carries the name in a "name" query param; OlConnect's dialect (see
+        // The legacy scheme carries the name in a "name" query param; OlConnect's dialect (see
         // OpenFluxConfig.parseOlConnectDialect) puts it in the URL-encoded fragment instead
         // ("+" for spaces, like java.net.URLEncoder), so fall back to that.
         u.getQueryParameter("name") ?: u.encodedFragment?.replace("+", "%20")?.let(android.net.Uri::decode)?.takeIf(String::isNotBlank)

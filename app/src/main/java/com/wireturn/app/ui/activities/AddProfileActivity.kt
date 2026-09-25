@@ -5,6 +5,7 @@
 
 package com.wireturn.app.ui.activities
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -49,6 +50,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.domain.ImportStatus
 import com.wireturn.app.domain.isLocalNetworkHost
+import com.wireturn.app.kernel.FreeTurnKernel
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
@@ -222,8 +224,10 @@ class AddProfileActivity : ComponentActivity() {
                             totalImported > 0 && filesFailed == 0 -> finish()
                             totalImported > 0 -> {
                                 HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
+                                @SuppressLint("StringFormatInvalid")
+                                val msg = this@AddProfileActivity.getString(R.string.profile_import_partial_failure, filesFailed, uris.size)
                                 context.showExclusiveToast(
-                                    getString(R.string.profile_import_partial_failure, filesFailed, uris.size),
+                                    msg,
                                     Toast.LENGTH_LONG
                                 )
                                 finish()
@@ -407,14 +411,17 @@ class AddProfileActivity : ComponentActivity() {
                         try { source.toUri().encodedFragment?.replace("+", "%20")?.let(android.net.Uri::decode)?.takeIf(String::isNotBlank) } catch (_: Exception) { null }
                     } else null
                     val qwdttName = try { source.toUri().getQueryParameter("name") } catch (_: Exception) { null }
-                    val openfluxName = try { source.toUri().getQueryParameter("name") } catch (_: Exception) { null }
+                    val openfluxName = com.wireturn.app.kernel.OpenFluxKernel.displayNameFromUri(source)
 
-                    val initialNameFromSource = if (status.type == "WebDAV") uriFragment
-                    else if (status.type == "olcRTC") olcrtcMimo
-                    else if (status.type == "FreeTurn") com.wireturn.app.kernel.FreeTurnKernel.displayNameFromUri(source) ?: uriFragment
-                    else if (status.type == "qWDTT") qwdttName
-                    else if (status.type == "OpenFlux") openfluxName
-                    else null
+                    val initialNameFromSource = when (status.type) {
+                        "WebDAV" -> uriFragment
+                        "olcRTC" -> olcrtcMimo
+                        "FreeTurn" -> FreeTurnKernel.displayNameFromUri(source)
+                            ?: uriFragment
+                        "qWDTT" -> qwdttName
+                        "OpenFlux" -> openfluxName
+                        else -> null
+                    }
 
                     val initialName = if (!initialNameFromSource.isNullOrBlank()) {
                         initialNameFromSource

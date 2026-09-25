@@ -1,7 +1,16 @@
 package com.wireturn.app.data.kernel
 
 import android.net.Uri
+import android.util.Base64
+import com.google.gson.JsonArray
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import com.google.gson.annotations.SerializedName
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.util.zip.Deflater
+import java.util.zip.Inflater
+import java.util.zip.InflaterInputStream
 
 // OpenFlux (external/openflux, upstream https://github.com/p1neappleXpress/OpenFlux) - a plain
 // TCP tunnel with pluggable transports. Client mode only here (the app never runs --exit-node);
@@ -69,7 +78,40 @@ data class OpenFluxConfig(
 
     fun fillDefaults(): OpenFluxConfig = sanitize()
 
+    // Upstream's own share link (external/openflux share/share.go, what an exit's --share prints):
+    // openflux://v1/<base64url(raw deflate(JSON))>, JSON keys in Go's field order. It has no
+    // place for MAX - an exit's token belongs to its own account - so oneme still goes out in
+    // the legacy format below, the only one that can carry it.
     fun toUri(profileName: String? = null): String {
+        if (transport == "oneme") return toLegacyUri(profileName)
+        val json = JsonObject().apply {
+            if (!profileName.isNullOrBlank()) addProperty("name", profileName)
+            if (legacyCodec) addProperty("codec", "legacy")
+            if (encryptionKey.isNotBlank()) addProperty("secret", encryptionKey)
+            // The encryption context: a single-transport client uses its --url (main.go's
+            // sessionContext), which is exactly what --share writes too.
+            addProperty("context", url)
+            add("transports", JsonArray().apply {
+                add(JsonObject().apply {
+                    addProperty("type", transport)
+                    addProperty("url", url)
+                })
+            })
+        }
+        val deflater = Deflater(Deflater.BEST_COMPRESSION, true)
+        val packed = ByteArrayOutputStream().use { out ->
+            deflater.setInput(json.toString().toByteArray())
+            deflater.finish()
+            val buf = ByteArray(1024)
+            while (!deflater.finished()) out.write(buf, 0, deflater.deflate(buf))
+            deflater.end()
+            out.toByteArray()
+        }
+        return V1_PREFIX + Base64.encodeToString(packed, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
+    }
+
+    // This app's own earlier openflux://config?... format - still read by parse().
+    private fun toLegacyUri(profileName: String?): String {
         val builder = Uri.Builder().scheme("openflux").authority("config")
             .appendQueryParameter("transport", transport)
         if (transport == "oneme") {
@@ -85,12 +127,20 @@ data class OpenFluxConfig(
     }
 
     companion object {
+        const val V1_PREFIX = "openflux://v1/"
+
+        // share.go's maxPayload: bounds the inflated JSON against a crafted link.
+        private const val V1_MAX_PAYLOAD = 16 shl 10
+
+        private val V1_TRANSPORTS = setOf("yandex", "vyandex", "boards", "mailru", "cupsonline")
+
         fun parse(url: String, current: OpenFluxConfig = OpenFluxConfig()): OpenFluxConfig? {
             val trimmed = url.trim()
             if (!trimmed.startsWith("openflux://", ignoreCase = true)) return null
             return try {
+                if (trimmed.startsWith(V1_PREFIX, ignoreCase = true)) return parseV1(trimmed, current)
                 val uri = Uri.parse(trimmed)
-                // Our own toUri() always hardcodes the host to "config" (see above); OlConnect's
+                // The legacy toUri() always hardcodes the host to "config" (see above); OlConnect's
                 // dialect below uses "yandex"/"mailru" or leaves it blank, so that's a safe way to tell them
                 // apart without a dedicated marker param.
                 if (uri.authority != "config") return parseOlConnectDialect(uri, current)
@@ -98,6 +148,54 @@ data class OpenFluxConfig(
             } catch (_: Exception) {
                 null
             }
+        }
+
+        /** The JSON inside an upstream openflux://v1/ link, or null if [url] isn't one. */
+        fun decodeV1(url: String): JsonObject? {
+            val trimmed = url.trim()
+            if (!trimmed.startsWith(V1_PREFIX, ignoreCase = true)) return null
+            return try {
+                val packed = Base64.decode(trimmed.substring(V1_PREFIX.length), Base64.URL_SAFE)
+                val out = ByteArrayOutputStream()
+                InflaterInputStream(ByteArrayInputStream(packed), Inflater(true)).use { input ->
+                    val buf = ByteArray(1024)
+                    while (true) {
+                        val n = input.read(buf)
+                        if (n < 0) break
+                        out.write(buf, 0, n)
+                        if (out.size() > V1_MAX_PAYLOAD) return null
+                    }
+                }
+                JsonParser.parseString(out.toString(Charsets.UTF_8.name())).asJsonObject
+            } catch (_: Exception) {
+                null
+            }
+        }
+
+        // Only what this client can run: a single transport without --negotiate. A negotiated
+        // session (always the case with several transports or direct) needs a client in that mode
+        // too, which this app deliberately doesn't do - such a link is rejected, not half-imported.
+        private fun parseV1(url: String, current: OpenFluxConfig): OpenFluxConfig? {
+            val json = decodeV1(url) ?: return null
+            if (json.get("negotiate")?.asBoolean == true) return null
+            val transports = json.getAsJsonArray("transports") ?: return null
+            if (transports.size() != 1) return null
+            val t = transports[0].asJsonObject
+            val type = t.get("type")?.asString ?: return null
+            if (type !in V1_TRANSPORTS) return null
+            val docUrl = t.get("url")?.asString.orEmpty()
+            if (docUrl.isBlank()) return null
+            val legacyCodec = when (json.get("codec")?.asString) {
+                null, "", "batched" -> false
+                "legacy" -> true
+                else -> return null
+            }
+            return current.copy(
+                transport = type,
+                url = docUrl,
+                encryptionKey = json.get("secret")?.asString.orEmpty(),
+                legacyCodec = legacyCodec
+            )
         }
 
         private fun parseNative(uri: Uri, current: OpenFluxConfig): OpenFluxConfig? {
