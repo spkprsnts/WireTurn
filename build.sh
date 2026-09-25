@@ -130,7 +130,8 @@ build_go_project() {
                     echo "  ⚠ $abi build attempt $attempt failed, retrying..."
                     sleep 2
                 done
-                [ "$CI" = "true" ] && git rev-parse HEAD > "$(ci_hash_file "." "$OUT")"
+                # A plain `[ ... ] && ...` would leave this subshell's exit status at 1 outside CI.
+                if [ "$CI" = "true" ]; then git rev-parse HEAD > "$(ci_hash_file "." "$OUT")"; fi
             fi
         ) &
         pids+=($!)
