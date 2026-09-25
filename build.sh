@@ -70,19 +70,20 @@ declare -A ARCH_MAP=(
 )
 ALL_ABIS="arm64-v8a x86_64 armeabi-v7a x86"
 
+# CI only: records which submodule commit an ABI's cached .so was built from. One file per ABI -
+# build_go_project checks all ABIs in parallel, and a single shared file let the first ABI to get
+# there write the new hash and every other ABI see "up to date", keeping its stale .so from an
+# older actions/cache entry (restored via restore-keys whenever the submodules changed).
+ci_hash_file() { echo "$1/.git_hash_$(basename "$(dirname "$2")")"; }
+
 needs_rebuild() {
     [ ! -f "$2" ] && return 0
 
-    # В CI проверяем по хэшу коммита сабмодуля
+    # В CI проверяем по хэшу коммита сабмодуля (записывается после успешной сборки)
     if [ "$CI" = "true" ]; then
-        local submodule_hash_file="$1/.git_hash"
         local current_hash=$(git -C "$1" rev-parse HEAD 2>/dev/null)
-        if [ -f "$submodule_hash_file" ] && [ "$(cat "$submodule_hash_file")" = "$current_hash" ]; then
-            return 1
-        else
-            echo "$current_hash" > "$submodule_hash_file"
-            return 0
-        fi
+        [ "$(cat "$(ci_hash_file "$1" "$2")" 2>/dev/null)" = "$current_hash" ] && return 1
+        return 0
     fi
 
     [ -n "$(find "$1" -maxdepth 5 \( -name "*.go" -o -name "go.mod" -o -name "go.sum" \) -newer "$2" -print -quit)" ] && return 0
@@ -129,6 +130,7 @@ build_go_project() {
                     echo "  ⚠ $abi build attempt $attempt failed, retrying..."
                     sleep 2
                 done
+                [ "$CI" = "true" ] && git rev-parse HEAD > "$(ci_hash_file "." "$OUT")"
             fi
         ) &
         pids+=($!)

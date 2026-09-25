@@ -78,6 +78,8 @@ jobs:
             app/src/main/jniLibs/*/libturnable.so
             app/src/main/jniLibs/*/libhevsocks5.so
             app/src/main/jniLibs/*/libwebdav.so
+            external/*/.git_hash_*
+            external/hev-socks5-tunnel/.git_hash
           key: ${{ runner.os }}-native-${{ steps.vars.outputs.ndk_version }}-${{ hashFiles('build.sh', 'external/olcrtc/**', 'external/vless-client/**', 'external/turnable/**', 'external/hev-socks5-tunnel/**', 'external/webdav-tunnel/**') }}
           restore-keys: |
             ${{ runner.os }}-native-${{ steps.vars.outputs.ndk_version }}-
