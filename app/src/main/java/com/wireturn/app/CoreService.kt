@@ -510,13 +510,14 @@ class CoreService : Service() {
             }
 
             // Watchdog for connection timeout
+            val connectingTimeoutMs = KernelRegistry.get(cfg.kernelVariant).connectingTimeoutMs
             val connectionWatchdog = launch {
                 while (isActive) {
                     val status = CoreServiceState.status.value
                     if (status is CoreStatus.Connecting) {
                         if (state.connectingSince == 0L) {
                             state.connectingSince = System.currentTimeMillis()
-                        } else if (System.currentTimeMillis() - state.connectingSince > 120_000) {
+                        } else if (System.currentTimeMillis() - state.connectingSince > connectingTimeoutMs) {
                             AppLogsState.addLog(getString(R.string.log_core_connection_timeout))
                             state.startupEmitted = true
                             proc.destroy()

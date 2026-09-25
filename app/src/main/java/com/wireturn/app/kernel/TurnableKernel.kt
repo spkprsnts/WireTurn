@@ -78,13 +78,15 @@ object TurnableKernel : Kernel {
 
     // Per-peer dial retries run to hundreds of lines per session on a bad network, and a TURN
     // failure that matters is summed up separately ("peer connection failed with TURN error,
-    // triggering full reconnect"). Also pion's TURN client chatter and VK credential-cache
-    // bookkeeping repeated on every reconnect.
+    // triggering full reconnect"). Also pion's TURN client chatter.
     override fun isNoise(line: String): Boolean =
         line.contains("peer dial failed") ||
-            line.contains("scope=turnc") ||
-            line.contains("vk authorize reused cached") ||
-            line.contains("vk cached turn credentials invalidated")
+            line.contains("scope=turnc")
+
+    // Turnable (0.6.3+) rides out an outage for up to its SessionGrace (3 min) before starting
+    // over with fresh VK credentials - a new VK auth risks its flood limit and a captcha, so give it
+    // that long plus some margin before CoreService's watchdog restarts the whole process.
+    override val connectingTimeoutMs: Long = 210_000L
 
     // Lines parseLogLine already checks for but Turnable logs at DEBUG: the tinymux session dying
     // (always followed by Turnable's own "tinymux session died" full reconnect, so a fresh
@@ -204,6 +206,21 @@ object TurnableKernel : Kernel {
                 CoreServiceState.setStatus(CoreStatus.Connected)
                 ctx.updateNotification(ctx.getString(R.string.core_active))
                 state.startupEmitted = true
+            }
+        }
+
+        // 2b. Since 0.6.3 a silent path no longer tears the session down right away: after 5s of
+        // unanswered tinymux pings Turnable keeps it and waits for the path to recover (or rebuilds
+        // it at once if the network is up but the server stays quiet), and says so when pongs come
+        // back - so a stall can show as Connecting without getting stuck there.
+        if (lower.contains("tinymux pongs stopped")) {
+            if (CoreServiceState.status.value is CoreStatus.Connected) {
+                markConnecting()
+            }
+        } else if (lower.contains("tinymux pongs resumed")) {
+            if (CoreServiceState.status.value is CoreStatus.Connecting) {
+                CoreServiceState.setStatus(CoreStatus.Connected)
+                ctx.updateNotification(ctx.getString(R.string.core_active))
             }
         }
 

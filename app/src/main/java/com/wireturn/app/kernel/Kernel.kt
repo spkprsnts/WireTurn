@@ -157,6 +157,12 @@ interface Kernel {
      */
     fun isNoise(line: String): Boolean = false
 
+    /**
+     * How long the status may sit in Connecting before CoreService's watchdog restarts the binary.
+     * Longer for a kernel that deliberately waits out outages on its own (see TurnableKernel).
+     */
+    val connectingTimeoutMs: Long get() = 120_000L
+
     /** Command-line flags whose values should be redacted in the app's own log (see CoreService). */
     val sensitiveCommandFlags: Set<String> get() = emptySet()
 
