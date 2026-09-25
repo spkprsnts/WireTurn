@@ -131,6 +131,17 @@
     <string name="xray_title" translatable="false">Xray</string>
     <string name="xray_http" translatable="false">HTTP</string>
     <string name="socks5" translatable="false">SOCKS5</string>
+    <string name="local_address_title">Copy address</string>
+    <string name="local_address_desc">The proxy listens on all interfaces (0.0.0.0). Pick the address other devices will connect to.</string>
+    <string name="local_address_this_device">This device</string>
+    <string name="local_address_wifi">Wi-Fi</string>
+    <string name="local_address_hotspot">Hotspot</string>
+    <string name="local_address_usb">USB tethering</string>
+    <string name="local_address_bluetooth">Bluetooth tethering</string>
+    <string name="local_address_ethernet">Ethernet</string>
+    <string name="local_address_mobile">Mobile network</string>
+    <string name="local_address_mobile_hint">Usually unreachable from outside (carrier NAT)</string>
+    <string name="local_address_other">Other network</string>
     <string name="xray_proxy_auth">Proxy authentication</string>
     <string name="xray_proxy_auth_desc">Protect proxy with login and password</string>
     <string name="xray_proxy_user">Username</string>

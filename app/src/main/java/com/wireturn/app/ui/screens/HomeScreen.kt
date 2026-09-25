@@ -108,6 +108,8 @@ import com.wireturn.app.R
 import com.wireturn.app.VpnServiceState
 import com.wireturn.app.XrayServiceState
 import com.wireturn.app.data.XrayConfiguration
+import com.wireturn.app.domain.LocalAddresses
+import com.wireturn.app.domain.LocalInterfaceKind
 import com.wireturn.app.kernel.KernelRegistry
 import com.wireturn.app.ui.AppExclusionTooltip
 import com.wireturn.app.ui.CompactItem
@@ -119,6 +121,7 @@ import com.wireturn.app.ui.ModifiedIndicator
 import com.wireturn.app.ui.RowLabel
 import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
+import com.wireturn.app.ui.SelectionDialog
 import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SupportingText
 import com.wireturn.app.ui.SwitchRow
@@ -1360,6 +1363,25 @@ fun HomeScreen(
                 val socks5Label = stringResource(R.string.clipboard_label_socks5)
                 val httpLabel = stringResource(R.string.clipboard_label_http)
 
+                // A proxy bound to all interfaces has no single address to hand out - copying
+                // 0.0.0.0 is useless to whoever pastes it, so let the user pick which of this
+                // device's addresses the other side will actually connect through.
+                var pendingWildcardCopy by remember { mutableStateOf<WildcardCopy?>(null) }
+                pendingWildcardCopy?.let { pending ->
+                    LocalAddressPickerDialog(
+                        port = pending.address.substringAfterLast(':'),
+                        onPick = { ip ->
+                            scope.launch {
+                                clipboard.setClipEntry(
+                                    ClipData.newPlainText(pending.clipLabel, pending.withHost(ip)).toClipEntry()
+                                )
+                                pending.onCopied()
+                            }
+                        },
+                        onDismiss = { pendingWildcardCopy = null }
+                    )
+                }
+
                 var socksCopied by remember { mutableStateOf(false) }
                 LaunchedEffect(socksCopied) {
                     if (socksCopied) {
@@ -1376,6 +1398,10 @@ fun HomeScreen(
                     onClick = {
                         if (privacyMode) return@SectionItem
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                        if (isWildcardAddress(displaySocksAddr)) {
+                            pendingWildcardCopy = WildcardCopy(socks5Label, copySocksAddr) { socksCopied = true }
+                            return@SectionItem
+                        }
                         scope.launch {
                             clipboard.setClipEntry(
                                 ClipData.newPlainText(socks5Label, copySocksAddr).toClipEntry()
@@ -1420,6 +1446,10 @@ fun HomeScreen(
                         onClick = {
                             if (privacyMode) return@SectionItem
                             HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                            if (isWildcardAddress(displayHttpAddr)) {
+                                pendingWildcardCopy = WildcardCopy(httpLabel, copyHttpAddr) { httpCopied = true }
+                                return@SectionItem
+                            }
                             scope.launch {
                                 clipboard.setClipEntry(
                                     ClipData.newPlainText(
@@ -1582,5 +1612,90 @@ private fun ProxyAddressRow(
             modifier = Modifier.size(20.dp),
             tint = if (isCopied) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
+}
+
+private fun isWildcardAddress(bindAddress: String) = bindAddress.startsWith("0.0.0.0:")
+
+/** A copy of a proxy address bound to 0.0.0.0, waiting for the user to pick the real host. */
+private class WildcardCopy(val clipLabel: String, val address: String, val onCopied: () -> Unit) {
+    // Only the host part of "[user:pass@]0.0.0.0:port" - credentials and port stay as they are.
+    fun withHost(ip: String): String = address.replace(WILDCARD_HOST, "$1$ip:")
+
+    private companion object {
+        val WILDCARD_HOST = Regex("""(^|@)0\.0\.0\.0:""")
+    }
+}
+
+private class AddressChoice(
+    val label: String,
+    val interfaceName: String?,
+    val ip: String,
+    val iconRes: Int,
+    val hint: String?
+)
+
+@Composable
+private fun LocalAddressPickerDialog(
+    port: String,
+    onPick: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    // Read once when the dialog opens, so a hotspot switched on just before shows up.
+    val choices = remember {
+        listOf(
+            AddressChoice(
+                context.getString(R.string.local_address_this_device), null, "127.0.0.1",
+                R.drawable.mobile_24px, null
+            )
+        ) + LocalAddresses.list().map { address ->
+            val (labelRes, iconRes) = when (address.kind) {
+                LocalInterfaceKind.WIFI -> R.string.local_address_wifi to R.drawable.wifi_24px
+                LocalInterfaceKind.HOTSPOT -> R.string.local_address_hotspot to R.drawable.wifi_tethering_24px
+                LocalInterfaceKind.USB -> R.string.local_address_usb to R.drawable.usb_24px
+                LocalInterfaceKind.BLUETOOTH -> R.string.local_address_bluetooth to R.drawable.bluetooth_24px
+                LocalInterfaceKind.ETHERNET -> R.string.local_address_ethernet to R.drawable.ethernet_24px
+                LocalInterfaceKind.MOBILE -> R.string.local_address_mobile to R.drawable.signal_cellular_24px
+                LocalInterfaceKind.OTHER -> R.string.local_address_other to R.drawable.lan_24px
+            }
+            AddressChoice(
+                context.getString(labelRes), address.interfaceName, address.ip, iconRes,
+                context.getString(R.string.local_address_mobile_hint).takeIf { address.kind == LocalInterfaceKind.MOBILE }
+            )
+        }
+    }
+
+    SelectionDialog(
+        title = stringResource(R.string.local_address_title),
+        description = stringResource(R.string.local_address_desc),
+        items = choices,
+        isSelected = { false },
+        onSelect = { onPick(it.ip) },
+        onDismiss = onDismiss
+    ) { choice, _ ->
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            StandardLeadingIcon {
+                Icon(painter = painterResource(choice.iconRes), contentDescription = null)
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = choice.interfaceName?.let { "${choice.label} · $it" } ?: choice.label)
+                Text(
+                    text = "${choice.ip}:$port",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                choice.hint?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
     }
 }

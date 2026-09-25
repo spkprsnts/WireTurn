@@ -534,6 +534,17 @@
     <string name="settings_group_kernel_params">Параметры ядра</string>
     <string name="settings_group_kernel_socks5">SOCKS5-параметры ядра</string>
     <string name="xray_settings_group_connection">Подключение</string>
+    <string name="local_address_title">Копировать адрес</string>
+    <string name="local_address_desc">Прокси слушает все интерфейсы (0.0.0.0). Выберите адрес, по которому к нему будут подключаться другие устройства.</string>
+    <string name="local_address_this_device">Это устройство</string>
+    <string name="local_address_wifi">Wi-Fi</string>
+    <string name="local_address_hotspot">Точка доступа</string>
+    <string name="local_address_usb">USB-модем</string>
+    <string name="local_address_bluetooth">Bluetooth-модем</string>
+    <string name="local_address_ethernet">Ethernet</string>
+    <string name="local_address_mobile">Мобильная сеть</string>
+    <string name="local_address_mobile_hint">Обычно недоступен извне (NAT оператора)</string>
+    <string name="local_address_other">Другая сеть</string>
     <string name="xray_proxy_auth">Авторизация прокси</string>
     <string name="xray_proxy_auth_desc">Защитить прокси логином и паролем</string>
     <string name="xray_proxy_user">Логин</string>
