@@ -29,7 +29,8 @@ data class FreeTurnConfig(
     @SerializedName("kcp_sndwnd") val kcpSndwnd: Int = 512,
     @SerializedName("kcp_rcvwnd") val kcpRcvwnd: Int = 512,
     @SerializedName("kcp_mtu") val kcpMtu: Int = 1200,
-    @SerializedName("kcp_acknodelay") val kcpAcknodelay: Boolean = true
+    @SerializedName("kcp_acknodelay") val kcpAcknodelay: Boolean = true,
+    @SerializedName("bond") val bond: Boolean = false
 ) {
     fun isValid(): Boolean = links.isNotBlank() && (peer.isNotBlank() || sub.isNotBlank())
 
@@ -62,7 +63,11 @@ data class FreeTurnConfig(
             if (obfProfile != "none") {
                 addProperty("obf", obfProfile)
                 addProperty("key", obfKey)
-                if (obfTiming != "0") addProperty("obft", obfTiming)
+                if (obfTiming != "0") {
+                    addProperty("obft", obfTiming)
+                    // Upstream's own key for the same setting (4.0+), in whole milliseconds.
+                    obfTimingMs(obfTiming)?.let { addProperty("timing", it) }
+                }
             }
             if (n != 10) addProperty("n", n)
             if (streamsPerCred != 10) addProperty("spc", streamsPerCred)
@@ -73,6 +78,7 @@ data class FreeTurnConfig(
             if (platform != "desktop") addProperty("plt", platform)
             if (mode != "udp") {
                 addProperty("mode", mode)
+                if (bond) addProperty("bond", true)
                 val default = FreeTurnConfig()
                 val kcpChanged = kcpNodelay != default.kcpNodelay || kcpInterval != default.kcpInterval ||
                     kcpResend != default.kcpResend || kcpNc != default.kcpNc ||
@@ -102,6 +108,16 @@ data class FreeTurnConfig(
     }
 
     companion object {
+        /**
+         * `-obf-timing` is a Go duration ("20ms", "1s"); freeturn:// links from upstream carry it as
+         * whole milliseconds instead. Null when it doesn't parse or isn't a whole number of ms.
+         */
+        fun obfTimingMs(timing: String): Int? {
+            val m = Regex("""^(\d+(?:\.\d+)?)(ms|s)$""").matchEntire(timing.trim()) ?: return null
+            val value = m.groupValues[1].toDouble() * (if (m.groupValues[2] == "s") 1000 else 1)
+            return value.toInt().takeIf { it > 0 && it.toDouble() == value }
+        }
+
         /**
          * Masks the middle of a peer host:port for display (e.g. "123.45.67.89:56000" ->
          * "123.***.**.89:56000") - keeps the first/last IPv4 octet and the port visible so the
@@ -144,7 +160,9 @@ data class FreeTurnConfig(
                     sub = json.get("sub")?.asString ?: current.sub,
                     obfProfile = json.get("obf")?.asString ?: current.obfProfile,
                     obfKey = json.get("key")?.asString ?: current.obfKey,
-                    obfTiming = json.get("obft")?.asString ?: current.obfTiming,
+                    obfTiming = json.get("obft")?.asString
+                        ?: json.get("timing")?.asInt?.takeIf { it > 0 }?.let { "${it}ms" }
+                        ?: current.obfTiming,
                     n = json.get("n")?.asInt ?: current.n,
                     transport = json.get("transport")?.asString ?: current.transport,
                     streamsPerCred = json.get("spc")?.asInt ?: current.streamsPerCred,
@@ -161,7 +179,8 @@ data class FreeTurnConfig(
                     kcpSndwnd = kcp?.get("sndwnd")?.asInt ?: current.kcpSndwnd,
                     kcpRcvwnd = kcp?.get("rcvwnd")?.asInt ?: current.kcpRcvwnd,
                     kcpMtu = kcp?.get("mtu")?.asInt ?: current.kcpMtu,
-                    kcpAcknodelay = kcp?.get("acknodelay")?.asBoolean ?: current.kcpAcknodelay
+                    kcpAcknodelay = kcp?.get("acknodelay")?.asBoolean ?: current.kcpAcknodelay,
+                    bond = json.get("bond")?.asBoolean ?: current.bond
                 )
             } catch (_: Exception) {
                 null

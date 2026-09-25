@@ -28,6 +28,7 @@ object FreeTurnKernel : Kernel {
         val callCount = config.links.split(",").count { it.isNotBlank() }
         return listOfNotNull(
             config.obfProfile.takeIf { it.isNotBlank() && it != "none" }?.replaceFirstChar(Char::uppercase),
+            context.getString(R.string.kernel_tag_bond).takeIf { config.mode == "tcp" && config.bond },
             context.getString(R.string.kernel_tag_call_count, callCount).takeIf { callCount > 1 }
         )
     }
@@ -98,6 +99,7 @@ object FreeTurnKernel : Kernel {
         if (o.mode == "tcp") {
             cmdArgs.add("-mode")
             cmdArgs.add("tcp")
+            if (o.bond) cmdArgs.add("-bond")
             val default = FreeTurnConfig()
             if (o.kcpNodelay != default.kcpNodelay) cmdArgs.addAll(listOf("-kcp-nodelay", o.kcpNodelay.toString()))
             if (o.kcpInterval != default.kcpInterval) cmdArgs.addAll(listOf("-kcp-interval", o.kcpInterval.toString()))
@@ -247,5 +249,9 @@ object FreeTurnKernel : Kernel {
     private val DTLS_CLOSED_REGEX = Regex("""\[STREAM \d+] Closed DTLS connection""")
     private val TCP_ACTIVE_REGEX = Pattern.compile("""\[session \d+] (?:connected|disconnected) \(active: (\d+)\)""")
     private val CAPTCHA_URL_REGEX = Pattern.compile("""Open this URL in your browser:\s*(https?://\S+)""")
-    private val FREE_TURN_CAPTCHA_REGEX = Pattern.compile("""(?:manually open this URL|Open this URL in your browser):\s*(https?://\S+)""")
+    // 4.x logs the manual-captcha banner through its logger ("[WARN] <prefix>: if the browser did
+    // not open, go to http://localhost:<port>") instead of the old stdout "manually open this URL:".
+    private val FREE_TURN_CAPTCHA_REGEX = Pattern.compile(
+        """(?:manually open this URL:|Open this URL in your browser:|if the browser did not open, go to)\s*(https?://\S+)"""
+    )
 }

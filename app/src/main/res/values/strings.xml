@@ -286,6 +286,8 @@
     <string name="freeturn_manual_captcha_label">Manual Captcha</string>
     <string name="freeturn_manual_captcha_desc">Solve VK captcha in app browser</string>
     <string name="freeturn_mode_label">Tunnel mode</string>
+    <string name="freeturn_bond_label">Bond sessions</string>
+    <string name="freeturn_bond_desc">Spread each TCP connection across all sessions</string>
     <string name="freeturn_kcp_settings_title">KCP (TCP mode)</string>
     <string name="freeturn_kcp_nodelay_label">Fast mode (nodelay)</string>
     <string name="freeturn_kcp_nodelay_desc">Lower latency, more overhead</string>
@@ -568,6 +570,7 @@
     <string name="kernel_tag_full_encryption" translatable="false">Full Enc</string>
     <string name="kernel_tag_no_auto_restart" translatable="false">No Auto-Restart</string>
     <string name="kernel_tag_encrypted" translatable="false">Encrypted</string>
+    <string name="kernel_tag_bond" translatable="false">Bond</string>
     <string name="kernel_tag_no_tls" translatable="false">No TLS</string>
     <string name="kernel_tag_turn_tcp" translatable="false">TURN-TCP</string>
     <string name="kernel_tag_video_obfs" translatable="false">Video Obfs</string>

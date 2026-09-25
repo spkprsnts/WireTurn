@@ -245,6 +245,8 @@
     <string name="freeturn_manual_captcha_label">Ручная капча</string>
     <string name="freeturn_manual_captcha_desc">Решать капчу ВК во встроенном браузере</string>
     <string name="freeturn_mode_label">Режим туннеля</string>
+    <string name="freeturn_bond_label">Объединение сессий (bond)</string>
+    <string name="freeturn_bond_desc">Распределять каждое TCP-соединение по всем сессиям</string>
     <string name="freeturn_kcp_settings_title">KCP (режим TCP)</string>
     <string name="freeturn_kcp_nodelay_label">Быстрый режим (nodelay)</string>
     <string name="freeturn_kcp_nodelay_desc">Ниже задержка, больше служебного трафика</string>

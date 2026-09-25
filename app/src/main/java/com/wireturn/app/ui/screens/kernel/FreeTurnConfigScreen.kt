@@ -449,6 +449,25 @@ fun FreeTurnConfigScreen(
             }
 
             if (config.mode == "tcp") {
+                SectionGroup {
+                    SectionItem(
+                        position = ItemPosition.Single,
+                        onClick = {
+                            val next = !config.bond
+                            HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                            config = config.copy(bond = next)
+                        }
+                    ) {
+                        SwitchRow(
+                            label = stringResource(R.string.freeturn_bond_label),
+                            supportingText = stringResource(R.string.freeturn_bond_desc),
+                            checked = config.bond,
+                            onCheckedChange = { config = config.copy(bond = it) },
+                            isModified = isEditMode && config.bond != initialConfig.bond
+                        )
+                    }
+                }
+
                 SectionGroup(title = stringResource(R.string.freeturn_kcp_settings_title)) {
                     SectionItem(
                         position = ItemPosition.Top,
