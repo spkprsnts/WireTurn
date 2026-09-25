@@ -502,9 +502,12 @@ object OpenFluxKernel : Kernel {
         // synchronously in Start() (failures trip point 1 / 0g via main.go's "Failed to start
         // transport"), then the WebSocket connects in the background: "[BOARDS] handshake done"
         // is the definite ready signal, and "[BOARDS] ws error" is its reconnect loop's only
-        // failure signal, retried forever with backoff. Unlike classic Yandex there's a line for
-        // coming back, so a drop can show as Connecting. A session that lasted past the same
-        // 15s "healthy" cutoff as point 4 resets the counter instead of counting towards it.
+        // failure signal, retried forever with backoff. Yandex recycles a healthy board socket
+        // every ~20-30s ("close 1005") and it's back within a second or two, so a session that
+        // lasted past the same 15s "healthy" cutoff as point 4 is a routine recycle: the counter
+        // resets and the status is left alone (showing Connecting for each one just made it flap
+        // twice a minute). Only a drop that came quickly, or a dial that never got a session up,
+        // counts towards the failure threshold and shows as Connecting until the next handshake.
         if (transport == "boards") {
             if (lower.contains("[boards] handshake done")) {
                 state.boardsConnectedAt = System.currentTimeMillis()
@@ -523,14 +526,16 @@ object OpenFluxKernel : Kernel {
                 state.boardsConnectedAt = 0L
                 if (healthySessionEnded) {
                     state.openFluxBoardsFailureCounter.reset()
-                } else if (state.openFluxBoardsFailureCounter.recordAndCheckThreshold()) {
-                    CoreServiceState.setStatus(CoreStatus.Error(line))
-                    ctx.updateNotification(ctx.getString(R.string.error_connecting))
-                    state.startupFailed = true
-                    return true
-                }
-                if (CoreServiceState.status.value is CoreStatus.Connected) {
-                    markConnecting()
+                } else {
+                    if (state.openFluxBoardsFailureCounter.recordAndCheckThreshold()) {
+                        CoreServiceState.setStatus(CoreStatus.Error(line))
+                        ctx.updateNotification(ctx.getString(R.string.error_connecting))
+                        state.startupFailed = true
+                        return true
+                    }
+                    if (CoreServiceState.status.value is CoreStatus.Connected) {
+                        markConnecting()
+                    }
                 }
                 state.startupEmitted = true
             }
