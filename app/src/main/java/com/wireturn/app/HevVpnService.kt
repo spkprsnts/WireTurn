@@ -174,30 +174,31 @@ class HevVpnService : VpnService() {
             AppLogsState.addLog(getString(R.string.log_vpn_service_active, currentState.toString(), isStarting))
             return START_STICKY
         }
-        isStopping.set(false)
-        VpnServiceState.updateStatus(VpnState.Starting)
 
-        try {
-            val notification = NotificationHelper.buildNotification(this)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                startForeground(
-                    NotificationHelper.NOTIFICATION_ID,
-                    notification,
-                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-                )
-            } else {
-                startForeground(NotificationHelper.NOTIFICATION_ID, notification)
-            }
-        } catch (e: Exception) {
-            AppLogsState.addLog(getString(R.string.log_vpn_foreground_failed, e.message ?: "Unknown"))
+        // Not from CoreService's VPN supervisor, so no relay target: always-on VPN (boot, the
+        // system's "disconnected" notification, the system VPN settings) sends SERVICE_INTERFACE,
+        // a sticky restart after the process died a null intent. A tun on the default address
+        // would have nothing behind it - bring up the core instead, and the supervisor
+        // establishes the VPN once it has a target.
+        if (intent == null) {
+            // CoreService restarts itself too (START_STICKY), and its supervisor brings this back.
+            stopSelf(startId)
+            return START_NOT_STICKY
+        }
+        if (action == SERVICE_INTERFACE) {
+            startFromSystem()
+            return START_NOT_STICKY
         }
 
+        isStopping.set(false)
+        VpnServiceState.updateStatus(VpnState.Starting)
+        goForeground()
+
         val defaultSocks = DEFAULT_SOCKS_BIND_ADDRESS
-        val socks5Addr = intent?.getStringExtra(EXTRA_SOCKS5_ADDR)?.takeIf { it.isNotBlank() } ?: defaultSocks
-        val socks5User = intent?.getStringExtra(EXTRA_SOCKS5_USER)
-        val socks5Pass = intent?.getStringExtra(EXTRA_SOCKS5_PASS)
-        // A sticky restart comes back with a null intent - keep MapDNS then, it works either way.
-        val mapDns = intent?.getBooleanExtra(EXTRA_MAP_DNS, true) ?: true
+        val socks5Addr = intent.getStringExtra(EXTRA_SOCKS5_ADDR)?.takeIf { it.isNotBlank() } ?: defaultSocks
+        val socks5User = intent.getStringExtra(EXTRA_SOCKS5_USER)
+        val socks5Pass = intent.getStringExtra(EXTRA_SOCKS5_PASS)
+        val mapDns = intent.getBooleanExtra(EXTRA_MAP_DNS, true)
 
         startJob = serviceScope.launch {
             startVpn(socks5Addr, socks5User, socks5Pass, mapDns)
@@ -245,6 +246,52 @@ misc:
   log-file: stderr
   log-level: warn
 """.trimIndent()
+    }
+
+    private fun goForeground() {
+        try {
+            val notification = NotificationHelper.buildNotification(this)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(
+                    NotificationHelper.NOTIFICATION_ID,
+                    notification,
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                )
+            } else {
+                startForeground(NotificationHelper.NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            AppLogsState.addLog(getString(R.string.log_vpn_foreground_failed, e.message ?: "Unknown"))
+        }
+    }
+
+    // The system brought the VPN up on its own - does what the app's Start button does. Android
+    // temp-allowlists an always-on VPN app while launching it, so starting CoreService's own
+    // foreground service from here is allowed even with the app in the background.
+    private fun startFromSystem() {
+        AppLogsState.addLog(getString(R.string.log_vpn_always_on_start))
+        goForeground()
+        serviceScope.launch {
+            val prefs = AppPreferences(applicationContext)
+            // Always-on means the user wants the VPN - without VPN mode the supervisor would
+            // just tear it down again.
+            if (!prefs.vpnSettingsFlow.first().enabled) prefs.setVpnEnabled(true)
+            val status = CoreServiceState.status.value
+            if (status is CoreStatus.Idle || status is CoreStatus.Error) {
+                try {
+                    CoreService.start(applicationContext, prefs.clientConfigFlow.first())
+                } catch (e: Exception) {
+                    AppLogsState.addLog(getString(R.string.log_vpn_error, "always-on core start: ${e.message}"))
+                }
+            }
+            // Nothing ever gets established if the core can't start or its profile has no VPN
+            // target (Turnable/FreeTurn without Xray) - don't linger as an empty foreground service.
+            delay(ALWAYS_ON_TARGET_TIMEOUT_MS.milliseconds)
+            if (tunInterface == null && startJob?.isActive != true) {
+                AppLogsState.addLog(getString(R.string.log_vpn_always_on_no_target))
+                withContext(Dispatchers.Main) { stopSelf() }
+            }
+        }
     }
 
     // Everything into the tun, or with LAN bypass on everything but the local ranges, which then
@@ -486,6 +533,9 @@ misc:
     }
 
     companion object {
+        // How long an always-on start waits for the supervisor to establish before giving up
+        // (see startFromSystem) - a kernel's own startup plus Xray's, with room to spare.
+        private const val ALWAYS_ON_TARGET_TIMEOUT_MS = 60_000L
         const val ACTION_STOP = "STOP"
         const val ACTION_STOP_BY_USER = "STOP_BY_USER"
         // Repoints the native relay at a new SOCKS5 target on an already-established tun -
