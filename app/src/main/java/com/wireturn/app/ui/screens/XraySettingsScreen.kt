@@ -108,6 +108,7 @@ fun XraySettingsScreen(
     var routeDirect by remember { mutableStateOf(initialXraySettings.routeDirect) }
     var routeBlock by remember { mutableStateOf(initialXraySettings.routeBlock) }
     var fakeDns by remember { mutableStateOf(initialXraySettings.fakeDns) }
+    var fragment by remember { mutableStateOf(initialXraySettings.fragment) }
 
     val showGeoDialog = remember { mutableStateOf(false) }
     val showDeleteGeoConfirm = remember { mutableStateOf(false) }
@@ -129,7 +130,7 @@ fun XraySettingsScreen(
 
     val currentXraySettings = remember(
         xraySocks, xrayHttp, xrayAuth, xrayUser, xrayPass,
-        dns, routeDirect, routeBlock, fakeDns, initialXraySettings
+        dns, routeDirect, routeBlock, fakeDns, fragment, initialXraySettings
     ) {
         initialXraySettings.copy(
             socksBindAddress = xraySocks,
@@ -140,7 +141,8 @@ fun XraySettingsScreen(
             dns = dns,
             routeDirect = routeDirect,
             routeBlock = routeBlock,
-            fakeDns = fakeDns
+            fakeDns = fakeDns,
+            fragment = fragment
         )
     }
 
@@ -153,7 +155,8 @@ fun XraySettingsScreen(
         currentXraySettings.dns != initialXraySettings.dns ||
         currentXraySettings.routeDirect != initialXraySettings.routeDirect ||
         currentXraySettings.routeBlock != initialXraySettings.routeBlock ||
-        currentXraySettings.fakeDns != initialXraySettings.fakeDns
+        currentXraySettings.fakeDns != initialXraySettings.fakeDns ||
+        currentXraySettings.fragment != initialXraySettings.fragment
     }
 
     val showExitDialog = remember { mutableStateOf(false) }
@@ -401,6 +404,27 @@ fun XraySettingsScreen(
                         singleLine = false,
                         minLines = 1,
                         maxLines = 5
+                    )
+                }
+            }
+
+            SectionGroup(title = stringResource(R.string.xray_settings_group_dpi)) {
+                SectionItem(
+                    position = ItemPosition.Single,
+                    onClick = {
+                        fragment = !fragment
+                        HapticUtil.perform(
+                            context,
+                            if (fragment) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                        )
+                    }
+                ) {
+                    SwitchRow(
+                        label = stringResource(R.string.xray_settings_fragment_label),
+                        supportingText = stringResource(R.string.xray_settings_fragment_desc),
+                        checked = fragment,
+                        onCheckedChange = { fragment = it },
+                        isModified = fragment != initialXraySettings.fragment
                     )
                 }
             }

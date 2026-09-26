@@ -253,6 +253,9 @@ data class XraySettings(
     val routeDirect: String = "",
     val routeBlock: String = "",
     val fakeDns: Boolean = false,
+    // Splits the TLS ClientHello of direct connections to the server (vless-client's
+    // -fragment, see XrayService) so DPI can't read the SNI from a single packet.
+    val fragment: Boolean = false,
     // Which geoip.dat/geosite.dat variant is currently installed - see GeoAssetsManager.
     val geoVariant: String = "runetfreedom"
 ) {

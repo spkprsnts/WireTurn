@@ -215,6 +215,12 @@ class XrayService : Service() {
             if (xraySettings.fakeDns) {
                 cmdArgs.add("-fakedns")
             }
+            // packets,length,delay of Xray's finalmask "fragment" TCP mask: the ClientHello in
+            // 100-200 byte pieces 10-20 ms apart. vless-client only applies it to connections
+            // going straight to the server - not the kernel's local address or a chained hop.
+            if (xraySettings.fragment) {
+                cmdArgs.addAll(listOf("-fragment", "tlshello,100-200,10-20"))
+            }
             // Xray answers the VPN's DNS itself (dns-out, see HevVpnService.buildConfigYaml). With
             // IPv6 off the tun has no v6 address, so a v6 connection bypasses it entirely - AAAA
             // answers would send apps with their own resolver straight out, past the tunnel.

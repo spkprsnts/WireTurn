@@ -566,6 +566,9 @@
     <string name="xray_settings_route_direct_desc">Через запятую: domain:example.com, CIDR, или категории geosite:/geoip: (нужны скачанные гео-ресурсы) — идут напрямую, минуя туннель</string>
     <string name="xray_settings_route_block_label">Блокировать</string>
     <string name="xray_settings_route_block_desc">Через запятую: domain:example.com, CIDR, или категории geosite:/geoip: (нужны скачанные гео-ресурсы) — блокируются полностью</string>
+    <string name="xray_settings_group_dpi">Обход DPI</string>
+    <string name="xray_settings_fragment_label">Фрагментация TLS</string>
+    <string name="xray_settings_fragment_desc">Дробить TLS-рукопожатие прямых подключений к серверу, чтобы DPI не видел домен</string>
     <string name="xray_settings_group_geo">Гео-ресурсы</string>
     <string name="geo_resources_dialog_desc">Нужны для записей geosite:/geoip: в правилах маршрутизации выше</string>
     <string name="geo_variant_runetfreedom_desc">Домены/IP, заблокированные в России (Роскомнадзор), обновляется каждые 6ч</string>

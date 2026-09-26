@@ -128,6 +128,7 @@ class AppPreferences(val context: Context) {
         val XRAY_ROUTE_DIRECT = stringPreferencesKey("xray_route_direct")
         val XRAY_ROUTE_BLOCK = stringPreferencesKey("xray_route_block")
         val XRAY_FAKEDNS = booleanPreferencesKey("xray_fakedns")
+        val XRAY_FRAGMENT = booleanPreferencesKey("xray_fragment")
         val XRAY_GEO_VARIANT = stringPreferencesKey("xray_geo_variant")
 
         val ACTIVE_KERNEL_JSON = stringPreferencesKey("active_kernel_json")
@@ -293,6 +294,7 @@ class AppPreferences(val context: Context) {
                 routeDirect = p[XRAY_ROUTE_DIRECT] ?: "",
                 routeBlock = p[XRAY_ROUTE_BLOCK] ?: "",
                 fakeDns = p[XRAY_FAKEDNS] ?: false,
+                fragment = p[XRAY_FRAGMENT] ?: false,
                 geoVariant = p[XRAY_GEO_VARIANT] ?: "runetfreedom"
             )
         }.distinctUntilChanged()
@@ -509,6 +511,7 @@ class AppPreferences(val context: Context) {
             it[XRAY_ROUTE_DIRECT] = s.routeDirect
             it[XRAY_ROUTE_BLOCK] = s.routeBlock
             it[XRAY_FAKEDNS] = s.fakeDns
+            it[XRAY_FRAGMENT] = s.fragment
             it[XRAY_GEO_VARIANT] = s.geoVariant
         }
     }
