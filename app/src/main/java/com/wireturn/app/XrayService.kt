@@ -97,6 +97,7 @@ class XrayService : Service() {
             val rawVless = prefs.vlessConfigFlow.first()
             val rawClient = CoreServiceState.session.value?.clientConfig ?: prefs.clientConfigFlow.first()
             val rawXraySettings = prefs.xraySettingsFlow.first()
+            val vpnIpv6 = prefs.vpnSettingsFlow.first().ipv6
 
             val wgConfig = rawWg.fillDefaults()
             val vlessConfig = rawVless.fillDefaults()
@@ -114,7 +115,8 @@ class XrayService : Service() {
                 xray = rawXray,
                 vless = vlessConfig,
                 client = clientConfig,
-                settings = xraySettings
+                settings = xraySettings,
+                vpnIpv6 = vpnIpv6
             )
             startXray(snapshot)
         }
@@ -127,7 +129,8 @@ class XrayService : Service() {
         val xray: XrayConfig,
         val vless: VlessConfig,
         val client: ClientConfig,
-        val settings: XraySettings
+        val settings: XraySettings,
+        val vpnIpv6: Boolean
     )
 
     private suspend fun startXray(snapshot: XrayConfigsSnapshot) {
@@ -211,6 +214,12 @@ class XrayService : Service() {
             }
             if (xraySettings.fakeDns) {
                 cmdArgs.add("-fakedns")
+            }
+            // Xray answers the VPN's DNS itself (dns-out, see HevVpnService.buildConfigYaml). With
+            // IPv6 off the tun has no v6 address, so a v6 connection bypasses it entirely - AAAA
+            // answers would send apps with their own resolver straight out, past the tunnel.
+            if (!snapshot.vpnIpv6) {
+                cmdArgs.addAll(listOf("-dns-query-strategy", "UseIPv4"))
             }
             if (com.wireturn.app.domain.GeoAssetsManager.filesExist(this@XrayService)) {
                 cmdArgs.add("-assets-path")
