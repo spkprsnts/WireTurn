@@ -140,9 +140,6 @@
     <string name="proto_label">Транспортный протокол</string>
     <string name="proto_desc">Необходим для типа Relay. Рекомендуется SRTP</string>
     <string name="history_label">История</string>
-    <string name="kernel_freeturn">FreeTurn</string>
-    <string name="kernel_qwdtt">qWDTT</string>
-    <string name="kernel_openflux">OpenFlux</string>
     <string name="openflux_platform_label">Платформа</string>
     <string name="openflux_yandex_settings_title">Яндекс.Документы</string>
     <string name="openflux_vyandex_settings_title">Volga Яндекс.Документы</string>
@@ -170,7 +167,6 @@
     <string name="olcrtc_key_label">Ключ авторизации</string>
     <string name="olcrtc_dns_label">DNS-сервер</string>
     <string name="olcrtc_dns_desc">Используется для резолвинга сигнального провайдера до поднятия туннеля — сервер должен быть доступен при ограничениях по белым спискам. Оставьте пустым, чтобы использовать общий DNS-сервер (Параметры подключения).</string>
-    <string name="olcrtc_dns_placeholder" translatable="false">77.88.8.8:53</string>
     <string name="olcrtc_carrier_label">Платформа</string>
     <string name="turnable_carrier_label">Платформа</string>
     <string name="olcrtc_transport_label">Транспорт</string>
@@ -492,10 +488,6 @@
     <string name="settings_country_detection_title">Определение страны выхода</string>
     <string name="country_detection_auto">Автоматически (перебор)</string>
     <string name="country_detection_cloudflare">Cloudflare</string>
-    <string name="country_detection_ipinfo" translatable="false">ipinfo.io</string>
-    <string name="country_detection_ipwhois" translatable="false">ipwho.is</string>
-    <string name="country_detection_ipsb" translatable="false">ip.sb</string>
-    <string name="country_detection_ipapico" translatable="false">ipapi.co</string>
     <string name="auto_launch_override_title">Ручное управление заблокировано</string>
     <string name="auto_launch_override_desc">Сейчас туннель управляется автозапуском. Чтобы управлять вручную, необходимо отключить режим автозапуска.</string>
     <string name="auto_launch_disable_and_continue">Отключить и продолжить</string>
@@ -574,7 +566,6 @@
     <string name="xray_settings_route_block_desc">Через запятую: domain:example.com, CIDR, или категории geosite:/geoip: (нужны скачанные гео-ресурсы) — блокируются полностью</string>
     <string name="xray_settings_group_geo">Гео-ресурсы</string>
     <string name="geo_resources_dialog_desc">Нужны для записей geosite:/geoip: в правилах маршрутизации выше</string>
-    <string name="geo_variant_runetfreedom" translatable="false">RunetFreedom</string>
     <string name="geo_variant_runetfreedom_desc">Домены/IP, заблокированные в России (Роскомнадзор), обновляется каждые 6ч</string>
     <string name="geo_variant_v2fly">v2fly (официальный)</string>
     <string name="geo_variant_v2fly_desc">Официальные geoip.dat и данные domain-list-community</string>

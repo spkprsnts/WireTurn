@@ -1627,12 +1627,13 @@ private class WildcardCopy(val clipLabel: String, val address: String, val onCop
     }
 }
 
+// String resources, not resolved text - resolved at render time, so they follow the configuration.
 private class AddressChoice(
-    val label: String,
+    val labelRes: Int,
     val interfaceName: String?,
     val ip: String,
     val iconRes: Int,
-    val hint: String?
+    val hintRes: Int?
 )
 
 @Composable
@@ -1641,14 +1642,10 @@ private fun LocalAddressPickerDialog(
     onPick: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val context = LocalContext.current
     // Read once when the dialog opens, so a hotspot switched on just before shows up.
     val choices = remember {
         listOf(
-            AddressChoice(
-                context.getString(R.string.local_address_this_device), null, "127.0.0.1",
-                R.drawable.mobile_24px, null
-            )
+            AddressChoice(R.string.local_address_this_device, null, "127.0.0.1", R.drawable.mobile_24px, null)
         ) + LocalAddresses.list().map { address ->
             val (labelRes, iconRes) = when (address.kind) {
                 LocalInterfaceKind.WIFI -> R.string.local_address_wifi to R.drawable.wifi_24px
@@ -1660,8 +1657,8 @@ private fun LocalAddressPickerDialog(
                 LocalInterfaceKind.OTHER -> R.string.local_address_other to R.drawable.lan_24px
             }
             AddressChoice(
-                context.getString(labelRes), address.interfaceName, address.ip, iconRes,
-                context.getString(R.string.local_address_mobile_hint).takeIf { address.kind == LocalInterfaceKind.MOBILE }
+                labelRes, address.interfaceName, address.ip, iconRes,
+                R.string.local_address_mobile_hint.takeIf { address.kind == LocalInterfaceKind.MOBILE }
             )
         }
     }
@@ -1682,15 +1679,16 @@ private fun LocalAddressPickerDialog(
                 Icon(painter = painterResource(choice.iconRes), contentDescription = null)
             }
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = choice.interfaceName?.let { "${choice.label} · $it" } ?: choice.label)
+                val label = stringResource(choice.labelRes)
+                Text(text = choice.interfaceName?.let { "$label · $it" } ?: label)
                 Text(
                     text = "${choice.ip}:$port",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                choice.hint?.let {
+                choice.hintRes?.let {
                     Text(
-                        text = it,
+                        text = stringResource(it),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
