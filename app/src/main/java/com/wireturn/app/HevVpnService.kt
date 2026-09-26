@@ -162,7 +162,8 @@ class HevVpnService : VpnService() {
             val socks5Addr = intent.getStringExtra(EXTRA_SOCKS5_ADDR)?.takeIf { it.isNotBlank() } ?: defaultSocks
             val socks5User = intent.getStringExtra(EXTRA_SOCKS5_USER)
             val socks5Pass = intent.getStringExtra(EXTRA_SOCKS5_PASS)
-            serviceScope.launch { updateTarget(socks5Addr, socks5User, socks5Pass) }
+            val mapDns = intent.getBooleanExtra(EXTRA_MAP_DNS, true)
+            serviceScope.launch { updateTarget(socks5Addr, socks5User, socks5Pass, mapDns) }
             return START_STICKY
         }
 
@@ -194,20 +195,33 @@ class HevVpnService : VpnService() {
         val socks5Addr = intent?.getStringExtra(EXTRA_SOCKS5_ADDR)?.takeIf { it.isNotBlank() } ?: defaultSocks
         val socks5User = intent?.getStringExtra(EXTRA_SOCKS5_USER)
         val socks5Pass = intent?.getStringExtra(EXTRA_SOCKS5_PASS)
+        // A sticky restart comes back with a null intent - keep MapDNS then, it works either way.
+        val mapDns = intent?.getBooleanExtra(EXTRA_MAP_DNS, true) ?: true
 
         startJob = serviceScope.launch {
-            startVpn(socks5Addr, socks5User, socks5Pass)
+            startVpn(socks5Addr, socks5User, socks5Pass, mapDns)
         }
         return START_STICKY
     }
 
-    private fun buildConfigYaml(vpnSettings: VpnSettings, socks5Addr: String, socks5User: String?, socks5Pass: String?): String {
+    // mapDns: hev answers the tun's DNS itself with fake 100.64.0.0/10 addresses and connects by
+    // name - needed in front of a kernel's own SOCKS5, which may not relay UDP. Its table lives only
+    // in this hev run, though, so apps that cache DNS past the 1s TTL (Instagram) keep dialing
+    // addresses the next run doesn't know, and UDP to those goes nowhere. So with Xray behind hev
+    // it's off: the queries reach Xray as plain UDP/53, which it answers itself (dns-out).
+    private fun buildConfigYaml(vpnSettings: VpnSettings, socks5Addr: String, socks5User: String?, socks5Pass: String?, mapDns: Boolean): String {
         val lastColon = socks5Addr.lastIndexOf(':')
         val socks5Host = if (lastColon > 0) socks5Addr.substring(0, lastColon) else socks5Addr
         val socks5Port = if (lastColon > 0) socks5Addr.substring(lastColon + 1).toIntOrNull() ?: 1080 else 1080
 
         val authConfig = if (!socks5User.isNullOrBlank() && !socks5Pass.isNullOrBlank()) {
             "\n  username: '$socks5User'\n  password: '$socks5Pass'"
+        } else {
+            ""
+        }
+
+        val mapDnsConfig = if (mapDns) {
+            "\nmapdns:\n  address: $MAPDNS_ADDRESS\n  port: 53\n  network: $MAPDNS_NETWORK\n  netmask: $MAPDNS_NETMASK\n  cache-size: 10000"
         } else {
             ""
         }
@@ -219,13 +233,7 @@ tunnel:
 socks5:
   port: $socks5Port
   address: '$socks5Host'
-  udp: 'udp'$authConfig
-mapdns:
-  address: $MAPDNS_ADDRESS
-  port: 53
-  network: $MAPDNS_NETWORK
-  netmask: $MAPDNS_NETMASK
-  cache-size: 10000
+  udp: 'udp'$authConfig$mapDnsConfig
 misc:
   task-stack-size: 24576
   tcp-buffer-size: 4096
@@ -240,7 +248,7 @@ misc:
 
     // Repoints the relay at a new SOCKS5 target without touching the tun interface - a fresh
     // establish() would switch the device's default network and disrupt every other app.
-    private suspend fun updateTarget(socks5Addr: String, socks5User: String? = null, socks5Pass: String? = null) {
+    private suspend fun updateTarget(socks5Addr: String, socks5User: String?, socks5Pass: String?, mapDns: Boolean) {
         nativeLock.withLock {
             val fd = synchronized(this@HevVpnService) { tunInterface?.fd }
             if (fd == null) {
@@ -258,7 +266,7 @@ misc:
 
             val configFile = File(filesDir, "hev-socks5-tunnel.yaml")
             val vpnSettings = AppPreferences(applicationContext).vpnSettingsFlow.first()
-            configFile.writeText(buildConfigYaml(vpnSettings, socks5Addr, socks5User, socks5Pass))
+            configFile.writeText(buildConfigYaml(vpnSettings, socks5Addr, socks5User, socks5Pass, mapDns))
 
             AppLogsState.addLog(getString(R.string.log_vpn_retarget, socks5Addr))
             val success = withContext(Dispatchers.IO) {
@@ -280,7 +288,7 @@ misc:
         }
     }
 
-    private suspend fun startVpn(socks5Addr: String, socks5User: String? = null, socks5Pass: String? = null) {
+    private suspend fun startVpn(socks5Addr: String, socks5User: String?, socks5Pass: String?, mapDns: Boolean) {
         try {
             AppLogsState.addLog(getString(R.string.log_vpn_establishing))
             val prefs = AppPreferences(applicationContext)
@@ -350,7 +358,7 @@ misc:
 
             val tunFd = established.fd
             val configFile = File(filesDir, "hev-socks5-tunnel.yaml")
-            configFile.writeText(buildConfigYaml(vpnSettings, socks5Addr, socks5User, socks5Pass))
+            configFile.writeText(buildConfigYaml(vpnSettings, socks5Addr, socks5User, socks5Pass, mapDns))
 
             nativeLock.withLock {
                 if (isStopping.get()) {
@@ -476,6 +484,8 @@ misc:
         const val EXTRA_SOCKS5_ADDR = "socks5_addr"
         const val EXTRA_SOCKS5_USER = "socks5_user"
         const val EXTRA_SOCKS5_PASS = "socks5_pass"
+        // false when the target is Xray, which resolves the tun's DNS itself - see buildConfigYaml.
+        const val EXTRA_MAP_DNS = "map_dns"
 
         private const val TUN_IPV4_ADDRESS = "10.0.88.88"
         // ULA (RFC 4193), same convention hev-socks5-tunnel's own README example uses.

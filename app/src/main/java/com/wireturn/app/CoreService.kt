@@ -692,9 +692,10 @@ class CoreService : Service() {
                 prefs.xrayConfigFlow,
                 prefs.vlessConfigFlow,
                 prefs.wgConfigFlow,
-                prefs.xraySettingsFlow
-            ) { xray, vless, wg, settings ->
-                XrayConfigSignals(xray, vless.fillDefaults(), wg.fillDefaults(), settings.fillDefaults())
+                prefs.xraySettingsFlow,
+                prefs.vpnSettingsFlow
+            ) { xray, vless, wg, settings, vpnSettings ->
+                XrayConfigSignals(xray, vless.fillDefaults(), wg.fillDefaults(), settings.fillDefaults(), vpnSettings.ipv6)
             }
             combine(
                 configFlow,
@@ -766,7 +767,8 @@ class CoreService : Service() {
     // OLCRTC/WEBDAV run their own local SOCKS5 listener, so VPN mode can target those directly
     // when Xray isn't in the picture. Xray keeps priority when running, since it may itself be
     // wrapping one of those cores as a front proxy (see startXraySupervisor() above).
-    private data class VpnTarget(val addr: String, val user: String?, val pass: String?)
+    // mapDns: false for Xray, which answers the tun's DNS itself (see HevVpnService.buildConfigYaml).
+    private data class VpnTarget(val addr: String, val user: String?, val pass: String?, val mapDns: Boolean)
 
     // terminalError: the core isn't coming back on its own (watchdog gave up / invalid config),
     // as opposed to a transient gap (mid-retry, switching profiles) that's expected to recover.
@@ -801,6 +803,7 @@ class CoreService : Service() {
                     putExtra(HevVpnService.EXTRA_SOCKS5_USER, target.user)
                     putExtra(HevVpnService.EXTRA_SOCKS5_PASS, target.pass)
                 }
+                putExtra(HevVpnService.EXTRA_MAP_DNS, target.mapDns)
             }
             fun retargetIntent(target: VpnTarget) = startIntent(target).apply {
                 action = HevVpnService.ACTION_UPDATE_TARGET
@@ -818,7 +821,8 @@ class CoreService : Service() {
                         VpnTarget(
                             s.connectableAddress,
                             s.proxyUser.takeIf { s.isProxyAuthEnabled && it.isNotBlank() },
-                            s.proxyPass
+                            s.proxyPass,
+                            mapDns = false
                         ),
                         terminalError = false
                     )
@@ -832,7 +836,8 @@ class CoreService : Service() {
                             // socksAddr may be bound to 0.0.0.0; hev needs a literal destination.
                             cc.socksAddr.replace("0.0.0.0:", "127.0.0.1:"),
                             cc.socksUser.takeIf { cc.isSocksAuthEnabled && it.isNotBlank() },
-                            cc.socksPass
+                            cc.socksPass,
+                            mapDns = true
                         ),
                         terminalError = false
                     )
@@ -940,7 +945,9 @@ class CoreService : Service() {
         val xrayConfig: com.wireturn.app.data.XrayConfig,
         val vless: com.wireturn.app.data.VlessConfig,
         val wg: com.wireturn.app.data.WgConfig,
-        val settings: com.wireturn.app.data.XraySettings
+        val settings: com.wireturn.app.data.XraySettings,
+        // Picks Xray's DNS query strategy (see XrayService's -dns-query-strategy).
+        val vpnIpv6: Boolean
     )
 
     private data class XraySupervisorBundle(
