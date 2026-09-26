@@ -77,17 +77,19 @@ fun VpnSettingsScreen(
     var mtu by remember { mutableStateOf(initialVpnSettings.mtu.toString()) }
     var ipv6 by remember { mutableStateOf(initialVpnSettings.ipv6) }
     var icmpReply by remember { mutableStateOf(initialVpnSettings.icmpReply) }
+    var bypassLan by remember { mutableStateOf(initialVpnSettings.bypassLan) }
 
     val mtuValue = mtu.toIntOrNull()
     val mtuValid = mtuValue != null && mtuValue in VpnSettings.MIN_MTU..VpnSettings.MAX_MTU
 
     // An invalid MTU is flagged in the field and simply isn't applied, rather than blocking the
     // other switches from being saved.
-    val currentVpnSettings = remember(mtu, ipv6, icmpReply, initialVpnSettings) {
+    val currentVpnSettings = remember(mtu, ipv6, icmpReply, bypassLan, initialVpnSettings) {
         initialVpnSettings.copy(
             mtu = if (mtuValid) mtuValue else initialVpnSettings.mtu,
             ipv6 = ipv6,
-            icmpReply = icmpReply
+            icmpReply = icmpReply,
+            bypassLan = bypassLan
         )
     }
     val isModified = currentVpnSettings != initialVpnSettings
@@ -221,6 +223,24 @@ fun VpnSettingsScreen(
                         checked = ipv6,
                         onCheckedChange = { ipv6 = it },
                         isModified = ipv6 != initialVpnSettings.ipv6
+                    )
+                }
+
+                SectionItem(
+                    onClick = {
+                        bypassLan = !bypassLan
+                        HapticUtil.perform(
+                            context,
+                            if (bypassLan) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                        )
+                    }
+                ) {
+                    SwitchRow(
+                        label = stringResource(R.string.vpn_settings_bypass_lan_label),
+                        supportingText = stringResource(R.string.vpn_settings_bypass_lan_desc),
+                        checked = bypassLan,
+                        onCheckedChange = { bypassLan = it },
+                        isModified = bypassLan != initialVpnSettings.bypassLan
                     )
                 }
 

@@ -721,6 +721,8 @@
     <string name="vpn_settings_mtu_desc">Tunnel packet size, %1$d–%2$d. Lower it if some sites hang or load slowly</string>
     <string name="vpn_settings_ipv6_label">IPv6</string>
     <string name="vpn_settings_ipv6_desc">Route IPv6 through the tunnel. When off, IPv6 traffic bypasses the VPN</string>
+    <string name="vpn_settings_bypass_lan_label">Bypass local network</string>
+    <string name="vpn_settings_bypass_lan_desc">Local addresses go around the VPN</string>
     <string name="vpn_settings_icmp_label">ICMP replies</string>
     <string name="vpn_settings_icmp_desc">Answer ping locally so apps that check connectivity with ICMP keep working</string>
     <string name="vpn_settings_apps_desc">Choose which apps go through the VPN</string>

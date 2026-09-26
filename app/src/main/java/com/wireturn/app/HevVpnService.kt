@@ -13,6 +13,7 @@ import android.os.ParcelFileDescriptor
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.VpnSettings
 import com.wireturn.app.data.XraySettings.Companion.DEFAULT_SOCKS_BIND_ADDRESS
+import com.wireturn.app.domain.LanRoutes
 import com.wireturn.app.viewmodel.VpnState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -246,6 +247,18 @@ misc:
 """.trimIndent()
     }
 
+    // Everything into the tun, or with LAN bypass on everything but the local ranges, which then
+    // stay on the underlying network (see LanRoutes).
+    private fun addTunRoutes(builder: Builder, vpnSettings: VpnSettings) {
+        if (vpnSettings.bypassLan) {
+            LanRoutes.ipv4.forEach { (address, prefix) -> builder.addRoute(address, prefix) }
+            if (vpnSettings.ipv6) LanRoutes.ipv6.forEach { (address, prefix) -> builder.addRoute(address, prefix) }
+        } else {
+            builder.addRoute("0.0.0.0", 0)
+            if (vpnSettings.ipv6) builder.addRoute("::", 0)
+        }
+    }
+
     // Repoints the relay at a new SOCKS5 target without touching the tun interface - a fresh
     // establish() would switch the device's default network and disrupt every other app.
     private suspend fun updateTarget(socks5Addr: String, socks5User: String?, socks5Pass: String?, mapDns: Boolean) {
@@ -311,13 +324,11 @@ misc:
             }
 
             if (!vpnSettings.filteringEnabled) {
-                builder.addRoute("0.0.0.0", 0)
-                if (vpnSettings.ipv6) builder.addRoute("::", 0)
+                addTunRoutes(builder, vpnSettings)
                 builder.addDisallowedApplication(packageName)
                 AppLogsState.addLog(getString(R.string.log_vpn_filtering_disabled))
             } else if (vpnSettings.bypassMode) {
-                builder.addRoute("0.0.0.0", 0)
-                if (vpnSettings.ipv6) builder.addRoute("::", 0)
+                addTunRoutes(builder, vpnSettings)
                 builder.addDisallowedApplication(packageName)
                 vpnSettings.excludedApps.forEach { pkg ->
                     try { builder.addDisallowedApplication(pkg) }
@@ -325,8 +336,7 @@ misc:
                 }
             } else {
                 if (vpnSettings.excludedApps.isNotEmpty()) {
-                    builder.addRoute("0.0.0.0", 0)
-                    if (vpnSettings.ipv6) builder.addRoute("::", 0)
+                    addTunRoutes(builder, vpnSettings)
                     vpnSettings.excludedApps.forEach { pkg ->
                         try { builder.addAllowedApplication(pkg) }
                         catch (e: Exception) { AppLogsState.addLog(getString(R.string.log_vpn_include_failed, pkg, e.message ?: "Unknown")) }

@@ -650,6 +650,8 @@
     <string name="vpn_settings_mtu_desc">Размер пакета в туннеле, %1$d–%2$d. Уменьшите, если сайты зависают или медленно грузятся</string>
     <string name="vpn_settings_ipv6_label">IPv6</string>
     <string name="vpn_settings_ipv6_desc">Пускать IPv6 через туннель. Если выключено, IPv6-трафик идёт мимо VPN</string>
+    <string name="vpn_settings_bypass_lan_label">Обход локальной сети</string>
+    <string name="vpn_settings_bypass_lan_desc">Локальные адреса идут мимо VPN</string>
     <string name="vpn_settings_icmp_label">Ответы на ICMP</string>
     <string name="vpn_settings_icmp_desc">Отвечать на ping локально, чтобы приложения, проверяющие связь через ICMP, не считали сеть недоступной</string>
     <string name="vpn_settings_apps_desc">Выбор приложений, работающих через VPN</string>

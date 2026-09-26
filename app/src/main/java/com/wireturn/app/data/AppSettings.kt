@@ -13,7 +13,9 @@ data class VpnSettings(
     val excludedApps: Set<String> = emptySet(),
     val mtu: Int = DEFAULT_MTU,
     val ipv6: Boolean = false,
-    val icmpReply: Boolean = true
+    val icmpReply: Boolean = true,
+    // Local network ranges stay off the tun - see domain/LanRoutes.
+    val bypassLan: Boolean = true
 ) {
     companion object {
         const val DEFAULT_MTU = 1350
