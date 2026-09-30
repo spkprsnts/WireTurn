@@ -424,10 +424,8 @@
     <string name="log_core_watchdog_limit">* [Core] WATCHDOG: превышен лимит попыток (%1$d), остановка</string>
     <string name="log_core_watchdog_restart">* [Core] WATCHDOG: перезапуск через %1$dмс (попытка %2$d/%3$d)</string>
     <string name="log_core_network_change">* [Core] СМЕНА СЕТИ (%1$s → %2$s) — ПЕРЕЗАПУСК</string>
-    <string name="log_core_network_change_suppressed">* [Core] Смена сети (%1$s → %2$s), ядро на паузе (прямой маршрут) — перезапуск не нужен</string>
-    <string name="log_core_network_change_restarting">* [Core] Смена сети (%1$s → %2$s), ядро и так перезапускается</string>
     <string name="log_core_default_network">* [Core] Основная сеть: %1$s</string>
-    <string name="log_core_network_change_ignored">* [Core] Смена сети (%1$s → %2$s), туннель не перезапускается: «Перезапуск при смене сети» выключен</string>
+    <string name="log_core_network_changed">* [Core] Смена сети: %1$s → %2$s</string>
     <string name="log_core_connection_timeout">* [Core] ТАЙМАУТ ПОДКЛЮЧЕНИЯ (2м) — ПЕРЕЗАПУСК</string>
     <string name="log_core_no_network_waiting">* [Core] НЕТ СЕТИ — ОЖИДАНИЕ</string>
     <string name="log_core_stop_ui">* [Core] ОСТАНОВКА</string>

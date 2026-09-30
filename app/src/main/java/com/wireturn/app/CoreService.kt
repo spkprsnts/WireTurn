@@ -1375,22 +1375,15 @@ class CoreService : Service() {
             networkChangeFrom = null
             val to = primaryNetworkLabel
             if (userStopped.get() || currentRunningCfg.get() == null) return@launch
-            // Always logged while the tunnel is up; only a running kernel gets restarted.
-            when {
-                CoreServiceState.status.value is CoreStatus.Suppressed -> {
-                    AppLogsState.addLog(getString(R.string.log_core_network_change_suppressed, from, to))
-                    return@launch
-                }
-                // It already went down with the old network - the watchdog's next start is on
-                // the new one anyway.
-                process.get() == null -> {
-                    AppLogsState.addLog(getString(R.string.log_core_network_change_restarting, from, to))
-                    return@launch
-                }
-                !AppPreferences(applicationContext).restartOnNetworkChangeFlow.first() -> {
-                    AppLogsState.addLog(getString(R.string.log_core_network_change_ignored, from, to))
-                    return@launch
-                }
+            // Always logged while the tunnel is up; only a running kernel gets restarted - not one
+            // paused for the direct route, nor one already down with the old network (the
+            // watchdog's next start is on the new one anyway).
+            val restart = CoreServiceState.status.value !is CoreStatus.Suppressed &&
+                process.get() != null &&
+                AppPreferences(applicationContext).restartOnNetworkChangeFlow.first()
+            if (!restart) {
+                AppLogsState.addLog(getString(R.string.log_core_network_changed, from, to))
+                return@launch
             }
             AppLogsState.addLog(getString(R.string.log_core_network_change, from, to))
             updateNotification(getString(R.string.notification_network_change))
