@@ -35,6 +35,7 @@ object QwdttKernel : Kernel {
             context.getString(R.string.kernel_tag_video_obfs).takeIf { config.obfsMode == "video" },
             context.getString(R.string.kernel_tag_no_tls).takeIf { config.noTls },
             context.getString(R.string.kernel_tag_turn_tcp).takeIf { config.turnTcp },
+            context.getString(R.string.kernel_tag_manual_captcha).takeIf { config.manualCaptcha },
             context.getString(R.string.kernel_tag_call_count, callCount).takeIf { callCount > 1 }
         )
     }

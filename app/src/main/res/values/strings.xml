@@ -639,6 +639,7 @@
     <string name="kernel_tag_video_obfs" translatable="false">Video Obfs</string>
     <string name="kernel_tag_qr" translatable="false">QR</string>
     <string name="kernel_tag_tile" translatable="false">Tile</string>
+    <string name="kernel_tag_manual_captcha" translatable="false">Manual Captcha</string>
 
     <string name="xray_uri_mux">Mux concurrency</string>
     <string name="xray_uri_mux_desc">Enable Mux multiplexing. 0 disables, >0 sets concurrency. Incompatible with XTLS Vision.</string>

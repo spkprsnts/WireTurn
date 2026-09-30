@@ -30,6 +30,8 @@ object FreeTurnKernel : Kernel {
             context.getString(R.string.kernel_tag_direct).takeIf { config.isDirect },
             config.obfProfile.takeIf { it.isNotBlank() && it != "none" }?.replaceFirstChar(Char::uppercase),
             context.getString(R.string.kernel_tag_bond).takeIf { config.mode == "tcp" && config.bond },
+            // Direct skips VK and its captcha altogether - buildCommand leaves the flag out there too.
+            context.getString(R.string.kernel_tag_manual_captcha).takeIf { config.manualCaptcha && !config.isDirect },
             context.getString(R.string.kernel_tag_call_count, callCount).takeIf { callCount > 1 }
         )
     }
