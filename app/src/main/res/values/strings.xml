@@ -420,7 +420,7 @@
     <string name="wait_for_network_title">Wait for network</string>
     <string name="wait_for_network_desc">When connection is lost, the tunnel will wait for Wi-Fi or mobile network availability</string>
     <string name="restart_on_network_change_title">Restart on network change</string>
-    <string name="restart_on_network_change_desc">Automatically restart tunnel when switching between Wi-Fi and mobile network</string>
+    <string name="restart_on_network_change_desc">Automatically restart the tunnel when the network changes: Wi-Fi ↔ mobile, another SIM, a reconnect</string>
 
     <string name="client_dns_label">DNS server</string>
     <string name="client_dns_desc">Default for olcRTC profiles that don\'t set their own DNS server.</string>
@@ -473,7 +473,11 @@
     <string name="log_core_quick_exit">* [Core] Quick exit (%1$dms) — check connection details and settings</string>
     <string name="log_core_watchdog_limit">* [Core] WATCHDOG: attempt limit exceeded (%1$d), stopping</string>
     <string name="log_core_watchdog_restart">* [Core] WATCHDOG: restarting in %1$dms (attempt %2$d/%3$d)</string>
-    <string name="log_core_network_change">* [Core] NETWORK CHANGE — RESTARTING</string>
+    <string name="log_core_network_change">* [Core] NETWORK CHANGE (%1$s → %2$s) — RESTARTING</string>
+    <string name="log_core_network_change_suppressed">* [Core] Network change (%1$s → %2$s), kernel paused (direct route) - no restart needed</string>
+    <string name="log_core_network_change_restarting">* [Core] Network change (%1$s → %2$s), kernel is already restarting</string>
+    <string name="log_core_default_network">* [Core] Primary network: %1$s</string>
+    <string name="log_core_network_change_ignored">* [Core] Network change (%1$s → %2$s), tunnel not restarted: \"Restart on network change\" is off</string>
     <string name="log_core_connection_timeout">* [Core] CONNECTION TIMEOUT (2m) — RESTARTING</string>
     <string name="log_core_no_network_waiting">* [Core] NO NETWORK — WAITING</string>
     <string name="log_core_stop_ui">* [Core] STOPPED</string>

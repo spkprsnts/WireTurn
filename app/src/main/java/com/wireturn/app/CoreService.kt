@@ -74,12 +74,20 @@ class CoreService : Service() {
     // Serializes stopBinaryProcessGracefully() across all its callers - rapid profile switches can
     // otherwise start a new binary before the old one's process is confirmed dead.
     private val stopMutex = Mutex()
-    private val availablePhysicalNetworks = java.util.concurrent.ConcurrentHashMap.newKeySet<Network>()
-    
+    // Every usable physical network with its latest capabilities - "wait for network" checks it's
+    // non-empty, "restart on network change" picks the primary one out of it.
+    private val physicalNetworks = java.util.concurrent.ConcurrentHashMap<Network, NetworkCapabilities>()
+
     private val handler = Handler(Looper.getMainLooper())
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
-    @Volatile private var networkInitialized = false
-    private var lastNetworkHandle: Long = -1
+    // The physical network traffic goes out through, as picked by pickPrimaryNetwork(); -1 = none.
+    @Volatile private var primaryNetworkHandle: Long = -1
+    @Volatile private var primaryNetworkLabel: String = ""
+    // Until then the networks already up keep arriving one by one after registering - the pick
+    // settles silently instead of reporting each as a change.
+    @Volatile private var primaryNetworkSettledAt = 0L
+    // The primary network's label before the current debounce window started.
+    @Volatile private var networkChangeFrom: String? = null
     @Volatile private var caBundlePath: String? = null
     private var restartCount = 0
     // Specific reason for the current failure, if a handler knows one - shown instead of the
@@ -1282,47 +1290,35 @@ class CoreService : Service() {
 
     private fun registerNetworkCallback() {
         unregisterNetworkCallback()
-        networkInitialized = false
-        lastNetworkHandle = -1
-        availablePhysicalNetworks.clear()
+        primaryNetworkHandle = -1
+        primaryNetworkLabel = ""
+        networkChangeFrom = null
+        primaryNetworkSettledAt = android.os.SystemClock.elapsedRealtime() + NETWORK_SETTLE_MS
+        physicalNetworks.clear()
         val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+        // Every usable physical network (NOT_VPN). The network change is worked out from these
+        // rather than from registerDefaultNetworkCallback: with our own VPN up, the system doesn't
+        // report a switch underneath it (seen: Wi-Fi -> mobile arrived only once the VPN was down).
         val cb = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 val capabilities = cm.getNetworkCapabilities(network)
                 if (capabilities == null || capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) return
                 if (!capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) return
-                availablePhysicalNetworks.add(network)
-
-                val handle = network.networkHandle
-                if (handle == lastNetworkHandle) return
-                lastNetworkHandle = handle
-
-                if (!networkInitialized) {
-                    networkInitialized = true
-                    return
-                }
-                
-                networkDebounceJob?.cancel()
-                networkDebounceJob = serviceScope.launch {
-                    val prefs = AppPreferences(applicationContext)
-                    if (!prefs.restartOnNetworkChangeFlow.first()) return@launch
-
-                    delay(2_000.milliseconds)
-                    if (!userStopped.get() && process.get() != null) {
-                        AppLogsState.addLog(getString(R.string.log_core_network_change))
-                        updateNotification(getString(R.string.notification_network_change))
-                        restartCount = 0
-                        plannedRestart.set(true)
-                        stopBinaryProcessGracefully()
-                    }
-                }
+                physicalNetworks[network] = capabilities
+                onPhysicalNetworksChanged()
             }
 
             override fun onLost(network: Network) {
-                availablePhysicalNetworks.remove(network)
+                physicalNetworks.remove(network)
+                onPhysicalNetworksChanged()
             }
 
             override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+                // Validation comes in here (a Wi-Fi only becomes primary once it has internet).
+                if (physicalNetworks.containsKey(network)) {
+                    physicalNetworks[network] = networkCapabilities
+                    onPhysicalNetworksChanged()
+                }
                 if (CoreServiceState.status.value is CoreStatus.WaitingForNetwork) {
                     if (networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
                         !networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) {
@@ -1335,7 +1331,7 @@ class CoreService : Service() {
             }
         }
         networkCallback = cb
-        
+
         val request = android.net.NetworkRequest.Builder()
             .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
             .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
@@ -1343,8 +1339,90 @@ class CoreService : Service() {
         cm.registerNetworkCallback(request, cb)
     }
 
+    /**
+     * Picks the network traffic goes out through the way the system ranks them - a validated one
+     * first, then Ethernet > Wi-Fi > mobile, the current one kept on a tie (two mobile networks
+     * while data moves to the other SIM) - and treats a new pick as a network change: Wi-Fi <->
+     * mobile either way, the other SIM, a reconnect after a drop.
+     */
+    @Synchronized
+    private fun onPhysicalNetworksChanged() {
+        val current = physicalNetworks.keys.firstOrNull { it.networkHandle == primaryNetworkHandle }
+        val best = physicalNetworks.entries.maxWithOrNull(
+            compareBy<Map.Entry<Network, NetworkCapabilities>> { networkRank(it.value) }
+                .thenBy { if (it.key == current) 1 else 0 }
+        )
+        // Nothing left: no switch yet - the next network that comes up is compared to the last one.
+        if (best == null || best.key.networkHandle == primaryNetworkHandle) return
+
+        val previousLabel = primaryNetworkLabel
+        val isFirst = primaryNetworkHandle == -1L
+        primaryNetworkHandle = best.key.networkHandle
+        primaryNetworkLabel = networkLabel(best.value)
+        AppLogsState.addLog(getString(R.string.log_core_default_network, primaryNetworkLabel), LogLevel.DEBUG)
+        if (isFirst || android.os.SystemClock.elapsedRealtime() < primaryNetworkSettledAt) return
+
+        onNetworkChanged(previousLabel)
+    }
+
+    private fun onNetworkChanged(previousLabel: String) {
+        // Several switches within the debounce window are reported as one, from where it began.
+        if (networkDebounceJob?.isActive != true) networkChangeFrom = previousLabel
+        networkDebounceJob?.cancel()
+        networkDebounceJob = serviceScope.launch {
+            delay(2_000.milliseconds)
+            val from = networkChangeFrom ?: previousLabel
+            networkChangeFrom = null
+            val to = primaryNetworkLabel
+            if (userStopped.get() || currentRunningCfg.get() == null) return@launch
+            // Always logged while the tunnel is up; only a running kernel gets restarted.
+            when {
+                CoreServiceState.status.value is CoreStatus.Suppressed -> {
+                    AppLogsState.addLog(getString(R.string.log_core_network_change_suppressed, from, to))
+                    return@launch
+                }
+                // It already went down with the old network - the watchdog's next start is on
+                // the new one anyway.
+                process.get() == null -> {
+                    AppLogsState.addLog(getString(R.string.log_core_network_change_restarting, from, to))
+                    return@launch
+                }
+                !AppPreferences(applicationContext).restartOnNetworkChangeFlow.first() -> {
+                    AppLogsState.addLog(getString(R.string.log_core_network_change_ignored, from, to))
+                    return@launch
+                }
+            }
+            AppLogsState.addLog(getString(R.string.log_core_network_change, from, to))
+            updateNotification(getString(R.string.notification_network_change))
+            restartCount = 0
+            plannedRestart.set(true)
+            stopBinaryProcessGracefully()
+        }
+    }
+
+    private fun networkRank(capabilities: NetworkCapabilities): Int {
+        val transport = when {
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> 3
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> 2
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> 1
+            else -> 0
+        }
+        val validated = if (capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) 10 else 0
+        return validated + transport
+    }
+
+    private fun networkLabel(capabilities: NetworkCapabilities?): String = getString(
+        when {
+            capabilities == null -> R.string.local_address_other
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> R.string.local_address_wifi
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> R.string.local_address_mobile
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> R.string.local_address_ethernet
+            else -> R.string.local_address_other
+        }
+    )
+
     private fun unregisterNetworkCallback() {
-        availablePhysicalNetworks.clear()
+        physicalNetworks.clear()
         networkCallback?.let { cb ->
             try {
                 (getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager).unregisterNetworkCallback(cb)
@@ -1414,7 +1492,7 @@ class CoreService : Service() {
     }
 
     private fun isNetworkAvailable(): Boolean {
-        return availablePhysicalNetworks.isNotEmpty()
+        return physicalNetworks.isNotEmpty()
     }
 
     private suspend fun getNetworkQuality(): NetworkQuality = withContext(Dispatchers.IO) {
@@ -1490,6 +1568,9 @@ class CoreService : Service() {
         const val MAX_RESTARTS = 10
         private const val VPN_TARGET_LOST_GRACE_MS = 5_000L
         private const val VPN_ERROR_RETRY_MS = 15_000L
+        // After registering the network callback, the networks already up (and their validation)
+        // arrive within this - the primary-network pick settles over it without reporting changes.
+        private const val NETWORK_SETTLE_MS = 1_500L
 
         fun start(context: Context, cfg: ClientConfig) {
             cfg.getValidationErrorResId()?.let { errorRes ->

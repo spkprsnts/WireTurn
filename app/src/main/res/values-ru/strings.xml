@@ -370,7 +370,7 @@
     <string name="wait_for_network_title">Ожидание сети</string>
     <string name="wait_for_network_desc">При потере связи туннель будет ждать подключения к Wi-Fi или мобильной сети</string>
     <string name="restart_on_network_change_title">Перезапуск при смене сети</string>
-    <string name="restart_on_network_change_desc">Автоматически перезапускать туннель при переключении между Wi-Fi и мобильной сетью</string>
+    <string name="restart_on_network_change_desc">Автоматически перезапускать туннель при смене сети: Wi-Fi ↔ мобильная, другая SIM, переподключение</string>
 
     <string name="client_dns_label">DNS-сервер</string>
     <string name="client_dns_desc">Значение по умолчанию для профилей olcRTC, у которых не задан свой DNS-сервер.</string>
@@ -423,7 +423,11 @@
     <string name="log_core_quick_exit">* [Core] Быстрый выход (%1$dмс) — проверьте параметры подключения и настройки</string>
     <string name="log_core_watchdog_limit">* [Core] WATCHDOG: превышен лимит попыток (%1$d), остановка</string>
     <string name="log_core_watchdog_restart">* [Core] WATCHDOG: перезапуск через %1$dмс (попытка %2$d/%3$d)</string>
-    <string name="log_core_network_change">* [Core] СМЕНА СЕТИ — ПЕРЕЗАПУСК</string>
+    <string name="log_core_network_change">* [Core] СМЕНА СЕТИ (%1$s → %2$s) — ПЕРЕЗАПУСК</string>
+    <string name="log_core_network_change_suppressed">* [Core] Смена сети (%1$s → %2$s), ядро на паузе (прямой маршрут) — перезапуск не нужен</string>
+    <string name="log_core_network_change_restarting">* [Core] Смена сети (%1$s → %2$s), ядро и так перезапускается</string>
+    <string name="log_core_default_network">* [Core] Основная сеть: %1$s</string>
+    <string name="log_core_network_change_ignored">* [Core] Смена сети (%1$s → %2$s), туннель не перезапускается: «Перезапуск при смене сети» выключен</string>
     <string name="log_core_connection_timeout">* [Core] ТАЙМАУТ ПОДКЛЮЧЕНИЯ (2м) — ПЕРЕЗАПУСК</string>
     <string name="log_core_no_network_waiting">* [Core] НЕТ СЕТИ — ОЖИДАНИЕ</string>
     <string name="log_core_stop_ui">* [Core] ОСТАНОВКА</string>
