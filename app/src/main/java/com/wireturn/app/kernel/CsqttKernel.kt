@@ -119,7 +119,10 @@ object CsqttKernel : Kernel {
 
     private val CSQTT_NOISE_MARKERS = listOf(
         "[СТАТИСТИКА]",
-        "[STDIN] "
+        "[STDIN] ",
+        // The server's one-byte 0xFF keepalive, now filtered out before the TUN write - expected,
+        // not an error despite being logged as one.
+        "Отброшен не-IP пакет"
     )
 
     override suspend fun parseLogLine(line: String, lower: String, state: BinaryOutputState, ctx: KernelLogContext, cfg: ClientConfig): Boolean {
