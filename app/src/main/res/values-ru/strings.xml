@@ -514,6 +514,11 @@
     <string name="xray_protocol_label">Протокол</string>
     <string name="captcha_notification_title">Требуется капча</string>
     <string name="captcha_notification_text">Нажмите, чтобы пройти проверку</string>
+    <string name="captcha_partial_title">Часть соединений ждёт капчу</string>
+    <string name="captcha_partial_notification_text">Туннель работает не в полную силу. Нажмите, чтобы пройти проверку</string>
+    <string name="captcha_card_desc">Без неё туннель не подключится</string>
+    <string name="captcha_partial_card_desc">Туннель работает, но не на всех соединениях. Пройдите проверку, чтобы вернуть остальные</string>
+    <string name="captcha_card_action">Пройти</string>
     <string name="error_notification_title">Ошибка запуска</string>
     <string name="tile_active">Активен</string>
     <string name="tile_captcha">Капча!</string>

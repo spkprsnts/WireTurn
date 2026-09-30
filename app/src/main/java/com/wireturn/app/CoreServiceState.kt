@@ -19,8 +19,17 @@ import kotlinx.coroutines.flow.stateIn
  * a same-webview navigation (VK's own completion redirect). FreeTurn doesn't need the token at
  * all - its own captcha proxy captures success server-side - so it stays on plain polling and
  * never gets the native JS bridge (see CaptchaWebViewDialog's useNativeBridge doc).
+ *
+ * partial: the tunnel still carries traffic over its other streams (FreeTurn asks for a captcha
+ * per stream while re-fetching credentials) - the status stays as it is and nothing pops up on
+ * its own; HomeScreen's card and the captcha notification lead to the dialog instead.
  */
-data class CaptchaSession(val url: String, val sessionId: Long, val needsResultToken: Boolean = false)
+data class CaptchaSession(
+    val url: String,
+    val sessionId: Long,
+    val needsResultToken: Boolean = false,
+    val partial: Boolean = false
+)
 
 sealed class CoreStatus {
     data object Idle : CoreStatus()
@@ -135,10 +144,11 @@ object CoreServiceState {
 
     fun setCaptchaSession(session: CaptchaSession?) {
         _captchaSession.value = session
-        if (session != null) {
-            setStatus(CoreStatus.CaptchaRequired(session))
-        } else if (_status.value is CoreStatus.CaptchaRequired) {
-            setStatus(CoreStatus.Connecting)
+        when {
+            session == null -> if (_status.value is CoreStatus.CaptchaRequired) setStatus(CoreStatus.Connecting)
+            // Partial means the tunnel is up - a blocking captcha it replaces gives way to that.
+            session.partial -> if (_status.value is CoreStatus.CaptchaRequired) setStatus(CoreStatus.Connected)
+            else -> setStatus(CoreStatus.CaptchaRequired(session))
         }
     }
 }

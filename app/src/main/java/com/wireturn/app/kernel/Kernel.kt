@@ -2,6 +2,7 @@ package com.wireturn.app.kernel
 
 import android.app.Activity
 import android.content.Context
+import com.wireturn.app.CaptchaSession
 import com.wireturn.app.CoreServiceState
 import com.wireturn.app.CoreStatus
 import com.wireturn.app.LogLevel
@@ -78,6 +79,10 @@ class BinaryOutputState {
     var boardsConnectedAt = 0L
     // FreeTurn UDP mode: DTLS sessions to the server currently up - see FreeTurnKernel point 2.
     var freeTurnDtlsOpen = 0
+    // FreeTurn TCP mode: the pool's last reported "(active: N)".
+    var freeTurnTcpActive = 0
+    // qWDTT/CSQTT: workers up, from the periodic stats line (CSQTT: its STATS/READY/ACTIVE_ZERO events).
+    var activeWorkers = 0
     // olcrtc: the local SOCKS5 listener is up, i.e. the first session came up - see OlcrtcKernel.
     var olcrtcSocksReady = false
     // qWDTT "-mode rawtun": its "RAW Конфиг" box, gathered line by line - see QwdttKernel.
@@ -143,6 +148,38 @@ class LogOccurrenceCounter(private val windowMs: Long, private val threshold: In
 fun canUpdateConnectingStatus(): Boolean {
     val status = CoreServiceState.status.value
     return status !is CoreStatus.Suppressed && status !is CoreStatus.CaptchaRequired
+}
+
+/**
+ * Shows a captcha the kernel asked for. VK-based kernels spread their streams over every call link
+ * and fetch credentials per stream group, so a captcha often comes up while the other streams keep
+ * the tunnel going - that partial one leaves the status alone and waits for the user on
+ * HomeScreen's card; only a blocking one takes over the status and opens the dialog itself.
+ */
+fun requestCaptcha(ctx: KernelLogContext, session: CaptchaSession) {
+    CoreServiceState.setCaptchaSession(session)
+    if (!session.partial) {
+        // null lets the CaptchaRequired status itself show in the notification.
+        CoreServiceState.setStatusText(null)
+        ctx.launchCaptchaActivityIfForeground(session.url)
+    }
+}
+
+/** Keeps a pending captcha's [CaptchaSession.partial] in step with whether any stream is up. */
+fun syncCaptchaWithTunnel(ctx: KernelLogContext, alive: Boolean) {
+    val session = CoreServiceState.captchaSession.value ?: return
+    if (session.partial == alive || CoreServiceState.status.value is CoreStatus.Suppressed) return
+    requestCaptcha(ctx, session.copy(partial = alive))
+}
+
+/**
+ * Drops a stdin-bridged captcha (qWDTT/CSQTT) the binary no longer waits for. The pending id goes
+ * first, so the session going null isn't taken for a user cancel and echoed back over stdin.
+ */
+fun clearStaleCaptcha(ctx: KernelLogContext) {
+    if (CoreServiceState.captchaSession.value?.needsResultToken != true) return
+    ctx.setPendingCaptchaSessionId(-1L)
+    CoreServiceState.setCaptchaSession(null)
 }
 
 fun markConnecting() {

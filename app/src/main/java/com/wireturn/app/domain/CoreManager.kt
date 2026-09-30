@@ -139,11 +139,6 @@ class CoreManager(private val context: Context) {
         CoreService.stop(context)
     }
 
-    fun dismissCaptcha() {
-        CoreServiceState.setCaptchaSession(null)
-        syncStateWithService()
-    }
-
     fun setErrorWithAutoReset(message: String) {
         resetJob?.cancel()
         _coreState.value = CoreState.Error(message)

@@ -41,10 +41,9 @@ class CaptchaActivity : AppCompatActivity() {
                     CaptchaWebViewDialog(
                         viewModel = viewModel,
                         captchaUrl = captchaSession?.url ?: currentUrl.value,
-                        onDismiss = {
-                            viewModel.dismissCaptcha()
-                            finish()
-                        },
+                        // Only the window closes - the core keeps waiting until its own timeout,
+                        // and HomeScreen's captcha card opens it again meanwhile.
+                        onDismiss = { finish() },
                         onSuccess = { token ->
                             captchaSession?.sessionId?.let { viewModel.submitCaptchaResult(it, token) }
                             // Закрываем окно локально как только WebView обнаружил успех.

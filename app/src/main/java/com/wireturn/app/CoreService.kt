@@ -1241,7 +1241,7 @@ class CoreService : Service() {
                 if (session != null && !isForeground) {
                     delay(1_000.milliseconds)
                     if (CoreServiceState.captchaSession.value != null && !AppLifecycleState.isAppInForeground.value) {
-                        NotificationHelper.notifyCaptcha(this@CoreService, session.url)
+                        NotificationHelper.notifyCaptcha(this@CoreService, session.url, session.partial)
                     }
                 } else {
                     NotificationHelper.cancelCaptchaNotification(this@CoreService)

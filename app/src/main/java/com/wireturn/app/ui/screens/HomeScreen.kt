@@ -103,6 +103,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.wireturn.app.CaptchaSession
 import com.wireturn.app.CoreServiceState
 import com.wireturn.app.R
 import com.wireturn.app.VpnServiceState
@@ -175,6 +176,7 @@ fun HomeScreen(
     val vpnSettings by viewModel.vpnSettings.collectAsStateWithLifecycle()
 
     val proxySession by CoreServiceState.session.collectAsStateWithLifecycle()
+    val captchaSession by CoreServiceState.captchaSession.collectAsStateWithLifecycle()
     val xraySession by XrayServiceState.session.collectAsStateWithLifecycle()
 
     val batteryNotificationDismissed by viewModel.batteryNotificationDismissed.collectAsStateWithLifecycle()
@@ -632,6 +634,22 @@ fun HomeScreen(
                     }
                 )
             }
+
+            // --- Pending Captcha ---
+            // The way back to a captcha nobody auto-opens: a partial one (the tunnel still runs on
+            // its other streams), or any one whose dialog got closed before it was solved.
+            CaptchaCard(
+                session = captchaSession,
+                onSolve = { url ->
+                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                    context.startActivity(
+                        Intent(context, com.wireturn.app.ui.activities.CaptchaActivity::class.java).apply {
+                            putExtra("CAPTCHA_URL", url)
+                            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        }
+                    )
+                }
+            )
 
             Spacer(Modifier.height(22.dp))
 
@@ -1567,6 +1585,70 @@ private fun UpdateBanner(
                 onInstall = onInstall,
                 onCheck = onCheck
             )
+        }
+    }
+}
+
+// --- Captcha Card Component ---
+@Composable
+private fun CaptchaCard(
+    session: CaptchaSession?,
+    onSolve: (url: String) -> Unit
+) {
+    // Keeps the content through the exit animation once the session is gone.
+    var lastSession by remember { mutableStateOf(session) }
+    if (session != null) lastSession = session
+    val shown = session ?: lastSession
+
+    AnimatedVisibility(
+        visible = session != null,
+        enter = fadeIn() + expandVertically(),
+        exit = fadeOut() + shrinkVertically()
+    ) {
+        val partial = shown?.partial == true
+        val containerColor = if (partial) MaterialTheme.colorScheme.tertiaryContainer
+            else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f)
+        val contentColor = if (partial) MaterialTheme.colorScheme.onTertiaryContainer
+            else MaterialTheme.colorScheme.onErrorContainer
+        SectionItem(
+            position = ItemPosition.Single,
+            containerColor = containerColor,
+            onClick = { shown?.let { onSolve(it.url) } },
+            modifier = Modifier.padding(top = 16.dp)
+        ) {
+            CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    StandardLeadingIcon {
+                        Icon(
+                            painter = painterResource(R.drawable.smart_toy_24px),
+                            contentDescription = null,
+                            tint = contentColor
+                        )
+                    }
+                    LabelGroup(
+                        label = stringResource(R.string.core_captcha_required),
+                        supportingText = stringResource(if (partial) R.string.captcha_partial_card_desc else R.string.captcha_card_desc),
+                        labelColor = contentColor,
+                        supportingColor = contentColor,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Button(
+                        onClick = { shown?.let { onSolve(it.url) } },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (partial) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error,
+                            contentColor = if (partial) MaterialTheme.colorScheme.onTertiary else MaterialTheme.colorScheme.onError
+                        ),
+                        contentPadding = PaddingValues(horizontal = 12.dp),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Text(
+                            stringResource(R.string.captcha_card_action),
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                }
+            }
         }
     }
 }

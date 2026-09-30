@@ -108,8 +108,12 @@ class MainActivity : AppCompatActivity() {
             val captchaSession by com.wireturn.app.CoreServiceState.captchaSession.collectAsStateWithLifecycle()
             var lastHandledCaptchaSessionId by remember { mutableLongStateOf(-1L) }
 
+            // A partial one (tunnel still up) waits for the user on HomeScreen's card instead - and
+            // stays unhandled, so it still opens here if it turns into a blocking one later.
             LaunchedEffect(captchaSession) {
-                if (captchaSession != null && captchaSession?.sessionId != lastHandledCaptchaSessionId) {
+                if (captchaSession != null && captchaSession?.partial == false &&
+                    captchaSession?.sessionId != lastHandledCaptchaSessionId
+                ) {
                     lastHandledCaptchaSessionId = captchaSession?.sessionId ?: -1L
                     val intent = Intent(this@MainActivity, CaptchaActivity::class.java).apply {
                         putExtra("CAPTCHA_URL", captchaSession?.url)

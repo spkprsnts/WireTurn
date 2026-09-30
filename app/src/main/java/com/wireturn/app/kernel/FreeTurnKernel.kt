@@ -165,8 +165,9 @@ object FreeTurnKernel : Kernel {
         // TCP mode: stay Connected while any session in the pool is up, not just on the exact
         // "connected" line.
         val tcpActiveMatch = TCP_ACTIVE_REGEX.matcher(line)
-        if (tcpActiveMatch.find() && (tcpActiveMatch.group(1)?.toIntOrNull() ?: 0) > 0) {
-            markConnected(state, ctx)
+        if (tcpActiveMatch.find()) {
+            state.freeTurnTcpActive = tcpActiveMatch.group(1)?.toIntOrNull() ?: 0
+            if (state.freeTurnTcpActive > 0) markConnected(state, ctx) else onTunnelLost(ctx)
         }
 
         // UDP mode: "TURN allocation up" only means VK's relay handed out an allocation - a wrong
@@ -179,9 +180,7 @@ object FreeTurnKernel : Kernel {
             markConnected(state, ctx)
         } else if (DTLS_CLOSED_REGEX.containsMatchIn(line)) {
             state.freeTurnDtlsOpen = (state.freeTurnDtlsOpen - 1).coerceAtLeast(0)
-            if (state.freeTurnDtlsOpen == 0 && CoreServiceState.status.value is CoreStatus.Connected) {
-                markConnecting()
-            }
+            if (state.freeTurnDtlsOpen == 0) onTunnelLost(ctx)
         } else if (lower.contains("] turn allocation up") && state.freeTurnDtlsOpen == 0) {
             // Progress while nothing is up yet; with other streams already carrying traffic, a
             // re-allocation of one of them says nothing about the tunnel as a whole.
@@ -192,12 +191,13 @@ object FreeTurnKernel : Kernel {
         }
 
         // 3. Connecting / Progress - without this the binary never leaves CoreStatus.Starting
-        // on its own and can exceed CoreManager's startup timeout.
-        if (lower.contains("provider=") ||
+        // on its own and can exceed CoreManager's startup timeout. With other streams already up,
+        // one stream's re-auth or backoff says nothing about the tunnel as a whole.
+        if (!tunnelAlive(state) && (lower.contains("provider=") ||
             lower.contains("[vk auth] connecting identity") ||
             lower.contains("[vk auth] trying credentials") ||
             lower.contains("backing off for") ||
-            (lower.contains("[session ") && lower.contains("disconnected") && lower.contains("reconnecting"))
+            (lower.contains("[session ") && lower.contains("disconnected") && lower.contains("reconnecting")))
         ) {
             if (canUpdateConnectingStatus()) {
                 markConnecting()
@@ -207,17 +207,6 @@ object FreeTurnKernel : Kernel {
 
         // 4. Captcha
         handleCaptchaEvents(line, lower, state, ctx)
-
-        if (state.captchaActive && (
-                lower.contains("[vk auth] failed") ||
-                lower.contains("[vk auth] success") ||
-                lower.contains("turn allocation up") || // success line is Debugf-only now; this stays Infof
-                (lower.contains("[captcha]") && lower.contains("failed"))
-            )) {
-            CoreServiceState.setCaptchaSession(null)
-            ctx.updateNotification(ctx.getString(R.string.core_active))
-            state.captchaActive = false
-        }
 
         // 5. Soft Errors / Progress
         if (lower.contains("quota")) {
@@ -244,33 +233,53 @@ object FreeTurnKernel : Kernel {
             if (CoreServiceState.captchaSession.value?.url == captchaUrl) return
 
             state.captchaSessionCounter += 1
-            val session = CaptchaSession(captchaUrl, state.captchaSessionCounter)
-            CoreServiceState.setCaptchaSession(session)
+            // Each link has its own VK provider, and the binary only gives up (FATAL_CAPTCHA) once
+            // no stream is left - see requestCaptcha.
+            requestCaptcha(ctx, CaptchaSession(captchaUrl, state.captchaSessionCounter, partial = tunnelAlive(state)))
             state.captchaActive = true
-            ctx.updateNotification(ctx.getString(R.string.core_captcha_required))
-            ctx.launchCaptchaActivityIfForeground(captchaUrl)
         }
 
-        if (state.captchaActive && (
-                lower.contains("[vk auth] failed") ||
-                lower.contains("[vk auth] success") ||
-                lower.contains("turn allocation up") || // success line is Debugf-only now; this stays Infof
-                (lower.contains("[captcha]") && lower.contains("failed"))
-            )) {
+        // The manual solver's own outcome lines (internal/provider/vk/internal/vkauth/token_call.go).
+        // Only one manual captcha runs at a time (vk.proxyManualMu), so these always belong to the
+        // shown one - unlike other streams' auth/allocation lines, which keep coming meanwhile.
+        if (state.captchaActive && CAPTCHA_DONE_MARKERS.any { lower.contains(it) }) {
             CoreServiceState.setCaptchaSession(null)
-            ctx.updateNotification(ctx.getString(R.string.core_active))
             state.captchaActive = false
+            if (tunnelAlive(state)) {
+                markConnected(state, ctx)
+            } else if (CoreServiceState.status.value is CoreStatus.Connecting) {
+                markConnecting()
+            }
         }
     }
 
+    private fun tunnelAlive(state: BinaryOutputState) = state.freeTurnDtlsOpen > 0 || state.freeTurnTcpActive > 0
+
     private fun markConnected(state: BinaryOutputState, ctx: KernelLogContext) {
         if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
+            syncCaptchaWithTunnel(ctx, alive = true)
             CoreServiceState.setStatus(CoreStatus.Connected)
             ctx.updateNotification(ctx.getString(R.string.core_active))
             state.startupEmitted = true
         }
     }
 
+    // The last stream went down: a pending partial captcha is now what keeps the tunnel down.
+    private fun onTunnelLost(ctx: KernelLogContext) {
+        if (CoreServiceState.captchaSession.value?.partial == true) {
+            syncCaptchaWithTunnel(ctx, alive = false)
+        } else if (CoreServiceState.status.value is CoreStatus.Connected) {
+            markConnecting()
+        }
+    }
+
+    private val CAPTCHA_DONE_MARKERS = listOf(
+        "[captcha] got token from browser",
+        "[captcha] manual captcha failed",
+        "[captcha] manual solver error",
+        "[captcha] solve interrupted",
+        "[captcha] captcha unavailable"
+    )
     private val DTLS_ESTABLISHED_REGEX = Regex("""\[STREAM \d+] Established DTLS connection""")
     private val DTLS_CLOSED_REGEX = Regex("""\[STREAM \d+] Closed DTLS connection""")
     private val TCP_ACTIVE_REGEX = Pattern.compile("""\[session \d+] (?:connected|disconnected) \(active: (\d+)\)""")

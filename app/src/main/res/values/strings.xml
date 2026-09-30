@@ -567,6 +567,11 @@
     <string name="vpn_short" translatable="false">VPN</string>
     <string name="captcha_notification_title">Captcha required</string>
     <string name="captcha_notification_text">Tap to complete check</string>
+    <string name="captcha_partial_title">Some connections need a captcha</string>
+    <string name="captcha_partial_notification_text">The tunnel isn\'t running at full capacity. Tap to complete check</string>
+    <string name="captcha_card_desc">The tunnel can\'t connect without it</string>
+    <string name="captcha_partial_card_desc">The tunnel works, but not over all connections. Complete the check to bring the rest back</string>
+    <string name="captcha_card_action">Solve</string>
     <string name="error_notification_title">Startup failed</string>
     <string name="tile_active">Active</string>
     <string name="tile_captcha">Captcha!</string>

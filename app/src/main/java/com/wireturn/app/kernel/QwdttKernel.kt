@@ -200,15 +200,19 @@ object QwdttKernel : Kernel {
                 if (redirectUri.isNotBlank() && CoreServiceState.status.value !is CoreStatus.Suppressed) {
                     state.captchaSessionCounter += 1
                     ctx.setPendingCaptchaSessionId(state.captchaSessionCounter)
-                    CoreServiceState.setCaptchaSession(
-                        CaptchaSession(redirectUri, state.captchaSessionCounter, needsResultToken = true)
-                    )
-
-                    ctx.launchCaptchaActivityIfForeground(redirectUri)
+                    // Worker groups are spread over every -vk hash (go_client/group.go), so the
+                    // others may well be carrying the tunnel meanwhile - see requestCaptcha.
+                    requestCaptcha(ctx, CaptchaSession(
+                        redirectUri, state.captchaSessionCounter,
+                        needsResultToken = true, partial = state.activeWorkers > 0
+                    ))
                 }
             }
             return false
         }
+        // The binary stopped waiting on its own (webview timeout, go_client/creds.go) - closing the
+        // dialog no longer cancels it, so the pending session would otherwise outlive it.
+        if (lower.contains("[captcha] solve failed")) clearStaleCaptcha(ctx)
 
         // The periodic stats line's totals, every 3s - in rawtun the bytes through the TUN itself,
         // which is what hev would otherwise have counted for the VPN.
@@ -221,8 +225,12 @@ object QwdttKernel : Kernel {
         // 3. Connected - "[SOCKS] listening" is the definitive signal; the periodic stats line's
         // "Активных: N" (N>0) is a fallback in case that line scrolled past unseen.
         val activeMatch = QWDTT_ACTIVE_REGEX.matcher(line)
-        if (lower.contains("[socks] listening") ||
-            (activeMatch.find() && (activeMatch.group(1)?.toIntOrNull() ?: 0) > 0)) {
+        val statsLine = activeMatch.find()
+        if (statsLine) {
+            state.activeWorkers = activeMatch.group(1)?.toIntOrNull() ?: 0
+            syncCaptchaWithTunnel(ctx, alive = state.activeWorkers > 0)
+        }
+        if (lower.contains("[socks] listening") || (statsLine && state.activeWorkers > 0)) {
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                 CoreServiceState.setStatus(CoreStatus.Connected)
                 ctx.updateNotification(ctx.getString(R.string.core_active))

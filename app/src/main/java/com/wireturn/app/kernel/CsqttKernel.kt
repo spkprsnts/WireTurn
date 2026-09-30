@@ -161,14 +161,21 @@ object CsqttKernel : Kernel {
                 if (redirectUri.isNotBlank() && CoreServiceState.status.value !is CoreStatus.Suppressed) {
                     state.captchaSessionCounter += 1
                     ctx.setPendingCaptchaSessionId(state.captchaSessionCounter)
-                    CoreServiceState.setCaptchaSession(
-                        CaptchaSession(redirectUri, state.captchaSessionCounter, needsResultToken = true)
-                    )
-                    ctx.launchCaptchaActivityIfForeground(redirectUri)
+                    // Worker groups are spread over every -vk hash (worker.rs run_groups) - see
+                    // requestCaptcha.
+                    requestCaptcha(ctx, CaptchaSession(
+                        redirectUri, state.captchaSessionCounter,
+                        needsResultToken = true, partial = state.activeWorkers > 0
+                    ))
                 }
             }
             return false
         }
+        // The binary stopped waiting on its own - "[VK Auth] Failed with client_id=...:
+        // CAPTCHA_WAIT_REQUIRED: <webview timeout / manual fallback failed>" (auth.rs).
+        if (lower.contains("captcha_wait_required: webview captcha") ||
+            lower.contains("captcha_wait_required: automatic captcha chain failed")
+        ) clearStaleCaptcha(ctx)
         return false
     }
 
@@ -180,6 +187,8 @@ object CsqttKernel : Kernel {
         when (kind) {
             // A worker got through the handshake - traffic can flow.
             "READY" -> {
+                state.activeWorkers = state.activeWorkers.coerceAtLeast(1)
+                syncCaptchaWithTunnel(ctx, alive = true)
                 if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                     CoreServiceState.setStatus(CoreStatus.Connected)
                     ctx.updateNotification(ctx.getString(R.string.core_active))
@@ -188,6 +197,10 @@ object CsqttKernel : Kernel {
             }
             // Getting VK credentials / (re)connecting workers.
             "PROGRESS", "ACTIVE_ZERO" -> {
+                if (kind == "ACTIVE_ZERO") {
+                    state.activeWorkers = 0
+                    syncCaptchaWithTunnel(ctx, alive = false)
+                }
                 if (CoreServiceState.status.value !is CoreStatus.Connected || kind == "ACTIVE_ZERO") {
                     if (canUpdateConnectingStatus()) markConnecting()
                 }
@@ -198,6 +211,10 @@ object CsqttKernel : Kernel {
                 val up = payload?.longOrNull("bytes_up")
                 val down = payload?.longOrNull("bytes_down")
                 if (up != null && down != null) ctx.onNativeTunTraffic(down, up)
+                payload?.longOrNull("active")?.let {
+                    state.activeWorkers = it.toInt()
+                    syncCaptchaWithTunnel(ctx, alive = it > 0)
+                }
             }
             // "Fatal" to the official app, which then stops for good. A rejection is (a password/
             // protocol problem, also logged as FATAL_AUTH/FATAL_PROTOCOL, point 2 above). An

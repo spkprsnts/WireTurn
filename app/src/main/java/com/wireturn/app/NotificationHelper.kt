@@ -216,7 +216,8 @@ object NotificationHelper {
         return builder.build()
     }
 
-    fun notifyCaptcha(context: Context, url: String) {
+    // partial: the tunnel still works on its other streams (see CaptchaSession.partial).
+    fun notifyCaptcha(context: Context, url: String, partial: Boolean) {
         val captchaIntent = Intent(context, com.wireturn.app.ui.activities.CaptchaActivity::class.java).apply {
             putExtra("CAPTCHA_URL", url)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -229,8 +230,12 @@ object NotificationHelper {
         )
 
         val builder = NotificationCompat.Builder(context, CAPTCHA_CHANNEL_ID)
-            .setContentTitle(context.getString(R.string.captcha_notification_title))
-            .setContentText(context.getString(R.string.captcha_notification_text))
+            .setContentTitle(context.getString(
+                if (partial) R.string.captcha_partial_title else R.string.captcha_notification_title
+            ))
+            .setContentText(context.getString(
+                if (partial) R.string.captcha_partial_notification_text else R.string.captcha_notification_text
+            ))
             .setSmallIcon(R.drawable.ic_launcher_small)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
