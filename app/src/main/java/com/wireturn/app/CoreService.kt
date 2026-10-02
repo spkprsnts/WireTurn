@@ -833,14 +833,17 @@ class CoreService : Service() {
         sidecarPortInUse = false
         val kernel = KernelRegistry.get(cfg.kernelVariant)
         AppLogsState.addLog(getString(R.string.log_core_sidecar_command, redactedCommandLog(args, cfg)))
+        // Set inside the IO hop, like runBinary's process: a stop landing during it cancels the
+        // coroutine, withContext then throws on return, and a sidecar set only afterwards would be
+        // orphaned - still holding its port, with nothing left to stop it.
         val proc = withContext(Dispatchers.IO) {
             ProcessBuilder(args)
                 .directory(filesDir)
                 .redirectErrorStream(true)
                 .apply { environment()["LD_LIBRARY_PATH"] = applicationInfo.nativeLibraryDir }
                 .start()
+                .also { sidecar.set(it) }
         }
-        sidecar.set(proc)
         serviceScope.launch(Dispatchers.IO) {
             try {
                 proc.inputStream.bufferedReader().useLines { lines ->
