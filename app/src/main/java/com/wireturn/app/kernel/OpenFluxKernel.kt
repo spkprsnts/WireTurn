@@ -67,6 +67,8 @@ object OpenFluxKernel : Kernel {
 
     private val PER_PACKET_TRACES = listOf(
         "[TUNNEL] -> ", "[TUNNEL] <- ",
+        // Stream mode's own per-frame line (transport/phpbox/log.go), same level as [TUNNEL].
+        "[STREAM] -> ", "[STREAM] <- ",
         "[BATCH] Send: enqueued", "[BATCH] Recv: ", "[BATCH] flushLoop: ",
         "[CRYPTO] Send #", "[CRYPTO] Recv #", "[CRYPTO] Recv raw ", "[CRYPTO] Recv DECRYPT FAIL", "[CRYPTO] Recv DROP",
         "[SESSION] send IPv4 #", "[SESSION] recv IPv4 #", "[SESSION] recv from "
@@ -85,8 +87,15 @@ object OpenFluxKernel : Kernel {
     // captcha solver, and main.go's fatal for a synchronous Start() failure) - as opposed to the
     // SOCKS5 inbound's per-connection lines, see parseLogLine point 0d.
     private val TRANSPORT_LOG_MARKERS = listOf(
-        "[ydocs]", "[volga]", "[boards]", "[m-docs]", "[captcha]", "failed to start transport"
+        "[ydocs]", "[volga]", "[boards]", "[m-docs]", "[captcha]", "failed to start transport", STREAM_START_FAILED
     )
+
+    // Stream mode's own fatal for a carrier that didn't start (main.go runStreamClient:
+    // log.Fatalf("--mode=stream: %v") around streamproxy's "start carrier: ...") - its counterpart
+    // of the classic "Failed to start transport". Other "--mode=stream: " fatals (the SOCKS5 bind)
+    // are point 1's plain hard errors.
+    private const val STREAM_START_FAILED = "--mode=stream: start carrier"
+    private const val STREAM_FATAL = "--mode=stream: "
 
     // cupsonline.go's reportRooms: "[CUPS] Cups: живых комнат <alive>/<total>".
     private val CUPS_ALIVE_ROOMS_REGEX = Regex("""живых комнат (\d+)/(\d+)""")
@@ -190,8 +199,9 @@ object OpenFluxKernel : Kernel {
     override fun profileSummaryExtra(context: Context, cfg: KernelConfig): List<String> {
         val config = (cfg as KernelConfig.OpenFlux).config
         return listOfNotNull(
-            context.getString(R.string.kernel_tag_encrypted).takeIf { config.encryptionKey.isNotBlank() },
-            context.getString(R.string.kernel_tag_legacy_codec).takeIf { config.legacyCodec }
+            context.getString(R.string.kernel_tag_no_server).takeIf { config.isStream },
+            context.getString(R.string.kernel_tag_encrypted).takeIf { !config.isStream && config.encryptionKey.isNotBlank() },
+            context.getString(R.string.kernel_tag_legacy_codec).takeIf { !config.isStream && config.legacyCodec }
         )
     }
 
@@ -231,6 +241,9 @@ object OpenFluxKernel : Kernel {
             "--socks5", cfg.socksAddr.ifBlank { ClientConfig.DEFAULT_SOCKS_ADDR },
             "--transport", o.transport
         ))
+        // The mode without a server: the stream mux to a PHP exit, still SOCKS5 without --inbound.
+        // It has no codec, key or context of its own, so the classic flags below stay out.
+        if (o.isStream) cmdArgs.addAll(listOf("--mode", OpenFluxConfig.MODE_STREAM))
         // No SOCKS5 auth flags exist upstream - cfg.isSocksAuthEnabled/socksUser/socksPass
         // don't apply to this kernel, unlike Qwdtt.
         if (o.transport == "oneme") {
@@ -242,7 +255,7 @@ object OpenFluxKernel : Kernel {
         // tunnel must use the same one, it isn't negotiated, so this only gets passed to fall
         // back to the old per-packet-LZ4 behavior for an exit-node that hasn't been updated past
         // the point batching was introduced.
-        if (o.legacyCodec) {
+        if (o.legacyCodec && !o.isStream) {
             cmdArgs.addAll(listOf("--codec", "legacy"))
         }
         // Needed for real log visibility: main.go's own client/transport lines (banner, "Running
@@ -255,7 +268,7 @@ object OpenFluxKernel : Kernel {
         // Optional end-to-end encryption on top of the transport (--encryption-key-file, added
         // upstream alongside vyandex) - the flag takes a file path, not the secret itself, so it
         // gets written out fresh on every start rather than passed inline like -maxToken/-url.
-        if (o.encryptionKey.isNotBlank()) {
+        if (o.encryptionKey.isNotBlank() && !o.isStream) {
             val keyFile = File(ctx.filesDir, "openflux_key.txt")
             keyFile.writeText(o.encryptionKey)
             cmdArgs.addAll(listOf("--encryption-key-file", keyFile.absolutePath))
@@ -312,7 +325,9 @@ object OpenFluxKernel : Kernel {
 
         // 6a. cupsonline couldn't enter any room, but not every one is closed (0h) - a network or
         // cups.online hiccup, so the watchdog retries instead of point 1 failing for good.
-        if (transport == "cupsonline" && lower.contains("failed to start transport") && lower.contains("no rooms joined")) {
+        if (transport == "cupsonline" && lower.contains("no rooms joined") &&
+            (lower.contains("failed to start transport") || lower.contains(STREAM_START_FAILED))
+        ) {
             if (ctx.isNetworkMissingAndHandled()) {
                 state.startupFailed = true
                 return true
@@ -342,6 +357,7 @@ object OpenFluxKernel : Kernel {
         // 1. Hard errors (log.Fatalf in main.go - prints then exits)
         if (lower.startsWith("panic:") ||
             lower.contains("failed to start transport") ||
+            lower.contains(STREAM_FATAL) ||
             lower.contains("unknown transport type")) {
             return failFast(line, state, ctx)
         }
@@ -368,7 +384,10 @@ object OpenFluxKernel : Kernel {
         // boards is like cupsonline in that its own definite signal (point 7) can already have
         // arrived - its WebSocket connects in the background right after the synchronous auth in
         // Start() - so it only moves to Connecting here if it isn't Connected yet.
-        if (lower.contains("running as client (socks5 on")) {
+        // Stream mode prints its own "Running as CLIENT (stream mux over <transport>, SOCKS5 on
+        // ...)" once streamproxy.Start (the carrier's Start() included) has returned - the same
+        // point in its startup, over the same two carriers' own signals.
+        if (lower.contains("running as client (socks5 on") || lower.contains("running as client (stream mux over")) {
             state.startupEmitted = true
             if (transport == "boards") {
                 if (CoreServiceState.status.value !is CoreStatus.Connected && canUpdateConnectingStatus()) {

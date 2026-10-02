@@ -383,11 +383,15 @@ fun OpenFluxConfigScreen(
                             }
                         )
                     ) {
-                        SectionItem(position = ItemPosition.Single) {
+                        val streamCapable = config.transport in OpenFluxConfig.STREAM_TRANSPORTS
+                        SectionItem(position = if (streamCapable) ItemPosition.Top else ItemPosition.Single) {
                             TextFieldRow(
                                 label = stringResource(
-                                    if (config.transport == "cupsonline") R.string.openflux_cups_url_label
-                                    else R.string.openflux_url_label
+                                    when {
+                                        config.transport != "cupsonline" -> R.string.openflux_url_label
+                                        config.isStream -> R.string.openflux_cups_room_label
+                                        else -> R.string.openflux_cups_url_label
+                                    }
                                 ),
                                 value = config.url.redact(isPrivacyActive),
                                 onValueChange = { if (!isPrivacyActive) config = config.copy(url = it) },
@@ -400,13 +404,25 @@ fun OpenFluxConfigScreen(
                                 maxLines = 5,
                                 supportingText = stringResource(
                                     when (config.transport) {
-                                        "cupsonline" -> R.string.openflux_cups_url_desc
+                                        "cupsonline" -> if (config.isStream) R.string.openflux_cups_room_desc else R.string.openflux_cups_url_desc
                                         "mailru" -> R.string.openflux_mailru_url_desc
                                         "boards" -> R.string.openflux_boards_url_desc
                                         else -> R.string.openflux_url_desc
                                     }
                                 )
                             )
+                        }
+                        // The mode without a server - only the carriers a PHP exit has.
+                        ExpandableSection(visible = streamCapable) {
+                            SectionItem(position = ItemPosition.Bottom) {
+                                SwitchRow(
+                                    label = stringResource(R.string.openflux_stream_mode_label),
+                                    checked = config.streamMode,
+                                    onCheckedChange = { config = config.copy(streamMode = it) },
+                                    supportingText = stringResource(R.string.openflux_stream_mode_desc),
+                                    isModified = isEditMode && config.streamMode != initialConfig.streamMode
+                                )
+                            }
                         }
                     }
                 }
@@ -447,51 +463,56 @@ fun OpenFluxConfigScreen(
                 }
             }
 
-            // Transport-agnostic, like Encryption below - the binary wraps every transport
-            // (including oneme) with the same codec layer.
-            SectionGroup(title = stringResource(R.string.openflux_advanced_settings_title)) {
-                SectionItem(position = ItemPosition.Single) {
-                    SwitchRow(
-                        label = stringResource(R.string.openflux_legacy_codec_label),
-                        checked = config.legacyCodec,
-                        onCheckedChange = { config = config.copy(legacyCodec = it) },
-                        supportingText = stringResource(R.string.openflux_legacy_codec_desc),
-                        isModified = isEditMode && config.legacyCodec != initialConfig.legacyCodec
-                    )
-                }
-            }
+            // Codec and encryption are the classic tunnel's - the stream mode has neither.
+            ExpandableSection(visible = !config.isStream) {
+                Column(verticalArrangement = Arrangement.spacedBy(19.dp)) {
+                    // Transport-agnostic, like Encryption below - the binary wraps every transport
+                    // (including oneme) with the same codec layer.
+                    SectionGroup(title = stringResource(R.string.openflux_advanced_settings_title)) {
+                        SectionItem(position = ItemPosition.Single) {
+                            SwitchRow(
+                                label = stringResource(R.string.openflux_legacy_codec_label),
+                                checked = config.legacyCodec,
+                                onCheckedChange = { config = config.copy(legacyCodec = it) },
+                                supportingText = stringResource(R.string.openflux_legacy_codec_desc),
+                                isModified = isEditMode && config.legacyCodec != initialConfig.legacyCodec
+                            )
+                        }
+                    }
 
-            // Optional, transport-agnostic - works on top of yandex/vyandex/oneme alike. The
-            // context only matters with a key; blank means the core's own rule, shown as the
-            // placeholder (OpenFluxConfig.derivedContext).
-            val showSessionContext = config.encryptionKey.isNotBlank()
-            SectionGroup(title = stringResource(R.string.openflux_encryption_settings_title)) {
-                SectionItem(position = if (showSessionContext) ItemPosition.Top else ItemPosition.Single) {
-                    TextFieldRow(
-                        label = stringResource(R.string.openflux_encryption_key_label),
-                        value = config.encryptionKey.redact(isPrivacyActive),
-                        onValueChange = { if (!isPrivacyActive) config = config.copy(encryptionKey = it) },
-                        readOnly = isPrivacyActive,
-                        isError = config.encryptionKey.isNotEmpty() && config.encryptionKey.trim().length < 16,
-                        isModified = isEditMode && config.encryptionKey != initialConfig.encryptionKey,
-                        privacyMode = isPrivacyActive,
-                        supportingText = stringResource(R.string.openflux_encryption_key_desc),
-                        isSecret = true
-                    )
-                }
+                    // Optional, transport-agnostic - works on top of yandex/vyandex/oneme alike. The
+                    // context only matters with a key; blank means the core's own rule, shown as the
+                    // placeholder (OpenFluxConfig.derivedContext).
+                    val showSessionContext = config.encryptionKey.isNotBlank()
+                    SectionGroup(title = stringResource(R.string.openflux_encryption_settings_title)) {
+                        SectionItem(position = if (showSessionContext) ItemPosition.Top else ItemPosition.Single) {
+                            TextFieldRow(
+                                label = stringResource(R.string.openflux_encryption_key_label),
+                                value = config.encryptionKey.redact(isPrivacyActive),
+                                onValueChange = { if (!isPrivacyActive) config = config.copy(encryptionKey = it) },
+                                readOnly = isPrivacyActive,
+                                isError = config.encryptionKey.isNotEmpty() && config.encryptionKey.trim().length < 16,
+                                isModified = isEditMode && config.encryptionKey != initialConfig.encryptionKey,
+                                privacyMode = isPrivacyActive,
+                                supportingText = stringResource(R.string.openflux_encryption_key_desc),
+                                isSecret = true
+                            )
+                        }
 
-                ExpandableSection(visible = showSessionContext) {
-                    SectionItem(position = ItemPosition.Bottom) {
-                        TextFieldRow(
-                            label = stringResource(R.string.openflux_session_context_label),
-                            value = config.sessionContext.redact(isPrivacyActive),
-                            onValueChange = { if (!isPrivacyActive) config = config.copy(sessionContext = it) },
-                            readOnly = isPrivacyActive,
-                            isModified = isEditMode && config.sessionContext != initialConfig.sessionContext,
-                            privacyMode = isPrivacyActive,
-                            placeholder = config.derivedContext.redact(isPrivacyActive),
-                            supportingText = stringResource(R.string.openflux_session_context_desc)
-                        )
+                        ExpandableSection(visible = showSessionContext) {
+                            SectionItem(position = ItemPosition.Bottom) {
+                                TextFieldRow(
+                                    label = stringResource(R.string.openflux_session_context_label),
+                                    value = config.sessionContext.redact(isPrivacyActive),
+                                    onValueChange = { if (!isPrivacyActive) config = config.copy(sessionContext = it) },
+                                    readOnly = isPrivacyActive,
+                                    isModified = isEditMode && config.sessionContext != initialConfig.sessionContext,
+                                    privacyMode = isPrivacyActive,
+                                    placeholder = config.derivedContext.redact(isPrivacyActive),
+                                    supportingText = stringResource(R.string.openflux_session_context_desc)
+                                )
+                            }
+                        }
                     }
                 }
             }

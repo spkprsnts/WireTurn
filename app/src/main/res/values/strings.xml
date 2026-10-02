@@ -203,6 +203,10 @@
     <string name="openflux_boards_url_desc">Yandex Boards board link (with ?hash=) shared with the exit node</string>
     <string name="openflux_cups_url_label">Room list</string>
     <string name="openflux_cups_url_desc" tools:ignore="TypographyDashes">Base64 room list printed by the exit node on startup (--transport cupsonline)</string>
+    <string name="openflux_cups_room_label">Room</string>
+    <string name="openflux_cups_room_desc">cups.online room link from the PHP node\'s page (?room=)</string>
+    <string name="openflux_stream_mode_label">Without a server</string>
+    <string name="openflux_stream_mode_desc">The exit is a PHP node on ordinary web hosting instead of a VDS. TCP on ports 80 and 443 only, no shared secret: only the apps\' own TLS protects the traffic, and the hosting sees where connections go</string>
     <string name="openflux_max_token_label">MAX token</string>
     <string name="openflux_max_token_desc">Your own MAX account auth token</string>
     <string name="openflux_max_uid_label">MAX user ID</string>
@@ -640,6 +644,7 @@
     <string name="kernel_tag_qr" translatable="false">QR</string>
     <string name="kernel_tag_tile" translatable="false">Tile</string>
     <string name="kernel_tag_manual_captcha" translatable="false">Manual Captcha</string>
+    <string name="kernel_tag_no_server" translatable="false">Serverless</string>
 
     <string name="xray_uri_mux">Mux concurrency</string>
     <string name="xray_uri_mux_desc">Enable Mux multiplexing. 0 disables, >0 sets concurrency. Incompatible with XTLS Vision.</string>

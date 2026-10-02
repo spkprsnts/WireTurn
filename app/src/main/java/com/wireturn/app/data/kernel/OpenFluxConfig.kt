@@ -46,8 +46,16 @@ data class OpenFluxConfig(
     // with the secret - both peers must use the same one. Blank = the core's own rule, see
     // [derivedContext]; only needed for an exit started with a context of its own. Set by hand
     // or from an openflux://v1/ link whose "context" differs from that rule.
-    @SerializedName("session_context") val sessionContext: String = ""
+    @SerializedName("session_context") val sessionContext: String = "",
+    // The mode without a server (`--mode=stream`, share.ModeStream): the exit is a PHP node on
+    // ordinary web hosting (deploy/phpbox), reached over one cups.online room or Mail.ru document,
+    // and the core speaks its stream mux instead of IP packets. TCP only, no key or codec of its
+    // own - encryptionKey/legacyCodec/sessionContext are kept but don't apply while it's on.
+    @SerializedName("stream_mode") val streamMode: Boolean = false
 ) {
+    /** Stream mode as it actually runs: only the carriers a PHP exit has (see [STREAM_TRANSPORTS]). */
+    val isStream: Boolean get() = streamMode && transport in STREAM_TRANSPORTS
+
     val platformDisplayName: String
         get() = when (transport) {
             "oneme" -> "MAX (oneme)"
@@ -79,7 +87,8 @@ data class OpenFluxConfig(
         maxToken = (maxToken as Any?)?.toString()?.trim()?.take(4096) ?: "",
         maxUid = (maxUid as Any?)?.toString()?.trim()?.filter(Char::isDigit)?.take(32) ?: "",
         encryptionKey = (encryptionKey as Any?)?.toString()?.trim()?.take(4096) ?: "",
-        sessionContext = (sessionContext as Any?)?.toString()?.trim()?.take(2000) ?: ""
+        sessionContext = (sessionContext as Any?)?.toString()?.trim()?.take(2000) ?: "",
+        streamMode = (streamMode as Any?) == true
     )
 
     /** The context the core derives on its own for this profile - see [derivedContext]. */
@@ -99,11 +108,16 @@ data class OpenFluxConfig(
         if (transport == "oneme") return toLegacyUri(profileName)
         val json = JsonObject().apply {
             if (!profileName.isNullOrBlank()) addProperty("name", profileName)
-            if (legacyCodec) addProperty("codec", "legacy")
-            if (encryptionKey.isNotBlank()) {
-                addProperty("secret", encryptionKey)
-                // As the core's own share.Make does, an encrypted link always names its context.
-                addProperty("context", effectiveSessionContext ?: derivedContext)
+            if (isStream) {
+                // share.validateStream: a stream link carries no secret, session or codec.
+                addProperty("mode", MODE_STREAM)
+            } else {
+                if (legacyCodec) addProperty("codec", "legacy")
+                if (encryptionKey.isNotBlank()) {
+                    addProperty("secret", encryptionKey)
+                    // As the core's own share.Make does, an encrypted link always names its context.
+                    addProperty("context", effectiveSessionContext ?: derivedContext)
+                }
             }
             add("transports", JsonArray().apply {
                 add(JsonObject().apply {
@@ -166,6 +180,10 @@ data class OpenFluxConfig(
 
         private val V1_TRANSPORTS = setOf("yandex", "vyandex", "boards", "mailru", "cupsonline")
 
+        // share.ModeStream and the carriers a stream-mode exit speaks (share.go's streamTypes).
+        const val MODE_STREAM = "stream"
+        val STREAM_TRANSPORTS = setOf("cupsonline", "mailru")
+
         fun parse(url: String, current: OpenFluxConfig = OpenFluxConfig()): OpenFluxConfig? {
             val trimmed = url.trim()
             if (!trimmed.startsWith("openflux://", ignoreCase = true)) return null
@@ -210,7 +228,8 @@ data class OpenFluxConfig(
             }
         }
 
-        // Only what this client can run: a single transport without --negotiate. A negotiated
+        // Only what this client can run: a single transport without --negotiate, in the classic or
+        // the stream mode (share.Config.Mode). A negotiated
         // session (always the case with several transports or direct) needs a client in that mode
         // too, which this app deliberately doesn't do - such a link is rejected, not half-imported.
         private fun parseV1(url: String, current: OpenFluxConfig): OpenFluxConfig? {
@@ -223,6 +242,19 @@ data class OpenFluxConfig(
             if (type !in V1_TRANSPORTS) return null
             val docUrl = t.get("url")?.asString.orEmpty()
             if (docUrl.isBlank()) return null
+            // A link without a mode is the classic tunnel. Anything else this app doesn't know
+            // is rejected rather than run as the classic tunnel against an exit that isn't one.
+            when (json.get("mode")?.asString.orEmpty()) {
+                "" -> Unit
+                MODE_STREAM -> {
+                    if (type !in STREAM_TRANSPORTS || json.get("secret")?.asString.orEmpty().isNotEmpty()) return null
+                    return current.copy(
+                        transport = type, url = docUrl, streamMode = true,
+                        encryptionKey = "", legacyCodec = false, sessionContext = ""
+                    )
+                }
+                else -> return null
+            }
             val legacyCodec = when (json.get("codec")?.asString) {
                 null, "", "batched" -> false
                 "legacy" -> true
@@ -234,6 +266,7 @@ data class OpenFluxConfig(
             return current.copy(
                 transport = type,
                 url = docUrl,
+                streamMode = false,
                 encryptionKey = json.get("secret")?.asString.orEmpty(),
                 legacyCodec = legacyCodec,
                 sessionContext = context.takeIf { it.isNotBlank() && it != derivedContext(type, docUrl) }.orEmpty()
@@ -296,6 +329,7 @@ data class OpenFluxConfig(
             return current.copy(
                 transport = transport,
                 url = docUrl,
+                streamMode = false,
                 encryptionKey = encryptionKey,
                 legacyCodec = legacyCodec
             )
