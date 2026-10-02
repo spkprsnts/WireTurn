@@ -177,6 +177,7 @@ fun HomeScreen(
 
     val proxySession by CoreServiceState.session.collectAsStateWithLifecycle()
     val captchaSession by CoreServiceState.captchaSession.collectAsStateWithLifecycle()
+    val partialCaptchaAlerts by viewModel.partialCaptchaAlerts.collectAsStateWithLifecycle()
     val xraySession by XrayServiceState.session.collectAsStateWithLifecycle()
 
     val batteryNotificationDismissed by viewModel.batteryNotificationDismissed.collectAsStateWithLifecycle()
@@ -639,7 +640,8 @@ fun HomeScreen(
             // The way back to a captcha nobody auto-opens: a partial one (the tunnel still runs on
             // its other streams), or any one whose dialog got closed before it was solved.
             CaptchaCard(
-                session = captchaSession,
+                // A partial one only when the user wants to hear about those (app settings).
+                session = captchaSession?.takeIf { !it.partial || partialCaptchaAlerts },
                 onSolve = { url ->
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     context.startActivity(

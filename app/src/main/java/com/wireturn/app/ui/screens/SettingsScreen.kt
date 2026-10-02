@@ -501,10 +501,30 @@ fun SettingsScreen(
             // 2.1 Капча
             val captchaStyleMod by viewModel.captchaStyleMod.collectAsStateWithLifecycle()
             val captchaForceTint by viewModel.captchaForceTint.collectAsStateWithLifecycle()
+            val partialCaptchaAlerts by viewModel.partialCaptchaAlerts.collectAsStateWithLifecycle()
 
             SectionGroup(title = stringResource(R.string.captcha_settings_title)) {
                 SectionItem(
-                    position = if (captchaStyleMod) ItemPosition.Top else ItemPosition.Single,
+                    position = ItemPosition.Top,
+                    onClick = {
+                        val next = !partialCaptchaAlerts
+                        HapticUtil.perform(
+                            context,
+                            if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                        )
+                        viewModel.setPartialCaptchaAlerts(next)
+                    }
+                ) {
+                    SwitchRow(
+                        label = stringResource(R.string.partial_captcha_alerts_title),
+                        supportingText = stringResource(R.string.partial_captcha_alerts_desc),
+                        checked = partialCaptchaAlerts,
+                        onCheckedChange = { viewModel.setPartialCaptchaAlerts(it) }
+                    )
+                }
+
+                SectionItem(
+                    position = if (captchaStyleMod) ItemPosition.Middle else ItemPosition.Bottom,
                     onClick = {
                         val next = !captchaStyleMod
                         HapticUtil.perform(

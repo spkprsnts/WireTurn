@@ -393,7 +393,9 @@
     <string name="network_settings_title">Сеть</string>
 
     <!-- Настройка Капчи -->
-    <string name="captcha_settings_title">Оформление капчи</string>
+    <string name="captcha_settings_title">Капча</string>
+    <string name="partial_captcha_alerts_title">Капча при работающем туннеле</string>
+    <string name="partial_captcha_alerts_desc">Карточка на главном экране и уведомление, когда капчу ждёт часть соединений. Без них она истечёт сама, а туннель продолжит работать на остальных</string>
     <string name="captcha_style_mod_title">Стилизация WebView</string>
     <string name="captcha_style_mod_desc">Скрывает лишние элементы VK и адаптирует интерфейс под тему приложения</string>
     <string name="captcha_force_tint_title">Цветовая схема</string>

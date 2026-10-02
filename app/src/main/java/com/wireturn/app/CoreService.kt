@@ -1242,9 +1242,11 @@ class CoreService : Service() {
         serviceScope.launch {
             combine(
                 CoreServiceState.captchaSession,
-                AppLifecycleState.isAppInForeground
-            ) { session, isForeground ->
-                session to isForeground
+                AppLifecycleState.isAppInForeground,
+                AppPreferences(applicationContext).partialCaptchaAlertsFlow
+            ) { session, isForeground, partialAlerts ->
+                // A partial one the user opted out of counts as none - nothing to notify about.
+                session?.takeIf { !it.partial || partialAlerts } to isForeground
             }.collect { (session, isForeground) ->
                 if (session != null && !isForeground) {
                     delay(1_000.milliseconds)
