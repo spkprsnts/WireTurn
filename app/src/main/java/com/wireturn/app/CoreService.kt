@@ -452,7 +452,12 @@ class CoreService : Service() {
         }
 
         while (isActive && !userStopped.get()) {
-            if (CoreServiceState.status.value is CoreStatus.Suppressed) {
+            // Idle here is a stop on its way, never a run: the tile sets it optimistically before
+            // its STOP broadcast arrives, and starting a binary in that gap only has the stop cut
+            // it off half-started.
+            if (CoreServiceState.status.value is CoreStatus.Suppressed ||
+                CoreServiceState.status.value is CoreStatus.Idle
+            ) {
                 delay(1_000.milliseconds)
                 continue
             }
