@@ -702,7 +702,7 @@ class ProfileManager(
                         if (bundle != null) {
                             val subId = subIdToMark ?: subscriptions.value.find { it.url == url }?.id ?: UUID.randomUUID().toString()
                             val existingSub = subscriptions.value.find { it.id == subId }
-                            val subName = bundle.name ?: connection.getHeaderField("Profile-Title") ?: URL(url).host ?: "Subscription"
+                            val subName = bundle.name ?: decodeProfileTitle(connection.getHeaderField("Profile-Title")) ?: URL(url).host ?: "Subscription"
 
                             // Fallbacks for panels (e.g. 3x-ui) that convey quota/refresh via response headers
                             // instead of the subscription body - only consulted when the body itself has nothing.
@@ -927,6 +927,9 @@ class ProfileManager(
             !text.contains("turnable://") && !text.contains("webdav://") &&
             !text.contains("webdavs://") && !text.contains("qwdtt://") && !text.contains("qwdtt:config") && !text.contains("wdtt://") &&
             !text.contains("openflux://") && !text.contains("csqtt://") &&
+            // A plain v2ray subscription (3x-ui, Marzban, Remnawave): Xray-only profiles, see XrayKernel.
+            !text.contains("vless://") && !text.contains("trojan://") &&
+            !text.contains("hysteria2://") && !text.contains("hy2://") &&
             !text.contains("wireturn://") && !text.contains("wt://") && !text.contains("#name:")) return null
 
         val lines = text.lines()
@@ -1156,13 +1159,26 @@ class ProfileManager(
      * after the body fails as-is, since real line-based subscriptions are never valid base64.
      */
     private fun tryParseBase64TextSubscription(content: String): ProfileBundle? {
-        val decoded = try {
-            val cleaned = content.trim().replace(Regex("\\s"), "")
-            String(android.util.Base64.decode(cleaned, android.util.Base64.DEFAULT), Charsets.UTF_8)
-        } catch (_: Exception) {
-            return null
-        }
+        val decoded = decodeLenientBase64(content) ?: return null
         return tryParseTextSubscription(decoded)
+    }
+
+    /** Standard or URL-safe base64, padded or not, whitespace and line breaks ignored. */
+    private fun decodeLenientBase64(content: String): String? = try {
+        val cleaned = content.replace(Regex("\\s"), "").replace('-', '+').replace('_', '/').trimEnd('=')
+        String(android.util.Base64.decode(cleaned, android.util.Base64.NO_PADDING), Charsets.UTF_8)
+    } catch (_: Exception) {
+        null
+    }
+
+    /**
+     * The "Profile-Title" header v2ray panels (Marzban, Remnawave, 3x-ui) send - either plain or,
+     * for non-ASCII names, "base64:<encoded name>".
+     */
+    private fun decodeProfileTitle(header: String?): String? {
+        val title = header?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        if (!title.startsWith("base64:", ignoreCase = true)) return title
+        return decodeLenientBase64(title.substring("base64:".length))?.trim()?.takeIf { it.isNotEmpty() }
     }
 
     /**
