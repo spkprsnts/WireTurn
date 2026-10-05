@@ -680,6 +680,7 @@
     <string name="profiles_empty">Профилей пока нет</string>
 
     <string name="subscription_settings">Настройки подписки</string>
+    <string name="subscription_updated_at">Обновлено %1$s</string>
     <string name="subscription_info">Информация о подписке</string>
     <string name="auto_update">Автообновление</string>
     <string name="auto_update_only_if_selected">Только если выбрана</string>

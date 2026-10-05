@@ -756,6 +756,7 @@
     <string name="profiles_empty">No profiles yet</string>
 
     <string name="subscription_settings">Subscription settings</string>
+    <string name="subscription_updated_at">Updated %1$s</string>
     <string name="subscription_info">Subscription info</string>
     <string name="auto_update">Auto-update</string>
     <string name="auto_update_only_if_selected">Only if selected</string>

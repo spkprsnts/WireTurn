@@ -1898,7 +1898,27 @@ private fun SubscriptionHeaderRow(
                     maxLines = 1,
                     modifier = Modifier.basicMarquee()
                 )
+                // When the last successful refresh landed (0 = never refreshed yet).
+                if (sub.updatedAt > 0) {
+                    val context = LocalContext.current
+                    val updatedAt = remember(sub.updatedAt) {
+                        android.text.format.DateUtils.formatDateTime(
+                            context, sub.updatedAt,
+                            android.text.format.DateUtils.FORMAT_SHOW_DATE or
+                                android.text.format.DateUtils.FORMAT_SHOW_TIME or
+                                android.text.format.DateUtils.FORMAT_ABBREV_MONTH
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.subscription_updated_at, updatedAt),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.outline,
+                        maxLines = 1
+                    )
+                }
                 if (!sub.description.isNullOrBlank()) {
+                    // Keeps the description from running into the update time line above.
+                    if (sub.updatedAt > 0) Spacer(Modifier.height(4.dp))
                     SubscriptionDescriptionText(
                         text = sub.description,
                         color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.outline,
