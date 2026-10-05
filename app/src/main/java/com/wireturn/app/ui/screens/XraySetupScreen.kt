@@ -136,7 +136,6 @@ fun XraySetupScreen(
     // VLESS states
     var vlessLink by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.vlessLink) }
     var vlessIsDualRoute by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.isDualRoute) }
-    var vlessDirectAddress by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.directAddress) }
     var vlessHcInterval by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.hcInterval) }
     var vlessHcDestination by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.hcDestination) }
     var vlessMux by remember(initialVlessConfig) { mutableStateOf(initialVlessConfig.mux) }
@@ -145,8 +144,11 @@ fun XraySetupScreen(
     val currentWg = remember(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive) {
         WgConfig(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive)
     }
-    val currentVless = remember(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessHcDestination, vlessMux, vlessIsSocks5Chain, initialVlessConfig) {
-        VlessConfig(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessHcDestination, vlessMux, vlessIsSocks5Chain)
+    val currentVless = remember(vlessLink, vlessIsDualRoute, vlessHcInterval, vlessHcDestination, vlessMux, vlessIsSocks5Chain, initialVlessConfig) {
+        VlessConfig(
+            vlessLink = vlessLink, isDualRoute = vlessIsDualRoute, hcInterval = vlessHcInterval,
+            hcDestination = vlessHcDestination, mux = vlessMux, isSocks5Chain = vlessIsSocks5Chain
+        )
     }
 
     val transportMismatchSocket = remember(kernelConfig, xrayConfiguration, currentVless) {
@@ -235,8 +237,7 @@ fun XraySetupScreen(
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     showExitDialog.value = false
                     val wg = WgConfig(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive)
-                    val vless = VlessConfig(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessHcDestination, vlessMux, vlessIsSocks5Chain)
-                    onSave(xrayConfiguration, wg, vless)
+                    onSave(xrayConfiguration, wg, currentVless)
                 }) {
                     Text(stringResource(R.string.btn_save))
                 }
@@ -374,8 +375,7 @@ fun XraySetupScreen(
                     onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         val wg = WgConfig(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive)
-                        val vless = VlessConfig(vlessLink, vlessIsDualRoute, vlessDirectAddress, vlessHcInterval, vlessHcDestination, vlessMux, vlessIsSocks5Chain)
-                        onSave(xrayConfiguration, wg, vless)
+                        onSave(xrayConfiguration, wg, currentVless)
                     },
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -511,8 +511,6 @@ fun XraySetupScreen(
                         onVlessLinkChange = { if (!isPrivacyActive) vlessLink = it },
                         vlessIsDualRoute = vlessIsDualRoute,
                         onVlessIsDualRouteChange = { vlessIsDualRoute = it },
-                        vlessDirectAddress = vlessDirectAddress,
-                        onVlessDirectAddressChange = { if (!isPrivacyActive) vlessDirectAddress = it },
                         vlessHcInterval = vlessHcInterval,
                         onVlessHcIntervalChange = { vlessHcInterval = it },
                         vlessHcDestination = vlessHcDestination,
@@ -689,7 +687,6 @@ private fun WireGuardSettingsBlock(
 private fun VlessSettingsBlock(
     vlessLink: String, onVlessLinkChange: (String) -> Unit,
     vlessIsDualRoute: Boolean, onVlessIsDualRouteChange: (Boolean) -> Unit,
-    vlessDirectAddress: String, onVlessDirectAddressChange: (String) -> Unit,
     vlessHcInterval: String, onVlessHcIntervalChange: (String) -> Unit,
     vlessHcDestination: String, onVlessHcDestinationChange: (String) -> Unit,
     vlessMux: String, onVlessMuxChange: (String) -> Unit,
@@ -815,11 +812,6 @@ private fun VlessSettingsBlock(
                     val next = !vlessIsDualRoute
                     HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
                     onVlessIsDualRouteChange(next)
-                    if (next && vlessDirectAddress.isBlank()) {
-                        ValidatorUtils.parseVlessAddress(vlessLink)?.let { addr ->
-                            onVlessDirectAddressChange(addr)
-                        }
-                    }
                 }
             ) {
                 SwitchRow(
@@ -829,39 +821,14 @@ private fun VlessSettingsBlock(
                     onCheckedChange = { next ->
                         HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
                         onVlessIsDualRouteChange(next)
-                        if (next && vlessDirectAddress.isBlank()) {
-                            ValidatorUtils.parseVlessAddress(vlessLink)?.let { addr ->
-                                onVlessDirectAddressChange(addr)
-                            }
-                        }
                     },
                     isModified = isEditMode && vlessIsDualRoute != initialVlessConfig.isDualRoute
                 )
             }
 
+            // The direct route goes to the link's own address - see VlessConfig.migrateDirectAddress.
             ExpandableSection(visible = vlessIsDualRoute) {
                 SectionGroup {
-                    SectionItem {
-                        TextFieldRow(
-                            label = stringResource(R.string.xray_uri_direct_address),
-                            value = vlessDirectAddress.redact(isPrivacyActive),
-                            onValueChange = { if (!isPrivacyActive) onVlessDirectAddressChange(it) },
-                            placeholder = stringResource(R.string.xray_uri_direct_address_placeholder),
-                            isError = !ValidatorUtils.isValidHostPort(vlessDirectAddress),
-                            readOnly = isPrivacyActive,
-                            isModified = isEditMode && vlessDirectAddress != initialVlessConfig.directAddress,
-                            privacyMode = isPrivacyActive,
-                            trailingIcon = {
-                                IconButton(onClick = {
-                                    ValidatorUtils.parseVlessAddress(vlessLink)?.let { addr ->
-                                        onVlessDirectAddressChange(addr)
-                                    }
-                                }) {
-                                    Icon(painterResource(R.drawable.sync_24px), stringResource(R.string.xray_uri_parse_from_link))
-                                }
-                            }
-                        )
-                    }
                     SectionItem {
                         TextFieldRow(
                             label = stringResource(R.string.xray_uri_hc_interval),

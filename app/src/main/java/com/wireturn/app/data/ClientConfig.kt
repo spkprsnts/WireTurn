@@ -331,6 +331,8 @@ data class XrayConfig(
 data class VlessConfig(
     @SerializedName("vlessLink") val vlessLink: String = "",
     @SerializedName("isDualRoute") val isDualRoute: Boolean = false,
+    // Legacy: dual route's direct address, from when the link could hold the kernel's local one.
+    // Only read to migrate it (see migrateDirectAddress) - the link's own address is the direct one.
     @SerializedName("directAddress") val directAddress: String = "",
     @SerializedName("hcInterval") val hcInterval: String = "30",
     // Blank = vless-client's own default (connectivitycheck.gstatic.com/generate_204).
@@ -348,19 +350,25 @@ data class VlessConfig(
         hcInterval = (hcInterval as Any?)?.toString()?.take(20) ?: "30",
         hcDestination = (hcDestination as Any?)?.toString()?.trim()?.take(500) ?: "",
         mux = (mux as Any?)?.toString()?.take(20) ?: "0"
-    )
+    ).migrateDirectAddress()
 
-    fun fillDefaults(): VlessConfig {
-        var current = this.copy(
-            hcInterval = hcInterval.ifBlank { "30" },
-            mux = mux.ifBlank { "0" }
-        )
-        if (current.isDualRoute && current.directAddress.isBlank()) {
-            ValidatorUtils.parseVlessAddress(current.vlessLink)?.let {
-                current = current.copy(directAddress = it)
-            }
-        }
-        return current
+    fun fillDefaults(): VlessConfig = copy(
+        hcInterval = hcInterval.ifBlank { "30" },
+        mux = mux.ifBlank { "0" }
+    ).migrateDirectAddress()
+
+    /**
+     * Moves a legacy [directAddress] into the link itself. With dual route on, the link's own
+     * address was never dialed - the direct route went to directAddress, and the tunnel route
+     * swaps in the kernel's address (or chains to directAddress too) - so the link takes it over
+     * and nothing changes. With dual route off it was unused and is just dropped.
+     */
+    private fun migrateDirectAddress(): VlessConfig {
+        // GSON can leave it null on an old/partial JSON despite the non-null type.
+        val direct = (directAddress as String?) ?: return copy(directAddress = "")
+        if (direct.isBlank()) return this
+        val link = if (isDualRoute) ValidatorUtils.withLinkAddress(vlessLink, direct) ?: vlessLink else vlessLink
+        return copy(vlessLink = link, directAddress = "")
     }
 }
 

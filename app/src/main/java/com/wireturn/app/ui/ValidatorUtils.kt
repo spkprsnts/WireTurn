@@ -30,6 +30,24 @@ object ValidatorUtils {
      * Проверяет, является ли строка валидным адресом формата host:port или ip:port.
      * Поддерживает IPv6 в формате [::1]:80. Пустая строка считается невалидной.
      */
+    /**
+     * [link] (vless/trojan/hysteria2) with its server host:port replaced by [hostPort] - which
+     * keeps the link's own port if it has none - or null if either can't be read.
+     */
+    fun withLinkAddress(link: String, hostPort: String): String? = try {
+        val uri = link.toUri()
+        val userInfo = uri.encodedUserInfo?.takeIf { it.isNotEmpty() } ?: return null
+        var address = HostAndPort.fromString(hostPort.trim())
+        if (!address.hasPort()) {
+            if (uri.port == -1) return null
+            address = address.withDefaultPort(uri.port)
+        }
+        if (!isValidHost(address.host)) return null
+        uri.buildUpon().encodedAuthority("$userInfo@$address").build().toString()
+    } catch (_: Exception) {
+        null
+    }
+
     fun isValidHostPort(input: String): Boolean {
         if (input.isBlank()) return false
         return try {

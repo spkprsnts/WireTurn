@@ -623,8 +623,6 @@
     <string name="xray_uri_dual_route_settings_title">Dual Route settings</string>
     <string name="xray_uri_dual_route_short">Dual-route</string>
     <string name="xray_uri_dual_route_desc">Prefer a direct connection to the server, falling back to local tunnel if direct route is restricted</string>
-    <string name="xray_uri_direct_address">Direct server address</string>
-    <string name="xray_uri_direct_address_placeholder" translatable="false">292.313.32.45:443</string>
     <string name="xray_uri_hc_interval">Health check interval (sec)</string>
     <string name="xray_uri_hc_destination">Health check URL</string>
     <string name="xray_uri_hc_destination_desc">URL probed by the load balancer to pick the healthy route</string>
@@ -653,7 +651,6 @@
 
     <string name="xray_uri_mux">Mux concurrency</string>
     <string name="xray_uri_mux_desc">Enable Mux multiplexing. 0 disables, >0 sets concurrency. Incompatible with XTLS Vision.</string>
-    <string name="xray_uri_parse_from_link">Parse from link</string>
     <string name="direct_route_active">Direct route</string>
 
     <!-- Warnings -->

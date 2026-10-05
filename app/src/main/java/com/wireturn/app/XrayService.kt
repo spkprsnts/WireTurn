@@ -280,9 +280,11 @@ class XrayService : Service() {
                     cmdArgs.add(vlessConfig.mux)
                 }
 
-                if (vlessConfig.isDualRoute && vlessConfig.directAddress.isNotBlank()) {
+                // The direct route goes to the link's own server address (see VlessConfig.migrateDirectAddress).
+                val directAddress = com.wireturn.app.ui.ValidatorUtils.parseVlessAddress(vlessConfig.vlessLink)
+                if (vlessConfig.isDualRoute && directAddress != null) {
                     cmdArgs.add("-direct-address")
-                    cmdArgs.add(vlessConfig.directAddress)
+                    cmdArgs.add(directAddress)
                     cmdArgs.add("-hc-interval")
                     cmdArgs.add(vlessConfig.hcInterval)
                     if (vlessConfig.hcDestination.isNotBlank()) {

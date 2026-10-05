@@ -323,7 +323,8 @@ class AppPreferences(val context: Context) {
         .distinctUntilChanged()
 
     val vlessConfigFlow: Flow<VlessConfig> = appCtx.internalDataStore.data
-        .map { (gson.fromJson(it[ACTIVE_VLESS_JSON] ?: "{}", VlessConfig::class.java) ?: VlessConfig()) }
+        // sanitize(): migrates a legacy directAddress (see VlessConfig), as profiles get on load.
+        .map { (gson.fromJson(it[ACTIVE_VLESS_JSON] ?: "{}", VlessConfig::class.java) ?: VlessConfig()).sanitize() }
         .distinctUntilChanged()
 
     private fun kernelSnapshotOf(kernelConfig: KernelConfig): KernelSnapshot = when (kernelConfig) {
