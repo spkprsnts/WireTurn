@@ -62,13 +62,19 @@ object OpenFluxKernel : Kernel {
     override fun isDiscarded(line: String): Boolean {
         val tag = line.indexOf('[')
         if (tag < 0 || tag > 40) return false
-        return PER_PACKET_TRACES.any { line.startsWith(it, tag) }
+        return PER_PACKET_TRACES.any { line.startsWith(it, tag) } ||
+            // Boards echoes every object back to its sender, logged per packet as
+            // "[BOARDS] <action>: own echo (...), skip" - the action is a variable, so no prefix.
+            (line.startsWith("[BOARDS] ", tag) && line.contains(": own echo ("))
     }
 
     private val PER_PACKET_TRACES = listOf(
         "[TUNNEL] -> ", "[TUNNEL] <- ",
         // Stream mode's own per-frame line (transport/phpbox/log.go), same level as [TUNNEL].
         "[STREAM] -> ", "[STREAM] <- ",
+        // Boards (transport/yandex/boards.go): every received packet, and the drop-objects
+        // that clears each received batch off the board again.
+        "[BOARDS<-] ", "[BOARDS] dropped ",
         "[BATCH] Send: enqueued", "[BATCH] Recv: ", "[BATCH] flushLoop: ",
         "[CRYPTO] Send #", "[CRYPTO] Recv #", "[CRYPTO] Recv raw ", "[CRYPTO] Recv DECRYPT FAIL", "[CRYPTO] Recv DROP",
         "[SESSION] send IPv4 #", "[SESSION] recv IPv4 #", "[SESSION] recv from "
