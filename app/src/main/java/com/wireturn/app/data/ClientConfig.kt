@@ -17,6 +17,7 @@ import com.wireturn.app.data.kernel.OpenFluxConfig
 import com.wireturn.app.data.kernel.QwdttConfig
 import com.wireturn.app.data.kernel.TurnableConfig
 import com.wireturn.app.data.kernel.WebdavConfig
+import com.wireturn.app.data.kernel.XrayLinkConfig
 import com.wireturn.app.ui.ValidatorUtils
 
 class KernelConfigAdapter : JsonDeserializer<KernelConfig>, JsonSerializer<KernelConfig> {
@@ -51,6 +52,10 @@ class KernelConfigAdapter : JsonDeserializer<KernelConfig>, JsonSerializer<Kerne
                 jsonObject.addProperty("type", "csqtt")
                 jsonObject.add("config", context.serialize(src.config))
             }
+            is KernelConfig.Xray -> {
+                jsonObject.addProperty("type", "xray")
+                jsonObject.add("config", context.serialize(src.config))
+            }
         }
         return jsonObject
     }
@@ -67,13 +72,16 @@ class KernelConfigAdapter : JsonDeserializer<KernelConfig>, JsonSerializer<Kerne
             "qwdtt" -> KernelConfig.Qwdtt(context.deserialize(configElement, QwdttConfig::class.java) ?: QwdttConfig())
             "openflux" -> KernelConfig.OpenFlux(context.deserialize(configElement, OpenFluxConfig::class.java) ?: OpenFluxConfig())
             "csqtt" -> KernelConfig.Csqtt(context.deserialize(configElement, CsqttConfig::class.java) ?: CsqttConfig())
+            "xray" -> KernelConfig.Xray(context.deserialize(configElement, XrayLinkConfig::class.java) ?: XrayLinkConfig())
             else -> KernelConfig.Turnable()
         }
     }
 }
 
 enum class KernelVariant {
-    TURNABLE, OLCRTC, WEBDAV, FREETURN, QWDTT, OPENFLUX, CSQTT;
+    TURNABLE, OLCRTC, WEBDAV, FREETURN, QWDTT, OPENFLUX, CSQTT,
+    // No tunnel kernel at all - Xray connects to the server in the profile's own link (see XrayKernel).
+    XRAY;
 
     /** OLCRTC, WEBDAV, QWDTT and OPENFLUX already speak SOCKS5 themselves (CSQTT through socks2tun) -
      * Xray's WireGuard overlay is neither needed nor offered in the UI for them. */
@@ -93,6 +101,7 @@ sealed class KernelConfig {
     data class Qwdtt(val config: QwdttConfig = QwdttConfig()) : KernelConfig()
     data class OpenFlux(val config: OpenFluxConfig = OpenFluxConfig()) : KernelConfig()
     data class Csqtt(val config: CsqttConfig = CsqttConfig()) : KernelConfig()
+    data class Xray(val config: XrayLinkConfig = XrayLinkConfig()) : KernelConfig()
 
     companion object {
         // The link's own scheme already identifies the kernel, so a single quick-input
@@ -115,7 +124,7 @@ sealed class KernelConfig {
                     OpenFluxConfig.parse(trimmed)?.let { OpenFlux(it) }
                 trimmed.startsWith("csqtt://", ignoreCase = true) ->
                     CsqttConfig.parse(trimmed)?.let { Csqtt(it) }
-                else -> null
+                else -> XrayLinkConfig.parse(trimmed)?.let { Xray(it) }
             }
         }
     }
@@ -131,6 +140,7 @@ val KernelConfig.variant: KernelVariant get() = when (this) {
     is KernelConfig.Qwdtt -> KernelVariant.QWDTT
     is KernelConfig.OpenFlux -> KernelVariant.OPENFLUX
     is KernelConfig.Csqtt -> KernelVariant.CSQTT
+    is KernelConfig.Xray -> KernelVariant.XRAY
 }
 
 // Per-kernel display text (name, icon, config screen, ...) lives on each kernel/*/*.kt's Kernel
@@ -215,6 +225,7 @@ data class ClientConfig(
                 is KernelConfig.Qwdtt -> KernelConfig.Qwdtt(k.config.sanitize())
                 is KernelConfig.OpenFlux -> KernelConfig.OpenFlux(k.config.fillDefaults())
                 is KernelConfig.Csqtt -> KernelConfig.Csqtt(k.config.sanitize())
+                is KernelConfig.Xray -> KernelConfig.Xray(k.config.sanitize())
             }
         )
     }
@@ -229,6 +240,7 @@ data class ClientConfig(
         is KernelConfig.Qwdtt -> socksNativeValidationError(k.config.isValid())
         is KernelConfig.OpenFlux -> socksNativeValidationError(k.config.isValid())
         is KernelConfig.Csqtt -> socksNativeValidationError(k.config.isValid())
+        is KernelConfig.Xray -> if (!k.config.isValid()) R.string.error_settings_empty else null
     }
 
     // Shared by every SOCKS5-native kernel: besides its own config being filled in, a public
@@ -454,7 +466,8 @@ internal data class KernelSnapshot(
     @SerializedName("freeturn") val freeturn: FreeTurnConfig? = null,
     @SerializedName("qwdtt") val qwdtt: QwdttConfig? = null,
     @SerializedName("openflux") val openflux: OpenFluxConfig? = null,
-    @SerializedName("csqtt") val csqtt: CsqttConfig? = null
+    @SerializedName("csqtt") val csqtt: CsqttConfig? = null,
+    @SerializedName("xray") val xray: XrayLinkConfig? = null
 )
 
 data class Profile(
@@ -492,6 +505,7 @@ data class Profile(
     val qwdttConfig: QwdttConfig get() = (kernelConfig as? KernelConfig.Qwdtt)?.config ?: QwdttConfig()
     val openFluxConfig: OpenFluxConfig get() = (kernelConfig as? KernelConfig.OpenFlux)?.config ?: OpenFluxConfig()
     val csqttConfig: CsqttConfig get() = (kernelConfig as? KernelConfig.Csqtt)?.config ?: CsqttConfig()
+    val xrayLinkConfig: XrayLinkConfig get() = (kernelConfig as? KernelConfig.Xray)?.config ?: XrayLinkConfig()
 
     fun isEmpty(): Boolean = when (val k = kernelConfig) {
         is KernelConfig.Turnable -> !k.config.isValid()
@@ -501,6 +515,7 @@ data class Profile(
         is KernelConfig.Qwdtt -> !k.config.isValid()
         is KernelConfig.OpenFlux -> !k.config.isValid()
         is KernelConfig.Csqtt -> !k.config.isValid()
+        is KernelConfig.Xray -> !k.config.isValid()
     } && !wgConfig.isValid() && !vlessConfig.isValid()
 
     fun sanitize(defaultName: String = "Profile"): Profile {
@@ -542,6 +557,7 @@ data class Profile(
             is KernelConfig.Qwdtt -> KernelConfig.Qwdtt(currentKc.config.sanitize())
             is KernelConfig.OpenFlux -> KernelConfig.OpenFlux(currentKc.config.sanitize())
             is KernelConfig.Csqtt -> KernelConfig.Csqtt(currentKc.config.sanitize())
+            is KernelConfig.Xray -> KernelConfig.Xray(currentKc.config.sanitize())
         }
 
         return copy(
@@ -549,7 +565,9 @@ data class Profile(
             name = finalName,
             kernelConfig = sanitizedKc,
             xrayProtocol = prot,
-            xrayEnabled = en,
+            // The profile's link already is the Xray connection - an overlay on top (its dual
+            // route above all) would only have the core wait on a route it never takes.
+            xrayEnabled = en && sanitizedKc !is KernelConfig.Xray,
             vlessConfig = vc,
             wgConfig = wgc
         )

@@ -138,9 +138,17 @@ class XrayService : Service() {
 
         try {
             val wgConfig = snapshot.wg
-            val xrayConfig = snapshot.xray
-            val vlessConfig = snapshot.vless
             val runningClientConfig = snapshot.client
+            // An Xray-only profile (XrayKernel): its own link, straight to the server - no kernel
+            // address to reach it through, and none of the overlay's routing (dual route, chain).
+            val xrayOnly = (runningClientConfig.kernelConfig as? com.wireturn.app.data.KernelConfig.Xray)?.config
+            val xrayOnlyLink = xrayOnly?.link
+            val xrayConfig = if (xrayOnly != null) {
+                com.wireturn.app.data.XrayConfig(enabled = true, protocol = com.wireturn.app.data.XrayConfiguration.VLESS)
+            } else snapshot.xray
+            val vlessConfig = if (xrayOnly != null) {
+                com.wireturn.app.data.VlessConfig(vlessLink = xrayOnly.link, mux = xrayOnly.mux).fillDefaults()
+            } else snapshot.vless
             val xraySettings = snapshot.settings
             
             val isXrayVless = xrayConfig.protocol == com.wireturn.app.data.XrayConfiguration.VLESS
@@ -246,7 +254,7 @@ class XrayService : Service() {
                     connectableSocksAddr
                 }
                 cmdArgs.add(socksAddr)
-            } else {
+            } else if (xrayOnlyLink == null) {
                 // For other kernels, always use local proxy address
                 cmdArgs.add("-local-address")
                 cmdArgs.add(runningClientConfig.connectableAddress)

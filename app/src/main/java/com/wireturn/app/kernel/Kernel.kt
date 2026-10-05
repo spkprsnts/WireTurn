@@ -197,6 +197,12 @@ fun markConnecting() {
 interface Kernel {
     val variant: KernelVariant
 
+    /**
+     * False for a "kernel" with no process of its own (see XrayKernel): CoreService then starts
+     * nothing and only mirrors Xray's own state, and [buildCommand]/[parseLogLine] are never used.
+     */
+    val runsBinary: Boolean get() = true
+
     /** Full argv (binary path at index 0) for launching this kernel's binary with [cfg]. */
     fun buildCommand(ctx: KernelCommandContext, cfg: ClientConfig): List<String>
 
@@ -309,7 +315,9 @@ interface Kernel {
 
 object KernelRegistry {
     private val all: List<Kernel> = listOf(
-        TurnableKernel, OlcrtcKernel, WebdavKernel, FreeTurnKernel, QwdttKernel, OpenFluxKernel, CsqttKernel
+        TurnableKernel, OlcrtcKernel, WebdavKernel, FreeTurnKernel, QwdttKernel, OpenFluxKernel, CsqttKernel,
+        // Last: its decodeUri takes any valid vless/trojan/hysteria2 link.
+        XrayKernel
     )
     private val byVariant = all.associateBy { it.variant }
 

@@ -461,6 +461,7 @@ class AddProfileActivity : ComponentActivity() {
                         "qWDTT" -> qwdttName
                         "OpenFlux" -> openfluxName
                         "CSQTT" -> com.wireturn.app.kernel.CsqttKernel.displayNameFromUri(source)
+                        "Xray" -> com.wireturn.app.kernel.XrayKernel.displayNameFromUri(source)
                         else -> null
                     }
 
@@ -483,6 +484,7 @@ class AddProfileActivity : ComponentActivity() {
                                 "qWDTT" -> Intent(this@AddProfileActivity, QwdttConfigActivity::class.java)
                                 "OpenFlux" -> Intent(this@AddProfileActivity, OpenFluxConfigActivity::class.java)
                                 "CSQTT" -> Intent(this@AddProfileActivity, com.wireturn.app.ui.activities.kernel.CsqttConfigActivity::class.java)
+                                "Xray" -> Intent(this@AddProfileActivity, com.wireturn.app.ui.activities.kernel.XrayLinkConfigActivity::class.java)
                                 else -> null
                             }
                             intent?.let {

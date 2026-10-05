@@ -158,6 +158,8 @@
     <string name="openflux_boards_url_desc">Ссылка на доску Яндекс Досок (с ?hash=), общая с exit-node</string>
     <string name="openflux_cups_url_label">Список комнат</string>
     <string name="openflux_cups_url_desc" tools:ignore="TypographyDashes">Base64-список комнат, который exit-node печатает при запуске (--transport cupsonline)</string>
+    <string name="xray_link_label">URI</string>
+    <string name="xray_link_desc">Ссылка vless://, trojan://, hysteria2:// или hy2://</string>
     <string name="openflux_cups_room_label">Комната</string>
     <string name="openflux_cups_room_desc">Ссылка на комнату cups.online со страницы PHP-ноды (?room=)</string>
     <string name="openflux_stream_mode_label">Без сервера</string>

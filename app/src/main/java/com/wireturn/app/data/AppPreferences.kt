@@ -273,6 +273,7 @@ class AppPreferences(val context: Context) {
                     KernelVariant.QWDTT -> KernelConfig.Qwdtt(snap.qwdtt ?: QwdttConfig())
                     KernelVariant.OPENFLUX -> KernelConfig.OpenFlux(snap.openflux ?: OpenFluxConfig())
                     KernelVariant.CSQTT -> KernelConfig.Csqtt(snap.csqtt ?: CsqttConfig())
+                    KernelVariant.XRAY -> KernelConfig.Xray(snap.xray ?: com.wireturn.app.data.kernel.XrayLinkConfig())
                 }
             } ?: KernelConfig.Turnable()
             ClientConfig(
@@ -333,6 +334,7 @@ class AppPreferences(val context: Context) {
         is KernelConfig.Qwdtt -> KernelSnapshot(variant = KernelVariant.QWDTT.name, qwdtt = kernelConfig.config)
         is KernelConfig.OpenFlux -> KernelSnapshot(variant = KernelVariant.OPENFLUX.name, openflux = kernelConfig.config)
         is KernelConfig.Csqtt -> KernelSnapshot(variant = KernelVariant.CSQTT.name, csqtt = kernelConfig.config)
+        is KernelConfig.Xray -> KernelSnapshot(variant = KernelVariant.XRAY.name, xray = kernelConfig.config)
     }
 
     suspend fun saveFullProfile(id: String, profile: Profile) {

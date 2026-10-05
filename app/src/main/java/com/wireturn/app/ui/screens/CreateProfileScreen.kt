@@ -133,7 +133,6 @@ fun CreateProfileScreen(
                 }
 
                 SectionItem(
-                    position = if (csqttAvailable) ItemPosition.Middle else ItemPosition.Bottom,
                     onClick = { onSelectType("OpenFlux", null, profileName) }
                 ) {
                     RowLabel(text = stringResource(R.string.kernel_openflux))
@@ -141,11 +140,18 @@ fun CreateProfileScreen(
 
                 if (csqttAvailable) {
                     SectionItem(
-                        position = ItemPosition.Bottom,
                         onClick = { onSelectType("CSQTT", null, profileName) }
                     ) {
                         RowLabel(text = stringResource(R.string.kernel_csqtt))
                     }
+                }
+
+                // No tunnel kernel - Xray straight to the server in a vless/trojan/hysteria2 link.
+                SectionItem(
+                    position = ItemPosition.Bottom,
+                    onClick = { onSelectType("Xray", null, profileName) }
+                ) {
+                    RowLabel(text = stringResource(R.string.kernel_xray))
                 }
             }
 

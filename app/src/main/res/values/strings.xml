@@ -190,6 +190,9 @@
     <string name="kernel_qwdtt" translatable="false">qWDTT</string>
     <string name="kernel_openflux" translatable="false">OpenFlux</string>
     <string name="kernel_csqtt" translatable="false">CSQTT</string>
+    <string name="kernel_xray" translatable="false">Xray</string>
+    <string name="xray_link_label">URI</string>
+    <string name="xray_link_desc">vless://, trojan://, hysteria2:// or hy2:// link</string>
     <string name="openflux_platform_label">Platform</string>
     <string name="openflux_yandex_settings_title">Yandex.Docs</string>
     <string name="openflux_vyandex_settings_title">Volga Yandex.Docs</string>

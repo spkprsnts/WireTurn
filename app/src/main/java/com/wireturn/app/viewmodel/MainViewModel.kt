@@ -962,6 +962,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             trimmed
         )
 
+        // A plain vless/trojan/hysteria2 link - a profile of its own, Xray without a kernel.
+        val xrayLink = com.wireturn.app.data.kernel.XrayLinkConfig.parse(trimmed)
+        if (xrayLink != null) return com.wireturn.app.domain.ImportStatus.KernelConfigDetected(
+            "Xray",
+            com.google.gson.Gson().toJson(xrayLink),
+            trimmed
+        )
+
         return com.wireturn.app.domain.ImportStatus.InvalidFormat
     }
 

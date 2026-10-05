@@ -44,6 +44,7 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -260,9 +261,14 @@ class CoreService : Service() {
             is KernelConfig.Qwdtt -> "qWDTT (${k.config.peer})"
             is KernelConfig.OpenFlux -> "OpenFlux (${k.config.transport})"
             is KernelConfig.Csqtt -> "CSQTT (${k.config.peer})"
+            is KernelConfig.Xray -> "Xray (${com.wireturn.app.ui.ValidatorUtils.parseVlessAddress(k.config.link) ?: "-"})"
             else -> "-"
         }
-        val xrayInfo = if (xrayConfig.enabled) {
+        val xrayLink = (currentRunningCfg.get()?.kernelConfig as? KernelConfig.Xray)?.config?.link
+        val xrayInfo = if (xrayLink != null) {
+            // The profile is Xray itself - say which protocol its link speaks.
+            getString(com.wireturn.app.ui.ValidatorUtils.uriProtocolStringRes(xrayLink))
+        } else if (xrayConfig.enabled) {
             val isXrayVless = xrayConfig.protocol == com.wireturn.app.data.XrayConfiguration.VLESS
             "${xrayConfig.protocol.name}${if (isXrayVless && vlessConfig.isDualRoute) " (Dual-route)" else ""}"
         } else "Disabled"
@@ -490,7 +496,7 @@ class CoreService : Service() {
             CoreServiceState.setNativeTunTraffic(
                 if (nativeTunSocket != null) CoreServiceState.NativeTunTraffic(0, 0, 0L) else null
             )
-            val startupSuccessful = runBinary(cfg)
+            val startupSuccessful = if (KernelRegistry.get(cfg.kernelVariant).runsBinary) runBinary(cfg) else followXray()
             val duration = System.currentTimeMillis() - startTime
             
             if (userStopped.get()) break
@@ -561,6 +567,29 @@ class CoreService : Service() {
 
             delay(delayMs.milliseconds)
         }
+    }
+
+    // A profile with no binary of its own (Kernel.runsBinary, XrayKernel): the tunnel is Xray
+    // itself, which the Xray supervisor starts - this run only mirrors Xray's state into the core
+    // status until something ends it. A config change (Stopping, see the hot-reload collector)
+    // comes straight back as a planned restart, not as a watchdog attempt.
+    private suspend fun followXray(): Boolean {
+        markConnecting()
+        combine(XrayServiceState.state, CoreServiceState.status) { xray, status -> xray to status }
+            .takeWhile { (_, status) ->
+                !userStopped.get() && status !is CoreStatus.Stopping &&
+                    status !is CoreStatus.Idle && status !is CoreStatus.Error
+            }
+            .collect { (xray, status) ->
+                if (xray == XrayState.Running && status !is CoreStatus.Connected) {
+                    CoreServiceState.setStatus(CoreStatus.Connected)
+                    updateNotification(getString(R.string.core_active))
+                } else if (xray != XrayState.Running && status is CoreStatus.Connected) {
+                    markConnecting()
+                }
+            }
+        if (!userStopped.get() && CoreServiceState.status.value is CoreStatus.Stopping) plannedRestart.set(true)
+        return true
     }
 
     private suspend fun runBinary(cfg: ClientConfig): Boolean = coroutineScope {
@@ -796,6 +825,8 @@ class CoreService : Service() {
                 old.isSocksAuthEnabled != new.isSocksAuthEnabled ||
                 old.socksUser != new.socksUser ||
                 old.socksPass != new.socksPass
+            // Nothing of its own listens - only the link matters, compared above.
+            is KernelConfig.Xray -> false
         }
     }
 
@@ -914,8 +945,10 @@ class CoreService : Service() {
                 CoreServiceState.session
             ) { signals, status, xrayState, coreSession ->
                 val clientConfig = coreSession?.clientConfig ?: return@combine null
+                // An Xray-only profile runs Xray whatever its (absent) overlay says - see XrayKernel.
+                val xrayOnly = (clientConfig.kernelConfig as? KernelConfig.Xray)?.config
 
-                val shouldBeRunning = signals.xrayConfig.enabled &&
+                val shouldBeRunning = (signals.xrayConfig.enabled || xrayOnly != null) &&
                         status !is CoreStatus.Idle &&
                         status !is CoreStatus.Error &&
                         status !is CoreStatus.WaitingForNetwork
@@ -931,7 +964,8 @@ class CoreService : Service() {
                     signals = signals,
                     kernelVariant = clientConfig.kernelVariant,
                     connectionTarget = connectionTarget,
-                    connectionAuth = connectionAuth
+                    connectionAuth = connectionAuth,
+                    xrayOnly = xrayOnly
                 )
             }
             .filterNotNull()
@@ -942,7 +976,8 @@ class CoreService : Service() {
                     old.signals == new.signals &&
                     old.kernelVariant == new.kernelVariant &&
                     old.connectionTarget == new.connectionTarget &&
-                    old.connectionAuth == new.connectionAuth
+                    old.connectionAuth == new.connectionAuth &&
+                    old.xrayOnly == new.xrayOnly
             }
             .collectLatest { data: XraySupervisorBundle ->
                 val needsStart = data.shouldBeRunning && data.xrayState == XrayState.Idle
@@ -1217,7 +1252,9 @@ class CoreService : Service() {
         val signals: XrayConfigSignals,
         val kernelVariant: KernelVariant,
         val connectionTarget: String?,
-        val connectionAuth: Triple<Boolean, String, String>?
+        val connectionAuth: Triple<Boolean, String, String>?,
+        // An Xray-only profile's own settings (link, mux) - Xray restarts when they change.
+        val xrayOnly: com.wireturn.app.data.kernel.XrayLinkConfig?
     )
 
 

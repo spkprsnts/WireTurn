@@ -1110,6 +1110,9 @@ fun HomeScreen(
             }
 
             val isSocks5Native = activeConfig.kernelVariant.isSocks5Native
+            // The profile is Xray itself (XrayKernel) - there's no overlay to set up or switch.
+            val isXrayProfile = activeConfig.kernelVariant == com.wireturn.app.data.KernelVariant.XRAY
+            val xrayOn = xrayConfig.enabled || isXrayProfile
 
             // --- Xray & VPN Settings ---
             val isSettingsValid = if (isSocks5Native) {
@@ -1148,7 +1151,7 @@ fun HomeScreen(
             val profilesExist = profiles.isNotEmpty()
             val currentProfile = profiles.find { it.id == currentProfileId } ?: profiles.firstOrNull()
             SectionGroup {
-                SectionItem(
+                if (!isXrayProfile) SectionItem(
                     position = ItemPosition.Top,
                     onClick = {
                         if (profilesExist) {
@@ -1240,7 +1243,7 @@ fun HomeScreen(
                         if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
                     )
 
-                    if (next && !xrayConfig.enabled && !isSocks5Native) {
+                    if (next && !xrayOn && !isSocks5Native) {
                         showVpnWarning()
                     }
 
@@ -1257,7 +1260,7 @@ fun HomeScreen(
                 }
 
                 SectionItem(
-                    position = ItemPosition.Bottom,
+                    position = if (isXrayProfile) ItemPosition.Single else ItemPosition.Bottom,
                     onClick = { toggleVpnAction(!vpnEnabled) }
                 ) {
                     SwitchRow(
@@ -1266,7 +1269,7 @@ fun HomeScreen(
                         onCheckedChange = toggleVpnAction,
                         isModified = xraySession?.wg != null && vpnEnabled != (vpnServiceState == VpnState.Running),
                         supportingText = when {
-                            vpnEnabled && !xrayConfig.enabled && !isSocks5Native -> stringResource(R.string.vpn_status_xray_needed)
+                            vpnEnabled && !xrayOn && !isSocks5Native -> stringResource(R.string.vpn_status_xray_needed)
                             vpnServiceState == VpnState.Starting -> stringResource(R.string.starting)
                             vpnServiceState == VpnState.Running -> stringResource(R.string.running)
                             vpnServiceState is VpnState.Error -> (vpnServiceState as VpnState.Error).message
