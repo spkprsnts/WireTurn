@@ -261,10 +261,6 @@ class XrayService : Service() {
             }
 
             if (isXrayVless) {
-                if (vlessConfig.vlessLink.isNotBlank()) {
-                    prefs.addVlessLinkToHistory(vlessConfig.vlessLink)
-                }
-                
                 val shouldAddLink = if (isSocks5Native) {
                     (vlessConfig.isDualRoute || vlessConfig.isSocks5Chain) && vlessConfig.vlessLink.isNotBlank()
                 } else {

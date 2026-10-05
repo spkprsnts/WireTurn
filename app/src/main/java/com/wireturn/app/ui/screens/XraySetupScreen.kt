@@ -57,6 +57,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -64,6 +65,8 @@ import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
+import com.wireturn.app.data.Profile
+import com.wireturn.app.data.kernel.XrayLinkConfig
 import com.wireturn.app.data.VlessConfig
 import com.wireturn.app.data.WgConfig
 import com.wireturn.app.data.XrayConfig
@@ -72,7 +75,6 @@ import com.wireturn.app.kernel.KernelRegistry
 import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.ExpandableSection
-import com.wireturn.app.ui.FieldTrailingIcons
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LabeledButtonGroup
@@ -105,8 +107,8 @@ fun XraySetupScreen(
     kernelVariant: KernelVariant = KernelVariant.TURNABLE,
     kernelConfig: KernelConfig? = null,
     profileName: String? = null,
-    vlessLinkHistory: List<String> = emptyList(),
-    onRemoveHistoryItem: (String) -> Unit = {},
+    // Xray-only profiles (XrayKernel) whose link (and mux) can be taken over here.
+    xrayProfiles: List<Profile> = emptyList(),
     onBack: () -> Unit,
     onSave: (XrayConfiguration, WgConfig, VlessConfig) -> Unit
 ) {
@@ -519,8 +521,7 @@ fun XraySetupScreen(
                         onVlessMuxChange = { vlessMux = it },
                         vlessIsSocks5Chain = vlessIsSocks5Chain,
                         onVlessIsSocks5ChainChange = { vlessIsSocks5Chain = it },
-                        vlessLinkHistory = vlessLinkHistory,
-                        onRemoveHistoryItem = onRemoveHistoryItem,
+                        xrayProfiles = xrayProfiles,
                         initialVlessConfig = initialVlessConfig,
                         isPrivacyActive = isPrivacyActive,
                         kernelVariant = kernelVariant,
@@ -683,6 +684,52 @@ private fun WireGuardSettingsBlock(
     }
 }
 
+// Takes an Xray-only profile's link (and mux) over into this overlay - shown only if there are any.
+@Composable
+private fun XrayProfilePicker(
+    profiles: List<Profile>,
+    onSelect: (XrayLinkConfig) -> Unit
+) {
+    if (profiles.isEmpty()) return
+    val context = LocalContext.current
+    var expanded by remember { mutableStateOf(false) }
+
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(
+                painter = painterResource(R.drawable.ic_xray_24px),
+                contentDescription = stringResource(R.string.xray_from_profile)
+            )
+        }
+        AppDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            title = stringResource(R.string.xray_from_profile)
+        ) {
+            profiles.forEach { profile ->
+                val config = profile.xrayLinkConfig
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text(profile.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(
+                                stringResource(ValidatorUtils.uriProtocolStringRes(config.link)),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    onClick = {
+                        HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
+                        onSelect(config)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun VlessSettingsBlock(
     vlessLink: String, onVlessLinkChange: (String) -> Unit,
@@ -691,8 +738,7 @@ private fun VlessSettingsBlock(
     vlessHcDestination: String, onVlessHcDestinationChange: (String) -> Unit,
     vlessMux: String, onVlessMuxChange: (String) -> Unit,
     vlessIsSocks5Chain: Boolean, onVlessIsSocks5ChainChange: (Boolean) -> Unit,
-    vlessLinkHistory: List<String>,
-    onRemoveHistoryItem: (String) -> Unit,
+    xrayProfiles: List<Profile>,
     initialVlessConfig: VlessConfig,
     isPrivacyActive: Boolean,
     kernelVariant: KernelVariant,
@@ -747,11 +793,12 @@ private fun VlessSettingsBlock(
                     isModified = isEditMode && vlessLink.trim() != initialVlessConfig.vlessLink,
                     privacyMode = isPrivacyActive,
                     trailingIcon = {
-                        FieldTrailingIcons(
-                            history = vlessLinkHistory,
-                            onSelect = onVlessLinkChange,
-                            onRemove = onRemoveHistoryItem,
-                            privacyMode = isPrivacyActive
+                        XrayProfilePicker(
+                            profiles = xrayProfiles,
+                            onSelect = { config ->
+                                onVlessLinkChange(config.link)
+                                onVlessMuxChange(config.mux)
+                            }
                         )
                     }
                 )

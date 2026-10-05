@@ -144,7 +144,6 @@
     <string name="gateway_desc">IP и порт сервера</string>
     <string name="proto_label">Транспортный протокол</string>
     <string name="proto_desc">Необходим для типа Relay. Рекомендуется SRTP</string>
-    <string name="history_label">История</string>
     <string name="openflux_platform_label">Платформа</string>
     <string name="openflux_yandex_settings_title">Яндекс.Документы</string>
     <string name="openflux_vyandex_settings_title">Volga Яндекс.Документы</string>
@@ -565,6 +564,7 @@
     <string name="xray_uri_socks5_chain_desc">Подключение пойдёт через локальный SOCKS5 ядра, а не напрямую</string>
     <string name="xray_uri_socks5_chain_hysteria2_unsupported">Не поддерживается для ссылок Hysteria2</string>
     <string name="xray_uri_mux">Mux concurrency</string>
+    <string name="xray_from_profile">Из профиля Xray</string>
     <string name="xray_uri_mux_desc">Включает мультиплексирование Mux. 0 — выключено, >0 — количество соединений. Несовместимо с XTLS Vision.</string>
     <string name="direct_route_active">Прямой маршрут</string>
 

@@ -34,7 +34,6 @@ class XrayEditActivity : ComponentActivity() {
             val savedVlessConfig by viewModel.vlessConfig.collectAsStateWithLifecycle()
             val savedXrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
             val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
-            val vlessLinkHistory by viewModel.vlessLinkHistory.collectAsStateWithLifecycle()
             val profiles by viewModel.profiles.collectAsStateWithLifecycle()
 
             val targetProfile = remember(profiles) {
@@ -56,8 +55,7 @@ class XrayEditActivity : ComponentActivity() {
                     kernelVariant = targetProfile?.kernelVariant ?: clientConfig.kernelVariant,
                     kernelConfig = targetProfile?.kernelConfig ?: clientConfig.kernelConfig,
                     profileName = targetProfile?.name,
-                    vlessLinkHistory = vlessLinkHistory,
-                    onRemoveHistoryItem = { viewModel.removeVlessLinkFromHistory(it) },
+                    xrayProfiles = profiles.filter { it.kernelConfig is com.wireturn.app.data.KernelConfig.Xray },
                     onBack = { finish() },
                     onSave = { type, wg, vless ->
                         if (profileId != null) {

@@ -35,7 +35,6 @@ import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -99,7 +98,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -138,7 +136,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.set
-import androidx.core.net.toUri
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import com.wireturn.app.R
@@ -150,7 +147,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
@@ -1283,121 +1279,6 @@ fun AppDropdownMenu(
     }
 }
 
-@Composable
-fun FieldTrailingIcons(
-    history: List<String>,
-    onSelect: (String) -> Unit,
-    onRemove: (String) -> Unit,
-    privacyMode: Boolean,
-    modifier: Modifier = Modifier,
-    iconSize: Dp = 24.dp
-) {
-    if (history.isNotEmpty()) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
-            HistoryIconButton(
-                history = history,
-                onSelect = onSelect,
-                onRemove = onRemove,
-                privacyMode = privacyMode,
-                iconSize = iconSize
-            )
-        }
-    }
-}
-
-@Composable
-fun HistoryIconButton(
-    history: List<String>,
-    onSelect: (String) -> Unit,
-    onRemove: (String) -> Unit,
-    privacyMode: Boolean,
-    modifier: Modifier = Modifier,
-    iconSize: Dp = 24.dp
-) {
-    if (history.isEmpty()) return
-
-    var expanded by remember { mutableStateOf(false) }
-
-    Box(modifier = modifier) {
-        IconButton(
-            onClick = { expanded = true },
-            modifier = Modifier.size(if (iconSize < 24.dp) 40.dp else 48.dp)
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.history_24px),
-                contentDescription = stringResource(R.string.history_label),
-                modifier = Modifier.size(iconSize)
-            )
-        }
-        HistoryDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            history = history,
-            onSelect = onSelect,
-            onRemove = onRemove,
-            privacyMode = privacyMode
-        )
-    }
-}
-
-@Composable
-fun HistoryDropdownMenu(
-    expanded: Boolean,
-    onDismissRequest: () -> Unit,
-    history: List<String>,
-    onSelect: (String) -> Unit,
-    onRemove: (String) -> Unit,
-    privacyMode: Boolean,
-    modifier: Modifier = Modifier,
-    title: String = stringResource(R.string.history_label)
-) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-
-    AppDropdownMenu(
-        expanded = expanded,
-        onDismissRequest = onDismissRequest,
-        title = title,
-        modifier = modifier
-    ) {
-        history.forEach { historyItem ->
-            DropdownMenuItem(
-                modifier = Modifier.pointerInput(historyItem) {
-                    awaitEachGesture {
-                        awaitFirstDown(requireUnconsumed = false)
-                        var isLongPress = false
-                        val job = scope.launch {
-                            delay(1500.milliseconds)
-                            HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
-                            isLongPress = true
-                            HapticUtil.perform(context, HapticUtil.Pattern.ERROR)
-                            onRemove(historyItem)
-                        }
-                        val up = waitForUpOrCancellation()
-                        job.cancel()
-                        if (isLongPress) {
-                            up?.consume()
-                        }
-                    }
-                },
-                text = {
-                    val displayText = if (!privacyMode) truncateUrlParameters(historyItem) else historyItem.redact(true)
-                    Text(
-                        text = displayText,
-                        maxLines = 1,
-                        modifier = Modifier.basicMarquee(velocity = 60.dp, initialDelayMillis = 2_500)
-                    )
-                },
-                onClick = {
-                    HapticUtil.perform(context, HapticUtil.Pattern.SELECTION)
-                    onSelect(historyItem)
-                    onDismissRequest()
-                }
-            )
-        }
-    }
-}
-
 /**
  * A shared component to display application update status.
  */
@@ -1570,26 +1451,6 @@ fun UpdateBlock(
                 modifier = Modifier.padding(top = 12.dp)
             )
         }
-    }
-}
-
-private fun truncateUrlParameters(url: String): String {
-    return try {
-        val limit = 50
-        val uri = url.toUri()
-        if (uri.query.isNullOrBlank()) return url
-        val builder = uri.buildUpon()
-        builder.clearQuery()
-        uri.queryParameterNames.forEach { key ->
-            val values = uri.getQueryParameters(key)
-            values.forEach { value ->
-                val truncated = if (value.length > limit) value.take(limit) + "..." else value
-                builder.appendQueryParameter(key, truncated)
-            }
-        }
-        builder.build().toString()
-    } catch (_: Exception) {
-        url
     }
 }
 

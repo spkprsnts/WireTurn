@@ -168,9 +168,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _vlessConfig = MutableStateFlow(VlessConfig())
     val vlessConfig: StateFlow<VlessConfig> = _vlessConfig.asStateFlow()
 
-    private val _vlessLinkHistory = MutableStateFlow<List<String>>(emptyList())
-    val vlessLinkHistory: StateFlow<List<String>> = _vlessLinkHistory.asStateFlow()
-
     private val _autoLaunchSettings = MutableStateFlow(AutoLaunchSettings())
     val autoLaunchSettings: StateFlow<AutoLaunchSettings> = _autoLaunchSettings.asStateFlow()
 
@@ -244,8 +241,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _captchaStyleMod.value = prefs.captchaStyleModFlow.first()
             _captchaForceTint.value = prefs.captchaForceTintFlow.first()
             _partialCaptchaAlerts.value = prefs.partialCaptchaAlertsFlow.first()
+            prefs.clearLegacyVlessLinkHistory()
             _appLanguage.value = prefs.appLanguageFlow.first()
-            _vlessLinkHistory.value = prefs.vlessLinkHistoryFlow.first()
             _autoLaunchSettings.value = prefs.autoLaunchSettingsFlow.first()
 
             updateAutoLaunchJob(_autoLaunchSettings.value)
@@ -284,7 +281,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.pingUrlFlow.collect { _pingUrl.value = it } }
             launch { prefs.countryDetectionMethodFlow.collect { _countryDetectionMethod.value = it } }
             launch { prefs.autoLaunchSettingsFlow.collect { _autoLaunchSettings.value = it; updateAutoLaunchJob(it) } }
-            launch { prefs.vlessLinkHistoryFlow.collect { _vlessLinkHistory.value = it } }
 
             launch {
                 var isFirstEmission = true
@@ -515,12 +511,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             updateCurrentProfileInList()
         }
     }
-    
-    fun removeVlessLinkFromHistory(link: String) { 
-        viewModelScope.launch { prefs.removeVlessLinkFromHistory(link) } 
-    }
-    
-    fun setOnboardingDone() { 
+
+    fun setOnboardingDone() {
         viewModelScope.launch { prefs.setOnboardingDone(true) } 
     }
     

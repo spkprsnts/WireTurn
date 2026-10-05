@@ -90,7 +90,7 @@ class XraySetupActivity : ComponentActivity() {
             val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
 
             val savedXrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
-            val vlessLinkHistory by viewModel.vlessLinkHistory.collectAsStateWithLifecycle()
+            val profiles by viewModel.profiles.collectAsStateWithLifecycle()
 
             WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
                 XraySetupScreen(
@@ -100,8 +100,7 @@ class XraySetupActivity : ComponentActivity() {
                     privacyMode = privacyMode,
                     kernelVariant = clientConfigFromIntent.kernelVariant,
                     kernelConfig = clientConfigFromIntent.kernelConfig,
-                    vlessLinkHistory = vlessLinkHistory,
-                    onRemoveHistoryItem = { viewModel.removeVlessLinkFromHistory(it) },
+                    xrayProfiles = profiles.filter { it.kernelConfig is KernelConfig.Xray },
                     onBack = { finish() },
                     onSave = { type, wg, vless ->
                         viewModel.addFullProfile(

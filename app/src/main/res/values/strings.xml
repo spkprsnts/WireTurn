@@ -182,7 +182,6 @@
     <string name="gateway_desc">IP and port of the server</string>
     <string name="proto_label">Transport protocol</string>
     <string name="proto_desc">Required for Relay type. SRTP is highly recommended</string>
-    <string name="history_label">History</string>
     <string name="kernel_turnable" translatable="false">Turnable</string>
     <string name="kernel_olcrtc" translatable="false">olcRTC</string>
     <string name="kernel_webdav" translatable="false">WebDAV</string>
@@ -650,6 +649,7 @@
     <string name="kernel_tag_no_server" translatable="false">Serverless</string>
 
     <string name="xray_uri_mux">Mux concurrency</string>
+    <string name="xray_from_profile">From Xray profile</string>
     <string name="xray_uri_mux_desc">Enable Mux multiplexing. 0 disables, >0 sets concurrency. Incompatible with XTLS Vision.</string>
     <string name="direct_route_active">Direct route</string>
 

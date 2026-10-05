@@ -94,6 +94,7 @@ class AppPreferences(val context: Context) {
         val AUTO_LAUNCH_ENABLED = booleanPreferencesKey("auto_launch_enabled")
         val AUTO_LAUNCH_URL = stringPreferencesKey("auto_launch_url")
         val AUTO_LAUNCH_INTERVAL = intPreferencesKey("auto_launch_interval")
+        // Legacy, only cleared now - see clearLegacyVlessLinkHistory.
         val VLESS_LINK_HISTORY = stringPreferencesKey("vless_link_history")
         val BATTERY_NOTIFICATION_DISMISSED = booleanPreferencesKey("battery_notification_dismissed")
         val APPS_EXCLUSION_HINT_SHOWN = booleanPreferencesKey("apps_exclusion_hint_shown")
@@ -246,10 +247,6 @@ class AppPreferences(val context: Context) {
         profiles.find { it.id == id }?.name
     }
 
-    val vlessLinkHistoryFlow: Flow<List<String>> = appCtx.internalDataStore.data
-        .map { p ->
-            (p[VLESS_LINK_HISTORY] ?: "").split("|").filter { it.isNotBlank() }
-        }
 
     val autoLaunchSettingsFlow: Flow<AutoLaunchSettings> = appCtx.internalDataStore.data
         .map {
@@ -462,18 +459,11 @@ class AppPreferences(val context: Context) {
         }
     }
 
-    suspend fun addVlessLinkToHistory(l: String) {
-        appCtx.internalDataStore.edit { p ->
-            val h = p[VLESS_LINK_HISTORY]?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
-            p[VLESS_LINK_HISTORY] = (listOf(l) + h.filter { it != l }).take(3).joinToString("|")
-        }
-    }
-
-    suspend fun removeVlessLinkFromHistory(l: String) {
-        appCtx.internalDataStore.edit { p ->
-            p[VLESS_LINK_HISTORY] = (p[VLESS_LINK_HISTORY]?.split("|")?.filter { it.isNotBlank() && it != l } ?: emptyList())
-                .joinToString("|")
-        }
+    // The Xray link history is gone (Xray-only profiles took its place) - its stored links,
+    // credentials included, shouldn't outlive it.
+    suspend fun clearLegacyVlessLinkHistory() {
+        if (appCtx.internalDataStore.data.first()[VLESS_LINK_HISTORY] == null) return
+        appCtx.internalDataStore.edit { it.remove(VLESS_LINK_HISTORY) }
     }
 
     suspend fun saveVpnSettings(s: VpnSettings) {
