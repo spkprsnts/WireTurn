@@ -8,6 +8,7 @@ import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.kernel.XrayLinkConfig
 import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.activities.kernel.XrayLinkConfigActivity
+import androidx.core.net.toUri
 
 // A profile with no tunnel kernel: Xray alone, straight to the server in the profile's own link.
 // CoreService runs nothing for it (runsBinary) - XrayService takes the link from the kernel config
@@ -32,7 +33,7 @@ object XrayKernel : Kernel {
 
     // The usual share-link convention: the name rides in the fragment.
     override fun displayNameFromUri(uri: String): String? = try {
-        android.net.Uri.parse(uri.trim()).fragment?.takeIf { it.isNotBlank() }
+        uri.trim().toUri().fragment?.takeIf { it.isNotBlank() }
     } catch (_: Exception) { null }
 
     override fun buildCommand(ctx: KernelCommandContext, cfg: ClientConfig): List<String> = emptyList()

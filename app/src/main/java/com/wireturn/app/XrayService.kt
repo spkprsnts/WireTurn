@@ -144,10 +144,10 @@ class XrayService : Service() {
             val xrayOnly = (runningClientConfig.kernelConfig as? com.wireturn.app.data.KernelConfig.Xray)?.config
             val xrayOnlyLink = xrayOnly?.link
             val xrayConfig = if (xrayOnly != null) {
-                com.wireturn.app.data.XrayConfig(enabled = true, protocol = com.wireturn.app.data.XrayConfiguration.VLESS)
+                XrayConfig(enabled = true, protocol = com.wireturn.app.data.XrayConfiguration.VLESS)
             } else snapshot.xray
             val vlessConfig = if (xrayOnly != null) {
-                com.wireturn.app.data.VlessConfig(vlessLink = xrayOnly.link, mux = xrayOnly.mux).fillDefaults()
+                VlessConfig(vlessLink = xrayOnly.link, mux = xrayOnly.mux).fillDefaults()
             } else snapshot.vless
             val xraySettings = snapshot.settings
             
