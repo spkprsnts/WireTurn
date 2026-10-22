@@ -708,7 +708,7 @@
     <string name="xray_settings_group_routing">Routing</string>
     <string name="routing_presets_title">Presets</string>
     <string name="routing_presets_desc">Fills in the direct routes. Save the settings to apply</string>
-    <string name="routing_presets_no_geo">The geo resources aren\'t downloaded - geosite:/geoip: rules need them, download them below</string>
+    <string name="routing_presets_no_geo">The geo resources aren\'t downloaded - geosite:/geoip: rules need them, download them above</string>
     <string name="routing_preset_custom">Custom</string>
     <string name="routing_preset_russia">Russia directly</string>
     <string name="routing_preset_russia_desc">Russian sites and IPs and the local network bypass the tunnel</string>
@@ -739,7 +739,7 @@
     <string name="xray_settings_group_ping_check">Availability check</string>
     <string name="xray_settings_ping_concurrency_label">Servers checked at once</string>
     <string name="xray_settings_ping_concurrency_desc">For a subscription\'s availability check. More is faster but loads the network and the phone</string>
-    <string name="geo_resources_dialog_desc">Needed for geosite:/geoip: entries in the routing rules above</string>
+    <string name="geo_resources_dialog_desc">Needed for geosite:/geoip: entries in the routing rules below</string>
     <string name="geo_variant_runetfreedom" translatable="false">RunetFreedom</string>
     <string name="geo_variant_runetfreedom_desc">Domains/IPs blocked in Russia (Roskomnadzor), updated every 6h</string>
     <string name="geo_variant_v2fly">v2fly (official)</string>

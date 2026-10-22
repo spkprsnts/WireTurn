@@ -408,6 +408,40 @@ fun XraySettingsScreen(
                 }
             }
 
+            // Before routing: its geosite:/geoip: entries (and the presets) need these files.
+            SectionGroup(title = stringResource(R.string.xray_settings_group_geo)) {
+                SectionItem(
+                    position = ItemPosition.Single,
+                    onClick = {
+                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                        showGeoDialog.value = true
+                    }
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        LargeLeadingIcon {
+                            if (geoAssetsState is GeoAssetsState.Downloading) {
+                                LoadingIndicator(modifier = Modifier.size(32.dp))
+                            } else {
+                                Icon(
+                                    painter = painterResource(R.drawable.globe_book_24px),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(32.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            RowLabel(text = installedVariantLabel)
+                            Spacer(Modifier.height(2.dp))
+                            SupportingText(geoStatusText)
+                        }
+                    }
+                }
+            }
+
             SectionGroup(title = stringResource(R.string.xray_settings_group_routing)) {
                 SectionItem(
                     position = ItemPosition.Top,
@@ -562,39 +596,6 @@ fun XraySettingsScreen(
                         steps = XraySettings.MAX_PING_CHECK_CONCURRENCY - 2,
                         isModified = pingConcurrency != initialXraySettings.pingCheckConcurrency
                     )
-                }
-            }
-
-            SectionGroup(title = stringResource(R.string.xray_settings_group_geo)) {
-                SectionItem(
-                    position = ItemPosition.Single,
-                    onClick = {
-                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                        showGeoDialog.value = true
-                    }
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        LargeLeadingIcon {
-                            if (geoAssetsState is GeoAssetsState.Downloading) {
-                                LoadingIndicator(modifier = Modifier.size(32.dp))
-                            } else {
-                                Icon(
-                                    painter = painterResource(R.drawable.globe_book_24px),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(32.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            RowLabel(text = installedVariantLabel)
-                            Spacer(Modifier.height(2.dp))
-                            SupportingText(geoStatusText)
-                        }
-                    }
                 }
             }
         }

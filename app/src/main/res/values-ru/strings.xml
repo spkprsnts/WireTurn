@@ -637,7 +637,7 @@
     <string name="xray_settings_group_routing">Маршрутизация</string>
     <string name="routing_presets_title">Пресеты</string>
     <string name="routing_presets_desc">Заполнит прямые маршруты. Чтобы применить, сохраните настройки</string>
-    <string name="routing_presets_no_geo">Гео-ресурсы не скачаны — правила geosite:/geoip: без них не работают, скачайте их ниже</string>
+    <string name="routing_presets_no_geo">Гео-ресурсы не скачаны — правила geosite:/geoip: без них не работают, скачайте их выше</string>
     <string name="routing_preset_custom">Свои правила</string>
     <string name="routing_preset_russia">Россия напрямую</string>
     <string name="routing_preset_russia_desc">Российские сайты и IP, а также локальная сеть — мимо туннеля</string>
@@ -665,7 +665,7 @@
     <string name="xray_settings_group_ping_check">Проверка доступности</string>
     <string name="xray_settings_ping_concurrency_label">Серверов одновременно</string>
     <string name="xray_settings_ping_concurrency_desc">Для проверки доступности подписки. Больше — быстрее, но сильнее нагружает сеть и телефон</string>
-    <string name="geo_resources_dialog_desc">Нужны для записей geosite:/geoip: в правилах маршрутизации выше</string>
+    <string name="geo_resources_dialog_desc">Нужны для записей geosite:/geoip: в правилах маршрутизации ниже</string>
     <string name="geo_variant_runetfreedom_desc">Домены/IP, заблокированные в России (Роскомнадзор), обновляется каждые 6ч</string>
     <string name="geo_variant_v2fly">v2fly (официальный)</string>
     <string name="geo_variant_v2fly_desc">Официальные geoip.dat и данные domain-list-community</string>
