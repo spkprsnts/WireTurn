@@ -635,6 +635,16 @@
     <string name="xray_settings_fakedns_label">FakeDNS</string>
     <string name="xray_settings_fakedns_desc">Отдавать синтетические IP и восстанавливать реальный домен снифингом — для приложений, резолвящих адрес до подключения</string>
     <string name="xray_settings_group_routing">Маршрутизация</string>
+    <string name="routing_presets_title">Пресеты</string>
+    <string name="routing_presets_desc">Заполнит прямые маршруты. Чтобы применить, сохраните настройки</string>
+    <string name="routing_presets_no_geo">Гео-ресурсы не скачаны — правила geosite:/geoip: без них не работают, скачайте их ниже</string>
+    <string name="routing_preset_custom">Свои правила</string>
+    <string name="routing_preset_russia">Россия напрямую</string>
+    <string name="routing_preset_russia_desc">Российские сайты и IP, а также локальная сеть — мимо туннеля</string>
+    <string name="routing_preset_local">Только локальная сеть напрямую</string>
+    <string name="routing_preset_local_desc">Мимо туннеля идёт только локальная сеть</string>
+    <string name="routing_preset_all_tunnel">Всё через туннель</string>
+    <string name="routing_preset_all_tunnel_desc">Без прямых маршрутов</string>
     <string name="xray_settings_route_direct_label">В обход (напрямую)</string>
     <string name="xray_settings_route_direct_desc">Через запятую: domain:example.com, CIDR, или категории geosite:/geoip: (нужны скачанные гео-ресурсы) — идут напрямую, минуя туннель</string>
     <string name="xray_settings_route_block_label">Блокировать</string>

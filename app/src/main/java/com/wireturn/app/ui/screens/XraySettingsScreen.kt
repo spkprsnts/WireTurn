@@ -130,6 +130,7 @@ fun XraySettingsScreen(
     var pingConcurrency by remember { mutableIntStateOf(initialXraySettings.pingCheckConcurrency.coerceIn(1, XraySettings.MAX_PING_CHECK_CONCURRENCY)) }
 
     val showGeoDialog = remember { mutableStateOf(false) }
+    val showRoutingPresets = remember { mutableStateOf(false) }
     val showGeoSourceEditor = remember { mutableStateOf(false) }
     // Null while adding a new source.
     val editedGeoSource = remember { mutableStateOf<GeoResourceSet?>(null) }
@@ -408,7 +409,33 @@ fun XraySettingsScreen(
             }
 
             SectionGroup(title = stringResource(R.string.xray_settings_group_routing)) {
-                SectionItem(position = ItemPosition.Top) {
+                SectionItem(
+                    position = ItemPosition.Top,
+                    onClick = {
+                        if (privacyMode) return@SectionItem
+                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                        showRoutingPresets.value = true
+                    }
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        StandardLeadingIcon {
+                            Icon(
+                                painter = painterResource(R.drawable.route_24px),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            RowLabel(text = stringResource(R.string.routing_presets_title))
+                            SupportingText(
+                                RoutingPreset.matching(routeDirect)?.let { stringResource(it.labelRes) }
+                                    ?: stringResource(R.string.routing_preset_custom)
+                            )
+                        }
+                    }
+                }
+
+                SectionItem(position = ItemPosition.Middle) {
                     TextFieldRow(
                         label = stringResource(R.string.xray_settings_route_direct_label),
                         value = routeDirect.redact(privacyMode),
@@ -591,6 +618,44 @@ fun XraySettingsScreen(
         )
     }
 
+    if (showRoutingPresets.value) {
+        SelectionDialog(
+            title = stringResource(R.string.routing_presets_title),
+            description = stringResource(R.string.routing_presets_desc),
+            items = RoutingPreset.entries,
+            isSelected = { it == RoutingPreset.matching(routeDirect) },
+            onSelect = { preset ->
+                routeDirect = preset.routeDirect
+                showRoutingPresets.value = false
+            },
+            onDismiss = { showRoutingPresets.value = false },
+            footer = if (geoAssetsInstalled) null else {
+                {
+                    // geosite:/geoip: entries need the geo files - without them Xray won't start.
+                    SupportingText(
+                        text = stringResource(R.string.routing_presets_no_geo),
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                    )
+                }
+            }
+        ) { preset, _ ->
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(text = stringResource(preset.labelRes))
+                SupportingText(
+                    text = stringResource(preset.descRes),
+                    color = LocalContentColor.current.copy(alpha = 0.75f)
+                )
+            }
+        }
+    }
+
     if (showGeoSourceEditor.value) {
         GeoSourceEditDialog(
             source = editedGeoSource.value,
@@ -623,6 +688,40 @@ fun XraySettingsScreen(
                 }
             }
         )
+    }
+}
+
+/**
+ * Ready-made "direct routes" (-route-direct) sets, like v2rayNG's routing presets (issue #45).
+ * Choosing one replaces the field; saving the screen applies it as usual. Every category used
+ * here is in all three built-in geo sources (runetfreedom, v2fly, Loyalsoldier).
+ */
+private enum class RoutingPreset(val labelRes: Int, val descRes: Int, val routeDirect: String) {
+    // v2rayNG's "Russia whitelist", minus what -route-direct can't express (bittorrent, QUIC block).
+    RUSSIA(
+        R.string.routing_preset_russia,
+        R.string.routing_preset_russia_desc,
+        "geosite:private,geoip:private,geosite:category-ru,geoip:ru"
+    ),
+    LOCAL(
+        R.string.routing_preset_local,
+        R.string.routing_preset_local_desc,
+        "geosite:private,geoip:private"
+    ),
+    ALL_TUNNEL(
+        R.string.routing_preset_all_tunnel,
+        R.string.routing_preset_all_tunnel_desc,
+        ""
+    );
+
+    companion object {
+        /** The preset the field holds as it is (order and spacing aside), or null for a custom one. */
+        fun matching(routeDirect: String): RoutingPreset? {
+            val entries = routeDirect.split(',').map(String::trim).filter(String::isNotEmpty).toSet()
+            return RoutingPreset.entries.find {
+                it.routeDirect.split(',').map(String::trim).filter(String::isNotEmpty).toSet() == entries
+            }
+        }
     }
 }
 
