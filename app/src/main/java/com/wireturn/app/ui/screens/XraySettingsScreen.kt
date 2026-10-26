@@ -743,6 +743,16 @@ private enum class RoutingPreset(
         routeBlock = "geosite:win-spy,geosite:torrent,geosite:category-ads",
         requiredGeo = GeoResourceSet.ROSCOMVPN.id
     ),
+    // Its WHITELIST profile, for whitelist-only mobile internet: only what those lists let
+    // through goes direct - Microsoft, Steam and the like from the one above don't work there.
+    // It has no "proxy" list, so it carries over as it is.
+    ROSCOMVPN_WHITELIST(
+        R.string.routing_preset_roscomvpn_whitelist,
+        R.string.routing_preset_roscomvpn_whitelist_desc,
+        "geosite:private,geosite:whitelist,geoip:private,geoip:whitelist",
+        routeBlock = "geosite:win-spy,geosite:torrent,geosite:category-ads",
+        requiredGeo = GeoResourceSet.ROSCOMVPN.id
+    ),
     LOCAL(
         R.string.routing_preset_local,
         R.string.routing_preset_local_desc,
