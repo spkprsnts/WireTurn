@@ -74,8 +74,7 @@ import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.ExpandableSection
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
-import com.wireturn.app.ui.LargeLeadingIcon
-import com.wireturn.app.ui.RowLabel
+import com.wireturn.app.ui.LabelGroup
 import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.SelectionDialog
@@ -408,10 +407,10 @@ fun XraySettingsScreen(
                 }
             }
 
-            // Before routing: its geosite:/geoip: entries (and the presets) need these files.
-            SectionGroup(title = stringResource(R.string.xray_settings_group_geo)) {
+            // The geo files first: the geosite:/geoip: entries below (and the presets) need them.
+            SectionGroup(title = stringResource(R.string.xray_settings_group_routing)) {
                 SectionItem(
-                    position = ItemPosition.Single,
+                    position = ItemPosition.Top,
                     onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         showGeoDialog.value = true
@@ -421,30 +420,27 @@ fun XraySettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        LargeLeadingIcon {
+                        StandardLeadingIcon {
                             if (geoAssetsState is GeoAssetsState.Downloading) {
-                                LoadingIndicator(modifier = Modifier.size(32.dp))
+                                LoadingIndicator(modifier = Modifier.size(24.dp))
                             } else {
                                 Icon(
                                     painter = painterResource(R.drawable.globe_book_24px),
                                     contentDescription = null,
-                                    modifier = Modifier.size(32.dp),
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
-                        Column(modifier = Modifier.weight(1f)) {
-                            RowLabel(text = installedVariantLabel)
-                            Spacer(Modifier.height(2.dp))
-                            SupportingText(geoStatusText)
-                        }
+                        LabelGroup(
+                            label = stringResource(R.string.xray_settings_group_geo),
+                            supportingText = "$installedVariantLabel · $geoStatusText",
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
-            }
 
-            SectionGroup(title = stringResource(R.string.xray_settings_group_routing)) {
                 SectionItem(
-                    position = ItemPosition.Top,
+                    position = ItemPosition.Middle,
                     onClick = {
                         if (privacyMode) return@SectionItem
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -459,13 +455,12 @@ fun XraySettingsScreen(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
-                        Column(modifier = Modifier.weight(1f)) {
-                            RowLabel(text = stringResource(R.string.routing_presets_title))
-                            SupportingText(
-                                RoutingPreset.matching(routeDirect)?.let { stringResource(it.labelRes) }
-                                    ?: stringResource(R.string.routing_preset_custom)
-                            )
-                        }
+                        LabelGroup(
+                            label = stringResource(R.string.routing_presets_title),
+                            supportingText = RoutingPreset.matching(routeDirect)?.let { stringResource(it.labelRes) }
+                                ?: stringResource(R.string.routing_preset_custom),
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
 
