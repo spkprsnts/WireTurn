@@ -723,6 +723,8 @@ private enum class RoutingPreset(
         R.string.routing_preset_russia,
         R.string.routing_preset_russia_desc,
         "geosite:private,geoip:private,geosite:category-ru,geoip:ru",
+        // category-ads is in every built-in source, RoscomVPN's too.
+        routeBlock = "geosite:category-ads",
         // RoscomVPN's geoip.dat has no geoip:ru.
         unsupportedGeo = setOf(GeoResourceSet.ROSCOMVPN.id)
     ),
@@ -732,6 +734,7 @@ private enum class RoutingPreset(
         R.string.routing_preset_roscomvpn_russia,
         R.string.routing_preset_roscomvpn_russia_desc,
         "geosite:private,geosite:category-ru,geosite:whitelist,geoip:private,geoip:direct,geoip:whitelist",
+        routeBlock = "geosite:category-ads",
         requiredGeo = GeoResourceSet.ROSCOMVPN.id
     ),
     // hydraponique/roscomvpn-routing's DEFAULT profile, with its own geo files. Its "proxy" list
@@ -759,8 +762,10 @@ private enum class RoutingPreset(
     LOCAL(
         R.string.routing_preset_local,
         R.string.routing_preset_local_desc,
-        "geosite:private,geoip:private"
+        "geosite:private,geoip:private",
+        routeBlock = "geosite:category-ads"
     ),
+    // Leaves a custom blocked list but drops a preset's, so it runs without the geo files.
     ALL_TUNNEL(
         R.string.routing_preset_all_tunnel,
         R.string.routing_preset_all_tunnel_desc,
