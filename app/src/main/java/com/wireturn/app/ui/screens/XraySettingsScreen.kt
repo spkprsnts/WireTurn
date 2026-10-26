@@ -620,14 +620,21 @@ fun XraySettingsScreen(
     }
 
     if (showRoutingPresets.value) {
+        // Which presets can run depends on the categories in the installed files; with none
+        // installed yet the footer already says to download them first.
+        val installedGeoId = initialXraySettings.geoVariant.takeIf { geoAssetsInstalled }
+        val isAvailable = { preset: RoutingPreset -> installedGeoId == null || preset.supports(installedGeoId) }
         SelectionDialog(
             title = stringResource(R.string.routing_presets_title),
             description = stringResource(R.string.routing_presets_desc),
             items = RoutingPreset.entries,
             isSelected = { it == RoutingPreset.matching(routeDirect) },
             onSelect = { preset ->
-                routeDirect = preset.routeDirect
-                showRoutingPresets.value = false
+                if (isAvailable(preset)) {
+                    routeBlock = RoutingPreset.routeBlockFor(preset, routeBlock)
+                    routeDirect = preset.routeDirect
+                    showRoutingPresets.value = false
+                }
             },
             onDismiss = { showRoutingPresets.value = false },
             footer = if (geoAssetsInstalled) null else {
@@ -648,10 +655,18 @@ fun XraySettingsScreen(
                     .heightIn(min = 48.dp),
                 verticalArrangement = Arrangement.Center
             ) {
-                Text(text = stringResource(preset.labelRes))
+                val available = isAvailable(preset)
+                Text(
+                    text = stringResource(preset.labelRes),
+                    color = if (available) Color.Unspecified else LocalContentColor.current.copy(alpha = 0.38f)
+                )
                 SupportingText(
-                    text = stringResource(preset.descRes),
-                    color = LocalContentColor.current.copy(alpha = 0.75f)
+                    text = when {
+                        available -> stringResource(preset.descRes)
+                        preset.requiredGeo != null -> stringResource(R.string.routing_preset_needs_geo, geoVariantLabel(GeoResourceSet.find(preset.requiredGeo, emptyList())))
+                        else -> stringResource(R.string.routing_preset_unsupported_geo, geoVariantLabel(GeoResourceSet.find(installedGeoId.orEmpty(), customGeoSources)))
+                    },
+                    color = if (available) LocalContentColor.current.copy(alpha = 0.75f) else MaterialTheme.colorScheme.error
                 )
             }
         }
@@ -697,12 +712,36 @@ fun XraySettingsScreen(
  * Choosing one replaces the field; saving the screen applies it as usual. Every category used
  * here is in all three built-in geo sources (runetfreedom, v2fly, Loyalsoldier).
  */
-private enum class RoutingPreset(val labelRes: Int, val descRes: Int, val routeDirect: String) {
+private enum class RoutingPreset(
+    val labelRes: Int,
+    val descRes: Int,
+    val routeDirect: String,
+    // Also replaces the blocked list; null leaves it as it is.
+    val routeBlock: String? = null,
+    // The installed geo source it needs (a GeoResourceSet id), or null: any with its categories.
+    val requiredGeo: String? = null,
+    // Geo sources it can't run on - Xray won't start on a missing category.
+    val unsupportedGeo: Set<String> = emptySet()
+) {
     // v2rayNG's "Russia whitelist", minus what -route-direct can't express (bittorrent, QUIC block).
     RUSSIA(
         R.string.routing_preset_russia,
         R.string.routing_preset_russia_desc,
-        "geosite:private,geoip:private,geosite:category-ru,geoip:ru"
+        "geosite:private,geoip:private,geosite:category-ru,geoip:ru",
+        // RoscomVPN's geoip.dat has no geoip:ru.
+        unsupportedGeo = setOf(GeoResourceSet.ROSCOMVPN.id)
+    ),
+    // hydraponique/roscomvpn-routing's DEFAULT profile, with its own geo files. Its "proxy" list
+    // (YouTube, Telegram, GitHub, Google Play, Twitch ads) has no field here - checked against
+    // these files, of those only Twitch ads also falls under a direct category (twitch).
+    ROSCOMVPN(
+        R.string.routing_preset_roscomvpn,
+        R.string.routing_preset_roscomvpn_desc,
+        "geosite:private,geosite:category-ru,geosite:whitelist,geosite:microsoft,geosite:apple," +
+            "geosite:epicgames,geosite:riot,geosite:escapefromtarkov,geosite:steam,geosite:twitch," +
+            "geosite:pinterest,geosite:faceit,geoip:private,geoip:direct",
+        routeBlock = "geosite:win-spy,geosite:torrent,geosite:category-ads",
+        requiredGeo = GeoResourceSet.ROSCOMVPN.id
     ),
     LOCAL(
         R.string.routing_preset_local,
@@ -715,14 +754,27 @@ private enum class RoutingPreset(val labelRes: Int, val descRes: Int, val routeD
         ""
     );
 
+    /** Whether it can run on the installed geo source [geoId]. */
+    fun supports(geoId: String): Boolean =
+        (requiredGeo == null || requiredGeo == geoId) && geoId !in unsupportedGeo
+
     companion object {
+        private fun entriesOf(list: String) = list.split(',').map(String::trim).filter(String::isNotEmpty).toSet()
+
         /** The preset the field holds as it is (order and spacing aside), or null for a custom one. */
         fun matching(routeDirect: String): RoutingPreset? {
-            val entries = routeDirect.split(',').map(String::trim).filter(String::isNotEmpty).toSet()
-            return RoutingPreset.entries.find {
-                it.routeDirect.split(',').map(String::trim).filter(String::isNotEmpty).toSet() == entries
-            }
+            val entries = entriesOf(routeDirect)
+            return RoutingPreset.entries.find { entriesOf(it.routeDirect) == entries }
         }
+
+        /**
+         * The blocked list after switching to [preset]: its own, if it has one; otherwise the
+         * current one - unless that is just another preset's, whose categories may be missing
+         * from the geo files the new one runs on (RoscomVPN's win-spy elsewhere).
+         */
+        fun routeBlockFor(preset: RoutingPreset, current: String): String = preset.routeBlock
+            ?: if (RoutingPreset.entries.any { it.routeBlock != null && entriesOf(it.routeBlock) == entriesOf(current) }) ""
+            else current
     }
 }
 
@@ -936,6 +988,7 @@ private fun geoVariantLabel(variant: GeoResourceSet?): String = when {
     else -> stringResource(
         when (variant.id) {
             GeoResourceSet.LOYALSOLDIER.id -> R.string.geo_variant_loyalsoldier
+            GeoResourceSet.ROSCOMVPN.id -> R.string.geo_variant_roscomvpn
             GeoResourceSet.V2FLY.id -> R.string.geo_variant_v2fly
             else -> R.string.geo_variant_runetfreedom
         }
@@ -948,6 +1001,7 @@ private fun geoVariantDescription(variant: GeoResourceSet): String =
     else stringResource(
         when (variant.id) {
             GeoResourceSet.LOYALSOLDIER.id -> R.string.geo_variant_loyalsoldier_desc
+            GeoResourceSet.ROSCOMVPN.id -> R.string.geo_variant_roscomvpn_desc
             GeoResourceSet.V2FLY.id -> R.string.geo_variant_v2fly_desc
             else -> R.string.geo_variant_runetfreedom_desc
         }

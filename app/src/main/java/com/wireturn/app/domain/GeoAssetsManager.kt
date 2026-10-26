@@ -55,7 +55,16 @@ data class GeoResourceSet(
             geositeUrl = "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat"
         )
 
-        val BUILT_IN = listOf(RUNETFREEDOM, V2FLY, LOYALSOLDIER)
+        // RoscomVPN (hydraponique/roscomvpn-routing): small RU/BY-targeted files made for its own
+        // routing profile - geoip has only direct/private/whitelist (no geoip:ru), geosite its own
+        // service categories. See RoutingPreset.ROSCOMVPN in XraySettingsScreen.
+        val ROSCOMVPN = GeoResourceSet(
+            id = "roscomvpn",
+            geoipUrl = "https://github.com/hydraponique/roscomvpn-geoip/releases/latest/download/geoip.dat",
+            geositeUrl = "https://github.com/hydraponique/roscomvpn-geosite/releases/latest/download/geosite.dat"
+        )
+
+        val BUILT_IN = listOf(RUNETFREEDOM, ROSCOMVPN, V2FLY, LOYALSOLDIER)
 
         /** A new custom source with a fresh id. */
         fun custom(name: String, geoipUrl: String, geositeUrl: String) = GeoResourceSet(

@@ -641,6 +641,10 @@
     <string name="routing_preset_custom">Свои правила</string>
     <string name="routing_preset_russia">Россия напрямую</string>
     <string name="routing_preset_russia_desc">Российские сайты и IP, а также локальная сеть — мимо туннеля</string>
+    <string name="routing_preset_roscomvpn">RoscomVPN</string>
+    <string name="routing_preset_roscomvpn_desc">Российские и белорусские сайты, сервисы из белых списков, игры и локальная сеть — мимо туннеля; реклама, телеметрия Windows и торрент-трекеры блокируются</string>
+    <string name="routing_preset_needs_geo">Нужны гео-ресурсы %1$s — выберите их выше</string>
+    <string name="routing_preset_unsupported_geo">Не работает с гео-ресурсами %1$s</string>
     <string name="routing_preset_local">Только локальная сеть напрямую</string>
     <string name="routing_preset_local_desc">Мимо туннеля идёт только локальная сеть</string>
     <string name="routing_preset_all_tunnel">Всё через туннель</string>
@@ -671,6 +675,7 @@
     <string name="geo_variant_v2fly_desc">Официальные geoip.dat и данные domain-list-community</string>
     <string name="geo_variant_loyalsoldier">Loyalsoldier (community)</string>
     <string name="geo_variant_loyalsoldier_desc">Набор правил сообщества с более детальным делением на категории</string>
+    <string name="geo_variant_roscomvpn_desc">Компактные списки для РФ и РБ под пресет маршрутизации RoscomVPN; без geoip:ru</string>
     <string name="geo_resources_download">Скачать</string>
     <string name="geo_resources_downloading">Скачивание…</string>
     <string name="geo_resources_download_failed">Ошибка загрузки: %1$s</string>
