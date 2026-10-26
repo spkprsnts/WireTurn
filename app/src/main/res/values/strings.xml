@@ -712,6 +712,8 @@
     <string name="routing_preset_custom">Custom</string>
     <string name="routing_preset_russia">Russia directly</string>
     <string name="routing_preset_russia_desc">Russian sites and IPs and the local network bypass the tunnel</string>
+    <string name="routing_preset_roscomvpn_russia">RoscomVPN: Russia directly</string>
+    <string name="routing_preset_roscomvpn_russia_desc">Russian and Belarusian sites and IPs and the local network bypass the tunnel</string>
     <string name="routing_preset_roscomvpn">RoscomVPN</string>
     <string name="routing_preset_roscomvpn_desc">Russian and Belarusian sites, whitelisted services, games and the local network bypass the tunnel; ads, Windows telemetry and torrent trackers are blocked</string>
     <string name="routing_preset_roscomvpn_whitelist">RoscomVPN: whitelists only</string>

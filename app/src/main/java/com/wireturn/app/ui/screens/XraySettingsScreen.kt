@@ -726,6 +726,14 @@ private enum class RoutingPreset(
         // RoscomVPN's geoip.dat has no geoip:ru.
         unsupportedGeo = setOf(GeoResourceSet.ROSCOMVPN.id)
     ),
+    // The same on RoscomVPN's files: its geoip:direct holds RU and BY CIDRs (in place of
+    // geoip:ru), and the whitelist categories are RU services and hosting outside category-ru.
+    ROSCOMVPN_RUSSIA(
+        R.string.routing_preset_roscomvpn_russia,
+        R.string.routing_preset_roscomvpn_russia_desc,
+        "geosite:private,geosite:category-ru,geosite:whitelist,geoip:private,geoip:direct,geoip:whitelist",
+        requiredGeo = GeoResourceSet.ROSCOMVPN.id
+    ),
     // hydraponique/roscomvpn-routing's DEFAULT profile, with its own geo files. Its "proxy" list
     // (YouTube, Telegram, GitHub, Google Play, Twitch ads) has no field here - checked against
     // these files, of those only Twitch ads also falls under a direct category (twitch).

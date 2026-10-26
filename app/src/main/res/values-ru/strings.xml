@@ -641,6 +641,8 @@
     <string name="routing_preset_custom">Свои правила</string>
     <string name="routing_preset_russia">Россия напрямую</string>
     <string name="routing_preset_russia_desc">Российские сайты и IP, а также локальная сеть — мимо туннеля</string>
+    <string name="routing_preset_roscomvpn_russia">RoscomVPN: Россия напрямую</string>
+    <string name="routing_preset_roscomvpn_russia_desc">Российские и белорусские сайты и IP, а также локальная сеть — мимо туннеля</string>
     <string name="routing_preset_roscomvpn">RoscomVPN</string>
     <string name="routing_preset_roscomvpn_desc">Российские и белорусские сайты, сервисы из белых списков, игры и локальная сеть — мимо туннеля; реклама, телеметрия Windows и торрент-трекеры блокируются</string>
     <string name="routing_preset_roscomvpn_whitelist">RoscomVPN: только белые списки</string>
