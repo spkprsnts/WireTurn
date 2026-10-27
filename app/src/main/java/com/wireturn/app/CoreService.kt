@@ -204,7 +204,14 @@ class CoreService : Service() {
         coreJob = serviceScope.launch {
             // Ждём завершения предыдущего цикла, иначе он может конкурентно тронуть process
             // и потерять ссылку на новый, из-за чего старый бинарник не освободит порт.
-            previousJob?.cancelAndJoin()
+            // Kill its process between cancel() and join(), as handleStopAction does: its
+            // runBinary() blocks on a readLine() that cancellation can't interrupt, so a bare
+            // cancelAndJoin() waits for the old kernel's next output line - with a quiet
+            // connected kernel, until the user stops it, while the old profile keeps running.
+            // Cancelled first, so its supervisor can't spawn a replacement in between.
+            previousJob?.cancel()
+            stopBinaryProcessGracefully()
+            previousJob?.join()
             stopBinaryProcessGracefully()
 
             val prefs = AppPreferences(applicationContext)
