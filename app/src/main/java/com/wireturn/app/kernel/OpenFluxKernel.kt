@@ -301,8 +301,8 @@ object OpenFluxKernel : Kernel {
             val keyFile = File(ctx.filesDir, "openflux_key.txt")
             keyFile.writeText(o.encryptionKey)
             cmdArgs.addAll(listOf("--encryption-key-file", keyFile.absolutePath))
-            // Keys derive from the secret plus this context, so it must be the exit's own - only
-            // passed when set and different from the core's own rule (OpenFluxConfig.sessionContext).
+            // Preserve the context of imported links and migrated profiles; blank uses the
+            // core's fixed default. Do not elide explicit values that happen to equal the URL.
             o.effectiveSessionContext?.let { cmdArgs.addAll(listOf("--session-context", it)) }
         }
         return cmdArgs

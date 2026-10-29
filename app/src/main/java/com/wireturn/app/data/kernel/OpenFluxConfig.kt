@@ -5,6 +5,7 @@ import android.util.Base64
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import com.google.gson.annotations.JsonAdapter
 import com.google.gson.annotations.SerializedName
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -16,6 +17,7 @@ import java.util.zip.InflaterInputStream
 // TCP tunnel with pluggable transports. Client mode only here (the app never runs --exit-node);
 // its own embedded SOCKS5 server binds cfg.socksAddr directly (see CoreService.buildCommandArgs),
 // so like olcRTC/WebDAV/qWDTT it's socks5-native and speaks no auth flags of its own.
+@JsonAdapter(OpenFluxConfigAdapter::class)
 data class OpenFluxConfig(
     // "yandex" (Yandex.Docs cursor-message transport, needs `url`), "vyandex" (Yandex.Docs
     // "Volga" realtime-collab transport - same `url`, a rewritten disguise/backend on Yandex's
@@ -46,15 +48,17 @@ data class OpenFluxConfig(
     // exit-node that hasn't been updated past that point yet. False keeps the new default.
     @SerializedName("legacy_codec") val legacyCodec: Boolean = false,
     // Explicit encryption context (--session-context), the salt the keys are derived from along
-    // with the secret - both peers must use the same one. Blank = the core's own rule, see
-    // [derivedContext]; only needed for an exit started with a context of its own. Set by hand
-    // or from an openflux://v1/ link whose "context" differs from that rule.
+    // with the secret. Blank uses 0.17+'s fixed default. Explicit contexts from links and
+    // migrated profiles must reach the core unchanged, even when they equal the document URL.
     @SerializedName("session_context") val sessionContext: String = "",
     // The mode without a server (`--mode=stream`, share.ModeStream): the exit is a PHP node on
     // ordinary web hosting (deploy/phpbox), reached over one cups.online room or Mail.ru document,
     // and the core speaks its stream mux instead of IP packets. TCP only, no key or codec of its
     // own - encryptionKey/legacyCodec/sessionContext are kept but don't apply while it's on.
-    @SerializedName("stream_mode") val streamMode: Boolean = false
+    @SerializedName("stream_mode") val streamMode: Boolean = false,
+    // Missing in pre-0.17 WireTurn JSON. The adapter pins its old implicit context on read;
+    // new profiles and subsequent saves use version 1 and the core's fixed default.
+    @SerializedName("context_version") val contextVersion: Int = 1
 ) {
     /** Stream mode as it actually runs: only the carriers a PHP exit has (see [STREAM_TRANSPORTS]). */
     val isStream: Boolean get() = streamMode && transport in STREAM_TRANSPORTS
@@ -98,12 +102,12 @@ data class OpenFluxConfig(
         streamMode = (streamMode as Any?) == true
     )
 
-    /** The context the core derives on its own for this profile - see [derivedContext]. */
-    val derivedContext: String get() = derivedContext(transport, url)
+    /** OpenFlux 0.17+ uses one default, independent of the carrier URL. */
+    val derivedContext: String get() = CONTEXT_PLACEHOLDER
 
-    /** The --session-context to pass, if any: only when it differs from [derivedContext]. */
+    /** Explicit values are never elided: the same context is used for launch and sharing. */
     val effectiveSessionContext: String?
-        get() = sessionContext.takeIf { it.isNotBlank() && it != derivedContext }
+        get() = sessionContext.takeIf { it.isNotBlank() }
 
     fun fillDefaults(): OpenFluxConfig = sanitize()
 
@@ -167,17 +171,17 @@ data class OpenFluxConfig(
     companion object {
         const val V1_PREFIX = "openflux://v1/"
 
-        // The core's --url default, and the context of a channel with no document URL.
+        // The core's fixed default encryption context since 0.17.
         const val CONTEXT_PLACEHOLDER = "http://#"
 
         /**
-         * The encryption context the core derives for a single-transport client on its own
-         * (external/openflux transport/kdfcontext.go, KDFContexts): the document URL, except
+         * The pre-0.17 encryption context, used only for old JSON and legacy link formats:
+         * the document URL, except
          * where there's none to name the channel - a cupsonline room list (its exit creates the
          * rooms, so it can't know it beforehand) and MAX. An avito room list is created the same
          * way, but the core's contextURL doesn't make that exception for it - it names the channel.
          */
-        fun derivedContext(transport: String, url: String): String = when {
+        fun legacyContext(transport: String, url: String): String = when {
             transport == "cupsonline" || transport == "oneme" -> CONTEXT_PLACEHOLDER
             url.isBlank() -> CONTEXT_PLACEHOLDER
             else -> url
@@ -268,8 +272,8 @@ data class OpenFluxConfig(
                 "legacy" -> true
                 else -> return null
             }
-            // Kept only when it differs from what the core derives on its own, so an ordinary
-            // link leaves the field blank and a later change of document isn't pinned to it.
+            // Older exits put their document URL here. Preserve it explicitly instead of
+            // relying on the new core's legacy context fallback.
             val context = json.get("context")?.asString.orEmpty()
             return current.copy(
                 transport = type,
@@ -277,7 +281,7 @@ data class OpenFluxConfig(
                 streamMode = false,
                 encryptionKey = json.get("secret")?.asString.orEmpty(),
                 legacyCodec = legacyCodec,
-                sessionContext = context.takeIf { it.isNotBlank() && it != derivedContext(type, docUrl) }.orEmpty()
+                sessionContext = context
             )
         }
 
@@ -298,16 +302,24 @@ data class OpenFluxConfig(
                 "batched" -> false
                 else -> current.legacyCodec
             }
-            val sessionContext = uri.getQueryParameter("context").orEmpty()
+            val explicitContext = uri.getQueryParameter("context").orEmpty()
             return if (transport == "oneme") {
                 val token = uri.getQueryParameter("token") ?: current.maxToken
                 val uid = uri.getQueryParameter("uid") ?: current.maxUid
                 if (token.isBlank() || uid.isBlank()) return null
-                OpenFluxConfig(transport = "oneme", url = current.url, maxToken = token, maxUid = uid, encryptionKey = encryptionKey, legacyCodec = legacyCodec, sessionContext = sessionContext)
+                OpenFluxConfig(
+                    transport = "oneme", url = current.url, maxToken = token, maxUid = uid,
+                    encryptionKey = encryptionKey, legacyCodec = legacyCodec,
+                    sessionContext = explicitContext.ifBlank { if (encryptionKey.isNotBlank()) CONTEXT_PLACEHOLDER else "" }
+                )
             } else {
                 val docUrl = uri.getQueryParameter("url") ?: current.url
                 if (docUrl.isBlank()) return null
-                OpenFluxConfig(transport = transport, url = docUrl, maxToken = current.maxToken, maxUid = current.maxUid, encryptionKey = encryptionKey, legacyCodec = legacyCodec, sessionContext = sessionContext)
+                OpenFluxConfig(
+                    transport = transport, url = docUrl, maxToken = current.maxToken, maxUid = current.maxUid,
+                    encryptionKey = encryptionKey, legacyCodec = legacyCodec,
+                    sessionContext = explicitContext.ifBlank { if (encryptionKey.isNotBlank()) legacyContext(transport, docUrl) else "" }
+                )
             }
         }
 
@@ -341,7 +353,8 @@ data class OpenFluxConfig(
                 url = docUrl,
                 streamMode = false,
                 encryptionKey = encryptionKey,
-                legacyCodec = legacyCodec
+                legacyCodec = legacyCodec,
+                sessionContext = if (encryptionKey.isNotBlank()) legacyContext(transport, docUrl) else ""
             )
         }
     }

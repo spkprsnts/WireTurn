@@ -182,7 +182,7 @@
     <string name="openflux_encryption_key_label">Общий секрет</string>
     <string name="openflux_encryption_key_desc">Опциональное шифрование AES-256-GCM поверх транспорта - на обоих концах должен быть одинаковый секрет (от 16 символов).</string>
     <string name="openflux_session_context_label">Контекст шифрования</string>
-    <string name="openflux_session_context_desc">Пусто - определяется автоматически. Задайте, если на ноде указан свой --session-context</string>
+    <string name="openflux_session_context_desc">Пусто — используется http://#. Для старых профилей сохранён прежний контекст. Значение должно совпадать с контекстом ноды</string>
     <string name="olcrtc_id_label">ID комнаты</string>
     <string name="olcrtc_key_label">Ключ авторизации</string>
     <string name="olcrtc_dns_label">DNS-сервер</string>

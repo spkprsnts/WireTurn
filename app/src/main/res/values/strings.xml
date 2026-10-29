@@ -228,7 +228,7 @@
     <string name="openflux_encryption_key_label">Shared secret</string>
     <string name="openflux_encryption_key_desc">Optional AES-256-GCM encryption on top of the transport - both ends must use the same secret (16+ characters).</string>
     <string name="openflux_session_context_label">Encryption context</string>
-    <string name="openflux_session_context_desc">Empty - derived automatically. Set it if the node uses its own --session-context</string>
+    <string name="openflux_session_context_desc">Empty uses http://#. Older profiles keep their previous context. The value must match the node’s context</string>
     <string name="webdav_url_label">WebDAV URL</string>
     <string name="webdav_url_desc">URL of the WebDAV storage</string>
     <string name="webdav_login_label">Login</string>
