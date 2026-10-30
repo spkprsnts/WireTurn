@@ -85,7 +85,7 @@ object CsqttKernel : Kernel {
     }
 
     // Events on; also makes it exit once its stdin closes, i.e. when this app's process is gone.
-    override fun environment(cfg: ClientConfig): Map<String, String> =
+    override fun environment(ctx: KernelCommandContext, cfg: ClientConfig): Map<String, String> =
         mapOf("CSQTT_EVENTS" to "1", "RAYON_NUM_THREADS" to "2")
 
     // Only when the kernel isn't taking the VPN's TUN itself.

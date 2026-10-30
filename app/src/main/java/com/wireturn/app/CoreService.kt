@@ -648,7 +648,7 @@ class CoreService : Service() {
                 if (cfg.useCustomCerts) {
                     caBundlePath?.let { env["SSL_CERT_FILE"] = it }
                 }
-                env.putAll(kernel.environment(cfg))
+                env.putAll(kernel.environment(commandContext, cfg))
 
                 // Same non-suspending stretch as start() - a suspension point in between risks
                 // cancellation orphaning the freshly-spawned process with no reference to clean it up.

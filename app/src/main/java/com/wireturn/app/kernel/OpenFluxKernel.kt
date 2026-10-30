@@ -272,9 +272,43 @@ object OpenFluxKernel : Kernel {
         u.getQueryParameter("name") ?: u.encodedFragment?.replace("+", "%20")?.let(android.net.Uri::decode)?.takeIf(String::isNotBlank)
     } catch (_: Exception) { null }
 
+    // Since 0.14.5 Avito's dial gate (transport/avito/dialgate.go) keeps the pause after a 429 -
+    // doubling from 30 s up to 30 min - in a file every Avito process reads before it dials. Its
+    // default is in the temp directory, which on Android is /data/local/tmp: not writable, the
+    // write fails silently and the pause dies with the process. CoreService restarts the kernel on
+    // failures, so each new process would dial straight into the 429 again. In filesDir it
+    // outlives the restart.
+    override fun environment(ctx: KernelCommandContext, cfg: ClientConfig): Map<String, String> {
+        val o = (cfg.kernelConfig as? KernelConfig.OpenFlux)?.config ?: return emptyMap()
+        if (o.transport != "avito") return emptyMap()
+        return mapOf("OPENFLUX_AVITO_GATE_FILE" to avitoGateFile(ctx).absolutePath)
+    }
+
+    private fun avitoGateFile(ctx: KernelCommandContext) = File(ctx.filesDir, "openflux-avito-gate")
+
+    /**
+     * The gate file ("HOLD BACKOFF LAST429 TAT", ms) also carries the dial budget's schedule (TAT,
+     * GCRA): every room's reserved turn pushes it 12 s on, and a new process adopts it. Shared
+     * between a node's long-lived processes that's the point; here the process before was killed
+     * - a restart, a stop - and its 16 reservations died with it, yet each restart pushed TAT
+     * another ~3 min on until no room's turn came within CoreService's connecting timeout (seen
+     * live: no room dialed at all, TAT 5 min ahead). Only one Avito process runs at a time, so
+     * the schedule starts over at each start; the pause after a 429 stays.
+     */
+    private fun resetAvitoDialSchedule(file: File) {
+        val fields = runCatching { file.readText().trim().split(Regex("\\s+")) }.getOrNull() ?: return
+        if (fields.size < 3 || fields.any { it.toLongOrNull() == null }) {
+            file.delete()
+            return
+        }
+        // Three fields are a valid file to the gate (dialgate.go's adopt: n >= 3), with no TAT.
+        runCatching { file.writeText(fields.take(3).joinToString(" ") + "\n") }
+    }
+
     override fun buildCommand(ctx: KernelCommandContext, cfg: ClientConfig): List<String> {
         val cmdArgs = mutableListOf<String>()
         val o = (cfg.kernelConfig as KernelConfig.OpenFlux).config
+        if (o.transport == "avito") resetAvitoDialSchedule(avitoGateFile(ctx))
         cmdArgs.add("${ctx.nativeLibraryDir}/libopenflux.so")
         cmdArgs.addAll(listOf(
             // "--client" still works (kept as a deprecated alias for one release upstream) but is
@@ -554,8 +588,6 @@ object OpenFluxKernel : Kernel {
         // are gone); a rotated-out carrier closing is "retired carrier closed", not a read error.
         if (transport == "mailru" && (
                 lower.contains("[m-docs] connect failed") ||
-                lower.contains("[m-docs] fetchdocinfo failed") ||
-                lower.contains("[m-docs] websocket dial failed") ||
                 lower.contains("[m-docs] read error")
             )
         ) {

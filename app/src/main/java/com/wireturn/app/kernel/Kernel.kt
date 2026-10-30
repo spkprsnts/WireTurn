@@ -209,7 +209,7 @@ interface Kernel {
     fun buildCommand(ctx: KernelCommandContext, cfg: ClientConfig): List<String>
 
     /** Extra environment variables for the binary's process. */
-    fun environment(cfg: ClientConfig): Map<String, String> = emptyMap()
+    fun environment(ctx: KernelCommandContext, cfg: ClientConfig): Map<String, String> = emptyMap()
 
     /**
      * Full argv of a second binary to run next to this kernel's own for this run, or null for
