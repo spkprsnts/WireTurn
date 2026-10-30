@@ -581,11 +581,9 @@ private fun OpenFluxPlatformDialog(
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val platforms = listOf("mailru", "telemost", "boards", "avito", "cupsonline", "oneme", "yandex", "vyandex")
-
     SelectionDialog(
         title = stringResource(R.string.openflux_platform_label),
-        items = platforms,
+        items = OpenFluxConfig.PLATFORMS,
         isSelected = { it == currentPlatform },
         onSelect = { onSelect(it) },
         onDismiss = onDismiss

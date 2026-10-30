@@ -192,6 +192,16 @@ data class OpenFluxConfig(
 
         private val V1_TRANSPORTS = setOf("yandex", "vyandex", "boards", "mailru", "cupsonline", "avito", "telemost")
 
+        /**
+         * Every transport the platform picker offers, in its order. A new profile starts on the
+         * first; the class default stays "yandex", the one links and JSON without a transport
+         * have always meant (see sanitize/parseNative).
+         */
+        val PLATFORMS = listOf("mailru", "telemost", "boards", "avito", "cupsonline", "oneme", "yandex", "vyandex")
+
+        /** A new profile's config: the picker's first platform. */
+        fun newProfile() = OpenFluxConfig(transport = PLATFORMS.first())
+
         // share.ModeStream and the carriers a stream-mode exit speaks (share.go's streamTypes).
         const val MODE_STREAM = "stream"
         val STREAM_TRANSPORTS = setOf("cupsonline", "mailru")

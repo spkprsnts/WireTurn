@@ -51,7 +51,7 @@ class OpenFluxConfigActivity : ComponentActivity() {
                 } else if (isEditMode) {
                     (clientConfig.kernelConfig as? KernelConfig.OpenFlux)?.config ?: OpenFluxConfig()
                 } else {
-                    OpenFluxConfig()
+                    OpenFluxConfig.newProfile()
                 }
             }
 
