@@ -576,6 +576,7 @@
     <string name="error_openflux_telemost_not_found">Telemost conference not found</string>
     <string name="error_openflux_yandex_captcha">Yandex requires a captcha</string>
     <string name="error_openflux_yandex_login">Document requires a Yandex login</string>
+    <string name="error_openflux_mailru_login">Document requires a Mail.ru login</string>
     <string name="error_openflux_cups_rooms_gone">Cups rooms are closed</string>
     <string name="error_openflux_cups_rooms_unreachable">Cups rooms are not responding</string>
     <string name="error_openflux_avito_rooms_unreachable">Avito rooms are not responding</string>

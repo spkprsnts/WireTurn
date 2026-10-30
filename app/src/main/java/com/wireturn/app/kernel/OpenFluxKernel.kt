@@ -164,6 +164,13 @@ object OpenFluxKernel : Kernel {
         FastFailRule(setOf("mailru"), R.string.error_openflux_doc_not_found) {
             "api returned status 400" in it || "api returned status 404" in it
         },
+        // 0e'. Since 0.14.2 Cloud answers an anonymous r7/edit with 401 ("public is available with
+        // auth only"): the document opens only with a Mail.ru sign-in in the cookie store, and since
+        // 0.14.3 an exit no longer hands its own to the client. WireTurn has no Mail.ru sign-in, so
+        // retrying can't get past it.
+        FastFailRule(setOf("mailru"), R.string.error_openflux_mailru_login) {
+            "api returned status 401" in it
+        },
         // 0f. Yandex answered with a SmartCaptcha (unlike the PoW showcaptchafast one, which the
         // transport solves itself) or a passport.yandex login redirect (document not open to
         // anonymous access). Since 0.0.5 only a negotiated session can hand these to the app over

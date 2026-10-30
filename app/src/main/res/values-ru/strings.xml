@@ -525,6 +525,7 @@
     <string name="error_openflux_telemost_not_found">Конференция Телемоста не найдена</string>
     <string name="error_openflux_yandex_captcha">Яндекс требует капчу</string>
     <string name="error_openflux_yandex_login">Документ требует входа в Яндекс</string>
+    <string name="error_openflux_mailru_login">Документ требует входа в Mail.ru</string>
     <string name="error_openflux_cups_rooms_gone">Комнаты Cups закрыты</string>
     <string name="error_openflux_cups_rooms_unreachable">Комнаты Cups не отвечают</string>
     <string name="error_openflux_avito_rooms_unreachable">Комнаты Avito не отвечают</string>
