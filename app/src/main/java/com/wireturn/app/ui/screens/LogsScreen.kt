@@ -55,8 +55,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.AppLogsState
@@ -176,7 +179,9 @@ fun LogsScreen(
                             scope.launch(Dispatchers.IO) {
                                 try {
                                     context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                                        outputStream.write(logsState.value.joinToString("\n") { it.message }.toByteArray())
+                                        outputStream.write(logsState.value.joinToString("\n") {
+                                            "${it.timeLabel(withMillis = true)} ${it.message}"
+                                        }.toByteArray())
                                     }
                                     withContext(Dispatchers.Main) {
                                         HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
@@ -408,9 +413,20 @@ private fun LogLine(entry: AppLogsState.LogEntry) {
         } else {
             Spacer(Modifier.width(11.dp))
         }
+        // The time is part of the selectable text, so a copied line keeps it; dimmer than any level.
+        val timeColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = ContentAlpha.secondary)
+        val text = remember(entry.id, line, timeColor) {
+            buildAnnotatedString {
+                withStyle(SpanStyle(color = timeColor, fontWeight = FontWeight.Normal)) {
+                    append(entry.timeLabel())
+                    append(' ')
+                }
+                append(line)
+            }
+        }
         SelectionContainer {
             Text(
-                text = line,
+                text = text,
                 style = MaterialTheme.typography.bodySmall.copy(
                     fontFamily = FontFamily.Monospace,
                     fontWeight = when {

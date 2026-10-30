@@ -9,11 +9,26 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlin.time.Duration.Companion.milliseconds
 
 object AppLogsState {
 
-    data class LogEntry(val id: Long, val message: String, val level: LogLevel)
+    /**
+     * [timeMs] is when the app took the line in, on the device's clock - the app's own lines carry
+     * no time, and the kernels' own stamps are in UTC (Go on Android), so neither tells when.
+     */
+    data class LogEntry(val id: Long, val message: String, val level: LogLevel, val timeMs: Long) {
+        /** "HH:mm:ss" in the device's time zone, or "HH:mm:ss.SSS" for a saved file. */
+        fun timeLabel(withMillis: Boolean = false): String =
+            (if (withMillis) TIME_MS_FORMAT else TIME_FORMAT)
+                .format(Instant.ofEpochMilli(timeMs).atZone(ZoneId.systemDefault()))
+    }
+
+    private val TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss")
+    private val TIME_MS_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
 
     // Sized for the "All" level: every kernel runs with its debug output on.
     private const val MAX_LOG_LINES = 2000
@@ -24,6 +39,12 @@ object AppLogsState {
     private const val PUBLISH_INTERVAL_MS = 100L
 
     private val ANSI_ESCAPE = Regex("\u001B\\[[;\\d]*[mK]")
+
+    // Go's log stamp ("2026/10/30 00:49:51.478922 "), at the start of a kernel's line or after the
+    // tag a service puts in front of it ("* [Xray] 2026/10/30 01:09:42 ..."). LogEntry.timeMs
+    // replaces it: it's the same moment in UTC, which next to the device's time only misleads.
+    // Only what's stored goes - the kernels parse their raw lines before they get here.
+    private val GO_LOG_STAMP = Regex("""^(\* \[[^\]]+] )?\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)? """)
 
     private val lock = Any()
     private val buffer = ArrayDeque<LogEntry>(MAX_LOG_LINES)
@@ -62,12 +83,12 @@ object AppLogsState {
 
     /** [level] null = guess it from the text, see [LogLevels.detect]. */
     fun addLog(msg: String, level: LogLevel? = null) {
-        val cleanMsg = stripAnsi(msg)
+        val cleanMsg = stripAnsi(msg).replaceFirst(GO_LOG_STAMP, "$1")
         val resolvedLevel = level ?: LogLevels.detect(cleanMsg)
         if (resolvedLevel < minLevel) return
         android.util.Log.println(resolvedLevel.logcatPriority(), "WireTurnCore", cleanMsg)
         synchronized(lock) {
-            buffer.addLast(LogEntry(nextId++, cleanMsg, resolvedLevel))
+            buffer.addLast(LogEntry(nextId++, cleanMsg, resolvedLevel, System.currentTimeMillis()))
             if (buffer.size > MAX_LOG_LINES) buffer.removeFirst()
         }
         publishRequests.trySend(Unit)
