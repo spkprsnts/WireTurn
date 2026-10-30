@@ -466,6 +466,11 @@ fun OpenFluxConfigScreen(
                         }
                     }
                 }
+
+                // The stream mode's carrier reads no cookie store (OpenFluxKernel.buildCommand).
+                ExpandableSection(visible = config.transport == "mailru" && !config.isStream) {
+                    MailruSignInSection(modifier = Modifier.padding(top = 19.dp))
+                }
             }
 
             // Codec and encryption are the classic tunnel's - the stream mode has neither.

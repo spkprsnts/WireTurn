@@ -58,6 +58,7 @@ import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.ValidatorUtils
+import com.wireturn.app.ui.screens.kernel.MailruSignInSection
 import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.redact
 
@@ -439,6 +440,10 @@ fun ConnectionSettingsScreen(
                     }
                 }
             }
+
+            // OpenFlux's mailru carrier - one sign-in for every profile, so it lives here too,
+            // not only in a Mail.ru profile. Applies at once, outside the screen's Save.
+            MailruSignInSection()
         }
     }
 

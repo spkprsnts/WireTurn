@@ -577,6 +577,16 @@
     <string name="error_openflux_yandex_captcha">Yandex requires a captcha</string>
     <string name="error_openflux_yandex_login">Document requires a Yandex login</string>
     <string name="error_openflux_mailru_login">Document requires a Mail.ru login</string>
+    <string name="error_openflux_mailru_forbidden">Mail.ru won\'t open the document: sign in again or allow editing by link</string>
+    <string name="openflux_mailru_signin_title">Mail.ru sign-in</string>
+    <string name="openflux_mailru_sign_in">Sign in to Mail.ru</string>
+    <string name="openflux_mailru_sign_in_desc">Mail.ru opens a document only for a signed-in account. Use a different account than the node\'s: on one account Mail.ru drops the connection. One sign-in serves every Mail.ru profile</string>
+    <string name="openflux_mailru_signed_in">Signed in</string>
+    <string name="openflux_mailru_signed_in_desc">Serves every Mail.ru profile. The account must differ from the node\'s. Tap to sign out</string>
+    <string name="openflux_mailru_signin_done">Signed in to Mail.ru</string>
+    <string name="openflux_mailru_sign_out_title">Sign out of Mail.ru?</string>
+    <string name="openflux_mailru_sign_out_desc">Mail.ru profiles won\'t open their documents until you sign in again. A running tunnel picks this up on its next start.</string>
+    <string name="openflux_mailru_sign_out">Sign out</string>
     <string name="error_openflux_cups_rooms_gone">Cups rooms are closed</string>
     <string name="error_openflux_cups_rooms_unreachable">Cups rooms are not responding</string>
     <string name="error_openflux_avito_rooms_unreachable">Avito rooms are not responding</string>

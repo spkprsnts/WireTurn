@@ -3,8 +3,13 @@
     <cloud-backup>
         <!-- DataStore содержит конфиги профилей и настройки -->
         <exclude domain="file" path="datastore/"/>
+        <!-- Вход в Mail.ru (MailruSignIn) и его копия в хранилище cookies ядра OpenFlux -->
+        <exclude domain="file" path="mailru_signin.json"/>
+        <exclude domain="file" path="cookies-mailru.json"/>
     </cloud-backup>
     <device-transfer>
         <exclude domain="file" path="datastore/"/>
+        <exclude domain="file" path="mailru_signin.json"/>
+        <exclude domain="file" path="cookies-mailru.json"/>
     </device-transfer>
 </data-extraction-rules>

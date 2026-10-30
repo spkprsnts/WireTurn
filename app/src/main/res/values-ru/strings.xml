@@ -526,6 +526,16 @@
     <string name="error_openflux_yandex_captcha">Яндекс требует капчу</string>
     <string name="error_openflux_yandex_login">Документ требует входа в Яндекс</string>
     <string name="error_openflux_mailru_login">Документ требует входа в Mail.ru</string>
+    <string name="error_openflux_mailru_forbidden">Mail.ru не открывает документ: войдите заново или включите редактирование по ссылке</string>
+    <string name="openflux_mailru_signin_title">Вход в Mail.ru</string>
+    <string name="openflux_mailru_sign_in">Войти в Mail.ru</string>
+    <string name="openflux_mailru_sign_in_desc">Mail.ru открывает документ только после входа. Войдите не тем аккаунтом, что на ноде: на одном аккаунте Mail.ru обрывает соединение. Один вход действует для всех профилей Mail.ru</string>
+    <string name="openflux_mailru_signed_in">Вход выполнен</string>
+    <string name="openflux_mailru_signed_in_desc">Действует для всех профилей Mail.ru. Аккаунт должен отличаться от аккаунта ноды. Нажмите, чтобы выйти</string>
+    <string name="openflux_mailru_signin_done">Вход в Mail.ru выполнен</string>
+    <string name="openflux_mailru_sign_out_title">Выйти из Mail.ru?</string>
+    <string name="openflux_mailru_sign_out_desc">Профили Mail.ru перестанут открывать документ, пока вы снова не войдёте. Запущенный туннель это заметит при следующем запуске.</string>
+    <string name="openflux_mailru_sign_out">Выйти</string>
     <string name="error_openflux_cups_rooms_gone">Комнаты Cups закрыты</string>
     <string name="error_openflux_cups_rooms_unreachable">Комнаты Cups не отвечают</string>
     <string name="error_openflux_avito_rooms_unreachable">Комнаты Avito не отвечают</string>

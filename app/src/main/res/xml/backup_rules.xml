@@ -3,4 +3,7 @@
 <full-backup-content>
     <!-- DataStore содержит конфиги профилей и настройки — не бэкапим -->
     <exclude domain="file" path="datastore/"/>
+    <!-- Вход в Mail.ru (MailruSignIn) и его копия в хранилище cookies ядра OpenFlux -->
+    <exclude domain="file" path="mailru_signin.json"/>
+    <exclude domain="file" path="cookies-mailru.json"/>
 </full-backup-content>

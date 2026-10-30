@@ -10,6 +10,7 @@ import com.wireturn.app.R
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
+import com.wireturn.app.data.kernel.MailruSignIn
 import com.wireturn.app.data.kernel.OpenFluxConfig
 import com.wireturn.app.ui.activities.kernel.OpenFluxConfigActivity
 import java.io.File
@@ -166,10 +167,17 @@ object OpenFluxKernel : Kernel {
         },
         // 0e'. Since 0.14.2 Cloud answers an anonymous r7/edit with 401 ("public is available with
         // auth only"): the document opens only with a Mail.ru sign-in in the cookie store, and since
-        // 0.14.3 an exit no longer hands its own to the client. WireTurn has no Mail.ru sign-in, so
-        // retrying can't get past it.
+        // 0.14.3 an exit no longer hands its own to the client. No sign-in (see MailruSignIn), or an
+        // expired one - retrying can't get past either.
         FastFailRule(setOf("mailru"), R.string.error_openflux_mailru_login) {
             "api returned status 401" in it
+        },
+        // 0e''. 403 from r7/edit with a sign-in: Cloud doesn't take the session (expired, or an
+        // incomplete jar - see MailruSignIn.verify), or this account may not edit the document
+        // (its link shares it for viewing only). Seen live: an exit signed in from a browser opened
+        // the same document while the client got 403 on every attempt.
+        FastFailRule(setOf("mailru"), R.string.error_openflux_mailru_forbidden) {
+            "api returned status 403" in it
         },
         // 0f. Yandex answered with a SmartCaptcha (unlike the PoW showcaptchafast one, which the
         // transport solves itself) or a passport.yandex login redirect (document not open to
@@ -286,6 +294,13 @@ object OpenFluxKernel : Kernel {
             cmdArgs.addAll(listOf("--maxToken", o.maxToken, "--maxUid", o.maxUid))
         } else {
             cmdArgs.addAll(listOf("--url", o.url))
+        }
+        // Mail.ru opens a document only for a signed-in account since 0.14.2 (see MailruSignIn).
+        // The stream mode's carrier never reads a cookie store (main.go's streamCarrier), so it
+        // stays out of it.
+        if (o.transport == "mailru" && !o.isStream) {
+            MailruSignIn.prepareCookieStore(ctx.filesDir, o.url)
+            cmdArgs.addAll(listOf("--cookie-store", MailruSignIn.storeFile(ctx.filesDir).absolutePath))
         }
         // The binary's own default codec is "batched" (zstd + coalescing) - both ends of the
         // tunnel must use the same one, it isn't negotiated, so this only gets passed to fall
