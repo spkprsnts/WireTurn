@@ -122,12 +122,6 @@ class CoreService : Service() {
         override val nativeLibraryDir get() = applicationInfo.nativeLibraryDir
         override val nativeTunSocket get() = this@CoreService.nativeTunSocket
         override val runSocket get() = this@CoreService.runSocket
-        // ANDROID_ID on purpose: servers like CSQTT's bind a password to it, and unlike an ID of
-        // our own it survives a reinstall or cleared app data (which would need an unbind on the
-        // server). It's scoped to this app's signing key, so it tracks nothing across apps.
-        @get:android.annotation.SuppressLint("HardwareIds")
-        override val deviceId: String
-            get() = android.provider.Settings.Secure.getString(contentResolver, android.provider.Settings.Secure.ANDROID_ID) ?: "unknown"
     }
     private val logContext = object : KernelLogContext {
         override fun getString(resId: Int, vararg args: Any) = this@CoreService.getString(resId, *args)

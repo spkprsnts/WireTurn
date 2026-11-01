@@ -25,7 +25,7 @@ import com.wireturn.app.ui.activities.kernel.CsqttConfigActivity
 // the status signals here.
 object CsqttKernel : Kernel {
     override val variant: KernelVariant = KernelVariant.CSQTT
-    override val sensitiveCommandFlags: Set<String> = setOf("-vk", "-password", "-device-id", "--user", "--pass")
+    override val sensitiveCommandFlags: Set<String> = setOf("-vk", "--user", "--pass")
     override val displayNameRes: Int = R.string.kernel_csqtt
     override val configActivityClass = CsqttConfigActivity::class.java
     override val wgNotUsedMessageRes: Int = R.string.wg_not_used_with_csqtt
@@ -59,8 +59,9 @@ object CsqttKernel : Kernel {
     override fun decodeUri(uri: String): KernelConfig? =
         CsqttConfig.parse(uri)?.let { KernelConfig.Csqtt(it) }
 
+    // An encrypted link (2.5.0+) carries its name inside the payload - see CsqttConfig.toUri.
     override fun displayNameFromUri(uri: String): String? = try {
-        uri.toUri().getQueryParameter("name")?.takeIf { it.isNotBlank() }
+        (CsqttConfig.decryptLink(uri) ?: uri).toUri().getQueryParameter("name")?.takeIf { it.isNotBlank() }
     } catch (_: Exception) { null }
 
     // Raw IP is all it speaks - any server takes the VPN's TUN directly.
@@ -70,14 +71,15 @@ object CsqttKernel : Kernel {
         val o = (cfg.kernelConfig as KernelConfig.Csqtt).config
         return buildList {
             add("${ctx.nativeLibraryDir}/libcsqtt.so")
-            addAll(listOf("-peer", o.peer, "-password", o.password))
+            // The password goes in CSQTT_PASSWORD (see environment) - since 2.5.0 the client
+            // refuses -password, and -device-id with it: a password is no longer bound to a device.
+            addAll(listOf("-peer", o.peer))
             addAll(listOf("-vk", o.hashList().joinToString(","), "-n", o.normalizedWorkers().toString()))
             // The VPN's TUN, or socks2tun's end of the socketpair - see buildSidecarCommand.
             addAll(listOf("-tun-uds", ctx.nativeTunSocket ?: ctx.runSocket))
             addAll(listOf("-obfs", o.obfsMode, "-turn-transport", if (o.turnTcp) "tcp_tls" else "udp"))
             addAll(listOf("-fingerprint", FINGERPRINT, "-client-ids", CLIENT_IDS))
             if (o.manualCaptcha) addAll(listOf("-captcha-mode", "wv"))
-            addAll(listOf("-device-id", ctx.deviceId))
             // A new session epoch per run: the server drops the device's previous session for it
             // (rust-server's DeviceEpoch) instead of waiting for it to time out.
             addAll(listOf("-gen", System.currentTimeMillis().toString(), "-salt", newSalt()))
@@ -85,8 +87,13 @@ object CsqttKernel : Kernel {
     }
 
     // Events on; also makes it exit once its stdin closes, i.e. when this app's process is gone.
+    // The password: the only way 2.5.0 takes it, which also keeps it out of the process list.
     override fun environment(ctx: KernelCommandContext, cfg: ClientConfig): Map<String, String> =
-        mapOf("CSQTT_EVENTS" to "1", "RAYON_NUM_THREADS" to "2")
+        mapOf(
+            "CSQTT_EVENTS" to "1",
+            "RAYON_NUM_THREADS" to "2",
+            "CSQTT_PASSWORD" to (cfg.kernelConfig as KernelConfig.Csqtt).config.password
+        )
 
     // Only when the kernel isn't taking the VPN's TUN itself.
     override fun buildSidecarCommand(ctx: KernelCommandContext, cfg: ClientConfig): List<String>? {
@@ -139,10 +146,10 @@ object CsqttKernel : Kernel {
             return false
         }
 
-        // 2. Hard errors - a wrong password, an expired one, one bound to another device, a
-        // server on another protocol version: a restart won't change any of these.
+        // 2. Hard errors - a wrong password, an expired one, a server on another protocol
+        // version: a restart won't change any of these.
         if (line.contains("FATAL_AUTH") || line.contains("FATAL_PROTOCOL")) {
-            val reason = readableFailure(ctx, line)
+            val reason = readableFailure(line)
             ctx.setLastFailureReason(reason)
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                 CoreServiceState.setStatus(CoreStatus.Error(reason))
@@ -217,20 +224,18 @@ object CsqttKernel : Kernel {
                     syncCaptchaWithTunnel(ctx, alive = it > 0)
                 }
             }
-            // "Fatal" to the official app, which then stops for good. A rejection is (a password/
-            // protocol problem, also logged as FATAL_AUTH/FATAL_PROTOCOL, point 2 above). An
-            // unanswered handshake is mostly a wrong password too - the whole exchange is wrapped
-            // with a key derived from it, so the server can't even read a wrong one's request and
-            // never answers - but it may also be the server being down: once goes to the watchdog,
-            // again right after that (this run is already a watchdog retry) is the end.
+            // "Fatal" to the official app, which then stops for good. A rejection is a password/
+            // protocol problem (also logged as FATAL_AUTH/FATAL_PROTOCOL, point 2 above); no config
+            // is the server's address pool having no slot for this client. Neither gets better on
+            // a retry. Since 2.5.0 an unanswered handshake raises no event of its own - the workers
+            // keep trying and the connecting watchdog has it.
             "ERROR" -> {
                 if (payload?.booleanOrNull("fatal") != true) return false
-                val message = readableFailure(ctx, payload.stringOrNull("message").orEmpty())
+                val message = readableFailure(payload.stringOrNull("message").orEmpty())
                 ctx.setLastFailureReason(message)
                 state.startupEmitted = true
                 val code = payload.stringOrNull("code")
-                val isRetry = CoreServiceState.restartAttempt.value != null
-                if (code == "handshake_rejected" || (code == "handshake_timeout" && isRetry)) {
+                if (code == "handshake_rejected" || code == "handshake_no_config") {
                     if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                         CoreServiceState.setStatus(CoreStatus.Error(message))
                         ctx.updateNotification(ctx.getString(R.string.error_connecting))
@@ -245,10 +250,8 @@ object CsqttKernel : Kernel {
 
     // The client's own Russian text after its "FATAL_AUTH:"-style tag (rust-client/protocol.rs),
     // shown under the start button - so without the advice some of them add after a ";" ("...
-    // разные версии протокола; выполните деплой ..."). A password bound to another device gets a
-    // string of its own: this app's ANDROID_ID differs from the official app's, even on one phone.
-    private fun readableFailure(ctx: KernelLogContext, text: String): String {
-        if (text.contains("другому устройству")) return ctx.getString(R.string.error_csqtt_device_mismatch)
+    // разные версии протокола; выполните деплой ...").
+    private fun readableFailure(text: String): String {
         val reason = FATAL_TAG.find(text)?.let { text.substring(it.range.last + 1) } ?: text
         return reason.substringBefore(';').trim().replaceFirstChar { it.uppercase() }
     }

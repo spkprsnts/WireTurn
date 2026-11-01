@@ -25,8 +25,6 @@ interface KernelCommandContext {
     // A fresh abstract Unix socket name for this run, for a kernel and its sidecar to meet on
     // (see Kernel.buildSidecarCommand) - the same in both commands of one run.
     val runSocket: String get() = ""
-    // Stable per install (Settings.Secure.ANDROID_ID) - for servers that bind access to a device.
-    val deviceId: String get() = "unknown"
 }
 
 /**

@@ -347,7 +347,7 @@
     <string name="qwdtt_raw_port_desc">The server\'s -listen-raw port. When set, VPN without Xray runs straight through the kernel, without hev</string>
     <string name="qwdtt_advanced_settings">Advanced Settings</string>
     <string name="csqtt_hashes_desc">VK: «https://vk.com/call/join/[ID]». Up to %1$d IDs, separated by commas.</string>
-    <string name="csqtt_workers_desc">In groups of 9, up to %1$d per call ID. Used now: %2$d</string>
+    <string name="csqtt_workers_desc">In groups of %1$d, up to %2$d. Used now: %3$d</string>
     <string name="csqtt_turn_tcp_desc">TCP/TLS gets through restrictive networks more often; UDP can be faster</string>
     <string name="qwdtt_obfs_label">Obfuscation</string>
     <string name="qwdtt_turn_tcp_label">Transport to TURN relay</string>
@@ -560,7 +560,6 @@
 
     <string name="error_release_info_failed">Could not get release information</string>
     <string name="error_process_no_output">Process finished with no output (code: %1$d)</string>
-    <string name="error_csqtt_device_mismatch">Password is bound to another device</string>
     <string name="error_sidecar_failed">Local SOCKS5 didn\'t start</string>
     <string name="error_sidecar_port_in_use">SOCKS5 port %1$s is already in use</string>
     <string name="error_kernel_unsupported_device">Kernel doesn\'t support this device</string>

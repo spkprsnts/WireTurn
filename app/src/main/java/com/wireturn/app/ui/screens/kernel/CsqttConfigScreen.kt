@@ -360,7 +360,8 @@ fun CsqttConfigScreen(
                         steps = CsqttConfig.MAX_WORKERS / group - 2,
                         supportingText = stringResource(
                             R.string.csqtt_workers_desc,
-                            CsqttConfig.GROUPS_PER_HASH * group,
+                            group,
+                            CsqttConfig.MAX_WORKERS,
                             config.normalizedWorkers()
                         ),
                         isModified = isEditMode && config.workers != initialConfig.workers

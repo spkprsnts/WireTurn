@@ -297,7 +297,7 @@
     <string name="qwdtt_raw_port_desc">Порт -listen-raw на сервере. Если задан, VPN без Xray работает напрямую через ядро, без hev</string>
     <string name="qwdtt_advanced_settings">Расширенные настройки</string>
     <string name="csqtt_hashes_desc">VK: Звонки «https://vk.com/call/join/[ID]». До %1$d ID через запятую.</string>
-    <string name="csqtt_workers_desc">Группами по 9, до %1$d на один ID звонка. Сейчас используется: %2$d</string>
+    <string name="csqtt_workers_desc">Группами по %1$d, не больше %2$d. Сейчас используется: %3$d</string>
     <string name="csqtt_turn_tcp_desc">TCP/TLS чаще проходит через ограничительные сети; UDP может быть быстрее</string>
     <string name="qwdtt_obfs_label">Обфускация</string>
     <string name="qwdtt_turn_tcp_label">Транспорт до TURN-relay</string>
@@ -509,7 +509,6 @@
 
     <string name="error_release_info_failed">Не удалось получить информацию о релизе</string>
     <string name="error_process_no_output">Процесс завершился без вывода (код: %1$d)</string>
-    <string name="error_csqtt_device_mismatch">Пароль привязан к другому устройству</string>
     <string name="error_sidecar_failed">Локальный SOCKS5 не запустился</string>
     <string name="error_sidecar_port_in_use">Порт SOCKS5 %1$s уже занят</string>
     <string name="error_kernel_unsupported_device">Ядро не поддерживает это устройство</string>
