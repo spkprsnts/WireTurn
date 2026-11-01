@@ -702,6 +702,9 @@
     <string name="qr_force_static_label">Single QR code</string>
     <string name="qr_force_static_hint">For scanning with other apps that don\'t support multi-frame codes; may not scan reliably</string>
     <string name="settings_group_kernel_params">Kernel settings</string>
+    <string name="default_vk_calls_title">VK calls</string>
+    <string name="default_vk_calls_label">Default call IDs</string>
+    <string name="default_vk_calls_desc">For profiles that leave their call IDs blank. Several, comma-separated: FreeTurn, qWDTT and CSQTT use all of them, Turnable the first. \"https://vk.com/call/join/[ID]\" links work too</string>
     <string name="settings_group_kernel_socks5">Kernel SOCKS5 settings</string>
     <string name="xray_settings_group_connection">Connection</string>
     <string name="xray_protocol_desc">Choose protocol for Xray-core</string>

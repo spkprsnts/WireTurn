@@ -62,6 +62,7 @@ class FreeTurnConfigActivity : ComponentActivity() {
                     initialConfig = initialConfig,
                     profileName = profileName.ifBlank { null },
                     privacyMode = privacyMode,
+                    defaultVkCalls = clientConfig.defaultVkCallIds,
                     onBack = { finish() },
                     onSave = { config ->
                         if (isEditMode) {

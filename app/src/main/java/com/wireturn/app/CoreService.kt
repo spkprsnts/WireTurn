@@ -226,8 +226,11 @@ class CoreService : Service() {
             }
 
             prefs.saveClientConfig(filledCfg)
+            // What runs has the default VK calls filled in (withDefaultVkCalls); the session -
+            // which XrayService saves back to the preferences - stays as the profile has it, so the
+            // setting is never baked into a profile.
             CoreServiceState.setSession(CoreServiceState.RunningSession(filledCfg, profileName))
-            currentRunningCfg.set(filledCfg)
+            currentRunningCfg.set(filledCfg.withDefaultVkCalls())
 
             try {
                 initStartup(vlessConfig, xrayConfig, profileName)
@@ -382,7 +385,10 @@ class CoreService : Service() {
                     // handleStopAction() runs - without this guard that races the real stop.
                     if (userStopped.get()) return@collect
                     val runningCfg = currentRunningCfg.get() ?: return@collect
-                    val newCfg = newCfgRaw.fillDefaults()
+                    // As at the start: the default VK calls go into what runs - a change to them
+                    // restarts the binary too - and not into the session.
+                    val sessionCfg = newCfgRaw.fillDefaults()
+                    val newCfg = sessionCfg.withDefaultVkCalls()
 
                     if (!newCfg.isValid) {
                         val errorRes = newCfg.getValidationErrorResId() ?: R.string.error_settings_empty
@@ -398,7 +404,7 @@ class CoreService : Service() {
 
                     val binaryChanged = requiresBinaryRestart(runningCfg, newCfg)
                     currentRunningCfg.set(newCfg)
-                    CoreServiceState.setSession(CoreServiceState.RunningSession(newCfg, prefs.currentProfileNameFlow.first().orEmpty()))
+                    CoreServiceState.setSession(CoreServiceState.RunningSession(sessionCfg, prefs.currentProfileNameFlow.first().orEmpty()))
                     if (binaryChanged) {
                         // A config/profile switch is a deliberate new attempt, not the watchdog
                         // retrying a failure - drop any restart counter left over from before.

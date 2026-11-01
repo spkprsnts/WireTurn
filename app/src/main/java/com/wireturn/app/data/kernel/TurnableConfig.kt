@@ -84,8 +84,10 @@ data class TurnableConfig(
     }
 
     companion object {
+        const val PLATFORM_VK = "vk.com"
+
         fun getPlatformDisplayName(platformId: String): String = when (platformId) {
-            "vk.com" -> "VK"
+            PLATFORM_VK -> "VK"
             else -> platformId
         }
         fun parse(url: String, current: TurnableConfig = TurnableConfig()): TurnableConfig? {

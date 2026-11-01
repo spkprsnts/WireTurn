@@ -84,6 +84,8 @@ fun CsqttConfigScreen(
     initialConfig: CsqttConfig = CsqttConfig(),
     profileName: String? = null,
     privacyMode: Boolean = false,
+    // ClientConfig.defaultVkCallIds - what a blank hashes field runs with.
+    defaultVkCalls: List<String> = emptyList(),
     onBack: () -> Unit,
     onSave: (CsqttConfig) -> Unit
 ) {
@@ -326,7 +328,8 @@ fun CsqttConfigScreen(
                         value = config.vkHashes.redact(isPrivacyActive),
                         onValueChange = { if (!isPrivacyActive) config = config.copy(vkHashes = it) },
                         readOnly = isPrivacyActive,
-                        isError = config.hashList().isEmpty(),
+                        isError = config.hashList().isEmpty() && defaultVkCalls.isEmpty(),
+                        placeholder = defaultVkCalls.joinToString(", ").redact(isPrivacyActive),
                         isModified = isEditMode && config.vkHashes != initialConfig.vkHashes,
                         privacyMode = isPrivacyActive,
                         singleLine = false,

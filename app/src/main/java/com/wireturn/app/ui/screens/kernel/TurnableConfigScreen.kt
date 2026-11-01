@@ -104,6 +104,8 @@ fun TurnableConfigScreen(
     initialConfig: TurnableConfig = TurnableConfig(),
     profileName: String? = null,
     privacyMode: Boolean = false,
+    // ClientConfig.defaultVkCallIds - its first is what a blank call on VK runs with.
+    defaultVkCalls: List<String> = emptyList(),
     onBack: () -> Unit,
     onSave: (TurnableConfig) -> Unit
 ) {
@@ -409,6 +411,9 @@ fun TurnableConfigScreen(
                     )
                 }
                 SectionItem {
+                    // As ClientConfig.withDefaultVkCalls: only a VK route takes the default.
+                    val defaultCall = defaultVkCalls.firstOrNull()
+                        ?.takeIf { config.platformId == TurnableConfig.PLATFORM_VK }
                     TextFieldRow(
                         label = stringResource(R.string.call_id_label),
                         value = config.callId.redact(isPrivacyActive),
@@ -416,7 +421,8 @@ fun TurnableConfigScreen(
                         readOnly = isPrivacyActive,
                         supportingText = stringResource(R.string.call_id_desc),
                         isModified = isEditMode && config.callId != initialConfig.callId,
-                        isError = config.callId.isBlank(),
+                        isError = config.callId.isBlank() && defaultCall == null,
+                        placeholder = defaultCall.orEmpty().redact(isPrivacyActive),
                         privacyMode = isPrivacyActive
                     )
                 }

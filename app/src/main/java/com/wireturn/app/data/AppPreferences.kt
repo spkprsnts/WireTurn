@@ -117,6 +117,7 @@ class AppPreferences(val context: Context) {
         val PROFILES_GESTURE_ENABLED = booleanPreferencesKey("profiles_gesture_enabled")
         val GO_DNS_GO = booleanPreferencesKey("go_dns_go")
         val USE_CUSTOM_CERTS = booleanPreferencesKey("use_custom_certs")
+        val DEFAULT_VK_CALLS = stringPreferencesKey("default_vk_calls")
 
         val CLIENT_LISTEN_ADDR = stringPreferencesKey("client_listen_addr")
         val CLIENT_DNS = stringPreferencesKey("client_dns")
@@ -306,6 +307,7 @@ class AppPreferences(val context: Context) {
                 dns = p[CLIENT_DNS] ?: "",
                 goDnsGo = p[GO_DNS_GO] ?: false,
                 useCustomCerts = p[USE_CUSTOM_CERTS] ?: true,
+                defaultVkCalls = p[DEFAULT_VK_CALLS] ?: "",
                 kernelConfig = kernelConfig
             )
         }.distinctUntilChanged()
@@ -656,6 +658,7 @@ class AppPreferences(val context: Context) {
             it[CLIENT_DNS] = c.dns
             it[GO_DNS_GO] = c.goDnsGo
             it[USE_CUSTOM_CERTS] = c.useCustomCerts
+            it[DEFAULT_VK_CALLS] = c.defaultVkCalls
             it[ACTIVE_KERNEL_JSON] = gson.toJson(kernelSnapshotOf(c.kernelConfig))
         }
     }

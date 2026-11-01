@@ -92,6 +92,8 @@ fun FreeTurnConfigScreen(
     initialConfig: FreeTurnConfig = FreeTurnConfig(),
     profileName: String? = null,
     privacyMode: Boolean = false,
+    // ClientConfig.defaultVkCallIds - what a blank links field runs with.
+    defaultVkCalls: List<String> = emptyList(),
     onBack: () -> Unit,
     onSave: (FreeTurnConfig) -> Unit
 ) {
@@ -391,7 +393,8 @@ fun FreeTurnConfigScreen(
                             onValueChange = { if (!isPrivacyActive) config = config.copy(links = it) },
                             readOnly = isPrivacyActive,
                             isModified = isEditMode && config.links != initialConfig.links,
-                            isError = config.links.isBlank(),
+                            isError = config.links.isBlank() && defaultVkCalls.isEmpty(),
+                            placeholder = defaultVkCalls.joinToString(", ").redact(isPrivacyActive),
                             privacyMode = isPrivacyActive,
                             singleLine = false,
                             minLines = 1,

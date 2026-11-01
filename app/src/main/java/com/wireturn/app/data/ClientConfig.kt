@@ -166,6 +166,9 @@ data class ClientConfig(
     val dns: String = "",
     val goDnsGo: Boolean = false,
     val useCustomCerts: Boolean = true,
+    // VK call IDs (or whole call links), comma separated, for the profiles that leave their own
+    // blank - see withDefaultVkCalls. A device setting, never part of a profile.
+    val defaultVkCalls: String = "",
     val kernelConfig: KernelConfig = KernelConfig.Turnable(),
     // Universal quick-input field: the scheme in the link (turnable://, olcrtc://, webdav(s)://,
     // freeturn://) already says which kernel it is, so one field replaces the four below.
@@ -235,7 +238,38 @@ data class ClientConfig(
 
     val connectableAddress: String get() = listenAddr.replace("0.0.0.0:", "127.0.0.1:")
 
-    fun getValidationErrorResId(): Int? = when (val k = kernelConfig) {
+    /** [defaultVkCalls] as IDs: links cut to the part after /call/join/, blanks and repeats out. */
+    val defaultVkCallIds: List<String>
+        get() = ((defaultVkCalls as String?) ?: "").split(Regex("[,\\s]+"))
+            .map(CsqttConfig::stripVkCallUrl).filter(String::isNotEmpty).distinct()
+
+    /**
+     * This config with the kernel's blank VK call field taken from [defaultVkCalls]: all of the
+     * IDs where the kernel takes several at once (FreeTurn's links, qWDTT's and CSQTT's hashes),
+     * the first where it takes one (Turnable's call, on VK only). What runs and what's checked -
+     * never saved, so the profile itself stays blank and follows the setting.
+     */
+    fun withDefaultVkCalls(): ClientConfig {
+        val ids = defaultVkCallIds.takeIf { it.isNotEmpty() } ?: return this
+        val all = ids.joinToString(",")
+        val filled = when (val k = kernelConfig) {
+            is KernelConfig.FreeTurn ->
+                if (!k.config.isDirect && k.config.links.isBlank()) KernelConfig.FreeTurn(k.config.copy(links = all)) else k
+            is KernelConfig.Qwdtt ->
+                if (k.config.vkHashes.isBlank()) KernelConfig.Qwdtt(k.config.copy(vkHashes = all)) else k
+            is KernelConfig.Csqtt ->
+                if (k.config.vkHashes.isBlank()) KernelConfig.Csqtt(k.config.copy(vkHashes = all)) else k
+            is KernelConfig.Turnable ->
+                if (k.config.platformId == TurnableConfig.PLATFORM_VK && k.config.callId.isBlank()) {
+                    KernelConfig.Turnable(k.config.copy(callId = ids.first()))
+                } else k
+            else -> k
+        }
+        return if (filled === kernelConfig) this else copy(kernelConfig = filled)
+    }
+
+    // On withDefaultVkCalls: a profile that leaves its call IDs to the setting is complete.
+    fun getValidationErrorResId(): Int? = when (val k = withDefaultVkCalls().kernelConfig) {
         is KernelConfig.Turnable -> if (!k.config.isValid()) R.string.error_settings_empty else null
         is KernelConfig.Olcrtc -> socksNativeValidationError(k.config.isValid())
         is KernelConfig.Webdav -> if (!k.config.isValid()) R.string.error_settings_empty else null

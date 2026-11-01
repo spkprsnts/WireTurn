@@ -91,6 +91,8 @@ fun QwdttConfigScreen(
     initialConfig: QwdttConfig = QwdttConfig(),
     profileName: String? = null,
     privacyMode: Boolean = false,
+    // ClientConfig.defaultVkCallIds - what a blank hashes field runs with.
+    defaultVkCalls: List<String> = emptyList(),
     onBack: () -> Unit,
     onSave: (QwdttConfig) -> Unit
 ) {
@@ -337,7 +339,8 @@ fun QwdttConfigScreen(
                         value = config.vkHashes.redact(isPrivacyActive),
                         onValueChange = { if (!isPrivacyActive) config = config.copy(vkHashes = it) },
                         readOnly = isPrivacyActive,
-                        isError = config.vkHashes.isBlank(),
+                        isError = config.vkHashes.isBlank() && defaultVkCalls.isEmpty(),
+                        placeholder = defaultVkCalls.joinToString(", ").redact(isPrivacyActive),
                         isModified = isEditMode && config.vkHashes != initialConfig.vkHashes,
                         privacyMode = isPrivacyActive,
                         singleLine = false,

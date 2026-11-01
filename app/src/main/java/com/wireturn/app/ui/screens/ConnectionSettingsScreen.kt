@@ -83,6 +83,10 @@ fun ConnectionSettingsScreen(
     // per-profile dns instead, never this one (see OlcrtcConfig.dns/WebdavConfig.dns).
     var dns by remember { mutableStateOf(initialClientConfig.dns) }
 
+    // For FreeTurn/qWDTT/CSQTT/Turnable profiles that leave their VK calls blank, see
+    // ClientConfig.withDefaultVkCalls.
+    var defaultVkCalls by remember { mutableStateOf(initialClientConfig.defaultVkCalls) }
+
     // SOCKS5-native kernel states (olcRTC, WebDAV, qWDTT)
     var clientSocks by remember { mutableStateOf(initialClientConfig.socksAddr) }
     var clientSocksAuth by remember { mutableStateOf(initialClientConfig.isSocksAuthEnabled) }
@@ -91,7 +95,7 @@ fun ConnectionSettingsScreen(
 
     val scrollState = rememberScrollState()
 
-    val currentClientConfig = remember(listenAddr, clientSocks, clientSocksAuth, clientSocksUser, clientSocksPass, dns, goDnsGo, useCustomCerts, initialClientConfig) {
+    val currentClientConfig = remember(listenAddr, clientSocks, clientSocksAuth, clientSocksUser, clientSocksPass, dns, goDnsGo, useCustomCerts, defaultVkCalls, initialClientConfig) {
         initialClientConfig.copy(
             listenAddr = listenAddr,
             socksAddr = clientSocks,
@@ -100,13 +104,15 @@ fun ConnectionSettingsScreen(
             socksPass = clientSocksPass,
             dns = dns,
             goDnsGo = goDnsGo,
-            useCustomCerts = useCustomCerts
+            useCustomCerts = useCustomCerts,
+            defaultVkCalls = defaultVkCalls.trim()
         )
     }
-    
+
     val isModified = remember(currentClientConfig, initialClientConfig) {
         currentClientConfig.listenAddr != initialClientConfig.listenAddr ||
         currentClientConfig.dns != initialClientConfig.dns ||
+        currentClientConfig.defaultVkCalls != initialClientConfig.defaultVkCalls ||
         currentClientConfig.goDnsGo != initialClientConfig.goDnsGo ||
         currentClientConfig.useCustomCerts != initialClientConfig.useCustomCerts ||
         currentClientConfig.socksAddr != initialClientConfig.socksAddr ||
@@ -438,6 +444,23 @@ fun ConnectionSettingsScreen(
                             )
                         }
                     }
+                }
+            }
+
+            SectionGroup(title = stringResource(R.string.default_vk_calls_title)) {
+                SectionItem(position = ItemPosition.Single) {
+                    TextFieldRow(
+                        label = stringResource(R.string.default_vk_calls_label),
+                        value = defaultVkCalls.redact(privacyMode),
+                        onValueChange = { if (!privacyMode) defaultVkCalls = it },
+                        readOnly = privacyMode,
+                        isModified = defaultVkCalls.trim() != initialClientConfig.defaultVkCalls,
+                        privacyMode = privacyMode,
+                        singleLine = false,
+                        minLines = 1,
+                        maxLines = 4,
+                        supportingText = stringResource(R.string.default_vk_calls_desc)
+                    )
                 }
             }
 

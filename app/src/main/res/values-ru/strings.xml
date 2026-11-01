@@ -617,6 +617,9 @@
     <string name="qr_force_static_label">Один QR-код</string>
     <string name="qr_force_static_hint">Для сканирования сторонними приложениями, которые не понимают многокадровый формат; может не сканироваться</string>
     <string name="settings_group_kernel_params">Параметры ядра</string>
+    <string name="default_vk_calls_title">Звонки VK</string>
+    <string name="default_vk_calls_label">ID звонков по умолчанию</string>
+    <string name="default_vk_calls_desc">Для профилей, где ID звонков не указаны. Несколько — через запятую: FreeTurn, qWDTT и CSQTT используют все, Turnable — первый. Подходят и ссылки «https://vk.com/call/join/[ID]»</string>
     <string name="settings_group_kernel_socks5">SOCKS5-параметры ядра</string>
     <string name="xray_settings_group_connection">Подключение</string>
     <string name="local_address_title">Копировать адрес</string>

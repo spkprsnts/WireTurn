@@ -61,6 +61,7 @@ class CsqttConfigActivity : ComponentActivity() {
                     initialConfig = initialConfig,
                     profileName = profileName,
                     privacyMode = privacyMode,
+                    defaultVkCalls = clientConfig.defaultVkCallIds,
                     onBack = { finish() },
                     onSave = { config ->
                         if (isEditMode) {
