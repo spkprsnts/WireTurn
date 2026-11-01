@@ -1028,6 +1028,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         // 4. Kernel Configs (raw URIs)
+        // An OpenFlux node's link carries several carriers: a profile for each, imported as they
+        // are (OpenFluxConfig.parseV1All) - the one-profile setup flow below has room for one.
+        val openfluxCarriers = OpenFluxConfig.parseV1All(trimmed)
+        if (openfluxCarriers.size > 1) {
+            val baseName = com.wireturn.app.kernel.OpenFluxKernel.displayNameFromUri(trimmed)
+                ?: com.wireturn.app.kernel.OpenFluxKernel.defaultProfileName
+            val profiles = openfluxCarriers.map { carrier ->
+                Profile(
+                    id = java.util.UUID.randomUUID().toString(),
+                    name = "$baseName · ${carrier.platformDisplayName}",
+                    kernelConfig = KernelConfig.OpenFlux(carrier)
+                )
+            }
+            val (result, imported, _) = profileManager.importProfileObjects(profiles) { selectProfileAndRestart(it.id, it) }
+            return com.wireturn.app.domain.ImportStatus.Success(imported.firstOrNull()?.id, result)
+        }
+
         val turnable = TurnableConfig.parse(trimmed)
         if (turnable != null) return com.wireturn.app.domain.ImportStatus.KernelConfigDetected(
             "Turnable",

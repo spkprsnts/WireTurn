@@ -1131,6 +1131,27 @@ class ProfileManager(
             val trimmed = line.trim()
             if (trimmed.isEmpty()) continue
 
+            // An OpenFlux node's link carries several carriers: a profile for each
+            // (OpenFluxConfig.parseV1All), each with a stable id of its own off this line. The
+            // last stays current, so ##tags that follow still apply to one of them.
+            val openfluxCarriers = com.wireturn.app.data.kernel.OpenFluxConfig.parseV1All(trimmed)
+            if (openfluxCarriers.size > 1) {
+                flush()
+                val baseName = com.wireturn.app.kernel.OpenFluxKernel.displayNameFromUri(trimmed)
+                    ?: com.wireturn.app.kernel.OpenFluxKernel.defaultProfileName
+                val carrierProfiles = openfluxCarriers.map { carrier ->
+                    Profile(
+                        id = stableTextSubEntryId("$trimmed#${carrier.transport}#${carrier.url}"),
+                        name = "$baseName · ${carrier.platformDisplayName}",
+                        kernelConfig = KernelConfig.OpenFlux(carrier)
+                    )
+                }
+                profiles.addAll(carrierProfiles.dropLast(1))
+                currentProfile = carrierProfiles.last()
+                currentKernelConfig = carrierProfiles.last().kernelConfig
+                continue
+            }
+
             val kernelMatch = KernelRegistry.decodeUri(trimmed)
             if (kernelMatch != null) {
                 flush()

@@ -250,49 +250,68 @@ data class OpenFluxConfig(
             }
         }
 
-        // Only what this client can run: a single transport without --negotiate, in the classic or
-        // the stream mode (share.Config.Mode). A negotiated
-        // session (always the case with several transports or direct) needs a client in that mode
-        // too, which this app deliberately doesn't do - such a link is rejected, not half-imported.
-        private fun parseV1(url: String, current: OpenFluxConfig): OpenFluxConfig? {
-            val json = decodeV1(url) ?: return null
-            if (json.get("negotiate")?.asBoolean == true) return null
-            val transports = json.getAsJsonArray("transports") ?: return null
-            if (transports.size() != 1) return null
-            val t = transports[0].asJsonObject
-            val type = t.get("type")?.asString ?: return null
-            if (type !in V1_TRANSPORTS) return null
-            val docUrl = t.get("url")?.asString.orEmpty()
-            if (docUrl.isBlank()) return null
+        // A link's highest-priority carrier this client runs - see parseV1All.
+        private fun parseV1(url: String, current: OpenFluxConfig): OpenFluxConfig? =
+            parseV1All(url, current).firstOrNull()
+
+        /**
+         * Every carrier of an openflux://v1/ link this client runs, one config each, highest
+         * priority first. A node's link from the official wizard (provision.ShareLinkContext)
+         * always comes negotiated, with every document of its channel plus "direct" to its own
+         * port - the official client runs them all as one session, failing over by priority. This
+         * app runs one carrier per profile: a node's Session also serves a client on a single one
+         * of its carriers (the core runs a keyed single carrier as a Session, falling back to
+         * classic), with the channel's key and context, which the link holds for all of them.
+         * "direct" (no such platform here), MAX and anything unknown are left out.
+         */
+        fun parseV1All(url: String, current: OpenFluxConfig = OpenFluxConfig()): List<OpenFluxConfig> {
+            val json = decodeV1(url) ?: return emptyList()
+            val transports = json.getAsJsonArray("transports") ?: return emptyList()
+            val carriers = transports.mapNotNull { element ->
+                val t = element.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
+                val type = t.get("type")?.takeIf { it.isJsonPrimitive }?.asString ?: return@mapNotNull null
+                val docUrl = t.get("url")?.takeIf { it.isJsonPrimitive }?.asString.orEmpty()
+                if (type !in V1_TRANSPORTS || docUrl.isBlank()) return@mapNotNull null
+                val priority = t.get("priority")?.takeIf { it.isJsonPrimitive }?.asInt ?: 0
+                Triple(type, docUrl, priority)
+            }.sortedByDescending { it.third }
+            if (carriers.isEmpty()) return emptyList()
             // A link without a mode is the classic tunnel. Anything else this app doesn't know
             // is rejected rather than run as the classic tunnel against an exit that isn't one.
             when (json.get("mode")?.asString.orEmpty()) {
                 "" -> Unit
                 MODE_STREAM -> {
-                    if (type !in STREAM_TRANSPORTS || json.get("secret")?.asString.orEmpty().isNotEmpty()) return null
-                    return current.copy(
+                    // share.validateStream: exactly one carrier, no session, no secret.
+                    val (type, docUrl) = carriers.singleOrNull() ?: return emptyList()
+                    if (type !in STREAM_TRANSPORTS || json.get("secret")?.asString.orEmpty().isNotEmpty()) return emptyList()
+                    return listOf(current.copy(
                         transport = type, url = docUrl, streamMode = true,
                         encryptionKey = "", legacyCodec = false, sessionContext = ""
-                    )
+                    ))
                 }
-                else -> return null
+                else -> return emptyList()
             }
             val legacyCodec = when (json.get("codec")?.asString) {
                 null, "", "batched" -> false
                 "legacy" -> true
-                else -> return null
+                else -> return emptyList()
             }
+            val secret = json.get("secret")?.asString.orEmpty()
+            // A negotiated session needs its secret on both ends (share.Validate checks it too).
+            if (json.get("negotiate")?.asBoolean == true && secret.isBlank()) return emptyList()
             // Older exits put their document URL here. Preserve it explicitly instead of
             // relying on the new core's legacy context fallback.
             val context = json.get("context")?.asString.orEmpty()
-            return current.copy(
-                transport = type,
-                url = docUrl,
-                streamMode = false,
-                encryptionKey = json.get("secret")?.asString.orEmpty(),
-                legacyCodec = legacyCodec,
-                sessionContext = context
-            )
+            return carriers.map { (type, docUrl) ->
+                current.copy(
+                    transport = type,
+                    url = docUrl,
+                    streamMode = false,
+                    encryptionKey = secret,
+                    legacyCodec = legacyCodec,
+                    sessionContext = context
+                )
+            }
         }
 
         private fun parseNative(uri: Uri, current: OpenFluxConfig): OpenFluxConfig? {
