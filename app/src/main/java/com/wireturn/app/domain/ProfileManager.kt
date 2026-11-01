@@ -1,5 +1,6 @@
 package com.wireturn.app.domain
 
+import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.wireturn.app.R
 import com.wireturn.app.data.AppPreferences
@@ -236,6 +237,11 @@ class ProfileManager(
 
     companion object {
         const val PING_FAILED = -1L
+
+        // ".../<uuid>/sub" or ".../<uuid>/sub-group" at the end of a URL - see csqttPanelJsonUrl.
+        private val CSQTT_PANEL_SUB_PATH = Regex(
+            """/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/sub(?:-group)?/?$"""
+        )
     }
 
     private val _updatingSubIds = MutableStateFlow<Set<String>>(emptySet())
@@ -570,14 +576,31 @@ class ProfileManager(
                 // locally) - so a subscription entry's `links` almost always comes back blank here.
                 // Same overwrite problem as the Xray fields above: without this, a locally-added
                 // links value gets wiped back to blank on every refresh.
+                // CSQTT likewise: a csqtt:// link carries the server, its password and maybe call
+                // hashes - a CSQTT panel's subscription carries none - and nothing of the workers,
+                // obfuscation, TURN transport or captcha mode set here. Only what the link brings
+                // replaces the local profile's.
                 val mergedKernelConfig = run {
                     val newKc = sanitized.kernelConfig
                     val oldKc = existing?.kernelConfig
-                    if (newKc is KernelConfig.FreeTurn && oldKc is KernelConfig.FreeTurn &&
-                        newKc.config.links.isBlank() && oldKc.config.links.isNotBlank()
-                    ) {
-                        KernelConfig.FreeTurn(newKc.config.copy(links = oldKc.config.links))
-                    } else newKc
+                    when (newKc) {
+                        is KernelConfig.FreeTurn if oldKc is KernelConfig.FreeTurn &&
+                                newKc.config.links.isBlank() && oldKc.config.links.isNotBlank()
+                            -> {
+                            KernelConfig.FreeTurn(newKc.config.copy(links = oldKc.config.links))
+                        }
+
+                        is KernelConfig.Csqtt if oldKc is KernelConfig.Csqtt -> {
+                            KernelConfig.Csqtt(
+                                oldKc.config.copy(
+                                    peer = newKc.config.peer,
+                                    password = newKc.config.password,
+                                    vkHashes = newKc.config.vkHashes.ifBlank { oldKc.config.vkHashes }
+                                ))
+                        }
+
+                        else -> newKc
+                    }
                 }
 
                 val profile = sanitized.copy(
@@ -671,29 +694,39 @@ class ProfileManager(
 
         val proxy = activeLocalSocksProxy()
 
-        val connection = try {
-            try {
-                // First attempt with the calculated proxy
-                val conn = (URL(url).openConnection(proxy) as HttpURLConnection).apply {
+        fun open(target: String): HttpURLConnection = try {
+            // First attempt with the calculated proxy
+            val conn = (URL(target).openConnection(proxy) as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 10000
+                readTimeout = 10000
+                setRequestProperty("User-Agent", userAgent)
+            }
+            // Trigger connection to check if it works
+            conn.responseCode
+            conn
+        } catch (e: Exception) {
+            // If proxy failed and it wasn't already NO_PROXY, try direct connection
+            if (proxy != java.net.Proxy.NO_PROXY) {
+                (URL(target).openConnection(java.net.Proxy.NO_PROXY) as HttpURLConnection).apply {
                     requestMethod = "GET"
                     connectTimeout = 10000
                     readTimeout = 10000
                     setRequestProperty("User-Agent", userAgent)
                 }
-                // Trigger connection to check if it works
-                conn.responseCode
-                conn
-            } catch (e: Exception) {
-                // If proxy failed and it wasn't already NO_PROXY, try direct connection
-                if (proxy != java.net.Proxy.NO_PROXY) {
-                    (URL(url).openConnection(java.net.Proxy.NO_PROXY) as HttpURLConnection).apply {
-                        requestMethod = "GET"
-                        connectTimeout = 10000
-                        readTimeout = 10000
-                        setRequestProperty("User-Agent", userAgent)
-                    }
-                } else throw e
-            }
+            } else throw e
+        }
+
+        val connection = try {
+            // A CSQTT panel's page is fetched as its JSON (csqttPanelJsonUrl); the subscription keeps
+            // the URL as the user gave it. Other panels' links can end the same way (Hiddify's
+            // ".../<uuid>/sub/"), so one whose JSON twin doesn't answer 200 is fetched as given.
+            csqttPanelJsonUrl(url)?.let { jsonUrl ->
+                runCatching { open(jsonUrl) }.getOrNull()?.takeIf {
+                    runCatching { it.responseCode == HttpURLConnection.HTTP_OK }.getOrDefault(false)
+                        .also { ok -> if (!ok) it.disconnect() }
+                }
+            } ?: open(url)
         } catch (e: Exception) {
             // Covers both "no proxy, direct attempt failed" and "proxy failed, direct fallback also failed" -
             // previously these could throw past this point uncaught, permanently killing the auto-update loop.
@@ -724,7 +757,10 @@ class ProfileManager(
                         ImportStatus.EmptyResponse
                     } else {
                         kotlinx.coroutines.yield() // Check for cancellation
-                        val bundle = try {
+                        // A CSQTT panel's JSON first: it's an object too, and ProfileBundle (every field
+                        // defaulted, so Gson gets a no-arg constructor) takes any object as a bundle with
+                        // empty profiles - its "name" included - rather than failing on it.
+                        val bundle = tryParseCsqttPanelSubscription(content) ?: try {
                             gson.fromJson(content, ProfileBundle::class.java)?.also {
                                 @Suppress("SENSELESS_COMPARISON")
                                 if (it.profiles == null) throw com.google.gson.JsonSyntaxException("missing profiles")
@@ -925,7 +961,7 @@ class ProfileManager(
         return ProfileBundle(profiles = profiles, recommendedProfileId = activeStorageId)
     }
 
-    private fun parseOlcboxLocationEntry(item: com.google.gson.JsonObject): Profile? {
+    private fun parseOlcboxLocationEntry(item: JsonObject): Profile? {
         fun str(vararg keys: String): String? {
             for (k in keys) {
                 val v = item.get(k)
@@ -933,7 +969,7 @@ class ProfileManager(
             }
             return null
         }
-        fun obj(key: String): com.google.gson.JsonObject? =
+        fun obj(key: String): JsonObject? =
             item.get(key)?.takeIf { it.isJsonObject }?.asJsonObject
 
         val endpoint = obj("endpoint")
@@ -984,6 +1020,56 @@ class ProfileManager(
     // matching, unrelated to this).
     private fun stableTextSubEntryId(rawUriLine: String): String =
         UUID.nameUUIDFromBytes(rawUriLine.toByteArray(Charsets.UTF_8)).toString()
+
+    /**
+     * The JSON twin of a CSQTT 2.5.0 server panel's subscription page, or null for any other URL.
+     * The panel (rust-server/web_panel.rs) hands out "<base>/<uuid>/sub" for a client and
+     * "<base>/<uuid>/sub-group" for a group - HTML pages for a browser, the link buried in markup
+     * - and serves both as JSON at "<base>/<uuid>/json", which tells a client's uuid from a
+     * group's itself.
+     */
+    private fun csqttPanelJsonUrl(url: String): String? {
+        val match = CSQTT_PANEL_SUB_PATH.find(url) ?: return null
+        return url.substring(0, match.range.first) + "/" + match.groupValues[1] + "/json"
+    }
+
+    /**
+     * A CSQTT panel's subscription JSON (see csqttPanelJsonUrl): a client's
+     * {"ok", "name", "link", "sub_uuid"}, or a group's {"ok", "group": {"name", ...},
+     * "clients": [{"name", "link", "sub_uuid"}]}. Each client's sub_uuid, or else its decrypted
+     * link, is its stable id.
+     */
+    private fun tryParseCsqttPanelSubscription(content: String): ProfileBundle? {
+        val trimmed = content.trim()
+        if (!trimmed.startsWith("{") || !trimmed.contains("csqtt://")) return null
+        data class Entry(val name: String?, val link: String, val subUuid: String?)
+
+        fun entryOf(obj: JsonObject): Entry? {
+            fun str(key: String) = obj.get(key)?.takeIf { it.isJsonPrimitive }?.asString?.takeIf { it.isNotBlank() }
+            val link = str("link")?.takeIf { it.startsWith("csqtt://", ignoreCase = true) } ?: return null
+            return Entry(str("name"), link, str("sub_uuid"))
+        }
+
+        val obj = runCatching { JsonParser.parseString(trimmed).asJsonObject }.getOrNull() ?: return null
+        val clients = obj.get("clients")?.takeIf { it.isJsonArray }?.asJsonArray
+        val groupName = obj.get("group")?.takeIf { it.isJsonObject }?.asJsonObject
+            ?.get("name")?.takeIf { it.isJsonPrimitive }?.asString
+        val entries = clients?.mapNotNull { item -> item.takeIf { it.isJsonObject }?.asJsonObject?.let(::entryOf) }
+            ?: listOfNotNull(entryOf(obj))
+
+        val profiles = entries.mapNotNull { entry ->
+            val config = com.wireturn.app.data.kernel.CsqttConfig.parse(entry.link) ?: return@mapNotNull null
+            val seed = entry.subUuid?.let { "csqtt-sub:$it" }
+                ?: com.wireturn.app.data.kernel.CsqttConfig.decryptLink(entry.link) ?: entry.link
+            Profile(
+                id = stableTextSubEntryId(seed),
+                name = entry.name ?: com.wireturn.app.kernel.CsqttKernel.defaultProfileName,
+                kernelConfig = KernelConfig.Csqtt(config)
+            )
+        }
+        if (profiles.isEmpty()) return null
+        return ProfileBundle(name = groupName ?: entries.singleOrNull()?.name, profiles = profiles)
+    }
 
     private fun tryParseTextSubscription(text: String): ProfileBundle? {
         if (!text.contains("freeturn://") && !text.contains("olcrtc://") && !text.contains("olconnect://") &&
