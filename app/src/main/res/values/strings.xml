@@ -521,6 +521,7 @@
     <string name="log_xray_watchdog_limit">* [Xray] Watchdog limit reached (%1$d)</string>
     <string name="log_xray_watchdog_restart">* [Xray] Restarting in %1$dms (attempt %2$d/%3$d)</string>
     <string name="log_xray_config_change_restart">* [Xray] Restarting due to config change</string>
+    <string name="log_xray_network_reload">* [Xray] Network changed — reloading</string>
     <string name="log_xray_foreground_failed">* [Xray] Failed to start foreground: %1$s</string>
 
     <string name="log_vpn_service_active">* [VPN] Service already running or starting (status=%1$s, job=%2$b)</string>

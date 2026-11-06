@@ -470,6 +470,7 @@
     <string name="log_xray_watchdog_limit">* [Xray] Лимит попыток watchdog достигнут (%1$d)</string>
     <string name="log_xray_watchdog_restart">* [Xray] Перезапуск через %1$dмс (попытка %2$d/%3$d)</string>
     <string name="log_xray_config_change_restart">* [Xray] Перезапуск из-за изменения настроек</string>
+    <string name="log_xray_network_reload">* [Xray] Смена сети — перезапуск</string>
     <string name="log_xray_foreground_failed">* [Xray] Ошибка запуска foreground: %1$s</string>
 
     <string name="log_vpn_service_active">* [VPN] Сервис уже запущен или запускается (статус=%1$s, job=%2$b)</string>

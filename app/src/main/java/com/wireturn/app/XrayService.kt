@@ -38,6 +38,9 @@ class XrayService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var xrayJob: kotlinx.coroutines.Job? = null
     private val userStopped = java.util.concurrent.atomic.AtomicBoolean(false)
+    // Set by reload() just before it kills the process: startXray's exit then starts it over at
+    // once instead of going Idle and through the watchdog.
+    private val reloadRequested = java.util.concurrent.atomic.AtomicBoolean(false)
     private var restartCount = 0
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
     @Volatile private var caBundlePath: String? = null
@@ -64,6 +67,11 @@ class XrayService : Service() {
     // needs to work directly against an OLCRTC/WEBDAV core's own socks5 with no Xray involved.
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_RELOAD) {
+            reload(startId)
+            return START_STICKY
+        }
+
         val currentState = XrayServiceState.state.value
         if ((currentState == XrayState.Starting || currentState == XrayState.Running) && xrayJob?.isActive == true) {
             return START_STICKY
@@ -356,7 +364,8 @@ class XrayService : Service() {
             val exitCode = withContext(Dispatchers.IO) {
                 proc.waitFor()
             }
-            AppLogsState.addLog(getString(R.string.log_xray_exited, exitCode))
+            // Killed by reload() - not an exit worth reporting.
+            if (!reloadRequested.get()) AppLogsState.addLog(getString(R.string.log_xray_exited, exitCode))
         } catch (_: InterruptedIOException) {
             // pass
         } catch (_: CancellationException) {
@@ -374,15 +383,21 @@ class XrayService : Service() {
             } catch (_: Exception) {
                 false
             }
-            if (isJobActive) {
+            val reload = reloadRequested.getAndSet(false) && isJobActive && !userStopped.get()
+            // A reload never goes Idle: the VPN keeps its target and the supervisor sees no stop.
+            if (isJobActive && !reload) {
                 XrayServiceState.updateStatus(XrayState.Idle)
             }
-            
+
             NotificationHelper.updateNotification(this@XrayService)
             if (userStopped.get()) {
                 AppLogsState.addLog(getString(R.string.log_xray_stopped_by_user))
                 NotificationHelper.updateNotification(this@XrayService)
                 stopSelf()
+            } else if (reload) {
+                restartCount = 0
+                XrayServiceState.updateStatus(XrayState.Starting)
+                xrayJob = serviceScope.launch { startXray(snapshot) }
             } else if (isJobActive) {
                 scheduleWatchdogRestart(snapshot)
             }
@@ -504,6 +519,27 @@ class XrayService : Service() {
         }
     }
 
+    /**
+     * Starts the running Xray over with the same config - on a network change (CoreService).
+     * Its connections to the server stay on the old network otherwise: dead without an error,
+     * kept alive by apps that keep sending, so nothing recovers until the VPN is toggled. Killing
+     * the process closes them, hev drops the apps' connections with them, and they reconnect
+     * over the new network. Xray-core has no "close all connections" of its own (unlike
+     * sing-box's ResetNetwork), so v2rayNG reloads its core on a handover the same way.
+     */
+    private fun reload(startId: Int) {
+        val proc = process.get()
+        if (proc == null) {
+            // Not running (starting, or between watchdog restarts): its next start is on the new
+            // network anyway. Started by this very intent - don't linger as a bare service.
+            if (XrayServiceState.state.value == XrayState.Idle && xrayJob?.isActive != true) stopSelf(startId)
+            return
+        }
+        AppLogsState.addLog(getString(R.string.log_xray_network_reload))
+        reloadRequested.set(true)
+        proc.destroyForcibly()
+    }
+
     private fun scheduleWatchdogRestart(snapshot: XrayConfigsSnapshot) {
         restartCount++
         if (restartCount > MAX_RESTARTS) {
@@ -543,6 +579,8 @@ class XrayService : Service() {
     }
 
     companion object {
+        // Restarts the running Xray in place - see reload().
+        const val ACTION_RELOAD = "RELOAD"
         private const val MAX_RESTARTS = 3
         private val XRAY_ACCESS_LOG = Regex(""" from \S+ (accepted|rejected) """)
     }

@@ -374,8 +374,11 @@ misc:
     private fun configureRoutingAndApps(builder: Builder, vpnSettings: VpnSettings) {
         val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
         (underlyingNetwork ?: cm.activeNetwork)?.let { builder.setUnderlyingNetworks(arrayOf(it)) }
+        // false: metered only while the underlying network is, so it follows a Wi-Fi <-> mobile
+        // switch. The active network's meteredness at establish() would stay put until the next
+        // one - a VPN brought up on mobile data stayed "metered" on Wi-Fi.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            builder.setMetered(cm.isActiveNetworkMetered)
+            builder.setMetered(false)
         }
 
         if (!vpnSettings.filteringEnabled) {

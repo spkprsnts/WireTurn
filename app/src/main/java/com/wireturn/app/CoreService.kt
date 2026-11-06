@@ -1429,6 +1429,12 @@ class CoreService : Service() {
             networkChangeFrom = null
             val to = primaryNetworkLabel
             if (userStopped.get() || currentRunningCfg.get() == null) return@launch
+            // Xray is reloaded whatever happens to the kernel: its connections to the server (an
+            // Xray-only profile, the direct route) stay on the old network otherwise - see
+            // XrayService.reload. Not a setting: it costs a second and no captcha.
+            if (XrayServiceState.state.value != XrayState.Idle) {
+                startService(Intent(this@CoreService, XrayService::class.java).setAction(XrayService.ACTION_RELOAD))
+            }
             // Always logged while the tunnel is up; only a running kernel gets restarted - not one
             // paused for the direct route, nor one already down with the old network (the
             // watchdog's next start is on the new one anyway).
