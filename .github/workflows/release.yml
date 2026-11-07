@@ -85,10 +85,21 @@ jobs:
           # Add sdkmanager to PATH
           echo "${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/tools/bin" >> $GITHUB_PATH
 
+      - name: Check preinstalled NDK
+        id: ndk_preinstalled
+        run: |
+          if [ -d "${{ steps.vars.outputs.android_home }}/ndk/${{ steps.vars.outputs.ndk_version }}" ]; then
+            echo "present=true" >> $GITHUB_OUTPUT
+          else
+            echo "present=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Cache NDK
+        # Only when the runner image lacks this NDK: restoring over the image's own (root-owned)
+        # copy fails on every file and counts as a miss, after downloading ~700 MB for nothing.
         # Like setup-go's cache below: a tag can't restore unstable's, and saving its own for a
         # tag that never builds again only eats the repo's cache quota.
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        if: ${{ steps.ndk_preinstalled.outputs.present != 'true' && !startsWith(github.ref, 'refs/tags/') }}
         uses: actions/cache@v5
         id: ndk_cache
         with:
@@ -116,10 +127,15 @@ jobs:
             app/src/main/jniLibs/*/libwebdav.so
             app/src/main/jniLibs/*/libsocks2tun.so
             app/src/main/jniLibs/*/libcsqtt.so
+            app/src/main/jniLibs/*/libfreeturn.so
+            app/src/main/jniLibs/*/libqwdtt.so
+            app/src/main/jniLibs/*/libopenflux.so
+            app/src/main/jniLibs/*/libbyedpi.so
             external/*/.git_hash_*
             external/csqtt/rust-client/.git_hash_*
+            external/proxy-turn-vk-android/go_client/.git_hash_*
             external/hev-socks5-tunnel/.git_hash
-          key: ${{ runner.os }}-native-${{ steps.vars.outputs.ndk_version }}-${{ hashFiles('build.sh', 'external/olcrtc/**', 'external/vless-client/**', 'external/turnable/**', 'external/hev-socks5-tunnel/**', 'external/webdav-tunnel/**', 'external/socks2tun/**', 'external/csqtt/rust-client/**') }}
+          key: ${{ runner.os }}-native-${{ steps.vars.outputs.ndk_version }}-${{ hashFiles('build.sh', 'external/olcrtc/**', 'external/vless-client/**', 'external/turnable/**', 'external/hev-socks5-tunnel/**', 'external/webdav-tunnel/**', 'external/socks2tun/**', 'external/csqtt/rust-client/**', 'external/free-turn-proxy/**', 'external/proxy-turn-vk-android/go_client/**', 'external/openflux/**', 'external/byedpi/**') }}
           restore-keys: |
             ${{ runner.os }}-native-${{ steps.vars.outputs.ndk_version }}-
 
