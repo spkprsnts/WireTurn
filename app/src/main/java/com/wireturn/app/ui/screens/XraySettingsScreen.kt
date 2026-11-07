@@ -127,6 +127,7 @@ fun XraySettingsScreen(
     var dpiBypassRoute by remember { mutableStateOf(initialXraySettings.dpiBypassRoute) }
     var dpiBypassPort by remember { mutableStateOf(initialXraySettings.dpiBypassPort) }
     var pingConcurrency by remember { mutableIntStateOf(initialXraySettings.pingCheckConcurrency.coerceIn(1, XraySettings.MAX_PING_CHECK_CONCURRENCY)) }
+    var reloadOnNetworkChange by remember { mutableStateOf(initialXraySettings.reloadOnNetworkChange) }
 
     val showGeoDialog = remember { mutableStateOf(false) }
     val showRoutingPresets = remember { mutableStateOf(false) }
@@ -153,7 +154,8 @@ fun XraySettingsScreen(
 
     val currentXraySettings = remember(
         xraySocks, xrayHttp, xrayAuth, xrayUser, xrayPass,
-        dns, routeDirect, routeBlock, fakeDns, fragment, dpiBypass, dpiBypassArgs, dpiBypassRoute, dpiBypassPort, pingConcurrency, initialXraySettings
+        dns, routeDirect, routeBlock, fakeDns, fragment, dpiBypass, dpiBypassArgs, dpiBypassRoute, dpiBypassPort, pingConcurrency,
+        reloadOnNetworkChange, initialXraySettings
     ) {
         initialXraySettings.copy(
             socksBindAddress = xraySocks,
@@ -170,7 +172,8 @@ fun XraySettingsScreen(
             dpiBypassArgs = dpiBypassArgs,
             dpiBypassRoute = dpiBypassRoute,
             dpiBypassPort = dpiBypassPort,
-            pingCheckConcurrency = pingConcurrency
+            pingCheckConcurrency = pingConcurrency,
+            reloadOnNetworkChange = reloadOnNetworkChange
         )
     }
 
@@ -189,7 +192,8 @@ fun XraySettingsScreen(
         currentXraySettings.dpiBypassArgs != initialXraySettings.dpiBypassArgs ||
         currentXraySettings.dpiBypassRoute != initialXraySettings.dpiBypassRoute ||
         currentXraySettings.dpiBypassPort != initialXraySettings.dpiBypassPort ||
-        currentXraySettings.pingCheckConcurrency != initialXraySettings.pingCheckConcurrency
+        currentXraySettings.pingCheckConcurrency != initialXraySettings.pingCheckConcurrency ||
+        currentXraySettings.reloadOnNetworkChange != initialXraySettings.reloadOnNetworkChange
     }
 
     val showExitDialog = remember { mutableStateOf(false) }
@@ -317,6 +321,24 @@ fun XraySettingsScreen(
                         readOnly = privacyMode,
                         isModified = xrayHttp != initialXraySettings.httpBindAddress,
                         privacyMode = privacyMode
+                    )
+                }
+
+                SectionItem(
+                    onClick = {
+                        reloadOnNetworkChange = !reloadOnNetworkChange
+                        HapticUtil.perform(
+                            context,
+                            if (reloadOnNetworkChange) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                        )
+                    }
+                ) {
+                    SwitchRow(
+                        label = stringResource(R.string.xray_settings_reload_on_network_change_label),
+                        supportingText = stringResource(R.string.xray_settings_reload_on_network_change_desc),
+                        checked = reloadOnNetworkChange,
+                        onCheckedChange = { reloadOnNetworkChange = it },
+                        isModified = reloadOnNetworkChange != initialXraySettings.reloadOnNetworkChange
                     )
                 }
 

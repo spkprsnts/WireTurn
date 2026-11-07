@@ -148,6 +148,7 @@ class AppPreferences(val context: Context) {
         val XRAY_DPI_BYPASS_ROUTE = stringPreferencesKey("xray_dpi_bypass_route")
         val XRAY_DPI_BYPASS_PORT = stringPreferencesKey("xray_dpi_bypass_port")
         val XRAY_PING_CHECK_CONCURRENCY = intPreferencesKey("xray_ping_check_concurrency")
+        val XRAY_RELOAD_ON_NETWORK_CHANGE = booleanPreferencesKey("xray_reload_on_network_change")
 
         val ACTIVE_KERNEL_JSON = stringPreferencesKey("active_kernel_json")
         val ACTIVE_XRAY_CONFIG_TYPE = stringPreferencesKey("active_xray_config_type")
@@ -330,7 +331,8 @@ class AppPreferences(val context: Context) {
                 dpiBypassArgs = p[XRAY_DPI_BYPASS_ARGS] ?: com.wireturn.app.ByeDpi.DEFAULT_ARGS,
                 dpiBypassRoute = p[XRAY_DPI_BYPASS_ROUTE] ?: com.wireturn.app.ByeDpi.DEFAULT_ROUTE,
                 dpiBypassPort = p[XRAY_DPI_BYPASS_PORT] ?: "",
-                pingCheckConcurrency = p[XRAY_PING_CHECK_CONCURRENCY] ?: XraySettings.DEFAULT_PING_CHECK_CONCURRENCY
+                pingCheckConcurrency = p[XRAY_PING_CHECK_CONCURRENCY] ?: XraySettings.DEFAULT_PING_CHECK_CONCURRENCY,
+                reloadOnNetworkChange = p[XRAY_RELOAD_ON_NETWORK_CHANGE] ?: true
             )
         }.distinctUntilChanged()
 
@@ -643,6 +645,7 @@ class AppPreferences(val context: Context) {
             it[XRAY_DPI_BYPASS_ROUTE] = s.dpiBypassRoute
             it[XRAY_DPI_BYPASS_PORT] = s.dpiBypassPort
             it[XRAY_PING_CHECK_CONCURRENCY] = s.pingCheckConcurrency
+            it[XRAY_RELOAD_ON_NETWORK_CHANGE] = s.reloadOnNetworkChange
         }
     }
 

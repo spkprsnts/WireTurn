@@ -329,7 +329,10 @@ data class XraySettings(
     // A fixed loopback port for ByeDPI (another app may need its own); blank = a free one each start.
     val dpiBypassPort: String = "",
     // How many servers a subscription's ping check (XrayLinkTester) tests at once.
-    val pingCheckConcurrency: Int = DEFAULT_PING_CHECK_CONCURRENCY
+    val pingCheckConcurrency: Int = DEFAULT_PING_CHECK_CONCURRENCY,
+    // Restart Xray in place when the device's network changes (CoreService -> XrayService.reload),
+    // so its connections to the server don't stay on the old network.
+    val reloadOnNetworkChange: Boolean = true
 ) {
     fun fillDefaults(): XraySettings {
         val cleanedUser = ValidatorUtils.cleanProxyString(proxyUser)

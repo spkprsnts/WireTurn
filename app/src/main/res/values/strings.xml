@@ -744,6 +744,8 @@
     <string name="xray_settings_route_block_desc">Comma-separated: domain:example.com, a CIDR range, or geosite:/geoip: categories (need downloaded geo resources) — blocked entirely</string>
     <string name="xray_settings_route_block_placeholder" translatable="false">geosite:category-ads-all</string>
     <string name="xray_settings_group_dpi">DPI bypass</string>
+    <string name="xray_settings_reload_on_network_change_label">Restart on network change</string>
+    <string name="xray_settings_reload_on_network_change_desc">Restart Xray when switching Wi-Fi ↔ mobile data, so connections to the server don\'t hang on the old network</string>
     <string name="xray_settings_fragment_label">TLS fragmentation</string>
     <string name="xray_settings_fragment_desc">Split the TLS handshake of direct connections to the server so DPI can\'t read the domain</string>
     <string name="xray_settings_byedpi_label" translatable="false">ByeDPI</string>

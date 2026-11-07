@@ -943,7 +943,10 @@ class CoreService : Service() {
                 prefs.xraySettingsFlow,
                 prefs.vpnSettingsFlow
             ) { xray, vless, wg, settings, vpnSettings ->
-                XrayConfigSignals(xray, vless.fillDefaults(), wg.fillDefaults(), settings.fillDefaults(), vpnSettings.ipv6)
+                // reloadOnNetworkChange is read by the network callback, not by Xray: toggling it
+                // shouldn't restart Xray.
+                XrayConfigSignals(xray, vless.fillDefaults(), wg.fillDefaults(),
+                    settings.fillDefaults().copy(reloadOnNetworkChange = true), vpnSettings.ipv6)
             }
             combine(
                 configFlow,
@@ -1431,8 +1434,10 @@ class CoreService : Service() {
             if (userStopped.get() || currentRunningCfg.get() == null) return@launch
             // Xray is reloaded whatever happens to the kernel: its connections to the server (an
             // Xray-only profile, the direct route) stay on the old network otherwise - see
-            // XrayService.reload. Not a setting: it costs a second and no captcha.
-            if (XrayServiceState.state.value != XrayState.Idle) {
+            // XrayService.reload. Its own setting (on by default): it costs a second and no captcha.
+            if (XrayServiceState.state.value != XrayState.Idle &&
+                AppPreferences(applicationContext).xraySettingsFlow.first().reloadOnNetworkChange
+            ) {
                 startService(Intent(this@CoreService, XrayService::class.java).setAction(XrayService.ACTION_RELOAD))
             }
             // Always logged while the tunnel is up; only a running kernel gets restarted - not one

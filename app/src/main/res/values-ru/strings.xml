@@ -671,6 +671,8 @@
     <string name="xray_settings_route_block_label">Блокировать</string>
     <string name="xray_settings_route_block_desc">Через запятую: domain:example.com, CIDR, или категории geosite:/geoip: (нужны скачанные гео-ресурсы) — блокируются полностью</string>
     <string name="xray_settings_group_dpi">Обход DPI</string>
+    <string name="xray_settings_reload_on_network_change_label">Перезапуск при смене сети</string>
+    <string name="xray_settings_reload_on_network_change_desc">Перезапускать Xray при переключении Wi-Fi ↔ мобильная сеть, чтобы соединения с сервером не зависали на старой сети</string>
     <string name="xray_settings_fragment_label">Фрагментация TLS</string>
     <string name="xray_settings_fragment_desc">Дробить TLS-рукопожатие прямых подключений к серверу, чтобы DPI не видел домен</string>
     <string name="xray_settings_byedpi_desc">Отправлять сайты ниже напрямую через ByeDPI вместо туннеля. Если прямой интернет недоступен (белые списки), они идут через туннель</string>
