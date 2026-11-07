@@ -149,11 +149,13 @@ val ndkDir: String? = try {
 } catch (_: Exception) { null }
 
 fun Exec.configureNdk() {
-    if (org.gradle.internal.os.OperatingSystem.current().isWindows && ndkDir != null) {
-        environment("NDK_PATH", ndkDir)
+    if (org.gradle.internal.os.OperatingSystem.current().isWindows) {
+        // A Windows NDK is no use inside WSL (its toolchain is windows-x86_64, build.sh needs
+        // linux-x86_64) - only the version goes over, and build.sh takes that one from WSL's own SDK.
+        android.ndkVersion?.let { environment("NDK_VERSION", it) }
         val currentWslEnv = System.getenv("WSLENV") ?: ""
-        if (!currentWslEnv.contains("NDK_PATH/p")) {
-            environment("WSLENV", if (currentWslEnv.isEmpty()) "NDK_PATH/p" else "$currentWslEnv:NDK_PATH/p")
+        if ("NDK_VERSION" !in currentWslEnv.split(':')) {
+            environment("WSLENV", if (currentWslEnv.isEmpty()) "NDK_VERSION" else "$currentWslEnv:NDK_VERSION")
         }
     } else if (ndkDir != null) {
         environment("NDK_PATH", ndkDir)

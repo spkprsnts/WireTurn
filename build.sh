@@ -14,17 +14,50 @@ JNI_LIBS_DIR="$ROOT_DIR/app/src/main/jniLibs"
 # can skip the (Go-only) patched-GOROOT setup for a cmake-only invocation.
 TARGET="${1:-all}"
 
-# 2. Setup NDK Path
+# 2. Setup NDK Path: the version the app declares (android.ndkVersion - NDK_VERSION from Gradle,
+# else gradle.properties), not whichever is newest, so a local build matches CI's. Only with no
+# version to go by does the newest installed one do.
 if [ -z "$NDK_PATH" ]; then
-    NDK_PATH=$(ls -d "$HOME/Android/Sdk/ndk"/* 2>/dev/null | sort -V | tail -1)
-fi
-if [ -z "$NDK_PATH" ] && [ -n "$ANDROID_HOME" ]; then
-    NDK_PATH=$(ls -d "$ANDROID_HOME/ndk"/* 2>/dev/null | sort -V | tail -1)
+    [ -z "$NDK_VERSION" ] && NDK_VERSION=$(grep -oP '(?<=android\.ndkVersion=)\S+' "$ROOT_DIR/gradle.properties" 2>/dev/null)
+    if [ -n "$NDK_VERSION" ]; then
+        for sdk in "$HOME/Android/Sdk" "$ANDROID_HOME"; do
+            if [ -n "$sdk" ] && [ -d "$sdk/ndk/$NDK_VERSION" ]; then
+                NDK_PATH="$sdk/ndk/$NDK_VERSION"
+                break
+            fi
+        done
+        if [ -z "$NDK_PATH" ]; then
+            echo "ERROR: NDK $NDK_VERSION not found in \$HOME/Android/Sdk/ndk or \$ANDROID_HOME/ndk."
+            echo "  Install it: sdkmanager \"ndk;$NDK_VERSION\" (or set NDK_PATH)"
+            exit 1
+        fi
+    else
+        NDK_PATH=$(ls -d "$HOME/Android/Sdk/ndk"/* 2>/dev/null | sort -V | tail -1)
+        if [ -z "$NDK_PATH" ] && [ -n "$ANDROID_HOME" ]; then
+            NDK_PATH=$(ls -d "$ANDROID_HOME/ndk"/* 2>/dev/null | sort -V | tail -1)
+        fi
+    fi
 fi
 
 if [ -z "$NDK_PATH" ] || [ ! -d "$NDK_PATH" ]; then
     echo "ERROR: NDK not found. Set NDK_PATH or install it via SDK Manager."
     exit 1
+fi
+echo "Using NDK: $NDK_PATH"
+
+# The local up-to-date checks below only compare source mtimes, so binaries built by another NDK
+# would stay. On a change, all of them go at once - also the other targets', whose next run then
+# finds them missing and rebuilds. CI checks submodule hashes and keys its cache by NDK instead.
+NDK_STAMP="$JNI_LIBS_DIR/.ndk"
+if [ "$CI" != "true" ] && [ "$(cat "$NDK_STAMP" 2>/dev/null)" != "$(basename "$NDK_PATH")" ]; then
+    if compgen -G "$JNI_LIBS_DIR/*/*.so" > /dev/null; then
+        echo "NDK changed ($(cat "$NDK_STAMP" 2>/dev/null || echo unknown) -> $(basename "$NDK_PATH")): rebuilding all native binaries"
+        rm -f "$JNI_LIBS_DIR"/*/*.so
+    fi
+    # ndk-build's objects too - it would relink hev from them, not recompile.
+    rm -rf "$ROOT_DIR/external/hev-socks5-tunnel/obj" "$ROOT_DIR/external/hev-socks5-tunnel/libs"
+    mkdir -p "$JNI_LIBS_DIR"
+    basename "$NDK_PATH" > "$NDK_STAMP"
 fi
 
 TOOLCHAIN="$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin"
@@ -183,6 +216,17 @@ declare -A RUST_TRIPLE=(
     ["x86_64"]="x86_64-linux-android"
 )
 
+# Cargo's target dir. A checkout on a Windows drive built from WSL (/mnt/...) keeps it on WSL's own
+# filesystem instead: across the 9P mount LTO builds take several times longer. CI caches
+# build/rust-target, so it stays there otherwise. RUST_TARGET_DIR overrides both.
+if [ -n "$RUST_TARGET_DIR" ]; then
+    RUST_TARGET_ROOT="$RUST_TARGET_DIR"
+elif [[ "$ROOT_DIR" == /mnt/* ]]; then
+    RUST_TARGET_ROOT="$HOME/.cache/wireturn/rust-target"
+else
+    RUST_TARGET_ROOT="$ROOT_DIR/build/rust-target"
+fi
+
 build_rust_project() {
     local dir=$1; local bin_name=$2; local out_name=$3
     echo "Checking $out_name..."
@@ -190,7 +234,7 @@ build_rust_project() {
     # Outside the submodule, so its checkout stays clean; one directory for every ABI, so the
     # host-side build scripts/proc-macros are compiled once - which also means the ABIs build one
     # after another (cargo locks the target dir), unlike the parallel Go builds.
-    local target_dir="$ROOT_DIR/build/rust-target/${out_name%.so}"
+    local target_dir="$RUST_TARGET_ROOT/${out_name%.so}"
 
     for abi in $RUST_ABIS; do
         local out="$JNI_LIBS_DIR/$abi/$out_name"
