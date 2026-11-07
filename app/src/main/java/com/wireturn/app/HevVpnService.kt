@@ -1,14 +1,8 @@
 package com.wireturn.app
 
 import android.content.Intent
-import android.net.ConnectivityManager
-import android.net.Network
-import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import android.net.VpnService
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.os.ParcelFileDescriptor
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.VpnSettings
@@ -54,72 +48,6 @@ class HevVpnService : VpnService() {
     private val nativeLock = Mutex()
     private var startJob: kotlinx.coroutines.Job? = null
 
-    private var underlyingNetworkCallback: ConnectivityManager.NetworkCallback? = null
-    @Volatile private var vpnEstablished = false
-
-    // Kept live (not just set once at establish()) so the system's view of the VPN's dependency
-    // stays accurate across e.g. a Wi-Fi/cellular handover.
-    @Volatile
-    private var underlyingNetwork: Network? = null
-        set(value) {
-            if (field == value) return
-            field = value
-            if (vpnEstablished) {
-                try {
-                    setUnderlyingNetworks(value?.let { arrayOf(it) })
-                } catch (_: Exception) {}
-            }
-        }
-
-    private fun registerUnderlyingNetworkTracking() {
-        val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
-        val request = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
-            .build()
-        val callback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                underlyingNetwork = network
-            }
-
-            override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
-                if (network == underlyingNetwork) underlyingNetwork = network
-            }
-
-            override fun onLost(network: Network) {
-                if (network == underlyingNetwork) underlyingNetwork = null
-            }
-        }
-        underlyingNetworkCallback = callback
-
-        try {
-            val handler = Handler(Looper.getMainLooper())
-            when {
-                // registerDefaultNetworkCallback() alone returns the VPN's own network once
-                // established (since Android P), so request NOT_VPN explicitly instead.
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
-                    cm.registerBestMatchingNetworkCallback(request, callback, handler)
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.P ->
-                    cm.requestNetwork(request, callback, handler)
-                else ->
-                    cm.registerDefaultNetworkCallback(callback, handler)
-            }
-        } catch (e: Exception) {
-            AppLogsState.addLog(getString(R.string.log_vpn_error, "underlying network tracking: ${e.message}"))
-            underlyingNetworkCallback = null
-        }
-    }
-
-    private fun unregisterUnderlyingNetworkTracking() {
-        underlyingNetworkCallback?.let { cb ->
-            try {
-                (getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager).unregisterNetworkCallback(cb)
-            } catch (_: Exception) {}
-        }
-        underlyingNetworkCallback = null
-        underlyingNetwork = null
-    }
-
     private fun disableVpnMode() {
         val context = applicationContext
         CoroutineScope(Dispatchers.IO).launch {
@@ -136,7 +64,6 @@ class HevVpnService : VpnService() {
         super.onCreate()
         NotificationHelper.createChannel(this)
         NotificationHelper.observeStates(this, serviceScope)
-        registerUnderlyingNetworkTracking()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -370,11 +297,15 @@ misc:
         }
     }
 
-    // Shared by both VPN modes: underlying network, routes (LAN bypass) and the per-app filter.
+    // Shared by both VPN modes: metering, routes (LAN bypass) and the per-app filter.
+    // No setUnderlyingNetworks(): left unset, the VPN follows the system default network, which
+    // Android switches itself before it tells apps. Tracked by hand it always lagged a callback
+    // behind - Wi-Fi turned off with mobile data already up sends apps one CONNECTIVITY_ACTION,
+    // and Telegram, asking getActiveNetworkInfo() (answered from the VPN's first underlying
+    // network) right then, got the lost Wi-Fi and sat at "waiting for network". sing-box and
+    // WireGuard leave it unset too.
     private fun configureRoutingAndApps(builder: Builder, vpnSettings: VpnSettings) {
-        val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
-        (underlyingNetwork ?: cm.activeNetwork)?.let { builder.setUnderlyingNetworks(arrayOf(it)) }
-        // false: metered only while the underlying network is, so it follows a Wi-Fi <-> mobile
+        // false: metered only while the default network is, so it follows a Wi-Fi <-> mobile
         // switch. The active network's meteredness at establish() would stay put until the next
         // one - a VPN brought up on mobile data stayed "metered" on Wi-Fi.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -442,7 +373,6 @@ misc:
                     tunInterface = null
                 }
                 nativeTun = null
-                vpnEstablished = false
 
                 AppLogsState.addLog(getString(R.string.log_vpn_native_establishing, params.address, params.mtu))
                 val vpnSettings = AppPreferences(applicationContext).vpnSettingsFlow.first()
@@ -466,7 +396,6 @@ misc:
                 }
                 synchronized(this@HevVpnService) { tunInterface = established }
                 nativeTun = params
-                vpnEstablished = true
                 established
             }
 
@@ -543,7 +472,6 @@ misc:
                 return
             }
             pending = established
-            vpnEstablished = true
 
             val tunFd = established.fd
             val configFile = File(filesDir, "hev-socks5-tunnel.yaml")
@@ -601,7 +529,6 @@ misc:
     private fun stopVpn() {
         isStopping.set(true)
         startJob?.cancel()
-        vpnEstablished = false
         val wasRunning = hevRunning.getAndSet(false)
 
         serviceScope.launch {
@@ -641,8 +568,6 @@ misc:
         // cleanup coroutine cancelling the scope right after would kill before it runs).
         isStopping.set(true)
         startJob?.cancel()
-        vpnEstablished = false
-        unregisterUnderlyingNetworkTracking()
         val wasRunning = hevRunning.getAndSet(false)
 
         serviceScope.launch {
