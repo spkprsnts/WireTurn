@@ -1041,24 +1041,38 @@ class ProfileManager(
      */
     private fun tryParseCsqttPanelSubscription(content: String): ProfileBundle? {
         val trimmed = content.trim()
-        if (!trimmed.startsWith("{") || !trimmed.contains("csqtt://")) return null
-        data class Entry(val name: String?, val link: String, val subUuid: String?)
+        if (!(trimmed.startsWith("{") || trimmed.startsWith("[")) || !trimmed.contains("csqtt://")) return null
+        data class Entry(val name: String?, val link: String, val subUuid: String?, val power: Int?)
 
         fun entryOf(obj: JsonObject): Entry? {
             fun str(key: String) = obj.get(key)?.takeIf { it.isJsonPrimitive }?.asString?.takeIf { it.isNotBlank() }
             val link = str("link")?.takeIf { it.startsWith("csqtt://", ignoreCase = true) } ?: return null
-            return Entry(str("name"), link, str("sub_uuid"))
+            val power = com.wireturn.app.data.kernel.CsqttConfig.linkPower(str("power") ?: str("workers"))
+            return Entry(str("name"), link, str("sub_uuid"), power)
         }
 
-        val obj = runCatching { JsonParser.parseString(trimmed).asJsonObject }.getOrNull() ?: return null
-        val clients = obj.get("clients")?.takeIf { it.isJsonArray }?.asJsonArray
-        val groupName = obj.get("group")?.takeIf { it.isJsonObject }?.asJsonObject
-            ?.get("name")?.takeIf { it.isJsonPrimitive }?.asString
-        val entries = clients?.mapNotNull { item -> item.takeIf { it.isJsonObject }?.asJsonObject?.let(::entryOf) }
-            ?: listOfNotNull(entryOf(obj))
+        fun entriesOf(array: com.google.gson.JsonArray): List<Entry> =
+            array.mapNotNull { item -> item.takeIf { it.isJsonObject }?.asJsonObject?.let(::entryOf) }
+
+        // The panel's own shapes ({"clients": [...], "group": {...}}, or one client's object), and
+        // the others the official app's importer (2.5.3's SubscriptionImporter) takes: a group's
+        // "items" or "clients", top-level "items", or a bare array.
+        val root = runCatching { JsonParser.parseString(trimmed) }.getOrNull() ?: return null
+        val obj = root.takeIf { it.isJsonObject }?.asJsonObject
+        val group = obj?.get("group")?.takeIf { it.isJsonObject }?.asJsonObject
+        val groupName = group?.get("name")?.takeIf { it.isJsonPrimitive }?.asString
+        fun array(o: JsonObject?, key: String) = o?.get(key)?.takeIf { it.isJsonArray }?.asJsonArray
+        val entries = when {
+            root.isJsonArray -> entriesOf(root.asJsonArray)
+            else -> (array(group, "items") ?: array(group, "clients") ?: array(obj, "clients") ?: array(obj, "items"))
+                ?.let(::entriesOf)
+                ?: listOfNotNull(obj?.let(::entryOf))
+        }
 
         val profiles = entries.mapNotNull { entry ->
-            val config = com.wireturn.app.data.kernel.CsqttConfig.parse(entry.link) ?: return@mapNotNull null
+            val parsed = com.wireturn.app.data.kernel.CsqttConfig.parse(entry.link) ?: return@mapNotNull null
+            // A node's own count over its link's, as the official app reads it.
+            val config = entry.power?.let { parsed.copy(workers = it) } ?: parsed
             val seed = entry.subUuid?.let { "csqtt-sub:$it" }
                 ?: com.wireturn.app.data.kernel.CsqttConfig.decryptLink(entry.link) ?: entry.link
             Profile(

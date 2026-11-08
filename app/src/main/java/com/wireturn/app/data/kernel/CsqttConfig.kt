@@ -79,6 +79,8 @@ data class CsqttConfig(
             append("&password=").append(Uri.encode(password))
             val hashes = hashList()
             if (hashes.isNotEmpty()) append("&hashes=").append(hashes.joinToString("+") { Uri.encode(it) })
+            // The worker count, as the official app's own links carry it since 2.5.3.
+            append("&power=").append(normalizedWorkers())
             if (!profileName.isNullOrBlank()) append("&name=").append(Uri.encode(profileName))
         }
         return "csqtt://" + encryptLink(query)
@@ -93,7 +95,8 @@ data class CsqttConfig(
         // rust-client/worker.rs and main.rs since 2.5.0 (9 and 126 before, with 3 groups per hash).
         const val WORKERS_PER_GROUP = 10
         const val MIN_WORKERS = 5
-        const val MAX_HASHES = 6
+        // The official app's MAX_VK_HASHES - the client itself takes any number.
+        const val MAX_HASHES = 7
         const val MAX_WORKERS = 100
         // The official app's own default (18 per profile, normalized the same way).
         const val DEFAULT_WORKERS = 18
@@ -119,7 +122,11 @@ data class CsqttConfig(
                     val hashes = uri.getQueryParameter("hashes")
                         ?.let { CsqttConfig(vkHashes = it).hashList().joinToString(", ") }
                         ?.takeIf { it.isNotBlank() }
-                    current.copy(peer = "${bracketed(host)}:$port", password = password, vkHashes = hashes ?: current.vkHashes)
+                    val power = linkPower(uri.getQueryParameter("power") ?: uri.getQueryParameter("workers"))
+                    current.copy(
+                        peer = "${bracketed(host)}:$port", password = password,
+                        vkHashes = hashes ?: current.vkHashes, workers = power ?: current.workers
+                    )
                 } else {
                     val host = uri.host?.takeIf { it.isNotBlank() } ?: return null
                     val port = uri.port.takeIf { it in 1..65535 } ?: return null
@@ -185,6 +192,13 @@ data class CsqttConfig(
                 null
             }
         }
+
+        /**
+         * A link's or subscription's worker count ("power", or "workers" - 2.5.3's links and
+         * subscriptions), the official app's normalizeCsqttPower way: 10..100, null when absent.
+         */
+        fun linkPower(raw: Any?): Int? =
+            raw?.toString()?.trim()?.toIntOrNull()?.takeIf { it > 0 }?.coerceIn(WORKERS_PER_GROUP, MAX_WORKERS)
 
         private fun bracketed(host: String): String =
             if (host.contains(':') && !host.startsWith('[')) "[$host]" else host
