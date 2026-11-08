@@ -119,6 +119,7 @@ object CsqttKernel : Kernel {
 
     override fun logLevel(line: String): LogLevel? = when {
         line.startsWith(EVENT_PREFIX) -> LogLevel.DEBUG
+        line.startsWith(STREAM_PREFIX) -> LogLevel.DEBUG
         line.startsWith("[S2T] debug:") -> LogLevel.DEBUG
         else -> null
     }
@@ -272,6 +273,9 @@ object CsqttKernel : Kernel {
     private fun JsonObject.stringOrNull(key: String): String? = primitiveOrNull(key) { it.asString }
 
     private const val EVENT_PREFIX = "__CSQTT_EVENT__|"
+    // 2.5.3's per-worker connection-stage diagnostics (rust-client/stream_diagnostics.rs), one JSON
+    // line per stage - written while events are on (CSQTT_EVENTS), nothing here reads them.
+    private const val STREAM_PREFIX = "__CSQTT_STREAM__|"
 
     private val TUNNEL_IP_REGEX = Regex("""Tunnel IP:\s*([0-9.]+)(?:/\d+)?\s*\|\s*DNS:\s*([0-9.,\s]*)""")
 }
