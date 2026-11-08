@@ -58,6 +58,7 @@ import com.wireturn.app.R
 import com.wireturn.app.data.kernel.CsqttConfig
 import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.AppTopAppBar
+import com.wireturn.app.ui.ExpandableSection
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LabeledButtonGroup
@@ -387,7 +388,7 @@ fun CsqttConfigScreen(
                         }
                     }
                 }
-                SectionItem(position = ItemPosition.Bottom) {
+                SectionItem(position = if (config.turnTcp) ItemPosition.Middle else ItemPosition.Bottom) {
                     LabeledButtonGroup(
                         label = stringResource(R.string.qwdtt_turn_tcp_label),
                         supportingText = stringResource(R.string.csqtt_turn_tcp_desc),
@@ -402,6 +403,62 @@ fun CsqttConfigScreen(
                                 index = index,
                                 count = options.size
                             )
+                        }
+                    }
+                }
+
+                // Gooby only works on TCP/TLS - with UDP its setting is kept but hidden (and not passed).
+                ExpandableSection(visible = config.turnTcp) {
+                    SectionGroup {
+                        SectionItem(
+                            position = if (config.gooby) ItemPosition.Middle else ItemPosition.Bottom,
+                            onClick = {
+                                config = config.copy(gooby = !config.gooby)
+                                HapticUtil.perform(
+                                    context,
+                                    if (config.gooby) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                                )
+                            }
+                        ) {
+                            SwitchRow(
+                                label = stringResource(R.string.csqtt_gooby_label),
+                                supportingText = stringResource(R.string.csqtt_gooby_desc),
+                                checked = config.gooby,
+                                onCheckedChange = { config = config.copy(gooby = it) },
+                                isModified = isEditMode && config.gooby != initialConfig.gooby
+                            )
+                        }
+
+                        ExpandableSection(visible = config.gooby) {
+                            SectionGroup {
+                                SectionItem(position = ItemPosition.Bottom) {
+                                    val options = CsqttConfig.GOOBY_STRATEGIES
+                                    val labels = options.map { strategy ->
+                                        stringResource(
+                                            when (strategy) {
+                                                "gentle" -> R.string.csqtt_gooby_strategy_gentle
+                                                "extended" -> R.string.csqtt_gooby_strategy_extended
+                                                else -> R.string.csqtt_gooby_strategy_current
+                                            }
+                                        )
+                                    }
+                                    LabeledButtonGroup(
+                                        label = stringResource(R.string.csqtt_gooby_strategy_label),
+                                        supportingText = stringResource(R.string.csqtt_gooby_strategy_desc),
+                                        isModified = isEditMode && config.goobyStrategy != initialConfig.goobyStrategy
+                                    ) {
+                                        options.forEachIndexed { index, strategy ->
+                                            selectableButtonItem(
+                                                selected = config.goobyStrategy == strategy,
+                                                onSelect = { config = config.copy(goobyStrategy = strategy) },
+                                                label = labels[index],
+                                                index = index,
+                                                count = options.size
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

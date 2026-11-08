@@ -78,6 +78,9 @@ object CsqttKernel : Kernel {
             // The VPN's TUN, or socks2tun's end of the socketpair - see buildSidecarCommand.
             addAll(listOf("-tun-uds", ctx.nativeTunSocket ?: ctx.runSocket))
             addAll(listOf("-obfs", o.obfsMode, "-turn-transport", if (o.turnTcp) "tcp_tls" else "udp"))
+            // The client refuses Gooby with UDP, so the setting kept on a UDP profile is skipped.
+            // Double-dashed: the client's single-dash rewriting doesn't list --gooby-strategy.
+            if (o.gooby && o.turnTcp) addAll(listOf("--gooby", "--gooby-strategy", o.goobyStrategy))
             addAll(listOf("-fingerprint", FINGERPRINT, "-client-ids", CLIENT_IDS))
             if (o.manualCaptcha) addAll(listOf("-captcha-mode", "wv"))
             // A new session epoch per run: the server drops the device's previous session for it

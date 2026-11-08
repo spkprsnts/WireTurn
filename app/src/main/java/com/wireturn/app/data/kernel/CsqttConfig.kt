@@ -28,7 +28,12 @@ data class CsqttConfig(
     // TURN over TLS on TCP ("-turn-transport tcp_tls") instead of plain UDP.
     @SerializedName("turn_tcp") val turnTcp: Boolean = false,
     // "-captcha-mode wv": straight to our WebView, skipping the client's own solving chain.
-    @SerializedName("manual_captcha") val manualCaptcha: Boolean = false
+    @SerializedName("manual_captcha") val manualCaptcha: Boolean = false,
+    // The client's built-in Gooby (--gooby, 2.5.3+): splits TURN's first Allocate requests and the
+    // TLS ClientHello into small pieces while a connection is set up. TCP/TLS only ([turnTcp]).
+    @SerializedName("gooby") val gooby: Boolean = false,
+    // --gooby-strategy: one of GOOBY_STRATEGIES.
+    @SerializedName("gooby_strategy") val goobyStrategy: String = DEFAULT_GOOBY_STRATEGY
 ) {
     fun isValid(): Boolean = peer.isNotBlank() && password.isNotBlank() && hashList().isNotEmpty()
 
@@ -55,7 +60,8 @@ data class CsqttConfig(
         password = (password as Any?)?.toString()?.trim()?.take(256) ?: "",
         vkHashes = (vkHashes as Any?)?.toString()?.trim()?.take(2000) ?: "",
         workers = workers.coerceIn(MIN_WORKERS, MAX_WORKERS),
-        obfsMode = if (obfsMode == "audio") "audio" else "video"
+        obfsMode = if (obfsMode == "audio") "audio" else "video",
+        goobyStrategy = (goobyStrategy as Any?)?.toString()?.takeIf { it in GOOBY_STRATEGIES } ?: DEFAULT_GOOBY_STRATEGY
     )
 
     // The official app's v2 link, in the encrypted form it reads since 2.5.0 (see encryptLink) -
@@ -79,6 +85,11 @@ data class CsqttConfig(
     }
 
     companion object {
+        // rust-client/vendor/gooby's Preset: gentle splits less and skips the low-TTL trick,
+        // extended splits finer (experimental upstream).
+        val GOOBY_STRATEGIES = listOf("current", "gentle", "extended")
+        const val DEFAULT_GOOBY_STRATEGY = "current"
+
         // rust-client/worker.rs and main.rs since 2.5.0 (9 and 126 before, with 3 groups per hash).
         const val WORKERS_PER_GROUP = 10
         const val MIN_WORKERS = 5

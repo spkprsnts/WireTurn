@@ -299,6 +299,13 @@
     <string name="csqtt_hashes_desc">VK: Звонки «https://vk.com/call/join/[ID]». До %1$d ID через запятую.</string>
     <string name="csqtt_workers_desc">Группами по %1$d, не больше %2$d. Сейчас используется: %3$d</string>
     <string name="csqtt_turn_tcp_desc">TCP/TLS чаще проходит через ограничительные сети; UDP может быть быстрее</string>
+    <string name="csqtt_gooby_label">Gooby</string>
+    <string name="csqtt_gooby_desc">Экспериментальный обход DPI: при подключении дробит первые запросы TURN и TLS ClientHello на мелкие части. Попробуйте, если TCP/TLS блокируется</string>
+    <string name="csqtt_gooby_strategy_label">Стратегия Gooby</string>
+    <string name="csqtt_gooby_strategy_desc">Мягкая дробит меньше и не снижает TTL; расширенная дробит сильнее всего</string>
+    <string name="csqtt_gooby_strategy_current">Обычная</string>
+    <string name="csqtt_gooby_strategy_gentle">Мягкая</string>
+    <string name="csqtt_gooby_strategy_extended">Расширенная</string>
     <string name="qwdtt_obfs_label">Обфускация</string>
     <string name="qwdtt_turn_tcp_label">Транспорт до TURN-relay</string>
     <string name="qwdtt_turn_tcp_desc">TCP совместимее с ограничительными сетями; UDP может быть быстрее</string>

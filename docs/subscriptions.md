@@ -353,7 +353,7 @@ csqtt://connect?v=2&host=1.2.3.4&peer=46000&password=Sup3rSecret&hashes=abc123de
 
 **Не разделяйте ID звонков запятой.** Официальное приложение и панели делят `hashes` только по `+`, поэтому закодированная запятая (`%2C`) превратит несколько звонков в один неверный ID.
 
-**Поля, которых нет в ссылке.** Число воркеров, обфускация (`audio`/`video`), транспорт до TURN (`udp`/`tcp_tls`) и ручная капча — настройки WireTurn, они передаются только в `kernelConfig` (`"type": "csqtt"`, поля `peer`, `password`, `hashes`, `workers`, `obfs`, `turn_tcp`, `manual_captcha`).
+**Поля, которых нет в ссылке.** Число воркеров, обфускация (`audio`/`video`), транспорт до TURN (`udp`/`tcp_tls`), ручная капча и Gooby — настройки WireTurn, они передаются только в `kernelConfig` (`"type": "csqtt"`, поля `peer`, `password`, `hashes`, `workers`, `obfs`, `turn_tcp`, `manual_captcha`, `gooby`, `gooby_strategy` — `current`, `gentle` или `extended`). Gooby работает только с `turn_tcp: true`.
 
 **TUN или SOCKS5.** Ядро работает только с TUN. В VPN-режиме без Xray оно получает TUN устройства напрямую; в остальных режимах WireTurn запускает рядом [socks2tun](https://github.com/spkprsnts/socks2tun), и ядро ведёт себя как обычное SOCKS5-нативное (локальный SOCKS5 с авторизацией). На `x86` ядро недоступно.
 
