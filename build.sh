@@ -239,11 +239,20 @@ build_rust_project() {
     for abi in $RUST_ABIS; do
         local out="$JNI_LIBS_DIR/$abi/$out_name"
         needs_rebuild "." "$out" rust || continue
+        # CSQTT's vendored LuaJIT builds its code generator with a 32-bit host compiler for a
+        # 32-bit target - without gcc-multilib that fails deep in mlua-sys's build script.
+        if [ "$abi" = "armeabi-v7a" ] && ! echo 'int main(void){return 0;}' | cc -m32 -x c - -o /dev/null 2>/dev/null; then
+            echo "ERROR: building $out_name for $abi needs a 32-bit host C compiler (cc -m32)."
+            echo "  Install it: sudo apt-get install gcc-multilib"
+            exit 1
+        fi
         echo "  → Building $abi..."
         mkdir -p "$(dirname "$out")"
         # Same 16 KB page alignment as the Go builds' -z max-page-size (Android 15+ devices).
+        # --link-builtins: compiler-rt's builtins, which rustc's -nodefaultlibs link leaves out -
+        # CSQTT's vendored LuaJIT (Gooby) calls __clear_cache from there; upstream builds the same.
         RUSTFLAGS="-C link-arg=-Wl,-z,max-page-size=16384" \
-        cargo ndk -t "$abi" -P "$MIN_SDK" build --release --locked --target-dir "$target_dir"
+        cargo ndk -t "$abi" -P "$MIN_SDK" --link-builtins build --release --locked --target-dir "$target_dir"
         cp "$target_dir/${RUST_TRIPLE[$abi]}/release/$bin_name" "$out"
         if [ "$CI" = "true" ]; then git rev-parse HEAD > "$(ci_hash_file "." "$out")"; fi
     done

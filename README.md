@@ -4,7 +4,7 @@
 
 # WireTurn — Android WebRTC & WebDAV Tunnel
 
-Android-клиент для [Turnable](https://github.com/TheAirBlow/Turnable), [olcRTC](https://github.com/openlibrecommunity/olcrtc), [WebDAV](https://github.com/spkprsnts/webdav-tunnel), [FreeTurn](https://github.com/hackdiaz-dev/free-turn-proxy), [qWDTT](https://github.com/SpaceNeuroX/proxy-turn-vk-android), [OpenFlux](https://github.com/p1neappleXpress/OpenFlux) и [CSQTT](https://github.com/amurcanov/csqtt) — туннелирование трафика через WebRTC и WebDAV.
+Android-клиент для [Turnable](https://github.com/TheAirBlow/Turnable), [olcRTC](https://github.com/openlibrecommunity/olcrtc), [WebDAV](https://github.com/spkprsnts/webdav-tunnel), [FreeTurn](https://github.com/hackdiaz-dev/free-turn-proxy), [qWDTT](https://github.com/SpaceNeuroX/proxy-turn-vk-android), [OpenFlux](https://github.com/p1neappleXpress/OpenFlux) и [CSQTT](https://github.com/Afteroid/csqttr) — туннелирование трафика через WebRTC и WebDAV.
 
 > **Disclaimer:** Проект предназначен исключительно для образовательных и исследовательских целей.
 
@@ -84,7 +84,7 @@ WireTurn упаковывает трафик в стандартные прот�
 - `libfreeturn.so` — [hackdiaz-dev/free-turn-proxy](https://github.com/hackdiaz-dev/free-turn-proxy)
 - `libqwdtt.so` — [SpaceNeuroX/proxy-turn-vk-android](https://github.com/SpaceNeuroX/proxy-turn-vk-android) (`go_client`)
 - `libopenflux.so` — [p1neappleXpress/OpenFlux](https://github.com/p1neappleXpress/OpenFlux)
-- `libcsqtt.so` — [amurcanov/csqtt](https://github.com/amurcanov/csqtt) (`rust-client`)
+- `libcsqtt.so` — [Afteroid/csqttr](https://github.com/Afteroid/csqttr) (`rust-client`)
 - `libsocks2tun.so` — SOCKS5 поверх TUN-only ядер, [spkprsnts/socks2tun](https://github.com/spkprsnts/socks2tun)
 - `libxray.so` — [spkprsnts/vless-client](https://github.com/spkprsnts/vless-client)
 - `libhevsocks5.so` — сетевой стек VPN-режима, [heiher/hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel)
@@ -117,6 +117,7 @@ git clone --recursive https://github.com/spkprsnts/WireTurn.git
 - [SpaceNeuroX/proxy-turn-vk-android](https://github.com/SpaceNeuroX/proxy-turn-vk-android) — проект qWDTT.
 - [p1neappleXpress/OpenFlux](https://github.com/p1neappleXpress/OpenFlux) — проект OpenFlux.
 - [amurcanov/csqtt](https://github.com/amurcanov/csqtt) — проект CSQTT (лицензия PolyForm Noncommercial 1.0.0, только некоммерческое использование).
+- [Afteroid/csqttr](https://github.com/Afteroid/csqttr) — продолжение CSQTT (CSQTT-Rebirth) после архивации оригинала, ядро собирается из него (та же лицензия).
 - [spkprsnts/socks2tun](https://github.com/spkprsnts/socks2tun) — SOCKS5 для TUN-only ядер.
 - [hufrea/byedpi](https://github.com/hufrea/byedpi) — ByeDPI.
 - [XTLS/Xray-core](https://github.com/XTLS/Xray-core) — кодовая база Xray.

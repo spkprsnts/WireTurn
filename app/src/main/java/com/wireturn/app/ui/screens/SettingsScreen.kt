@@ -954,8 +954,8 @@ private fun RepoLinksContent(
             item {
                 RepoLinkItem(
                     title = stringResource(R.string.csqtt_core),
-                    subtitle = "amurcanov/csqtt",
-                    url = "https://github.com/amurcanov/csqtt",
+                    subtitle = "Afteroid/csqttr",
+                    url = "https://github.com/Afteroid/csqttr",
                     containerColor = containerColor,
                     onHaptic = { HapticUtil.perform(context, HapticUtil.Pattern.SELECTION) },
                     onOpen = { uriHandler.openUri(it) }

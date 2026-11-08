@@ -9,7 +9,8 @@ import javax.crypto.Mac
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
-// CSQTT (external/csqtt, upstream https://github.com/amurcanov/csqtt): raw IP over VK TURN, with
+// CSQTT (external/csqtt, upstream https://github.com/Afteroid/csqttr - the continuation of the
+// archived https://github.com/amurcanov/csqtt): raw IP over VK TURN, with
 // no SOCKS5 or WireGuard of its own - its client only ever takes a TUN (-tun-uds). That's the
 // VPN's own TUN when VPN mode runs without Xray (Kernel.supportsNativeTun), and socks2tun's
 // packet socket otherwise, which exposes it as a local SOCKS5 (socksAddr/auth on ClientConfig).

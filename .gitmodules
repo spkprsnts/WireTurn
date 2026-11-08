@@ -24,7 +24,7 @@
 	url = https://github.com/p1neappleXpress/OpenFlux.git
 [submodule "external/csqtt"]
 	path = external/csqtt
-	url = https://github.com/amurcanov/csqtt.git
+	url = https://github.com/Afteroid/csqttr.git
 [submodule "external/socks2tun"]
 	path = external/socks2tun
 	url = https://github.com/spkprsnts/socks2tun.git

@@ -325,7 +325,7 @@ openflux://config?transport=oneme&token=abc123&uid=123456789&name=MAX-1
 
 ### 2.7 `csqtt://`
 
-Формат официального приложения [CSQTT](https://github.com/amurcanov/csqtt). Такие же ссылки выдают веб-панель самого сервера CSQTT и сторонние панели (например, swgPanel). Принимаются три варианта:
+Формат официального приложения [CSQTT](https://github.com/Afteroid/csqttr). Такие же ссылки выдают веб-панель самого сервера CSQTT и сторонние панели (например, swgPanel). Принимаются три варианта:
 
 ```
 csqtt://[base64url]                       (зашифрованный, CSQTT 2.5.0+)
