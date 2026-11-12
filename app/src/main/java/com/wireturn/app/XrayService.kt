@@ -6,9 +6,11 @@ import android.net.LocalSocket
 import android.net.LocalSocketAddress
 import android.os.Build
 import android.os.IBinder
+import android.os.SystemClock
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.VlessConfig
+import com.wireturn.app.data.WatchdogSettings
 import com.wireturn.app.data.WgConfig
 import com.wireturn.app.data.XrayConfig
 import com.wireturn.app.data.XraySettings
@@ -42,6 +44,12 @@ class XrayService : Service() {
     // once instead of going Idle and through the watchdog.
     private val reloadRequested = java.util.concurrent.atomic.AtomicBoolean(false)
     private var restartCount = 0
+    // elapsedRealtime the current run's process started at, 0 before it does - a run that lasted
+    // starts the watchdog's count over, as in CoreService.
+    @Volatile private var runStartedAt = 0L
+    @Volatile private var watchdogSettings = WatchdogSettings()
+    // The watchdog's restart waiting on [handler], null when none is.
+    @Volatile private var pendingRestart: Runnable? = null
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
     @Volatile private var caBundlePath: String? = null
 
@@ -52,6 +60,9 @@ class XrayService : Service() {
         NotificationHelper.createChannel(this)
         NotificationHelper.observeStates(this, serviceScope)
         caBundlePath = CaBundleUtil.ensure(this)
+        serviceScope.launch {
+            AppPreferences(this@XrayService).watchdogSettingsFlow.collect { watchdogSettings = it }
+        }
     }
 
     // Masks credentials/keys for the app's own log, which the user may end up sharing for
@@ -79,6 +90,9 @@ class XrayService : Service() {
 
         userStopped.set(false)
         restartCount = 0
+        // A fresh start supersedes a watchdog restart still waiting - it would start a second run.
+        pendingRestart?.let { handler.removeCallbacks(it) }
+        pendingRestart = null
 
         xrayJob?.cancel()
         process.getAndSet(null)?.destroyForcibly()
@@ -145,6 +159,7 @@ class XrayService : Service() {
 
     private suspend fun startXray(snapshot: XrayConfigsSnapshot) {
         val executable = "${applicationInfo.nativeLibraryDir}/libxray.so"
+        runStartedAt = 0L
 
         try {
             val wgConfig = snapshot.wg
@@ -332,6 +347,7 @@ class XrayService : Service() {
                 builder.start()
             }
             process.set(proc)
+            runStartedAt = SystemClock.elapsedRealtime()
             XrayServiceState.updateStatsSocketName(socketName)
             XrayServiceState.updateStatus(XrayState.Starting)
 
@@ -530,8 +546,17 @@ class XrayService : Service() {
     private fun reload(startId: Int) {
         val proc = process.get()
         if (proc == null) {
-            // Not running (starting, or between watchdog restarts): its next start is on the new
-            // network anyway. Started by this very intent - don't linger as a bare service.
+            // Between watchdog restarts: the next one goes now, on the new network - the eternal
+            // watchdog's wait can be long - with its backoff started over.
+            pendingRestart?.let { restart ->
+                handler.removeCallbacks(restart)
+                restartCount = 0
+                AppLogsState.addLog(getString(R.string.log_xray_watchdog_wake))
+                restart.run()
+                return
+            }
+            // Not running (starting): its next start is on the new network anyway. Started by
+            // this very intent - don't linger as a bare service.
             if (XrayServiceState.state.value == XrayState.Idle && xrayJob?.isActive != true) stopSelf(startId)
             return
         }
@@ -541,22 +566,37 @@ class XrayService : Service() {
     }
 
     private fun scheduleWatchdogRestart(snapshot: XrayConfigsSnapshot) {
+        val watchdog = watchdogSettings
+        if (runStartedAt != 0L && SystemClock.elapsedRealtime() - runStartedAt > STABLE_RUN_MS) {
+            restartCount = 0
+        }
         restartCount++
-        if (restartCount > MAX_RESTARTS) {
+        if (restartCount > MAX_RESTARTS && !watchdog.eternal) {
             AppLogsState.addLog(getString(R.string.log_xray_watchdog_limit, MAX_RESTARTS))
             stopSelf()
             return
         }
-        
+
         XrayServiceState.updateStatus(XrayState.Starting)
-        val delay = minOf(1000L * restartCount, 10000L)
-        AppLogsState.addLog(getString(R.string.log_xray_watchdog_restart, delay.toInt(), restartCount, MAX_RESTARTS))
-        
-        handler.postDelayed({
+        // Eternal, past the regular limit: the same doubling backoff as CoreService's.
+        val delay = if (restartCount > MAX_RESTARTS) {
+            WatchdogSettings.eternalDelayMs(restartCount - MAX_RESTARTS, watchdog.maxIntervalMs)
+        } else {
+            minOf(1000L * restartCount, 10000L)
+        }
+        AppLogsState.addLog(
+            if (watchdog.eternal) getString(R.string.log_xray_watchdog_restart_eternal, delay, restartCount)
+            else getString(R.string.log_xray_watchdog_restart, delay.toInt(), restartCount, MAX_RESTARTS)
+        )
+
+        val restart = Runnable {
+            pendingRestart = null
             if (!userStopped.get()) {
                 serviceScope.launch { startXray(snapshot) }
             }
-        }, delay)
+        }
+        pendingRestart = restart
+        handler.postDelayed(restart, delay)
     }
 
     override fun onDestroy() {
@@ -582,6 +622,7 @@ class XrayService : Service() {
         // Restarts the running Xray in place - see reload().
         const val ACTION_RELOAD = "RELOAD"
         private const val MAX_RESTARTS = 3
+        private const val STABLE_RUN_MS = 300_000L
         private val XRAY_ACCESS_LOG = Regex(""" from \S+ (accepted|rejected) """)
     }
 }

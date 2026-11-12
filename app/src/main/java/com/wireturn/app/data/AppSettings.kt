@@ -31,6 +31,29 @@ data class AutoLaunchSettings(
     val intervalMinutes: Int = 15
 )
 
+/**
+ * The watchdogs' (CoreService, XrayService) restart policy. [eternal]: no attempt limit - past the
+ * regular limit the wait between attempts keeps doubling up to [maxIntervalMinutes], and a failed
+ * start is retried too instead of ending the session (except what retrying can't fix: an invalid
+ * config, a kernel not built for the device).
+ */
+data class WatchdogSettings(
+    val eternal: Boolean = false,
+    val maxIntervalMinutes: Int = DEFAULT_MAX_INTERVAL_MINUTES
+) {
+    val maxIntervalMs: Long get() = maxIntervalMinutes.coerceIn(MIN_MAX_INTERVAL_MINUTES, MAX_MAX_INTERVAL_MINUTES) * 60_000L
+
+    companion object {
+        const val DEFAULT_MAX_INTERVAL_MINUTES = 15
+        const val MIN_MAX_INTERVAL_MINUTES = 1
+        const val MAX_MAX_INTERVAL_MINUTES = 1440
+
+        // Past the regular limit: 30s, 1m, 2m, 4m... up to [maxIntervalMs].
+        fun eternalDelayMs(attemptsPastLimit: Int, maxIntervalMs: Long): Long =
+            (30_000L shl (attemptsPastLimit - 1).coerceIn(0, 16)).coerceAtMost(maxIntervalMs)
+    }
+}
+
 data class Subscription(
     @SerializedName("id") val id: String,
     @SerializedName("name") val name: String,

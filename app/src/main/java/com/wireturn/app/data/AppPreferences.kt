@@ -109,6 +109,8 @@ class AppPreferences(val context: Context) {
         val ALLOW_UNSTABLE_UPDATES = booleanPreferencesKey("allow_unstable_updates")
         val WAIT_FOR_NETWORK = booleanPreferencesKey("wait_for_network")
         val RESTART_ON_NETWORK_CHANGE = booleanPreferencesKey("restart_on_network_change")
+        val WATCHDOG_ETERNAL = booleanPreferencesKey("watchdog_eternal")
+        val WATCHDOG_MAX_INTERVAL = intPreferencesKey("watchdog_max_interval_minutes")
         val CAPTCHA_STYLE_MOD = booleanPreferencesKey("captcha_style_mod")
         val CAPTCHA_FORCE_TINT = booleanPreferencesKey("captcha_force_tint")
         val PARTIAL_CAPTCHA_ALERTS = booleanPreferencesKey("partial_captcha_alerts")
@@ -280,6 +282,14 @@ class AppPreferences(val context: Context) {
                 it[AUTO_LAUNCH_ENABLED] ?: false,
                 it[AUTO_LAUNCH_URL] ?: "https://www.google.com",
                 it[AUTO_LAUNCH_INTERVAL] ?: 15
+            )
+        }.distinctUntilChanged()
+
+    val watchdogSettingsFlow: Flow<WatchdogSettings> = appCtx.internalDataStore.data
+        .map {
+            WatchdogSettings(
+                eternal = it[WATCHDOG_ETERNAL] ?: false,
+                maxIntervalMinutes = it[WATCHDOG_MAX_INTERVAL] ?: WatchdogSettings.DEFAULT_MAX_INTERVAL_MINUTES
             )
         }.distinctUntilChanged()
 
@@ -609,6 +619,13 @@ class AppPreferences(val context: Context) {
             it[AUTO_LAUNCH_ENABLED] = s.enabled
             it[AUTO_LAUNCH_URL] = s.checkUrl
             it[AUTO_LAUNCH_INTERVAL] = s.intervalMinutes
+        }
+    }
+
+    suspend fun updateWatchdogSettings(s: WatchdogSettings) {
+        appCtx.internalDataStore.edit {
+            it[WATCHDOG_ETERNAL] = s.eternal
+            it[WATCHDOG_MAX_INTERVAL] = s.maxIntervalMinutes
         }
     }
 

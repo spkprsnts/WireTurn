@@ -147,7 +147,11 @@ fun CoreToggleButton(
     }
 
     val statusText = when {
-        actuallyRestarting -> restartAttempt?.let { stringResource(R.string.notification_restart, it.attempt, it.max) }
+        actuallyRestarting -> restartAttempt?.let {
+            val max = it.max
+            if (max != null) stringResource(R.string.notification_restart, it.attempt, max)
+            else stringResource(R.string.notification_restart_eternal, it.attempt)
+        }
             ?: stringResource(R.string.core_restarting)
         coreState is CoreState.Connected -> {
             if (xrayState == XrayState.DirectRoute) stringResource(R.string.direct_route_active)

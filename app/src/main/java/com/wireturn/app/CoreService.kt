@@ -16,6 +16,7 @@ import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.VpnSettings
+import com.wireturn.app.data.WatchdogSettings
 import com.wireturn.app.kernel.BinaryOutputState
 import com.wireturn.app.kernel.KernelCommandContext
 import com.wireturn.app.kernel.KernelLogContext
@@ -35,6 +36,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -50,6 +52,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.InterruptedIOException
@@ -95,6 +98,13 @@ class CoreService : Service() {
     // generic core_failed message if the watchdog exhausts MAX_RESTARTS.
     private var lastKnownFailureReason: String? = null
     private var minRestartDelayMs = 0L
+    // A failure no retry fixes (the kernel isn't built for this ABI, the config turned invalid) -
+    // ends the session even with the eternal watchdog. Cleared by a valid config change.
+    @Volatile private var nonRetryableFailure = false
+    // Cuts the watchdog's wait between attempts short - a network change: with the eternal
+    // watchdog's waits of up to WatchdogSettings.maxIntervalMinutes, a working network shouldn't
+    // sit out the rest of one.
+    private val watchdogWake = Channel<Unit>(Channel.CONFLATED)
     // Set right before a deliberate stop of the running binary (hot-reload, network change) so the
     // supervisor loop restarts it straight away instead of treating the exit as a crash and
     // showing a watchdog "attempt N/M" for it.
@@ -177,6 +187,11 @@ class CoreService : Service() {
         observeCaptchaForNotification()
         observeQwdttCaptchaResult()
         observeErrorForNotification()
+        serviceScope.launch {
+            AppPreferences(applicationContext).watchdogSettingsFlow.collect {
+                CoreServiceState.setErrorsRetried(it.eternal)
+            }
+        }
         startXraySupervisor()
         startVpnSupervisor()
         caBundlePath = CaBundleUtil.ensure(this)
@@ -392,6 +407,7 @@ class CoreService : Service() {
 
                     if (!newCfg.isValid) {
                         val errorRes = newCfg.getValidationErrorResId() ?: R.string.error_settings_empty
+                        nonRetryableFailure = true
                         CoreServiceState.setStatus(CoreStatus.Error(getString(errorRes)))
                         stopBinaryProcessGracefully()
 
@@ -409,6 +425,7 @@ class CoreService : Service() {
                         // A config/profile switch is a deliberate new attempt, not the watchdog
                         // retrying a failure - drop any restart counter left over from before.
                         restartCount = 0
+                        nonRetryableFailure = false
                         lastKnownFailureReason = null
                         CoreServiceState.setRestartAttempt(null)
 
@@ -527,6 +544,7 @@ class CoreService : Service() {
                 continue
             }
 
+            val watchdog = prefs.watchdogSettingsFlow.first()
             val currentStatus = CoreServiceState.status.value
             if (!startupSuccessful || currentStatus is CoreStatus.Error) {
                 if (currentStatus !is CoreStatus.Error) {
@@ -534,18 +552,22 @@ class CoreService : Service() {
                     AppLogsState.addLog(getString(R.string.log_core_startup_failed))
                     CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_kernel_or_settings)))
                 }
-                delay(3_000.milliseconds)
-                if (isActive && !userStopped.get()) {
-                    withContext(Dispatchers.Main) { stopSelf() }
+                // The eternal watchdog retries a failed start like any other exit - what this run
+                // failed on (a server down, a call gone) may well pass. Only what can't is final.
+                if (!watchdog.eternal || nonRetryableFailure) {
+                    delay(3_000.milliseconds)
+                    if (isActive && !userStopped.get()) {
+                        withContext(Dispatchers.Main) { stopSelf() }
+                    }
+                    break
                 }
-                break
             }
 
             if (duration > 300_000) {
                 restartCount = 0
             }
             restartCount++
-            if (restartCount > MAX_RESTARTS) {
+            if (restartCount > MAX_RESTARTS && !watchdog.eternal) {
                 AppLogsState.addLog(getString(R.string.log_core_watchdog_limit, MAX_RESTARTS))
                 val errorMsg = lastKnownFailureReason ?: getString(R.string.core_failed)
                 CoreServiceState.emitFailed(errorMsg)
@@ -557,22 +579,38 @@ class CoreService : Service() {
             }
 
             CoreServiceState.setStatus(CoreStatus.Connecting)
-            
-            var baseDelay = if (duration > 30_000) 1000L else minOf(1000L * restartCount, 30_000L)
+
+            var baseDelay = when {
+                // Eternal, past the regular limit: backing off however long each run lasted, so a
+                // server that's down for hours isn't hammered every connecting timeout.
+                restartCount > MAX_RESTARTS ->
+                    WatchdogSettings.eternalDelayMs(restartCount - MAX_RESTARTS, watchdog.maxIntervalMs)
+                duration > 30_000 -> 1000L
+                else -> minOf(1000L * restartCount, 30_000L)
+            }
             if (isSlowConnection()) {
                 AppLogsState.addLog(getString(R.string.log_core_slow_network_watchdog))
                 baseDelay = maxOf(baseDelay, 5000L)
             }
             baseDelay = maxOf(baseDelay, minRestartDelayMs)
             val delayMs = baseDelay + Random.nextLong(0, 500)
-            
-            AppLogsState.addLog(getString(R.string.log_core_watchdog_restart, delayMs, restartCount, MAX_RESTARTS))
+
+            AppLogsState.addLog(
+                if (watchdog.eternal) getString(R.string.log_core_watchdog_restart_eternal, delayMs, restartCount)
+                else getString(R.string.log_core_watchdog_restart, delayMs, restartCount, MAX_RESTARTS)
+            )
             // Clears any stale text left over from the previous run (e.g. "Active") so the
             // restart-attempt text below isn't shadowed by it in the notification/tile.
             CoreServiceState.setStatusText(null)
-            CoreServiceState.setRestartAttempt(CoreServiceState.RestartAttempt(restartCount, MAX_RESTARTS))
+            CoreServiceState.setRestartAttempt(
+                CoreServiceState.RestartAttempt(restartCount, MAX_RESTARTS.takeUnless { watchdog.eternal })
+            )
 
-            delay(delayMs.milliseconds)
+            // A network change during the wait starts the next attempt right away (onNetworkChanged).
+            watchdogWake.tryReceive()
+            if (withTimeoutOrNull(delayMs.milliseconds) { watchdogWake.receive() } != null) {
+                AppLogsState.addLog(getString(R.string.log_core_watchdog_wake))
+            }
         }
     }
 
@@ -609,6 +647,7 @@ class CoreService : Service() {
         // Not every kernel is built for every ABI (CSQTT has no 32-bit x86 build) - say so
         // instead of a bare "cannot run program".
         if (!java.io.File(cmdArgs[0]).exists()) {
+            nonRetryableFailure = true
             CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_kernel_unsupported_device)))
             return@coroutineScope false
         }
@@ -952,15 +991,18 @@ class CoreService : Service() {
                 configFlow,
                 CoreServiceState.status,
                 XrayServiceState.state,
-                CoreServiceState.session
-            ) { signals, status, xrayState, coreSession ->
+                CoreServiceState.session,
+                CoreServiceState.errorsRetried
+            ) { signals, status, xrayState, coreSession, errorsRetried ->
                 val clientConfig = coreSession?.clientConfig ?: return@combine null
                 // An Xray-only profile runs Xray whatever its (absent) overlay says - see XrayKernel.
                 val xrayOnly = (clientConfig.kernelConfig as? KernelConfig.Xray)?.config
 
+                // An Error the eternal watchdog retries keeps Xray up for the next attempt - no
+                // stop and start around every failed one.
                 val shouldBeRunning = (signals.xrayConfig.enabled || xrayOnly != null) &&
                         status !is CoreStatus.Idle &&
-                        status !is CoreStatus.Error &&
+                        (status !is CoreStatus.Error || errorsRetried) &&
                         status !is CoreStatus.WaitingForNetwork
 
                 val connectionTarget = if (clientConfig.kernelVariant.isSocks5Native) clientConfig.socksAddr else clientConfig.listenAddr
@@ -1006,7 +1048,9 @@ class CoreService : Service() {
                     withContext(Dispatchers.Main) {
                         val currentXrayState = XrayServiceState.state.value
                         val currentStatus = CoreServiceState.status.value
-                        if (currentXrayState == XrayState.Idle && currentStatus !is CoreStatus.Idle && currentStatus !is CoreStatus.Error) {
+                        if (currentXrayState == XrayState.Idle && currentStatus !is CoreStatus.Idle &&
+                            (currentStatus !is CoreStatus.Error || CoreServiceState.errorsRetried.value)
+                        ) {
                             startForegroundService(Intent(this@CoreService, XrayService::class.java))
                         }
                     }
@@ -1069,8 +1113,14 @@ class CoreService : Service() {
                 XrayServiceState.state,
                 XrayServiceState.session,
                 CoreServiceState.status,
-                CoreServiceState.session
-            ) { xrayState, xraySession, coreStatus, coreSession ->
+                CoreServiceState.session,
+                CoreServiceState.errorsRetried
+            ) { xrayState, xraySession, coreStatus, coreSession, eternal ->
+                // The eternal watchdog retries even an Error (see mainSupervisor) - it's another
+                // gap on the way to the next attempt, and the VPN stays up through it like through
+                // any other: apps don't fall back to the open network meanwhile. A session that
+                // does end (stopSelf) goes Idle, which drops the VPN anyway.
+                val coreFailed = coreStatus is CoreStatus.Error && !eternal
                 if (xrayState != XrayState.Idle && xraySession != null) {
                     val s = xraySession.settings
                     VpnTargetSignal(
@@ -1084,7 +1134,7 @@ class CoreService : Service() {
                     )
                 } else if (coreSession != null &&
                     coreSession.clientConfig.kernelVariant.isSocks5Native &&
-                    coreStatus !is CoreStatus.Idle && coreStatus !is CoreStatus.Error && coreStatus !is CoreStatus.WaitingForNetwork
+                    coreStatus !is CoreStatus.Idle && !coreFailed && coreStatus !is CoreStatus.WaitingForNetwork
                 ) {
                     val cc = coreSession.clientConfig
                     VpnTargetSignal(
@@ -1101,7 +1151,7 @@ class CoreService : Service() {
                     // Target-less and no Xray: mid-retry states are still expected to recover,
                     // but a genuine CoreStatus.Error means nothing is coming - drop right away
                     // instead of waiting out the grace period below for nothing.
-                    VpnTargetSignal(null, terminalError = coreStatus is CoreStatus.Error)
+                    VpnTargetSignal(null, terminalError = coreFailed)
                 }
             }
 
@@ -1276,7 +1326,11 @@ class CoreService : Service() {
             ) { status, isForeground ->
                 status to isForeground
             }.collect { (status, isForeground) ->
-                if (status is CoreStatus.Error && !isForeground) {
+                // Not for an Error the eternal watchdog retries: one alert per failed attempt, for
+                // hours, would bury everything else - its notification shows the attempts anyway.
+                if (status is CoreStatus.Error && !isForeground &&
+                    (!CoreServiceState.errorsRetried.value || nonRetryableFailure)
+                ) {
                     NotificationHelper.notifyError(this@CoreService, status.message)
                 } else if (status is CoreStatus.Connected || status is CoreStatus.Suppressed || status is CoreStatus.WaitingForNetwork || isForeground) {
                     NotificationHelper.cancelErrorNotification(this@CoreService)
@@ -1439,6 +1493,12 @@ class CoreService : Service() {
                 AppPreferences(applicationContext).xraySettingsFlow.first().reloadOnNetworkChange
             ) {
                 startService(Intent(this@CoreService, XrayService::class.java).setAction(XrayService.ACTION_RELOAD))
+            }
+            // Waiting out the watchdog's delay between attempts: the next one goes now, on the new
+            // network, its backoff started over.
+            if (process.get() == null && CoreServiceState.restartAttempt.value != null) {
+                restartCount = 0
+                watchdogWake.trySend(Unit)
             }
             // Always logged while the tunnel is up; only a running kernel gets restarted - not one
             // paused for the direct route, nor one already down with the old network (the
@@ -1616,7 +1676,8 @@ class CoreService : Service() {
         isStarted.set(false)
         userStopped.set(true)
         currentRunningCfg.set(null)
-        
+
+        CoreServiceState.setErrorsRetried(false)
         CoreServiceState.setStatus(CoreStatus.Idle)
 
         handler.removeCallbacksAndMessages(null)

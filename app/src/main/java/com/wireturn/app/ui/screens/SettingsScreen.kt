@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wireturn.app.R
 import com.wireturn.app.data.ThemeMode
+import com.wireturn.app.data.WatchdogSettings
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.ExpandableSection
 import com.wireturn.app.ui.HapticUtil
@@ -318,6 +319,72 @@ fun SettingsScreen(
                         checked = restartOnNetworkChange,
                         onCheckedChange = { viewModel.setRestartOnNetworkChange(it) }
                     )
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                val watchdogSettings by viewModel.watchdogSettings.collectAsStateWithLifecycle()
+                var localWatchdogInterval by rememberSaveable {
+                    mutableStateOf(watchdogSettings.maxIntervalMinutes.toString())
+                }
+                val watchdogMinutes = localWatchdogInterval.toIntOrNull()?.takeIf {
+                    it in WatchdogSettings.MIN_MAX_INTERVAL_MINUTES..WatchdogSettings.MAX_MAX_INTERVAL_MINUTES
+                }
+                val isWatchdogIntervalValid = watchdogMinutes != null
+
+                // The saved value changing under the field (a reset, the first load) - not while
+                // it's being typed: that only ever saves what the field already shows.
+                LaunchedEffect(watchdogSettings.maxIntervalMinutes) {
+                    if (localWatchdogInterval.toIntOrNull() != watchdogSettings.maxIntervalMinutes) {
+                        localWatchdogInterval = watchdogSettings.maxIntervalMinutes.toString()
+                    }
+                }
+
+                LaunchedEffect(watchdogMinutes) {
+                    val minutes = watchdogMinutes ?: return@LaunchedEffect
+                    if (minutes != viewModel.watchdogSettings.value.maxIntervalMinutes) {
+                        delay(600.milliseconds)
+                        viewModel.updateWatchdogSettings(
+                            viewModel.watchdogSettings.value.copy(maxIntervalMinutes = minutes)
+                        )
+                    }
+                }
+
+                SectionItem(
+                    position = if (watchdogSettings.eternal) ItemPosition.Top else ItemPosition.Single,
+                    onClick = {
+                        val next = !watchdogSettings.eternal
+                        HapticUtil.perform(
+                            context,
+                            if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                        )
+                        viewModel.updateWatchdogSettings(viewModel.watchdogSettings.value.copy(eternal = next))
+                    }
+                ) {
+                    SwitchRow(
+                        label = stringResource(R.string.settings_eternal_watchdog_title),
+                        supportingText = stringResource(R.string.settings_eternal_watchdog_desc),
+                        checked = watchdogSettings.eternal,
+                        onCheckedChange = {
+                            viewModel.updateWatchdogSettings(viewModel.watchdogSettings.value.copy(eternal = it))
+                        }
+                    )
+                }
+
+                ExpandableSection(visible = watchdogSettings.eternal) {
+                    SectionGroup {
+                        SectionItem(position = ItemPosition.Bottom) {
+                            TextFieldRow(
+                                label = stringResource(R.string.settings_eternal_watchdog_interval),
+                                value = localWatchdogInterval,
+                                onValueChange = { localWatchdogInterval = it.filter(Char::isDigit) },
+                                supportingText = stringResource(R.string.settings_eternal_watchdog_interval_desc),
+                                isError = !isWatchdogIntervalValid && localWatchdogInterval.isNotBlank(),
+                                placeholder = WatchdogSettings.DEFAULT_MAX_INTERVAL_MINUTES.toString(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                            )
+                        }
+                    }
                 }
 
                 Spacer(Modifier.height(12.dp))

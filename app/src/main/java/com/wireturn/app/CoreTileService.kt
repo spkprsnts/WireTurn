@@ -200,7 +200,7 @@ class CoreTileService : TileService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             tile.subtitle = when {
                 statusText != null -> statusText
-                restartAttempt != null -> getString(R.string.notification_restart, restartAttempt.attempt, restartAttempt.max)
+                restartAttempt != null -> restartAttempt.label(this)
                 isCaptcha -> getString(R.string.tile_captcha)
                 isWaiting -> getString(R.string.status_waiting_for_network)
                 autoLaunchEnabled && !isRunning -> getString(R.string.settings_auto_launch_title)

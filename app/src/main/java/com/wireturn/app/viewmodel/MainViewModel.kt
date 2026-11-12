@@ -25,6 +25,7 @@ import com.wireturn.app.XrayService
 import com.wireturn.app.XrayServiceState
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.AutoLaunchSettings
+import com.wireturn.app.data.WatchdogSettings
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.Profile
@@ -172,6 +173,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _autoLaunchSettings = MutableStateFlow(AutoLaunchSettings())
     val autoLaunchSettings: StateFlow<AutoLaunchSettings> = _autoLaunchSettings.asStateFlow()
+
+    private val _watchdogSettings = MutableStateFlow(WatchdogSettings())
+    val watchdogSettings: StateFlow<WatchdogSettings> = _watchdogSettings.asStateFlow()
 
     val profiles: StateFlow<List<Profile>> = profileManager.profiles
     val currentProfileId: StateFlow<String> = profileManager.currentProfileId
@@ -342,6 +346,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             _appLanguage.value = prefs.appLanguageFlow.first()
             _autoLaunchSettings.value = prefs.autoLaunchSettingsFlow.first()
+            _watchdogSettings.value = prefs.watchdogSettingsFlow.first()
 
             updateAutoLaunchJob(_autoLaunchSettings.value)
             applyLanguage(_appLanguage.value)
@@ -379,6 +384,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.pingUrlFlow.collect { _pingUrl.value = it } }
             launch { prefs.countryDetectionMethodFlow.collect { _countryDetectionMethod.value = it } }
             launch { prefs.autoLaunchSettingsFlow.collect { _autoLaunchSettings.value = it; updateAutoLaunchJob(it) } }
+            launch { prefs.watchdogSettingsFlow.collect { _watchdogSettings.value = it } }
 
             launch {
                 var isFirstEmission = true
@@ -533,6 +539,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setProfilesGestureEnabled(enabled: Boolean) {
         viewModelScope.launch { prefs.setProfilesGestureEnabled(enabled) }
+    }
+
+    fun updateWatchdogSettings(settings: WatchdogSettings) {
+        viewModelScope.launch { prefs.updateWatchdogSettings(settings) }
     }
 
     fun updateAutoLaunchSettings(settings: AutoLaunchSettings) {

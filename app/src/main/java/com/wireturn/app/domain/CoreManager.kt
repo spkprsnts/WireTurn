@@ -121,8 +121,9 @@ class CoreManager(private val context: Context) {
                 }
                 is CoreStatus.Error -> {
                     // Если сервис вернул ошибку (например, Jitsi недоступен),
-                    // останавливаем его и показываем ошибку в UI.
-                    CoreService.stop(context)
+                    // останавливаем его и показываем ошибку в UI. With the eternal watchdog it's
+                    // only the first failed attempt - the service retries it on its own.
+                    if (!CoreServiceState.errorsRetried.value) CoreService.stop(context)
                     setErrorWithAutoReset(result.message)
                 }
 
@@ -145,6 +146,16 @@ class CoreManager(private val context: Context) {
         resetJob = scope.launch {
             delay(4_000.milliseconds)
             if (_coreState.value is CoreState.Error) {
+                // The eternal watchdog is retrying: back to what the service is doing - an Error
+                // still up is the next attempt on its way. Never forced Idle: the service is running.
+                if (CoreServiceState.errorsRetried.value && CoreServiceState.status.value !is CoreStatus.Idle) {
+                    if (CoreServiceState.status.value is CoreStatus.Error) {
+                        _coreState.value = CoreState.Connecting
+                    } else {
+                        syncStateWithService()
+                    }
+                    return@launch
+                }
                 // Force reset local state to Idle
                 _coreState.value = CoreState.Idle
                 // If the global status is still an Error, clear it too

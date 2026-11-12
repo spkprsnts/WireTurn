@@ -81,10 +81,25 @@ object CoreServiceState {
     // thing "Restarting" means. Hot-reload, dual-route wake, profile/kernel switch and
     // network-loss recovery are deliberate, not a failure being retried, so they just show
     // Connecting/Starting like any other connection attempt.
-    data class RestartAttempt(val attempt: Int, val max: Int)
+    // max: null with the eternal watchdog (WatchdogSettings.eternal) - no limit to show.
+    data class RestartAttempt(val attempt: Int, val max: Int?) {
+        fun label(context: android.content.Context): String =
+            if (max != null) context.getString(com.wireturn.app.R.string.notification_restart, attempt, max)
+            else context.getString(com.wireturn.app.R.string.notification_restart_eternal, attempt)
+    }
 
     private val _restartAttempt = MutableStateFlow<RestartAttempt?>(null)
     val restartAttempt: StateFlow<RestartAttempt?> = _restartAttempt.asStateFlow()
+
+    // The running session's WatchdogSettings.eternal (CoreService keeps it current): an Error is
+    // then a failed attempt the watchdog retries, not the end of the session - nothing should stop
+    // the service, Xray or the VPN over it. False while no session runs.
+    private val _errorsRetried = MutableStateFlow(false)
+    val errorsRetried: StateFlow<Boolean> = _errorsRetried.asStateFlow()
+
+    fun setErrorsRetried(retried: Boolean) {
+        _errorsRetried.value = retried
+    }
 
     // Kernel TUN mode (usesNativeTun) has no hev to read traffic counters from - they come from
     // the kernel's own periodic stats line instead. Null outside that mode; `at` (elapsedRealtime

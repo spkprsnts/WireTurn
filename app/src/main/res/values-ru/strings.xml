@@ -391,6 +391,10 @@
     <string name="wait_for_network_desc">При потере связи туннель будет ждать подключения к Wi-Fi или мобильной сети</string>
     <string name="restart_on_network_change_title">Перезапуск при смене сети</string>
     <string name="restart_on_network_change_desc">Автоматически перезапускать туннель при смене сети: Wi-Fi ↔ мобильная, другая SIM, переподключение</string>
+    <string name="settings_eternal_watchdog_title">Вечный watchdog</string>
+    <string name="settings_eternal_watchdog_desc">Без лимита попыток перезапуска: туннель пытается запуститься, пока не получится, увеличивая паузу между попытками до максимального интервала. VPN всё это время остаётся поднятым</string>
+    <string name="settings_eternal_watchdog_interval">Максимальный интервал (мин)</string>
+    <string name="settings_eternal_watchdog_interval_desc">Самая долгая пауза между попытками, от 1 до 1440 минут. Смена сети запускает следующую попытку сразу</string>
 
     <string name="client_dns_label">DNS-сервер</string>
     <string name="client_dns_desc">Значение по умолчанию для профилей olcRTC, у которых не задан свой DNS-сервер.</string>
@@ -446,6 +450,8 @@
     <string name="log_core_quick_exit">* [Core] Быстрый выход (%1$dмс) — проверьте параметры подключения и настройки</string>
     <string name="log_core_watchdog_limit">* [Core] WATCHDOG: превышен лимит попыток (%1$d), остановка</string>
     <string name="log_core_watchdog_restart">* [Core] WATCHDOG: перезапуск через %1$dмс (попытка %2$d/%3$d)</string>
+    <string name="log_core_watchdog_restart_eternal">* [Core] WATCHDOG: перезапуск через %1$dмс (попытка %2$d, без лимита)</string>
+    <string name="log_core_watchdog_wake">* [Core] WATCHDOG: сеть сменилась — следующая попытка сразу</string>
     <string name="log_core_network_change">* [Core] СМЕНА СЕТИ (%1$s → %2$s) — ПЕРЕЗАПУСК</string>
     <string name="log_core_default_network">* [Core] Основная сеть: %1$s</string>
     <string name="log_core_network_changed">* [Core] Смена сети: %1$s → %2$s</string>
@@ -476,6 +482,8 @@
     <string name="log_xray_stopped_by_user">* [Xray] Остановлено</string>
     <string name="log_xray_watchdog_limit">* [Xray] Лимит попыток watchdog достигнут (%1$d)</string>
     <string name="log_xray_watchdog_restart">* [Xray] Перезапуск через %1$dмс (попытка %2$d/%3$d)</string>
+    <string name="log_xray_watchdog_restart_eternal">* [Xray] Перезапуск через %1$dмс (попытка %2$d, без лимита)</string>
+    <string name="log_xray_watchdog_wake">* [Xray] Сеть сменилась — перезапуск сразу</string>
     <string name="log_xray_config_change_restart">* [Xray] Перезапуск из-за изменения настроек</string>
     <string name="log_xray_network_reload">* [Xray] Смена сети — перезапуск</string>
     <string name="log_xray_foreground_failed">* [Xray] Ошибка запуска foreground: %1$s</string>
@@ -565,6 +573,7 @@
     <string name="tile_active">Активен</string>
     <string name="tile_captcha">Капча!</string>
     <string name="notification_restart">Перезапуск (%1$d/%2$d)…</string>
+    <string name="notification_restart_eternal">Перезапуск (%1$d)…</string>
     <string name="notification_network_change">Смена сети, переподключение…</string>
 
     <!-- Элементы интерфейса и форматирование -->
