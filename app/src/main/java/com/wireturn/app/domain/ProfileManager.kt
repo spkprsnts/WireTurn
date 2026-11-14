@@ -9,6 +9,7 @@ import com.wireturn.app.data.Profile
 import com.wireturn.app.data.ProfileBundle
 import com.wireturn.app.data.Subscription
 import com.wireturn.app.data.kernel.OlcrtcConfig
+import com.wireturn.app.data.kernel.QwdttConfig
 import com.wireturn.app.kernel.KernelRegistry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -259,6 +260,17 @@ class ProfileManager(
         } catch (_: Exception) { "1.0" }
         "WireTurn/$version"
     }
+
+    // Some subscription providers content-negotiate by User-Agent and return an HTML landing
+    // page to unknown clients. Keep the normal WireTurn request first, then retry only such
+    // responses with identifiers used by the official clients of the kernels WireTurn supports.
+    // qWDTT and CSQTT identify their official Android clients. FreeTurn and OpenFlux fetch
+    // subscriptions from Go without setting a User-Agent, so the empty value is intentional.
+    private val subscriptionFallbackUserAgents = listOf(
+        "qWDTT-Subscription/1.0",
+        "csqtt-client",
+        ""
+    )
 
     init {
         startAutoUpdateLoop()
@@ -694,13 +706,14 @@ class ProfileManager(
 
         val proxy = activeLocalSocksProxy()
 
-        fun open(target: String): HttpURLConnection = try {
+        fun open(target: String, requestUserAgent: String = userAgent): HttpURLConnection = try {
             // First attempt with the calculated proxy
             val conn = (URL(target).openConnection(proxy) as HttpURLConnection).apply {
                 requestMethod = "GET"
                 connectTimeout = 10000
                 readTimeout = 10000
-                setRequestProperty("User-Agent", userAgent)
+                setRequestProperty("User-Agent", requestUserAgent)
+                setRequestProperty("Accept", "application/json, text/plain, */*")
             }
             // Trigger connection to check if it works
             conn.responseCode
@@ -712,12 +725,13 @@ class ProfileManager(
                     requestMethod = "GET"
                     connectTimeout = 10000
                     readTimeout = 10000
-                    setRequestProperty("User-Agent", userAgent)
+                    setRequestProperty("User-Agent", requestUserAgent)
+                    setRequestProperty("Accept", "application/json, text/plain, */*")
                 }
             } else throw e
         }
 
-        val connection = try {
+        var connection = try {
             // A CSQTT panel's page is fetched as its JSON (csqttPanelJsonUrl); the subscription keeps
             // the URL as the user gave it. Other panels' links can end the same way (Hiddify's
             // ".../<uuid>/sub/"), so one whose JSON twin doesn't answer 200 is fetched as given.
@@ -751,7 +765,37 @@ class ProfileManager(
                     com.wireturn.app.AppLogsState.addLog("Subscription HTTP Error ($logLabel): $responseCode")
                     ImportStatus.ServerError(responseCode)
                 } else {
-                    val content = connection.inputStream.bufferedReader().use { it.readText() }
+                    var content = connection.inputStream.bufferedReader().use { it.readText() }
+
+                    // Some providers serve a browser landing page to an unknown client, but
+                    // return a machine-readable subscription for known app UAs. Retry only HTML
+                    // responses so ordinary subscriptions do not incur extra requests and
+                    // non-HTML parse failures keep their existing behavior.
+                    if (isHtmlSubscriptionResponse(connection, content)) {
+                        val originalConnection = connection
+                        originalConnection.disconnect()
+                        for (fallbackUserAgent in subscriptionFallbackUserAgents) {
+                            val candidate = runCatching { open(url, fallbackUserAgent) }.getOrNull() ?: continue
+                            if (candidate.responseCode != HttpURLConnection.HTTP_OK) {
+                                candidate.disconnect()
+                                continue
+                            }
+                            val candidateContent = runCatching {
+                                candidate.inputStream.bufferedReader().use { it.readText() }
+                            }.getOrNull()
+                            if (candidateContent.isNullOrBlank()) {
+                                candidate.disconnect()
+                                continue
+                            }
+                            if (isHtmlSubscriptionResponse(candidate, candidateContent)) {
+                                candidate.disconnect()
+                                continue
+                            }
+                            connection = candidate
+                            content = candidateContent
+                            break
+                        }
+                    }
                     if (content.isBlank()) {
                         com.wireturn.app.AppLogsState.addLog("Subscription Error ($logLabel): Empty response")
                         ImportStatus.EmptyResponse
@@ -760,7 +804,8 @@ class ProfileManager(
                         // A CSQTT panel's JSON first: it's an object too, and ProfileBundle (every field
                         // defaulted, so Gson gets a no-arg constructor) takes any object as a bundle with
                         // empty profiles - its "name" included - rather than failing on it.
-                        val bundle = tryParseCsqttPanelSubscription(content) ?: try {
+                        val bundle = tryParseQwdttPanelSubscription(content)
+                            ?: tryParseCsqttPanelSubscription(content) ?: try {
                             gson.fromJson(content, ProfileBundle::class.java)?.also {
                                 @Suppress("SENSELESS_COMPARISON")
                                 if (it.profiles == null) throw com.google.gson.JsonSyntaxException("missing profiles")
@@ -1020,6 +1065,56 @@ class ProfileManager(
     // matching, unrelated to this).
     private fun stableTextSubEntryId(rawUriLine: String): String =
         UUID.nameUUIDFromBytes(rawUriLine.toByteArray(Charsets.UTF_8)).toString()
+
+    /**
+     * The official qWDTT subscription JSON, e.g. {"profiles":[{"peer":"...", ...}]}.
+     * It is deliberately not deserialized as ProfileBundle: qWDTT publishes its own compact
+     * fields and does not expose WireTurn's internal kernelConfig wrapper.
+     */
+    private fun tryParseQwdttPanelSubscription(content: String): ProfileBundle? {
+        val root = runCatching { JsonParser.parseString(content.trim()) }.getOrNull()
+            ?.takeIf { it.isJsonObject }?.asJsonObject ?: return null
+        val entries = root.getAsJsonArray("profiles") ?: return null
+        if (entries.size() == 0) return null
+
+        fun string(obj: JsonObject, key: String): String? =
+            obj.get(key)?.takeIf { it.isJsonPrimitive }?.asString?.trim()?.takeIf { it.isNotEmpty() }
+
+        fun integer(obj: JsonObject, key: String, fallback: Int): Int =
+            obj.get(key)?.takeIf { it.isJsonPrimitive }?.asInt ?: fallback
+
+        val profiles = entries.mapNotNull { item ->
+            val obj = item.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
+            val peer = string(obj, "peer") ?: return@mapNotNull null
+            val password = string(obj, "password") ?: string(obj, "pass") ?: return@mapNotNull null
+            val hashes = string(obj, "hashes") ?: string(obj, "vkHashes") ?: return@mapNotNull null
+            val name = string(obj, "name") ?: "qWDTT"
+            val workers = integer(obj, "workersPerHash", integer(obj, "workers", 9))
+            val config = QwdttConfig(
+                peer = peer,
+                vkHashes = hashes,
+                password = password,
+                workers = workers
+            )
+            Profile(
+                id = stableTextSubEntryId("qwdtt-sub:$peer:$hashes"),
+                name = name,
+                kernelConfig = KernelConfig.Qwdtt(config)
+            )
+        }
+        if (profiles.isEmpty()) return null
+
+        fun megabytes(key: String): Long? = root.get(key)?.takeIf { it.isJsonPrimitive }
+            ?.asDouble?.takeIf { it >= 0 }?.let { (it * 1024 * 1024).toLong() }
+        return ProfileBundle(
+            version = root.get("version")?.takeIf { it.isJsonPrimitive }?.asInt ?: 1,
+            name = string(root, "subscriptionName") ?: string(root, "groupName"),
+            description = string(root, "description"),
+            profiles = profiles,
+            bytesUsed = megabytes("trafficUsedMb"),
+            bytesTotal = megabytes("trafficLimitMb")
+        )
+    }
 
     /**
      * The JSON twin of a CSQTT 2.5.0 server panel's subscription page, or null for any other URL.
@@ -1345,6 +1440,15 @@ class ProfileManager(
     private fun tryParseBase64TextSubscription(content: String): ProfileBundle? {
         val decoded = decodeLenientBase64(content) ?: return null
         return tryParseTextSubscription(decoded)
+    }
+
+    private fun isHtmlSubscriptionResponse(connection: HttpURLConnection, content: String): Boolean {
+        val contentType = connection.contentType?.substringBefore(';')?.trim()?.lowercase()
+        if (contentType == "text/html" || contentType == "application/xhtml+xml") return true
+        val prefix = content.trimStart().take(256)
+        return prefix.startsWith("<!doctype html", ignoreCase = true) ||
+            prefix.startsWith("<html", ignoreCase = true) ||
+            prefix.startsWith("<head", ignoreCase = true)
     }
 
     /** Standard or URL-safe base64, padded or not, whitespace and line breaks ignored. */
