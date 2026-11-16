@@ -11,23 +11,24 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
- * Intent API: other apps (Tasker and the like) start and stop the tunnel, or turn VPN mode on and
- * off, with `<package>.START_CORE` / `STOP_CORE` / `START_VPN` / `STOP_VPN`. Exported, so it only
- * acts while the user has allowed it in the settings (AppPreferences.intentApiEnabledFlow) -
- * otherwise any app on the device could stop the tunnel.
+ * Start/stop the tunnel and turn VPN mode on and off by broadcast: `<package>.START_CORE` /
+ * `STOP_CORE` / `START_VPN` / `STOP_VPN`. Two receivers share it: [CoreReceiver] for other apps,
+ * [NotificationActionReceiver] for the app's own notification buttons.
  */
-class CoreReceiver : BroadcastReceiver() {
+abstract class CoreActionReceiver : BroadcastReceiver() {
+
+    /** Whether this receiver may act right now; logs why not. */
+    protected open suspend fun allowed(context: Context, action: String): Boolean = true
 
     override fun onReceive(context: Context, intent: Intent) {
-        val pkg = context.packageName
-        val action = intent.action?.removePrefix("$pkg.") ?: return
+        val action = intent.action?.removePrefix("${context.packageName}.") ?: return
         if (action !in ACTIONS) return
         val appContext = context.applicationContext
         // Off the main thread: a cold DataStore read can take long enough to risk an ANR.
         val pending = goAsync()
         scope.launch {
             try {
-                handle(appContext, action)
+                if (allowed(appContext, action)) handle(appContext, action)
             } finally {
                 pending.finish()
             }
@@ -36,18 +37,16 @@ class CoreReceiver : BroadcastReceiver() {
 
     private suspend fun handle(context: Context, action: String) {
         val prefs = AppPreferences(context)
-        if (!prefs.intentApiEnabledFlow.first()) {
-            AppLogsState.addLog("Intent API: $action ignored - control from other apps is off in the settings")
-            return
-        }
-        AppLogsState.addLog("Intent API: $action")
         // Android 12+ may refuse a foreground service start from the background, and a plain
         // startService to a service that isn't running - logged, not a crash of the app.
         try {
             when (action) {
                 START_CORE -> CoreService.start(context, prefs.clientConfigFlow.first())
                 STOP_CORE -> {
-                    if (CoreServiceState.status.value is CoreStatus.Idle) return
+                    // Nothing running: a stop would only try to start a service that's not there.
+                    if (CoreServiceState.status.value is CoreStatus.Idle &&
+                        XrayServiceState.state.value == com.wireturn.app.viewmodel.XrayState.Idle
+                    ) return
                     CoreServiceState.setStatus(CoreStatus.Idle)
                     NotificationHelper.updateNotification(context)
                     CoreService.stop(context, byUser = true)
@@ -56,7 +55,7 @@ class CoreReceiver : BroadcastReceiver() {
                 STOP_VPN -> prefs.setVpnEnabled(false)
             }
         } catch (e: Exception) {
-            AppLogsState.addLog("Intent API: $action failed - ${e.javaClass.simpleName}: ${e.message}")
+            AppLogsState.addLog("$action failed - ${e.javaClass.simpleName}: ${e.message}")
             // CoreService.start sets Starting before the start that just failed - nothing's coming.
             if (action == START_CORE && CoreServiceState.status.value is CoreStatus.Starting) {
                 CoreServiceState.setStatus(CoreStatus.Idle)
@@ -64,13 +63,36 @@ class CoreReceiver : BroadcastReceiver() {
         }
     }
 
-    private companion object {
+    companion object {
         const val START_CORE = "START_CORE"
         const val STOP_CORE = "STOP_CORE"
         const val START_VPN = "START_VPN"
         const val STOP_VPN = "STOP_VPN"
-        val ACTIONS = setOf(START_CORE, STOP_CORE, START_VPN, STOP_VPN)
+        private val ACTIONS = setOf(START_CORE, STOP_CORE, START_VPN, STOP_VPN)
 
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+        /** An explicit broadcast of [action] to [receiver], for a notification button's PendingIntent. */
+        fun intent(context: Context, receiver: Class<out CoreActionReceiver>, action: String): Intent =
+            Intent(context, receiver).setAction("${context.packageName}.$action")
     }
 }
+
+/**
+ * Intent API for other apps (Tasker and the like). Exported, so it only acts while the user has
+ * allowed it in the settings (AppPreferences.intentApiEnabledFlow) - otherwise any app on the
+ * device could stop the tunnel.
+ */
+class CoreReceiver : CoreActionReceiver() {
+    override suspend fun allowed(context: Context, action: String): Boolean {
+        if (AppPreferences(context).intentApiEnabledFlow.first()) {
+            AppLogsState.addLog("Intent API: $action")
+            return true
+        }
+        AppLogsState.addLog("Intent API: $action ignored - control from other apps is off in the settings")
+        return false
+    }
+}
+
+/** The app's own notification buttons - not exported, so whatever the Intent API setting says. */
+class NotificationActionReceiver : CoreActionReceiver()

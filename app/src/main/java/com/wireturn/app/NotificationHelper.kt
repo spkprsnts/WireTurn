@@ -147,9 +147,9 @@ object NotificationHelper {
             .setContentIntent(openAppIntent)
 
         if (coreStatus !is CoreStatus.Idle || xrayState != XrayState.Idle) {
-            val stopCoreIntent = Intent(context, CoreReceiver::class.java).apply {
-                action = "${context.packageName}.STOP_CORE"
-            }
+            val stopCoreIntent = CoreActionReceiver.intent(
+                context, NotificationActionReceiver::class.java, CoreActionReceiver.STOP_CORE
+            )
             val stopCorePendingIntent = PendingIntent.getBroadcast(
                 context, 
                 100, 
@@ -180,9 +180,9 @@ object NotificationHelper {
         }
 
         if (vpnState != VpnState.Idle) {
-            val stopVpnIntent = Intent(context, CoreReceiver::class.java).apply {
-                action = "${context.packageName}.STOP_VPN"
-            }
+            val stopVpnIntent = CoreActionReceiver.intent(
+                context, NotificationActionReceiver::class.java, CoreActionReceiver.STOP_VPN
+            )
             val stopVpnPendingIntent = PendingIntent.getBroadcast(
                 context, 
                 101, 
@@ -196,9 +196,9 @@ object NotificationHelper {
                 stopVpnPendingIntent
             )
         } else if (xrayState != XrayState.Idle) {
-            val startVpnIntent = Intent(context, CoreReceiver::class.java).apply {
-                action = "${context.packageName}.START_VPN"
-            }
+            val startVpnIntent = CoreActionReceiver.intent(
+                context, NotificationActionReceiver::class.java, CoreActionReceiver.START_VPN
+            )
             val startVpnPendingIntent = PendingIntent.getBroadcast(
                 context,
                 102,

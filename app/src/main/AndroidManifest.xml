@@ -243,6 +243,11 @@
             </intent-filter>
         </receiver>
 
+        <!-- The notification's own buttons: explicit broadcasts, so no filter and not exported. -->
+        <receiver
+            android:name=".NotificationActionReceiver"
+            android:exported="false" />
+
         <service
             android:name=".CoreTileService"
             android:exported="true"
