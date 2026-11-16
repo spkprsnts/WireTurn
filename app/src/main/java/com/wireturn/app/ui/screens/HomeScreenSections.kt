@@ -364,7 +364,7 @@ internal fun ColumnScope.TunnelStats(
                                 .offset(y = 1.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            when (val currentPing = ping) {
+                            when (ping) {
                                 is MainViewModel.PingResult.Loading -> {
                                     // Only while measuring: an infinite transition ticks on
                                     // every frame for as long as it's composed, so outside
@@ -413,10 +413,10 @@ internal fun ColumnScope.TunnelStats(
                                     VerticalAnimatedText(
                                         text = stringResource(
                                             R.string.ping_ms,
-                                            currentPing.ms
+                                            ping.ms
                                         ),
                                         style = MaterialTheme.typography.labelMedium,
-                                        color = if (currentPing.ms < 1100) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
+                                        color = if (ping.ms < 1100) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
                                         fontWeight = FontWeight.Bold,
                                         contentAlignment = Alignment.Center
                                     )

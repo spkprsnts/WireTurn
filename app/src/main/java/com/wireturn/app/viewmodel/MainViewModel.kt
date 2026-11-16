@@ -238,10 +238,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         subId: String?
     ) {
         if (pingTestJobs[jobKey]?.isActive == true || targets.isEmpty()) return
-        val subName = label
         if (subId != null) _testingSubIds.update { it + subId }
         _pingingProfileIds.update { it + targets.map { t -> t.first } }
-        AppLogsState.addLog("Availability check: ${targets.size} profile(s) of \"$subName\"")
+        AppLogsState.addLog("Availability check: ${targets.size} profile(s) of \"$label\"")
         pingTestJobs[jobKey] = viewModelScope.launch {
             val pending = mutableMapOf<String, Long>()
             var lastFlush = System.currentTimeMillis()
@@ -277,12 +276,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                 }
-                AppLogsState.addLog("Availability check of \"$subName\" done: $ok available, $failed unavailable")
+                AppLogsState.addLog("Availability check of \"$label\" done: $ok available, $failed unavailable")
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) {
-                    AppLogsState.addLog("Availability check of \"$subName\" stopped")
+                    AppLogsState.addLog("Availability check of \"$label\" stopped")
                 } else {
-                    AppLogsState.addLog("Availability check of \"$subName\" failed: ${e.message}")
+                    AppLogsState.addLog("Availability check of \"$label\" failed: ${e.message}")
                 }
             } finally {
                 withContext(kotlinx.coroutines.NonCancellable) {

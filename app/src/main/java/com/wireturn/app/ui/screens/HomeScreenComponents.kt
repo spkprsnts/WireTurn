@@ -1,7 +1,3 @@
-@file:OptIn(
-    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class
-)
-
 package com.wireturn.app.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility

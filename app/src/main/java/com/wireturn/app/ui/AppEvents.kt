@@ -1,7 +1,3 @@
-@file:OptIn(
-    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class
-)
-
 package com.wireturn.app.ui
 
 import kotlinx.coroutines.channels.Channel
