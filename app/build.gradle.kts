@@ -81,6 +81,12 @@ android {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
     }
+
+    // Unit tests run on the JVM with Robolectric standing in for android.* (Uri, Base64 the
+    // parsers use) - see app/src/test.
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
 }
 
 @Suppress("UnstableApiUsage")
@@ -141,6 +147,9 @@ dependencies {
     implementation(libs.coil.compose)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
 }
 
 val androidComponents = project.extensions.findByType<com.android.build.api.variant.ApplicationAndroidComponentsExtension>()
