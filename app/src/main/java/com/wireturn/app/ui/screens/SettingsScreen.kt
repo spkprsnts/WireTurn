@@ -488,6 +488,29 @@ fun SettingsScreen(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
                 }
+
+                Spacer(Modifier.height(12.dp))
+
+                // Intent API (CoreReceiver): off by default - otherwise any app could stop the tunnel.
+                val intentApiEnabled by viewModel.intentApiEnabled.collectAsStateWithLifecycle()
+                SectionItem(
+                    position = ItemPosition.Single,
+                    onClick = {
+                        val next = !intentApiEnabled
+                        HapticUtil.perform(
+                            context,
+                            if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                        )
+                        viewModel.setIntentApiEnabled(next)
+                    }
+                ) {
+                    SwitchRow(
+                        label = stringResource(R.string.settings_intent_api_title),
+                        supportingText = stringResource(R.string.settings_intent_api_desc),
+                        checked = intentApiEnabled,
+                        onCheckedChange = { viewModel.setIntentApiEnabled(it) }
+                    )
+                }
             }
 
             // 2.2 Диагностика (пинг и определение страны выхода)

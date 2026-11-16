@@ -126,6 +126,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _partialCaptchaAlerts = MutableStateFlow(true)
     val partialCaptchaAlerts: StateFlow<Boolean> = _partialCaptchaAlerts.asStateFlow()
 
+    private val _intentApiEnabled = MutableStateFlow(false)
+    val intentApiEnabled: StateFlow<Boolean> = _intentApiEnabled.asStateFlow()
+
     val privacyMode: StateFlow<Boolean> = prefs.privacyModeFlow.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
@@ -340,6 +343,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _captchaStyleMod.value = prefs.captchaStyleModFlow.first()
             _captchaForceTint.value = prefs.captchaForceTintFlow.first()
             _partialCaptchaAlerts.value = prefs.partialCaptchaAlertsFlow.first()
+            _intentApiEnabled.value = prefs.intentApiEnabledFlow.first()
             prefs.clearLegacyVlessLinkHistory()
             prefs.removeDiscontinuedKernelProfiles().takeIf { it > 0 }?.let {
                 AppLogsState.addLog("PaperFlux is no longer supported: removed $it profile(s)")
@@ -380,6 +384,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.captchaStyleModFlow.collect { _captchaStyleMod.value = it } }
             launch { prefs.captchaForceTintFlow.collect { _captchaForceTint.value = it } }
             launch { prefs.partialCaptchaAlertsFlow.collect { _partialCaptchaAlerts.value = it } }
+            launch { prefs.intentApiEnabledFlow.collect { _intentApiEnabled.value = it } }
             launch { prefs.appLanguageFlow.collect { _appLanguage.value = it } }
             launch { prefs.pingUrlFlow.collect { _pingUrl.value = it } }
             launch { prefs.countryDetectionMethodFlow.collect { _countryDetectionMethod.value = it } }
@@ -658,6 +663,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setPartialCaptchaAlerts(v: Boolean) {
         viewModelScope.launch { prefs.setPartialCaptchaAlerts(v) }
+    }
+
+    fun setIntentApiEnabled(v: Boolean) {
+        viewModelScope.launch { prefs.setIntentApiEnabled(v) }
     }
     
     fun setAppLanguage(l: String) {

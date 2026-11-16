@@ -114,6 +114,7 @@ class AppPreferences(val context: Context) {
         val CAPTCHA_STYLE_MOD = booleanPreferencesKey("captcha_style_mod")
         val CAPTCHA_FORCE_TINT = booleanPreferencesKey("captcha_force_tint")
         val PARTIAL_CAPTCHA_ALERTS = booleanPreferencesKey("partial_captcha_alerts")
+        val INTENT_API_ENABLED = booleanPreferencesKey("intent_api_enabled")
         val PRIVACY_MODE = booleanPreferencesKey("privacy_mode")
         val LOGS_MIN_LEVEL = stringPreferencesKey("logs_min_level")
         val PROFILES_GESTURE_ENABLED = booleanPreferencesKey("profiles_gesture_enabled")
@@ -198,6 +199,9 @@ class AppPreferences(val context: Context) {
     // HomeScreen's card and the notification for a partial captcha (CaptchaSession.partial) - a
     // blocking one always shows, since the tunnel can't come up without it.
     val partialCaptchaAlertsFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(PARTIAL_CAPTCHA_ALERTS, true)
+    // Whether other apps (Tasker and the like) may start/stop the tunnel through CoreReceiver's
+    // broadcasts. Off by default: the receiver is exported, so otherwise any app could stop it.
+    val intentApiEnabledFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(INTENT_API_ENABLED, false)
     val privacyModeFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(PRIVACY_MODE, false)
     val logsMinLevelFlow: Flow<LogLevel> = appCtx.internalDataStore.data
         .map { prefs -> LogLevel.entries.find { it.name == prefs[LOGS_MIN_LEVEL] } ?: LogLevel.INFO }
@@ -481,6 +485,10 @@ class AppPreferences(val context: Context) {
 
     suspend fun setPartialCaptchaAlerts(v: Boolean) {
         appCtx.internalDataStore.edit { it[PARTIAL_CAPTCHA_ALERTS] = v }
+    }
+
+    suspend fun setIntentApiEnabled(v: Boolean) {
+        appCtx.internalDataStore.edit { it[INTENT_API_ENABLED] = v }
     }
 
     suspend fun setPrivacyMode(v: Boolean) {

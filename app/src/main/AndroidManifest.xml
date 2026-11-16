@@ -238,7 +238,8 @@
             <intent-filter>
                 <action android:name="${applicationId}.START_CORE" />
                 <action android:name="${applicationId}.STOP_CORE" />
-                <action android:name="${applicationId}.CHANGE_PROFILE" />
+                <action android:name="${applicationId}.START_VPN" />
+                <action android:name="${applicationId}.STOP_VPN" />
             </intent-filter>
         </receiver>
 

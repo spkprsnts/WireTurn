@@ -648,6 +648,8 @@
     <string name="settings_auto_launch_desc">Start tunnel only when internet is restricted</string>
     <string name="settings_auto_launch_url">Check URL</string>
     <string name="settings_auto_launch_interval">Check interval (min)</string>
+    <string name="settings_intent_api_title">Control from other apps</string>
+    <string name="settings_intent_api_desc">Allow Tasker and other apps to start and stop the tunnel and turn VPN mode on and off. When on, any app on the device can do it</string>
     <string name="diagnostics_settings_title">Diagnostics</string>
     <string name="settings_ping_url">Ping address</string>
     <string name="settings_country_detection_title">Exit country detection</string>

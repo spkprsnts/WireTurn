@@ -588,6 +588,8 @@
     <string name="settings_auto_launch_desc">Запуск туннеля только при ограничении интернета</string>
     <string name="settings_auto_launch_url">URL для проверки</string>
     <string name="settings_auto_launch_interval">Интервал проверки (мин)</string>
+    <string name="settings_intent_api_title">Управление из других приложений</string>
+    <string name="settings_intent_api_desc">Разрешить Tasker и другим приложениям запускать и останавливать туннель, включать и выключать VPN-режим. Когда включено, это может любое приложение на устройстве</string>
     <string name="diagnostics_settings_title">Диагностика</string>
     <string name="settings_ping_url">Адрес для пинга</string>
     <string name="settings_country_detection_title">Определение страны выхода</string>
