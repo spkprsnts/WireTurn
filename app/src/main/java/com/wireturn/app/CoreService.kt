@@ -320,12 +320,26 @@ class CoreService : Service() {
         lastKnownFailureReason = null
         CoreTileService.requestUpdate(this)
 
-        val powerManager = getSystemService(POWER_SERVICE) as PowerManager
-        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WireTurn::BgLock")
-        wakeLock?.acquire(TimeUnit.HOURS.toMillis(24))
+        acquireWakeLock()
 
         registerNetworkCallback()
         registerScreenReceiver()
+    }
+
+    /**
+     * One lock for the service's whole life, held while it runs and released in onDestroy - the
+     * system drops it with the process anyway. Not reference counted, so a start on a running
+     * service (a retry after an error) holds the same lock instead of leaking another one. No
+     * timeout: a session is as long as the user keeps it up, and a lock that ran out after 24h
+     * would let the CPU sleep under a tunnel that's still on.
+     */
+    @android.annotation.SuppressLint("WakelockTimeout")
+    private fun acquireWakeLock() {
+        val lock = wakeLock ?: (getSystemService(POWER_SERVICE) as PowerManager)
+            .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WireTurn::BgLock")
+            .apply { setReferenceCounted(false) }
+            .also { wakeLock = it }
+        if (!lock.isHeld) lock.acquire()
     }
 
     private fun moveToForeground() {
