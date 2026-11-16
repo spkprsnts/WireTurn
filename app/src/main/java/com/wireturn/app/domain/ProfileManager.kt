@@ -264,12 +264,12 @@ class ProfileManager(
     // Some subscription providers content-negotiate by User-Agent and return an HTML landing
     // page to unknown clients. Keep the normal WireTurn request first, then retry only such
     // responses with identifiers used by the official clients of the kernels WireTurn supports.
-    // qWDTT and CSQTT identify their official Android clients. FreeTurn and OpenFlux fetch
-    // subscriptions from Go without setting a User-Agent, so the empty value is intentional.
+    // qWDTT and CSQTT identify their official Android clients. FreeTurn fetches subscriptions
+    // from Go without setting one, so net/http sends its default "Go-http-client/1.1".
     private val subscriptionFallbackUserAgents = listOf(
         "qWDTT-Subscription/1.0",
         "csqtt-client",
-        ""
+        "Go-http-client/1.1"
     )
 
     init {
@@ -804,8 +804,14 @@ class ProfileManager(
                         // A CSQTT panel's JSON first: it's an object too, and ProfileBundle (every field
                         // defaulted, so Gson gets a no-arg constructor) takes any object as a bundle with
                         // empty profiles - its "name" included - rather than failing on it.
-                        val bundle = tryParseQwdttPanelSubscription(content)
-                            ?: tryParseCsqttPanelSubscription(content) ?: try {
+                        // A qWDTT subscription with no entry WireTurn can run (no hashes or password)
+                        // ends here as InvalidFormat: Gson would take its "profiles" as empty profiles.
+                        val qwdttBundle = tryParseQwdttPanelSubscription(content)
+                        if (qwdttBundle != null && qwdttBundle.profiles.isEmpty()) {
+                            com.wireturn.app.AppLogsState.addLog("Subscription Error ($logLabel): qWDTT profiles without hashes or password")
+                        }
+                        val bundle = if (qwdttBundle != null) qwdttBundle.takeIf { it.profiles.isNotEmpty() }
+                            else tryParseCsqttPanelSubscription(content) ?: try {
                             gson.fromJson(content, ProfileBundle::class.java)?.also {
                                 @Suppress("SENSELESS_COMPARISON")
                                 if (it.profiles == null) throw com.google.gson.JsonSyntaxException("missing profiles")
@@ -1067,52 +1073,71 @@ class ProfileManager(
         UUID.nameUUIDFromBytes(rawUriLine.toByteArray(Charsets.UTF_8)).toString()
 
     /**
-     * The official qWDTT subscription JSON, e.g. {"profiles":[{"peer":"...", ...}]}.
-     * It is deliberately not deserialized as ProfileBundle: qWDTT publishes its own compact
-     * fields and does not expose WireTurn's internal kernelConfig wrapper.
+     * The official qWDTT subscription JSON, read as its client's SubscriptionImport.parsePayload
+     * does: an object with a "profiles" (or "servers") array, or a bare array of profiles, either
+     * one optionally base64-wrapped. Each entry is the client's compact profile ({"peer", "hashes",
+     * "workers", "pass", "dk", ...}), not WireTurn's kernelConfig wrapper, so it isn't left to Gson.
+     *
+     * Null when the content isn't that shape. A bundle with no profiles when it is, but no entry
+     * is usable here: the official client fills a blank "hashes" from its global hashes setting,
+     * WireTurn has none, so such an entry can't run.
      */
     private fun tryParseQwdttPanelSubscription(content: String): ProfileBundle? {
-        val root = runCatching { JsonParser.parseString(content.trim()) }.getOrNull()
-            ?.takeIf { it.isJsonObject }?.asJsonObject ?: return null
-        val entries = root.getAsJsonArray("profiles") ?: return null
-        if (entries.size() == 0) return null
+        val trimmed = content.trim()
+        val json = if (trimmed.startsWith("{") || trimmed.startsWith("[")) trimmed
+            else decodeLenientBase64(trimmed)?.trim()?.takeIf { it.startsWith("{") || it.startsWith("[") } ?: return null
+        val root = runCatching { JsonParser.parseString(json) }.getOrNull() ?: return null
+        val rootObj = root.takeIf { it.isJsonObject }?.asJsonObject
 
-        fun string(obj: JsonObject, key: String): String? =
-            obj.get(key)?.takeIf { it.isJsonPrimitive }?.asString?.trim()?.takeIf { it.isNotEmpty() }
+        fun array(obj: JsonObject?, key: String) = obj?.get(key)?.takeIf { it.isJsonArray }?.asJsonArray
+        val entries = (if (root.isJsonArray) root.asJsonArray else array(rootObj, "profiles") ?: array(rootObj, "servers"))
+            ?.mapNotNull { item -> item.takeIf { it.isJsonObject }?.asJsonObject }
+            ?: return null
 
-        fun integer(obj: JsonObject, key: String, fallback: Int): Int =
-            obj.get(key)?.takeIf { it.isJsonPrimitive }?.asInt ?: fallback
+        // A qWDTT entry has a top-level "peer" plus a field of its own. WireTurn's bundle profiles
+        // keep "peer" inside "kernelConfig", a CSQTT panel's entries carry a "link".
+        val qwdttKeys = listOf("hashes", "vkHashes", "workers", "workersPerHash", "pass", "password", "dk", "diagKey")
+        val qwdttEntries = entries.filter { obj ->
+            obj.has("peer") && !obj.has("kernelConfig") && !obj.has("link") && qwdttKeys.any(obj::has)
+        }
+        if (qwdttEntries.isEmpty()) return null
 
-        val profiles = entries.mapNotNull { item ->
-            val obj = item.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
-            val peer = string(obj, "peer") ?: return@mapNotNull null
-            val password = string(obj, "password") ?: string(obj, "pass") ?: return@mapNotNull null
-            val hashes = string(obj, "hashes") ?: string(obj, "vkHashes") ?: return@mapNotNull null
-            val name = string(obj, "name") ?: "qWDTT"
-            val workers = integer(obj, "workersPerHash", integer(obj, "workers", 9))
+        fun string(obj: JsonObject?, vararg keys: String): String? = keys.firstNotNullOfOrNull { key ->
+            obj?.get(key)?.takeIf { it.isJsonPrimitive }?.asString?.trim()?.takeIf { it.isNotEmpty() }
+        }
+        // A panel's malformed number falls back to the default rather than failing the whole import.
+        fun number(obj: JsonObject?, vararg keys: String): Double? = keys.firstNotNullOfOrNull { key ->
+            obj?.get(key)?.takeIf { it.isJsonPrimitive }?.let { runCatching { it.asDouble }.getOrNull() }
+        }
+
+        val profiles = qwdttEntries.mapNotNull { obj ->
+            val peer = string(obj, "peer")?.let(QwdttConfig::peerWithPort) ?: return@mapNotNull null
+            val hashes = string(obj, "hashes", "vkHashes") ?: return@mapNotNull null
+            val password = string(obj, "password", "pass") ?: return@mapNotNull null
             val config = QwdttConfig(
                 peer = peer,
                 vkHashes = hashes,
                 password = password,
-                workers = workers
-            )
+                workers = number(obj, "workers", "workersPerHash")?.toInt() ?: QwdttConfig().workers,
+                diagKey = string(obj, "diagKey", "dk").orEmpty()
+            ).sanitize()
             Profile(
                 id = stableTextSubEntryId("qwdtt-sub:$peer:$hashes"),
-                name = name,
+                name = string(obj, "name") ?: com.wireturn.app.kernel.QwdttKernel.defaultProfileName,
                 kernelConfig = KernelConfig.Qwdtt(config)
             )
         }
-        if (profiles.isEmpty()) return null
 
-        fun megabytes(key: String): Long? = root.get(key)?.takeIf { it.isJsonPrimitive }
-            ?.asDouble?.takeIf { it >= 0 }?.let { (it * 1024 * 1024).toLong() }
+        fun megabytes(vararg keys: String): Long? =
+            number(rootObj, *keys)?.takeIf { it >= 0 }?.let { (it * 1024 * 1024).toLong() }
         return ProfileBundle(
-            version = root.get("version")?.takeIf { it.isJsonPrimitive }?.asInt ?: 1,
-            name = string(root, "subscriptionName") ?: string(root, "groupName"),
-            description = string(root, "description"),
+            version = number(rootObj, "version")?.toInt() ?: 1,
+            // A bare array names its group in its first entry, as the official client reads it.
+            name = string(rootObj, "subscriptionName", "groupName") ?: string(entries.firstOrNull(), "groupName"),
+            description = string(rootObj, "description", "info"),
             profiles = profiles,
-            bytesUsed = megabytes("trafficUsedMb"),
-            bytesTotal = megabytes("trafficLimitMb")
+            bytesUsed = megabytes("trafficUsedMb", "trafficMb"),
+            bytesTotal = megabytes("trafficLimitMb", "trafficLimit")
         )
     }
 

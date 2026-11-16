@@ -18,7 +18,7 @@ import java.util.regex.Pattern
 // is Russian and unrelated to free-turn-proxy's despite the shared VK-TURN idea.
 object QwdttKernel : Kernel {
     override val variant: KernelVariant = KernelVariant.QWDTT
-    override val sensitiveCommandFlags: Set<String> = setOf("-vk", "-password", "-socks-user", "-socks-pass")
+    override val sensitiveCommandFlags: Set<String> = setOf("-vk", "-password", "-socks-user", "-socks-pass", "-diag-key")
     override val displayNameRes: Int = R.string.kernel_qwdtt
     override val configActivityClass = QwdttConfigActivity::class.java
     override val wgNotUsedMessageRes: Int = R.string.wg_not_used_with_qwdtt
@@ -91,6 +91,7 @@ object QwdttKernel : Kernel {
         if (o.noTls) cmdArgs.add("-notls")
         if (o.manualCaptcha) cmdArgs.addAll(listOf("-captcha-mode", "wv"))
         if (o.goDns.isNotBlank() && o.goDns != "yandex") cmdArgs.addAll(listOf("-go-dns", o.goDns))
+        if (o.diagKey.isNotBlank()) cmdArgs.addAll(listOf("-diag-key", o.diagKey))
         if (!rawMode && cfg.isSocksAuthEnabled) {
             cmdArgs.add("-socks-auth")
             cmdArgs.addAll(listOf("-socks-user", cfg.socksUser))

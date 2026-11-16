@@ -30,7 +30,10 @@ data class QwdttConfig(
     // the official client's default is 56003). Set = the server does raw IP, so a VPN without
     // Xray runs "-mode rawtun" there and hands the kernel the TUN itself (Kernel.supportsNativeTun);
     // blank = no raw mode, always "-mode socks" as before. Not part of the official link format.
-    @SerializedName("raw_port") val rawPort: String = ""
+    @SerializedName("raw_port") val rawPort: String = "",
+    // The link's `dk` (qWDTT 1.4.5+): the server's diagnostics key, passed as -diag-key so the
+    // binary's connection check can also query the server side. Blank = client-side checks only.
+    @SerializedName("diag_key") val diagKey: String = ""
 ) {
     fun isValid(): Boolean = peer.isNotBlank() && vkHashes.isNotBlank() && password.isNotBlank()
 
@@ -50,10 +53,11 @@ data class QwdttConfig(
         peer = (peer as Any?)?.toString()?.trim()?.take(500) ?: "",
         vkHashes = (vkHashes as Any?)?.toString()?.trim()?.take(2000) ?: "",
         password = (password as Any?)?.toString()?.trim()?.take(256) ?: "",
-        workers = workers.coerceIn(1, 108),
+        workers = workers.coerceIn(1, MAX_WORKERS),
         obfsMode = if (obfsMode == "video") "video" else "audio",
         goDns = ((goDns as Any?)?.toString()?.trim()?.take(100)).let { if (it.isNullOrBlank()) "yandex" else it },
-        rawPort = (rawPort as Any?)?.toString()?.filter(Char::isDigit)?.take(5) ?: ""
+        rawPort = (rawPort as Any?)?.toString()?.filter(Char::isDigit)?.take(5) ?: "",
+        diagKey = (diagKey as Any?)?.toString()?.trim()?.take(512) ?: ""
     )
 
     // Deliberately only the official scheme's own fields (name/peer/hashes/workers/pass) - `port`
@@ -67,11 +71,29 @@ data class QwdttConfig(
             .appendQueryParameter("workers", workers.toString())
             .appendQueryParameter("pass", password)
         if (!profileName.isNullOrBlank()) builder.appendQueryParameter("name", profileName)
+        if (diagKey.isNotBlank()) builder.appendQueryParameter("dk", diagKey)
         return builder.build().toString()
     }
 
     companion object {
         private const val DEFAULT_DTLS_PORT = 56000
+
+        // The binary's own cap since 1.4.5 (27 per hash with all six hashes); it clamps -n to it.
+        const val MAX_WORKERS = 162
+
+        /**
+         * [peerRaw] as "host:port": some generators send a bare host, with the port as a separate
+         * field or not at all - mirrors the official client's PeerAddress.ensurePort, where a port
+         * already in the peer always wins over [fallbackPort], and the standard DTLS port is the last
+         * resort.
+         */
+        fun peerWithPort(peerRaw: String, fallbackPort: Int? = null): String {
+            val peer = peerRaw.trim()
+            if (peer.isBlank()) return peer
+            val hasExplicitPort = peer.substringAfterLast(':', "").let { it.isNotEmpty() && it.all(Char::isDigit) }
+            return if (hasExplicitPort) peer
+                else "$peer:${fallbackPort?.coerceIn(1, 65535) ?: DEFAULT_DTLS_PORT}"
+        }
 
         // Accepts both "qwdtt://config?..." and the schemeless "qwdtt:config?..." variant some
         // sellers' tools emit (same query-string shape either way).
@@ -101,7 +123,8 @@ data class QwdttConfig(
                     goDns = current.goDns,
                     noTls = current.noTls,
                     manualCaptcha = current.manualCaptcha,
-                    rawPort = current.rawPort
+                    rawPort = current.rawPort,
+                    diagKey = current.diagKey
                 )
             }
 
@@ -130,7 +153,8 @@ data class QwdttConfig(
                     goDns = current.goDns,
                     noTls = current.noTls,
                     manualCaptcha = current.manualCaptcha,
-                    rawPort = current.rawPort
+                    rawPort = current.rawPort,
+                    diagKey = current.diagKey
                 )
             }
 
@@ -139,19 +163,12 @@ data class QwdttConfig(
                 val normalized = if (trimmed.startsWith("qwdtt://", ignoreCase = true)) trimmed
                     else trimmed.replaceFirst("qwdtt:", "qwdtt://", ignoreCase = true)
                 val uri = Uri.parse(normalized)
-                val peerRaw = uri.getQueryParameter("peer") ?: current.peer
                 // Some third-party generators send peer as host-only, with the port as a separate
-                // dtls_port/server_port param instead of "host:port" - append it only if peer
-                // doesn't already carry an explicit port (mirrors the official client's own
-                // PeerAddress.ensurePort: an already-present port always wins over these params).
-                // Neither (ildarmaga/wdtt's panel sends a bare host): the official importer's
-                // own default, the server's standard DTLS port.
-                val hasExplicitPort = peerRaw.substringAfterLast(':', "").let { it.isNotEmpty() && it.all(Char::isDigit) }
-                val peer = if (!hasExplicitPort && peerRaw.isNotBlank()) {
-                    val fallbackPort = (uri.getQueryParameter("dtls_port") ?: uri.getQueryParameter("server_port"))
-                        ?.toIntOrNull()?.coerceIn(1, 65535)
-                    "$peerRaw:${fallbackPort ?: DEFAULT_DTLS_PORT}"
-                } else peerRaw
+                // dtls_port/server_port param (or none at all: ildarmaga/wdtt's panel) - see peerWithPort.
+                val peer = peerWithPort(
+                    uri.getQueryParameter("peer") ?: current.peer,
+                    (uri.getQueryParameter("dtls_port") ?: uri.getQueryParameter("server_port"))?.toIntOrNull()
+                )
                 val hashes = uri.getQueryParameter("hashes") ?: current.vkHashes
                 if (peer.isBlank() || hashes.isBlank()) return null
                 QwdttConfig(
@@ -164,7 +181,8 @@ data class QwdttConfig(
                     goDns = current.goDns,
                     noTls = current.noTls,
                     manualCaptcha = current.manualCaptcha,
-                    rawPort = current.rawPort
+                    rawPort = current.rawPort,
+                    diagKey = uri.getQueryParameter("dk")?.trim() ?: current.diagKey
                 )
             } catch (_: Exception) {
                 null

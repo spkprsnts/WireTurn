@@ -369,8 +369,8 @@ fun QwdttConfigScreen(
                         label = stringResource(R.string.qwdtt_workers_label),
                         value = config.workers.toFloat(),
                         onValueChange = { config = config.copy(workers = it.roundToInt()) },
-                        valueRange = 1f..108f,
-                        steps = 106,
+                        valueRange = 1f..QwdttConfig.MAX_WORKERS.toFloat(),
+                        steps = QwdttConfig.MAX_WORKERS - 2,
                         supportingText = stringResource(R.string.qwdtt_workers_desc),
                         isModified = isEditMode && config.workers != initialConfig.workers
                     )
