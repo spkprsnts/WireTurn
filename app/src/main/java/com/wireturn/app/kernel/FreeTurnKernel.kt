@@ -15,6 +15,19 @@ import java.util.regex.Pattern
 object FreeTurnKernel : Kernel {
     override val variant: KernelVariant = KernelVariant.FREETURN
     override val sensitiveCommandFlags: Set<String> = setOf("-obf-key", "-links", "-sub")
+
+    override fun logLabel(cfg: KernelConfig): String = "FreeTurn (${(cfg as KernelConfig.FreeTurn).config.peer})"
+
+    override fun localSettingsChanged(old: ClientConfig, new: ClientConfig): Boolean = listenAddrChanged(old, new)
+
+    // freeturn:// doesn't carry the VK call links (per its docs they're account/session-specific,
+    // left to the user to fill in locally), so a subscription's entry almost always comes back
+    // without them - a refresh would wipe the ones added here.
+    override fun mergeSubscriptionUpdate(old: KernelConfig, new: KernelConfig): KernelConfig {
+        val o = (old as KernelConfig.FreeTurn).config
+        val n = (new as KernelConfig.FreeTurn).config
+        return if (n.links.isBlank() && o.links.isNotBlank()) KernelConfig.FreeTurn(n.copy(links = o.links)) else new
+    }
     override val displayNameRes: Int = R.string.kernel_freeturn
     override val configActivityClass = FreeTurnConfigActivity::class.java
 

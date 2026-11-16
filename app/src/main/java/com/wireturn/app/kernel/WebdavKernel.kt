@@ -15,6 +15,11 @@ import java.io.File
 
 object WebdavKernel : Kernel {
     override val variant: KernelVariant = KernelVariant.WEBDAV
+
+    override fun logLabel(cfg: KernelConfig): String =
+        "WebDAV (${(cfg as KernelConfig.Webdav).config.webdav.take(20)})"
+
+    override fun localSettingsChanged(old: ClientConfig, new: ClientConfig): Boolean = socksListenerChanged(old, new)
     override val displayNameRes: Int = R.string.kernel_webdav
     override val configActivityClass = WebdavConfigActivity::class.java
 

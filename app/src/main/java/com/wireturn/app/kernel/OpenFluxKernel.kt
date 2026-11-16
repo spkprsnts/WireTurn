@@ -27,6 +27,11 @@ object OpenFluxKernel : Kernel {
     // --url carries the Yandex.Docs document link, which is effectively the shared secret/
     // rendezvous point for that transport - as sensitive as FreeTurn's -links/-sub.
     override val sensitiveCommandFlags: Set<String> = setOf("--maxToken", "--url", "--session-context")
+
+    override fun logLabel(cfg: KernelConfig): String = "OpenFlux (${(cfg as KernelConfig.OpenFlux).config.transport})"
+
+    // No SOCKS5 auth flags exist upstream - only the address matters.
+    override fun localSettingsChanged(old: ClientConfig, new: ClientConfig): Boolean = old.socksAddr != new.socksAddr
     override val displayNameRes: Int = R.string.kernel_openflux
     override val configActivityClass = OpenFluxConfigActivity::class.java
     override val wgNotUsedMessageRes: Int = R.string.wg_not_used_with_openflux

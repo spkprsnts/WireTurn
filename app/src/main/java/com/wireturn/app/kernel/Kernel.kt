@@ -277,6 +277,31 @@ interface Kernel {
     /** Command-line flags whose values should be redacted in the app's own log (see CoreService). */
     val sensitiveCommandFlags: Set<String> get() = emptySet()
 
+    /** "Name (detail)" of [cfg] for the session-start line in the app's log. */
+    fun logLabel(cfg: KernelConfig): String
+
+    /**
+     * Whether going from [old] to [new] changes a ClientConfig setting this kernel's command reads
+     * besides its KernelConfig (which CoreService compares itself) - its local listen or SOCKS5
+     * address and auth - so the running binary has to be restarted. No default: a kernel that
+     * forgot one would silently keep running on the old address. See [listenAddrChanged] and
+     * [socksListenerChanged].
+     */
+    fun localSettingsChanged(old: ClientConfig, new: ClientConfig): Boolean
+
+    /**
+     * Counted as started and Connecting right at launch, not from its first status line - for a
+     * kernel whose output has none until its first session is up.
+     */
+    val connectingOnStart: Boolean get() = false
+
+    /**
+     * A subscription refresh's [new] config for a profile that has [old]: what the subscription
+     * doesn't carry (a locally added call link, settings made on this device) is kept from [old].
+     * Only called with both of this kernel's type; by default the subscription's config wins.
+     */
+    fun mergeSubscriptionUpdate(old: KernelConfig, new: KernelConfig): KernelConfig = new
+
     // --- UI / display metadata (was duplicated per-kernel `when`s across ProfilesUI, XraySetupScreen, CoreTriggerController, ValidatorUtils) ---
 
     /** Short kernel name, e.g. R.string.kernel_turnable. */
@@ -324,6 +349,16 @@ interface Kernel {
     /** Fallback profile name when [displayNameFromUri] found nothing. */
     val defaultProfileName: String
 }
+
+/** For [Kernel.localSettingsChanged]: the local UDP/TCP listen address the kernel serves on. */
+fun listenAddrChanged(old: ClientConfig, new: ClientConfig): Boolean = old.listenAddr != new.listenAddr
+
+/** For [Kernel.localSettingsChanged]: the kernel's own SOCKS5 listener - address and auth. */
+fun socksListenerChanged(old: ClientConfig, new: ClientConfig): Boolean =
+    old.socksAddr != new.socksAddr ||
+        old.isSocksAuthEnabled != new.isSocksAuthEnabled ||
+        old.socksUser != new.socksUser ||
+        old.socksPass != new.socksPass
 
 object KernelRegistry {
     private val all: List<Kernel> = listOf(

@@ -8,6 +8,7 @@ import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.Profile
 import com.wireturn.app.data.ProfileBundle
 import com.wireturn.app.data.Subscription
+import com.wireturn.app.data.variant
 import com.wireturn.app.data.kernel.OlcrtcConfig
 import com.wireturn.app.data.kernel.QwdttConfig
 import com.wireturn.app.kernel.KernelRegistry
@@ -593,42 +594,14 @@ class ProfileManager(
                 // the user's actual working link, leaving a broken enabled-but-empty state.
                 val subscriptionHasXrayConfig = sanitized.wgConfig.isValid() || sanitized.vlessConfig.isValid()
 
-                // FreeTurn's own freeturn:// URI intentionally doesn't carry the VK call link/id
-                // (per its docs, that's account/session-specific and left for the user to fill in
-                // locally) - so a subscription entry's `links` almost always comes back blank here.
-                // Same overwrite problem as the Xray fields above: without this, a locally-added
-                // links value gets wiped back to blank on every refresh.
-                // CSQTT likewise: a csqtt:// link carries the server, its password and maybe call
-                // hashes - a CSQTT panel's subscription carries none - and nothing of the workers,
-                // obfuscation, TURN transport or captcha mode set here. Only what the link brings
-                // replaces the local profile's.
+                // Same overwrite problem as the Xray fields above, for what a kernel's link doesn't
+                // carry (FreeTurn's call links, CSQTT's local settings, qWDTT's device id) - each
+                // kernel keeps those from the local profile (Kernel.mergeSubscriptionUpdate).
                 val mergedKernelConfig = run {
                     val newKc = sanitized.kernelConfig
                     val oldKc = existing?.kernelConfig
-                    when (newKc) {
-                        is KernelConfig.FreeTurn if oldKc is KernelConfig.FreeTurn &&
-                                newKc.config.links.isBlank() && oldKc.config.links.isNotBlank()
-                            -> {
-                            KernelConfig.FreeTurn(newKc.config.copy(links = oldKc.config.links))
-                        }
-
-                        is KernelConfig.Csqtt if oldKc is KernelConfig.Csqtt -> {
-                            KernelConfig.Csqtt(
-                                oldKc.config.copy(
-                                    peer = newKc.config.peer,
-                                    password = newKc.config.password,
-                                    vkHashes = newKc.config.vkHashes.ifBlank { oldKc.config.vkHashes }
-                                ))
-                        }
-
-                        // The device id a qWDTT password is bound to is local, never the
-                        // subscription's: a refresh must not move a profile off "unknown" (or
-                        // whatever the user set), or the server would refuse it as a new device.
-                        is KernelConfig.Qwdtt if oldKc is KernelConfig.Qwdtt ->
-                            KernelConfig.Qwdtt(newKc.config.copy(deviceId = oldKc.config.deviceId))
-
-                        else -> newKc
-                    }
+                    val kernel = KernelRegistry.get(newKc.variant)
+                    if (oldKc != null && oldKc.variant == newKc.variant) kernel.mergeSubscriptionUpdate(oldKc, newKc) else newKc
                 }
 
                 val profile = sanitized.copy(

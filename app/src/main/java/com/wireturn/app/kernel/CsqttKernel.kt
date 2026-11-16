@@ -26,6 +26,22 @@ import com.wireturn.app.ui.activities.kernel.CsqttConfigActivity
 object CsqttKernel : Kernel {
     override val variant: KernelVariant = KernelVariant.CSQTT
     override val sensitiveCommandFlags: Set<String> = setOf("-vk", "--user", "--pass")
+
+    override fun logLabel(cfg: KernelConfig): String = "CSQTT (${(cfg as KernelConfig.Csqtt).config.peer})"
+
+    // socks2tun's listener (the sidecar).
+    override fun localSettingsChanged(old: ClientConfig, new: ClientConfig): Boolean = socksListenerChanged(old, new)
+
+    // A csqtt:// link carries the server, its password and maybe call hashes - a CSQTT panel's
+    // subscription carries none - and nothing of the workers, obfuscation, TURN transport or
+    // captcha mode set here. Only what the link brings replaces the local profile's.
+    override fun mergeSubscriptionUpdate(old: KernelConfig, new: KernelConfig): KernelConfig {
+        val o = (old as KernelConfig.Csqtt).config
+        val n = (new as KernelConfig.Csqtt).config
+        return KernelConfig.Csqtt(
+            o.copy(peer = n.peer, password = n.password, vkHashes = n.vkHashes.ifBlank { o.vkHashes })
+        )
+    }
     override val displayNameRes: Int = R.string.kernel_csqtt
     override val configActivityClass = CsqttConfigActivity::class.java
     override val wgNotUsedMessageRes: Int = R.string.wg_not_used_with_csqtt

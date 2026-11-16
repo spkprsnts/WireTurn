@@ -19,6 +19,18 @@ import java.util.regex.Pattern
 object QwdttKernel : Kernel {
     override val variant: KernelVariant = KernelVariant.QWDTT
     override val sensitiveCommandFlags: Set<String> = setOf("-vk", "-password", "-socks-user", "-socks-pass", "-diag-key", "-device-id")
+
+    override fun logLabel(cfg: KernelConfig): String = "qWDTT (${(cfg as KernelConfig.Qwdtt).config.peer})"
+
+    // Both: -listen for the WireGuard side, -socks for the SOCKS5 one.
+    override fun localSettingsChanged(old: ClientConfig, new: ClientConfig): Boolean =
+        listenAddrChanged(old, new) || socksListenerChanged(old, new)
+
+    // The device id a password is bound to is local, never the subscription's: a refresh must not
+    // move a profile off "unknown" (or whatever the user set), or the server would refuse it as a
+    // new device - see QwdttConfig.deviceId.
+    override fun mergeSubscriptionUpdate(old: KernelConfig, new: KernelConfig): KernelConfig =
+        KernelConfig.Qwdtt((new as KernelConfig.Qwdtt).config.copy(deviceId = (old as KernelConfig.Qwdtt).config.deviceId))
     override val displayNameRes: Int = R.string.kernel_qwdtt
     override val configActivityClass = QwdttConfigActivity::class.java
     override val wgNotUsedMessageRes: Int = R.string.wg_not_used_with_qwdtt

@@ -15,6 +15,11 @@ import java.util.regex.Pattern
 
 object TurnableKernel : Kernel {
     override val variant: KernelVariant = KernelVariant.TURNABLE
+
+    override fun logLabel(cfg: KernelConfig): String =
+        "Turnable (${(cfg as KernelConfig.Turnable).config.selectedRouteId})"
+
+    override fun localSettingsChanged(old: ClientConfig, new: ClientConfig): Boolean = listenAddrChanged(old, new)
     override val displayNameRes: Int = R.string.kernel_turnable
     override val configActivityClass = TurnableConfigActivity::class.java
 

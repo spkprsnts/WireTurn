@@ -279,17 +279,8 @@ class CoreService : Service() {
         val safeProfileName = profileName?.take(50) ?: "-"
         AppLogsState.addLog(getString(R.string.log_core_start, safeProfileName))
 
-        val kernelInfo = when (val k = currentRunningCfg.get()?.kernelConfig) {
-            is KernelConfig.Turnable -> "Turnable (${k.config.selectedRouteId})"
-            is KernelConfig.Olcrtc -> "Olcrtc (${k.config.provider})"
-            is KernelConfig.Webdav -> "WebDAV (${k.config.webdav.take(20)})"
-            is KernelConfig.FreeTurn -> "FreeTurn (${k.config.peer})"
-            is KernelConfig.Qwdtt -> "qWDTT (${k.config.peer})"
-            is KernelConfig.OpenFlux -> "OpenFlux (${k.config.transport})"
-            is KernelConfig.Csqtt -> "CSQTT (${k.config.peer})"
-            is KernelConfig.Xray -> "Xray (${com.wireturn.app.ui.ValidatorUtils.parseVlessAddress(k.config.link) ?: "-"})"
-            else -> "-"
-        }
+        val kernelInfo = currentRunningCfg.get()
+            ?.let { KernelRegistry.get(it.kernelVariant).logLabel(it.kernelConfig) } ?: "-"
         val xrayLink = (currentRunningCfg.get()?.kernelConfig as? KernelConfig.Xray)?.config?.link
         val xrayInfo = if (xrayLink != null) {
             // The profile is Xray itself - say which protocol its link speaks.
@@ -740,7 +731,7 @@ class CoreService : Service() {
                 sendSigTerm(proc)
             }
 
-            if (cfg.kernelVariant == KernelVariant.OLCRTC) {
+            if (kernel.connectingOnStart) {
                 state.startupEmitted = true
                 if (canUpdateConnectingStatus()) {
                     markConnecting()
@@ -871,36 +862,8 @@ class CoreService : Service() {
         if (old.kernelConfig != new.kernelConfig) return true
         if (old.goDnsGo != new.goDnsGo) return true
         if (old.useCustomCerts != new.useCustomCerts) return true
-        return when (new.kernelConfig) {
-            is KernelConfig.Turnable -> old.listenAddr != new.listenAddr
-            is KernelConfig.Olcrtc ->
-                old.socksAddr != new.socksAddr ||
-                old.isSocksAuthEnabled != new.isSocksAuthEnabled ||
-                old.socksUser != new.socksUser ||
-                old.socksPass != new.socksPass
-            is KernelConfig.Webdav ->
-                old.socksAddr != new.socksAddr ||
-                old.isSocksAuthEnabled != new.isSocksAuthEnabled ||
-                old.socksUser != new.socksUser ||
-                old.socksPass != new.socksPass
-            is KernelConfig.FreeTurn -> old.listenAddr != new.listenAddr
-            is KernelConfig.Qwdtt ->
-                old.listenAddr != new.listenAddr ||
-                old.socksAddr != new.socksAddr ||
-                old.isSocksAuthEnabled != new.isSocksAuthEnabled ||
-                old.socksUser != new.socksUser ||
-                old.socksPass != new.socksPass
-            // No SOCKS5 auth flags exist upstream - only socksAddr matters (see buildCommandArgs).
-            is KernelConfig.OpenFlux -> old.socksAddr != new.socksAddr
-            // socks2tun's listener, see CsqttKernel.
-            is KernelConfig.Csqtt ->
-                old.socksAddr != new.socksAddr ||
-                old.isSocksAuthEnabled != new.isSocksAuthEnabled ||
-                old.socksUser != new.socksUser ||
-                old.socksPass != new.socksPass
-            // Nothing of its own listens - only the link matters, compared above.
-            is KernelConfig.Xray -> false
-        }
+        // Same kernel from here (its KernelConfig is equal) - what else its command reads.
+        return KernelRegistry.get(new.kernelVariant).localSettingsChanged(old, new)
     }
 
     // Stops the running binary so the supervisor loop brings it straight back (no watchdog

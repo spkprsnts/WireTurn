@@ -15,6 +15,12 @@ import com.wireturn.app.ui.activities.kernel.XrayLinkConfigActivity
 // instead of the profile's Xray overlay, and the core status just follows Xray's.
 object XrayKernel : Kernel {
     override val variant: KernelVariant = KernelVariant.XRAY
+
+    override fun logLabel(cfg: KernelConfig): String =
+        "Xray (${ValidatorUtils.parseVlessAddress((cfg as KernelConfig.Xray).config.link) ?: "-"})"
+
+    // Nothing of its own listens - only the link matters, which is the KernelConfig.
+    override fun localSettingsChanged(old: ClientConfig, new: ClientConfig): Boolean = false
     override val runsBinary: Boolean = false
     override val displayNameRes: Int = R.string.kernel_xray
     override val configActivityClass = XrayLinkConfigActivity::class.java

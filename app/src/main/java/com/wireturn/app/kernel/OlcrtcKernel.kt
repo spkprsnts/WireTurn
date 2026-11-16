@@ -14,6 +14,13 @@ import java.io.File
 
 object OlcrtcKernel : Kernel {
     override val variant: KernelVariant = KernelVariant.OLCRTC
+
+    override fun logLabel(cfg: KernelConfig): String =
+        "Olcrtc (${(cfg as KernelConfig.Olcrtc).config.provider})"
+
+    override fun localSettingsChanged(old: ClientConfig, new: ClientConfig): Boolean = socksListenerChanged(old, new)
+
+    override val connectingOnStart: Boolean = true
     override val displayNameRes: Int = R.string.kernel_olcrtc
     override val configActivityClass = OlcRtcConfigActivity::class.java
     override val wgNotUsedMessageRes: Int = R.string.wg_not_used_with_olcrtc
