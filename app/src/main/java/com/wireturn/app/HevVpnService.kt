@@ -164,7 +164,7 @@ class HevVpnService : VpnService() {
         val socks5Port = if (lastColon > 0) socks5Addr.substring(lastColon + 1).toIntOrNull() ?: 1080 else 1080
 
         val authConfig = if (!socks5User.isNullOrBlank() && !socks5Pass.isNullOrBlank()) {
-            "\n  username: '$socks5User'\n  password: '$socks5Pass'"
+            "\n  username: ${yamlQuoted(socks5User)}\n  password: ${yamlQuoted(socks5Pass)}"
         } else {
             ""
         }
@@ -181,7 +181,7 @@ tunnel:
   icmp: '${if (vpnSettings.icmpReply) "reply" else "off"}'
 socks5:
   port: $socks5Port
-  address: '$socks5Host'
+  address: ${yamlQuoted(socks5Host)}
   udp: 'udp'$authConfig$mapDnsConfig
 misc:
   task-stack-size: 24576
@@ -194,6 +194,13 @@ misc:
   log-level: warn
 """.trimIndent()
     }
+
+    // A YAML single-quoted scalar: the only escape there is a doubled quote. A SOCKS5 login or
+    // password with a ' in it otherwise ended the string early - hev then failed on its config,
+    // and the VPN went into its error-and-retry loop with nothing ever saying why.
+    // Line breaks can't be expressed in this form, so they're dropped.
+    private fun yamlQuoted(value: String): String =
+        "'" + value.replace("\r", "").replace("\n", "").replace("'", "''") + "'"
 
     private fun goForeground() {
         try {
