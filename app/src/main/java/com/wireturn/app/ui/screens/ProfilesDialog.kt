@@ -44,10 +44,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberOverscrollEffect
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -312,11 +310,6 @@ fun ProfilesDialog(
         optimisticSelectedId = null
     }
 
-    var exportFormatMenuExpanded by remember { mutableStateOf(false) }
-    var exportActionMenuExpanded by remember { mutableStateOf(false) }
-    var exportTargetIds by remember { mutableStateOf<List<String>>(emptyList()) }
-    var exportAsJson by remember { mutableStateOf(true) }
-
     val showRenameDialog = remember { mutableStateOf<Profile?>(null) }
     val showDeleteConfirm = remember { mutableStateOf<Profile?>(null) }
     val showBulkDeleteConfirm = remember { mutableStateOf<List<String>?>(null) }
@@ -324,40 +317,6 @@ fun ProfilesDialog(
 
     val selectedIds = remember { mutableStateListOf<String>() }
     val isSelectionMode = selectedIds.isNotEmpty()
-
-    val jsonToExport = remember { mutableStateOf<String?>(null) }
-    val exportLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/json")
-    ) { uri ->
-        uri?.let { destination ->
-            jsonToExport.value?.let { json ->
-                try {
-                    context.contentResolver.openOutputStream(destination)?.use {
-                        it.write(json.toByteArray())
-                    }
-                } catch (_: Exception) {
-                }
-                jsonToExport.value = null
-            }
-        }
-    }
-
-    val zipToExport = remember { mutableStateOf<ByteArray?>(null) }
-    val zipExportLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/zip")
-    ) { uri ->
-        uri?.let { destination ->
-            zipToExport.value?.let { bytes ->
-                try {
-                    context.contentResolver.openOutputStream(destination)?.use {
-                        it.write(bytes)
-                    }
-                } catch (_: Exception) {
-                }
-                zipToExport.value = null
-            }
-        }
-    }
 
     val highlightedIds = remember { mutableStateListOf<String>() }
 
@@ -699,50 +658,7 @@ fun ProfilesDialog(
         }
     }
 
-    val exportTitle = stringResource(R.string.profile_export)
-    val onExportActionSelected = { save: Boolean ->
-        exportActionMenuExpanded = false
-        if (save) {
-            if (exportAsJson) {
-                val json = viewModel.getProfilesJson(exportTargetIds)
-                jsonToExport.value = json
-                val fileName = if (exportTargetIds.size == 1) {
-                    val profile = profiles.find { it.id == exportTargetIds[0] }
-                    val safeName = profile?.name?.replace(Regex("[\\\\/:*?\"<>| ]"), "_") ?: "profile"
-                    "wt_$safeName.json"
-                } else "wt_profiles_${exportTargetIds.size}.json"
-                exportLauncher.launch(fileName)
-            } else {
-                zipToExport.value = viewModel.exportProfilesToZip(exportTargetIds)
-                zipExportLauncher.launch("wt_profiles_${exportTargetIds.size}.zip")
-            }
-        } else {
-            if (exportAsJson) {
-                val json = viewModel.getProfilesJson(exportTargetIds)
-                val encoded = com.wireturn.app.domain.ProfileEncoder.encode(json)
-                shareText(context, "wireturn://$encoded", exportTitle)
-            } else {
-                val bytes = viewModel.exportProfilesToZip(exportTargetIds)
-                val fileName = if (exportTargetIds.size == 1) {
-                    val profile = profiles.find { it.id == exportTargetIds[0] }
-                    val safeName = profile?.name?.replace(Regex("[\\\\/:*?\"<>| ]"), "_") ?: "profile"
-                    "wt_$safeName.zip"
-                } else "wt_profiles_${exportTargetIds.size}.zip"
-                shareFile(context, bytes, fileName)
-            }
-        }
-    }
-
-    val onExportClick = { targets: List<String>, showMenu: Boolean ->
-        if (showMenu) HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-        exportTargetIds = targets
-        if (targets.size > 1) {
-            if (showMenu) exportFormatMenuExpanded = true
-        } else {
-            exportAsJson = true
-            if (showMenu) exportActionMenuExpanded = true
-        }
-    }
+    val export = rememberProfilesExport(viewModel, profiles)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -750,138 +666,32 @@ fun ProfilesDialog(
         contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         dragHandle = {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-            ) {
-                androidx.compose.material3.BottomSheetDefaults.DragHandle()
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 24.dp, end = 24.dp, bottom = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = if (isSelectionMode) stringResource(
-                            R.string.profile_selected_count,
-                            selectedIds.size
-                        )
-                        else stringResource(R.string.profiles_title),
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        if (isSelectionMode) {
-                            Box {
-                                FilledTonalIconButton(onClick = { onExportClick(selectedIds.toList(), true) }) {
-                                    Icon(
-                                        painterResource(R.drawable.ios_share_24px),
-                                        contentDescription = stringResource(R.string.profile_export)
-                                    )
-                                }
-                                ExportDropdownMenus(
-                                    expandedFormat = exportFormatMenuExpanded,
-                                    onDismissFormat = { exportFormatMenuExpanded = false },
-                                    expandedAction = exportActionMenuExpanded,
-                                    onDismissAction = { exportActionMenuExpanded = false },
-                                    onFormatSelected = { asJson ->
-                                        exportAsJson = asJson
-                                        exportFormatMenuExpanded = false
-                                        exportActionMenuExpanded = true
-                                    },
-                                    onActionSelected = onExportActionSelected
-                                )
-                            }
-                            FilledTonalIconButton(onClick = {
-                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                showBulkDeleteConfirm.value = selectedIds.toList()
-                            }) {
-                                Icon(
-                                    painterResource(R.drawable.delete_24px),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                            }
-                            FilledTonalIconButton(onClick = {
-                                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                val isAllSelected = selectedIds.size == profiles.size
-                                if (isAllSelected) {
-                                    selectedIds.clear()
-                                } else {
-                                    selectedIds.clear()
-                                    selectedIds.addAll(profiles.map { it.id })
-                                }
-                            }) {
-                                Icon(
-                                    painterResource(
-                                        if (selectedIds.size == profiles.size) R.drawable.indeterminate_check_box_24px
-                                        else R.drawable.check_box_24px
-                                    ),
-                                    contentDescription = null
-                                )
-                            }
-                        } else {
-                            if (subscriptions.isNotEmpty()) {
-                                // Collapses them all while any is open, otherwise opens them all.
-                                val anyExpanded = subscriptions.any { !it.collapsed }
-                                FilledTonalIconButton(onClick = {
-                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                    if (anyExpanded) scope.launch { lazyListState.scrollToItem(0) }
-                                    viewModel.setAllSubscriptionsCollapsed(anyExpanded)
-                                }) {
-                                    Icon(
-                                        painterResource(if (anyExpanded) R.drawable.unfold_less_24px else R.drawable.unfold_more_24px),
-                                        contentDescription = stringResource(
-                                            if (anyExpanded) R.string.subscriptions_collapse_all else R.string.subscriptions_expand_all
-                                        )
-                                    )
-                                }
-                            }
-                            if (profiles.isNotEmpty()) {
-                                Box {
-                                    FilledTonalIconButton(onClick = { onExportClick(profiles.map { it.id }, true) }) {
-                                        Icon(
-                                            painterResource(R.drawable.ios_share_24px),
-                                            contentDescription = stringResource(R.string.profile_export_all)
-                                        )
-                                    }
-                                    ExportDropdownMenus(
-                                        expandedFormat = exportFormatMenuExpanded,
-                                        onDismissFormat = { exportFormatMenuExpanded = false },
-                                        expandedAction = exportActionMenuExpanded,
-                                        onDismissAction = { exportActionMenuExpanded = false },
-                                        onFormatSelected = { asJson ->
-                                            exportAsJson = asJson
-                                            exportFormatMenuExpanded = false
-                                            exportActionMenuExpanded = true
-                                        },
-                                        onActionSelected = onExportActionSelected
-                                    )
-                                }
-                            }
-                            Box {
-                                FilledTonalIconButton(onClick = {
-                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                    context.startActivity(
-                                        Intent(
-                                            context,
-                                            com.wireturn.app.ui.activities.AddProfileActivity::class.java
-                                        )
-                                    )
-                                }) {
-                                    Icon(
-                                        painterResource(R.drawable.add_24px),
-                                        contentDescription = stringResource(R.string.profile_create)
-                                    )
-                                }
-                            }
-                        }
+            ProfilesSheetHeader(
+                export = export,
+                isSelectionMode = isSelectionMode,
+                selectedCount = selectedIds.size,
+                allSelected = selectedIds.size == profiles.size,
+                hasProfiles = profiles.isNotEmpty(),
+                hasSubscriptions = subscriptions.isNotEmpty(),
+                anySubscriptionExpanded = subscriptions.any { !it.collapsed },
+                onExportSelected = { export.onExportClick(context, selectedIds.toList(), true) },
+                onDeleteSelected = { showBulkDeleteConfirm.value = selectedIds.toList() },
+                onToggleSelectAll = {
+                    val isAllSelected = selectedIds.size == profiles.size
+                    if (isAllSelected) {
+                        selectedIds.clear()
+                    } else {
+                        selectedIds.clear()
+                        selectedIds.addAll(profiles.map { it.id })
                     }
-                }
-            }
+                },
+                onToggleAllCollapsed = {
+                    val anyExpanded = subscriptions.any { !it.collapsed }
+                    if (anyExpanded) scope.launch { lazyListState.scrollToItem(0) }
+                    viewModel.setAllSubscriptionsCollapsed(anyExpanded)
+                },
+                onExportAll = { export.onExportClick(context, profiles.map { it.id }, true) }
+            )
         }
     ) {
         Column(
@@ -961,26 +771,7 @@ fun ProfilesDialog(
             ) {
                 if (profiles.isEmpty() && subscriptions.isEmpty()) {
                     item {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 32.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.mobile_outlined_24px),
-                                contentDescription = null,
-                                modifier = Modifier.size(48.dp),
-                                tint = MaterialTheme.colorScheme.outlineVariant
-                            )
-                            Spacer(Modifier.height(16.dp))
-                            Text(
-                                text = stringResource(R.string.profiles_empty),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        ProfilesEmptyState()
                     }
                 } else {
                     if (standaloneProfiles.isNotEmpty()) {
@@ -1013,8 +804,8 @@ fun ProfilesDialog(
                                     viewModel.reorderProfiles(profiles.toList())
                                 }
                             },
-                            onExportClick = onExportClick,
-                            onExportActionSelected = onExportActionSelected,
+                            onExportClick = { targets, showMenu -> export.onExportClick(context, targets, showMenu) },
+                            onExportActionSelected = { export.onActionSelected(it) },
                             onClone = { showCloneDialog.value = it },
                             onRename = { showRenameDialog.value = it },
                             onDelete = { showDeleteConfirm.value = it },
@@ -1145,8 +936,8 @@ fun ProfilesDialog(
                                         viewModel.reorderProfiles(profiles.toList())
                                     }
                                 },
-                                onExportClick = onExportClick,
-                                onExportActionSelected = onExportActionSelected,
+                                onExportClick = { targets, showMenu -> export.onExportClick(context, targets, showMenu) },
+                                onExportActionSelected = { export.onActionSelected(it) },
                                 onClone = { showCloneDialog.value = it },
                                 onRename = { showRenameDialog.value = it },
                                 onDelete = { showDeleteConfirm.value = it },
@@ -1191,70 +982,37 @@ fun ProfilesDialog(
     }
 
     showDeleteConfirm.value?.let { profile ->
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm.value = null },
-            title = { Text(stringResource(R.string.profile_delete_confirm, profile.name)) },
-            text = { Text(stringResource(R.string.profile_delete_desc)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.deleteProfile(profile.id)
-                        showDeleteConfirm.value = null
-                    },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                ) { Text(stringResource(R.string.profile_delete)) }
+        ProfilesDeleteDialog(
+            title = stringResource(R.string.profile_delete_confirm, profile.name),
+            onConfirm = {
+                viewModel.deleteProfile(profile.id)
+                showDeleteConfirm.value = null
             },
-            dismissButton = {
-                TextButton(onClick = {
-                    showDeleteConfirm.value = null
-                }) { Text(stringResource(R.string.cancel)) }
-            }
+            onDismiss = { showDeleteConfirm.value = null }
         )
     }
 
     showBulkDeleteConfirm.value?.let { ids ->
-        AlertDialog(
-            onDismissRequest = { showBulkDeleteConfirm.value = null },
-            title = { Text(stringResource(R.string.profile_delete_selected_confirm, ids.size)) },
-            text = { Text(stringResource(R.string.profile_delete_desc)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.deleteProfiles(ids)
-                        selectedIds.clear()
-                        showBulkDeleteConfirm.value = null
-                    },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                ) { Text(stringResource(R.string.profile_delete)) }
+        ProfilesDeleteDialog(
+            title = stringResource(R.string.profile_delete_selected_confirm, ids.size),
+            onConfirm = {
+                viewModel.deleteProfiles(ids)
+                selectedIds.clear()
+                showBulkDeleteConfirm.value = null
             },
-            dismissButton = {
-                TextButton(onClick = {
-                    showBulkDeleteConfirm.value = null
-                }) { Text(stringResource(R.string.cancel)) }
-            }
+            onDismiss = { showBulkDeleteConfirm.value = null }
         )
     }
 
     showManualUpdateTunnelWarning.value?.let { sub ->
-        AlertDialog(
-            onDismissRequest = { showManualUpdateTunnelWarning.value = null },
-            title = { Text(stringResource(R.string.update_manual_no_tunnel_title)) },
-            text = { Text(stringResource(R.string.update_manual_no_tunnel_desc)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val url = sub.url
-                        showManualUpdateTunnelWarning.value = null
-                        // Proceed without tunnel check again
-                        scope.launch { doRefreshSubscription(url) }
-                    }
-                ) { Text(stringResource(R.string.btn_proceed)) }
+        ManualUpdateNoTunnelDialog(
+            onProceed = {
+                val url = sub.url
+                showManualUpdateTunnelWarning.value = null
+                // Proceed without tunnel check again
+                scope.launch { doRefreshSubscription(url) }
             },
-            dismissButton = {
-                TextButton(onClick = {
-                    showManualUpdateTunnelWarning.value = null
-                }) { Text(stringResource(R.string.cancel)) }
-            }
+            onDismiss = { showManualUpdateTunnelWarning.value = null }
         )
     }
 }
@@ -1847,7 +1605,7 @@ private fun SubscriptionEmptyRow() {
 }
 
 @Composable
-private fun ExportDropdownMenus(
+internal fun ExportDropdownMenus(
     expandedFormat: Boolean,
     onDismissFormat: () -> Unit,
     expandedAction: Boolean,
@@ -1914,7 +1672,7 @@ private fun ExportDropdownMenus(
     }
 }
 
-private fun shareFile(context: Context, bytes: ByteArray, fileName: String) {
+internal fun shareFile(context: Context, bytes: ByteArray, fileName: String) {
     try {
         val file = java.io.File(context.cacheDir, fileName)
         file.writeBytes(bytes)
@@ -1932,7 +1690,7 @@ private fun shareFile(context: Context, bytes: ByteArray, fileName: String) {
     } catch (_: Exception) {}
 }
 
-private fun shareText(context: Context, text: String, title: String) {
+internal fun shareText(context: Context, text: String, title: String) {
     val intent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(Intent.EXTRA_TEXT, text)
