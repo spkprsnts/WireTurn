@@ -30,6 +30,9 @@ class CoreTileService : TileService() {
     companion object {
         const val EXTRA_REQUEST_VPN_CONSENT = "REQUEST_VPN_CONSENT"
 
+        // A tap's action - outlives the tile service instance it came from (see onClick).
+        private val clickScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
         fun requestUpdate(context: Context) {
             try {
                 requestListeningState(context, ComponentName(context, CoreTileService::class.java))
@@ -128,67 +131,63 @@ class CoreTileService : TileService() {
         // Оптимистичное обновление: сразу ставим целевое состояние (если выключаем - гасим плитку мгновенно)
         updateTileState(isRunning = !(currentlyRunning || autoLaunchEnabled), isWorking = false, autoLaunchEnabled = false)
 
-        // The settings are read suspending, not with runBlocking on the main thread. The service
-        // is started and stopped right here, not through CoreReceiver: that's the Intent API for
-        // other apps, which the user may have turned off.
-        serviceScope.launch {
-            val prefs = AppPreferences(this@CoreTileService)
-            val autoLaunch = prefs.autoLaunchSettingsFlow.first()
-            val turningOff = currentlyRunning || autoLaunch.enabled
-
-            if (autoLaunch.enabled) {
-                prefs.updateAutoLaunchSettings(autoLaunch.copy(enabled = false))
-            }
-
-            if (turningOff) {
-                // Auto-launch alone (nothing running yet) only needed switching off above.
-                if (CoreServiceState.status.value is CoreStatus.Idle) return@launch
-                CoreServiceState.setStatus(CoreStatus.Idle)
-                NotificationHelper.updateNotification(this@CoreTileService)
-                CoreService.stop(this@CoreTileService, byUser = true)
-                return@launch
-            }
-
-            val cfg = prefs.clientConfigFlow.first()
-            cfg.getValidationErrorResId()?.let { errorRes ->
-                CoreServiceState.setStatus(CoreStatus.Error(getString(errorRes)))
-                // В случае ошибки конфига — откатываем плитку в выключенное состояние
-                updateTileState(isRunning = false, isWorking = false, autoLaunchEnabled = false)
-                return@launch
-            }
-
-            // A TileService can't show the system VPN consent dialog itself - open the app for
-            // that instead of letting establish() silently and permanently fail.
-            val vpnSettings = prefs.vpnSettingsFlow.first()
-            if (vpnConsentIntent(this@CoreTileService, vpnSettings.enabled) != null) {
-                updateTileState(isRunning = false, isWorking = false, autoLaunchEnabled = false)
-                val consentIntent = Intent(this@CoreTileService, MainActivity::class.java).apply {
-                    putExtra(EXTRA_REQUEST_VPN_CONSENT, true)
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                    val pendingIntent = PendingIntent.getActivity(
-                        this@CoreTileService, 0, consentIntent,
-                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                    )
-                    startActivityAndCollapse(pendingIntent)
-                } else {
-                    @Suppress("DEPRECATION", "StartActivityAndCollapseDeprecated")
-                    startActivityAndCollapse(consentIntent)
-                }
-                return@launch
-            }
-
+        // The settings are read suspending, not with runBlocking on the main thread - on a scope
+        // of its own: the system may unbind the tile (and onDestroy cancel serviceScope) right
+        // after the tap, and the tap must still happen. Started and stopped right here, not
+        // through CoreReceiver: that's the Intent API for other apps, which may be off.
+        clickScope.launch {
             try {
-                CoreService.start(this@CoreTileService, cfg)
+                handleClick(currentlyRunning)
             } catch (e: Exception) {
-                // The system refused the foreground service start - roll the tile back rather
-                // than leave it on "Connecting" with nothing behind it.
-                AppLogsState.addLog("Tile: start failed - ${e.javaClass.simpleName}: ${e.message}")
-                CoreServiceState.setStatus(CoreStatus.Idle)
+                AppLogsState.addLog("Tile: ${e.javaClass.simpleName}: ${e.message}")
+                if (CoreServiceState.status.value is CoreStatus.Starting) CoreServiceState.setStatus(CoreStatus.Idle)
                 updateTileState(isRunning = false, isWorking = false, autoLaunchEnabled = false)
             }
         }
+    }
+
+    private suspend fun handleClick(currentlyRunning: Boolean) {
+        val prefs = AppPreferences(applicationContext)
+        val autoLaunch = prefs.autoLaunchSettingsFlow.first()
+
+        if (currentlyRunning || autoLaunch.enabled) {
+            // Auto-launch off included - see stopByUser.
+            CoreService.stopByUser(applicationContext)
+            return
+        }
+
+        val cfg = prefs.clientConfigFlow.first()
+        cfg.getValidationErrorResId()?.let { errorRes ->
+            CoreServiceState.setStatus(CoreStatus.Error(getString(errorRes)))
+            // В случае ошибки конфига — откатываем плитку в выключенное состояние
+            updateTileState(isRunning = false, isWorking = false, autoLaunchEnabled = false)
+            return
+        }
+
+        // A TileService can't show the system VPN consent dialog itself - open the app for
+        // that instead of letting establish() silently and permanently fail.
+        val vpnSettings = prefs.vpnSettingsFlow.first()
+        if (vpnConsentIntent(this, vpnSettings.enabled) != null) {
+            updateTileState(isRunning = false, isWorking = false, autoLaunchEnabled = false)
+            val consentIntent = Intent(this, MainActivity::class.java).apply {
+                putExtra(EXTRA_REQUEST_VPN_CONSENT, true)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                val pendingIntent = PendingIntent.getActivity(
+                    this, 0, consentIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                startActivityAndCollapse(pendingIntent)
+            } else {
+                @Suppress("DEPRECATION", "StartActivityAndCollapseDeprecated")
+                startActivityAndCollapse(consentIntent)
+            }
+            return
+        }
+
+        // A refused foreground service start throws - the caller rolls the tile back.
+        CoreService.start(applicationContext, cfg)
     }
 
     private fun updateTileState(

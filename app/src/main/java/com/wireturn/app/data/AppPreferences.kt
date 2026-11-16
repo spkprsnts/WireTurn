@@ -402,23 +402,24 @@ class AppPreferences(val context: Context) {
      * list as saved. [transform] must not suspend or have side effects: it can run again if the
      * edit is retried.
      */
-    suspend fun updateProfiles(transform: (List<Profile>) -> List<Profile>): List<Profile> {
-        var result = emptyList<Profile>()
-        appCtx.internalDataStore.edit { p ->
-            val current = decodeProfiles(p[PROFILES_JSON] ?: "[]")
-            result = transform(current)
-            if (result != current) p[PROFILES_JSON] = gson.toJson(result)
-        }
-        return result
-    }
+    suspend fun updateProfiles(transform: (List<Profile>) -> List<Profile>): List<Profile> =
+        updateJsonList(PROFILES_JSON, ::decodeProfiles, transform)
 
     /** [updateProfiles] for the subscriptions list. */
-    suspend fun updateSubscriptions(transform: (List<Subscription>) -> List<Subscription>): List<Subscription> {
-        var result = emptyList<Subscription>()
+    suspend fun updateSubscriptions(transform: (List<Subscription>) -> List<Subscription>): List<Subscription> =
+        updateJsonList(SUBSCRIPTIONS_JSON, ::decodeSubscriptions, transform)
+
+    // The one edit both of the above are: decode, transform, write back only on a change.
+    private suspend fun <T> updateJsonList(
+        key: Preferences.Key<String>,
+        decode: (String) -> List<T>,
+        transform: (List<T>) -> List<T>
+    ): List<T> {
+        var result = emptyList<T>()
         appCtx.internalDataStore.edit { p ->
-            val current = decodeSubscriptions(p[SUBSCRIPTIONS_JSON] ?: "[]")
+            val current = decode(p[key] ?: "[]")
             result = transform(current)
-            if (result != current) p[SUBSCRIPTIONS_JSON] = gson.toJson(result)
+            if (result != current) p[key] = gson.toJson(result)
         }
         return result
     }

@@ -27,8 +27,12 @@ abstract class CoreActionReceiver : BroadcastReceiver() {
         // Off the main thread: a cold DataStore read can take long enough to risk an ANR.
         val pending = goAsync()
         scope.launch {
+            // Everything inside, the settings read in allowed() too: an exception escaping this
+            // scope would take the whole process down, the running tunnel with it.
             try {
                 if (allowed(appContext, action)) handle(appContext, action)
+            } catch (e: Exception) {
+                AppLogsState.addLog("$action failed - ${e.javaClass.simpleName}: ${e.message}")
             } finally {
                 pending.finish()
             }
@@ -42,15 +46,7 @@ abstract class CoreActionReceiver : BroadcastReceiver() {
         try {
             when (action) {
                 START_CORE -> CoreService.start(context, prefs.clientConfigFlow.first())
-                STOP_CORE -> {
-                    // Nothing running: a stop would only try to start a service that's not there.
-                    if (CoreServiceState.status.value is CoreStatus.Idle &&
-                        XrayServiceState.state.value == com.wireturn.app.viewmodel.XrayState.Idle
-                    ) return
-                    CoreServiceState.setStatus(CoreStatus.Idle)
-                    NotificationHelper.updateNotification(context)
-                    CoreService.stop(context, byUser = true)
-                }
+                STOP_CORE -> CoreService.stopByUser(context)
                 START_VPN -> prefs.setVpnEnabled(true)
                 STOP_VPN -> prefs.setVpnEnabled(false)
             }

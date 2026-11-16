@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -674,13 +675,20 @@ class ProfileManager(
     // profiles' save runs on [scope], past a cancelled download - leave them deleted.
     private val deletedSubIds: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
 
+    /** The stored subscription with [url], if any - one deleted this run never counts. */
+    private suspend fun existingSubscriptionId(url: String): String? =
+        prefs.subscriptionsFlow.first().find { it.url == url && it.id !in deletedSubIds }?.id
+
     suspend fun fetchSubscription(
         url: String,
         forceId: String? = null,
         allowInsecureHttp: Boolean = false,
         onAutoSelect: ((Profile) -> Unit)? = null
     ): ImportStatus {
-        val subId = forceId ?: subscriptions.value.find { it.url == url }?.id
+        // From the store, not subscriptions.value: that one trails it, and right after a deletion
+        // would still hand back the deleted subscription's id - the same URL added again would then
+        // come back Cancelled, with nothing imported and nothing said.
+        val subId = forceId ?: existingSubscriptionId(url)
             ?: return downloadSubscription(url, null, allowInsecureHttp, onAutoSelect)
         if (subId in deletedSubIds) return ImportStatus.Cancelled
         // Its own job, so a deletion cancels this download and not the caller's coroutine - the
@@ -834,7 +842,7 @@ class ProfileManager(
                         }
 
                         if (bundle != null) {
-                            val subId = subIdToMark ?: subscriptions.value.find { it.url == url }?.id ?: UUID.randomUUID().toString()
+                            val subId = subIdToMark ?: existingSubscriptionId(url) ?: UUID.randomUUID().toString()
                             val subName = bundle.name ?: subscriptionParser.decodeProfileTitle(connection.getHeaderField("Profile-Title")) ?: URL(url).host ?: "Subscription"
 
                             // Fallbacks for panels (e.g. 3x-ui) that convey quota/refresh via response headers

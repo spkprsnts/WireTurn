@@ -718,7 +718,7 @@ class CoreService : Service() {
             // The receiver only reports changes - a run started (or restarted) with the screen
             // already off is told so here.
             if (!(getSystemService(POWER_SERVICE) as PowerManager).isInteractive) {
-                kernel.screenStateCommand(false)?.let(::writeQwdttStdin)
+                kernel.screenStateCommand(false)?.let(::writeKernelStdin)
             }
 
             // The sidecar can die before there's a kernel for its watcher (startSidecar) to stop,
@@ -1021,7 +1021,7 @@ class CoreService : Service() {
                 // clears itself first so the dismiss-watcher below can't also treat the
                 // setCaptchaSession(null) this causes as a cancellation.
                 if (pendingQwdttCaptchaSessionId.compareAndSet(sessionId, -1L)) {
-                    writeQwdttStdin("CAPTCHA_RESULT|$token")
+                    writeKernelStdin("CAPTCHA_RESULT|$token")
                     CoreServiceState.setCaptchaSession(null)
                 }
             }
@@ -1031,18 +1031,25 @@ class CoreService : Service() {
                 if (session == null) {
                     val previous = pendingQwdttCaptchaSessionId.getAndSet(-1L)
                     if (previous != -1L) {
-                        writeQwdttStdin("CAPTCHA_RESULT|error:cancelled")
+                        writeKernelStdin("CAPTCHA_RESULT|error:cancelled")
                     }
                 }
             }
         }
     }
 
-    private fun writeQwdttStdin(line: String) {
+    // One line to the running kernel's stdin (qWDTT's CAPTCHA_RESULT, SCREEN_ON/OFF). Callers come
+    // from different threads - the lock keeps two lines from interleaving into one the kernel
+    // can't parse. Off the main thread only: a kernel not reading its stdin blocks the write.
+    private val kernelStdinLock = Any()
+
+    private fun writeKernelStdin(line: String) {
         try {
-            process.get()?.outputStream?.let {
-                it.write((line + "\n").toByteArray(Charsets.UTF_8))
-                it.flush()
+            synchronized(kernelStdinLock) {
+                process.get()?.outputStream?.let {
+                    it.write((line + "\n").toByteArray(Charsets.UTF_8))
+                    it.flush()
+                }
             }
         } catch (_: Exception) {
         }
@@ -1082,7 +1089,9 @@ class CoreService : Service() {
 
     private fun sendScreenState(screenOn: Boolean) {
         val cfg = currentRunningCfg.get() ?: return
-        KernelRegistry.get(cfg.kernelVariant).screenStateCommand(screenOn)?.let(::writeQwdttStdin)
+        val line = KernelRegistry.get(cfg.kernelVariant).screenStateCommand(screenOn) ?: return
+        // The receiver runs on the main thread - see writeKernelStdin.
+        serviceScope.launch { writeKernelStdin(line) }
     }
 
     private fun onNetworkChanged(previousLabel: String) {
@@ -1295,6 +1304,26 @@ class CoreService : Service() {
                 action = if (byUser) ACTION_STOP_BY_USER else ACTION_STOP
             }
             context.startService(intent)
+        }
+
+        /**
+         * The user's own stop - the tile, a notification button, the Intent API: the tunnel down
+         * and auto-launch off (handleStopAction does that), so it isn't brought back up. With
+         * nothing running only the latter is left to do - here, rather than starting the service
+         * just to stop it.
+         */
+        suspend fun stopByUser(context: Context) {
+            val running = CoreServiceState.status.value !is CoreStatus.Idle ||
+                XrayServiceState.state.value != XrayState.Idle
+            if (!running) {
+                val prefs = AppPreferences(context)
+                val autoLaunch = prefs.autoLaunchSettingsFlow.first()
+                if (autoLaunch.enabled) prefs.updateAutoLaunchSettings(autoLaunch.copy(enabled = false))
+                return
+            }
+            CoreServiceState.setStatus(CoreStatus.Idle)
+            NotificationHelper.updateNotification(context)
+            stop(context, byUser = true)
         }
     }
 }

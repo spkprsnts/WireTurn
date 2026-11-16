@@ -25,9 +25,13 @@ internal class SubscriptionParser(private val gson: Gson) {
     }
 
     fun parse(content: String): Result {
+        // The body as base64, decoded at most once: both a wrapped qWDTT subscription and a
+        // base64 text one (3x-ui) need it, and a large subscription is costly to decode twice.
+        val base64Decoded by lazy(LazyThreadSafetyMode.NONE) { decodeLenientBase64(content) }
+
         // A qWDTT subscription with no entry WireTurn can run ends here: Gson would take its
         // "profiles" as empty profiles.
-        tryParseQwdttPanelSubscription(content)?.let { qwdtt ->
+        tryParseQwdttPanelSubscription(content) { base64Decoded }?.let { qwdtt ->
             return if (qwdtt.profiles.isEmpty()) Result.QwdttUnusable else Result.Parsed(qwdtt)
         }
         // A CSQTT panel's JSON before WireTurn's own: it's an object too, and ProfileBundle (every
@@ -57,7 +61,7 @@ internal class SubscriptionParser(private val gson: Gson) {
                         // Raw line-based subscription first (as-is, the common case), then as a
                         // last resort try decoding it as plain (non-deflated) base64 - some panels
                         // (e.g. 3x-ui) base64-encode their line-based subscription body directly.
-                        tryParseTextSubscription(content) ?: tryParseBase64TextSubscription(content)
+                        tryParseTextSubscription(content) ?: base64Decoded?.let(::tryParseTextSubscription)
                     }
                 }
             }
@@ -157,11 +161,13 @@ internal class SubscriptionParser(private val gson: Gson) {
      * Null when the content isn't that shape. A bundle with no profiles when it is, but no entry
      * is usable here: the official client fills a blank "hashes" from its global hashes setting,
      * WireTurn has none, so such an entry can't run.
+     *
+     * [base64Decoded] is the body decoded as base64 - only asked for when it isn't JSON as is.
      */
-    private fun tryParseQwdttPanelSubscription(content: String): ProfileBundle? {
+    private fun tryParseQwdttPanelSubscription(content: String, base64Decoded: () -> String?): ProfileBundle? {
         val trimmed = content.trim()
         val json = if (trimmed.startsWith("{") || trimmed.startsWith("[")) trimmed
-            else decodeLenientBase64(trimmed)?.trim()?.takeIf { it.startsWith("{") || it.startsWith("[") } ?: return null
+            else base64Decoded()?.trim()?.takeIf { it.startsWith("{") || it.startsWith("[") } ?: return null
         val root = runCatching { JsonParser.parseString(json) }.getOrNull() ?: return null
         val rootObj = root.takeIf { it.isJsonObject }?.asJsonObject
 
@@ -187,11 +193,11 @@ internal class SubscriptionParser(private val gson: Gson) {
         }
 
         val profiles = qwdttEntries.mapNotNull { obj ->
-            val peer = string(obj, "peer")?.let(QwdttConfig::peerWithPort) ?: return@mapNotNull null
+            val rawPeer = string(obj, "peer") ?: return@mapNotNull null
             val hashes = string(obj, "hashes", "vkHashes") ?: return@mapNotNull null
             val password = string(obj, "password", "pass") ?: return@mapNotNull null
             val config = QwdttConfig(
-                peer = peer,
+                peer = QwdttConfig.peerWithPort(rawPeer),
                 vkHashes = hashes,
                 password = password,
                 workers = number(obj, "workers", "workersPerHash")?.toInt() ?: QwdttConfig().workers,
@@ -199,7 +205,10 @@ internal class SubscriptionParser(private val gson: Gson) {
                 deviceId = QwdttConfig.THIS_DEVICE
             ).sanitize()
             Profile(
-                id = stableTextSubEntryId("qwdtt-sub:$peer:$hashes"),
+                // From the peer as the panel sends it, not with the default port added: profiles
+                // imported before that normalization got this id, and a different one would make
+                // a refresh replace them - and their device id with it (QwdttConfig.deviceId).
+                id = stableTextSubEntryId("qwdtt-sub:$rawPeer:$hashes"),
                 name = string(obj, "name") ?: com.wireturn.app.kernel.QwdttKernel.defaultProfileName,
                 kernelConfig = KernelConfig.Qwdtt(config)
             )
@@ -532,16 +541,6 @@ internal class SubscriptionParser(private val gson: Gson) {
             bytesUsed = subBytesUsed,
             bytesTotal = subBytesTotal
         )
-    }
-
-    /**
-     * Some panels (e.g. 3x-ui) base64-encode a plain line-based subscription body directly,
-     * unlike `wireturn://`'s zlib-deflated + URL-safe encoding ([ProfileEncoder]). Tried only
-     * after the body fails as-is, since real line-based subscriptions are never valid base64.
-     */
-    private fun tryParseBase64TextSubscription(content: String): ProfileBundle? {
-        val decoded = decodeLenientBase64(content) ?: return null
-        return tryParseTextSubscription(decoded)
     }
 
     /** Standard or URL-safe base64, padded or not, whitespace and line breaks ignored. */

@@ -116,6 +116,18 @@ class SubscriptionParserTest {
         assertNotEquals(first[0], first[1])
     }
 
+    @Test
+    fun qwdttId_isFromThePeerAsSent_notWithTheDefaultPort() {
+        // Profiles imported before the default port was added got this id; another one would make
+        // a refresh replace them, their device id ("unknown") with it.
+        val profile = parsed("""{"profiles": [{"peer": "vpn.example.com", "hashes": "H", "pass": "p"}]}""").profiles.single()
+        assertEquals("vpn.example.com:56000", qwdtt(profile).peer)
+        assertEquals(
+            java.util.UUID.nameUUIDFromBytes("qwdtt-sub:vpn.example.com:H".toByteArray(Charsets.UTF_8)).toString(),
+            profile.id
+        )
+    }
+
     // --- other formats ---
 
     @Test
