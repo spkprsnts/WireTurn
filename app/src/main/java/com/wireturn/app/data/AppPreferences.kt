@@ -219,41 +219,43 @@ class AppPreferences(val context: Context) {
     val profilesFlow: Flow<List<Profile>> = appCtx.internalDataStore.data
         .map { it[PROFILES_JSON] ?: "[]" }
         .distinctUntilChanged()
-        .map { json ->
-            try {
-                val list = gson.fromJson<List<Any>>(json, object : TypeToken<List<Any>>() {}.type) ?: emptyList()
-                val defaultName = appCtx.getString(R.string.profile_default_name)
-
-                list.mapNotNull { item ->
-                    when (item) {
-                        is Profile -> item.sanitize(defaultName)
-                        is Map<*, *> -> {
-                            // If TypeToken failed and we got a Map, try to convert it back to Profile
-                            try {
-                                val itemJson = gson.toJson(item)
-                                gson.fromJson(itemJson, Profile::class.java)?.sanitize(defaultName)
-                            } catch (_: Exception) { null }
-                        }
-                        else -> null
-                    }
-                }
-            } catch (e: Exception) {
-                com.wireturn.app.AppLogsState.addLog("Error loading profiles: ${e.message}")
-                emptyList()
-            }
-        }.distinctUntilChanged().flowOn(Dispatchers.Default)
+        .map(::decodeProfiles)
+        .distinctUntilChanged().flowOn(Dispatchers.Default)
 
     val subscriptionsFlow: Flow<List<Subscription>> = appCtx.internalDataStore.data
         .map { it[SUBSCRIPTIONS_JSON] ?: "[]" }
         .distinctUntilChanged()
-        .map { json ->
-            try {
-                gson.fromJson<List<Subscription>>(json, object : TypeToken<List<Subscription>>() {}.type)
-                    ?.map { it.withDefaults() } ?: emptyList()
-            } catch (_: Exception) {
-                emptyList()
+        .map(::decodeSubscriptions)
+        .distinctUntilChanged().flowOn(Dispatchers.Default)
+
+    private fun decodeProfiles(json: String): List<Profile> = try {
+        val list = gson.fromJson<List<Any>>(json, object : TypeToken<List<Any>>() {}.type) ?: emptyList()
+        val defaultName = appCtx.getString(R.string.profile_default_name)
+
+        list.mapNotNull { item ->
+            when (item) {
+                is Profile -> item.sanitize(defaultName)
+                is Map<*, *> -> {
+                    // If TypeToken failed and we got a Map, try to convert it back to Profile
+                    try {
+                        val itemJson = gson.toJson(item)
+                        gson.fromJson(itemJson, Profile::class.java)?.sanitize(defaultName)
+                    } catch (_: Exception) { null }
+                }
+                else -> null
             }
-        }.distinctUntilChanged().flowOn(Dispatchers.Default)
+        }
+    } catch (e: Exception) {
+        com.wireturn.app.AppLogsState.addLog("Error loading profiles: ${e.message}")
+        emptyList()
+    }
+
+    private fun decodeSubscriptions(json: String): List<Subscription> = try {
+        gson.fromJson<List<Subscription>>(json, object : TypeToken<List<Subscription>>() {}.type)
+            ?.map { it.withDefaults() } ?: emptyList()
+    } catch (_: Exception) {
+        emptyList()
+    }
 
     /** Last known tunnel-exit country (ISO-3166 alpha-2) per profile id, from the most recent successful connection. */
     val profileCountriesFlow: Flow<Map<String, String>> = appCtx.internalDataStore.data
@@ -389,12 +391,32 @@ class AppPreferences(val context: Context) {
         }
     }
 
-    suspend fun saveProfiles(list: List<Profile>) {
-        appCtx.internalDataStore.edit { it[PROFILES_JSON] = gson.toJson(list) }
+    /**
+     * Read-modify-write of the stored profiles in one DataStore edit: edits run one at a time, so
+     * [transform] always gets what's stored right now - never a snapshot another write (a second
+     * subscription's refresh, a rename) has since replaced and would be lost under. Returns the
+     * list as saved. [transform] must not suspend or have side effects: it can run again if the
+     * edit is retried.
+     */
+    suspend fun updateProfiles(transform: (List<Profile>) -> List<Profile>): List<Profile> {
+        var result = emptyList<Profile>()
+        appCtx.internalDataStore.edit { p ->
+            val current = decodeProfiles(p[PROFILES_JSON] ?: "[]")
+            result = transform(current)
+            if (result != current) p[PROFILES_JSON] = gson.toJson(result)
+        }
+        return result
     }
 
-    suspend fun saveSubscriptions(list: List<Subscription>) {
-        appCtx.internalDataStore.edit { it[SUBSCRIPTIONS_JSON] = gson.toJson(list) }
+    /** [updateProfiles] for the subscriptions list. */
+    suspend fun updateSubscriptions(transform: (List<Subscription>) -> List<Subscription>): List<Subscription> {
+        var result = emptyList<Subscription>()
+        appCtx.internalDataStore.edit { p ->
+            val current = decodeSubscriptions(p[SUBSCRIPTIONS_JSON] ?: "[]")
+            result = transform(current)
+            if (result != current) p[SUBSCRIPTIONS_JSON] = gson.toJson(result)
+        }
+        return result
     }
 
     suspend fun setVpnEnabled(v: Boolean) {

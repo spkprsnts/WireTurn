@@ -153,13 +153,17 @@ class SubscriptionConfigActivity : ComponentActivity() {
                             ExtendedFloatingActionButton(
                                 onClick = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                    viewModel.updateSubscription(sub.copy(
-                                        url = url,
-                                        autoUpdate = autoUpdate,
-                                        onlyUpdateIfSelected = onlyUpdateIfSelected,
-                                        requireTunnelForUpdate = requireTunnelForUpdate,
-                                        updateIntervalMinutes = updateIntervalMinutes
-                                    ))
+                                    // Onto the stored entry, not the copy this screen opened with: a
+                                    // refresh meanwhile (traffic, profiles, update time) must stay.
+                                    viewModel.updateSubscriptionById(sub.id) {
+                                        it.copy(
+                                            url = url,
+                                            autoUpdate = autoUpdate,
+                                            onlyUpdateIfSelected = onlyUpdateIfSelected,
+                                            requireTunnelForUpdate = requireTunnelForUpdate,
+                                            updateIntervalMinutes = updateIntervalMinutes
+                                        )
+                                    }
                                     finish()
                                 },
                                 containerColor = MaterialTheme.colorScheme.primaryContainer,

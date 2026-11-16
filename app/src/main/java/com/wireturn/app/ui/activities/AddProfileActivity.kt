@@ -138,6 +138,8 @@ class AddProfileActivity : ComponentActivity() {
                         HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
                         this@AddProfileActivity.showExclusiveToast(errorInvalidProfile)
                     }
+                    // The subscription was deleted while downloading - nothing to show.
+                    is ImportStatus.Cancelled -> {}
                 }
             }
 

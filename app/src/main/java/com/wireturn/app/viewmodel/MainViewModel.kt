@@ -946,7 +946,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         ).sanitize(defaultName)
         val wasEmpty = profiles.value.isEmpty()
         viewModelScope.launch {
-            prefs.saveProfiles(profiles.value + newProfile)
+            prefs.updateProfiles { it + newProfile }
             if (wasEmpty) {
                 selectProfileAndRestart(id, newProfile)
             }
@@ -1128,14 +1128,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         profileManager.deleteSubscription(id) { selectProfileAndRestart(it.id, it) }
     }
 
-    fun updateSubscription(sub: com.wireturn.app.data.Subscription) = profileManager.updateSubscription(sub)
-
     /** Folds (or unfolds) every subscription in the profile sheet at once - one write. */
     fun setAllSubscriptionsCollapsed(collapsed: Boolean) = profileManager.updateAllSubscriptions { it.copy(collapsed = collapsed) }
 
     /** Changes the subscription with [id] as it is now - not a copy a screen held on to. */
     fun updateSubscriptionById(id: String, transform: (com.wireturn.app.data.Subscription) -> com.wireturn.app.data.Subscription) {
-        subscriptions.value.find { it.id == id }?.let { profileManager.updateSubscription(transform(it)) }
+        profileManager.updateSubscription(id, transform)
     }
     
     fun resetAllSettings(c: Context) {

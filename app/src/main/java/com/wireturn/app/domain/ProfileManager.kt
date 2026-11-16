@@ -13,6 +13,8 @@ import com.wireturn.app.data.kernel.QwdttConfig
 import com.wireturn.app.kernel.KernelRegistry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -50,6 +52,8 @@ sealed class ImportStatus {
     data class ServerError(val code: Int) : ImportStatus()
     object EmptyResponse : ImportStatus()
     object InvalidFormat : ImportStatus()
+    // The subscription was deleted while it was downloading - nothing was saved, nothing to report.
+    object Cancelled : ImportStatus()
 }
 
 /**
@@ -309,7 +313,7 @@ class ProfileManager(
                             if (due) {
                                 launch {
                                     val status = fetchSubscription(sub.url, forceId = sub.id)
-                                    if (status is ImportStatus.Success) {
+                                    if (status is ImportStatus.Success || status is ImportStatus.Cancelled) {
                                         autoUpdateFailures.remove(sub.id)
                                     } else {
                                         val count = (failure?.count ?: 0) + 1
@@ -349,14 +353,9 @@ class ProfileManager(
     }
 
     private fun updateSubscriptionActiveProfile(subId: String, profileId: String) {
-        val currentSubs = subscriptions.value
-        val sub = currentSubs.find { it.id == subId } ?: return
+        val sub = subscriptions.value.find { it.id == subId } ?: return
         if (sub.activeProfileId == profileId) return
-        
-        val newSubs = currentSubs.map { 
-            if (it.id == subId) it.copy(activeProfileId = profileId) else it 
-        }
-        scope.launch { prefs.saveSubscriptions(newSubs) }
+        updateSubscription(subId) { it.copy(activeProfileId = profileId) }
     }
 
     fun nextDefaultProfileName(existing: List<Profile> = profiles.value): String {
@@ -367,32 +366,33 @@ class ProfileManager(
         return "$base #$n"
     }
 
+    // Every change below goes through prefs.updateProfiles/updateSubscriptions, applied to what's
+    // stored at that moment - not to profiles.value/subscriptions.value, which trail the store and
+    // would let two overlapping writes (two subscriptions refreshing at once) drop one's changes.
+
     fun cloneProfile(id: String, newName: String) {
-        val currentList = profiles.value
-        val profile = currentList.find { it.id == id } ?: return
-        val validatedName = newName.takeIf { it.isNotBlank() } ?: nextDefaultProfileName(currentList)
-        val clonedProfile = profile.copy(
-            id = UUID.randomUUID().toString(),
-            name = validatedName,
-            // A clone is a standalone copy, not a member of the source subscription - keeping the
-            // subscriptionId would make the next subscription sync silently delete it as a stale entry.
-            subscriptionId = null,
-            subscriptionSourceId = null
-        )
-        val newList = currentList + clonedProfile
-        scope.launch { prefs.saveProfiles(newList) }
+        scope.launch {
+            prefs.updateProfiles { current ->
+                val profile = current.find { it.id == id } ?: return@updateProfiles current
+                current + profile.copy(
+                    id = UUID.randomUUID().toString(),
+                    name = newName.takeIf { it.isNotBlank() } ?: nextDefaultProfileName(current),
+                    // A clone is a standalone copy, not a member of the source subscription - keeping the
+                    // subscriptionId would make the next subscription sync silently delete it as a stale entry.
+                    subscriptionId = null,
+                    subscriptionSourceId = null
+                )
+            }
+        }
     }
 
     fun deleteProfiles(ids: List<String>, onFallback: (Profile) -> Unit) {
-        val currentList = profiles.value
-        val currentProfile = currentList.find { it.id == currentProfileId.value }
+        val currentProfile = profiles.value.find { it.id == currentProfileId.value }
         val isCurrentDeleted = currentProfile?.id in ids
         val preferredSubId = currentProfile?.subscriptionId
 
-        val newList = currentList.filter { it.id !in ids }
-
         scope.launch {
-            prefs.saveProfiles(newList)
+            val newList = prefs.updateProfiles { current -> current.filter { it.id !in ids } }
             prefs.removeProfileCountries(ids)
             if (isCurrentDeleted && newList.isNotEmpty()) {
                 findBestFallbackProfile(newList, subscriptions.value, preferredSubId)?.let { onFallback(it) }
@@ -401,20 +401,30 @@ class ProfileManager(
     }
 
     fun renameProfile(id: String, newName: String) {
-        val validatedName = newName.takeIf { it.isNotBlank() } ?: nextDefaultProfileName()
-        val newList = profiles.value.map { if (it.id == id) it.copy(name = validatedName) else it }
-        scope.launch { prefs.saveProfiles(newList) }
+        scope.launch {
+            prefs.updateProfiles { current ->
+                val validatedName = newName.takeIf { it.isNotBlank() } ?: nextDefaultProfileName(current)
+                current.map { if (it.id == id) it.copy(name = validatedName) else it }
+            }
+        }
     }
 
+    /**
+     * The order of [newList], applied to the stored profiles: one changed meanwhile (a refresh)
+     * keeps its new content, one added meanwhile goes to the end, one deleted meanwhile stays gone.
+     */
     fun reorderProfiles(newList: List<Profile>) {
-        scope.launch { prefs.saveProfiles(newList) }
+        val order = newList.withIndex().associate { (index, profile) -> profile.id to index }
+        scope.launch {
+            prefs.updateProfiles { current -> current.sortedBy { order[it.id] ?: Int.MAX_VALUE } }
+        }
     }
 
     fun updateCurrentProfile(profile: Profile) {
-        val defaultName = prefs.context.getString(R.string.profile_default_name)
-        val newList = profiles.value.map { if (it.id == profile.id) profile.sanitize(defaultName) else it }
-        if (newList != profiles.value) {
-            scope.launch { prefs.saveProfiles(newList) }
+        val sanitized = profile.sanitize(prefs.context.getString(R.string.profile_default_name))
+        if (profiles.value.find { it.id == profile.id } == sanitized) return
+        scope.launch {
+            prefs.updateProfiles { current -> current.map { if (it.id == profile.id) sanitized else it } }
         }
     }
 
@@ -646,16 +656,22 @@ class ProfileManager(
 
             if (importedList.isEmpty()) return Triple(ImportResult(), emptyList(), null)
             val wasEmpty = currentProfiles.isEmpty()
-            
-            val newList = if (subscriptionId != null) {
-                currentProfiles.filter { it.subscriptionId != subscriptionId } + importedList
-            } else {
-                currentProfiles + importedList
-            }
 
             scope.launch {
-                prefs.saveProfiles(newList)
-                
+                // Onto what's stored now, not currentProfiles: another subscription refreshing at
+                // the same time only touches its own entries, and those must survive this write.
+                // A subscription deleted meanwhile (deleteSubscription) gets nothing back.
+                if (subscriptionId != null && subscriptionId in deletedSubIds) return@launch
+                val newList = prefs.updateProfiles { stored ->
+                    if (subscriptionId != null && subscriptionId in deletedSubIds) {
+                        stored
+                    } else if (subscriptionId != null) {
+                        stored.filter { it.subscriptionId != subscriptionId } + importedList
+                    } else {
+                        stored + importedList
+                    }
+                }
+
                 val callback = onAutoSelect ?: autoSelectListener
                 val oldVersionOfCurrent = currentProfiles.find { it.id == currentSelectedId }
                 val updatedVersionOfCurrent = importedList.find { it.id == currentSelectedId }
@@ -684,13 +700,46 @@ class ProfileManager(
         }
     }
 
+    // Refreshes in flight by subscription id, for deleteSubscription to cancel.
+    private val subscriptionFetches = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.Job>()
+    // Subscriptions deleted this run: a refresh's writes that come after the deletion - its
+    // profiles' save runs on [scope], past a cancelled download - leave them deleted.
+    private val deletedSubIds: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+
     suspend fun fetchSubscription(
         url: String,
         forceId: String? = null,
         allowInsecureHttp: Boolean = false,
         onAutoSelect: ((Profile) -> Unit)? = null
+    ): ImportStatus {
+        val subId = forceId ?: subscriptions.value.find { it.url == url }?.id
+            ?: return downloadSubscription(url, null, allowInsecureHttp, onAutoSelect)
+        if (subId in deletedSubIds) return ImportStatus.Cancelled
+        // Its own job, so a deletion cancels this download and not the caller's coroutine - the
+        // auto-update loop, or a screen refreshing several subscriptions in one.
+        return kotlinx.coroutines.coroutineScope {
+            val download = async { downloadSubscription(url, subId, allowInsecureHttp, onAutoSelect) }
+            subscriptionFetches[subId] = download
+            try {
+                download.await()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // The caller itself cancelled: pass it on. Only the deletion ends here.
+                ensureActive()
+                if (!download.isCancelled) throw e
+                com.wireturn.app.AppLogsState.addLog("Subscription (${subscriptionLogLabel(subId, url)}): deleted while downloading, cancelled")
+                ImportStatus.Cancelled
+            } finally {
+                subscriptionFetches.remove(subId, download)
+            }
+        }
+    }
+
+    private suspend fun downloadSubscription(
+        url: String,
+        subIdToMark: String?,
+        allowInsecureHttp: Boolean,
+        onAutoSelect: ((Profile) -> Unit)?
     ): ImportStatus = withContext(Dispatchers.IO) {
-        val subIdToMark = forceId ?: subscriptions.value.find { it.url == url }?.id
         subIdToMark?.let { id -> _updatingSubIds.update { it + id } }
         val startTime = System.currentTimeMillis()
         // Which subscription a log line is about. Never the URL: it usually carries the access token.
@@ -849,7 +898,6 @@ class ProfileManager(
 
                         if (bundle != null) {
                             val subId = subIdToMark ?: subscriptions.value.find { it.url == url }?.id ?: UUID.randomUUID().toString()
-                            val existingSub = subscriptions.value.find { it.id == subId }
                             val subName = bundle.name ?: decodeProfileTitle(connection.getHeaderField("Profile-Title")) ?: URL(url).host ?: "Subscription"
 
                             // Fallbacks for panels (e.g. 3x-ui) that convey quota/refresh via response headers
@@ -868,40 +916,44 @@ class ProfileManager(
                                 onAutoSelect = onAutoSelect
                             )
 
-                            // 2. Determine final active profile ID to save in subscription
-                            val bestActiveId = resolvedActiveId ?: 
-                                existingSub?.activeProfileId?.takeIf { id -> importedProfiles.any { it.id == id } } ?:
-                                importedProfiles.firstOrNull()?.id
-
-                            val newSubscription = Subscription(
-                                id = subId,
-                                name = subName,
-                                url = url,
-                                description = bundle.description,
-                                updatedAt = System.currentTimeMillis(),
-                                bytesUsed = bundle.bytesUsed ?: headerBytesUsed ?: 0,
-                                bytesTotal = bundle.bytesTotal ?: headerBytesTotal ?: 0,
-                                activeProfileId = bestActiveId,
-                                autoUpdate = existingSub?.autoUpdate ?: ((bundle.updateIntervalMinutes ?: headerUpdateIntervalMinutes) != null),
-                                updateIntervalMinutes = existingSub?.updateIntervalMinutes
-                                    ?: (bundle.updateIntervalMinutes ?: headerUpdateIntervalMinutes)?.coerceAtLeast(20)
-                                    ?: 1440,
-                                onlyUpdateIfSelected = existingSub?.onlyUpdateIfSelected ?: false,
-                                requireTunnelForUpdate = existingSub?.requireTunnelForUpdate ?: false,
-                                pinned = existingSub?.pinned ?: false,
-                                collapsed = existingSub?.collapsed ?: false,
-                                sortMode = existingSub?.sortMode ?: Subscription.SORT_SERVER
-                            )
-
-                            // 3. Save subscription info
-                            val currentSubs = subscriptions.value
-                            val newSubs = if (currentSubs.any { it.id == subId }) {
-                                currentSubs.map { if (it.id == subId) newSubscription else it }
-                            } else {
-                                currentSubs + newSubscription
+                            // 2. The subscription's entry, built on the stored one - so the user's own
+                            // settings changed while this was downloading (auto-update, interval) stay.
+                            fun subscriptionOf(existingSub: Subscription?): Subscription {
+                                val bestActiveId = resolvedActiveId ?:
+                                    existingSub?.activeProfileId?.takeIf { id -> importedProfiles.any { it.id == id } } ?:
+                                    importedProfiles.firstOrNull()?.id
+                                return Subscription(
+                                    id = subId,
+                                    name = subName,
+                                    url = url,
+                                    description = bundle.description,
+                                    updatedAt = System.currentTimeMillis(),
+                                    bytesUsed = bundle.bytesUsed ?: headerBytesUsed ?: 0,
+                                    bytesTotal = bundle.bytesTotal ?: headerBytesTotal ?: 0,
+                                    activeProfileId = bestActiveId,
+                                    autoUpdate = existingSub?.autoUpdate ?: ((bundle.updateIntervalMinutes ?: headerUpdateIntervalMinutes) != null),
+                                    updateIntervalMinutes = existingSub?.updateIntervalMinutes
+                                        ?: (bundle.updateIntervalMinutes ?: headerUpdateIntervalMinutes)?.coerceAtLeast(20)
+                                        ?: 1440,
+                                    onlyUpdateIfSelected = existingSub?.onlyUpdateIfSelected ?: false,
+                                    requireTunnelForUpdate = existingSub?.requireTunnelForUpdate ?: false,
+                                    pinned = existingSub?.pinned ?: false,
+                                    collapsed = existingSub?.collapsed ?: false,
+                                    sortMode = existingSub?.sortMode ?: Subscription.SORT_SERVER
+                                )
                             }
-                            prefs.saveSubscriptions(newSubs)
-                            
+
+                            // 3. Save subscription info - unless it was deleted in the meantime.
+                            prefs.updateSubscriptions { current ->
+                                if (subId in deletedSubIds) {
+                                    current
+                                } else if (current.any { it.id == subId }) {
+                                    current.map { if (it.id == subId) subscriptionOf(it) else it }
+                                } else {
+                                    current + subscriptionOf(null)
+                                }
+                            }
+
                             ImportStatus.Success(subId, importResult)
                         } else {
                             ImportStatus.InvalidFormat
@@ -930,15 +982,16 @@ class ProfileManager(
     }
 
     fun deleteSubscription(id: String, onFallback: (Profile) -> Unit = {}) {
+        // Marked first: a refresh's write that gets in after this is dropped (see deletedSubIds),
+        // one that got in before is removed by the deletion below.
+        deletedSubIds.add(id)
+        subscriptionFetches[id]?.cancel()
         scope.launch {
             val currentSelectedId = currentProfileId.value
             val isCurrentInDeletedSub = profiles.value.find { it.id == currentSelectedId }?.subscriptionId == id
 
-            val newSubs = subscriptions.value.filter { it.id != id }
-            prefs.saveSubscriptions(newSubs)
-            
-            val newProfiles = profiles.value.filter { it.subscriptionId != id }
-            prefs.saveProfiles(newProfiles)
+            val newSubs = prefs.updateSubscriptions { current -> current.filter { it.id != id } }
+            val newProfiles = prefs.updateProfiles { current -> current.filter { it.subscriptionId != id } }
 
             if (isCurrentInDeletedSub && newProfiles.isNotEmpty()) {
                 findBestFallbackProfile(newProfiles, newSubs)?.let { onFallback(it) }
@@ -985,14 +1038,14 @@ class ProfileManager(
     }
 
     fun updateAllSubscriptions(transform: (Subscription) -> Subscription) {
-        val newSubs = subscriptions.value.map(transform)
-        if (newSubs != subscriptions.value) scope.launch { prefs.saveSubscriptions(newSubs) }
+        scope.launch { prefs.updateSubscriptions { current -> current.map(transform) } }
     }
 
-    fun updateSubscription(sub: Subscription) {
-        val currentSubs = subscriptions.value
-        val newSubs = currentSubs.map { if (it.id == sub.id) sub else it }
-        scope.launch { prefs.saveSubscriptions(newSubs) }
+    /** Changes the subscription with [id] as it's stored at that moment - see updateProfiles. */
+    fun updateSubscription(id: String, transform: (Subscription) -> Subscription) {
+        scope.launch {
+            prefs.updateSubscriptions { current -> current.map { if (it.id == id) transform(it) else it } }
+        }
     }
 
     // Reads olcbox's (github.com/alananisimov/olcbox) native LocationBundleV4 JSON subscription/export
