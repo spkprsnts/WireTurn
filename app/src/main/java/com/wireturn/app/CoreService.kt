@@ -4,7 +4,6 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
-import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Handler
@@ -14,7 +13,6 @@ import android.os.PowerManager
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.ClientConfig
 import com.wireturn.app.data.KernelConfig
-import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.VpnSettings
 import com.wireturn.app.data.WatchdogSettings
 import com.wireturn.app.kernel.BinaryOutputState
@@ -40,11 +38,9 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.takeWhile
@@ -79,18 +75,26 @@ class CoreService : Service() {
     // Serializes stopBinaryProcessGracefully() across all its callers - rapid profile switches can
     // otherwise start a new binary before the old one's process is confirmed dead.
     private val stopMutex = Mutex()
-    // Every usable physical network with its latest capabilities - "wait for network" checks it's
-    // non-empty, "restart on network change" picks the primary one out of it.
-    private val physicalNetworks = java.util.concurrent.ConcurrentHashMap<Network, NetworkCapabilities>()
 
     private val handler = Handler(Looper.getMainLooper())
-    private var networkCallback: ConnectivityManager.NetworkCallback? = null
-    // The physical network traffic goes out through, as picked by pickPrimaryNetwork(); -1 = none.
-    @Volatile private var primaryNetworkHandle: Long = -1
-    @Volatile private var primaryNetworkLabel: String = ""
-    // Until then the networks already up keep arriving one by one after registering - the pick
-    // settles silently instead of reporting each as a change.
-    @Volatile private var primaryNetworkSettledAt = 0L
+    // The physical networks and which one traffic goes out through; what a change means for the
+    // tunnel is decided here, in onNetworkChanged.
+    private val networkMonitor by lazy {
+        NetworkMonitor(this, object : NetworkMonitor.Listener {
+            override fun onPrimaryNetworkChanged(previousLabel: String) = onNetworkChanged(previousLabel)
+
+            override fun onNetworkCapabilitiesChanged(capabilities: NetworkCapabilities) {
+                if (CoreServiceState.status.value is CoreStatus.WaitingForNetwork &&
+                    capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                    !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
+                ) {
+                    // Сеть появилась — переходим в Starting, чтобы не сработать повторно, и запускаемся
+                    CoreServiceState.setStatus(CoreStatus.Starting)
+                    startService(Intent(this@CoreService, CoreService::class.java))
+                }
+            }
+        })
+    }
     // The primary network's label before the current debounce window started.
     @Volatile private var networkChangeFrom: String? = null
     @Volatile private var caBundlePath: String? = null
@@ -113,8 +117,9 @@ class CoreService : Service() {
 
     private lateinit var serviceScope: CoroutineScope
     private var coreJob: Job? = null
-    private var xraySupervisorJob: Job? = null
-    private var vpnSupervisorJob: Job? = null
+    // XrayService and HevVpnService following the session - see their classes.
+    private lateinit var xraySupervisor: XraySupervisor
+    private lateinit var vpnSupervisor: VpnSupervisor
     private var networkDebounceJob: Job? = null
 
     // Adapters handing kernel/*/*.kt implementations only what they need from this Service,
@@ -133,7 +138,7 @@ class CoreService : Service() {
         override val nativeLibraryDir get() = applicationInfo.nativeLibraryDir
         override val nativeTunSocket get() = this@CoreService.nativeTunSocket
         override val runSocket get() = this@CoreService.runSocket
-        override val networkDnsServers get() = this@CoreService.physicalNetworkDns()
+        override val networkDnsServers get() = networkMonitor.dnsServers()
         override val androidId: String
             @android.annotation.SuppressLint("HardwareIds")
             get() = runCatching {
@@ -143,7 +148,7 @@ class CoreService : Service() {
     private val logContext = object : KernelLogContext {
         override fun getString(resId: Int, vararg args: Any) = this@CoreService.getString(resId, *args)
         override fun updateNotification(text: String) = this@CoreService.updateNotification(text)
-        override fun isNetworkAvailable() = this@CoreService.isNetworkAvailable()
+        override fun isNetworkAvailable() = networkMonitor.isAvailable
         override suspend fun getNetworkQuality() = this@CoreService.getNetworkQuality()
         override suspend fun isNetworkMissingAndHandled() = this@CoreService.isNetworkMissingAndHandled()
         override fun launchCaptchaActivityIfForeground(url: String) = this@CoreService.launchCaptchaActivityIfForeground(url)
@@ -199,8 +204,8 @@ class CoreService : Service() {
                 CoreServiceState.setErrorsRetried(it.eternal)
             }
         }
-        startXraySupervisor()
-        startVpnSupervisor()
+        xraySupervisor = XraySupervisor(this, serviceScope).also { it.start() }
+        vpnSupervisor = VpnSupervisor(this, serviceScope, ::restartBinaryPlanned).also { it.start() }
         caBundlePath = CaBundleUtil.ensure(this)
     }
 
@@ -314,7 +319,8 @@ class CoreService : Service() {
 
         acquireWakeLock()
 
-        registerNetworkCallback()
+        networkChangeFrom = null
+        networkMonitor.register()
         registerScreenReceiver()
     }
 
@@ -961,353 +967,6 @@ class CoreService : Service() {
         }
     }
 
-    private fun startXraySupervisor() {
-        xraySupervisorJob?.cancel()
-        xraySupervisorJob = serviceScope.launch {
-            val prefs = AppPreferences(applicationContext)
-            val configFlow = combine(
-                prefs.xrayConfigFlow,
-                prefs.vlessConfigFlow,
-                prefs.wgConfigFlow,
-                prefs.xraySettingsFlow,
-                prefs.vpnSettingsFlow
-            ) { xray, vless, wg, settings, vpnSettings ->
-                // reloadOnNetworkChange is read by the network callback, not by Xray: toggling it
-                // shouldn't restart Xray.
-                XrayConfigSignals(xray, vless.fillDefaults(), wg.fillDefaults(),
-                    settings.fillDefaults().copy(reloadOnNetworkChange = true), vpnSettings.ipv6)
-            }
-            combine(
-                configFlow,
-                CoreServiceState.status,
-                XrayServiceState.state,
-                CoreServiceState.session,
-                CoreServiceState.errorsRetried
-            ) { signals, status, xrayState, coreSession, errorsRetried ->
-                val clientConfig = coreSession?.clientConfig ?: return@combine null
-                // An Xray-only profile runs Xray whatever its (absent) overlay says - see XrayKernel.
-                val xrayOnly = (clientConfig.kernelConfig as? KernelConfig.Xray)?.config
-
-                // An Error the eternal watchdog retries keeps Xray up for the next attempt - no
-                // stop and start around every failed one.
-                val shouldBeRunning = (signals.xrayConfig.enabled || xrayOnly != null) &&
-                        status !is CoreStatus.Idle &&
-                        (status !is CoreStatus.Error || errorsRetried) &&
-                        status !is CoreStatus.WaitingForNetwork
-
-                val connectionTarget = if (clientConfig.kernelVariant.isSocks5Native) clientConfig.socksAddr else clientConfig.listenAddr
-                val connectionAuth = if (clientConfig.kernelVariant.isSocks5Native) {
-                    Triple(clientConfig.isSocksAuthEnabled, clientConfig.socksUser, clientConfig.socksPass)
-                } else null
-
-                XraySupervisorBundle(
-                    shouldBeRunning = shouldBeRunning,
-                    xrayState = xrayState,
-                    signals = signals,
-                    kernelVariant = clientConfig.kernelVariant,
-                    connectionTarget = connectionTarget,
-                    connectionAuth = connectionAuth,
-                    xrayOnly = xrayOnly
-                )
-            }
-            .filterNotNull()
-            .distinctUntilChanged { old, new ->
-                if (old.shouldBeRunning != new.shouldBeRunning) return@distinctUntilChanged false
-                if (!new.shouldBeRunning) return@distinctUntilChanged new.xrayState == XrayState.Idle
-                return@distinctUntilChanged new.xrayState != XrayState.Idle &&
-                    old.signals == new.signals &&
-                    old.kernelVariant == new.kernelVariant &&
-                    old.connectionTarget == new.connectionTarget &&
-                    old.connectionAuth == new.connectionAuth &&
-                    old.xrayOnly == new.xrayOnly
-            }
-            .collectLatest { data: XraySupervisorBundle ->
-                val needsStart = data.shouldBeRunning && data.xrayState == XrayState.Idle
-                val needsStop = !data.shouldBeRunning && data.xrayState != XrayState.Idle
-                val needsRestart = data.shouldBeRunning && data.xrayState != XrayState.Idle
-
-                if (needsRestart) {
-                    AppLogsState.addLog(getString(R.string.log_xray_config_change_restart))
-                    withContext(Dispatchers.Main) {
-                        stopService(Intent(this@CoreService, XrayService::class.java))
-                        delay(500.milliseconds)
-                        startForegroundService(Intent(this@CoreService, XrayService::class.java))
-                    }
-                } else if (needsStart) {
-                    delay(500.milliseconds) // Debounce during profile switches
-                    withContext(Dispatchers.Main) {
-                        val currentXrayState = XrayServiceState.state.value
-                        val currentStatus = CoreServiceState.status.value
-                        if (currentXrayState == XrayState.Idle && currentStatus !is CoreStatus.Idle &&
-                            (currentStatus !is CoreStatus.Error || CoreServiceState.errorsRetried.value)
-                        ) {
-                            startForegroundService(Intent(this@CoreService, XrayService::class.java))
-                        }
-                    }
-                } else if (needsStop) {
-                    withContext(Dispatchers.Main) {
-                        stopService(Intent(this@CoreService, XrayService::class.java))
-                    }
-                }
-            }
-        }
-    }
-
-    // OLCRTC/WEBDAV run their own local SOCKS5 listener, so VPN mode can target those directly
-    // when Xray isn't in the picture. Xray keeps priority when running, since it may itself be
-    // wrapping one of those cores as a front proxy (see startXraySupervisor() above).
-    // mapDns: false for Xray, which answers the tun's DNS itself (see HevVpnService.buildConfigYaml).
-    private data class VpnTarget(val addr: String, val user: String?, val pass: String?, val mapDns: Boolean)
-
-    // terminalError: the core isn't coming back on its own (watchdog gave up / invalid config),
-    // as opposed to a transient gap (mid-retry, switching profiles) that's expected to recover.
-    // native: the kernel brings up and holds the tun itself (usesNativeTun) - no hev target.
-    private data class VpnTargetSignal(val target: VpnTarget?, val terminalError: Boolean, val native: Boolean = false)
-
-    private data class VpnSupervisorBundle(
-        val signal: VpnTargetSignal,
-        val vpnSettings: VpnSettings,
-        val vpnState: VpnState
-    )
-
-    private fun startVpnSupervisor() {
-        vpnSupervisorJob?.cancel()
-        vpnSupervisorJob = serviceScope.launch {
-            val prefs = AppPreferences(applicationContext)
-            var lastVpnSettings: VpnSettings? = null
-            var lastTarget: VpnTarget? = null
-            // Debounces tearing the VPN down when the target transiently disappears (e.g.
-            // switching profiles) - only actually stops if it doesn't reappear in time.
-            var pendingStopJob: Job? = null
-            // Retries a failed establish() (e.g. another app still held VPN ownership) on a
-            // fixed backoff - without this, VpnState.Error only ever gets retried when settings
-            // or target happen to change, and can otherwise sit there forever.
-            var pendingVpnRetryJob: Job? = null
-
-            fun stopIntent() = Intent(this@CoreService, HevVpnService::class.java).apply {
-                action = HevVpnService.ACTION_STOP
-            }
-            fun startIntent(target: VpnTarget) = Intent(this@CoreService, HevVpnService::class.java).apply {
-                putExtra(HevVpnService.EXTRA_SOCKS5_ADDR, target.addr)
-                if (target.user != null) {
-                    putExtra(HevVpnService.EXTRA_SOCKS5_USER, target.user)
-                    putExtra(HevVpnService.EXTRA_SOCKS5_PASS, target.pass)
-                }
-                putExtra(HevVpnService.EXTRA_MAP_DNS, target.mapDns)
-            }
-            fun retargetIntent(target: VpnTarget) = startIntent(target).apply {
-                action = HevVpnService.ACTION_UPDATE_TARGET
-            }
-
-            val targetFlow = combine(
-                XrayServiceState.state,
-                XrayServiceState.session,
-                CoreServiceState.status,
-                CoreServiceState.session,
-                CoreServiceState.errorsRetried
-            ) { xrayState, xraySession, coreStatus, coreSession, eternal ->
-                // The eternal watchdog retries even an Error (see mainSupervisor) - it's another
-                // gap on the way to the next attempt, and the VPN stays up through it like through
-                // any other: apps don't fall back to the open network meanwhile. A session that
-                // does end (stopSelf) goes Idle, which drops the VPN anyway.
-                val coreFailed = coreStatus is CoreStatus.Error && !eternal
-                if (xrayState != XrayState.Idle && xraySession != null) {
-                    val s = xraySession.settings
-                    VpnTargetSignal(
-                        VpnTarget(
-                            s.connectableAddress,
-                            s.proxyUser.takeIf { s.isProxyAuthEnabled && it.isNotBlank() },
-                            s.proxyPass,
-                            mapDns = false
-                        ),
-                        terminalError = false
-                    )
-                } else if (coreSession != null &&
-                    coreSession.clientConfig.kernelVariant.isSocks5Native &&
-                    coreStatus !is CoreStatus.Idle && !coreFailed && coreStatus !is CoreStatus.WaitingForNetwork
-                ) {
-                    val cc = coreSession.clientConfig
-                    VpnTargetSignal(
-                        VpnTarget(
-                            // socksAddr may be bound to 0.0.0.0; hev needs a literal destination.
-                            cc.socksAddr.replace("0.0.0.0:", "127.0.0.1:"),
-                            cc.socksUser.takeIf { cc.isSocksAuthEnabled && it.isNotBlank() },
-                            cc.socksPass,
-                            mapDns = true
-                        ),
-                        terminalError = false
-                    )
-                } else {
-                    // Target-less and no Xray: mid-retry states are still expected to recover,
-                    // but a genuine CoreStatus.Error means nothing is coming - drop right away
-                    // instead of waiting out the grace period below for nothing.
-                    VpnTargetSignal(null, terminalError = coreFailed)
-                }
-            }
-
-            // From the prefs rather than what the kernel was started with, so a toggle is acted on
-            // right away instead of retargeting hev at a kernel that's about to restart without it.
-            val nativeFlow = combine(
-                CoreServiceState.session,
-                prefs.vpnSettingsFlow,
-                prefs.xrayConfigFlow
-            ) { coreSession, vpnSettings, xrayConfig ->
-                coreSession != null && usesNativeTun(coreSession.clientConfig, vpnSettings.enabled, xrayConfig.enabled)
-            }.distinctUntilChanged()
-
-            var wasNative = false
-
-            combine(targetFlow, nativeFlow, prefs.vpnSettingsFlow, VpnServiceState.state) { signal, native, vpnSettings, vpnState ->
-                val effective = if (native) VpnTargetSignal(null, signal.terminalError, native = true) else signal
-                VpnSupervisorBundle(effective, vpnSettings, vpnState)
-            }.collect { bundle ->
-                withContext(Dispatchers.Main) {
-                    val target = bundle.signal.target
-                    val settingsChanged = lastVpnSettings != null && lastVpnSettings != bundle.vpnSettings
-                    val targetChanged = lastTarget != null && lastTarget != target
-                    lastVpnSettings = bundle.vpnSettings
-                    lastTarget = target
-
-                    if (target != null) {
-                        pendingStopJob?.cancel()
-                        pendingStopJob = null
-                    }
-
-                    if (!bundle.vpnSettings.enabled) {
-                        // Explicit user opt-out - stop immediately, no grace period.
-                        if (bundle.vpnState != VpnState.Idle) startService(stopIntent())
-                        return@withContext
-                    }
-
-                    if (bundle.signal.native) {
-                        // The kernel asks for its tun itself (onNativeTunConfig) - nothing to start
-                        // or retarget here; settings changes are handled by mainSupervisor.
-                        wasNative = true
-                        pendingStopJob?.cancel()
-                        pendingStopJob = null
-                        if (bundle.vpnState !is VpnState.Error) {
-                            pendingVpnRetryJob?.cancel()
-                            pendingVpnRetryJob = null
-                        }
-                        if (bundle.vpnState != VpnState.Idle && bundle.signal.terminalError) {
-                            startService(stopIntent())
-                        } else if (bundle.vpnState is VpnState.Error && pendingVpnRetryJob == null) {
-                            // The kernel takes a tun only once per process, so a failed establish
-                            // or handover is retried by restarting it.
-                            pendingVpnRetryJob = serviceScope.launch {
-                                delay(VPN_ERROR_RETRY_MS.milliseconds)
-                                pendingVpnRetryJob = null
-                                if (VpnServiceState.state.value is VpnState.Error) {
-                                    restartBinaryPlanned(getString(R.string.log_core_tun_retry))
-                                }
-                            }
-                        }
-                        return@withContext
-                    }
-                    if (wasNative) {
-                        wasNative = false
-                        pendingVpnRetryJob?.cancel()
-                        pendingVpnRetryJob = null
-                        // Leaving kernel TUN mode: that tun has nothing behind it anymore - drop it,
-                        // and the Idle that follows brings hev up on the new target.
-                        if (bundle.vpnState != VpnState.Idle) {
-                            startService(stopIntent())
-                            return@withContext
-                        }
-                    }
-
-                    if (target == null) {
-                        // Enabled, but nothing to point the relay at right now.
-                        if (bundle.vpnState != VpnState.Idle) {
-                            if (bundle.signal.terminalError) {
-                                // The core has definitively given up - nothing to wait for.
-                                startService(stopIntent())
-                            } else if (pendingStopJob == null) {
-                                // Could be a transient gap - give it a moment before tearing down.
-                                pendingStopJob = serviceScope.launch {
-                                    delay(VPN_TARGET_LOST_GRACE_MS.milliseconds)
-                                    withContext(Dispatchers.Main) { startService(stopIntent()) }
-                                }
-                            }
-                        }
-                        return@withContext
-                    }
-
-                    val vpnRunning = bundle.vpnState == VpnState.Running
-                    val vpnError = bundle.vpnState is VpnState.Error
-
-                    if (!vpnError) {
-                        pendingVpnRetryJob?.cancel()
-                        pendingVpnRetryJob = null
-                    }
-
-                    when {
-                        bundle.vpnState == VpnState.Idle -> {
-                            // Establish as soon as any target exists, before it's even connected -
-                            // a kill switch should be up before it's needed.
-                            if (VpnServiceState.state.value != VpnState.Starting) {
-                                startService(startIntent(target))
-                            }
-                        }
-                        vpnError && (settingsChanged || targetChanged) -> {
-                            AppLogsState.addLog(getString(R.string.log_vpn_restarting_config))
-                            startService(stopIntent())
-                            startService(startIntent(target))
-                        }
-                        vpnError && pendingVpnRetryJob == null -> {
-                            // Nothing about the target/settings changed, so nothing else here
-                            // will ever retry this on its own - back off and try again anyway.
-                            pendingVpnRetryJob = serviceScope.launch {
-                                delay(VPN_ERROR_RETRY_MS.milliseconds)
-                                pendingVpnRetryJob = null
-                                withContext(Dispatchers.Main) {
-                                    if (VpnServiceState.state.value is VpnState.Error) {
-                                        startService(stopIntent())
-                                        startService(startIntent(target))
-                                    }
-                                }
-                            }
-                        }
-                        vpnRunning && settingsChanged -> {
-                            // Routing config itself changed (filtering/bypass/app list) - that's
-                            // baked into the Builder at establish() time, so it must be redone.
-                            AppLogsState.addLog(getString(R.string.log_vpn_restarting_config))
-                            startService(stopIntent())
-                            startService(startIntent(target))
-                        }
-                        vpnRunning && targetChanged -> {
-                            // Only the upstream SOCKS5 hop moved (e.g. switched profiles) - hot-
-                            // swap the relay's target without a fresh establish(), so the tun
-                            // interface (and the device's default network) never blips.
-                            startService(retargetIntent(target))
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private data class XrayConfigSignals(
-        val xrayConfig: com.wireturn.app.data.XrayConfig,
-        val vless: com.wireturn.app.data.VlessConfig,
-        val wg: com.wireturn.app.data.WgConfig,
-        val settings: com.wireturn.app.data.XraySettings,
-        // Picks Xray's DNS query strategy (see XrayService's -dns-query-strategy).
-        val vpnIpv6: Boolean
-    )
-
-    private data class XraySupervisorBundle(
-        val shouldBeRunning: Boolean,
-        val xrayState: XrayState,
-        val signals: XrayConfigSignals,
-        val kernelVariant: KernelVariant,
-        val connectionTarget: String?,
-        val connectionAuth: Triple<Boolean, String, String>?,
-        // An Xray-only profile's own settings (link, mux) - Xray restarts when they change.
-        val xrayOnly: com.wireturn.app.data.kernel.XrayLinkConfig?
-    )
-
-
     private fun observeErrorForNotification() {
         serviceScope.launch {
             combine(
@@ -1389,110 +1048,6 @@ class CoreService : Service() {
         }
     }
 
-    private fun registerNetworkCallback() {
-        unregisterNetworkCallback()
-        primaryNetworkHandle = -1
-        primaryNetworkLabel = ""
-        networkChangeFrom = null
-        primaryNetworkSettledAt = android.os.SystemClock.elapsedRealtime() + NETWORK_SETTLE_MS
-        physicalNetworks.clear()
-        val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
-        // Every usable physical network (NOT_VPN). The network change is worked out from these
-        // rather than from registerDefaultNetworkCallback: with our own VPN up, the system doesn't
-        // report a switch underneath it (seen: Wi-Fi -> mobile arrived only once the VPN was down).
-        val cb = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                val capabilities = cm.getNetworkCapabilities(network)
-                if (capabilities == null || capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) return
-                if (!capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) return
-                physicalNetworks[network] = capabilities
-                onPhysicalNetworksChanged()
-            }
-
-            override fun onLost(network: Network) {
-                physicalNetworks.remove(network)
-                onPhysicalNetworksChanged()
-            }
-
-            override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
-                // Validation comes in here (a Wi-Fi only becomes primary once it has internet).
-                if (physicalNetworks.containsKey(network)) {
-                    physicalNetworks[network] = networkCapabilities
-                    onPhysicalNetworksChanged()
-                }
-                if (CoreServiceState.status.value is CoreStatus.WaitingForNetwork) {
-                    if (networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                        !networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) {
-                        // Сеть появилась — переходим в Starting, чтобы не сработать повторно, и запускаемся
-                        CoreServiceState.setStatus(CoreStatus.Starting)
-                        val intent = Intent(this@CoreService, CoreService::class.java)
-                        startService(intent)
-                    }
-                }
-            }
-        }
-        networkCallback = cb
-
-        val request = android.net.NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
-            .build()
-        cm.registerNetworkCallback(request, cb)
-    }
-
-    /**
-     * Picks the network traffic goes out through the way the system ranks them - a validated one
-     * first, then Ethernet > Wi-Fi > mobile, the current one kept on a tie (two mobile networks
-     * while data moves to the other SIM) - and treats a new pick as a network change: Wi-Fi <->
-     * mobile either way, the other SIM, a reconnect after a drop.
-     */
-    @Synchronized
-    private fun onPhysicalNetworksChanged() {
-        val current = physicalNetworks.keys.firstOrNull { it.networkHandle == primaryNetworkHandle }
-        val best = physicalNetworks.entries.maxWithOrNull(
-            compareBy<Map.Entry<Network, NetworkCapabilities>> { networkRank(it.value) }
-                .thenBy { if (it.key == current) 1 else 0 }
-        )
-        // Nothing left: no switch yet - the next network that comes up is compared to the last one.
-        if (best == null || best.key.networkHandle == primaryNetworkHandle) return
-
-        val previousLabel = primaryNetworkLabel
-        val isFirst = primaryNetworkHandle == -1L
-        primaryNetworkHandle = best.key.networkHandle
-        primaryNetworkLabel = networkLabel(best.value)
-        AppLogsState.addLog(getString(R.string.log_core_default_network, primaryNetworkLabel), LogLevel.DEBUG)
-        if (isFirst || android.os.SystemClock.elapsedRealtime() < primaryNetworkSettledAt) return
-
-        onNetworkChanged(previousLabel)
-    }
-
-    /**
-     * DNS servers of the physical network traffic goes out through - the primary one, or right
-     * after start (before the callback has reported any) the best-ranked non-VPN network the
-     * system has. Loopback/link-local dropped, IPv4 first: the operator's IPv6 resolver may have
-     * no route. Read when a kernel's command is built, so a run after a network change gets the
-     * new network's.
-     */
-    private fun physicalNetworkDns(): List<String> {
-        val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
-        val network = physicalNetworks.keys.firstOrNull { it.networkHandle == primaryNetworkHandle }
-            ?: runCatching {
-                @Suppress("DEPRECATION")
-                cm.allNetworks.mapNotNull { n ->
-                    val caps = cm.getNetworkCapabilities(n) ?: return@mapNotNull null
-                    if (caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN) ||
-                        !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) return@mapNotNull null
-                    n to caps
-                }.maxByOrNull { networkRank(it.second) }?.first
-            }.getOrNull()
-            ?: return emptyList()
-        val servers = runCatching { cm.getLinkProperties(network)?.dnsServers }.getOrNull().orEmpty()
-        return servers
-            .filter { !it.isLoopbackAddress && !it.isAnyLocalAddress && !it.isLinkLocalAddress }
-            .sortedBy { if (it is java.net.Inet4Address) 0 else 1 }
-            .mapNotNull { it.hostAddress?.substringBefore('%') }
-            .distinct()
-    }
 
     // Screen on/off for kernels that take it (Kernel.screenStateCommand), registered while running.
     private var screenReceiver: android.content.BroadcastReceiver? = null
@@ -1538,7 +1093,7 @@ class CoreService : Service() {
             delay(2_000.milliseconds)
             val from = networkChangeFrom ?: previousLabel
             networkChangeFrom = null
-            val to = primaryNetworkLabel
+            val to = networkMonitor.primaryLabel
             if (userStopped.get() || currentRunningCfg.get() == null) return@launch
             // Xray is reloaded whatever happens to the kernel: its connections to the server (an
             // Xray-only profile, the direct route) stay on the old network otherwise - see
@@ -1581,60 +1136,10 @@ class CoreService : Service() {
         }
     }
 
-    private fun networkRank(capabilities: NetworkCapabilities): Int {
-        val transport = when {
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> 3
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> 2
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> 1
-            else -> 0
-        }
-        val validated = if (capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) 10 else 0
-        return validated + transport
-    }
-
-    // The network's type - and for cellular, which SIM and operator: since Android 11 the network
-    // names its subscription itself, and neither the slot nor the operator name needs a permission.
-    private fun networkLabel(capabilities: NetworkCapabilities?): String {
-        val type = getString(
-            when {
-                capabilities == null -> R.string.local_address_other
-                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> R.string.local_address_wifi
-                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> R.string.local_address_mobile
-                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> R.string.local_address_ethernet
-                else -> R.string.local_address_other
-            }
-        )
-        if (capabilities == null || !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
-            Build.VERSION.SDK_INT < Build.VERSION_CODES.R
-        ) return type
-        val subId = (capabilities.networkSpecifier as? android.net.TelephonyNetworkSpecifier)?.subscriptionId ?: return type
-        val details = listOfNotNull(
-            android.telephony.SubscriptionManager.getSlotIndex(subId).takeIf { it >= 0 }
-                ?.let { getString(R.string.network_sim_slot, it + 1) },
-            try {
-                getSystemService(android.telephony.TelephonyManager::class.java)
-                    ?.createForSubscriptionId(subId)?.networkOperatorName
-            } catch (_: Exception) { null }?.takeIf { it.isNotBlank() }
-        )
-        return if (details.isEmpty()) type else "$type (${details.joinToString(", ")})"
-    }
-
-    private fun unregisterNetworkCallback() {
-        physicalNetworks.clear()
-        networkCallback?.let { cb ->
-            try {
-                (getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager).unregisterNetworkCallback(cb)
-            } catch (_: Exception) {}
-        }
-        networkCallback = null
-    }
-
     private fun handleStopAction(disableAutoLaunch: Boolean) {
         if (userStopped.getAndSet(true)) return
-        xraySupervisorJob?.cancel()
-        xraySupervisorJob = null
-        vpnSupervisorJob?.cancel()
-        vpnSupervisorJob = null
+        xraySupervisor.stop()
+        vpnSupervisor.stop()
         NotificationHelper.cancelErrorNotification(this)
         CoreServiceState.setStatus(CoreStatus.Stopping)
         NotificationHelper.updateNotification(this)
@@ -1673,7 +1178,7 @@ class CoreService : Service() {
     }
 
     private suspend fun isNetworkMissingAndHandled(): Boolean {
-        if (!isNetworkAvailable()) {
+        if (!networkMonitor.isAvailable) {
             val prefs = AppPreferences(applicationContext)
             if (prefs.waitForNetworkFlow.first()) {
                 if (CoreServiceState.status.value !is CoreStatus.WaitingForNetwork) {
@@ -1687,10 +1192,6 @@ class CoreService : Service() {
             }
         }
         return false
-    }
-
-    private fun isNetworkAvailable(): Boolean {
-        return physicalNetworks.isNotEmpty()
     }
 
     private suspend fun getNetworkQuality(): NetworkQuality = withContext(Dispatchers.IO) {
@@ -1743,11 +1244,11 @@ class CoreService : Service() {
         CoreServiceState.setStatus(CoreStatus.Idle)
 
         handler.removeCallbacksAndMessages(null)
-        unregisterNetworkCallback()
+        networkMonitor.unregister()
         unregisterScreenReceiver()
         AppLogsState.addLog(getString(R.string.log_core_stop_ui))
 
-        // Safety net: xraySupervisorJob/vpnSupervisorJob normally tear these down reactively, but
+        // Safety net: xraySupervisor/vpnSupervisor normally tear these down reactively, but
         // they live on serviceScope, which is cancelled below - if the service dies before they
         // get to react (e.g. watchdog-exhausted path setting Idle right as it fires), HevVpnService
         // can be left orphaned with the system VPN/TUN still established. Stop both unconditionally
@@ -1774,11 +1275,6 @@ class CoreService : Service() {
         const val ACTION_STOP = "ACTION_STOP"
         const val ACTION_STOP_BY_USER = "ACTION_STOP_BY_USER"
         const val MAX_RESTARTS = 10
-        private const val VPN_TARGET_LOST_GRACE_MS = 5_000L
-        private const val VPN_ERROR_RETRY_MS = 15_000L
-        // After registering the network callback, the networks already up (and their validation)
-        // arrive within this - the primary-network pick settles over it without reporting changes.
-        private const val NETWORK_SETTLE_MS = 1_500L
         // getNetworkQuality's whole probe, name lookup included.
         private const val NETWORK_PROBE_TIMEOUT_MS = 2_500L
 
