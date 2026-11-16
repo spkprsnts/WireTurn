@@ -23,6 +23,7 @@ class CoreTileService : TileService() {
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var statusJob: Job? = null
+
     // The auto-launch flag as last read while listening - for the tile's instant update, in place
     // of a blocking DataStore read on the main thread. The real value is read right after.
     private var autoLaunchEnabled = false
@@ -44,7 +45,7 @@ class CoreTileService : TileService() {
 
     override fun onStartListening() {
         super.onStartListening()
-        
+
         val prefs = AppPreferences(this)
 
         // Мгновенное обновление при открытии шторки - with the last known auto-launch flag; the
@@ -93,7 +94,8 @@ class CoreTileService : TileService() {
                 val isRunning = status !is CoreStatus.Idle
                 val isDirect = status is CoreStatus.Suppressed
                 val isWaiting = status is CoreStatus.WaitingForNetwork
-                val isXrayWorking = xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
+                val isXrayWorking =
+                    xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
                 val isWorking = status is CoreStatus.Connected || (isDirect && isXrayWorking)
                 val isCaptcha = status is CoreStatus.CaptchaRequired
                 val isStopping = status is CoreStatus.Stopping
@@ -129,7 +131,11 @@ class CoreTileService : TileService() {
         val currentlyRunning = CoreServiceState.status.value !is CoreStatus.Idle
 
         // Оптимистичное обновление: сразу ставим целевое состояние (если выключаем - гасим плитку мгновенно)
-        updateTileState(isRunning = !(currentlyRunning || autoLaunchEnabled), isWorking = false, autoLaunchEnabled = false)
+        updateTileState(
+            isRunning = !(currentlyRunning || autoLaunchEnabled),
+            isWorking = false,
+            autoLaunchEnabled = false
+        )
 
         // The settings are read suspending, not with runBlocking on the main thread - on a scope
         // of its own: the system may unbind the tile (and onDestroy cancel serviceScope) right
@@ -140,7 +146,9 @@ class CoreTileService : TileService() {
                 handleClick(currentlyRunning)
             } catch (e: Exception) {
                 AppLogsState.addLog("Tile: ${e.javaClass.simpleName}: ${e.message}")
-                if (CoreServiceState.status.value is CoreStatus.Starting) CoreServiceState.setStatus(CoreStatus.Idle)
+                if (CoreServiceState.status.value is CoreStatus.Starting) CoreServiceState.setStatus(
+                    CoreStatus.Idle
+                )
                 updateTileState(isRunning = false, isWorking = false, autoLaunchEnabled = false)
             }
         }
@@ -203,9 +211,9 @@ class CoreTileService : TileService() {
         statusText: String? = null
     ) {
         val tile = qsTile ?: return
-        
+
         tile.state = if (isRunning || autoLaunchEnabled) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
-        
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             tile.subtitle = when {
                 statusText != null -> statusText
@@ -218,6 +226,7 @@ class CoreTileService : TileService() {
                     if (isXrayWorking) getString(R.string.direct_route_active)
                     else getString(R.string.connecting)
                 }
+
                 isWorking -> getString(R.string.tile_active)
                 isRunning -> getString(R.string.connecting)
                 else -> ""

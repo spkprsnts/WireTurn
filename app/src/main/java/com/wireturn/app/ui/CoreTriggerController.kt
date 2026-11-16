@@ -68,7 +68,10 @@ fun CoreTriggerController(
             )
             if (mismatchSocket != null) {
                 val body = if (mismatchSocket == "tcp") mismatchTcpBody else mismatchUdpBody
-                context.showExclusiveToast("$mismatchTitle: $body", android.widget.Toast.LENGTH_LONG)
+                context.showExclusiveToast(
+                    "$mismatchTitle: $body",
+                    android.widget.Toast.LENGTH_LONG
+                )
             }
         }
 

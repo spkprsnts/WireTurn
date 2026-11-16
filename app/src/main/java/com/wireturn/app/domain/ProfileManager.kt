@@ -39,17 +39,22 @@ data class ImportResult(
 
 sealed class ImportStatus {
     data class Success(val id: String? = null, val summary: ImportResult? = null) : ImportStatus()
-    data class KernelConfigDetected(val type: String, val json: String, val source: String) : ImportStatus()
+    data class KernelConfigDetected(val type: String, val json: String, val source: String) :
+        ImportStatus()
+
     object NetworkError : ImportStatus()
+
     // The server's TLS certificate wasn't accepted (untrusted, e.g. self-signed, or issued for
     // another name) - not a connectivity problem, so not NetworkError.
     object TlsError : ImportStatus()
+
     // A new cleartext http:// subscription on a non-local host: its keys and server addresses
     // would travel readable and forgeable, so the user confirms it first - see fetchSubscription.
     data class InsecureHttp(val url: String) : ImportStatus()
     data class ServerError(val code: Int) : ImportStatus()
     object EmptyResponse : ImportStatus()
     object InvalidFormat : ImportStatus()
+
     // The subscription was deleted while it was downloading - nothing was saved, nothing to report.
     object Cancelled : ImportStatus()
 }
@@ -62,7 +67,9 @@ sealed class ImportStatus {
  */
 sealed class DeepLinkPreview {
     /** [names] may contain blank entries where a bundled profile has no `name` set; [count] never does. */
-    data class Profiles(val count: Int, val names: List<String>, val json: String) : DeepLinkPreview()
+    data class Profiles(val count: Int, val names: List<String>, val json: String) :
+        DeepLinkPreview()
+
     data class SubscriptionLink(val url: String) : DeepLinkPreview()
     object Invalid : DeepLinkPreview()
 }
@@ -79,16 +86,28 @@ fun previewDeepLink(link: String): DeepLinkPreview {
         trimmed.startsWith("wt://", ignoreCase = true) -> trimmed.substringAfter("://")
         else -> return DeepLinkPreview.Invalid
     }
-    val decoded = ProfileEncoder.decode(encoded)?.trim()?.takeIf { it.isNotEmpty() } ?: return DeepLinkPreview.Invalid
+    val decoded = ProfileEncoder.decode(encoded)?.trim()?.takeIf { it.isNotEmpty() }
+        ?: return DeepLinkPreview.Invalid
 
-    if (decoded.startsWith("https://", ignoreCase = true) || decoded.startsWith("http://", ignoreCase = true)) {
+    if (decoded.startsWith("https://", ignoreCase = true) || decoded.startsWith(
+            "http://",
+            ignoreCase = true
+        )
+    ) {
         return DeepLinkPreview.SubscriptionLink(decoded)
     }
 
     return try {
         val element = JsonParser.parseString(decoded)
         val entries = when {
-            element.isJsonArray -> element.asJsonArray.mapNotNull { try { it.asJsonObject } catch (_: Exception) { null } }
+            element.isJsonArray -> element.asJsonArray.mapNotNull {
+                try {
+                    it.asJsonObject
+                } catch (_: Exception) {
+                    null
+                }
+            }
+
             element.isJsonObject -> listOf(element.asJsonObject)
             else -> return DeepLinkPreview.Invalid
         }
@@ -156,6 +175,7 @@ fun activeLocalSocksProxy(): java.net.Proxy {
                     cc.socksPass
                 )
             }
+
             else -> null
         }
     } catch (_: Exception) {
@@ -169,7 +189,8 @@ fun activeLocalSocksProxy(): java.net.Proxy {
             System.setProperty("java.net.socks.username", user)
             System.setProperty("java.net.socks.password", pass)
             java.net.Authenticator.setDefault(object : java.net.Authenticator() {
-                override fun getPasswordAuthentication() = java.net.PasswordAuthentication(user, pass.toCharArray())
+                override fun getPasswordAuthentication() =
+                    java.net.PasswordAuthentication(user, pass.toCharArray())
             })
         } else {
             System.clearProperty("java.net.socks.username")
@@ -181,7 +202,10 @@ fun activeLocalSocksProxy(): java.net.Proxy {
     return try {
         val host = target.addr.substringBeforeLast(':')
         val port = target.addr.substringAfterLast(':').toIntOrNull() ?: 1080
-        java.net.Proxy(java.net.Proxy.Type.SOCKS, java.net.InetSocketAddress.createUnresolved(host, port))
+        java.net.Proxy(
+            java.net.Proxy.Type.SOCKS,
+            java.net.InetSocketAddress.createUnresolved(host, port)
+        )
     } catch (_: Exception) {
         java.net.Proxy.NO_PROXY
     }
@@ -189,7 +213,11 @@ fun activeLocalSocksProxy(): java.net.Proxy {
 
 /** Android 17+ blocks TCP to LAN/loopback addresses without the ACCESS_LOCAL_NETWORK runtime permission. */
 fun isLocalNetworkHost(url: String): Boolean {
-    val host = try { java.net.URI(url).host } catch (_: Exception) { null } ?: return false
+    val host = try {
+        java.net.URI(url).host
+    } catch (_: Exception) {
+        null
+    } ?: return false
     if (host.equals("localhost", ignoreCase = true)) return true
     val octets = host.split(".")
     if (octets.size != 4) return false
@@ -257,7 +285,9 @@ class ProfileManager(
         val version = try {
             val pInfo = prefs.context.packageManager.getPackageInfo(prefs.context.packageName, 0)
             pInfo.versionName ?: "1.0"
-        } catch (_: Exception) { "1.0" }
+        } catch (_: Exception) {
+            "1.0"
+        }
         "WireTurn/$version"
     }
 
@@ -280,7 +310,9 @@ class ProfileManager(
     // updatedAt only moves on success, so without this a subscription that kept failing was
     // retried - and logged a timeout - every minute. In memory only: a restart retries at once.
     private data class AutoUpdateFailure(val at: Long, val count: Int)
-    private val autoUpdateFailures = java.util.concurrent.ConcurrentHashMap<String, AutoUpdateFailure>()
+
+    private val autoUpdateFailures =
+        java.util.concurrent.ConcurrentHashMap<String, AutoUpdateFailure>()
 
     private fun startAutoUpdateLoop() {
         scope.launch(Dispatchers.IO) {
@@ -292,19 +324,24 @@ class ProfileManager(
 
                 subscriptions.value.forEach { sub ->
                     if (sub.autoUpdate && sub.id !in _updatingSubIds.value) {
-                        val isSelected = curId != "default" && curProfiles.find { it.id == curId }?.subscriptionId == sub.id
+                        val isSelected =
+                            curId != "default" && curProfiles.find { it.id == curId }?.subscriptionId == sub.id
                         val isTunnelActive = activeLocalSocksProxy() != java.net.Proxy.NO_PROXY
                         val shouldUpdate = (!sub.onlyUpdateIfSelected || isSelected) &&
-                                           (!sub.requireTunnelForUpdate || isTunnelActive)
+                                (!sub.requireTunnelForUpdate || isTunnelActive)
 
                         if (shouldUpdate) {
                             val intervalMs = sub.updateIntervalMinutes.toLong() * 60_000L
                             // A success since the last failure (a manual refresh too) clears it.
-                            val failure = autoUpdateFailures[sub.id]?.takeIf { it.at > sub.updatedAt }
+                            val failure =
+                                autoUpdateFailures[sub.id]?.takeIf { it.at > sub.updatedAt }
                             val due = if (failure == null) {
                                 now - sub.updatedAt >= intervalMs
                             } else {
-                                now - failure.at >= autoUpdateRetryDelayMs(failure.count, intervalMs)
+                                now - failure.at >= autoUpdateRetryDelayMs(
+                                    failure.count,
+                                    intervalMs
+                                )
                             }
                             if (due) {
                                 launch {
@@ -313,9 +350,18 @@ class ProfileManager(
                                         autoUpdateFailures.remove(sub.id)
                                     } else {
                                         val count = (failure?.count ?: 0) + 1
-                                        autoUpdateFailures[sub.id] = AutoUpdateFailure(System.currentTimeMillis(), count)
-                                        val nextMinutes = autoUpdateRetryDelayMs(count, intervalMs) / 60_000L
-                                        com.wireturn.app.AppLogsState.addLog("Subscription auto-update failed (${subscriptionLogLabel(sub.id, sub.url)}), next try in $nextMinutes min")
+                                        autoUpdateFailures[sub.id] =
+                                            AutoUpdateFailure(System.currentTimeMillis(), count)
+                                        val nextMinutes =
+                                            autoUpdateRetryDelayMs(count, intervalMs) / 60_000L
+                                        com.wireturn.app.AppLogsState.addLog(
+                                            "Subscription auto-update failed (${
+                                                subscriptionLogLabel(
+                                                    sub.id,
+                                                    sub.url
+                                                )
+                                            }), next try in $nextMinutes min"
+                                        )
                                     }
                                 }
                             }
@@ -338,7 +384,7 @@ class ProfileManager(
 
     fun selectProfile(id: String, profile: Profile? = null, onConfigLoaded: (Profile) -> Unit) {
         val targetProfile = profile ?: profiles.value.find { it.id == id } ?: return
-        
+
         targetProfile.subscriptionId?.let { subId ->
             updateSubscriptionActiveProfile(subId, targetProfile.id)
         }
@@ -391,7 +437,11 @@ class ProfileManager(
             val newList = prefs.updateProfiles { current -> current.filter { it.id !in ids } }
             prefs.removeProfileCountries(ids)
             if (isCurrentDeleted && newList.isNotEmpty()) {
-                findBestFallbackProfile(newList, subscriptions.value, preferredSubId)?.let { onFallback(it) }
+                findBestFallbackProfile(
+                    newList,
+                    subscriptions.value,
+                    preferredSubId
+                )?.let { onFallback(it) }
             }
         }
     }
@@ -399,7 +449,8 @@ class ProfileManager(
     fun renameProfile(id: String, newName: String) {
         scope.launch {
             prefs.updateProfiles { current ->
-                val validatedName = newName.takeIf { it.isNotBlank() } ?: nextDefaultProfileName(current)
+                val validatedName =
+                    newName.takeIf { it.isNotBlank() } ?: nextDefaultProfileName(current)
                 current.map { if (it.id == id) it.copy(name = validatedName) else it }
             }
         }
@@ -438,7 +489,9 @@ class ProfileManager(
                 val safeName = profile.name.replace(Regex("[\\\\/:*?\"<>| ]"), "_")
                 var entryName = "wt_$safeName.json"
                 var counter = 1
-                while (usedFileNames.contains(entryName)) { entryName = "wt_${safeName}_$counter.json"; counter++ }
+                while (usedFileNames.contains(entryName)) {
+                    entryName = "wt_${safeName}_$counter.json"; counter++
+                }
                 usedFileNames.add(entryName)
                 zos.putNextEntry(ZipEntry(entryName))
                 zos.write(json.toByteArray())
@@ -448,7 +501,10 @@ class ProfileManager(
         return bos.toByteArray()
     }
 
-    fun importProfilesFromZip(inputStream: java.io.InputStream, onAutoSelect: ((Profile) -> Unit)? = null): ImportResult {
+    fun importProfilesFromZip(
+        inputStream: java.io.InputStream,
+        onAutoSelect: ((Profile) -> Unit)? = null
+    ): ImportResult {
         try {
             val extractedData = mutableListOf<Pair<String?, String>>()
             ZipInputStream(inputStream).use { zis ->
@@ -467,7 +523,10 @@ class ProfileManager(
                     entry = zis.nextEntry
                 }
             }
-            return if (extractedData.isNotEmpty()) importProfiles(extractedData, onAutoSelect = onAutoSelect).first else ImportResult()
+            return if (extractedData.isNotEmpty()) importProfiles(
+                extractedData,
+                onAutoSelect = onAutoSelect
+            ).first else ImportResult()
         } catch (e: Exception) {
             com.wireturn.app.AppLogsState.addLog("ZIP Import Error: ${e.message}")
             return ImportResult()
@@ -478,8 +537,8 @@ class ProfileManager(
      * @return Triple of result summary, List of Profile objects with FINAL local IDs, and the local ID of the recommended profile.
      */
     fun importProfiles(
-        data: List<Pair<String?, String>>, 
-        subscriptionId: String? = null, 
+        data: List<Pair<String?, String>>,
+        subscriptionId: String? = null,
         serverActiveId: String? = null,
         onAutoSelect: ((Profile) -> Unit)? = null
     ): Triple<ImportResult, List<Profile>, String?> {
@@ -511,7 +570,12 @@ class ProfileManager(
         serverActiveId: String? = null,
         onAutoSelect: ((Profile) -> Unit)? = null
     ): Triple<ImportResult, List<Profile>, String?> =
-        importParsedProfiles(importedProfiles.map { null to it }, subscriptionId, serverActiveId, onAutoSelect)
+        importParsedProfiles(
+            importedProfiles.map { null to it },
+            subscriptionId,
+            serverActiveId,
+            onAutoSelect
+        )
 
     private fun importParsedProfiles(
         data: List<Pair<String?, Profile>>,
@@ -523,7 +587,8 @@ class ProfileManager(
             val defaultName = prefs.context.getString(R.string.profile_default_name)
             val currentProfiles = profiles.value
             val currentSelectedId = currentProfileId.value
-            val wasSelectedFromThisSub = currentProfiles.find { it.id == currentSelectedId }?.subscriptionId == subscriptionId
+            val wasSelectedFromThisSub =
+                currentProfiles.find { it.id == currentSelectedId }?.subscriptionId == subscriptionId
 
             val existingSubProfiles = if (subscriptionId != null) {
                 currentProfiles.filter { it.subscriptionId == subscriptionId }
@@ -555,7 +620,8 @@ class ProfileManager(
                 val sourceId = p.id.takeIf { it.isNotBlank() }
                 val existing = (sourceId?.let { sid ->
                     existingSubProfiles.find { it.subscriptionSourceId == sid && it.id !in usedInThisBatchIds }
-                }) ?: existingSubProfiles.find { it.subscriptionSourceId == null && it.name == name && it.id !in usedInThisBatchIds }
+                })
+                    ?: existingSubProfiles.find { it.subscriptionSourceId == null && it.name == name && it.id !in usedInThisBatchIds }
                 val matchedOldId = existing?.id
 
                 val newId = if (matchedOldId != null && matchedOldId !in usedInThisBatchIds) {
@@ -587,7 +653,8 @@ class ProfileManager(
                 // itself as authoritative would risk the opposite failure mode - a sub entry with
                 // xrayEnabled=true but no link would otherwise turn Xray on locally while wiping out
                 // the user's actual working link, leaving a broken enabled-but-empty state.
-                val subscriptionHasXrayConfig = sanitized.wgConfig.isValid() || sanitized.vlessConfig.isValid()
+                val subscriptionHasXrayConfig =
+                    sanitized.wgConfig.isValid() || sanitized.vlessConfig.isValid()
 
                 // Same overwrite problem as the Xray fields above, for what a kernel's link doesn't
                 // carry (FreeTurn's call links, CSQTT's local settings, qWDTT's device id) - each
@@ -596,7 +663,10 @@ class ProfileManager(
                     val newKc = sanitized.kernelConfig
                     val oldKc = existing?.kernelConfig
                     val kernel = KernelRegistry.get(newKc.variant)
-                    if (oldKc != null && oldKc.variant == newKc.variant) kernel.mergeSubscriptionUpdate(oldKc, newKc) else newKc
+                    if (oldKc != null && oldKc.variant == newKc.variant) kernel.mergeSubscriptionUpdate(
+                        oldKc,
+                        newKc
+                    ) else newKc
                 }
 
                 val profile = sanitized.copy(
@@ -644,7 +714,7 @@ class ProfileManager(
                 val oldVersionOfCurrent = currentProfiles.find { it.id == currentSelectedId }
                 val updatedVersionOfCurrent = importedList.find { it.id == currentSelectedId }
                 val isStillSelected = newList.any { it.id == currentSelectedId }
-                
+
                 if (updatedVersionOfCurrent != null) {
                     // Only trigger update if content actually changed
                     if (updatedVersionOfCurrent != oldVersionOfCurrent) {
@@ -652,7 +722,7 @@ class ProfileManager(
                     }
                 } else if (wasEmpty || (wasSelectedFromThisSub && !isStillSelected)) {
                     // Auto-select based on recommendation OR fallback to first
-                    val bestToSelect = importedList.find { it.id == resolvedRecommendedLocalId } 
+                    val bestToSelect = importedList.find { it.id == resolvedRecommendedLocalId }
                         ?: importedList.firstOrNull()
                     bestToSelect?.let { callback?.invoke(it) }
                 } else if (!isStillSelected && newList.isNotEmpty()) {
@@ -660,19 +730,27 @@ class ProfileManager(
                     fallback?.let { callback?.invoke(it) }
                 }
             }
-            
-            val removedCount = if (subscriptionId != null) existingSubProfiles.size - matchedExistingIds.size else 0
-            return Triple(ImportResult(addedCount, updatedCount, removedCount, importedList.size), importedList, resolvedRecommendedLocalId)
+
+            val removedCount =
+                if (subscriptionId != null) existingSubProfiles.size - matchedExistingIds.size else 0
+            return Triple(
+                ImportResult(addedCount, updatedCount, removedCount, importedList.size),
+                importedList,
+                resolvedRecommendedLocalId
+            )
         } catch (_: Exception) {
             return Triple(ImportResult(), emptyList(), null)
         }
     }
 
     // Refreshes in flight by subscription id, for deleteSubscription to cancel.
-    private val subscriptionFetches = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.Job>()
+    private val subscriptionFetches =
+        java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.Job>()
+
     // Subscriptions deleted this run: a refresh's writes that come after the deletion - its
     // profiles' save runs on [scope], past a cancelled download - leave them deleted.
-    private val deletedSubIds: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+    private val deletedSubIds: MutableSet<String> =
+        java.util.concurrent.ConcurrentHashMap.newKeySet()
 
     /** The stored subscription with [url], if any - one deleted this run never counts. */
     private suspend fun existingSubscriptionId(url: String): String? =
@@ -688,12 +766,13 @@ class ProfileManager(
         // would still hand back the deleted subscription's id - the same URL added again would then
         // come back Cancelled, with nothing imported and nothing said.
         val subId = forceId ?: existingSubscriptionId(url)
-            ?: return downloadSubscription(url, null, allowInsecureHttp, onAutoSelect)
+        ?: return downloadSubscription(url, null, allowInsecureHttp, onAutoSelect)
         if (subId in deletedSubIds) return ImportStatus.Cancelled
         // Its own job, so a deletion cancels this download and not the caller's coroutine - the
         // auto-update loop, or a screen refreshing several subscriptions in one.
         return kotlinx.coroutines.coroutineScope {
-            val download = async { downloadSubscription(url, subId, allowInsecureHttp, onAutoSelect) }
+            val download =
+                async { downloadSubscription(url, subId, allowInsecureHttp, onAutoSelect) }
             subscriptionFetches[subId] = download
             try {
                 download.await()
@@ -701,7 +780,14 @@ class ProfileManager(
                 // The caller itself cancelled: pass it on. Only the deletion ends here.
                 ensureActive()
                 if (!download.isCancelled) throw e
-                com.wireturn.app.AppLogsState.addLog("Subscription (${subscriptionLogLabel(subId, url)}): deleted while downloading, cancelled")
+                com.wireturn.app.AppLogsState.addLog(
+                    "Subscription (${
+                        subscriptionLogLabel(
+                            subId,
+                            url
+                        )
+                    }): deleted while downloading, cancelled"
+                )
                 ImportStatus.Cancelled
             } finally {
                 subscriptionFetches.remove(subId, download)
@@ -805,7 +891,8 @@ class ProfileManager(
                         val originalConnection = connection
                         originalConnection.disconnect()
                         for (fallbackUserAgent in subscriptionFallbackUserAgents) {
-                            val candidate = runCatching { open(url, fallbackUserAgent) }.getOrNull() ?: continue
+                            val candidate =
+                                runCatching { open(url, fallbackUserAgent) }.getOrNull() ?: continue
                             if (candidate.responseCode != HttpURLConnection.HTTP_OK) {
                                 candidate.disconnect()
                                 continue
@@ -837,18 +924,26 @@ class ProfileManager(
                                 com.wireturn.app.AppLogsState.addLog("Subscription Error ($logLabel): qWDTT profiles without hashes or password")
                                 null
                             }
+
                             SubscriptionParser.Result.Unrecognized -> null
                         }
 
                         if (bundle != null) {
-                            val subId = subIdToMark ?: existingSubscriptionId(url) ?: UUID.randomUUID().toString()
-                            val subName = bundle.name ?: subscriptionParser.decodeProfileTitle(connection.getHeaderField("Profile-Title")) ?: URL(url).host ?: "Subscription"
+                            val subId =
+                                subIdToMark ?: existingSubscriptionId(url) ?: UUID.randomUUID()
+                                    .toString()
+                            val subName = bundle.name ?: subscriptionParser.decodeProfileTitle(
+                                connection.getHeaderField("Profile-Title")
+                            ) ?: URL(url).host ?: "Subscription"
 
                             // Fallbacks for panels (e.g. 3x-ui) that convey quota/refresh via response headers
                             // instead of the subscription body - only consulted when the body itself has nothing.
-                            val (headerBytesUsed, headerBytesTotal) = subscriptionParser.parseSubscriptionUserinfo(connection.getHeaderField("Subscription-Userinfo"))
-                            val headerUpdateIntervalMinutes = connection.getHeaderField("Profile-Update-Interval")
-                                ?.toDoubleOrNull()?.let { hours -> (hours * 60).toInt() }
+                            val (headerBytesUsed, headerBytesTotal) = subscriptionParser.parseSubscriptionUserinfo(
+                                connection.getHeaderField("Subscription-Userinfo")
+                            )
+                            val headerUpdateIntervalMinutes =
+                                connection.getHeaderField("Profile-Update-Interval")
+                                    ?.toDoubleOrNull()?.let { hours -> (hours * 60).toInt() }
 
                             kotlinx.coroutines.yield()
 
@@ -863,9 +958,9 @@ class ProfileManager(
                             // 2. The subscription's entry, built on the stored one - so the user's own
                             // settings changed while this was downloading (auto-update, interval) stay.
                             fun subscriptionOf(existingSub: Subscription?): Subscription {
-                                val bestActiveId = resolvedActiveId ?:
-                                    existingSub?.activeProfileId?.takeIf { id -> importedProfiles.any { it.id == id } } ?:
-                                    importedProfiles.firstOrNull()?.id
+                                val bestActiveId = resolvedActiveId
+                                    ?: existingSub?.activeProfileId?.takeIf { id -> importedProfiles.any { it.id == id } }
+                                    ?: importedProfiles.firstOrNull()?.id
                                 return Subscription(
                                     id = subId,
                                     name = subName,
@@ -875,12 +970,17 @@ class ProfileManager(
                                     bytesUsed = bundle.bytesUsed ?: headerBytesUsed ?: 0,
                                     bytesTotal = bundle.bytesTotal ?: headerBytesTotal ?: 0,
                                     activeProfileId = bestActiveId,
-                                    autoUpdate = existingSub?.autoUpdate ?: ((bundle.updateIntervalMinutes ?: headerUpdateIntervalMinutes) != null),
+                                    autoUpdate = existingSub?.autoUpdate
+                                        ?: ((bundle.updateIntervalMinutes
+                                            ?: headerUpdateIntervalMinutes) != null),
                                     updateIntervalMinutes = existingSub?.updateIntervalMinutes
-                                        ?: (bundle.updateIntervalMinutes ?: headerUpdateIntervalMinutes)?.coerceAtLeast(20)
+                                        ?: (bundle.updateIntervalMinutes
+                                            ?: headerUpdateIntervalMinutes)?.coerceAtLeast(20)
                                         ?: 1440,
-                                    onlyUpdateIfSelected = existingSub?.onlyUpdateIfSelected ?: false,
-                                    requireTunnelForUpdate = existingSub?.requireTunnelForUpdate ?: false,
+                                    onlyUpdateIfSelected = existingSub?.onlyUpdateIfSelected
+                                        ?: false,
+                                    requireTunnelForUpdate = existingSub?.requireTunnelForUpdate
+                                        ?: false,
                                     pinned = existingSub?.pinned ?: false,
                                     collapsed = existingSub?.collapsed ?: false,
                                     sortMode = existingSub?.sortMode ?: Subscription.SORT_SERVER
@@ -907,13 +1007,13 @@ class ProfileManager(
             } finally {
                 job.cancel()
             }
-            
+
             // Ensure minimum visible loading time
             val elapsed = android.os.SystemClock.elapsedRealtime() - startTime
             if (elapsed < 300) {
                 kotlinx.coroutines.delay((300 - elapsed).milliseconds)
             }
-            
+
             result
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -932,10 +1032,12 @@ class ProfileManager(
         subscriptionFetches[id]?.cancel()
         scope.launch {
             val currentSelectedId = currentProfileId.value
-            val isCurrentInDeletedSub = profiles.value.find { it.id == currentSelectedId }?.subscriptionId == id
+            val isCurrentInDeletedSub =
+                profiles.value.find { it.id == currentSelectedId }?.subscriptionId == id
 
             val newSubs = prefs.updateSubscriptions { current -> current.filter { it.id != id } }
-            val newProfiles = prefs.updateProfiles { current -> current.filter { it.subscriptionId != id } }
+            val newProfiles =
+                prefs.updateProfiles { current -> current.filter { it.subscriptionId != id } }
 
             if (isCurrentInDeletedSub && newProfiles.isNotEmpty()) {
                 findBestFallbackProfile(newProfiles, newSubs)?.let { onFallback(it) }
@@ -954,9 +1056,10 @@ class ProfileManager(
         if (preferredSubId != null) {
             val sub = allSubs.find { it.id == preferredSubId }
             if (sub != null) {
-                val activeInSub = allProfiles.find { it.id == sub.activeProfileId && it.subscriptionId == sub.id }
+                val activeInSub =
+                    allProfiles.find { it.id == sub.activeProfileId && it.subscriptionId == sub.id }
                 if (activeInSub != null) return activeInSub
-                
+
                 val firstInSub = allProfiles.find { it.subscriptionId == sub.id }
                 if (firstInSub != null) return firstInSub
             }
@@ -969,9 +1072,10 @@ class ProfileManager(
         // 3. Try active profile from any subscription
         allSubs.forEach { sub ->
             if (sub.id != preferredSubId) {
-                val activeInSub = allProfiles.find { it.id == sub.activeProfileId && it.subscriptionId == sub.id }
+                val activeInSub =
+                    allProfiles.find { it.id == sub.activeProfileId && it.subscriptionId == sub.id }
                 if (activeInSub != null) return activeInSub
-                
+
                 val firstInSub = allProfiles.find { it.subscriptionId == sub.id }
                 if (firstInSub != null) return firstInSub
             }
@@ -992,13 +1096,16 @@ class ProfileManager(
         }
     }
 
-    private fun isHtmlSubscriptionResponse(connection: HttpURLConnection, content: String): Boolean {
+    private fun isHtmlSubscriptionResponse(
+        connection: HttpURLConnection,
+        content: String
+    ): Boolean {
         val contentType = connection.contentType?.substringBefore(';')?.trim()?.lowercase()
         if (contentType == "text/html" || contentType == "application/xhtml+xml") return true
         val prefix = content.trimStart().take(256)
         return prefix.startsWith("<!doctype html", ignoreCase = true) ||
-            prefix.startsWith("<html", ignoreCase = true) ||
-            prefix.startsWith("<head", ignoreCase = true)
+                prefix.startsWith("<html", ignoreCase = true) ||
+                prefix.startsWith("<head", ignoreCase = true)
     }
 
     // A rejected certificate (untrusted issuer, e.g. self-signed, or a name mismatch) surfaces
@@ -1007,8 +1114,8 @@ class ProfileManager(
     private fun failureStatus(e: Throwable): ImportStatus {
         val certificateRejected = generateSequence(e) { it.cause }.any {
             it is java.security.cert.CertificateException ||
-                it is java.security.cert.CertPathValidatorException ||
-                it is javax.net.ssl.SSLPeerUnverifiedException
+                    it is java.security.cert.CertPathValidatorException ||
+                    it is javax.net.ssl.SSLPeerUnverifiedException
         }
         return if (certificateRejected) ImportStatus.TlsError else ImportStatus.NetworkError
     }

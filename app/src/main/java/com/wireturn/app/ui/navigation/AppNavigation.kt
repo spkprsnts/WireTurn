@@ -21,7 +21,7 @@ fun AppNavigation(
     viewModel: MainViewModel
 ) {
     val context = LocalContext.current
-    
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
@@ -37,22 +37,40 @@ fun AppNavigation(
                 }
                 HomeScreen(
                     viewModel = viewModel,
-                    onNavigateToExclusions = { 
+                    onNavigateToExclusions = {
                         context.startActivity(Intent(context, AppExceptionsActivity::class.java))
                     },
                     onNavigateToXrayConfig = {
-                        val intent = Intent(context, com.wireturn.app.ui.activities.XrayEditActivity::class.java)
+                        val intent = Intent(
+                            context,
+                            com.wireturn.app.ui.activities.XrayEditActivity::class.java
+                        )
                         intent.putExtra("EXTRA_PROFILE_ID", viewModel.currentProfileId.value)
                         context.startActivity(intent)
                     },
                     onNavigateToConnectionSettings = {
-                        context.startActivity(Intent(context, com.wireturn.app.ui.activities.ConnectionSettingsActivity::class.java))
+                        context.startActivity(
+                            Intent(
+                                context,
+                                com.wireturn.app.ui.activities.ConnectionSettingsActivity::class.java
+                            )
+                        )
                     },
                     onNavigateToSettings = {
-                        context.startActivity(Intent(context, com.wireturn.app.ui.activities.SettingsActivity::class.java))
+                        context.startActivity(
+                            Intent(
+                                context,
+                                com.wireturn.app.ui.activities.SettingsActivity::class.java
+                            )
+                        )
                     },
                     onNavigateToLogs = {
-                        context.startActivity(Intent(context, com.wireturn.app.ui.activities.LogsActivity::class.java))
+                        context.startActivity(
+                            Intent(
+                                context,
+                                com.wireturn.app.ui.activities.LogsActivity::class.java
+                            )
+                        )
                     },
                     onToggleProxy = onToggle
                 )

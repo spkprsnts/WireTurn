@@ -29,7 +29,7 @@ class ConnectionSettingsActivity : ComponentActivity() {
 
             val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
-            
+
             val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
             val privacyMode by viewModel.privacyMode.collectAsStateWithLifecycle()
 
@@ -43,10 +43,20 @@ class ConnectionSettingsActivity : ComponentActivity() {
                         finish()
                     },
                     onNavigateToXraySettings = {
-                        startActivity(Intent(this@ConnectionSettingsActivity, XraySettingsActivity::class.java))
+                        startActivity(
+                            Intent(
+                                this@ConnectionSettingsActivity,
+                                XraySettingsActivity::class.java
+                            )
+                        )
                     },
                     onNavigateToVpnSettings = {
-                        startActivity(Intent(this@ConnectionSettingsActivity, VpnSettingsActivity::class.java))
+                        startActivity(
+                            Intent(
+                                this@ConnectionSettingsActivity,
+                                VpnSettingsActivity::class.java
+                            )
+                        )
                     }
                 )
             }

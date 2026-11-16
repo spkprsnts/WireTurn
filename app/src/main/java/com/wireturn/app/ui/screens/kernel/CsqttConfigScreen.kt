@@ -204,18 +204,31 @@ fun CsqttConfigScreen(
                         ) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.import_clipboard)) },
-                                leadingIcon = { Icon(painterResource(R.drawable.content_paste_24px), null) },
+                                leadingIcon = {
+                                    Icon(
+                                        painterResource(R.drawable.content_paste_24px),
+                                        null
+                                    )
+                                },
                                 onClick = {
                                     showImportMenu = false
                                     scope.launch {
                                         val clipEntry = clipboard.getClipEntry()
-                                        importLink(clipEntry?.clipData?.getItemAt(0)?.text?.toString() ?: "", silentIfBlank = true)
+                                        importLink(
+                                            clipEntry?.clipData?.getItemAt(0)?.text?.toString()
+                                                ?: "", silentIfBlank = true
+                                        )
                                     }
                                 }
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.import_file)) },
-                                leadingIcon = { Icon(painterResource(R.drawable.file_open_24px), null) },
+                                leadingIcon = {
+                                    Icon(
+                                        painterResource(R.drawable.file_open_24px),
+                                        null
+                                    )
+                                },
                                 onClick = {
                                     showImportMenu = false
                                     filePickerLauncher.launch("*/*")
@@ -327,7 +340,9 @@ fun CsqttConfigScreen(
                     TextFieldRow(
                         label = stringResource(R.string.qwdtt_hashes_label),
                         value = config.vkHashes.redact(isPrivacyActive),
-                        onValueChange = { if (!isPrivacyActive) config = config.copy(vkHashes = it) },
+                        onValueChange = {
+                            if (!isPrivacyActive) config = config.copy(vkHashes = it)
+                        },
                         readOnly = isPrivacyActive,
                         isError = config.hashList().isEmpty() && defaultVkCalls.isEmpty(),
                         placeholder = defaultVkCalls.joinToString(", ").redact(isPrivacyActive),
@@ -336,14 +351,19 @@ fun CsqttConfigScreen(
                         singleLine = false,
                         minLines = 1,
                         maxLines = 5,
-                        supportingText = stringResource(R.string.csqtt_hashes_desc, CsqttConfig.MAX_HASHES)
+                        supportingText = stringResource(
+                            R.string.csqtt_hashes_desc,
+                            CsqttConfig.MAX_HASHES
+                        )
                     )
                 }
                 SectionItem(position = ItemPosition.Bottom) {
                     TextFieldRow(
                         label = stringResource(R.string.qwdtt_password_label),
                         value = config.password.redact(isPrivacyActive),
-                        onValueChange = { if (!isPrivacyActive) config = config.copy(password = it) },
+                        onValueChange = {
+                            if (!isPrivacyActive) config = config.copy(password = it)
+                        },
                         readOnly = isPrivacyActive,
                         isError = config.password.isBlank(),
                         isModified = isEditMode && config.password != initialConfig.password,
@@ -359,7 +379,9 @@ fun CsqttConfigScreen(
                     SliderRow(
                         label = stringResource(R.string.qwdtt_workers_label),
                         value = config.workers.toFloat(),
-                        onValueChange = { config = config.copy(workers = (it / group).roundToInt() * group) },
+                        onValueChange = {
+                            config = config.copy(workers = (it / group).roundToInt() * group)
+                        },
                         valueRange = group.toFloat()..CsqttConfig.MAX_WORKERS.toFloat(),
                         steps = CsqttConfig.MAX_WORKERS / group - 2,
                         supportingText = stringResource(
@@ -450,7 +472,9 @@ fun CsqttConfigScreen(
                                         options.forEachIndexed { index, strategy ->
                                             selectableButtonItem(
                                                 selected = config.goobyStrategy == strategy,
-                                                onSelect = { config = config.copy(goobyStrategy = strategy) },
+                                                onSelect = {
+                                                    config = config.copy(goobyStrategy = strategy)
+                                                },
                                                 label = labels[index],
                                                 index = index,
                                                 count = options.size

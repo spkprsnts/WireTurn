@@ -76,7 +76,10 @@ data class TurnableConfig(
         builder.appendQueryParameter("peers", peers.toString())
         encryption?.let { builder.appendQueryParameter("encryption", it) }
         pubKey?.let { builder.appendQueryParameter("pub_key", it) }
-        if (selectedRouteId.isNotBlank()) builder.appendQueryParameter("selected_route_id", selectedRouteId)
+        if (selectedRouteId.isNotBlank()) builder.appendQueryParameter(
+            "selected_route_id",
+            selectedRouteId
+        )
         if (targetRoutes.isNotEmpty()) {
             builder.fragment(targetRoutes.joinToString(", ") { it.name.ifBlank { it.routeId } })
         }
@@ -90,16 +93,20 @@ data class TurnableConfig(
             PLATFORM_VK -> "VK"
             else -> platformId
         }
+
         fun parse(url: String, current: TurnableConfig = TurnableConfig()): TurnableConfig? {
             if (!url.startsWith("turnable://", ignoreCase = true)) return null
             return try {
                 val uri = Uri.parse(url)
                 val userParts = (uri.encodedUserInfo ?: "").split(":").map { Uri.decode(it) }
-                val userUuid = if (userParts.size > 1) userParts[0].takeIf { it.isNotBlank() } else null
+                val userUuid =
+                    if (userParts.size > 1) userParts[0].takeIf { it.isNotBlank() } else null
                 val callId = if (userParts.size > 1) userParts[1] else userParts.getOrNull(0) ?: ""
-                val pathParts = (uri.encodedPath ?: "").split("/").filter { it.isNotBlank() }.map { Uri.decode(it) }
+                val pathParts = (uri.encodedPath ?: "").split("/").filter { it.isNotBlank() }
+                    .map { Uri.decode(it) }
                 // Each path segment is route_id-socket-transport; only route_id may itself contain dashes
-                val routeNames = (uri.fragment ?: "").split(",").map { it.trim() }.filter { it.isNotBlank() }
+                val routeNames =
+                    (uri.fragment ?: "").split(",").map { it.trim() }.filter { it.isNotBlank() }
                 val routes = pathParts.mapIndexed { index, segment ->
                     val parts = segment.split("-")
                     val routeId: String
@@ -135,7 +142,8 @@ data class TurnableConfig(
                     mask = uri.getQueryParameter("mask") ?: current.mask,
                     routes = routes.ifEmpty { current.routes },
                     selectedRouteId = uri.getQueryParameter("selected_route_id")
-                        ?: (if (routes.isNotEmpty()) routes.firstOrNull()?.routeId ?: "" else current.selectedRouteId)
+                        ?: (if (routes.isNotEmpty()) routes.firstOrNull()?.routeId
+                            ?: "" else current.selectedRouteId)
                 )
             } catch (_: Exception) {
                 null

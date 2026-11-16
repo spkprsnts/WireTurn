@@ -37,7 +37,12 @@ class OnboardingActivity : ComponentActivity() {
                             viewModel.setOnboardingDone()
                             startActivity(Intent(this@OnboardingActivity, MainActivity::class.java))
                             if (addProfile) {
-                                startActivity(Intent(this@OnboardingActivity, AddProfileActivity::class.java))
+                                startActivity(
+                                    Intent(
+                                        this@OnboardingActivity,
+                                        AddProfileActivity::class.java
+                                    )
+                                )
                             }
                             finish()
                         }

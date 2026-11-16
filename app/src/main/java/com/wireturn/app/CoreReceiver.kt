@@ -69,7 +69,11 @@ abstract class CoreActionReceiver : BroadcastReceiver() {
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
         /** An explicit broadcast of [action] to [receiver], for a notification button's PendingIntent. */
-        fun intent(context: Context, receiver: Class<out CoreActionReceiver>, action: String): Intent =
+        fun intent(
+            context: Context,
+            receiver: Class<out CoreActionReceiver>,
+            action: String
+        ): Intent =
             Intent(context, receiver).setAction("${context.packageName}.$action")
     }
 }

@@ -56,7 +56,7 @@ fun CreateProfileScreen(
         state = topAppBarState,
         flingAnimationSpec = null
     )
-    
+
     var profileName by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(viewModel.nextDefaultProfileName()) }
 
     // CSQTT isn't built for every ABI (no 32-bit x86, see build.sh's RUST_ABIS) - don't offer a
@@ -161,12 +161,14 @@ fun CreateProfileScreen(
             ) {
                 val versionName = remember {
                     try {
-                        context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: ""
+                        context.packageManager.getPackageInfo(context.packageName, 0).versionName
+                            ?: ""
                     } catch (_: Exception) {
                         ""
                     }
                 }
-                val branch = if (versionName.contains("unstable", ignoreCase = true)) "unstable" else "main"
+                val branch =
+                    if (versionName.contains("unstable", ignoreCase = true)) "unstable" else "main"
                 val uriHandler = LocalUriHandler.current
 
                 GuideLinkItem(

@@ -19,6 +19,7 @@ internal class SubscriptionParser(private val gson: Gson) {
 
     sealed interface Result {
         data class Parsed(val bundle: ProfileBundle) : Result
+
         /** A qWDTT subscription none of whose entries WireTurn can run (no hashes or password). */
         data object QwdttUnusable : Result
         data object Unrecognized : Result
@@ -44,7 +45,10 @@ internal class SubscriptionParser(private val gson: Gson) {
             }
         } catch (_: Exception) {
             try {
-                val profiles = gson.fromJson<List<Profile>>(content, object : com.google.gson.reflect.TypeToken<List<Profile>>() {}.type)
+                val profiles = gson.fromJson<List<Profile>>(
+                    content,
+                    object : com.google.gson.reflect.TypeToken<List<Profile>>() {}.type
+                )
                 ProfileBundle(profiles = profiles)
             } catch (_: Exception) {
                 tryParseOlcboxBundle(content) ?: run {
@@ -52,7 +56,10 @@ internal class SubscriptionParser(private val gson: Gson) {
                     if (decoded != null) {
                         val element = JsonParser.parseString(decoded)
                         val profiles = if (element.isJsonArray) {
-                            gson.fromJson(element, object : com.google.gson.reflect.TypeToken<List<Profile>>() {}.type)
+                            gson.fromJson(
+                                element,
+                                object : com.google.gson.reflect.TypeToken<List<Profile>>() {}.type
+                            )
                         } else {
                             listOf(gson.fromJson(element, Profile::class.java))
                         }
@@ -61,7 +68,8 @@ internal class SubscriptionParser(private val gson: Gson) {
                         // Raw line-based subscription first (as-is, the common case), then as a
                         // last resort try decoding it as plain (non-deflated) base64 - some panels
                         // (e.g. 3x-ui) base64-encode their line-based subscription body directly.
-                        tryParseTextSubscription(content) ?: base64Decoded?.let(::tryParseTextSubscription)
+                        tryParseTextSubscription(content)
+                            ?: base64Decoded?.let(::tryParseTextSubscription)
                     }
                 }
             }
@@ -77,11 +85,23 @@ internal class SubscriptionParser(private val gson: Gson) {
     // ProfileBundle, every field here is olcbox-specific, so this is a distinct entry point rather
     // than something the OlcrtcConfig/Profile Gson adapters could be taught to also accept.
     private fun tryParseOlcboxBundle(content: String): ProfileBundle? {
-        val root = try { JsonParser.parseString(content).asJsonObject } catch (_: Exception) { return null }
-        val locationsArray = try { root.getAsJsonArray("locations") } catch (_: Exception) { null } ?: return null
+        val root = try {
+            JsonParser.parseString(content).asJsonObject
+        } catch (_: Exception) {
+            return null
+        }
+        val locationsArray = try {
+            root.getAsJsonArray("locations")
+        } catch (_: Exception) {
+            null
+        } ?: return null
 
         val profiles = locationsArray.mapNotNull { element ->
-            val item = try { element.asJsonObject } catch (_: Exception) { return@mapNotNull null }
+            val item = try {
+                element.asJsonObject
+            } catch (_: Exception) {
+                return@mapNotNull null
+            }
             parseOlcboxLocationEntry(item)
         }
         if (profiles.isEmpty()) return null
@@ -100,11 +120,19 @@ internal class SubscriptionParser(private val gson: Gson) {
             }
             return null
         }
+
         fun obj(key: String): JsonObject? =
             item.get(key)?.takeIf { it.isJsonObject }?.asJsonObject
 
         val endpoint = obj("endpoint")
-        val provider = str("auth_provider", "authProvider", "carrier", "bypass_provider", "bypassProvider", "provider")
+        val provider = str(
+            "auth_provider",
+            "authProvider",
+            "carrier",
+            "bypass_provider",
+            "bypassProvider",
+            "provider"
+        )
             ?: "wbstream"
         val roomId = endpoint?.get("room_id")?.takeIf { it.isJsonPrimitive }?.asString
             ?: str("id", "room_id", "server")
@@ -116,7 +144,9 @@ internal class SubscriptionParser(private val gson: Gson) {
         val transportObj = transportElement?.takeIf { it.isJsonObject }?.asJsonObject
         val transport = when {
             transportElement != null && transportElement.isJsonPrimitive -> transportElement.asString
-            transportObj != null -> transportObj.get("type")?.takeIf { it.isJsonPrimitive }?.asString
+            transportObj != null -> transportObj.get("type")
+                ?.takeIf { it.isJsonPrimitive }?.asString
+
             else -> null
         } ?: "datachannel"
         val vp8 = transportObj?.get("vp8")?.takeIf { it.isJsonObject }?.asJsonObject
@@ -132,7 +162,8 @@ internal class SubscriptionParser(private val gson: Gson) {
             ?: metadataName?.takeIf { it.isNotBlank() }
             ?: roomId
 
-        var config = OlcrtcConfig(provider = provider, transport = transport, id = roomId, key = key)
+        var config =
+            OlcrtcConfig(provider = provider, transport = transport, id = roomId, key = key)
         vp8Fps?.let { config = config.copy(vp8Fps = it) }
         vp8Batch?.let { config = config.copy(vp8Batch = it) }
         dns?.takeIf { it.isNotBlank() }?.let { config = config.copy(dns = it) }
@@ -164,33 +195,54 @@ internal class SubscriptionParser(private val gson: Gson) {
      *
      * [base64Decoded] is the body decoded as base64 - only asked for when it isn't JSON as is.
      */
-    private fun tryParseQwdttPanelSubscription(content: String, base64Decoded: () -> String?): ProfileBundle? {
+    private fun tryParseQwdttPanelSubscription(
+        content: String,
+        base64Decoded: () -> String?
+    ): ProfileBundle? {
         val trimmed = content.trim()
         val json = if (trimmed.startsWith("{") || trimmed.startsWith("[")) trimmed
-            else base64Decoded()?.trim()?.takeIf { it.startsWith("{") || it.startsWith("[") } ?: return null
+        else base64Decoded()?.trim()?.takeIf { it.startsWith("{") || it.startsWith("[") }
+            ?: return null
         val root = runCatching { JsonParser.parseString(json) }.getOrNull() ?: return null
         val rootObj = root.takeIf { it.isJsonObject }?.asJsonObject
 
-        fun array(obj: JsonObject?, key: String) = obj?.get(key)?.takeIf { it.isJsonArray }?.asJsonArray
-        val entries = (if (root.isJsonArray) root.asJsonArray else array(rootObj, "profiles") ?: array(rootObj, "servers"))
+        fun array(obj: JsonObject?, key: String) =
+            obj?.get(key)?.takeIf { it.isJsonArray }?.asJsonArray
+
+        val entries = (if (root.isJsonArray) root.asJsonArray else array(rootObj, "profiles")
+            ?: array(rootObj, "servers"))
             ?.mapNotNull { item -> item.takeIf { it.isJsonObject }?.asJsonObject }
             ?: return null
 
         // A qWDTT entry has a top-level "peer" plus a field of its own. WireTurn's bundle profiles
         // keep "peer" inside "kernelConfig", a CSQTT panel's entries carry a "link".
-        val qwdttKeys = listOf("hashes", "vkHashes", "workers", "workersPerHash", "pass", "password", "dk", "diagKey")
+        val qwdttKeys = listOf(
+            "hashes",
+            "vkHashes",
+            "workers",
+            "workersPerHash",
+            "pass",
+            "password",
+            "dk",
+            "diagKey"
+        )
         val qwdttEntries = entries.filter { obj ->
             obj.has("peer") && !obj.has("kernelConfig") && !obj.has("link") && qwdttKeys.any(obj::has)
         }
         if (qwdttEntries.isEmpty()) return null
 
-        fun string(obj: JsonObject?, vararg keys: String): String? = keys.firstNotNullOfOrNull { key ->
-            obj?.get(key)?.takeIf { it.isJsonPrimitive }?.asString?.trim()?.takeIf { it.isNotEmpty() }
-        }
+        fun string(obj: JsonObject?, vararg keys: String): String? =
+            keys.firstNotNullOfOrNull { key ->
+                obj?.get(key)?.takeIf { it.isJsonPrimitive }?.asString?.trim()
+                    ?.takeIf { it.isNotEmpty() }
+            }
+
         // A panel's malformed number falls back to the default rather than failing the whole import.
-        fun number(obj: JsonObject?, vararg keys: String): Double? = keys.firstNotNullOfOrNull { key ->
-            obj?.get(key)?.takeIf { it.isJsonPrimitive }?.let { runCatching { it.asDouble }.getOrNull() }
-        }
+        fun number(obj: JsonObject?, vararg keys: String): Double? =
+            keys.firstNotNullOfOrNull { key ->
+                obj?.get(key)?.takeIf { it.isJsonPrimitive }
+                    ?.let { runCatching { it.asDouble }.getOrNull() }
+            }
 
         val profiles = qwdttEntries.mapNotNull { obj ->
             val rawPeer = string(obj, "peer") ?: return@mapNotNull null
@@ -200,7 +252,8 @@ internal class SubscriptionParser(private val gson: Gson) {
                 peer = QwdttConfig.peerWithPort(rawPeer),
                 vkHashes = hashes,
                 password = password,
-                workers = number(obj, "workers", "workersPerHash")?.toInt() ?: QwdttConfig().workers,
+                workers = number(obj, "workers", "workersPerHash")?.toInt()
+                    ?: QwdttConfig().workers,
                 diagKey = string(obj, "diagKey", "dk").orEmpty(),
                 deviceId = QwdttConfig.THIS_DEVICE
             ).sanitize()
@@ -209,7 +262,8 @@ internal class SubscriptionParser(private val gson: Gson) {
                 // imported before that normalization got this id, and a different one would make
                 // a refresh replace them - and their device id with it (QwdttConfig.deviceId).
                 id = stableTextSubEntryId("qwdtt-sub:$rawPeer:$hashes"),
-                name = string(obj, "name") ?: com.wireturn.app.kernel.QwdttKernel.defaultProfileName,
+                name = string(obj, "name")
+                    ?: com.wireturn.app.kernel.QwdttKernel.defaultProfileName,
                 kernelConfig = KernelConfig.Qwdtt(config)
             )
         }
@@ -219,7 +273,10 @@ internal class SubscriptionParser(private val gson: Gson) {
         return ProfileBundle(
             version = number(rootObj, "version")?.toInt() ?: 1,
             // A bare array names its group in its first entry, as the official client reads it.
-            name = string(rootObj, "subscriptionName", "groupName") ?: string(entries.firstOrNull(), "groupName"),
+            name = string(rootObj, "subscriptionName", "groupName") ?: string(
+                entries.firstOrNull(),
+                "groupName"
+            ),
             description = string(rootObj, "description", "info"),
             profiles = profiles,
             bytesUsed = megabytes("trafficUsedMb", "trafficMb"),
@@ -251,9 +308,13 @@ internal class SubscriptionParser(private val gson: Gson) {
         data class Entry(val name: String?, val link: String, val subUuid: String?, val power: Int?)
 
         fun entryOf(obj: JsonObject): Entry? {
-            fun str(key: String) = obj.get(key)?.takeIf { it.isJsonPrimitive }?.asString?.takeIf { it.isNotBlank() }
-            val link = str("link")?.takeIf { it.startsWith("csqtt://", ignoreCase = true) } ?: return null
-            val power = com.wireturn.app.data.kernel.CsqttConfig.linkPower(str("power") ?: str("workers"))
+            fun str(key: String) =
+                obj.get(key)?.takeIf { it.isJsonPrimitive }?.asString?.takeIf { it.isNotBlank() }
+
+            val link =
+                str("link")?.takeIf { it.startsWith("csqtt://", ignoreCase = true) } ?: return null
+            val power =
+                com.wireturn.app.data.kernel.CsqttConfig.linkPower(str("power") ?: str("workers"))
             return Entry(str("name"), link, str("sub_uuid"), power)
         }
 
@@ -270,13 +331,15 @@ internal class SubscriptionParser(private val gson: Gson) {
         fun array(o: JsonObject?, key: String) = o?.get(key)?.takeIf { it.isJsonArray }?.asJsonArray
         val entries = when {
             root.isJsonArray -> entriesOf(root.asJsonArray)
-            else -> (array(group, "items") ?: array(group, "clients") ?: array(obj, "clients") ?: array(obj, "items"))
+            else -> (array(group, "items") ?: array(group, "clients") ?: array(obj, "clients")
+            ?: array(obj, "items"))
                 ?.let(::entriesOf)
                 ?: listOfNotNull(obj?.let(::entryOf))
         }
 
         val profiles = entries.mapNotNull { entry ->
-            val parsed = com.wireturn.app.data.kernel.CsqttConfig.parse(entry.link) ?: return@mapNotNull null
+            val parsed =
+                com.wireturn.app.data.kernel.CsqttConfig.parse(entry.link) ?: return@mapNotNull null
             // A node's own count over its link's, as the official app reads it.
             val config = entry.power?.let { parsed.copy(workers = it) } ?: parsed
             val seed = entry.subUuid?.let { "csqtt-sub:$it" }
@@ -294,12 +357,15 @@ internal class SubscriptionParser(private val gson: Gson) {
     private fun tryParseTextSubscription(text: String): ProfileBundle? {
         if (!text.contains("freeturn://") && !text.contains("olcrtc://") && !text.contains("olconnect://") &&
             !text.contains("turnable://") && !text.contains("webdav://") &&
-            !text.contains("webdavs://") && !text.contains("qwdtt://") && !text.contains("qwdtt:config") && !text.contains("wdtt://") &&
+            !text.contains("webdavs://") && !text.contains("qwdtt://") && !text.contains("qwdtt:config") && !text.contains(
+                "wdtt://"
+            ) &&
             !text.contains("openflux://") && !text.contains("csqtt://") &&
             // A plain v2ray subscription (3x-ui, Marzban, Remnawave): Xray-only profiles, see XrayKernel.
             !text.contains("vless://") && !text.contains("trojan://") &&
             !text.contains("hysteria2://") && !text.contains("hy2://") &&
-            !text.contains("wireturn://") && !text.contains("wt://") && !text.contains("#name:")) return null
+            !text.contains("wireturn://") && !text.contains("wt://") && !text.contains("#name:")
+        ) return null
 
         val lines = text.lines()
         var subName: String? = null
@@ -326,7 +392,8 @@ internal class SubscriptionParser(private val gson: Gson) {
         // Parses sizes like "10mb", "1.1gb", "500 KB" (binary units: 1kb = 1024b) as used by the
         // olcRTC/free-turn-proxy sub.md convention's #used/#available fields.
         fun parseByteSize(v: String): Long? {
-            val match = Regex("(?i)^\\s*([0-9]*\\.?[0-9]+)\\s*(b|kb|mb|gb|tb)?\\s*$").find(v) ?: return null
+            val match =
+                Regex("(?i)^\\s*([0-9]*\\.?[0-9]+)\\s*(b|kb|mb|gb|tb)?\\s*$").find(v) ?: return null
             val num = match.groupValues[1].toDoubleOrNull() ?: return null
             val multiplier = when (match.groupValues[2].lowercase()) {
                 "", "b" -> 1.0
@@ -408,11 +475,16 @@ internal class SubscriptionParser(private val gson: Gson) {
                     try {
                         val element = JsonParser.parseString(it)
                         if (element.isJsonArray) {
-                            gson.fromJson(element, object : com.google.gson.reflect.TypeToken<List<Profile>>() {}.type)
+                            gson.fromJson(
+                                element,
+                                object : com.google.gson.reflect.TypeToken<List<Profile>>() {}.type
+                            )
                         } else {
                             listOf(gson.fromJson(element, Profile::class.java))
                         }
-                    } catch (_: Exception) { null }
+                    } catch (_: Exception) {
+                        null
+                    }
                 }
                 if (decodedProfiles.isNullOrEmpty()) continue
 
@@ -458,25 +530,32 @@ internal class SubscriptionParser(private val gson: Gson) {
                                 currentProfile = currentProfile?.copy(id = value)
                             }
                         }
+
                         "ip" -> {
                             val kc = currentKernelConfig
                             if (kc is KernelConfig.FreeTurn) {
-                                currentKernelConfig = KernelConfig.FreeTurn(kc.config.copy(peer = value))
+                                currentKernelConfig =
+                                    KernelConfig.FreeTurn(kc.config.copy(peer = value))
                             }
                         }
+
                         "provider" -> {
                             val kc = currentKernelConfig
                             if (kc is KernelConfig.FreeTurn) {
-                                currentKernelConfig = KernelConfig.FreeTurn(kc.config.copy(provider = value))
+                                currentKernelConfig =
+                                    KernelConfig.FreeTurn(kc.config.copy(provider = value))
                             } else if (kc is KernelConfig.Olcrtc) {
-                                currentKernelConfig = KernelConfig.Olcrtc(kc.config.copy(provider = value))
+                                currentKernelConfig =
+                                    KernelConfig.Olcrtc(kc.config.copy(provider = value))
                             }
                         }
+
                         "comment" -> {
                             if (currentProfile?.name?.contains("Server") == true) {
                                 currentProfile = currentProfile?.copy(name = value)
                             }
                         }
+
                         "xray" -> {
                             // A raw VLESS/Trojan/Hysteria2 link for the current profile's Xray leg.
                             if (com.wireturn.app.ui.ValidatorUtils.isValidVlessLink(value)) {
@@ -487,13 +566,21 @@ internal class SubscriptionParser(private val gson: Gson) {
                                 )
                             }
                         }
+
                         "xray-wg" -> {
                             // WireGuard is a multi-line [Interface]/[Peer] config, so it can't be a bare
                             // link like ##xray - the value is that config text, base64-encoded to fit on
                             // one line (plain, not URL-safe - matches how panels commonly wrap wg-quick).
                             val decoded = try {
-                                String(android.util.Base64.decode(value, android.util.Base64.DEFAULT), Charsets.UTF_8)
-                            } catch (_: Exception) { null }
+                                String(
+                                    android.util.Base64.decode(
+                                        value,
+                                        android.util.Base64.DEFAULT
+                                    ), Charsets.UTF_8
+                                )
+                            } catch (_: Exception) {
+                                null
+                            }
                             val wg = decoded?.let { com.wireturn.app.data.WgConfig.parse(it) }
                             if (wg != null && wg.isValid()) {
                                 currentProfile = currentProfile?.copy(
@@ -521,6 +608,7 @@ internal class SubscriptionParser(private val gson: Gson) {
                             parseByteSize(parts[0])?.let { subBytesUsed = it }
                             if (parts.size == 2) parseByteSize(parts[1])?.let { subBytesTotal = it }
                         }
+
                         "available" -> {
                             // Remaining quota - total = whatever's used so far (0 if #used wasn't
                             // given yet) + what's left, regardless of which field comes first in the file.
@@ -545,7 +633,8 @@ internal class SubscriptionParser(private val gson: Gson) {
 
     /** Standard or URL-safe base64, padded or not, whitespace and line breaks ignored. */
     private fun decodeLenientBase64(content: String): String? = try {
-        val cleaned = content.replace(Regex("\\s"), "").replace('-', '+').replace('_', '/').trimEnd('=')
+        val cleaned =
+            content.replace(Regex("\\s"), "").replace('-', '+').replace('_', '/').trimEnd('=')
         String(android.util.Base64.decode(cleaned, android.util.Base64.NO_PADDING), Charsets.UTF_8)
     } catch (_: Exception) {
         null
@@ -558,7 +647,8 @@ internal class SubscriptionParser(private val gson: Gson) {
     fun decodeProfileTitle(header: String?): String? {
         val title = header?.trim()?.takeIf { it.isNotEmpty() } ?: return null
         if (!title.startsWith("base64:", ignoreCase = true)) return title
-        return decodeLenientBase64(title.substring("base64:".length))?.trim()?.takeIf { it.isNotEmpty() }
+        return decodeLenientBase64(title.substring("base64:".length))?.trim()
+            ?.takeIf { it.isNotEmpty() }
     }
 
 
@@ -576,7 +666,8 @@ internal class SubscriptionParser(private val gson: Gson) {
         }.toMap()
         val upload = fields["upload"]
         val download = fields["download"]
-        val used = if (upload != null || download != null) (upload ?: 0L) + (download ?: 0L) else null
+        val used =
+            if (upload != null || download != null) (upload ?: 0L) + (download ?: 0L) else null
         return used to fields["total"]
     }
 

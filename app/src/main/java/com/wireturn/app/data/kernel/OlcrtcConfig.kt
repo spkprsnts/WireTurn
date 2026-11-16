@@ -67,6 +67,7 @@ data class OlcrtcConfig(
         }
         return true
     }
+
     fun fillDefaults(): OlcrtcConfig = sanitize()
 
     fun toUri(profileName: String? = null): String {
@@ -77,12 +78,14 @@ data class OlcrtcConfig(
                 params.add("vp8-fps=$vp8Fps")
                 params.add("vp8-batch=$vp8Batch")
             }
+
             "seichannel" -> {
                 params.add("fps=$seiFps")
                 params.add("batch=$seiBatch")
                 params.add("frag=$seiFrag")
                 params.add("ack-ms=$seiAckMs")
             }
+
             "videochannel" -> {
                 params.add("video-w=$videoW")
                 params.add("video-h=$videoH")
@@ -118,13 +121,14 @@ data class OlcrtcConfig(
         const val VIDEO_MIN_DIMENSION = 16
         const val VIDEO_MAX_DIMENSION = 8192
 
-        fun getTransportDisplayName(transport: String, short: Boolean = false): String = when (transport) {
-            "datachannel" -> if (short) "DC" else "DataChannel"
-            "vp8channel" -> if (short) "VP8C" else "VP8Channel"
-            "seichannel" -> if (short) "SEIC" else "SEIChannel"
-            "videochannel" -> if (short) "VC" else "VideoChannel"
-            else -> transport
-        }
+        fun getTransportDisplayName(transport: String, short: Boolean = false): String =
+            when (transport) {
+                "datachannel" -> if (short) "DC" else "DataChannel"
+                "vp8channel" -> if (short) "VP8C" else "VP8Channel"
+                "seichannel" -> if (short) "SEIC" else "SEIChannel"
+                "videochannel" -> if (short) "VC" else "VideoChannel"
+                else -> transport
+            }
 
         fun parse(url: String, current: OlcrtcConfig = OlcrtcConfig()): OlcrtcConfig? {
             val isOlcrtcScheme = url.startsWith("olcrtc://", ignoreCase = true)
@@ -146,7 +150,8 @@ data class OlcrtcConfig(
             // both schemes are accepted here and routed to this dialect, in case an older panel
             // version or a cached link still carries "olcrtc://...core=legacy" too.
             if (url.contains("core=legacy", ignoreCase = true)) {
-                val afterScheme = if (isOlcrtcScheme) url.substringAfter("olcrtc://") else url.substringAfter("olconnect://")
+                val afterScheme =
+                    if (isOlcrtcScheme) url.substringAfter("olcrtc://") else url.substringAfter("olconnect://")
                 return parseUrlEmbeddedDialect(afterScheme, current)
             }
             if (!isOlcrtcScheme) return null // the documented uri.md grammar is olcrtc:// only
@@ -154,10 +159,12 @@ data class OlcrtcConfig(
                 val provider = url.substringAfter("olcrtc://").substringBefore("?")
                 val transportPart = url.substringAfter("?").substringBefore("@")
                 val transport = transportPart.substringBefore("<")
-                val payload = if (transportPart.contains("<")) transportPart.substringAfter("<").substringBefore(">") else ""
+                val payload = if (transportPart.contains("<")) transportPart.substringAfter("<")
+                    .substringBefore(">") else ""
                 val rest = url.substringAfter("@")
                 val id = rest.substringBefore("#").substringBefore("$")
-                val key = if (rest.contains("#")) rest.substringAfter("#").substringBefore("$") else ""
+                val key =
+                    if (rest.contains("#")) rest.substringAfter("#").substringBefore("$") else ""
                 val mimo = if (rest.contains("$")) rest.substringAfter("$") else ""
                 var cfg = current.copy(
                     provider = provider,
@@ -167,18 +174,21 @@ data class OlcrtcConfig(
                     mimo = mimo
                 )
                 if (payload.isNotBlank()) {
-                    val p = payload.split("&").associate { it.substringBefore("=") to it.substringAfter("=", "") }
+                    val p = payload.split("&")
+                        .associate { it.substringBefore("=") to it.substringAfter("=", "") }
                     cfg = when (transport) {
                         "vp8channel" -> cfg.copy(
                             vp8Fps = p["vp8-fps"]?.toIntOrNull() ?: cfg.vp8Fps,
                             vp8Batch = p["vp8-batch"]?.toIntOrNull() ?: cfg.vp8Batch
                         )
+
                         "seichannel" -> cfg.copy(
                             seiFps = p["fps"]?.toIntOrNull() ?: cfg.seiFps,
                             seiBatch = p["batch"]?.toIntOrNull() ?: cfg.seiBatch,
                             seiFrag = p["frag"]?.toIntOrNull() ?: cfg.seiFrag,
                             seiAckMs = p["ack-ms"]?.toIntOrNull() ?: cfg.seiAckMs
                         )
+
                         "videochannel" -> cfg.copy(
                             videoW = p["video-w"]?.toIntOrNull() ?: cfg.videoW,
                             videoH = p["video-h"]?.toIntOrNull() ?: cfg.videoH,
@@ -186,9 +196,11 @@ data class OlcrtcConfig(
                             videoCodec = p["video-codec"] ?: cfg.videoCodec,
                             videoQrSize = p["video-qr-size"]?.toIntOrNull() ?: cfg.videoQrSize,
                             videoQrRecovery = p["video-qr-recovery"] ?: cfg.videoQrRecovery,
-                            videoTileModule = p["video-tile-module"]?.toIntOrNull() ?: cfg.videoTileModule,
+                            videoTileModule = p["video-tile-module"]?.toIntOrNull()
+                                ?: cfg.videoTileModule,
                             videoTileRs = p["video-tile-rs"]?.toIntOrNull() ?: cfg.videoTileRs
                         )
+
                         else -> cfg
                     }
                 }
@@ -208,18 +220,30 @@ data class OlcrtcConfig(
         // dialect-version tag for the panel's own future use, not a real setting - and "client_id"
         // only ever reaches that panel's own instance bookkeeping (OLCRTC_CLIENT_ID env var). Neither
         // exists anywhere in the actual olcrtc core's config or auth packages, so both are dropped.
-        private fun parseUrlEmbeddedDialect(afterScheme: String, current: OlcrtcConfig): OlcrtcConfig? {
+        private fun parseUrlEmbeddedDialect(
+            afterScheme: String,
+            current: OlcrtcConfig
+        ): OlcrtcConfig? {
             return try {
                 val provider = afterScheme.substringBefore("@")
                 val afterAt = afterScheme.substringAfter("@")
                 if (!afterAt.contains("/")) return null
                 val afterPlaceholder = afterAt.substringAfter("/")
-                val fragment = if (afterPlaceholder.contains("#")) afterPlaceholder.substringAfter("#") else ""
+                val fragment =
+                    if (afterPlaceholder.contains("#")) afterPlaceholder.substringAfter("#") else ""
                 val withoutFragment = afterPlaceholder.substringBefore("#")
                 val idEncoded = withoutFragment.substringBefore("?")
-                val query = if (withoutFragment.contains("?")) withoutFragment.substringAfter("?") else ""
+                val query =
+                    if (withoutFragment.contains("?")) withoutFragment.substringAfter("?") else ""
                 val params = if (query.isNotBlank()) {
-                    query.split("&").associate { it.substringBefore("=") to Uri.decode(it.substringAfter("=", "")) }
+                    query.split("&").associate {
+                        it.substringBefore("=") to Uri.decode(
+                            it.substringAfter(
+                                "=",
+                                ""
+                            )
+                        )
+                    }
                 } else emptyMap()
 
                 current.copy(
@@ -228,7 +252,8 @@ data class OlcrtcConfig(
                     key = params["key"] ?: params["k"] ?: current.key,
                     transport = params["transport"] ?: params["t"] ?: current.transport,
                     vp8Fps = (params["vp8_fps"] ?: params["f"])?.toIntOrNull() ?: current.vp8Fps,
-                    vp8Batch = (params["vp8_batch"] ?: params["b"])?.toIntOrNull() ?: current.vp8Batch,
+                    vp8Batch = (params["vp8_batch"] ?: params["b"])?.toIntOrNull()
+                        ?: current.vp8Batch,
                     dns = params["dns"] ?: params["d"] ?: current.dns,
                     mimo = Uri.decode(fragment).ifBlank { current.mimo }
                 )

@@ -45,7 +45,11 @@ class WebdavConfigActivity : ComponentActivity() {
 
             val initialConfig = remember(clientConfig, profiles) {
                 if (configJson != null) {
-                    try { Gson().fromJson(configJson, WebdavConfig::class.java) } catch (_: Exception) { WebdavConfig() }
+                    try {
+                        Gson().fromJson(configJson, WebdavConfig::class.java)
+                    } catch (_: Exception) {
+                        WebdavConfig()
+                    }
                 } else if (profileId != null) {
                     profiles.find { it.id == profileId }?.webdavConfig ?: WebdavConfig()
                 } else if (isEditMode) {
@@ -65,13 +69,31 @@ class WebdavConfigActivity : ComponentActivity() {
                     onSave = { config ->
                         if (isEditMode) {
                             if (profileId != null) {
-                                viewModel.updateProfileById(profileId) { it.copy(kernelConfig = KernelConfig.Webdav(config)) }
+                                viewModel.updateProfileById(profileId) {
+                                    it.copy(
+                                        kernelConfig = KernelConfig.Webdav(
+                                            config
+                                        )
+                                    )
+                                }
                                 if (profileId == viewModel.currentProfileId.value) {
                                     // Also update the live config so CoreService doesn't keep using the stale one.
-                                    viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Webdav(config)))
+                                    viewModel.saveClientConfig(
+                                        clientConfig.copy(
+                                            kernelConfig = KernelConfig.Webdav(
+                                                config
+                                            )
+                                        )
+                                    )
                                 }
                             } else {
-                                viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Webdav(config)))
+                                viewModel.saveClientConfig(
+                                    clientConfig.copy(
+                                        kernelConfig = KernelConfig.Webdav(
+                                            config
+                                        )
+                                    )
+                                )
                             }
                             finish()
                         } else {

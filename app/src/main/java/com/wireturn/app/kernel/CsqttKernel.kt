@@ -27,10 +27,12 @@ object CsqttKernel : Kernel {
     override val variant: KernelVariant = KernelVariant.CSQTT
     override val sensitiveCommandFlags: Set<String> = setOf("-vk", "--user", "--pass")
 
-    override fun logLabel(cfg: KernelConfig): String = "CSQTT (${(cfg as KernelConfig.Csqtt).config.peer})"
+    override fun logLabel(cfg: KernelConfig): String =
+        "CSQTT (${(cfg as KernelConfig.Csqtt).config.peer})"
 
     // socks2tun's listener (the sidecar).
-    override fun localSettingsChanged(old: ClientConfig, new: ClientConfig): Boolean = socksListenerChanged(old, new)
+    override fun localSettingsChanged(old: ClientConfig, new: ClientConfig): Boolean =
+        socksListenerChanged(old, new)
 
     // A csqtt:// link carries the server, its password and maybe call hashes - a CSQTT panel's
     // subscription carries none - and nothing of the workers, obfuscation, TURN transport or
@@ -39,15 +41,20 @@ object CsqttKernel : Kernel {
         val o = (old as KernelConfig.Csqtt).config
         val n = (new as KernelConfig.Csqtt).config
         return KernelConfig.Csqtt(
-            o.copy(peer = n.peer, password = n.password, vkHashes = n.vkHashes.ifBlank { o.vkHashes })
+            o.copy(
+                peer = n.peer,
+                password = n.password,
+                vkHashes = n.vkHashes.ifBlank { o.vkHashes })
         )
     }
+
     override val displayNameRes: Int = R.string.kernel_csqtt
     override val configActivityClass = CsqttConfigActivity::class.java
     override val wgNotUsedMessageRes: Int = R.string.wg_not_used_with_csqtt
 
     // Its TUN MTU isn't negotiated - this is what the official app builds its VPN with.
     private const val TUN_MTU = 1300
+
     // The official app's defaults - VK's own web client IDs and TLS fingerprint.
     private const val CLIENT_IDS = "8202606,6287487"
     private const val FINGERPRINT = "firefox"
@@ -77,8 +84,11 @@ object CsqttKernel : Kernel {
 
     // An encrypted link (2.5.0+) carries its name inside the payload - see CsqttConfig.toUri.
     override fun displayNameFromUri(uri: String): String? = try {
-        (CsqttConfig.decryptLink(uri) ?: uri).toUri().getQueryParameter("name")?.takeIf { it.isNotBlank() }
-    } catch (_: Exception) { null }
+        (CsqttConfig.decryptLink(uri) ?: uri).toUri().getQueryParameter("name")
+            ?.takeIf { it.isNotBlank() }
+    } catch (_: Exception) {
+        null
+    }
 
     // Raw IP is all it speaks - any server takes the VPN's TUN directly.
     override fun supportsNativeTun(cfg: KernelConfig): Boolean = cfg is KernelConfig.Csqtt
@@ -90,10 +100,24 @@ object CsqttKernel : Kernel {
             // The password goes in CSQTT_PASSWORD (see environment) - since 2.5.0 the client
             // refuses -password, and -device-id with it: a password is no longer bound to a device.
             addAll(listOf("-peer", o.peer))
-            addAll(listOf("-vk", o.hashList().joinToString(","), "-n", o.normalizedWorkers().toString()))
+            addAll(
+                listOf(
+                    "-vk",
+                    o.hashList().joinToString(","),
+                    "-n",
+                    o.normalizedWorkers().toString()
+                )
+            )
             // The VPN's TUN, or socks2tun's end of the socketpair - see buildSidecarCommand.
             addAll(listOf("-tun-uds", ctx.nativeTunSocket ?: ctx.runSocket))
-            addAll(listOf("-obfs", o.obfsMode, "-turn-transport", if (o.turnTcp) "tcp_tls" else "udp"))
+            addAll(
+                listOf(
+                    "-obfs",
+                    o.obfsMode,
+                    "-turn-transport",
+                    if (o.turnTcp) "tcp_tls" else "udp"
+                )
+            )
             // The client refuses Gooby with UDP, so the setting kept on a UDP profile is skipped.
             // Double-dashed: the client's single-dash rewriting doesn't list --gooby-strategy.
             if (o.gooby && o.turnTcp) addAll(listOf("--gooby", "--gooby-strategy", o.goobyStrategy))
@@ -124,7 +148,14 @@ object CsqttKernel : Kernel {
             addAll(listOf("--mtu", TUN_MTU.toString()))
             // Waits for the kernel as long as this run lasts - both are stopped together anyway.
             addAll(listOf("--uds-timeout", "0"))
-            if (cfg.isSocksAuthEnabled) addAll(listOf("--user", cfg.socksUser, "--pass", cfg.socksPass))
+            if (cfg.isSocksAuthEnabled) addAll(
+                listOf(
+                    "--user",
+                    cfg.socksUser,
+                    "--pass",
+                    cfg.socksPass
+                )
+            )
         }
     }
 
@@ -153,8 +184,18 @@ object CsqttKernel : Kernel {
         "Отброшен не-IP пакет"
     )
 
-    override suspend fun parseLogLine(line: String, lower: String, state: BinaryOutputState, ctx: KernelLogContext, cfg: ClientConfig): Boolean {
-        if (line.startsWith(EVENT_PREFIX)) return handleEvent(line.removePrefix(EVENT_PREFIX), state, ctx)
+    override suspend fun parseLogLine(
+        line: String,
+        lower: String,
+        state: BinaryOutputState,
+        ctx: KernelLogContext,
+        cfg: ClientConfig
+    ): Boolean {
+        if (line.startsWith(EVENT_PREFIX)) return handleEvent(
+            line.removePrefix(EVENT_PREFIX),
+            state,
+            ctx
+        )
 
         // 1. The tunnel's own address, once the server hands out its config (again whenever it
         // changes): "[КЛИЕНТ] Tunnel IP: 10.66.66.2/32 | DNS: 1.1.1.1"
@@ -184,17 +225,23 @@ object CsqttKernel : Kernel {
         // manual/selected are ours; "auto" is its own ~10s attempt with fallbacks of its own.
         if (line.startsWith("CAPTCHA_SOLVE|")) {
             val parts = line.removePrefix("CAPTCHA_SOLVE|").split("|", limit = 3)
-            if (parts.size == 3 && (parts[0].equals("manual", ignoreCase = true) || parts[0].equals("selected", ignoreCase = true))) {
+            if (parts.size == 3 && (parts[0].equals("manual", ignoreCase = true) || parts[0].equals(
+                    "selected",
+                    ignoreCase = true
+                ))
+            ) {
                 val redirectUri = parts[1]
                 if (redirectUri.isNotBlank() && CoreServiceState.status.value !is CoreStatus.Suppressed) {
                     state.captchaSessionCounter += 1
                     ctx.setPendingCaptchaSessionId(state.captchaSessionCounter)
                     // Worker groups are spread over every -vk hash (worker.rs run_groups) - see
                     // requestCaptcha.
-                    requestCaptcha(ctx, CaptchaSession(
-                        redirectUri, state.captchaSessionCounter,
-                        needsResultToken = true, partial = state.activeWorkers > 0
-                    ))
+                    requestCaptcha(
+                        ctx, CaptchaSession(
+                            redirectUri, state.captchaSessionCounter,
+                            needsResultToken = true, partial = state.activeWorkers > 0
+                        )
+                    )
                 }
             }
             return false
@@ -207,11 +254,17 @@ object CsqttKernel : Kernel {
         return false
     }
 
-    private fun handleEvent(event: String, state: BinaryOutputState, ctx: KernelLogContext): Boolean {
+    private fun handleEvent(
+        event: String,
+        state: BinaryOutputState,
+        ctx: KernelLogContext
+    ): Boolean {
         val kind = event.substringBefore('|')
         val payload = try {
             JsonParser.parseString(event.substringAfter('|', "{}")).asJsonObject
-        } catch (_: Exception) { null }
+        } catch (_: Exception) {
+            null
+        }
         when (kind) {
             // A worker got through the handshake - traffic can flow.
             "READY" -> {
@@ -282,16 +335,22 @@ object CsqttKernel : Kernel {
     // shaped differently than expected (a newer client) must not end the run from parseLogLine.
     private fun <T> JsonObject.primitiveOrNull(key: String, read: (JsonElement) -> T): T? = try {
         get(key)?.takeIf { it.isJsonPrimitive }?.let(read)
-    } catch (_: Exception) { null }
+    } catch (_: Exception) {
+        null
+    }
 
     private fun JsonObject.longOrNull(key: String): Long? = primitiveOrNull(key) { it.asLong }
-    private fun JsonObject.booleanOrNull(key: String): Boolean? = primitiveOrNull(key) { it.asBoolean }
+    private fun JsonObject.booleanOrNull(key: String): Boolean? =
+        primitiveOrNull(key) { it.asBoolean }
+
     private fun JsonObject.stringOrNull(key: String): String? = primitiveOrNull(key) { it.asString }
 
     private const val EVENT_PREFIX = "__CSQTT_EVENT__|"
+
     // 2.5.3's per-worker connection-stage diagnostics (rust-client/stream_diagnostics.rs), one JSON
     // line per stage - written while events are on (CSQTT_EVENTS), nothing here reads them.
     private const val STREAM_PREFIX = "__CSQTT_STREAM__|"
 
-    private val TUNNEL_IP_REGEX = Regex("""Tunnel IP:\s*([0-9.]+)(?:/\d+)?\s*\|\s*DNS:\s*([0-9.,\s]*)""")
+    private val TUNNEL_IP_REGEX =
+        Regex("""Tunnel IP:\s*([0-9.]+)(?:/\d+)?\s*\|\s*DNS:\s*([0-9.,\s]*)""")
 }

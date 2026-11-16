@@ -61,7 +61,8 @@ data class QwdttConfig(
         password = (password as Any?)?.toString()?.trim()?.take(256) ?: "",
         workers = workers.coerceIn(1, MAX_WORKERS),
         obfsMode = if (obfsMode == "video") "video" else "audio",
-        goDns = ((goDns as Any?)?.toString()?.trim()?.take(100)).let { if (it.isNullOrBlank()) "yandex" else it },
+        goDns = ((goDns as Any?)?.toString()?.trim()
+            ?.take(100)).let { if (it.isNullOrBlank()) "yandex" else it },
         rawPort = (rawPort as Any?)?.toString()?.filter(Char::isDigit)?.take(5) ?: "",
         diagKey = (diagKey as Any?)?.toString()?.trim()?.take(512) ?: "",
         deviceId = deviceId?.trim()?.take(128)
@@ -108,9 +109,10 @@ data class QwdttConfig(
         fun peerWithPort(peerRaw: String, fallbackPort: Int? = null): String {
             val peer = peerRaw.trim()
             if (peer.isBlank()) return peer
-            val hasExplicitPort = peer.substringAfterLast(':', "").let { it.isNotEmpty() && it.all(Char::isDigit) }
+            val hasExplicitPort =
+                peer.substringAfterLast(':', "").let { it.isNotEmpty() && it.all(Char::isDigit) }
             return if (hasExplicitPort) peer
-                else "$peer:${fallbackPort?.coerceIn(1, 65535) ?: DEFAULT_DTLS_PORT}"
+            else "$peer:${fallbackPort?.coerceIn(1, 65535) ?: DEFAULT_DTLS_PORT}"
         }
 
         // Accepts both "qwdtt://config?..." and the schemeless "qwdtt:config?..." variant some
@@ -135,7 +137,8 @@ data class QwdttConfig(
                     peer = "$host:$dtlsPort",
                     vkHashes = hashes,
                     password = password,
-                    workers = uri.getQueryParameter("max_workers")?.toIntOrNull() ?: current.workers,
+                    workers = uri.getQueryParameter("max_workers")?.toIntOrNull()
+                        ?: current.workers,
                     obfsMode = current.obfsMode,
                     turnTcp = current.turnTcp,
                     goDns = current.goDns,
@@ -178,23 +181,29 @@ data class QwdttConfig(
                 )
             }
 
-            if (!trimmed.startsWith("qwdtt://", ignoreCase = true) && !trimmed.startsWith("qwdtt:config", ignoreCase = true)) return null
+            if (!trimmed.startsWith(
+                    "qwdtt://",
+                    ignoreCase = true
+                ) && !trimmed.startsWith("qwdtt:config", ignoreCase = true)
+            ) return null
             return try {
                 val normalized = if (trimmed.startsWith("qwdtt://", ignoreCase = true)) trimmed
-                    else trimmed.replaceFirst("qwdtt:", "qwdtt://", ignoreCase = true)
+                else trimmed.replaceFirst("qwdtt:", "qwdtt://", ignoreCase = true)
                 val uri = Uri.parse(normalized)
                 // Some third-party generators send peer as host-only, with the port as a separate
                 // dtls_port/server_port param (or none at all: ildarmaga/wdtt's panel) - see peerWithPort.
                 val peer = peerWithPort(
                     uri.getQueryParameter("peer") ?: current.peer,
-                    (uri.getQueryParameter("dtls_port") ?: uri.getQueryParameter("server_port"))?.toIntOrNull()
+                    (uri.getQueryParameter("dtls_port")
+                        ?: uri.getQueryParameter("server_port"))?.toIntOrNull()
                 )
                 val hashes = uri.getQueryParameter("hashes") ?: current.vkHashes
                 if (peer.isBlank() || hashes.isBlank()) return null
                 QwdttConfig(
                     peer = peer,
                     vkHashes = hashes,
-                    password = uri.getQueryParameter("pass") ?: uri.getQueryParameter("password") ?: current.password,
+                    password = uri.getQueryParameter("pass") ?: uri.getQueryParameter("password")
+                    ?: current.password,
                     workers = uri.getQueryParameter("workers")?.toIntOrNull() ?: current.workers,
                     obfsMode = current.obfsMode,
                     turnTcp = current.turnTcp,

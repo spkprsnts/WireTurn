@@ -63,7 +63,12 @@ import kotlin.math.abs
 // которые не помещаются в один надёжно сканируемый QR-код.
 private const val QR_CHUNK_PREFIX = "WTMQ1"
 
-private data class QrChunk(val sessionId: String, val index: Int, val total: Int, val payload: String)
+private data class QrChunk(
+    val sessionId: String,
+    val index: Int,
+    val total: Int,
+    val payload: String
+)
 
 private fun parseQrChunk(raw: String): QrChunk? {
     if (!raw.startsWith("$QR_CHUNK_PREFIX|")) return null
@@ -129,18 +134,18 @@ fun QrScannerDialog(
                         style = MaterialTheme.typography.headlineSmall,
                         textAlign = TextAlign.Center
                     )
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    
+
                     Text(
                         text = message,
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    
+
                     Spacer(modifier = Modifier.height(24.dp))
-                    
+
                     // Контейнер для камеры с закругленными углами
                     Box(
                         modifier = Modifier
@@ -172,7 +177,9 @@ fun QrScannerDialog(
 
                     // Слайдер зума
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
@@ -188,7 +195,9 @@ fun QrScannerDialog(
                         Slider(
                             state = zoomSliderState,
                             onValueChange = { zoom = it },
-                            modifier = Modifier.weight(1f).padding(horizontal = 12.dp)
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 12.dp)
                         )
                         Text(
                             text = stringResource(R.string.math_plus),
@@ -196,9 +205,9 @@ fun QrScannerDialog(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End

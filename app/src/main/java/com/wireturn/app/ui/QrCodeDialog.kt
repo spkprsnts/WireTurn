@@ -123,7 +123,11 @@ fun QrCodeDialog(
                 if (frames.size > 1) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = stringResource(R.string.qr_frame_progress, safeFrameIndex + 1, frames.size),
+                        text = stringResource(
+                            R.string.qr_frame_progress,
+                            safeFrameIndex + 1,
+                            frames.size
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center

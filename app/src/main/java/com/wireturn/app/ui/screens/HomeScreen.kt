@@ -175,7 +175,7 @@ fun HomeScreen(
         }
 
         val isProxyActive = !isNativeTun &&
-            (proxyState is CoreState.Connected || proxyState is CoreState.Suppressed)
+                (proxyState is CoreState.Connected || proxyState is CoreState.Suppressed)
         if (isProxyActive) {
             if (proxyPing is MainViewModel.PingResult.Success || proxyPing is MainViewModel.PingResult.Error) {
                 if (!isControlPingScheduled) {
@@ -277,10 +277,10 @@ fun HomeScreen(
     var hasNotificationPermission by remember {
         mutableStateOf(
             Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-                ContextCompat.checkSelfPermission(
-                    context,
-                    "android.permission.POST_NOTIFICATIONS"
-                ) == PackageManager.PERMISSION_GRANTED
+                    ContextCompat.checkSelfPermission(
+                        context,
+                        "android.permission.POST_NOTIFICATIONS"
+                    ) == PackageManager.PERMISSION_GRANTED
         )
     }
 
@@ -476,7 +476,10 @@ fun HomeScreen(
                 onSolve = { url ->
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     context.startActivity(
-                        Intent(context, com.wireturn.app.ui.activities.CaptchaActivity::class.java).apply {
+                        Intent(
+                            context,
+                            com.wireturn.app.ui.activities.CaptchaActivity::class.java
+                        ).apply {
                             putExtra("CAPTCHA_URL", url)
                             addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
                         }
@@ -492,8 +495,8 @@ fun HomeScreen(
                 // Xray or VPN alone isn't enough while the core is still connecting, and Suppressed
                 // counts only after Xray has actually switched over to the direct route.
                 visible = (proxyState is CoreState.Connected &&
-                    (xrayState == XrayState.Running || vpnServiceState == VpnState.Running)) ||
-                    (proxyState is CoreState.Suppressed && xrayState == XrayState.DirectRoute),
+                        (xrayState == XrayState.Running || vpnServiceState == VpnState.Running)) ||
+                        (proxyState is CoreState.Suppressed && xrayState == XrayState.DirectRoute),
                 transfer = proxyTransfer,
                 showPing = !isNativeTun,
                 ping = proxyPing,
@@ -534,7 +537,8 @@ fun HomeScreen(
 
             val isSocks5Native = activeConfig.kernelVariant.isSocks5Native
             // The profile is Xray itself (XrayKernel) - there's no overlay to set up or switch.
-            val isXrayProfile = activeConfig.kernelVariant == com.wireturn.app.data.KernelVariant.XRAY
+            val isXrayProfile =
+                activeConfig.kernelVariant == com.wireturn.app.data.KernelVariant.XRAY
             val xrayOn = xrayConfig.enabled || isXrayProfile
 
             // --- Xray & VPN Settings ---
@@ -542,7 +546,8 @@ fun HomeScreen(
                 // For OLCRTC/WebDAV/qWDTT/OpenFlux, link is only required if DualRoute or
                 // Socks5Chain is enabled - matches XrayService's own isConfigValid check.
                 if (activeXrayConfig.protocol == XrayConfiguration.VLESS &&
-                    (activeVlessConfig.isDualRoute || activeVlessConfig.isSocks5Chain)) {
+                    (activeVlessConfig.isDualRoute || activeVlessConfig.isSocks5Chain)
+                ) {
                     activeVlessConfig.isValid()
                 } else {
                     true // WG or VLESS solo mode just uses SOCKS5 from core
@@ -552,7 +557,8 @@ fun HomeScreen(
             }
             val configValid = isSettingsValid || xrayState != XrayState.Idle || isRestarting
 
-            val activeVlessProtocolLabel = stringResource(ValidatorUtils.uriProtocolStringRes(activeVlessConfig.vlessLink))
+            val activeVlessProtocolLabel =
+                stringResource(ValidatorUtils.uriProtocolStringRes(activeVlessConfig.vlessLink))
 
             val xrayProtocol = when {
                 isSocks5Native -> {
@@ -572,7 +578,8 @@ fun HomeScreen(
             }
 
             val profilesExist = profiles.isNotEmpty()
-            val currentProfile = profiles.find { it.id == currentProfileId } ?: profiles.firstOrNull()
+            val currentProfile =
+                profiles.find { it.id == currentProfileId } ?: profiles.firstOrNull()
             // Turns Xray off once its config stops being valid (a profile switch, say) - unless
             // auto-launch is about to bring it back. Only with an Xray switch to turn off.
             if (!isXrayProfile) LaunchedEffect(
@@ -651,7 +658,14 @@ fun HomeScreen(
             Spacer(Modifier.height(12.dp))
 
             ProxyAddressesSection(
-                addresses = proxyAddresses(xrayOn, isSocks5Native, activeXraySettings, activeConfig, xraySession, proxySession),
+                addresses = proxyAddresses(
+                    xrayOn,
+                    isSocks5Native,
+                    activeXraySettings,
+                    activeConfig,
+                    xraySession,
+                    proxySession
+                ),
                 socksEnabled = xrayOn || isSocks5Native,
                 httpEnabled = xrayOn,
                 privacyMode = privacyMode

@@ -32,14 +32,20 @@ class CoreManager(private val context: Context) {
 
     suspend fun observeCoreLifecycle() {
         CoreServiceState.coreFailed.collect {
-            setErrorWithAutoReset(context.getString(R.string.error_core_crashed, CoreService.MAX_RESTARTS))
+            setErrorWithAutoReset(
+                context.getString(
+                    R.string.error_core_crashed,
+                    CoreService.MAX_RESTARTS
+                )
+            )
         }
     }
 
     suspend fun observeCaptchaEvents() {
         CoreServiceState.status.collect { status ->
             if (status is CoreStatus.CaptchaRequired) {
-                _coreState.value = CoreState.CaptchaRequired(status.session.url, status.session.sessionId)
+                _coreState.value =
+                    CoreState.CaptchaRequired(status.session.url, status.session.sessionId)
             } else if (_coreState.value is CoreState.CaptchaRequired) {
                 syncStateWithService()
             }
@@ -52,11 +58,13 @@ class CoreManager(private val context: Context) {
                 is CoreStatus.Error -> {
                     setErrorWithAutoReset(status.message)
                 }
+
                 is CoreStatus.Starting -> {
                     // New attempt always resets error
                     resetJob?.cancel()
                     syncStateWithService()
                 }
+
                 else -> {
                     // Ignore transient/idle statuses if we are currently showing an error.
                     // The error will be cleared by resetJob or a new start attempt.
@@ -77,7 +85,11 @@ class CoreManager(private val context: Context) {
             is CoreStatus.Suppressed -> CoreState.Suppressed
             is CoreStatus.Stopping -> CoreState.Stopping
             is CoreStatus.WaitingForNetwork -> CoreState.WaitingForNetwork
-            is CoreStatus.CaptchaRequired -> CoreState.CaptchaRequired(status.session.url, status.session.sessionId)
+            is CoreStatus.CaptchaRequired -> CoreState.CaptchaRequired(
+                status.session.url,
+                status.session.sessionId
+            )
+
             is CoreStatus.Error -> CoreState.Error(status.message)
         }
     }
@@ -91,8 +103,9 @@ class CoreManager(private val context: Context) {
         // Разрешаем запуск, если сервис простаивает ИЛИ находится в состоянии ошибки/ожидания сети.
         // Это позволяет пользователю нажать "Retry" без ожидания.
         if (!forceRestart && currentStatus !is CoreStatus.Idle &&
-            currentStatus !is CoreStatus.Error && currentStatus !is CoreStatus.WaitingForNetwork) return
-        
+            currentStatus !is CoreStatus.Error && currentStatus !is CoreStatus.WaitingForNetwork
+        ) return
+
         // Сбрасываем локальное состояние ошибки и таймер авто-сброса перед новым запуском
         resetJob?.cancel()
         if (_coreState.value is CoreState.Error) {
@@ -119,6 +132,7 @@ class CoreManager(private val context: Context) {
                     CoreService.stop(context)
                     setErrorWithAutoReset(context.getString(R.string.error_core_not_started))
                 }
+
                 is CoreStatus.Error -> {
                     // Если сервис вернул ошибку (например, Jitsi недоступен),
                     // останавливаем его и показываем ошибку в UI. With the eternal watchdog it's

@@ -103,7 +103,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val clientConfig: StateFlow<ClientConfig> = _clientConfig.asStateFlow()
 
     private val _batteryNotificationDismissed = MutableStateFlow(false)
-    val batteryNotificationDismissed: StateFlow<Boolean> = _batteryNotificationDismissed.asStateFlow()
+    val batteryNotificationDismissed: StateFlow<Boolean> =
+        _batteryNotificationDismissed.asStateFlow()
 
     private val _appsExclusionHintShown = MutableStateFlow(false)
     val appsExclusionHintShown: StateFlow<Boolean> = _appsExclusionHintShown.asStateFlow()
@@ -182,7 +183,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val profiles: StateFlow<List<Profile>> = profileManager.profiles
     val currentProfileId: StateFlow<String> = profileManager.currentProfileId
-    val subscriptions: StateFlow<List<com.wireturn.app.data.Subscription>> = profileManager.subscriptions
+    val subscriptions: StateFlow<List<com.wireturn.app.data.Subscription>> =
+        profileManager.subscriptions
     val updatingSubIds: StateFlow<Set<String>> = profileManager.updatingSubIds
     val profileCountries: StateFlow<Map<String, String>> = profileManager.profileCountries
     val profilePings: StateFlow<Map<String, Long>> = profileManager.profilePings
@@ -190,9 +192,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val xrayLinkTester = com.wireturn.app.domain.XrayLinkTester(application)
     private val pingTestJobs = mutableMapOf<String, Job>()
     private val _testingSubIds = MutableStateFlow<Set<String>>(emptySet())
+
     /** Subscriptions whose Xray profiles are being pinged right now - see [testSubscriptionPings]. */
     val testingSubIds: StateFlow<Set<String>> = _testingSubIds.asStateFlow()
     private val _pingingProfileIds = MutableStateFlow<Set<String>>(emptySet())
+
     /** Profiles still waiting for their result in a running check - the list shows them as such. */
     val pingingProfileIds: StateFlow<Set<String>> = _pingingProfileIds.asStateFlow()
 
@@ -213,15 +217,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val profile = profiles.value.find { it.id == profileId } ?: return
         // Already in a running check (its subscription's, or its own) - that one answers it.
         if (profileId in _pingingProfileIds.value) return
-        runPingCheck(jobKey = "profile:$profileId", targets = xrayPingTargets(listOf(profile)), label = profile.name, subId = null)
+        runPingCheck(
+            jobKey = "profile:$profileId",
+            targets = xrayPingTargets(listOf(profile)),
+            label = profile.name,
+            subId = null
+        )
     }
 
-    private fun xrayPingTargets(list: List<Profile>): List<Pair<String, String>> = list.mapNotNull { p ->
-        val link = (p.kernelConfig as? KernelConfig.Xray)?.config?.link
-        if (!link.isNullOrBlank()) p.id to link else null
-    }
+    private fun xrayPingTargets(list: List<Profile>): List<Pair<String, String>> =
+        list.mapNotNull { p ->
+            val link = (p.kernelConfig as? KernelConfig.Xray)?.config?.link
+            if (!link.isNullOrBlank()) p.id to link else null
+        }
 
-    private fun runPingCheck(jobKey: String, targets: List<Pair<String, String>>, label: String, subId: String?) {
+    private fun runPingCheck(
+        jobKey: String,
+        targets: List<Pair<String, String>>,
+        label: String,
+        subId: String?
+    ) {
         if (pingTestJobs[jobKey]?.isActive == true || targets.isEmpty()) return
         val subName = label
         if (subId != null) _testingSubIds.update { it + subId }
@@ -241,14 +256,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     concurrency = xraySettings.value.pingCheckConcurrency
                 ) { index, result ->
                     val ms = when (result) {
-                        is com.wireturn.app.domain.XrayLinkTester.Result.Ok -> { ok++; result.ms }
-                        is com.wireturn.app.domain.XrayLinkTester.Result.Failed -> { failed++; ProfileManager.PING_FAILED }
+                        is com.wireturn.app.domain.XrayLinkTester.Result.Ok -> {
+                            ok++; result.ms
+                        }
+
+                        is com.wireturn.app.domain.XrayLinkTester.Result.Failed -> {
+                            failed++; ProfileManager.PING_FAILED
+                        }
                     }
                     synchronized(pending) { pending[targets[index].first] = ms }
                     // A write about once a second, so the list fills in as results come.
                     if (System.currentTimeMillis() - lastFlush >= 1_000) {
                         lastFlush = System.currentTimeMillis()
-                        val batch = synchronized(pending) { pending.toMap().also { pending.clear() } }
+                        val batch =
+                            synchronized(pending) { pending.toMap().also { pending.clear() } }
                         launch {
                             profileManager.saveProfilePings(batch)
                             // Its indicator gives way only once the result is there to replace it.
@@ -308,9 +329,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     data class TransferResult(
-        val rx: Long, 
-        val tx: Long, 
-        val rxSpeed: Long = 0, 
+        val rx: Long,
+        val tx: Long,
+        val rxSpeed: Long = 0,
         val txSpeed: Long = 0
     )
 
@@ -362,7 +383,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (currentProfiles.isNotEmpty()) {
                 if (!prefs.hasActiveProfile()) {
                     val currentId = currentProfileId.value
-                    val toActivate = currentProfiles.find { it.id == currentId } ?: currentProfiles.first()
+                    val toActivate =
+                        currentProfiles.find { it.id == currentId } ?: currentProfiles.first()
                     prefs.saveFullProfile(toActivate.id, toActivate)
                 }
             }
@@ -376,27 +398,51 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { prefs.wgConfigFlow.collect { _wgConfig.value = it } }
             launch { prefs.vlessConfigFlow.collect { _vlessConfig.value = it } }
             launch { prefs.xraySettingsFlow.collect { _xraySettings.value = it } }
-            launch { prefs.batteryNotificationDismissedFlow.collect { _batteryNotificationDismissed.value = it } }
-            launch { prefs.appsExclusionHintShownFlow.collect { _appsExclusionHintShown.value = it } }
+            launch {
+                prefs.batteryNotificationDismissedFlow.collect {
+                    _batteryNotificationDismissed.value = it
+                }
+            }
+            launch {
+                prefs.appsExclusionHintShownFlow.collect {
+                    _appsExclusionHintShown.value = it
+                }
+            }
             launch { prefs.allowUnstableUpdatesFlow.collect { _allowUnstableUpdates.value = it } }
             launch { prefs.waitForNetworkFlow.collect { _waitForNetwork.value = it } }
-            launch { prefs.restartOnNetworkChangeFlow.collect { _restartOnNetworkChange.value = it } }
+            launch {
+                prefs.restartOnNetworkChangeFlow.collect {
+                    _restartOnNetworkChange.value = it
+                }
+            }
             launch { prefs.captchaStyleModFlow.collect { _captchaStyleMod.value = it } }
             launch { prefs.captchaForceTintFlow.collect { _captchaForceTint.value = it } }
             launch { prefs.partialCaptchaAlertsFlow.collect { _partialCaptchaAlerts.value = it } }
             launch { prefs.intentApiEnabledFlow.collect { _intentApiEnabled.value = it } }
             launch { prefs.appLanguageFlow.collect { _appLanguage.value = it } }
             launch { prefs.pingUrlFlow.collect { _pingUrl.value = it } }
-            launch { prefs.countryDetectionMethodFlow.collect { _countryDetectionMethod.value = it } }
-            launch { prefs.autoLaunchSettingsFlow.collect { _autoLaunchSettings.value = it; updateAutoLaunchJob(it) } }
+            launch {
+                prefs.countryDetectionMethodFlow.collect {
+                    _countryDetectionMethod.value = it
+                }
+            }
+            launch {
+                prefs.autoLaunchSettingsFlow.collect {
+                    _autoLaunchSettings.value = it; updateAutoLaunchJob(it)
+                }
+            }
             launch { prefs.watchdogSettingsFlow.collect { _watchdogSettings.value = it } }
 
             launch {
                 var isFirstEmission = true
                 allowUnstableUpdates
                     .debounce(2_000.milliseconds)
-                    .collect { 
-                        appUpdater.checkForUpdate(silent = true, allowUnstable = it, force = !isFirstEmission)
+                    .collect {
+                        appUpdater.checkForUpdate(
+                            silent = true,
+                            allowUnstable = it,
+                            force = !isFirstEmission
+                        )
                         isFirstEmission = false
                     }
             }
@@ -431,8 +477,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         coreManager.syncInitialState()
     }
 
-    fun setHomeScreenActive(active: Boolean) { 
-        _isHomeScreenActive.value = active 
+    fun setHomeScreenActive(active: Boolean) {
+        _isHomeScreenActive.value = active
     }
 
     private fun startMetricsPoller() {
@@ -500,7 +546,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val rx = json.get("rx_bytes")?.asLong ?: 0L
             val tx = json.get("tx_bytes")?.asLong ?: 0L
             applyTransferSample(rx, tx)
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
     }
 
     /** TProxyGetStats() -> [tx_packets, tx_bytes, rx_packets, rx_bytes], see hev-jni.c. */
@@ -509,7 +556,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val stats = hevTunnel.TProxyGetStats()
             if (stats.size < 4) return@withContext
             applyTransferSample(rx = stats[3], tx = stats[1])
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
     }
 
     // The kernel logs a sample every ~3s - each is applied once, or the 1s polls in between would
@@ -524,12 +572,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         coreManager.destroy()
     }
 
-    fun setDynamicTheme(enabled: Boolean) { 
-        viewModelScope.launch { prefs.setDynamicTheme(enabled) } 
+    fun setDynamicTheme(enabled: Boolean) {
+        viewModelScope.launch { prefs.setDynamicTheme(enabled) }
     }
-    
-    fun setThemeMode(mode: ThemeMode) { 
-        viewModelScope.launch { prefs.setThemeMode(mode) } 
+
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch { prefs.setThemeMode(mode) }
     }
 
     fun setLogsMinLevel(level: LogLevel) {
@@ -552,14 +600,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateAutoLaunchSettings(settings: AutoLaunchSettings) {
-        viewModelScope.launch { 
+        viewModelScope.launch {
             prefs.updateAutoLaunchSettings(settings)
             CoreTileService.requestUpdate(getApplication())
         }
     }
 
     private fun isNetworkAvailable(): Boolean {
-        val cm = getApplication<Application>().getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+        val cm =
+            getApplication<Application>().getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
         val caps = cm?.getNetworkCapabilities(cm.activeNetwork) ?: return false
         return caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
@@ -577,7 +626,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     conn.responseCode
                 }
                 if (code in 200..399) return true
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            }
             if (it < 2) delay(300.milliseconds)
         }
         return false
@@ -593,7 +643,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     if (!isReachable && !isRunning) {
                         withContext(Dispatchers.Main) { startCore() }
                     } else if (isReachable && isRunning) {
-                        withContext(Dispatchers.Main) { 
+                        withContext(Dispatchers.Main) {
                             CoreService.stop(getApplication(), byUser = false)
                         }
                     }
@@ -606,16 +656,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun startCore() {
         ProcessLifecycleOwner.get().lifecycleScope.launch { startCoreInternal() }
     }
-    
+
     private suspend fun startCoreInternal(forceRestart: Boolean = false) {
         coreManager.startCore(clientConfig.value, forceRestart)
     }
 
-    fun stopCore() { coreManager.stopCore() }
+    fun stopCore() {
+        coreManager.stopCore()
+    }
 
-    fun submitCaptchaResult(sessionId: Long, token: String) { CoreServiceState.submitCaptchaResult(sessionId, token) }
-    fun clearLogs() { AppLogsState.clearLogs() }
-    
+    fun submitCaptchaResult(sessionId: Long, token: String) {
+        CoreServiceState.submitCaptchaResult(sessionId, token)
+    }
+
+    fun clearLogs() {
+        AppLogsState.clearLogs()
+    }
+
     fun saveClientConfig(config: ClientConfig) {
         viewModelScope.launch {
             prefs.saveClientConfig(config)
@@ -627,37 +684,37 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setOnboardingDone() {
-        viewModelScope.launch { prefs.setOnboardingDone(true) } 
+        viewModelScope.launch { prefs.setOnboardingDone(true) }
     }
-    
-    fun setBatteryNotificationDismissed(v: Boolean) { 
-        viewModelScope.launch { prefs.setBatteryNotificationDismissed(v) } 
+
+    fun setBatteryNotificationDismissed(v: Boolean) {
+        viewModelScope.launch { prefs.setBatteryNotificationDismissed(v) }
     }
-    
-    fun setAppsExclusionHintShown(v: Boolean) { 
-        viewModelScope.launch { prefs.setAppsExclusionHintShown(v) } 
+
+    fun setAppsExclusionHintShown(v: Boolean) {
+        viewModelScope.launch { prefs.setAppsExclusionHintShown(v) }
     }
-    
-    fun setAllowUnstableUpdates(v: Boolean) { 
-        viewModelScope.launch { prefs.setAllowUnstableUpdates(v) } 
+
+    fun setAllowUnstableUpdates(v: Boolean) {
+        viewModelScope.launch { prefs.setAllowUnstableUpdates(v) }
     }
-    
-    fun setWaitForNetwork(v: Boolean) { 
-        viewModelScope.launch { prefs.setWaitForNetwork(v) } 
+
+    fun setWaitForNetwork(v: Boolean) {
+        viewModelScope.launch { prefs.setWaitForNetwork(v) }
     }
-    
-    fun setRestartOnNetworkChange(v: Boolean) { 
-        viewModelScope.launch { prefs.setRestartOnNetworkChange(v) } 
+
+    fun setRestartOnNetworkChange(v: Boolean) {
+        viewModelScope.launch { prefs.setRestartOnNetworkChange(v) }
     }
-    
-    fun setVpnEnabled(v: Boolean) { 
-        viewModelScope.launch { prefs.setVpnEnabled(v) } 
+
+    fun setVpnEnabled(v: Boolean) {
+        viewModelScope.launch { prefs.setVpnEnabled(v) }
     }
 
     fun setCaptchaStyleMod(v: Boolean) {
-        viewModelScope.launch { prefs.setCaptchaStyleMod(v) } 
+        viewModelScope.launch { prefs.setCaptchaStyleMod(v) }
     }
-    
+
     fun setCaptchaForceTint(v: Boolean) {
         viewModelScope.launch { prefs.setCaptchaForceTint(v) }
     }
@@ -669,7 +726,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setIntentApiEnabled(v: Boolean) {
         viewModelScope.launch { prefs.setIntentApiEnabled(v) }
     }
-    
+
     fun setAppLanguage(l: String) {
         _appLanguage.value = l
         viewModelScope.launch {
@@ -687,7 +744,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun applyLanguage(lang: String) {
-        val loc = if (lang == "system") LocaleListCompat.getEmptyLocaleList() else LocaleListCompat.forLanguageTags(lang)
+        val loc =
+            if (lang == "system") LocaleListCompat.getEmptyLocaleList() else LocaleListCompat.forLanguageTags(
+                lang
+            )
         AppCompatDelegate.setApplicationLocales(loc)
     }
 
@@ -713,7 +773,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     if (delayFirst && attempt == 0) delay(1_000.milliseconds)
                     val res = withContext(Dispatchers.IO) {
                         try {
-                            val conn = java.net.URL(target).openConnection(proxy) as java.net.HttpURLConnection
+                            val conn = java.net.URL(target)
+                                .openConnection(proxy) as java.net.HttpURLConnection
                             conn.connectTimeout = 3000
                             conn.readTimeout = 3000
                             conn.instanceFollowRedirects = false
@@ -726,7 +787,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     if (res != null) {
                         _proxyPing.value = res
-                        if (targetProfileId != "default") profileManager.saveProfilePing(targetProfileId, res.ms)
+                        if (targetProfileId != "default") profileManager.saveProfilePing(
+                            targetProfileId,
+                            res.ms
+                        )
                         return@launch
                     }
                 }
@@ -761,10 +825,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 // "auto" tries every real method in order until one succeeds, same fallback-chain
                 // idea Hiddify's ProxyRepositoryImpl uses (ipwho.is -> ip.sb -> ipapi.co -> ipinfo.io)
                 // - useful since any single one of these can be blocked/down in a given region.
-                val methodsToTry = if (method == "auto") COUNTRY_DETECTION_AUTO_ORDER else listOf(method)
+                val methodsToTry =
+                    if (method == "auto") COUNTRY_DETECTION_AUTO_ORDER else listOf(method)
                 val country = withContext(Dispatchers.IO) {
                     methodsToTry.firstNotNullOfOrNull { m ->
-                        try { resolveCountryViaMethod(m, proxy) } catch (_: Exception) { null }
+                        try {
+                            resolveCountryViaMethod(m, proxy)
+                        } catch (_: Exception) {
+                            null
+                        }
                     }
                 }
                 if (country != null) {
@@ -786,9 +855,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             body.takeIf { Regex("^[A-Z]{2}$").matches(it) }
         }
         // ipwho.is / api.ip.sb / ipapi.co all happen to share the same top-level JSON field name.
-        "ipwhois" -> COUNTRY_CODE_JSON_REGEX.find(httpGetThroughProxy("https://ipwho.is/", proxy))?.groupValues?.get(1)
-        "ipsb" -> COUNTRY_CODE_JSON_REGEX.find(httpGetThroughProxy("https://api.ip.sb/geoip/", proxy))?.groupValues?.get(1)
-        "ipapico" -> COUNTRY_CODE_JSON_REGEX.find(httpGetThroughProxy("https://ipapi.co/json/", proxy))?.groupValues?.get(1)
+        "ipwhois" -> COUNTRY_CODE_JSON_REGEX.find(
+            httpGetThroughProxy(
+                "https://ipwho.is/",
+                proxy
+            )
+        )?.groupValues?.get(1)
+
+        "ipsb" -> COUNTRY_CODE_JSON_REGEX.find(
+            httpGetThroughProxy(
+                "https://api.ip.sb/geoip/",
+                proxy
+            )
+        )?.groupValues?.get(1)
+
+        "ipapico" -> COUNTRY_CODE_JSON_REGEX.find(
+            httpGetThroughProxy(
+                "https://ipapi.co/json/",
+                proxy
+            )
+        )?.groupValues?.get(1)
         // Cloudflare's trace endpoint echoes the connecting IP's geolocation back as a
         // "loc=XX" (ISO-3166) line in the body - the fallback for "cloudflare" and anything
         // unrecognized.
@@ -810,16 +896,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun checkForUpdate() {
-        viewModelScope.launch { 
-            appUpdater.checkForUpdate(silent = false, allowUnstable = _allowUnstableUpdates.value) 
-        } 
+        viewModelScope.launch {
+            appUpdater.checkForUpdate(silent = false, allowUnstable = _allowUnstableUpdates.value)
+        }
     }
-    
-    fun downloadUpdate() { 
-        viewModelScope.launch { appUpdater.downloadUpdate() } 
+
+    fun downloadUpdate() {
+        viewModelScope.launch { appUpdater.downloadUpdate() }
     }
-    
-    fun installUpdate() { appUpdater.installUpdate() }
+
+    fun installUpdate() {
+        appUpdater.installUpdate()
+    }
 
     fun downloadGeoAssets(variant: com.wireturn.app.domain.GeoResourceSet) {
         viewModelScope.launch {
@@ -830,13 +918,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    val customGeoSources: StateFlow<List<com.wireturn.app.domain.GeoResourceSet>> = prefs.customGeoSourcesFlow
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val customGeoSources: StateFlow<List<com.wireturn.app.domain.GeoResourceSet>> =
+        prefs.customGeoSourcesFlow
+            .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     /** Adds [source], or replaces the custom source with its id. */
     fun saveCustomGeoSource(source: com.wireturn.app.domain.GeoResourceSet) {
         val current = customGeoSources.value
-        val updated = if (current.any { it.id == source.id }) current.map { if (it.id == source.id) source else it }
+        val updated =
+            if (current.any { it.id == source.id }) current.map { if (it.id == source.id) source else it }
             else current + source
         viewModelScope.launch { prefs.saveCustomGeoSources(updated) }
     }
@@ -906,15 +996,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val curId = currentProfileId.value
         val profile = profiles.value.find { it.id == curId } ?: return
         val withKernel = profile.copy(kernelConfig = _clientConfig.value.kernelConfig)
-        profileManager.updateCurrentProfile(withKernel.copy(
-            xrayProtocol = _xrayConfig.value.protocol,
-            xrayEnabled = _xrayConfig.value.enabled,
-            wgConfig = _wgConfig.value,
-            vlessConfig = _vlessConfig.value
-        ))
+        profileManager.updateCurrentProfile(
+            withKernel.copy(
+                xrayProtocol = _xrayConfig.value.protocol,
+                xrayEnabled = _xrayConfig.value.enabled,
+                wgConfig = _wgConfig.value,
+                vlessConfig = _vlessConfig.value
+            )
+        )
     }
 
-    fun selectProfileAndRestart(id: String, profile: Profile? = null, onCompletion: (() -> Unit)? = null) {
+    fun selectProfileAndRestart(
+        id: String,
+        profile: Profile? = null,
+        onCompletion: (() -> Unit)? = null
+    ) {
         val target = profile ?: profiles.value.find { it.id == id } ?: return
         val wasAlreadySelected = id == currentProfileId.value
 
@@ -944,7 +1040,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         val id = java.util.UUID.randomUUID().toString()
         val defaultName = getApplication<Application>().getString(R.string.profile_default_name)
-        val finalName = if (name.isBlank() || name == defaultName) profileManager.nextDefaultProfileName() else name
+        val finalName =
+            if (name.isBlank() || name == defaultName) profileManager.nextDefaultProfileName() else name
         val newProfile = Profile(
             id = id,
             name = finalName,
@@ -989,30 +1086,45 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         profileManager.deleteProfiles(ids) { p -> selectProfileAndRestart(p.id, p) }
     }
+
     fun renameProfile(id: String, name: String) = profileManager.renameProfile(id, name)
     fun nextDefaultProfileName() = profileManager.nextDefaultProfileName()
 
     fun reorderProfiles(list: List<Profile>) = profileManager.reorderProfiles(list)
     fun getProfilesJson(ids: List<String>) = profileManager.getProfilesJson(ids)
     fun exportProfilesToZip(ids: List<String>) = profileManager.exportProfilesToZip(ids)
-    fun importProfilesFromZip(s: java.io.InputStream) = profileManager.importProfilesFromZip(s) { selectProfileAndRestart(it.id, it) }
-    fun importProfiles(data: List<Pair<String?, String>>) = profileManager.importProfiles(data) { selectProfileAndRestart(it.id, it) }.first
+    fun importProfilesFromZip(s: java.io.InputStream) =
+        profileManager.importProfilesFromZip(s) { selectProfileAndRestart(it.id, it) }
+
+    fun importProfiles(data: List<Pair<String?, String>>) =
+        profileManager.importProfiles(data) { selectProfileAndRestart(it.id, it) }.first
 
     /** Like [importProfiles], but also returns the freshly-imported profiles (with their newly
      * assigned local ids) so a caller can scroll/highlight to what was just added. */
     fun importProfilesWithResult(data: List<Pair<String?, String>>): Pair<com.wireturn.app.domain.ImportResult, List<Profile>> {
-        val (result, imported, _) = profileManager.importProfiles(data) { selectProfileAndRestart(it.id, it) }
+        val (result, imported, _) = profileManager.importProfiles(data) {
+            selectProfileAndRestart(
+                it.id,
+                it
+            )
+        }
         return result to imported
     }
 
     // allowInsecureHttp: the user already confirmed a cleartext http:// subscription (see
     // ImportStatus.InsecureHttp).
-    suspend fun smartImport(text: String, allowInsecureHttp: Boolean = false): com.wireturn.app.domain.ImportStatus {
+    suspend fun smartImport(
+        text: String,
+        allowInsecureHttp: Boolean = false
+    ): com.wireturn.app.domain.ImportStatus {
         val trimmed = text.trim()
 
         // 1. Subscription
         if (trimmed.startsWith("https://") || trimmed.startsWith("http://")) {
-            return profileManager.fetchSubscription(trimmed, allowInsecureHttp = allowInsecureHttp) {
+            return profileManager.fetchSubscription(
+                trimmed,
+                allowInsecureHttp = allowInsecureHttp
+            ) {
                 selectProfileAndRestart(it.id, it)
             }
         }
@@ -1025,12 +1137,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (json != null) {
                 val decodedTrimmed = json.trim()
                 if (decodedTrimmed.startsWith("https://") || decodedTrimmed.startsWith("http://")) {
-                    return profileManager.fetchSubscription(decodedTrimmed, allowInsecureHttp = allowInsecureHttp) {
+                    return profileManager.fetchSubscription(
+                        decodedTrimmed,
+                        allowInsecureHttp = allowInsecureHttp
+                    ) {
                         selectProfileAndRestart(it.id, it)
                     }
                 }
                 val (result, imported) = importProfilesWithResult(listOf(null to json))
-                val targetId = if (result.added > 0 || result.updated > 0) imported.firstOrNull()?.id else null
+                val targetId =
+                    if (result.added > 0 || result.updated > 0) imported.firstOrNull()?.id else null
                 return com.wireturn.app.domain.ImportStatus.Success(targetId, result)
             }
         }
@@ -1041,7 +1157,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (element.isJsonObject || element.isJsonArray) {
                 val (result, imported) = importProfilesWithResult(listOf(null to trimmed))
                 if (result.total > 0) {
-                    return com.wireturn.app.domain.ImportStatus.Success(imported.firstOrNull()?.id, result)
+                    return com.wireturn.app.domain.ImportStatus.Success(
+                        imported.firstOrNull()?.id,
+                        result
+                    )
                 }
             }
         } catch (_: Exception) {
@@ -1061,7 +1180,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     kernelConfig = KernelConfig.OpenFlux(carrier)
                 )
             }
-            val (result, imported, _) = profileManager.importProfileObjects(profiles) { selectProfileAndRestart(it.id, it) }
+            val (result, imported, _) = profileManager.importProfileObjects(profiles) {
+                selectProfileAndRestart(
+                    it.id,
+                    it
+                )
+            }
             return com.wireturn.app.domain.ImportStatus.Success(imported.firstOrNull()?.id, result)
         }
 
@@ -1139,13 +1263,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /** Folds (or unfolds) every subscription in the profile sheet at once - one write. */
-    fun setAllSubscriptionsCollapsed(collapsed: Boolean) = profileManager.updateAllSubscriptions { it.copy(collapsed = collapsed) }
+    fun setAllSubscriptionsCollapsed(collapsed: Boolean) =
+        profileManager.updateAllSubscriptions { it.copy(collapsed = collapsed) }
 
     /** Changes the subscription with [id] as it is now - not a copy a screen held on to. */
-    fun updateSubscriptionById(id: String, transform: (com.wireturn.app.data.Subscription) -> com.wireturn.app.data.Subscription) {
+    fun updateSubscriptionById(
+        id: String,
+        transform: (com.wireturn.app.data.Subscription) -> com.wireturn.app.data.Subscription
+    ) {
         profileManager.updateSubscription(id, transform)
     }
-    
+
     fun resetAllSettings(c: Context) {
         viewModelScope.launch {
             c.stopService(Intent(c, CoreService::class.java))

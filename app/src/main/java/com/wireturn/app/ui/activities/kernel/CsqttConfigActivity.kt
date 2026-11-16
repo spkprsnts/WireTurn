@@ -45,7 +45,11 @@ class CsqttConfigActivity : ComponentActivity() {
 
             val initialConfig = remember(clientConfig, profiles) {
                 if (configJson != null) {
-                    try { Gson().fromJson(configJson, CsqttConfig::class.java) } catch (_: Exception) { CsqttConfig() }
+                    try {
+                        Gson().fromJson(configJson, CsqttConfig::class.java)
+                    } catch (_: Exception) {
+                        CsqttConfig()
+                    }
                 } else if (profileId != null) {
                     profiles.find { it.id == profileId }?.csqttConfig ?: CsqttConfig()
                 } else if (isEditMode) {
@@ -66,13 +70,31 @@ class CsqttConfigActivity : ComponentActivity() {
                     onSave = { config ->
                         if (isEditMode) {
                             if (profileId != null) {
-                                viewModel.updateProfileById(profileId) { it.copy(kernelConfig = KernelConfig.Csqtt(config)) }
+                                viewModel.updateProfileById(profileId) {
+                                    it.copy(
+                                        kernelConfig = KernelConfig.Csqtt(
+                                            config
+                                        )
+                                    )
+                                }
                                 if (profileId == viewModel.currentProfileId.value) {
                                     // Also update the live config so CoreService doesn't keep using the stale one.
-                                    viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Csqtt(config)))
+                                    viewModel.saveClientConfig(
+                                        clientConfig.copy(
+                                            kernelConfig = KernelConfig.Csqtt(
+                                                config
+                                            )
+                                        )
+                                    )
                                 }
                             } else {
-                                viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Csqtt(config)))
+                                viewModel.saveClientConfig(
+                                    clientConfig.copy(
+                                        kernelConfig = KernelConfig.Csqtt(
+                                            config
+                                        )
+                                    )
+                                )
                             }
                             finish()
                         } else {

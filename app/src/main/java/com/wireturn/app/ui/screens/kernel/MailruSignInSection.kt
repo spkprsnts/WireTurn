@@ -46,7 +46,10 @@ fun MailruSignInSection(modifier: Modifier = Modifier) {
         ActivityResultContracts.StartActivityForResult()
     ) { signedIn = MailruSignIn.isSignedIn(context.filesDir) }
 
-    SectionGroup(title = stringResource(R.string.openflux_mailru_signin_title), modifier = modifier) {
+    SectionGroup(
+        title = stringResource(R.string.openflux_mailru_signin_title),
+        modifier = modifier
+    ) {
         SectionItem(
             position = ItemPosition.Single,
             onClick = {

@@ -39,31 +39,37 @@ class AppUpdater(private val context: Context) {
      *               false — показываем [UpdateState.Error] (ручная проверка из UI).
      * @param force  true — игнорировать минутный кулдаун (при смене настроек).
      */
-    suspend fun checkForUpdate(silent: Boolean = false, allowUnstable: Boolean = false, force: Boolean = false) {
+    suspend fun checkForUpdate(
+        silent: Boolean = false,
+        allowUnstable: Boolean = false,
+        force: Boolean = false
+    ) {
         if (!force && (_state.value == UpdateState.Checking || _state.value == UpdateState.Downloading)) return
         if (!force && _state.value == UpdateState.ReadyToInstall) return
-        
+
         if (force) cancelOngoingWork()
 
         val now = System.currentTimeMillis()
         if (!force && silent && now - lastCheckTime < 60_000) return
-        
+
         lastCheckTime = now
-        
+
         withWorker {
             AppLogsState.addLog("Checking for updates...")
             _state.value = UpdateState.Checking
             try {
-                var release = withContext(Dispatchers.IO) { 
-                    if (allowUnstable) fetchLatestUnstableRelease() else fetchLatestRelease() 
+                var release = withContext(Dispatchers.IO) {
+                    if (allowUnstable) fetchLatestUnstableRelease() else fetchLatestRelease()
                 }
-                
+
                 if (release == null) {
                     // Try again via the active local proxy, if any is running
                     val proxy = activeLocalSocksProxy()
                     if (proxy != java.net.Proxy.NO_PROXY) {
                         release = withContext(Dispatchers.IO) {
-                            if (allowUnstable) fetchLatestUnstableRelease(proxy) else fetchLatestRelease(proxy)
+                            if (allowUnstable) fetchLatestUnstableRelease(proxy) else fetchLatestRelease(
+                                proxy
+                            )
                         }
                     }
                 }
@@ -77,7 +83,7 @@ class AppUpdater(private val context: Context) {
 
                 val remoteTag = release.getString("tag_name")
                 val remoteName = release.optString("name", "")
-                
+
                 // Извлекаем версию и хеш из названия: "Unstable Build v6.1.1-a1b2c3d" -> "6.1.1-unstable-a1b2c3d"
                 val remoteVersion = if (remoteTag == "unstable-latest" && remoteName.isNotBlank()) {
                     val versionRegex = """v(\d+(?:\.\d+)*)(?:-([a-f0-9]+))?""".toRegex()
@@ -125,7 +131,7 @@ class AppUpdater(private val context: Context) {
         }
 
         cancelOngoingWork()
-        
+
         withWorker {
             AppLogsState.addLog("Downloading update...")
             _state.value = UpdateState.Downloading
@@ -168,7 +174,8 @@ class AppUpdater(private val context: Context) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 AppLogsState.addLog("Download failed: ${e.message}")
                 File(context.cacheDir, "update.apk").delete()
-                _state.value = UpdateState.Error(context.getString(R.string.error_download_failed, e.message))
+                _state.value =
+                    UpdateState.Error(context.getString(R.string.error_download_failed, e.message))
             }
         }
     }
@@ -188,7 +195,8 @@ class AppUpdater(private val context: Context) {
 
         val apkFile = File(context.cacheDir, "update.apk")
         if (!apkFile.exists()) {
-            _state.value = UpdateState.Error(context.getString(R.string.error_update_file_not_found))
+            _state.value =
+                UpdateState.Error(context.getString(R.string.error_update_file_not_found))
             return
         }
 
@@ -206,19 +214,27 @@ class AppUpdater(private val context: Context) {
 
     private fun fetchLatestRelease(proxy: java.net.Proxy? = null): JSONObject? {
         val json = fetchString(RELEASES_URL, proxy) ?: return null
-        return try { JSONObject(json) } catch (_: Exception) { null }
+        return try {
+            JSONObject(json)
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun fetchLatestUnstableRelease(proxy: java.net.Proxy? = null): JSONObject? {
         val url = "https://api.github.com/repos/spkprsnts/WireTurn/releases"
         val json = fetchString(url, proxy) ?: return null
-        
+
         return try {
             val jsonArray = JSONArray(json)
             for (i in 0 until jsonArray.length()) {
                 val release = jsonArray.getJSONObject(i)
                 val tagName = release.getString("tag_name")
-                if (tagName.contains("unstable", ignoreCase = true) || release.getBoolean("prerelease")) {
+                if (tagName.contains(
+                        "unstable",
+                        ignoreCase = true
+                    ) || release.getBoolean("prerelease")
+                ) {
                     return release
                 }
             }
@@ -253,7 +269,7 @@ class AppUpdater(private val context: Context) {
     private fun findApkUrl(release: JSONObject): String? {
         val assets = release.getJSONArray("assets")
         val apkAssets = mutableListOf<JSONObject>()
-        
+
         for (i in 0 until assets.length()) {
             val asset = assets.getJSONObject(i)
             if (asset.getString("name").endsWith(".apk", ignoreCase = true)) {
@@ -276,8 +292,8 @@ class AppUpdater(private val context: Context) {
         }
 
         // 2. Поиск универсальной сборки
-        val universal = apkAssets.find { 
-            it.getString("name").lowercase().contains("universal") 
+        val universal = apkAssets.find {
+            it.getString("name").lowercase().contains("universal")
         }
         if (universal != null) return universal.getString("browser_download_url")
 
@@ -325,16 +341,16 @@ class AppUpdater(private val context: Context) {
             if (remoteIsUnstable && currentIsUnstable) {
                 val rHash = remote.split("-").lastOrNull()?.take(7)
                 val cHash = current.split("-").lastOrNull()?.take(7)
-                
+
                 // Если хеши в самих тегах/версиях совпали — это та же версия
                 if (rHash != null && cHash != null && rHash == cHash && rHash.length >= 7) return false
-                
+
                 // Если в удаленном теге нет хеша (напр. просто v1.0-unstable), 
                 // ищем хеш текущей версии в описании релиза
                 if (cHash != null && cHash.length >= 7 && remoteBody.contains(cHash)) {
                     return false
                 }
-                
+
                 // Если номера версий одинаковые, но хеши разные (или текущий хеш не найден в удаленном)
                 // считаем, что на GitHub более свежая сборка (так как мы пересоздаем релиз)
                 val r = remote.toVersionList()
@@ -351,11 +367,11 @@ class AppUpdater(private val context: Context) {
                 val cv = c.getOrElse(i) { 0 }
                 if (rv != cv) return rv > cv
             }
-            
+
             // Если номера версий идентичны (напр. 1.0 и 1.0-unstable)
             // Стабильная версия всегда считается новее нестабильной
             if (!remoteIsUnstable && currentIsUnstable) return true
-            
+
             // Если на GitHub пришла версия с суффиксом unstable, а у нас стабильная того же номера - это не обнова
             // Во всех остальных случаях (версии равны) - false
             return false

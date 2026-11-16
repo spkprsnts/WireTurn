@@ -28,7 +28,14 @@ object LogLevels {
     )
 
     private val ERROR_KEYWORDS = listOf(
-        "ошибка", "error", "критическая", "failed", "fatal", "panic", "did not complete", "could not"
+        "ошибка",
+        "error",
+        "критическая",
+        "failed",
+        "fatal",
+        "panic",
+        "did not complete",
+        "could not"
     )
     private val WARN_KEYWORDS = listOf(
         "watchdog", "перезапуск", "quota", "warn", ">>>", "stopped", "connection lost",

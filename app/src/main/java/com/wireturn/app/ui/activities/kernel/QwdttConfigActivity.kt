@@ -45,7 +45,11 @@ class QwdttConfigActivity : ComponentActivity() {
 
             val initialConfig = remember(clientConfig, profiles) {
                 if (configJson != null) {
-                    try { Gson().fromJson(configJson, QwdttConfig::class.java) } catch (_: Exception) { QwdttConfig() }
+                    try {
+                        Gson().fromJson(configJson, QwdttConfig::class.java)
+                    } catch (_: Exception) {
+                        QwdttConfig()
+                    }
                 } else if (profileId != null) {
                     profiles.find { it.id == profileId }?.qwdttConfig ?: QwdttConfig()
                 } else if (isEditMode) {
@@ -67,13 +71,31 @@ class QwdttConfigActivity : ComponentActivity() {
                     onSave = { config ->
                         if (isEditMode) {
                             if (profileId != null) {
-                                viewModel.updateProfileById(profileId) { it.copy(kernelConfig = KernelConfig.Qwdtt(config)) }
+                                viewModel.updateProfileById(profileId) {
+                                    it.copy(
+                                        kernelConfig = KernelConfig.Qwdtt(
+                                            config
+                                        )
+                                    )
+                                }
                                 if (profileId == viewModel.currentProfileId.value) {
                                     // Also update the live config so CoreService doesn't keep using the stale one.
-                                    viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Qwdtt(config)))
+                                    viewModel.saveClientConfig(
+                                        clientConfig.copy(
+                                            kernelConfig = KernelConfig.Qwdtt(
+                                                config
+                                            )
+                                        )
+                                    )
                                 }
                             } else {
-                                viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Qwdtt(config)))
+                                viewModel.saveClientConfig(
+                                    clientConfig.copy(
+                                        kernelConfig = KernelConfig.Qwdtt(
+                                            config
+                                        )
+                                    )
+                                )
                             }
                             finish()
                         } else {

@@ -24,7 +24,7 @@ object MarkdownUtils {
             val lines = text.lines()
             lines.forEachIndexed { index, line ->
                 var currentLine = line.trim()
-                
+
                 // Обработка заголовков (### Header)
                 if (currentLine.startsWith("#")) {
                     val level = currentLine.takeWhile { it == '#' }.length
@@ -39,7 +39,7 @@ object MarkdownUtils {
                 } else {
                     parseInlineStyles(currentLine, linkStyle)
                 }
-                
+
                 if (index < lines.size - 1) {
                     append("\n")
                 }
@@ -85,7 +85,7 @@ object MarkdownUtils {
                     if (textEnd != -1 && urlStart == textEnd + 1 && urlEnd != -1) {
                         val linkText = text.substring(i + 1, textEnd)
                         val url = text.substring(urlStart + 1, urlEnd)
-                        
+
                         pushLink(LinkAnnotation.Url(url, TextLinkStyles(linkStyle)))
                         append(linkText)
                         pop()
@@ -100,7 +100,12 @@ object MarkdownUtils {
                 text.startsWith("`", i) -> {
                     val end = text.indexOf("`", i + 1)
                     if (end != -1) {
-                        withStyle(SpanStyle(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, background = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.1f))) {
+                        withStyle(
+                            SpanStyle(
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                background = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.1f)
+                            )
+                        ) {
                             append(text.substring(i + 1, end))
                         }
                         i = end + 1
@@ -116,7 +121,7 @@ object MarkdownUtils {
                     if (match != null && match.range.first == 0) {
                         val url = match.value
                         val displayUrl = shortenGithubUrl(url)
-                        
+
                         pushLink(LinkAnnotation.Url(url, TextLinkStyles(linkStyle)))
                         append(displayUrl)
                         pop()
@@ -131,14 +136,16 @@ object MarkdownUtils {
     }
 
     private fun shortenGithubUrl(url: String): String {
-        val githubCommitRegex = Regex("https?://github\\.com/[\\w\\-_]+/[\\w\\-_]+/commit/([a-f0-9]{7,40})")
-        val githubCompareRegex = Regex("https?://github\\.com/[\\w\\-_]+/[\\w\\-_]+/compare/([^/?#]+)")
+        val githubCommitRegex =
+            Regex("https?://github\\.com/[\\w\\-_]+/[\\w\\-_]+/commit/([a-f0-9]{7,40})")
+        val githubCompareRegex =
+            Regex("https?://github\\.com/[\\w\\-_]+/[\\w\\-_]+/compare/([^/?#]+)")
 
         githubCommitRegex.find(url)?.let {
             val hash = it.groupValues[1]
             return hash.take(7)
         }
-        
+
         githubCompareRegex.find(url)?.let {
             return it.groupValues[1]
         }

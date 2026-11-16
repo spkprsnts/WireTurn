@@ -45,7 +45,11 @@ class OlcRtcConfigActivity : ComponentActivity() {
 
             val initialConfig = remember(clientConfig, profiles) {
                 if (configJson != null) {
-                    try { Gson().fromJson(configJson, OlcrtcConfig::class.java) } catch (_: Exception) { OlcrtcConfig() }
+                    try {
+                        Gson().fromJson(configJson, OlcrtcConfig::class.java)
+                    } catch (_: Exception) {
+                        OlcrtcConfig()
+                    }
                 } else if (profileId != null) {
                     profiles.find { it.id == profileId }?.olcrtcConfig ?: OlcrtcConfig()
                 } else if (isEditMode) {
@@ -65,13 +69,31 @@ class OlcRtcConfigActivity : ComponentActivity() {
                     onSave = { config ->
                         if (isEditMode) {
                             if (profileId != null) {
-                                viewModel.updateProfileById(profileId) { it.copy(kernelConfig = KernelConfig.Olcrtc(config)) }
+                                viewModel.updateProfileById(profileId) {
+                                    it.copy(
+                                        kernelConfig = KernelConfig.Olcrtc(
+                                            config
+                                        )
+                                    )
+                                }
                                 if (profileId == viewModel.currentProfileId.value) {
                                     // Also update the live config so CoreService doesn't keep using the stale one.
-                                    viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Olcrtc(config)))
+                                    viewModel.saveClientConfig(
+                                        clientConfig.copy(
+                                            kernelConfig = KernelConfig.Olcrtc(
+                                                config
+                                            )
+                                        )
+                                    )
                                 }
                             } else {
-                                viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Olcrtc(config)))
+                                viewModel.saveClientConfig(
+                                    clientConfig.copy(
+                                        kernelConfig = KernelConfig.Olcrtc(
+                                            config
+                                        )
+                                    )
+                                )
                             }
                             finish()
                         } else {

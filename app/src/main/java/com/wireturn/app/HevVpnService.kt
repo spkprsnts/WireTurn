@@ -56,7 +56,8 @@ class HevVpnService : VpnService() {
                 if (prefs.vpnSettingsFlow.first().enabled) {
                     prefs.setVpnEnabled(false)
                 }
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -88,7 +89,8 @@ class HevVpnService : VpnService() {
 
         if (action == ACTION_UPDATE_TARGET) {
             val defaultSocks = DEFAULT_SOCKS_BIND_ADDRESS
-            val socks5Addr = intent.getStringExtra(EXTRA_SOCKS5_ADDR)?.takeIf { it.isNotBlank() } ?: defaultSocks
+            val socks5Addr =
+                intent.getStringExtra(EXTRA_SOCKS5_ADDR)?.takeIf { it.isNotBlank() } ?: defaultSocks
             val socks5User = intent.getStringExtra(EXTRA_SOCKS5_USER)
             val socks5Pass = intent.getStringExtra(EXTRA_SOCKS5_PASS)
             val mapDns = intent.getBooleanExtra(EXTRA_MAP_DNS, true)
@@ -118,7 +120,13 @@ class HevVpnService : VpnService() {
         val currentState = VpnServiceState.state.value
         val isStarting = startJob?.isActive == true
         if (tunInterface != null || currentState == VpnState.Running || (isStarting && currentState == VpnState.Starting)) {
-            AppLogsState.addLog(getString(R.string.log_vpn_service_active, currentState.toString(), isStarting))
+            AppLogsState.addLog(
+                getString(
+                    R.string.log_vpn_service_active,
+                    currentState.toString(),
+                    isStarting
+                )
+            )
             return START_STICKY
         }
 
@@ -142,7 +150,8 @@ class HevVpnService : VpnService() {
         goForeground()
 
         val defaultSocks = DEFAULT_SOCKS_BIND_ADDRESS
-        val socks5Addr = intent.getStringExtra(EXTRA_SOCKS5_ADDR)?.takeIf { it.isNotBlank() } ?: defaultSocks
+        val socks5Addr =
+            intent.getStringExtra(EXTRA_SOCKS5_ADDR)?.takeIf { it.isNotBlank() } ?: defaultSocks
         val socks5User = intent.getStringExtra(EXTRA_SOCKS5_USER)
         val socks5Pass = intent.getStringExtra(EXTRA_SOCKS5_PASS)
         val mapDns = intent.getBooleanExtra(EXTRA_MAP_DNS, true)
@@ -158,10 +167,17 @@ class HevVpnService : VpnService() {
     // in this hev run, though, so apps that cache DNS past the 1s TTL (Instagram) keep dialing
     // addresses the next run doesn't know, and UDP to those goes nowhere. So with Xray behind hev
     // it's off: the queries reach Xray as plain UDP/53, which it answers itself (dns-out).
-    private fun buildConfigYaml(vpnSettings: VpnSettings, socks5Addr: String, socks5User: String?, socks5Pass: String?, mapDns: Boolean): String {
+    private fun buildConfigYaml(
+        vpnSettings: VpnSettings,
+        socks5Addr: String,
+        socks5User: String?,
+        socks5Pass: String?,
+        mapDns: Boolean
+    ): String {
         val lastColon = socks5Addr.lastIndexOf(':')
         val socks5Host = if (lastColon > 0) socks5Addr.substring(0, lastColon) else socks5Addr
-        val socks5Port = if (lastColon > 0) socks5Addr.substring(lastColon + 1).toIntOrNull() ?: 1080 else 1080
+        val socks5Port =
+            if (lastColon > 0) socks5Addr.substring(lastColon + 1).toIntOrNull() ?: 1080 else 1080
 
         val authConfig = if (!socks5User.isNullOrBlank() && !socks5Pass.isNullOrBlank()) {
             "\n  username: ${yamlQuoted(socks5User)}\n  password: ${yamlQuoted(socks5Pass)}"
@@ -215,7 +231,12 @@ misc:
                 startForeground(NotificationHelper.NOTIFICATION_ID, notification)
             }
         } catch (e: Exception) {
-            AppLogsState.addLog(getString(R.string.log_vpn_foreground_failed, e.message ?: "Unknown"))
+            AppLogsState.addLog(
+                getString(
+                    R.string.log_vpn_foreground_failed,
+                    e.message ?: "Unknown"
+                )
+            )
         }
     }
 
@@ -235,7 +256,12 @@ misc:
                 try {
                     CoreService.start(applicationContext, prefs.clientConfigFlow.first())
                 } catch (e: Exception) {
-                    AppLogsState.addLog(getString(R.string.log_vpn_error, "always-on core start: ${e.message}"))
+                    AppLogsState.addLog(
+                        getString(
+                            R.string.log_vpn_error,
+                            "always-on core start: ${e.message}"
+                        )
+                    )
                 }
             }
             // Nothing ever gets established if the core can't start or its profile has no VPN
@@ -253,7 +279,12 @@ misc:
     private fun addTunRoutes(builder: Builder, vpnSettings: VpnSettings) {
         if (vpnSettings.bypassLan) {
             LanRoutes.ipv4.forEach { (address, prefix) -> builder.addRoute(address, prefix) }
-            if (vpnSettings.ipv6) LanRoutes.ipv6.forEach { (address, prefix) -> builder.addRoute(address, prefix) }
+            if (vpnSettings.ipv6) LanRoutes.ipv6.forEach { (address, prefix) ->
+                builder.addRoute(
+                    address,
+                    prefix
+                )
+            }
         } else {
             builder.addRoute("0.0.0.0", 0)
             if (vpnSettings.ipv6) builder.addRoute("::", 0)
@@ -262,7 +293,12 @@ misc:
 
     // Repoints the relay at a new SOCKS5 target without touching the tun interface - a fresh
     // establish() would switch the device's default network and disrupt every other app.
-    private suspend fun updateTarget(socks5Addr: String, socks5User: String?, socks5Pass: String?, mapDns: Boolean) {
+    private suspend fun updateTarget(
+        socks5Addr: String,
+        socks5User: String?,
+        socks5Pass: String?,
+        mapDns: Boolean
+    ) {
         nativeLock.withLock {
             // A kernel-TUN tun has no hev to repoint - leaving that mode goes through a full restart.
             if (nativeTun != null) return
@@ -276,13 +312,26 @@ misc:
                 try {
                     hevTunnel.TProxyStopService()
                 } catch (e: Exception) {
-                    AppLogsState.addLog(getString(R.string.log_vpn_stop_error, e.message ?: "Unknown"))
+                    AppLogsState.addLog(
+                        getString(
+                            R.string.log_vpn_stop_error,
+                            e.message ?: "Unknown"
+                        )
+                    )
                 }
             }
 
             val configFile = File(filesDir, "hev-socks5-tunnel.yaml")
             val vpnSettings = AppPreferences(applicationContext).vpnSettingsFlow.first()
-            configFile.writeText(buildConfigYaml(vpnSettings, socks5Addr, socks5User, socks5Pass, mapDns))
+            configFile.writeText(
+                buildConfigYaml(
+                    vpnSettings,
+                    socks5Addr,
+                    socks5User,
+                    socks5Pass,
+                    mapDns
+                )
+            )
 
             AppLogsState.addLog(getString(R.string.log_vpn_retarget, socks5Addr))
             val success = withContext(Dispatchers.IO) {
@@ -327,15 +376,33 @@ misc:
             addTunRoutes(builder, vpnSettings)
             builder.addDisallowedApplication(packageName)
             vpnSettings.excludedApps.forEach { pkg ->
-                try { builder.addDisallowedApplication(pkg) }
-                catch (e: Exception) { AppLogsState.addLog(getString(R.string.log_vpn_exclude_failed, pkg, e.message ?: "Unknown")) }
+                try {
+                    builder.addDisallowedApplication(pkg)
+                } catch (e: Exception) {
+                    AppLogsState.addLog(
+                        getString(
+                            R.string.log_vpn_exclude_failed,
+                            pkg,
+                            e.message ?: "Unknown"
+                        )
+                    )
+                }
             }
         } else {
             if (vpnSettings.excludedApps.isNotEmpty()) {
                 addTunRoutes(builder, vpnSettings)
                 vpnSettings.excludedApps.forEach { pkg ->
-                    try { builder.addAllowedApplication(pkg) }
-                    catch (e: Exception) { AppLogsState.addLog(getString(R.string.log_vpn_include_failed, pkg, e.message ?: "Unknown")) }
+                    try {
+                        builder.addAllowedApplication(pkg)
+                    } catch (e: Exception) {
+                        AppLogsState.addLog(
+                            getString(
+                                R.string.log_vpn_include_failed,
+                                pkg,
+                                e.message ?: "Unknown"
+                            )
+                        )
+                    }
                 }
             } else {
                 AppLogsState.addLog(getString(R.string.log_vpn_include_empty))
@@ -359,7 +426,9 @@ misc:
     // kernel was assigned and handed to it - no hev in between. Non-null while the current tun is
     // one of those.
     private data class NativeTun(val address: String, val dns: List<String>, val mtu: Int)
-    @Volatile private var nativeTun: NativeTun? = null
+
+    @Volatile
+    private var nativeTun: NativeTun? = null
 
     private suspend fun startNativeVpn(params: NativeTun, socketName: String) {
         try {
@@ -370,25 +439,44 @@ misc:
                 // again - no blip in the device's network.
                 if (current != null && nativeTun == params) return@withLock current
 
-                if (VpnServiceState.state.value != VpnState.Running) VpnServiceState.updateStatus(VpnState.Starting)
+                if (VpnServiceState.state.value != VpnState.Running) VpnServiceState.updateStatus(
+                    VpnState.Starting
+                )
                 // A hev tun, or another assignment: the address is part of the interface itself.
                 if (hevRunning.getAndSet(false)) {
-                    try { hevTunnel.TProxyStopService() } catch (_: Exception) {}
+                    try {
+                        hevTunnel.TProxyStopService()
+                    } catch (_: Exception) {
+                    }
                 }
                 synchronized(this@HevVpnService) {
-                    tunInterface?.let { try { it.close() } catch (_: Exception) {} }
+                    tunInterface?.let {
+                        try {
+                            it.close()
+                        } catch (_: Exception) {
+                        }
+                    }
                     tunInterface = null
                 }
                 nativeTun = null
 
-                AppLogsState.addLog(getString(R.string.log_vpn_native_establishing, params.address, params.mtu))
+                AppLogsState.addLog(
+                    getString(
+                        R.string.log_vpn_native_establishing,
+                        params.address,
+                        params.mtu
+                    )
+                )
                 val vpnSettings = AppPreferences(applicationContext).vpnSettingsFlow.first()
                 val builder = this@HevVpnService.Builder()
                     .setSession("wireturn VPN")
                     .setMtu(params.mtu)
                     .addAddress(params.address, 32)
                 params.dns.forEach { dns ->
-                    try { builder.addDnsServer(dns) } catch (_: Exception) {}
+                    try {
+                        builder.addDnsServer(dns)
+                    } catch (_: Exception) {
+                    }
                 }
                 // The raw path is IPv4-only: no v6 address, so v6 never enters the tun.
                 configureRoutingAndApps(builder, vpnSettings.copy(ipv6 = false))
@@ -413,7 +501,12 @@ misc:
             } else {
                 // The tun stays up (nothing leaks around it); the kernel waits for it until it's
                 // restarted, which asks for it again.
-                AppLogsState.addLog(getString(R.string.log_vpn_error, "TUN handover to the kernel failed"))
+                AppLogsState.addLog(
+                    getString(
+                        R.string.log_vpn_error,
+                        "TUN handover to the kernel failed"
+                    )
+                )
                 VpnServiceState.updateStatus(VpnState.Error(getString(R.string.error_connecting)))
                 NotificationHelper.updateNotification(this@HevVpnService)
             }
@@ -427,26 +520,37 @@ misc:
 
     // The kernel listens on an abstract Unix socket and takes the tun over SCM_RIGHTS: a child
     // process inherits no fds from here otherwise. It may still be getting there, so retry a while.
-    private suspend fun sendTunFd(socketName: String, tun: ParcelFileDescriptor): Boolean = withContext(Dispatchers.IO) {
-        repeat(TUN_HANDOVER_ATTEMPTS) {
-            if (isStopping.get()) return@withContext false
-            try {
-                android.net.LocalSocket().use { socket ->
-                    socket.connect(android.net.LocalSocketAddress(socketName, android.net.LocalSocketAddress.Namespace.ABSTRACT))
-                    socket.setFileDescriptorsForSend(arrayOf(tun.fileDescriptor))
-                    // The byte itself doesn't matter - it carries the fd as ancillary data.
-                    socket.outputStream.write(1)
-                    socket.outputStream.flush()
+    private suspend fun sendTunFd(socketName: String, tun: ParcelFileDescriptor): Boolean =
+        withContext(Dispatchers.IO) {
+            repeat(TUN_HANDOVER_ATTEMPTS) {
+                if (isStopping.get()) return@withContext false
+                try {
+                    android.net.LocalSocket().use { socket ->
+                        socket.connect(
+                            android.net.LocalSocketAddress(
+                                socketName,
+                                android.net.LocalSocketAddress.Namespace.ABSTRACT
+                            )
+                        )
+                        socket.setFileDescriptorsForSend(arrayOf(tun.fileDescriptor))
+                        // The byte itself doesn't matter - it carries the fd as ancillary data.
+                        socket.outputStream.write(1)
+                        socket.outputStream.flush()
+                    }
+                    return@withContext true
+                } catch (_: Exception) {
+                    delay(TUN_HANDOVER_RETRY_MS.milliseconds)
                 }
-                return@withContext true
-            } catch (_: Exception) {
-                delay(TUN_HANDOVER_RETRY_MS.milliseconds)
             }
+            false
         }
-        false
-    }
 
-    private suspend fun startVpn(socks5Addr: String, socks5User: String?, socks5Pass: String?, mapDns: Boolean) {
+    private suspend fun startVpn(
+        socks5Addr: String,
+        socks5User: String?,
+        socks5Pass: String?,
+        mapDns: Boolean
+    ) {
         // The established tun until it's tunInterface's - closed here if this attempt ends before
         // that, or it would outlive it (and keep the device's VPN up) with nothing to close it.
         var pending: ParcelFileDescriptor? = null
@@ -482,12 +586,23 @@ misc:
 
             val tunFd = established.fd
             val configFile = File(filesDir, "hev-socks5-tunnel.yaml")
-            configFile.writeText(buildConfigYaml(vpnSettings, socks5Addr, socks5User, socks5Pass, mapDns))
+            configFile.writeText(
+                buildConfigYaml(
+                    vpnSettings,
+                    socks5Addr,
+                    socks5User,
+                    socks5Pass,
+                    mapDns
+                )
+            )
 
             nativeLock.withLock {
                 if (isStopping.get()) {
                     pending = null
-                    try { established.close() } catch (_: Exception) {}
+                    try {
+                        established.close()
+                    } catch (_: Exception) {
+                    }
                     if (VpnServiceState.state.value == VpnState.Starting) {
                         VpnServiceState.updateStatus(VpnState.Idle)
                     }
@@ -504,11 +619,11 @@ misc:
                 val success = withContext(Dispatchers.IO) {
                     hevTunnel.TProxyStartService(configFile.absolutePath, tunFd)
                 }
-                
+
                 if (!success) {
                     throw RuntimeException("Native hev-socks5-tunnel failed to start")
                 }
-                
+
                 hevRunning.set(true)
                 VpnServiceState.updateStatus(VpnState.Running)
                 NotificationHelper.updateNotification(this@HevVpnService)
@@ -520,13 +635,23 @@ misc:
             // by a kernel-TUN start (ACTION_START_NATIVE, which replaces the tun). stopVpn() here
             // would cancel that newer startJob too and flag the service as stopping - the kernel's
             // tun would then never come up, with VPN mode still on. Only this attempt's own tun.
-            pending?.let { try { it.close() } catch (_: Exception) {} }
+            pending?.let {
+                try {
+                    it.close()
+                } catch (_: Exception) {
+                }
+            }
             if (VpnServiceState.state.value == VpnState.Starting) {
                 VpnServiceState.updateStatus(VpnState.Idle)
             }
             throw e
         } catch (e: Exception) {
-            pending?.let { try { it.close() } catch (_: Exception) {} }
+            pending?.let {
+                try {
+                    it.close()
+                } catch (_: Exception) {
+                }
+            }
             AppLogsState.addLog(getString(R.string.log_vpn_error, e.message ?: "Unknown"))
             VpnServiceState.updateStatus(VpnState.Error(e.message ?: "Unknown error"))
             stopVpn()
@@ -545,12 +670,22 @@ misc:
                         hevTunnel.TProxyStopService()
                         AppLogsState.addLog(getString(R.string.log_vpn_stopped))
                     } catch (e: Exception) {
-                        AppLogsState.addLog(getString(R.string.log_vpn_stop_error, e.message ?: "Unknown"))
+                        AppLogsState.addLog(
+                            getString(
+                                R.string.log_vpn_stop_error,
+                                e.message ?: "Unknown"
+                            )
+                        )
                     }
                 }
 
                 synchronized(this@HevVpnService) {
-                    tunInterface?.let { try { it.close() } catch (_: Exception) {} }
+                    tunInterface?.let {
+                        try {
+                            it.close()
+                        } catch (_: Exception) {
+                        }
+                    }
                     tunInterface = null
                 }
                 nativeTun = null
@@ -584,11 +719,21 @@ misc:
                         hevTunnel.TProxyStopService()
                         AppLogsState.addLog(getString(R.string.log_vpn_stopped))
                     } catch (e: Exception) {
-                        AppLogsState.addLog(getString(R.string.log_vpn_stop_error, e.message ?: "Unknown"))
+                        AppLogsState.addLog(
+                            getString(
+                                R.string.log_vpn_stop_error,
+                                e.message ?: "Unknown"
+                            )
+                        )
                     }
                 }
                 synchronized(this@HevVpnService) {
-                    tunInterface?.let { try { it.close() } catch (_: Exception) {} }
+                    tunInterface?.let {
+                        try {
+                            it.close()
+                        } catch (_: Exception) {
+                        }
+                    }
                     tunInterface = null
                 }
             }
@@ -611,9 +756,11 @@ misc:
         // How long an always-on start waits for the supervisor to establish before giving up
         // (see startFromSystem) - a kernel's own startup plus Xray's, with room to spare.
         private const val ALWAYS_ON_TARGET_TIMEOUT_MS = 60_000L
+
         // Kernel TUN handover: 25 × 200 ms, the same window the official qWDTT client gives it.
         private const val TUN_HANDOVER_ATTEMPTS = 25
         private const val TUN_HANDOVER_RETRY_MS = 200L
+
         // Kernel TUN mode (Kernel.supportsNativeTun) - see startNativeVpn.
         const val ACTION_START_NATIVE = "START_NATIVE"
         const val EXTRA_NATIVE_SOCKET = "native_socket"
@@ -622,18 +769,22 @@ misc:
         const val EXTRA_NATIVE_MTU = "native_mtu"
         const val ACTION_STOP = "STOP"
         const val ACTION_STOP_BY_USER = "STOP_BY_USER"
+
         // Repoints the native relay at a new SOCKS5 target on an already-established tun -
         // see updateTarget(). Only valid while the tun is up; falls back silently otherwise.
         const val ACTION_UPDATE_TARGET = "UPDATE_TARGET"
         const val EXTRA_SOCKS5_ADDR = "socks5_addr"
         const val EXTRA_SOCKS5_USER = "socks5_user"
         const val EXTRA_SOCKS5_PASS = "socks5_pass"
+
         // false when the target is Xray, which resolves the tun's DNS itself - see buildConfigYaml.
         const val EXTRA_MAP_DNS = "map_dns"
 
         private const val TUN_IPV4_ADDRESS = "10.0.88.88"
+
         // ULA (RFC 4193), same convention hev-socks5-tunnel's own README example uses.
         private const val TUN_IPV6_ADDRESS = "fc00::1"
+
         // Not a real public resolver: Chrome auto-upgrades to DoH for known providers, which
         // would bypass the local fake-DNS responder. 198.18.0.1 (RFC 2544 benchmark range)
         // isn't on Chrome's built-in DoH provider list, so it can't trigger that.

@@ -86,7 +86,11 @@ private suspend fun WebView.evalJs(script: String): String? =
  * installs the native JS bridge (`useNativeBridge`, qWDTT-only) - FreeTurn's dialog never gets the
  * bridge, so it has no reason to accept navigation anywhere outside its own local proxy either.
  */
-private fun isAllowedCaptchaNavigationUrl(url: String, initialHost: String?, allowVkDomains: Boolean): Boolean {
+private fun isAllowedCaptchaNavigationUrl(
+    url: String,
+    initialHost: String?,
+    allowVkDomains: Boolean
+): Boolean {
     val uri = url.toUri()
     val scheme = uri.scheme?.lowercase()
     val host = uri.host ?: return false
@@ -128,7 +132,8 @@ fun CaptchaWebViewDialog(
     val isContentVisible = remember { mutableStateOf(false) }
     var webViewHeight by remember { mutableIntStateOf(0) }
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
-    val initialCaptchaHost = remember(captchaUrl) { runCatching { captchaUrl.toUri().host }.getOrNull() }
+    val initialCaptchaHost =
+        remember(captchaUrl) { runCatching { captchaUrl.toUri().host }.getOrNull() }
     // Guards against the bridge and the poll both firing for the same success (e.g. the bridge
     // wins the race, but the poll's in-flight evaluateJavascript call still resolves after).
     val successHandled = remember { AtomicBoolean(false) }
@@ -272,64 +277,68 @@ fun CaptchaWebViewDialog(
                         .clip(MaterialTheme.shapes.large)
                 ) {
                     if (isViewModelInitialized) {
-                    AndroidView(
-                        factory = { ctx ->
-                            // Lets chrome://inspect see this WebView over USB for debugging captcha
-                            // page changes - only in debug builds, never in release.
-                            if ((ctx.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
-                                WebView.setWebContentsDebuggingEnabled(true)
-                            }
-                            WebView(ctx).apply {
-                                // Устанавливаем программный тип слоя для лучшей поддержки прозрачности
-                                setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
-                                
-                                layoutParams = ViewGroup.LayoutParams(
-                                    ViewGroup.LayoutParams.MATCH_PARENT,
-                                    ViewGroup.LayoutParams.MATCH_PARENT
-                                )
-
-                                settings.apply {
-                                    javaScriptEnabled = true
-                                    domStorageEnabled = true
-                                    useWideViewPort = true
-                                    loadWithOverviewMode = true
-                                    setSupportZoom(false)
-                                    builtInZoomControls = false
-                                    displayZoomControls = false
-                                    mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-
-                                    // Снимаем только маркер "; wv)" с настоящей UA-строки, вместо
-                                    // подмены на выдуманную версию Chrome: реальный UA остаётся
-                                    // согласован с реальным движком/Client Hints устройства, без
-                                    // риска рассинхрона версии, которую видит антибот через
-                                    // feature-detection.
-                                    userAgentString = userAgentString.replace("; wv)", ")")
+                        AndroidView(
+                            factory = { ctx ->
+                                // Lets chrome://inspect see this WebView over USB for debugging captcha
+                                // page changes - only in debug builds, never in release.
+                                if ((ctx.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+                                    WebView.setWebContentsDebuggingEnabled(true)
                                 }
+                                WebView(ctx).apply {
+                                    // Устанавливаем программный тип слоя для лучшей поддержки прозрачности
+                                    setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
 
-                                setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                                    layoutParams = ViewGroup.LayoutParams(
+                                        ViewGroup.LayoutParams.MATCH_PARENT,
+                                        ViewGroup.LayoutParams.MATCH_PARENT
+                                    )
 
-                                webViewClient = object : WebViewClient() {
-                                    override fun onPageStarted(
-                                        view: WebView?,
-                                        url: String?,
-                                        favicon: Bitmap?
-                                    ) {
-                                        super.onPageStarted(view, url, favicon)
-                                        isLoading = true
-                                        // Попытка сделать фон прозрачным как можно раньше
-                                        view?.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                                    settings.apply {
+                                        javaScriptEnabled = true
+                                        domStorageEnabled = true
+                                        useWideViewPort = true
+                                        loadWithOverviewMode = true
+                                        setSupportZoom(false)
+                                        builtInZoomControls = false
+                                        displayZoomControls = false
+                                        mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+
+                                        // Снимаем только маркер "; wv)" с настоящей UA-строки, вместо
+                                        // подмены на выдуманную версию Chrome: реальный UA остаётся
+                                        // согласован с реальным движком/Client Hints устройства, без
+                                        // риска рассинхрона версии, которую видит антибот через
+                                        // feature-detection.
+                                        userAgentString = userAgentString.replace("; wv)", ")")
                                     }
 
-                                    override fun shouldOverrideUrlLoading(
-                                        view: WebView,
-                                        request: WebResourceRequest
-                                    ): Boolean = !isAllowedCaptchaNavigationUrl(request.url.toString(), initialCaptchaHost, useNativeBridge)
+                                    setBackgroundColor(android.graphics.Color.TRANSPARENT)
 
-                                    override fun onPageFinished(view: WebView?, url: String?) {
-                                        super.onPageFinished(view, url)
+                                    webViewClient = object : WebViewClient() {
+                                        override fun onPageStarted(
+                                            view: WebView?,
+                                            url: String?,
+                                            favicon: Bitmap?
+                                        ) {
+                                            super.onPageStarted(view, url, favicon)
+                                            isLoading = true
+                                            // Попытка сделать фон прозрачным как можно раньше
+                                            view?.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                                        }
 
-                                        view?.evaluateJavascript(
-                                            """
+                                        override fun shouldOverrideUrlLoading(
+                                            view: WebView,
+                                            request: WebResourceRequest
+                                        ): Boolean = !isAllowedCaptchaNavigationUrl(
+                                            request.url.toString(),
+                                            initialCaptchaHost,
+                                            useNativeBridge
+                                        )
+
+                                        override fun onPageFinished(view: WebView?, url: String?) {
+                                            super.onPageFinished(view, url)
+
+                                            view?.evaluateJavascript(
+                                                """
                                             (function() {
                                                 window.__wireturnCaptcha = { isDark: $isDarkTheme, styleModEnabled: $captchaStyleMod, success: false, height: 0, visible: false };
 
@@ -496,47 +505,47 @@ fun CaptchaWebViewDialog(
                                                 }, 500);
                                             })();
                                             """.trimIndent(), null
-                                        )
+                                            )
+                                        }
                                     }
-                                }
 
-                                if (useNativeBridge) {
-                                    addJavascriptInterface(object {
-                                        // Called synchronously from markSuccess() in the same JS
-                                        // tick that detects success_token - can't lose the race
-                                        // against a subsequent same-webview navigation the way the
-                                        // poll below can. Runs on a WebView worker thread, so hop
-                                        // to main before touching Compose state.
-                                        @JavascriptInterface
-                                        fun onSuccess(token: String) {
-                                            mainHandler.post {
-                                                if (successHandled.compareAndSet(false, true)) {
-                                                    onSuccess?.invoke(token)
+                                    if (useNativeBridge) {
+                                        addJavascriptInterface(object {
+                                            // Called synchronously from markSuccess() in the same JS
+                                            // tick that detects success_token - can't lose the race
+                                            // against a subsequent same-webview navigation the way the
+                                            // poll below can. Runs on a WebView worker thread, so hop
+                                            // to main before touching Compose state.
+                                            @JavascriptInterface
+                                            fun onSuccess(token: String) {
+                                                mainHandler.post {
+                                                    if (successHandled.compareAndSet(false, true)) {
+                                                        onSuccess?.invoke(token)
+                                                    }
                                                 }
                                             }
-                                        }
-                                    }, "WireTurnNativeCaptcha")
-                                }
+                                        }, "WireTurnNativeCaptcha")
+                                    }
 
-                                loadUrl(captchaUrl)
-                                webViewRef.value = this
-                            }
-                        },
-                        update = { webView ->
-                            webView.evaluateJavascript(
-                                "if (window.__wireturnApplyCaptchaStyle) { window.__wireturnApplyCaptchaStyle(`$captchaCss`, $captchaStyleMod, $isDarkTheme); }",
-                                null
-                            )
-                        },
-                        // The native JS bridge (when installed) captures onSuccess, which closes
-                        // over the caller's Activity/ViewModel chain - without an explicit destroy()
-                        // here, that closure (and everything it holds) stays reachable through the
-                        // WebView for as long as its native backing lives, past this dialog's exit.
-                        onRelease = { it.destroy() },
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer { alpha = contentAlpha }
-                    )
+                                    loadUrl(captchaUrl)
+                                    webViewRef.value = this
+                                }
+                            },
+                            update = { webView ->
+                                webView.evaluateJavascript(
+                                    "if (window.__wireturnApplyCaptchaStyle) { window.__wireturnApplyCaptchaStyle(`$captchaCss`, $captchaStyleMod, $isDarkTheme); }",
+                                    null
+                                )
+                            },
+                            // The native JS bridge (when installed) captures onSuccess, which closes
+                            // over the caller's Activity/ViewModel chain - without an explicit destroy()
+                            // here, that closure (and everything it holds) stays reachable through the
+                            // WebView for as long as its native backing lives, past this dialog's exit.
+                            onRelease = { it.destroy() },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer { alpha = contentAlpha }
+                        )
                     }
 
                     if (isLoading) {

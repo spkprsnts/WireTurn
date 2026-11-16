@@ -15,7 +15,8 @@ object LanRoutes {
     // Private, link-local and multicast/reserved (incl. broadcast). 100.64.0.0/10 (hev's MapDNS
     // fake addresses) and 198.18.0.0/15 (the VPN's DNS server) are deliberately not here - both
     // must stay inside the tun.
-    private val LAN_V4 = listOf("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16", "224.0.0.0/3")
+    private val LAN_V4 =
+        listOf("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16", "224.0.0.0/3")
     private val LAN_V6 = listOf("fc00::/7", "fe80::/10", "ff00::/8")
 
     /** (address, prefix length) routes covering all IPv4 except [LAN_V4]. */
@@ -26,11 +27,17 @@ object LanRoutes {
 
     private fun complement(excluded: List<String>, bits: Int): List<Pair<String, Int>> {
         val ex = excluded.map { cidr ->
-            BigInteger(1, InetAddress.getByName(cidr.substringBefore('/')).address) to cidr.substringAfter('/').toInt()
+            BigInteger(
+                1,
+                InetAddress.getByName(cidr.substringBefore('/')).address
+            ) to cidr.substringAfter('/').toInt()
         }
-        fun sameNetwork(a: BigInteger, b: BigInteger, len: Int) = a.shiftRight(bits - len) == b.shiftRight(bits - len)
+
+        fun sameNetwork(a: BigInteger, b: BigInteger, len: Int) =
+            a.shiftRight(bits - len) == b.shiftRight(bits - len)
 
         val routes = mutableListOf<Pair<String, Int>>()
+
         // Splits a block in halves until each half is either fully excluded (dropped) or
         // overlaps no excluded range at all (kept whole).
         fun walk(base: BigInteger, len: Int) {

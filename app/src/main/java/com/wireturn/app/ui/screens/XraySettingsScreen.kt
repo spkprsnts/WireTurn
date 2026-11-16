@@ -125,7 +125,14 @@ fun XraySettingsScreen(
     var dpiBypassArgs by remember { mutableStateOf(initialXraySettings.dpiBypassArgs) }
     var dpiBypassRoute by remember { mutableStateOf(initialXraySettings.dpiBypassRoute) }
     var dpiBypassPort by remember { mutableStateOf(initialXraySettings.dpiBypassPort) }
-    var pingConcurrency by remember { mutableIntStateOf(initialXraySettings.pingCheckConcurrency.coerceIn(1, XraySettings.MAX_PING_CHECK_CONCURRENCY)) }
+    var pingConcurrency by remember {
+        mutableIntStateOf(
+            initialXraySettings.pingCheckConcurrency.coerceIn(
+                1,
+                XraySettings.MAX_PING_CHECK_CONCURRENCY
+            )
+        )
+    }
     var reloadOnNetworkChange by remember { mutableStateOf(initialXraySettings.reloadOnNetworkChange) }
 
     val showGeoDialog = remember { mutableStateOf(false) }
@@ -140,21 +147,41 @@ fun XraySettingsScreen(
     // While a download is in flight, reflect its target rather than the (possibly stale, or
     // just-deleted) previously installed variant - otherwise the label lies about what's
     // actually happening (e.g. still saying "v2fly" while RunetFreedom is being fetched).
-    val displayedVariant = (geoAssetsState as? GeoAssetsState.Downloading)?.variant ?: installedVariant
+    val displayedVariant =
+        (geoAssetsState as? GeoAssetsState.Downloading)?.variant ?: installedVariant
     val installedVariantLabel = geoVariantLabel(displayedVariant)
-    val geoDateFormat = remember { DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT) }
+    val geoDateFormat =
+        remember { DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT) }
     val geoStatusText = when {
         geoAssetsState is GeoAssetsState.Downloading -> stringResource(R.string.geo_resources_downloading)
-        geoAssetsInstalled -> stringResource(R.string.geo_resources_updated_at, geoDateFormat.format(Date(geoAssetsInstalledAt)))
+        geoAssetsInstalled -> stringResource(
+            R.string.geo_resources_updated_at,
+            geoDateFormat.format(Date(geoAssetsInstalledAt))
+        )
+
         else -> stringResource(R.string.geo_resources_not_downloaded)
     }
 
     val scrollState = rememberScrollState()
 
     val currentXraySettings = remember(
-        xraySocks, xrayHttp, xrayAuth, xrayUser, xrayPass,
-        dns, routeDirect, routeBlock, fakeDns, fragment, dpiBypass, dpiBypassArgs, dpiBypassRoute, dpiBypassPort, pingConcurrency,
-        reloadOnNetworkChange, initialXraySettings
+        xraySocks,
+        xrayHttp,
+        xrayAuth,
+        xrayUser,
+        xrayPass,
+        dns,
+        routeDirect,
+        routeBlock,
+        fakeDns,
+        fragment,
+        dpiBypass,
+        dpiBypassArgs,
+        dpiBypassRoute,
+        dpiBypassPort,
+        pingConcurrency,
+        reloadOnNetworkChange,
+        initialXraySettings
     ) {
         initialXraySettings.copy(
             socksBindAddress = xraySocks,
@@ -178,21 +205,21 @@ fun XraySettingsScreen(
 
     val isModified = remember(currentXraySettings, initialXraySettings) {
         currentXraySettings.socksBindAddress != initialXraySettings.socksBindAddress ||
-        currentXraySettings.httpBindAddress != initialXraySettings.httpBindAddress ||
-        currentXraySettings.isProxyAuthEnabled != initialXraySettings.isProxyAuthEnabled ||
-        currentXraySettings.proxyUser != initialXraySettings.proxyUser ||
-        currentXraySettings.proxyPass != initialXraySettings.proxyPass ||
-        currentXraySettings.dns != initialXraySettings.dns ||
-        currentXraySettings.routeDirect != initialXraySettings.routeDirect ||
-        currentXraySettings.routeBlock != initialXraySettings.routeBlock ||
-        currentXraySettings.fakeDns != initialXraySettings.fakeDns ||
-        currentXraySettings.fragment != initialXraySettings.fragment ||
-        currentXraySettings.dpiBypass != initialXraySettings.dpiBypass ||
-        currentXraySettings.dpiBypassArgs != initialXraySettings.dpiBypassArgs ||
-        currentXraySettings.dpiBypassRoute != initialXraySettings.dpiBypassRoute ||
-        currentXraySettings.dpiBypassPort != initialXraySettings.dpiBypassPort ||
-        currentXraySettings.pingCheckConcurrency != initialXraySettings.pingCheckConcurrency ||
-        currentXraySettings.reloadOnNetworkChange != initialXraySettings.reloadOnNetworkChange
+                currentXraySettings.httpBindAddress != initialXraySettings.httpBindAddress ||
+                currentXraySettings.isProxyAuthEnabled != initialXraySettings.isProxyAuthEnabled ||
+                currentXraySettings.proxyUser != initialXraySettings.proxyUser ||
+                currentXraySettings.proxyPass != initialXraySettings.proxyPass ||
+                currentXraySettings.dns != initialXraySettings.dns ||
+                currentXraySettings.routeDirect != initialXraySettings.routeDirect ||
+                currentXraySettings.routeBlock != initialXraySettings.routeBlock ||
+                currentXraySettings.fakeDns != initialXraySettings.fakeDns ||
+                currentXraySettings.fragment != initialXraySettings.fragment ||
+                currentXraySettings.dpiBypass != initialXraySettings.dpiBypass ||
+                currentXraySettings.dpiBypassArgs != initialXraySettings.dpiBypassArgs ||
+                currentXraySettings.dpiBypassRoute != initialXraySettings.dpiBypassRoute ||
+                currentXraySettings.dpiBypassPort != initialXraySettings.dpiBypassPort ||
+                currentXraySettings.pingCheckConcurrency != initialXraySettings.pingCheckConcurrency ||
+                currentXraySettings.reloadOnNetworkChange != initialXraySettings.reloadOnNetworkChange
     }
 
     val showExitDialog = remember { mutableStateOf(false) }
@@ -478,7 +505,8 @@ fun XraySettingsScreen(
                         }
                         LabelGroup(
                             label = stringResource(R.string.routing_presets_title),
-                            supportingText = RoutingPreset.matching(routeDirect)?.let { stringResource(it.labelRes) }
+                            supportingText = RoutingPreset.matching(routeDirect)
+                                ?.let { stringResource(it.labelRes) }
                                 ?: stringResource(R.string.routing_preset_custom),
                             modifier = Modifier.weight(1f)
                         )
@@ -589,10 +617,14 @@ fun XraySettingsScreen(
                             TextFieldRow(
                                 label = stringResource(R.string.xray_settings_byedpi_port_label),
                                 value = dpiBypassPort,
-                                onValueChange = { value -> dpiBypassPort = value.filter(Char::isDigit).take(5) },
+                                onValueChange = { value ->
+                                    dpiBypassPort = value.filter(Char::isDigit).take(5)
+                                },
                                 placeholder = stringResource(R.string.xray_settings_byedpi_port_placeholder),
                                 supportingText = stringResource(R.string.xray_settings_byedpi_port_desc),
-                                isError = dpiBypassPort.isNotEmpty() && !ByeDpi.isValidPort(dpiBypassPort),
+                                isError = dpiBypassPort.isNotEmpty() && !ByeDpi.isValidPort(
+                                    dpiBypassPort
+                                ),
                                 isModified = dpiBypassPort != initialXraySettings.dpiBypassPort,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                             )
@@ -639,7 +671,8 @@ fun XraySettingsScreen(
         // Which presets can run depends on the categories in the installed files; with none
         // installed yet the footer already says to download them first.
         val installedGeoId = initialXraySettings.geoVariant.takeIf { geoAssetsInstalled }
-        val isAvailable = { preset: RoutingPreset -> installedGeoId == null || preset.supports(installedGeoId) }
+        val isAvailable =
+            { preset: RoutingPreset -> installedGeoId == null || preset.supports(installedGeoId) }
         SelectionDialog(
             title = stringResource(R.string.routing_presets_title),
             description = stringResource(R.string.routing_presets_desc),
@@ -674,13 +707,27 @@ fun XraySettingsScreen(
                 val available = isAvailable(preset)
                 Text(
                     text = stringResource(preset.labelRes),
-                    color = if (available) Color.Unspecified else LocalContentColor.current.copy(alpha = 0.38f)
+                    color = if (available) Color.Unspecified else LocalContentColor.current.copy(
+                        alpha = 0.38f
+                    )
                 )
                 SupportingText(
                     text = when {
                         available -> stringResource(preset.descRes)
-                        preset.requiredGeo != null -> stringResource(R.string.routing_preset_needs_geo, geoVariantLabel(GeoResourceSet.find(preset.requiredGeo, emptyList())))
-                        else -> stringResource(R.string.routing_preset_unsupported_geo, geoVariantLabel(GeoResourceSet.find(installedGeoId.orEmpty(), customGeoSources)))
+                        preset.requiredGeo != null -> stringResource(
+                            R.string.routing_preset_needs_geo,
+                            geoVariantLabel(GeoResourceSet.find(preset.requiredGeo, emptyList()))
+                        )
+
+                        else -> stringResource(
+                            R.string.routing_preset_unsupported_geo,
+                            geoVariantLabel(
+                                GeoResourceSet.find(
+                                    installedGeoId.orEmpty(),
+                                    customGeoSources
+                                )
+                            )
+                        )
                     },
                     color = if (available) LocalContentColor.current.copy(alpha = 0.75f) else MaterialTheme.colorScheme.error
                 )
@@ -749,6 +796,7 @@ private enum class RoutingPreset(
         // RoscomVPN's geoip.dat has no geoip:ru.
         unsupportedGeo = setOf(GeoResourceSet.ROSCOMVPN.id)
     ),
+
     // The same on RoscomVPN's files: its geoip:direct holds RU and BY CIDRs (in place of
     // geoip:ru), and the whitelist categories are RU services and hosting outside category-ru.
     ROSCOMVPN_RUSSIA(
@@ -758,6 +806,7 @@ private enum class RoutingPreset(
         routeBlock = "geosite:category-ads",
         requiredGeo = GeoResourceSet.ROSCOMVPN.id
     ),
+
     // hydraponique/roscomvpn-routing's DEFAULT profile, with its own geo files. Its "proxy" list
     // (YouTube, Telegram, GitHub, Google Play, Twitch ads) has no field here - checked against
     // these files, of those only Twitch ads also falls under a direct category (twitch).
@@ -765,11 +814,12 @@ private enum class RoutingPreset(
         R.string.routing_preset_roscomvpn,
         R.string.routing_preset_roscomvpn_desc,
         "geosite:private,geosite:category-ru,geosite:whitelist,geosite:microsoft,geosite:apple," +
-            "geosite:epicgames,geosite:riot,geosite:escapefromtarkov,geosite:steam,geosite:twitch," +
-            "geosite:pinterest,geosite:faceit,geoip:private,geoip:direct",
+                "geosite:epicgames,geosite:riot,geosite:escapefromtarkov,geosite:steam,geosite:twitch," +
+                "geosite:pinterest,geosite:faceit,geoip:private,geoip:direct",
         routeBlock = "geosite:win-spy,geosite:torrent,geosite:category-ads",
         requiredGeo = GeoResourceSet.ROSCOMVPN.id
     ),
+
     // Its WHITELIST profile, for whitelist-only mobile internet: only what those lists let
     // through goes direct - Microsoft, Steam and the like from the one above don't work there.
     // It has no "proxy" list, so it carries over as it is.
@@ -786,6 +836,7 @@ private enum class RoutingPreset(
         "geosite:private,geoip:private",
         routeBlock = "geosite:category-ads"
     ),
+
     // Leaves a custom blocked list but drops a preset's, so it runs without the geo files.
     ALL_TUNNEL(
         R.string.routing_preset_all_tunnel,
@@ -798,7 +849,8 @@ private enum class RoutingPreset(
         (requiredGeo == null || requiredGeo == geoId) && geoId !in unsupportedGeo
 
     companion object {
-        private fun entriesOf(list: String) = list.split(',').map(String::trim).filter(String::isNotEmpty).toSet()
+        private fun entriesOf(list: String) =
+            list.split(',').map(String::trim).filter(String::isNotEmpty).toSet()
 
         /** The preset the field holds as it is (order and spacing aside), or null for a custom one. */
         fun matching(routeDirect: String): RoutingPreset? {
@@ -812,7 +864,11 @@ private enum class RoutingPreset(
          * from the geo files the new one runs on (RoscomVPN's win-spy elsewhere).
          */
         fun routeBlockFor(preset: RoutingPreset, current: String): String = preset.routeBlock
-            ?: if (RoutingPreset.entries.any { it.routeBlock != null && entriesOf(it.routeBlock) == entriesOf(current) }) ""
+            ?: if (RoutingPreset.entries.any {
+                    it.routeBlock != null && entriesOf(it.routeBlock) == entriesOf(
+                        current
+                    )
+                }) ""
             else current
     }
 }
@@ -835,11 +891,16 @@ private fun GeoResourcesDialog(
 ) {
     val context = LocalContext.current
     // Ids, not objects: an edited custom source is a new object with the same id.
-    var pendingId by remember { mutableStateOf(((state as? GeoAssetsState.Downloading)?.variant ?: selected)?.id) }
+    var pendingId by remember {
+        mutableStateOf(
+            ((state as? GeoAssetsState.Downloading)?.variant ?: selected)?.id
+        )
+    }
     val items = GeoResourceSet.BUILT_IN + customSources
     val pending = items.find { it.id == pendingId }
     val isDownloading = state is GeoAssetsState.Downloading
-    val dateFormat = remember { DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT) }
+    val dateFormat =
+        remember { DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT) }
 
     SelectionDialog(
         title = stringResource(R.string.xray_settings_group_geo),
@@ -882,17 +943,22 @@ private fun GeoResourcesDialog(
             Column(modifier = Modifier.padding(top = 8.dp, start = 4.dp, end = 4.dp)) {
                 val statusText = when {
                     isDownloading -> stringResource(R.string.geo_resources_downloading)
-                    state is GeoAssetsState.Error -> stringResource(R.string.geo_resources_download_failed, state.message)
+                    state is GeoAssetsState.Error -> stringResource(
+                        R.string.geo_resources_download_failed,
+                        state.message
+                    )
+
                     installed && pendingId != null && pendingId == selected?.id -> stringResource(
                         R.string.geo_resources_updated_at,
                         dateFormat.format(Date(installedAt))
                     )
+
                     else -> stringResource(R.string.geo_resources_not_downloaded)
                 }
                 SupportingText(
                     text = statusText,
                     color = if (state is GeoAssetsState.Error) MaterialTheme.colorScheme.error
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
@@ -1097,7 +1163,11 @@ private fun GeoSourceEditDialog(
             TextButton(
                 onClick = {
                     onSave(
-                        source?.copy(name = name.trim(), geoipUrl = geoipUrl.trim(), geositeUrl = geositeUrl.trim())
+                        source?.copy(
+                            name = name.trim(),
+                            geoipUrl = geoipUrl.trim(),
+                            geositeUrl = geositeUrl.trim()
+                        )
                             ?: GeoResourceSet.custom(name, geoipUrl, geositeUrl)
                     )
                 },

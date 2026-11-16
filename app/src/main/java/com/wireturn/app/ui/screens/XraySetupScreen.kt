@@ -125,7 +125,7 @@ fun XraySetupScreen(
             else (defaultProtocol ?: XrayConfiguration.WIREGUARD)
         )
     }
-    
+
     // WireGuard states
     var privateKey by remember(initialWgConfig) { mutableStateOf(initialWgConfig.privateKey) }
     var address by remember(initialWgConfig) { mutableStateOf(initialWgConfig.address) }
@@ -145,7 +145,15 @@ fun XraySetupScreen(
     val currentWg = remember(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive) {
         WgConfig(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive)
     }
-    val currentVless = remember(vlessLink, vlessIsDualRoute, vlessHcInterval, vlessHcDestination, vlessMux, vlessIsSocks5Chain, initialVlessConfig) {
+    val currentVless = remember(
+        vlessLink,
+        vlessIsDualRoute,
+        vlessHcInterval,
+        vlessHcDestination,
+        vlessMux,
+        vlessIsSocks5Chain,
+        initialVlessConfig
+    ) {
         VlessConfig(
             vlessLink = vlessLink, isDualRoute = vlessIsDualRoute, hcInterval = vlessHcInterval,
             hcDestination = vlessHcDestination, mux = vlessMux, isSocks5Chain = vlessIsSocks5Chain
@@ -153,15 +161,28 @@ fun XraySetupScreen(
     }
 
     val transportMismatchSocket = remember(kernelConfig, xrayConfiguration, currentVless) {
-        ValidatorUtils.kernelTransportMismatch(kernelConfig, xrayConfiguration, currentVless.vlessLink)
+        ValidatorUtils.kernelTransportMismatch(
+            kernelConfig,
+            xrayConfiguration,
+            currentVless.vlessLink
+        )
     }
 
-    val isModified by remember(xrayConfiguration, currentWg, currentVless, initialXrayConfig, initialWgConfig, initialVlessConfig, canChangeProtocol) {
+    val isModified by remember(
+        xrayConfiguration,
+        currentWg,
+        currentVless,
+        initialXrayConfig,
+        initialWgConfig,
+        initialVlessConfig,
+        canChangeProtocol
+    ) {
         derivedStateOf {
-            val baseProtocol = if (!canChangeProtocol) XrayConfiguration.VLESS else initialXrayConfig.protocol
+            val baseProtocol =
+                if (!canChangeProtocol) XrayConfiguration.VLESS else initialXrayConfig.protocol
             xrayConfiguration != baseProtocol ||
-            currentWg != initialWgConfig ||
-            currentVless != initialVlessConfig
+                    currentWg != initialWgConfig ||
+                    currentVless != initialVlessConfig
         }
     }
 
@@ -237,7 +258,8 @@ fun XraySetupScreen(
                 TextButton(onClick = {
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     showExitDialog.value = false
-                    val wg = WgConfig(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive)
+                    val wg =
+                        WgConfig(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive)
                     onSave(xrayConfiguration, wg, currentVless)
                 }) {
                     Text(stringResource(R.string.btn_save))
@@ -283,12 +305,19 @@ fun XraySetupScreen(
                         ) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.import_clipboard)) },
-                                leadingIcon = { Icon(painterResource(R.drawable.content_paste_24px), null) },
+                                leadingIcon = {
+                                    Icon(
+                                        painterResource(R.drawable.content_paste_24px),
+                                        null
+                                    )
+                                },
                                 onClick = {
                                     showImportMenu = false
                                     scope.launch {
                                         val clipEntry = clipboard.getClipEntry()
-                                        val text = clipEntry?.clipData?.getItemAt(0)?.text?.toString() ?: ""
+                                        val text =
+                                            clipEntry?.clipData?.getItemAt(0)?.text?.toString()
+                                                ?: ""
                                         val wgParsed = WgConfig.parse(text)
                                         if (wgParsed.isValid()) {
                                             xrayConfiguration = XrayConfiguration.WIREGUARD
@@ -311,7 +340,12 @@ fun XraySetupScreen(
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.import_file)) },
-                                leadingIcon = { Icon(painterResource(R.drawable.file_open_24px), null) },
+                                leadingIcon = {
+                                    Icon(
+                                        painterResource(R.drawable.file_open_24px),
+                                        null
+                                    )
+                                },
                                 onClick = {
                                     showImportMenu = false
                                     filePickerLauncher.launch("*/*")
@@ -325,7 +359,7 @@ fun XraySetupScreen(
                             XrayConfiguration.WIREGUARD -> currentWg.isValid()
                             XrayConfiguration.VLESS -> currentVless.isValid()
                         }
-                        
+
                         val textToShare = when (xrayConfiguration) {
                             XrayConfiguration.WIREGUARD -> currentWg.toWgString()
                             XrayConfiguration.VLESS -> currentVless.vlessLink
@@ -341,7 +375,7 @@ fun XraySetupScreen(
                                     contentDescription = stringResource(R.string.share)
                                 )
                             }
-                            
+
                             ShareDropdownMenu(
                                 expanded = showShareMenu.value,
                                 onDismissRequest = { showShareMenu.value = false },
@@ -375,7 +409,14 @@ fun XraySetupScreen(
                     modifier = Modifier.navigationBarsPadding(),
                     onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                        val wg = WgConfig(privateKey, address, mtu, publicKey, endpoint, persistentKeepalive)
+                        val wg = WgConfig(
+                            privateKey,
+                            address,
+                            mtu,
+                            publicKey,
+                            endpoint,
+                            persistentKeepalive
+                        )
                         onSave(xrayConfiguration, wg, currentVless)
                     },
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -599,7 +640,8 @@ private fun WireGuardSettingsBlock(
                         )
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        val msg = stringResource(KernelRegistry.get(kernelVariant).wgNotUsedMessageRes)
+                        val msg =
+                            stringResource(KernelRegistry.get(kernelVariant).wgNotUsedMessageRes)
                         RowLabel(msg)
                     }
                 }
@@ -829,7 +871,10 @@ private fun VlessSettingsBlock(
                     enabled = socks5ChainEnabled,
                     onClick = {
                         val next = !vlessIsSocks5Chain
-                        HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                        HapticUtil.perform(
+                            context,
+                            if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                        )
                         onVlessIsSocks5ChainChange(next)
                     }
                 ) {
@@ -842,7 +887,10 @@ private fun VlessSettingsBlock(
                         checked = vlessIsSocks5Chain,
                         enabled = socks5ChainEnabled,
                         onCheckedChange = { next ->
-                            HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                            HapticUtil.perform(
+                                context,
+                                if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                            )
                             onVlessIsSocks5ChainChange(next)
                         },
                         isModified = isEditMode && vlessIsSocks5Chain != initialVlessConfig.isSocks5Chain
@@ -856,7 +904,10 @@ private fun VlessSettingsBlock(
                 position = if (vlessIsDualRoute) ItemPosition.Top else ItemPosition.Single,
                 onClick = {
                     val next = !vlessIsDualRoute
-                    HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                    HapticUtil.perform(
+                        context,
+                        if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                    )
                     onVlessIsDualRouteChange(next)
                 }
             ) {
@@ -865,7 +916,10 @@ private fun VlessSettingsBlock(
                     supportingText = stringResource(R.string.xray_uri_dual_route_desc),
                     checked = vlessIsDualRoute,
                     onCheckedChange = { next ->
-                        HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                        HapticUtil.perform(
+                            context,
+                            if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                        )
                         onVlessIsDualRouteChange(next)
                     },
                     isModified = isEditMode && vlessIsDualRoute != initialVlessConfig.isDualRoute

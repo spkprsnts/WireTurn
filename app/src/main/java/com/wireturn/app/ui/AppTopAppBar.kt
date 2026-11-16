@@ -51,12 +51,19 @@ fun TopAppBarScrollBehavior.noFlingExpandConnection(): NestedScrollConnection {
                 if (source == NestedScrollSource.SideEffect && available.y > 0f) Offset.Zero
                 else inner.onPreScroll(available, source)
 
-            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset =
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset =
                 if (source == NestedScrollSource.SideEffect && available.y > 0f) Offset.Zero
                 else inner.onPostScroll(consumed, available, source)
 
-            override suspend fun onPreFling(available: Velocity): Velocity = inner.onPreFling(available)
-            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity = inner.onPostFling(consumed, available)
+            override suspend fun onPreFling(available: Velocity): Velocity =
+                inner.onPreFling(available)
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity =
+                inner.onPostFling(consumed, available)
         }
     }
 }
@@ -90,18 +97,19 @@ fun AppTopAppBar(
     val textMeasurer = rememberTextMeasurer()
     val titleStyle = MaterialTheme.typography.headlineLarge
 
-    val isMultiLine = remember(annotatedTitle, windowInfo.containerSize.width, configuration.screenWidthDp) {
-        val width = windowInfo.containerSize.width.takeIf { it > 0 }
-            ?: with(density) { configuration.screenWidthDp.dp.toPx() }.toInt()
-        val horizontalPadding = with(density) { 32.dp.toPx() }.toInt()
-        val availableWidth = width - horizontalPadding
-        val measuredText = textMeasurer.measure(
-            text = annotatedTitle,
-            style = titleStyle,
-            constraints = Constraints(maxWidth = availableWidth)
-        )
-        measuredText.lineCount > 1
-    }
+    val isMultiLine =
+        remember(annotatedTitle, windowInfo.containerSize.width, configuration.screenWidthDp) {
+            val width = windowInfo.containerSize.width.takeIf { it > 0 }
+                ?: with(density) { configuration.screenWidthDp.dp.toPx() }.toInt()
+            val horizontalPadding = with(density) { 32.dp.toPx() }.toInt()
+            val availableWidth = width - horizontalPadding
+            val measuredText = textMeasurer.measure(
+                text = annotatedTitle,
+                style = titleStyle,
+                constraints = Constraints(maxWidth = availableWidth)
+            )
+            measuredText.lineCount > 1
+        }
 
     val finalExpandedHeight = remember(isMultiLine, expandedHeight) {
         if (expandedHeight != Dp.Unspecified) return@remember expandedHeight

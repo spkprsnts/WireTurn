@@ -36,47 +36,72 @@ class XraySetupActivity : ComponentActivity() {
 
         val defaultProtocolName = intent.getStringExtra("EXTRA_DEFAULT_PROTOCOL")
         val defaultProtocol = if (defaultProtocolName != null) {
-            try { com.wireturn.app.data.XrayConfiguration.valueOf(defaultProtocolName) } catch (_: Exception) { null }
+            try {
+                com.wireturn.app.data.XrayConfiguration.valueOf(defaultProtocolName)
+            } catch (_: Exception) {
+                null
+            }
         } else null
 
-        val profileName = intent.getStringExtra("EXTRA_PROFILE_NAME") ?: getString(R.string.profile_default_name)
+        val profileName =
+            intent.getStringExtra("EXTRA_PROFILE_NAME") ?: getString(R.string.profile_default_name)
         val initialWgConfig = intent.getStringExtra("EXTRA_WG_CONFIG_JSON")?.let {
-            try { Gson().fromJson(it, WgConfig::class.java) } catch (_: Exception) { null }
+            try {
+                Gson().fromJson(it, WgConfig::class.java)
+            } catch (_: Exception) {
+                null
+            }
         } ?: WgConfig()
         val clientConfigFromIntent = when (intent.getStringExtra("EXTRA_KERNEL_VARIANT")) {
             KernelVariant.OLCRTC.name -> {
                 val json = intent.getStringExtra("EXTRA_OLCRTC_CONFIG_JSON")
-                val olcrtc = if (json != null) Gson().fromJson(json, OlcrtcConfig::class.java) ?: OlcrtcConfig() else OlcrtcConfig()
+                val olcrtc = if (json != null) Gson().fromJson(json, OlcrtcConfig::class.java)
+                    ?: OlcrtcConfig() else OlcrtcConfig()
                 ClientConfig(kernelConfig = KernelConfig.Olcrtc(olcrtc))
             }
+
             KernelVariant.WEBDAV.name -> {
                 val json = intent.getStringExtra("EXTRA_WEBDAV_CONFIG_JSON")
-                val webdav = if (json != null) Gson().fromJson(json, WebdavConfig::class.java) ?: WebdavConfig() else WebdavConfig()
+                val webdav = if (json != null) Gson().fromJson(json, WebdavConfig::class.java)
+                    ?: WebdavConfig() else WebdavConfig()
                 ClientConfig(kernelConfig = KernelConfig.Webdav(webdav))
             }
+
             KernelVariant.FREETURN.name -> {
                 val json = intent.getStringExtra("EXTRA_FREETURN_CONFIG_JSON")
-                val freeturn = if (json != null) Gson().fromJson(json, FreeTurnConfig::class.java) ?: FreeTurnConfig() else FreeTurnConfig()
+                val freeturn = if (json != null) Gson().fromJson(json, FreeTurnConfig::class.java)
+                    ?: FreeTurnConfig() else FreeTurnConfig()
                 ClientConfig(kernelConfig = KernelConfig.FreeTurn(freeturn))
             }
+
             KernelVariant.QWDTT.name -> {
                 val json = intent.getStringExtra("EXTRA_QWDTT_CONFIG_JSON")
-                val qwdtt = if (json != null) Gson().fromJson(json, QwdttConfig::class.java) ?: QwdttConfig() else QwdttConfig()
+                val qwdtt = if (json != null) Gson().fromJson(json, QwdttConfig::class.java)
+                    ?: QwdttConfig() else QwdttConfig()
                 ClientConfig(kernelConfig = KernelConfig.Qwdtt(qwdtt))
             }
+
             KernelVariant.OPENFLUX.name -> {
                 val json = intent.getStringExtra("EXTRA_OPENFLUX_CONFIG_JSON")
-                val openflux = if (json != null) Gson().fromJson(json, OpenFluxConfig::class.java) ?: OpenFluxConfig() else OpenFluxConfig()
+                val openflux = if (json != null) Gson().fromJson(json, OpenFluxConfig::class.java)
+                    ?: OpenFluxConfig() else OpenFluxConfig()
                 ClientConfig(kernelConfig = KernelConfig.OpenFlux(openflux))
             }
+
             KernelVariant.CSQTT.name -> {
                 val json = intent.getStringExtra("EXTRA_CSQTT_CONFIG_JSON")
-                val csqtt = if (json != null) Gson().fromJson(json, com.wireturn.app.data.kernel.CsqttConfig::class.java) ?: com.wireturn.app.data.kernel.CsqttConfig() else com.wireturn.app.data.kernel.CsqttConfig()
+                val csqtt = if (json != null) Gson().fromJson(
+                    json,
+                    com.wireturn.app.data.kernel.CsqttConfig::class.java
+                )
+                    ?: com.wireturn.app.data.kernel.CsqttConfig() else com.wireturn.app.data.kernel.CsqttConfig()
                 ClientConfig(kernelConfig = KernelConfig.Csqtt(csqtt))
             }
+
             else -> {
                 val json = intent.getStringExtra("EXTRA_TURNABLE_CONFIG_JSON")
-                val turnable = if (json != null) Gson().fromJson(json, TurnableConfig::class.java) ?: TurnableConfig() else TurnableConfig()
+                val turnable = if (json != null) Gson().fromJson(json, TurnableConfig::class.java)
+                    ?: TurnableConfig() else TurnableConfig()
                 ClientConfig(kernelConfig = KernelConfig.Turnable(turnable))
             }
         }

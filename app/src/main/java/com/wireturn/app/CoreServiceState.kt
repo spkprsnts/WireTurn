@@ -54,7 +54,8 @@ object CoreServiceState {
         val profileName: String
     )
 
-    private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main)
+    private val scope =
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main)
 
     private val _status = MutableStateFlow<CoreStatus>(CoreStatus.Idle)
     val status: StateFlow<CoreStatus> = _status.asStateFlow()
@@ -84,8 +85,12 @@ object CoreServiceState {
     // max: null with the eternal watchdog (WatchdogSettings.eternal) - no limit to show.
     data class RestartAttempt(val attempt: Int, val max: Int?) {
         fun label(context: android.content.Context): String =
-            if (max != null) context.getString(com.wireturn.app.R.string.notification_restart, attempt, max)
-            else context.getString(com.wireturn.app.R.string.notification_restart_eternal, attempt)
+            if (max != null) context.getString(
+                R.string.notification_restart,
+                attempt,
+                max
+            )
+            else context.getString(R.string.notification_restart_eternal, attempt)
     }
 
     private val _restartAttempt = MutableStateFlow<RestartAttempt?>(null)
@@ -112,12 +117,14 @@ object CoreServiceState {
     val isRunning: StateFlow<Boolean> = _status.map { it !is CoreStatus.Idle }
         .stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, false)
 
-    val isWorking: StateFlow<Boolean> = _status.map { it is CoreStatus.Connected || it is CoreStatus.Suppressed }
-        .stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, false)
+    val isWorking: StateFlow<Boolean> =
+        _status.map { it is CoreStatus.Connected || it is CoreStatus.Suppressed }
+            .stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, false)
 
     fun setStatus(newStatus: CoreStatus) {
         if (newStatus is CoreStatus.Idle || newStatus is CoreStatus.Error ||
-            newStatus is CoreStatus.Connected || newStatus is CoreStatus.Suppressed) {
+            newStatus is CoreStatus.Connected || newStatus is CoreStatus.Suppressed
+        ) {
             _restartAttempt.value = null
         }
         if (newStatus is CoreStatus.Idle) {

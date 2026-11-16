@@ -76,7 +76,7 @@ class SubscriptionConfigActivity : ComponentActivity() {
             val dynamicTheme by viewModel.dynamicTheme.collectAsStateWithLifecycle()
             val subscriptions by viewModel.subscriptions.collectAsStateWithLifecycle()
             val isInitialized by viewModel.isInitialized.collectAsStateWithLifecycle()
-            
+
             val sub = subscriptions.find { it.id == subId }
 
             if (!isInitialized || sub == null) {
@@ -103,11 +103,11 @@ class SubscriptionConfigActivity : ComponentActivity() {
 
             val isUrlValid = url.isNotBlank() && ValidatorUtils.isValidUrl(url)
             val isIntervalValid = !autoUpdate || updateIntervalMinutes >= 20
-            val isModified = url != sub.url || 
-                             autoUpdate != sub.autoUpdate || 
-                             onlyUpdateIfSelected != sub.onlyUpdateIfSelected ||
-                             requireTunnelForUpdate != sub.requireTunnelForUpdate ||
-                             updateIntervalMinutes != sub.updateIntervalMinutes
+            val isModified = url != sub.url ||
+                    autoUpdate != sub.autoUpdate ||
+                    onlyUpdateIfSelected != sub.onlyUpdateIfSelected ||
+                    requireTunnelForUpdate != sub.requireTunnelForUpdate ||
+                    updateIntervalMinutes != sub.updateIntervalMinutes
 
             val showExitDialog = remember { mutableStateOf(false) }
             val showDeleteConfirm = remember { mutableStateOf(false) }
@@ -168,7 +168,12 @@ class SubscriptionConfigActivity : ComponentActivity() {
                                 },
                                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                icon = { Icon(painterResource(R.drawable.save_24px), contentDescription = null) },
+                                icon = {
+                                    Icon(
+                                        painterResource(R.drawable.save_24px),
+                                        contentDescription = null
+                                    )
+                                },
                                 text = { Text(stringResource(R.string.btn_save)) }
                             )
                         }
@@ -204,7 +209,10 @@ class SubscriptionConfigActivity : ComponentActivity() {
                                 position = ItemPosition.Top,
                                 onClick = {
                                     val next = !requireTunnelForUpdate
-                                    HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                                    HapticUtil.perform(
+                                        context,
+                                        if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                                    )
                                     requireTunnelForUpdate = next
                                 }
                             ) {
@@ -221,7 +229,10 @@ class SubscriptionConfigActivity : ComponentActivity() {
                                 position = if (autoUpdate) ItemPosition.Middle else ItemPosition.Bottom,
                                 onClick = {
                                     val next = !autoUpdate
-                                    HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                                    HapticUtil.perform(
+                                        context,
+                                        if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                                    )
                                     autoUpdate = next
                                 }
                             ) {
@@ -238,7 +249,10 @@ class SubscriptionConfigActivity : ComponentActivity() {
                                     position = ItemPosition.Middle,
                                     onClick = {
                                         val next = !onlyUpdateIfSelected
-                                        HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                                        HapticUtil.perform(
+                                            context,
+                                            if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                                        )
                                         onlyUpdateIfSelected = next
                                     }
                                 ) {
@@ -254,11 +268,15 @@ class SubscriptionConfigActivity : ComponentActivity() {
                                     TextFieldRow(
                                         label = stringResource(R.string.update_interval_min),
                                         value = if (updateIntervalMinutes == 0) "" else updateIntervalMinutes.toString(),
-                                        onValueChange = { updateIntervalMinutes = it.toIntOrNull() ?: 0 },
+                                        onValueChange = {
+                                            updateIntervalMinutes = it.toIntOrNull() ?: 0
+                                        },
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         isError = updateIntervalMinutes < 20,
                                         isModified = updateIntervalMinutes != sub.updateIntervalMinutes,
-                                        supportingText = if (updateIntervalMinutes < 20) stringResource(R.string.update_interval_min_error) else null
+                                        supportingText = if (updateIntervalMinutes < 20) stringResource(
+                                            R.string.update_interval_min_error
+                                        ) else null
                                     )
                                 }
                             }
@@ -284,7 +302,14 @@ class SubscriptionConfigActivity : ComponentActivity() {
                     if (showDeleteConfirm.value) {
                         AlertDialog(
                             onDismissRequest = { showDeleteConfirm.value = false },
-                            title = { Text(stringResource(R.string.subscription_delete_confirm, sub.name)) },
+                            title = {
+                                Text(
+                                    stringResource(
+                                        R.string.subscription_delete_confirm,
+                                        sub.name
+                                    )
+                                )
+                            },
                             text = { Text(stringResource(R.string.subscription_delete_desc)) },
                             confirmButton = {
                                 TextButton(
@@ -294,7 +319,10 @@ class SubscriptionConfigActivity : ComponentActivity() {
                                         finish()
                                     }
                                 ) {
-                                    Text(stringResource(R.string.profile_delete), color = MaterialTheme.colorScheme.error)
+                                    Text(
+                                        stringResource(R.string.profile_delete),
+                                        color = MaterialTheme.colorScheme.error
+                                    )
                                 }
                             },
                             dismissButton = {

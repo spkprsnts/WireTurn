@@ -100,7 +100,7 @@ fun OlcRtcConfigScreen(
     onSave: (OlcrtcConfig) -> Unit
 ) {
     val isPrivacyActive = privacyMode && isEditMode
-    
+
     var config by remember(initialConfig) { mutableStateOf(initialConfig) }
 
     val isModified = config != initialConfig
@@ -211,12 +211,19 @@ fun OlcRtcConfigScreen(
                         ) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.import_clipboard)) },
-                                leadingIcon = { Icon(painterResource(R.drawable.content_paste_24px), null) },
+                                leadingIcon = {
+                                    Icon(
+                                        painterResource(R.drawable.content_paste_24px),
+                                        null
+                                    )
+                                },
                                 onClick = {
                                     showImportMenu = false
                                     scope.launch {
                                         val clipEntry = clipboard.getClipEntry()
-                                        val text = clipEntry?.clipData?.getItemAt(0)?.text?.toString() ?: ""
+                                        val text =
+                                            clipEntry?.clipData?.getItemAt(0)?.text?.toString()
+                                                ?: ""
                                         val parsed = OlcrtcConfig.parse(text)
                                         if (parsed != null) {
                                             config = parsed
@@ -229,7 +236,12 @@ fun OlcRtcConfigScreen(
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.import_file)) },
-                                leadingIcon = { Icon(painterResource(R.drawable.file_open_24px), null) },
+                                leadingIcon = {
+                                    Icon(
+                                        painterResource(R.drawable.file_open_24px),
+                                        null
+                                    )
+                                },
                                 onClick = {
                                     showImportMenu = false
                                     filePickerLauncher.launch("*/*")
@@ -246,7 +258,7 @@ fun OlcRtcConfigScreen(
                                     contentDescription = stringResource(R.string.share)
                                 )
                             }
-                            
+
                             ShareDropdownMenu(
                                 expanded = showMenu.value,
                                 onDismissRequest = { showMenu.value = false },
@@ -287,7 +299,7 @@ fun OlcRtcConfigScreen(
                     icon = {
                         Icon(
                             painter = painterResource(
-                                if (isEditMode) R.drawable.save_24px 
+                                if (isEditMode) R.drawable.save_24px
                                 else R.drawable.arrow_forward_ios_24px
                             ),
                             contentDescription = null
@@ -382,11 +394,19 @@ fun OlcRtcConfigScreen(
                             Spacer(Modifier.height(2.dp))
                             SupportingText(currentLabel)
                         }
-                        if (getCompatibility(config.provider, config.transport) != Compatibility.SUPPORTED) {
+                        if (getCompatibility(
+                                config.provider,
+                                config.transport
+                            ) != Compatibility.SUPPORTED
+                        ) {
                             Icon(
                                 painter = painterResource(R.drawable.info_24px),
                                 contentDescription = null,
-                                tint = if (getCompatibility(config.provider, config.transport) == Compatibility.UNSUPPORTED)
+                                tint = if (getCompatibility(
+                                        config.provider,
+                                        config.transport
+                                    ) == Compatibility.UNSUPPORTED
+                                )
                                     MaterialTheme.colorScheme.error
                                 else
                                     MaterialTheme.colorScheme.tertiary,
@@ -465,8 +485,12 @@ fun OlcRtcConfigScreen(
             Column {
                 AnimatedVisibility(
                     visibleState = transportVp8Visible,
-                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
-                    exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec())
+                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(
+                        MaterialTheme.motionScheme.defaultSpatialSpec()
+                    ),
+                    exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(
+                        MaterialTheme.motionScheme.defaultSpatialSpec()
+                    )
                 ) {
                     SectionGroup(title = stringResource(R.string.olcrtc_vp8_settings_title)) {
                         SectionItem(position = ItemPosition.Top) {
@@ -483,7 +507,9 @@ fun OlcRtcConfigScreen(
                             SliderRow(
                                 label = stringResource(R.string.olcrtc_vp8_batch),
                                 value = config.vp8Batch.toFloat(),
-                                onValueChange = { config = config.copy(vp8Batch = it.roundToInt()) },
+                                onValueChange = {
+                                    config = config.copy(vp8Batch = it.roundToInt())
+                                },
                                 valueRange = 1f..100f,
                                 steps = 99,
                                 isModified = isEditMode && config.vp8Batch != initialConfig.vp8Batch
@@ -494,8 +520,12 @@ fun OlcRtcConfigScreen(
 
                 AnimatedVisibility(
                     visibleState = transportSeiVisible,
-                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
-                    exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec())
+                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(
+                        MaterialTheme.motionScheme.defaultSpatialSpec()
+                    ),
+                    exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(
+                        MaterialTheme.motionScheme.defaultSpatialSpec()
+                    )
                 ) {
                     SectionGroup(title = stringResource(R.string.olcrtc_sei_settings_title)) {
                         SectionItem(position = ItemPosition.Top) {
@@ -512,7 +542,9 @@ fun OlcRtcConfigScreen(
                             SliderRow(
                                 label = stringResource(R.string.olcrtc_sei_batch),
                                 value = config.seiBatch.toFloat(),
-                                onValueChange = { config = config.copy(seiBatch = it.roundToInt()) },
+                                onValueChange = {
+                                    config = config.copy(seiBatch = it.roundToInt())
+                                },
                                 valueRange = 1f..256f,
                                 steps = 255,
                                 isModified = isEditMode && config.seiBatch != initialConfig.seiBatch
@@ -532,7 +564,9 @@ fun OlcRtcConfigScreen(
                             SliderRow(
                                 label = stringResource(R.string.olcrtc_sei_ack_ms),
                                 value = config.seiAckMs.toFloat(),
-                                onValueChange = { config = config.copy(seiAckMs = it.roundToInt()) },
+                                onValueChange = {
+                                    config = config.copy(seiAckMs = it.roundToInt())
+                                },
                                 valueRange = 100f..5000f,
                                 steps = 49,
                                 isModified = isEditMode && config.seiAckMs != initialConfig.seiAckMs
@@ -543,8 +577,12 @@ fun OlcRtcConfigScreen(
 
                 AnimatedVisibility(
                     visibleState = transportVideoVisible,
-                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
-                    exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec())
+                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(
+                        MaterialTheme.motionScheme.defaultSpatialSpec()
+                    ),
+                    exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(
+                        MaterialTheme.motionScheme.defaultSpatialSpec()
+                    )
                 ) {
                     SectionGroup(title = stringResource(R.string.olcrtc_video_settings_title)) {
                         SectionItem(position = ItemPosition.Top) {
@@ -556,11 +594,16 @@ fun OlcRtcConfigScreen(
                             )
                         }
                         SectionItem {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
                                 TextFieldRow(
                                     label = stringResource(R.string.olcrtc_video_width),
                                     value = if (config.videoW == 0) "" else config.videoW.toString(),
-                                    onValueChange = { config = config.copy(videoW = it.toIntOrNull() ?: 0) },
+                                    onValueChange = {
+                                        config = config.copy(videoW = it.toIntOrNull() ?: 0)
+                                    },
                                     modifier = Modifier.weight(1f),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                     isError = config.videoW != 0 &&
@@ -570,7 +613,9 @@ fun OlcRtcConfigScreen(
                                 TextFieldRow(
                                     label = stringResource(R.string.olcrtc_video_height),
                                     value = if (config.videoH == 0) "" else config.videoH.toString(),
-                                    onValueChange = { config = config.copy(videoH = it.toIntOrNull() ?: 0) },
+                                    onValueChange = {
+                                        config = config.copy(videoH = it.toIntOrNull() ?: 0)
+                                    },
                                     modifier = Modifier.weight(1f),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                     isError = config.videoH != 0 &&
@@ -583,7 +628,9 @@ fun OlcRtcConfigScreen(
                             SliderRow(
                                 label = stringResource(R.string.olcrtc_video_fps),
                                 value = config.videoFps.toFloat(),
-                                onValueChange = { config = config.copy(videoFps = it.roundToInt()) },
+                                onValueChange = {
+                                    config = config.copy(videoFps = it.roundToInt())
+                                },
                                 valueRange = 1f..60f,
                                 steps = 59,
                                 isModified = isEditMode && config.videoFps != initialConfig.videoFps
@@ -603,7 +650,9 @@ fun OlcRtcConfigScreen(
                             SliderRow(
                                 label = stringResource(R.string.olcrtc_video_qr_size),
                                 value = config.videoQrSize.toFloat(),
-                                onValueChange = { config = config.copy(videoQrSize = it.roundToInt()) },
+                                onValueChange = {
+                                    config = config.copy(videoQrSize = it.roundToInt())
+                                },
                                 valueRange = 0f..1000f,
                                 steps = 100,
                                 isModified = isEditMode && config.videoQrSize != initialConfig.videoQrSize
@@ -613,7 +662,9 @@ fun OlcRtcConfigScreen(
                             SliderRow(
                                 label = stringResource(R.string.olcrtc_video_tile_module),
                                 value = config.videoTileModule.toFloat(),
-                                onValueChange = { config = config.copy(videoTileModule = it.roundToInt()) },
+                                onValueChange = {
+                                    config = config.copy(videoTileModule = it.roundToInt())
+                                },
                                 valueRange = 1f..32f,
                                 steps = 31,
                                 isModified = isEditMode && config.videoTileModule != initialConfig.videoTileModule
@@ -623,7 +674,9 @@ fun OlcRtcConfigScreen(
                             SliderRow(
                                 label = stringResource(R.string.olcrtc_video_tile_rs),
                                 value = config.videoTileRs.toFloat(),
-                                onValueChange = { config = config.copy(videoTileRs = it.roundToInt()) },
+                                onValueChange = {
+                                    config = config.copy(videoTileRs = it.roundToInt())
+                                },
                                 valueRange = 0f..100f,
                                 steps = 100,
                                 isModified = isEditMode && config.videoTileRs != initialConfig.videoTileRs
@@ -694,14 +747,17 @@ private fun getCompatibility(provider: String, transport: String): Compatibility
             "videochannel" -> Compatibility.UNSTABLE
             else -> Compatibility.UNSUPPORTED
         }
+
         "wbstream" -> when (transport) {
             "datachannel" -> Compatibility.UNSTABLE
             else -> Compatibility.SUPPORTED
         }
+
         "jitsi" -> when (transport) {
             "datachannel" -> Compatibility.SUPPORTED
             else -> Compatibility.UNSTABLE
         }
+
         else -> Compatibility.SUPPORTED
     }
 }
@@ -797,7 +853,11 @@ fun OlcrtcTransportDialog(
                 Icon(
                     painter = painterResource(R.drawable.info_24px),
                     contentDescription = null,
-                    tint = if (getCompatibility(currentProvider, value) == Compatibility.UNSUPPORTED)
+                    tint = if (getCompatibility(
+                            currentProvider,
+                            value
+                        ) == Compatibility.UNSUPPORTED
+                    )
                         MaterialTheme.colorScheme.error
                     else
                         MaterialTheme.colorScheme.tertiary,

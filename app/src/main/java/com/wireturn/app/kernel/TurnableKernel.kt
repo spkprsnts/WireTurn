@@ -19,7 +19,9 @@ object TurnableKernel : Kernel {
     override fun logLabel(cfg: KernelConfig): String =
         "Turnable (${(cfg as KernelConfig.Turnable).config.selectedRouteId})"
 
-    override fun localSettingsChanged(old: ClientConfig, new: ClientConfig): Boolean = listenAddrChanged(old, new)
+    override fun localSettingsChanged(old: ClientConfig, new: ClientConfig): Boolean =
+        listenAddrChanged(old, new)
+
     override val displayNameRes: Int = R.string.kernel_turnable
     override val configActivityClass = TurnableConfigActivity::class.java
 
@@ -37,16 +39,19 @@ object TurnableKernel : Kernel {
             // mpath always encrypts everything - the encryption mode only applies to the other transports.
             context.getString(R.string.kernel_tag_full_encryption).takeIf {
                 config.encryption == "full" &&
-                    (config.routes.find { it.routeId == config.selectedRouteId } ?: config.routes.firstOrNull())?.transport != "mpath"
+                        (config.routes.find { it.routeId == config.selectedRouteId }
+                            ?: config.routes.firstOrNull())?.transport != "mpath"
             },
-            config.cloak?.takeIf { it.isNotBlank() && it != "none" }?.replaceFirstChar(Char::uppercase)
+            config.cloak?.takeIf { it.isNotBlank() && it != "none" }
+                ?.replaceFirstChar(Char::uppercase)
         )
     }
 
-    override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int = when ((cfg as KernelConfig.Turnable).config.platformId) {
-        "vk.com" -> R.drawable.ic_vk
-        else -> if (outlined) R.drawable.mobile_outlined_24px else R.drawable.mobile_24px
-    }
+    override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int =
+        when ((cfg as KernelConfig.Turnable).config.platformId) {
+            "vk.com" -> R.drawable.ic_vk
+            else -> if (outlined) R.drawable.mobile_outlined_24px else R.drawable.mobile_24px
+        }
 
     // Route's own socket type is authoritative (tcp -> VLESS/Trojan, udp -> WireGuard/Hysteria2) -
     // see external/turnable/docs/REFERENCE.md.
@@ -63,7 +68,9 @@ object TurnableKernel : Kernel {
 
     override fun displayNameFromUri(uri: String): String? = try {
         uri.toUri().fragment?.split(",")?.firstOrNull()?.trim()
-    } catch (_: Exception) { null }
+    } catch (_: Exception) {
+        null
+    }
 
     override fun buildCommand(ctx: KernelCommandContext, cfg: ClientConfig): List<String> {
         val k = cfg.kernelConfig as KernelConfig.Turnable
@@ -74,14 +81,16 @@ object TurnableKernel : Kernel {
         // which gets written verbatim to the app's own log.
         val configFile = File(ctx.filesDir, "turnable.json")
         configFile.writeText(k.config.toUri(true))
-        cmdArgs.addAll(listOf(
-            "client",
-            "-l", cfg.listenAddr.ifBlank { ClientConfig.DEFAULT_LISTEN_ADDR },
-            "-c", configFile.absolutePath,
-            // slog DEBUG level - kept or dropped by the log level setting; parseLogLine only
-            // sees the few of these it uses (see parsesDebugLine).
-            "--verbose"
-        ))
+        cmdArgs.addAll(
+            listOf(
+                "client",
+                "-l", cfg.listenAddr.ifBlank { ClientConfig.DEFAULT_LISTEN_ADDR },
+                "-c", configFile.absolutePath,
+                // slog DEBUG level - kept or dropped by the log level setting; parseLogLine only
+                // sees the few of these it uses (see parsesDebugLine).
+                "--verbose"
+            )
+        )
         return cmdArgs
     }
 
@@ -90,7 +99,7 @@ object TurnableKernel : Kernel {
     // triggering full reconnect"). Also pion's TURN client chatter.
     override fun isNoise(line: String): Boolean =
         line.contains("peer dial failed") ||
-            line.contains("scope=turnc")
+                line.contains("scope=turnc")
 
     // Turnable (0.6.3+) rides out an outage for up to its SessionGrace (3 min) before starting
     // over with fresh VK credentials, and since 0.6.4 backs off up to ReconnectBackoffMax (5 min)
@@ -111,7 +120,13 @@ object TurnableKernel : Kernel {
         "tinymux client pong timeout"
     )
 
-    override suspend fun parseLogLine(line: String, lower: String, state: BinaryOutputState, ctx: KernelLogContext, cfg: ClientConfig): Boolean {
+    override suspend fun parseLogLine(
+        line: String,
+        lower: String,
+        state: BinaryOutputState,
+        ctx: KernelLogContext,
+        cfg: ClientConfig
+    ): Boolean {
         // 1. Hard Errors (Watchdog won't help, needs manual fix)
         if (lower.contains("call not found") || lower.contains("join link is not valid")) {
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
@@ -125,7 +140,9 @@ object TurnableKernel : Kernel {
         if (lower.contains("vk signaling connect rejected: not authorized") ||
             lower.contains("failed to validate connection url") ||
             lower.contains("second shutdown signal received") ||
-            ((lower.contains("panic") || lower.contains("fatal")) && !lower.contains("[info]") && !lower.contains("[warn]"))
+            ((lower.contains("panic") || lower.contains("fatal")) && !lower.contains("[info]") && !lower.contains(
+                "[warn]"
+            ))
         ) {
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                 CoreServiceState.setStatus(CoreStatus.Error(line))
@@ -208,12 +225,22 @@ object TurnableKernel : Kernel {
         if (lower.contains("failed to start vpn client")) {
             val errorPart = line.substringAfterLast(":").trim()
             val lowerError = errorPart.lowercase()
-            if (lowerError.contains("read tcp") || lowerError.contains("timeout") || lowerError.contains("abort")) {
+            if (lowerError.contains("read tcp") || lowerError.contains("timeout") || lowerError.contains(
+                    "abort"
+                )
+            ) {
                 state.startupEmitted = true
                 return true
             }
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
-                CoreServiceState.setStatus(CoreStatus.Error(ctx.getString(R.string.error_turnable_failed, errorPart)))
+                CoreServiceState.setStatus(
+                    CoreStatus.Error(
+                        ctx.getString(
+                            R.string.error_turnable_failed,
+                            errorPart
+                        )
+                    )
+                )
             }
             state.startupFailed = true
             return true
@@ -250,22 +277,22 @@ object TurnableKernel : Kernel {
         // 3. Connecting / Progress / Retries
         // Lines that mean the whole session is (re)starting or is gone: always drop to Connecting.
         val sessionLost = lower.contains("starting turnable client") ||
-            lower.contains("starting reconnect") ||
-            lower.contains("reconnect attempt failed") ||
-            lower.contains("waiting for connectivity") ||
-            lower.contains("peer connection failed with turn error") ||
-            lower.contains("vk captcha challenge received") ||
-            lower.contains("vk captcha solved") ||
-            lower.contains("vk signaling websocket dial failed") ||
-            TINYMUX_SESSION_LOST.any { lower.contains(it) } ||
-            (onlineCount != null && onlineCount == 0 && lower.contains("peer offline"))
+                lower.contains("starting reconnect") ||
+                lower.contains("reconnect attempt failed") ||
+                lower.contains("waiting for connectivity") ||
+                lower.contains("peer connection failed with turn error") ||
+                lower.contains("vk captcha challenge received") ||
+                lower.contains("vk captcha solved") ||
+                lower.contains("vk signaling websocket dial failed") ||
+                TINYMUX_SESSION_LOST.any { lower.contains(it) } ||
+                (onlineCount != null && onlineCount == 0 && lower.contains("peer offline"))
         // Per-peer noise (one of N peers failing to dial, direct->turn fallback): progress while
         // still connecting, but must not knock an already-established tunnel back to Connecting.
         val peerNoise = lower.contains("peer dial failed") ||
-            lower.contains("quota") ||
-            lower.contains("dtls direct connect failed") ||
-            lower.contains("srtp direct connect failed") ||
-            lower.contains("srtp client handshake started")
+                lower.contains("quota") ||
+                lower.contains("dtls direct connect failed") ||
+                lower.contains("srtp direct connect failed") ||
+                lower.contains("srtp client handshake started")
 
         if (sessionLost || (peerNoise && CoreServiceState.status.value !is CoreStatus.Connected)) {
             if (canUpdateConnectingStatus()) {

@@ -65,20 +65,23 @@ object MailruSignIn {
      * and a jar taken then gets 403 from r7/edit. Blocking network call.
      */
     fun verify(jar: Map<String, String>): Boolean = runCatching {
-        val connection = URL("https://cloud.mail.ru/api/v2/tokens/csrf").openConnection() as HttpURLConnection
+        val connection =
+            URL("https://cloud.mail.ru/api/v2/tokens/csrf").openConnection() as HttpURLConnection
         try {
             connection.requestMethod = "POST"
             connection.connectTimeout = 10_000
             connection.readTimeout = 10_000
-            connection.setRequestProperty("Cookie", jar.entries.joinToString("; ") { "${it.key}=${it.value}" })
+            connection.setRequestProperty(
+                "Cookie",
+                jar.entries.joinToString("; ") { "${it.key}=${it.value}" })
             connection.setRequestProperty("User-Agent", CARRIER_USER_AGENT)
             connection.setRequestProperty("Accept", "application/json, text/plain, */*")
             connection.setRequestProperty("Referer", "https://cloud.mail.ru/home/")
             connection.responseCode == 200 &&
-                connection.inputStream.bufferedReader().use { it.readText() }.let { body ->
-                    JsonParser.parseString(body).asJsonObject.getAsJsonObject("body")
-                        ?.get("token")?.asString.orEmpty().isNotBlank()
-                }
+                    connection.inputStream.bufferedReader().use { it.readText() }.let { body ->
+                        JsonParser.parseString(body).asJsonObject.getAsJsonObject("body")
+                            ?.get("token")?.asString.orEmpty().isNotBlank()
+                    }
         } finally {
             connection.disconnect()
         }

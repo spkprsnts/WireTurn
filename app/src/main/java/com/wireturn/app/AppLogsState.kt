@@ -44,7 +44,8 @@ object AppLogsState {
     // tag a service puts in front of it ("* [Xray] 2026/10/30 01:09:42 ..."). LogEntry.timeMs
     // replaces it: it's the same moment in UTC, which next to the device's time only misleads.
     // Only what's stored goes - the kernels parse their raw lines before they get here.
-    private val GO_LOG_STAMP = Regex("""^(\* \[[^\]]+] )?\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)? """)
+    private val GO_LOG_STAMP =
+        Regex("""^(\* \[[^\]]+] )?\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)? """)
 
     private val lock = Any()
     private val buffer = ArrayDeque<LogEntry>(MAX_LOG_LINES)

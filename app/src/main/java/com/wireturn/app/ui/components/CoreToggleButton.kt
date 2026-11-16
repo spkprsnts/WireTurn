@@ -93,21 +93,22 @@ fun CoreToggleButton(
     var wasActiveBeforeRestart by remember { mutableStateOf(false) }
 
     val isXrayWorking = xrayState == XrayState.Running || xrayState == XrayState.DirectRoute
-    val isCoreActuallyConnected = coreState is CoreState.Connected || (coreState is CoreState.Suppressed && isXrayWorking)
+    val isCoreActuallyConnected =
+        coreState is CoreState.Connected || (coreState is CoreState.Suppressed && isXrayWorking)
     val actuallyRestarting = isRestarting || (wasActiveBeforeRestart && isCoreActuallyConnected)
 
     val toggleState = remember(coreState, xrayState, actuallyRestarting, xrayConfig.enabled) {
         when {
-            actuallyRestarting || 
-            coreState is CoreState.Starting ||
-            coreState is CoreState.Connecting ||
-            coreState is CoreState.Stopping ||
-            coreState is CoreState.CaptchaRequired ||
-            coreState is CoreState.WaitingForNetwork ||
-            (coreState is CoreState.Suppressed && !isXrayWorking) -> "loading"
-            
+            actuallyRestarting ||
+                    coreState is CoreState.Starting ||
+                    coreState is CoreState.Connecting ||
+                    coreState is CoreState.Stopping ||
+                    coreState is CoreState.CaptchaRequired ||
+                    coreState is CoreState.WaitingForNetwork ||
+                    (coreState is CoreState.Suppressed && !isXrayWorking) -> "loading"
+
             coreState is CoreState.Error -> "error"
-            
+
             (xrayConfig.enabled && !isXrayWorking && coreState !is CoreState.Idle) -> "loading"
 
             isCoreActuallyConnected -> "active"
@@ -153,10 +154,12 @@ fun CoreToggleButton(
             else stringResource(R.string.notification_restart_eternal, it.attempt)
         }
             ?: stringResource(R.string.core_restarting)
+
         coreState is CoreState.Connected -> {
             if (xrayState == XrayState.DirectRoute) stringResource(R.string.direct_route_active)
             else stringResource(R.string.core_active)
         }
+
         coreState is CoreState.Starting -> stringResource(R.string.starting)
         coreState is CoreState.Stopping -> stringResource(R.string.stopping)
         coreState is CoreState.Connecting -> stringResource(R.string.connecting)
@@ -164,10 +167,13 @@ fun CoreToggleButton(
             if (xrayState == XrayState.DirectRoute) stringResource(R.string.direct_route_active)
             else stringResource(R.string.connecting)
         }
+
         coreState is CoreState.CaptchaRequired -> stringResource(R.string.core_captcha_required)
         coreState is CoreState.WaitingForNetwork -> stringResource(R.string.status_waiting_for_network)
         coreState is CoreState.Error -> (coreState as CoreState.Error).message
-        else -> if (autoLaunchSettings.enabled) stringResource(R.string.core_auto_launch_active) else stringResource(R.string.core_press_to_start)
+        else -> if (autoLaunchSettings.enabled) stringResource(R.string.core_auto_launch_active) else stringResource(
+            R.string.core_press_to_start
+        )
     }
 
     val statusColor by animateColorAsState(
@@ -175,7 +181,9 @@ fun CoreToggleButton(
             "active" -> MaterialTheme.colorScheme.primary
             "loading" -> MaterialTheme.colorScheme.tertiary
             "error" -> MaterialTheme.colorScheme.error
-            else -> if (autoLaunchSettings.enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.secondary)
+            else -> if (autoLaunchSettings.enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground.copy(
+                alpha = ContentAlpha.secondary
+            )
         },
         label = "status_color"
     )
@@ -212,13 +220,19 @@ fun CoreToggleButton(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Bottom,
-            modifier = modifier.width(size).graphicsLayer(clip = false)
+            modifier = modifier
+                .width(size)
+                .graphicsLayer(clip = false)
         ) {
             val targetBias = if (statusAlignment == Alignment.Start) -1f else 1f
-            val animatedBias by animateFloatAsState(targetBias, spring(stiffness = Spring.StiffnessLow))
+            val animatedBias by animateFloatAsState(
+                targetBias,
+                spring(stiffness = Spring.StiffnessLow)
+            )
 
             Box(
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
                     .wrapContentSize(unbounded = true, align = BiasAlignment(animatedBias, 0f))
                     .graphicsLayer(clip = false)
             ) {
@@ -230,7 +244,9 @@ fun CoreToggleButton(
                     Surface(
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
                         shape = CircleShape,
-                        modifier = Modifier.padding(bottom = 8.dp).shadow(4.dp, CircleShape),
+                        modifier = Modifier
+                            .padding(bottom = 8.dp)
+                            .shadow(4.dp, CircleShape),
                         tonalElevation = 8.dp
                     ) {
                         VerticalAnimatedText(
@@ -296,12 +312,12 @@ private fun CoreToggleButtonInternal(
         when (toggleState) {
             "active" -> if (xrayState == XrayState.DirectRoute) MaterialShapes.VerySunny else MaterialShapes.Sunny
             "loading" -> MaterialShapes.Pill
-            "error"   -> MaterialShapes.Triangle
-            else      -> MaterialShapes.Cookie7Sided
+            "error" -> MaterialShapes.Triangle
+            else -> MaterialShapes.Cookie7Sided
         }
     }
     var startPolygon by remember { mutableStateOf(targetPolygon) }
-    var endPolygon   by remember { mutableStateOf(targetPolygon) }
+    var endPolygon by remember { mutableStateOf(targetPolygon) }
     val morphAnim = remember { Animatable(1f) }
     LaunchedEffect(targetPolygon) {
         startPolygon = endPolygon
@@ -309,7 +325,10 @@ private fun CoreToggleButtonInternal(
         morphAnim.snapTo(0f)
         morphAnim.animateTo(
             targetValue = 1f,
-            animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow)
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioLowBouncy,
+                stiffness = Spring.StiffnessLow
+            )
         )
     }
     val morph = remember(startPolygon, endPolygon) { Morph(startPolygon, endPolygon) }
@@ -334,7 +353,11 @@ private fun CoreToggleButtonInternal(
     }
     val animatedShape: Shape = shape ?: remember(morphPath) {
         object : Shape {
-            override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+            override fun createOutline(
+                size: Size,
+                layoutDirection: LayoutDirection,
+                density: Density
+            ): Outline {
                 val scaledPath = android.graphics.Path(morphPath)
                 val bounds = android.graphics.RectF()
                 scaledPath.computeBounds(bounds, true)
@@ -379,7 +402,10 @@ private fun CoreToggleButtonInternal(
             animationSpec = if (isPressed) {
                 spring(stiffness = Spring.StiffnessHigh, dampingRatio = Spring.DampingRatioNoBouncy)
             } else {
-                spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioLowBouncy)
+                spring(
+                    stiffness = Spring.StiffnessMediumLow,
+                    dampingRatio = Spring.DampingRatioLowBouncy
+                )
             }
         )
     }
@@ -399,7 +425,10 @@ private fun CoreToggleButtonInternal(
                 toggleState == "active" || toggleState == "error" -> 12.dp
                 else -> 22.dp
             } * (size / 160.dp),
-            animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow),
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessLow
+            ),
             label = "elevation"
         )
 
@@ -431,8 +460,10 @@ private fun CoreToggleButtonInternal(
                             modifier = Modifier.size(spinnerSize),
                             color = contentColor
                         )
+
                         "active" -> {
-                            val icon = if (xrayState == XrayState.DirectRoute) R.drawable.ethernet_24px else R.drawable.check_24px
+                            val icon =
+                                if (xrayState == XrayState.DirectRoute) R.drawable.ethernet_24px else R.drawable.check_24px
                             Icon(
                                 painterResource(icon),
                                 stringResource(R.string.core_active_stop),
@@ -440,12 +471,14 @@ private fun CoreToggleButtonInternal(
                                 tint = contentColor
                             )
                         }
+
                         "error" -> Icon(
                             painterResource(R.drawable.error_24px),
                             stringResource(R.string.core_error_restart),
                             Modifier.size(iconSize),
                             tint = contentColor
                         )
+
                         else -> Icon(
                             painterResource(R.drawable.power_24px),
                             stringResource(R.string.start_core),
@@ -465,7 +498,10 @@ private fun CoreToggleButtonInternal(
                     .align(Alignment.TopEnd)
                     .offset(x = -lockOffset, y = lockOffset)
                     .size(lockSize)
-                    .shadow(elevation = (3.dp * (size / 160.dp)).coerceAtLeast(1.dp), shape = CircleShape),
+                    .shadow(
+                        elevation = (3.dp * (size / 160.dp)).coerceAtLeast(1.dp),
+                        shape = CircleShape
+                    ),
                 tonalElevation = (3.dp * (size / 160.dp)).coerceAtLeast(1.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {

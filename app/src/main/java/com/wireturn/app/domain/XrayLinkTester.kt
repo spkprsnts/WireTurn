@@ -38,20 +38,26 @@ class XrayLinkTester(private val context: Context) {
         if (links.isEmpty()) return@withContext
         val cmd = mutableListOf(
             "${context.applicationInfo.nativeLibraryDir}/libxray.so",
-            "-test-links", "-",
-            "-test-url", pingUrl,
-            "-test-timeout", TIMEOUT_SEC.toString(),
-            "-test-concurrency", concurrency.coerceIn(1, XraySettings.MAX_PING_CHECK_CONCURRENCY).toString()
+            "-test-links",
+            "-",
+            "-test-url",
+            pingUrl,
+            "-test-timeout",
+            TIMEOUT_SEC.toString(),
+            "-test-concurrency",
+            concurrency.coerceIn(1, XraySettings.MAX_PING_CHECK_CONCURRENCY).toString()
         )
         if (settings.dns.isNotBlank()) cmd.addAll(listOf("-dns", settings.dns))
         // The same ClientHello fragmentation the real connection would use (see XrayService).
         if (settings.fragment) cmd.addAll(listOf("-fragment", "tlshello,100-200,10-20"))
 
         val builder = ProcessBuilder(cmd)
-        if (useCustomCerts) CaBundleUtil.ensure(context)?.let { builder.environment()["SSL_CERT_FILE"] = it }
+        if (useCustomCerts) CaBundleUtil.ensure(context)
+            ?.let { builder.environment()["SSL_CERT_FILE"] = it }
         val process = builder.start()
         // Reading its output blocks this thread - cancelling must end the process itself.
-        val stopOnCancel = currentCoroutineContext()[kotlinx.coroutines.Job]?.invokeOnCompletion { process.destroy() }
+        val stopOnCancel =
+            currentCoroutineContext()[kotlinx.coroutines.Job]?.invokeOnCompletion { process.destroy() }
         try {
             // One link per line - a link never contains a line break, so the indexes line up.
             process.outputStream.bufferedWriter().use { w ->
@@ -60,19 +66,31 @@ class XrayLinkTester(private val context: Context) {
             // Its log (stderr) only matters if something goes wrong - drained so it can't block.
             val stderr = StringBuilder()
             val stderrReader = Thread {
-                runCatching { process.errorStream.bufferedReader().forEachLine { if (stderr.length < 4000) stderr.appendLine(it) } }
+                runCatching {
+                    process.errorStream.bufferedReader()
+                        .forEachLine { if (stderr.length < 4000) stderr.appendLine(it) }
+                }
             }.apply { start() }
 
             process.inputStream.bufferedReader().useLines { lines ->
                 for (line in lines) {
                     currentCoroutineContext().ensureActive()
-                    parse(line)?.let { (index, result) -> if (index in links.indices) onResult(index, result) }
+                    parse(line)?.let { (index, result) ->
+                        if (index in links.indices) onResult(
+                            index,
+                            result
+                        )
+                    }
                 }
             }
             val code = process.waitFor()
             stderrReader.join(500)
             if (code != 0) {
-                AppLogsState.addLog("Availability check failed (exit $code): ${stderr.toString().trim().take(300)}")
+                AppLogsState.addLog(
+                    "Availability check failed (exit $code): ${
+                        stderr.toString().trim().take(300)
+                    }"
+                )
             }
         } finally {
             stopOnCancel?.dispose()

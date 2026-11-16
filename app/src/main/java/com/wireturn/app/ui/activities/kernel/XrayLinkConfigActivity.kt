@@ -49,7 +49,11 @@ class XrayLinkConfigActivity : ComponentActivity() {
 
             val initialConfig = remember(clientConfig, profiles) {
                 if (configJson != null) {
-                    try { Gson().fromJson(configJson, XrayLinkConfig::class.java) } catch (_: Exception) { XrayLinkConfig() }
+                    try {
+                        Gson().fromJson(configJson, XrayLinkConfig::class.java)
+                    } catch (_: Exception) {
+                        XrayLinkConfig()
+                    }
                 } else if (profileId != null) {
                     profiles.find { it.id == profileId }?.xrayLinkConfig ?: XrayLinkConfig()
                 } else if (isEditMode) {
@@ -69,13 +73,31 @@ class XrayLinkConfigActivity : ComponentActivity() {
                     onSave = { config ->
                         if (isEditMode) {
                             if (profileId != null) {
-                                viewModel.updateProfileById(profileId) { it.copy(kernelConfig = KernelConfig.Xray(config)) }
+                                viewModel.updateProfileById(profileId) {
+                                    it.copy(
+                                        kernelConfig = KernelConfig.Xray(
+                                            config
+                                        )
+                                    )
+                                }
                                 if (profileId == viewModel.currentProfileId.value) {
                                     // Also update the live config so CoreService doesn't keep using the stale one.
-                                    viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Xray(config)))
+                                    viewModel.saveClientConfig(
+                                        clientConfig.copy(
+                                            kernelConfig = KernelConfig.Xray(
+                                                config
+                                            )
+                                        )
+                                    )
                                 }
                             } else {
-                                viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Xray(config)))
+                                viewModel.saveClientConfig(
+                                    clientConfig.copy(
+                                        kernelConfig = KernelConfig.Xray(
+                                            config
+                                        )
+                                    )
+                                )
                             }
                             finish()
                         } else {
@@ -88,9 +110,11 @@ class XrayLinkConfigActivity : ComponentActivity() {
                                 vlessConfig = VlessConfig()
                             )
                             // Close all creation activities
-                            startActivity(Intent(this, MainActivity::class.java).addFlags(
-                                Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                            ))
+                            startActivity(
+                                Intent(this, MainActivity::class.java).addFlags(
+                                    Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                                )
+                            )
                         }
                     }
                 )

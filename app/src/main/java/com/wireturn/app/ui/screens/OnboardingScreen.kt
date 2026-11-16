@@ -420,7 +420,8 @@ private fun MorphingHero(
     size: Dp,
     iconSize: Dp
 ) {
-    val cycle = remember { listOf(MaterialShapes.Cookie7Sided, MaterialShapes.Pill, MaterialShapes.Sunny) }
+    val cycle =
+        remember { listOf(MaterialShapes.Cookie7Sided, MaterialShapes.Pill, MaterialShapes.Sunny) }
     var index by remember { mutableIntStateOf(0) }
     val progress = remember { Animatable(1f) }
     LaunchedEffect(Unit) {
@@ -430,7 +431,10 @@ private fun MorphingHero(
             progress.snapTo(0f)
             progress.animateTo(
                 targetValue = 1f,
-                animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow)
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioLowBouncy,
+                    stiffness = Spring.StiffnessLow
+                )
             )
         }
     }
@@ -441,7 +445,10 @@ private fun MorphingHero(
     val rotation by rememberInfiniteTransition(label = "hero_rotation").animateFloat(
         initialValue = 0f,
         targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(24_000, easing = LinearEasing), RepeatMode.Restart),
+        animationSpec = infiniteRepeatable(
+            tween(24_000, easing = LinearEasing),
+            RepeatMode.Restart
+        ),
         label = "rotation"
     )
 
@@ -453,7 +460,12 @@ private fun MorphingHero(
                 // MaterialShapes are normalized to a unit square - scaled up to this box. Clamped
                 // like the connect button's: past 1 the spring's overshoot would extrapolate the shape.
                 val path = morph.toPath(progress.value.coerceIn(0f, 1f), Path())
-                path.transform(Matrix().apply { scale(this@drawWithCache.size.width, this@drawWithCache.size.height) })
+                path.transform(Matrix().apply {
+                    scale(
+                        this@drawWithCache.size.width,
+                        this@drawWithCache.size.height
+                    )
+                })
                 onDrawBehind {
                     rotate(rotation) { drawPath(path, containerColor) }
                 }
@@ -486,7 +498,11 @@ private fun FeatureGroup(items: List<Feature>) {
                     else -> ItemPosition.Middle
                 }
             ) {
-                ItemRow(icon = feature.icon, title = feature.title, description = feature.description)
+                ItemRow(
+                    icon = feature.icon,
+                    title = feature.title,
+                    description = feature.description
+                )
             }
         }
     }
@@ -602,7 +618,11 @@ private fun PageIndicator(pageCount: Int, currentPage: Int, modifier: Modifier =
 
 private fun hasNotificationPermission(context: Context): Boolean =
     Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
 
 private fun isIgnoringBatteryOptimizations(context: Context): Boolean =
-    context.getSystemService(PowerManager::class.java)?.isIgnoringBatteryOptimizations(context.packageName) == true
+    context.getSystemService(PowerManager::class.java)
+        ?.isIgnoringBatteryOptimizations(context.packageName) == true

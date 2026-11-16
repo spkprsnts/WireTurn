@@ -206,12 +206,19 @@ fun OpenFluxConfigScreen(
                         ) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.import_clipboard)) },
-                                leadingIcon = { Icon(painterResource(R.drawable.content_paste_24px), null) },
+                                leadingIcon = {
+                                    Icon(
+                                        painterResource(R.drawable.content_paste_24px),
+                                        null
+                                    )
+                                },
                                 onClick = {
                                     showImportMenu = false
                                     scope.launch {
                                         val clipEntry = clipboard.getClipEntry()
-                                        val text = clipEntry?.clipData?.getItemAt(0)?.text?.toString() ?: ""
+                                        val text =
+                                            clipEntry?.clipData?.getItemAt(0)?.text?.toString()
+                                                ?: ""
                                         val parsed = OpenFluxConfig.parse(text, config)
                                         if (parsed != null) {
                                             config = parsed
@@ -224,7 +231,12 @@ fun OpenFluxConfigScreen(
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.import_file)) },
-                                leadingIcon = { Icon(painterResource(R.drawable.file_open_24px), null) },
+                                leadingIcon = {
+                                    Icon(
+                                        painterResource(R.drawable.file_open_24px),
+                                        null
+                                    )
+                                },
                                 onClick = {
                                     showImportMenu = false
                                     filePickerLauncher.launch("*/*")
@@ -358,17 +370,23 @@ fun OpenFluxConfigScreen(
             // Per-platform fields - only one of these is ever relevant at a time, same
             // MutableTransitionState/AnimatedVisibility pattern olcRTC uses for its own
             // vp8channel/seichannel/videochannel sections.
-            val yandexVisible = remember { MutableTransitionState(initialConfig.transport != "oneme") }
+            val yandexVisible =
+                remember { MutableTransitionState(initialConfig.transport != "oneme") }
             yandexVisible.targetState = config.transport != "oneme"
 
-            val onemeVisible = remember { MutableTransitionState(initialConfig.transport == "oneme") }
+            val onemeVisible =
+                remember { MutableTransitionState(initialConfig.transport == "oneme") }
             onemeVisible.targetState = config.transport == "oneme"
 
             Column {
                 AnimatedVisibility(
                     visibleState = yandexVisible,
-                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
-                    exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec())
+                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(
+                        MaterialTheme.motionScheme.defaultSpatialSpec()
+                    ),
+                    exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(
+                        MaterialTheme.motionScheme.defaultSpatialSpec()
+                    )
                 ) {
                     SectionGroup(
                         title = stringResource(
@@ -396,7 +414,9 @@ fun OpenFluxConfigScreen(
                                     }
                                 ),
                                 value = config.url.redact(isPrivacyActive),
-                                onValueChange = { if (!isPrivacyActive) config = config.copy(url = it) },
+                                onValueChange = {
+                                    if (!isPrivacyActive) config = config.copy(url = it)
+                                },
                                 readOnly = isPrivacyActive,
                                 isError = config.transport != "oneme" && !config.isValid(),
                                 isModified = isEditMode && config.url != initialConfig.url,
@@ -434,15 +454,21 @@ fun OpenFluxConfigScreen(
 
                 AnimatedVisibility(
                     visibleState = onemeVisible,
-                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
-                    exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec())
+                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(
+                        MaterialTheme.motionScheme.defaultSpatialSpec()
+                    ),
+                    exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(
+                        MaterialTheme.motionScheme.defaultSpatialSpec()
+                    )
                 ) {
                     SectionGroup(title = stringResource(R.string.openflux_oneme_settings_title)) {
                         SectionItem(position = ItemPosition.Top) {
                             TextFieldRow(
                                 label = stringResource(R.string.openflux_max_token_label),
                                 value = config.maxToken.redact(isPrivacyActive),
-                                onValueChange = { if (!isPrivacyActive) config = config.copy(maxToken = it) },
+                                onValueChange = {
+                                    if (!isPrivacyActive) config = config.copy(maxToken = it)
+                                },
                                 readOnly = isPrivacyActive,
                                 isError = config.transport == "oneme" && config.maxToken.isBlank(),
                                 isModified = isEditMode && config.maxToken != initialConfig.maxToken,
@@ -499,7 +525,9 @@ fun OpenFluxConfigScreen(
                             TextFieldRow(
                                 label = stringResource(R.string.openflux_encryption_key_label),
                                 value = config.encryptionKey.redact(isPrivacyActive),
-                                onValueChange = { if (!isPrivacyActive) config = config.copy(encryptionKey = it) },
+                                onValueChange = {
+                                    if (!isPrivacyActive) config = config.copy(encryptionKey = it)
+                                },
                                 readOnly = isPrivacyActive,
                                 isError = config.encryptionKey.isNotEmpty() && config.encryptionKey.trim().length < 16,
                                 isModified = isEditMode && config.encryptionKey != initialConfig.encryptionKey,
@@ -514,7 +542,10 @@ fun OpenFluxConfigScreen(
                                 TextFieldRow(
                                     label = stringResource(R.string.openflux_session_context_label),
                                     value = config.sessionContext.redact(isPrivacyActive),
-                                    onValueChange = { if (!isPrivacyActive) config = config.copy(sessionContext = it) },
+                                    onValueChange = {
+                                        if (!isPrivacyActive) config =
+                                            config.copy(sessionContext = it)
+                                    },
                                     readOnly = isPrivacyActive,
                                     isModified = isEditMode && config.sessionContext != initialConfig.sessionContext,
                                     privacyMode = isPrivacyActive,

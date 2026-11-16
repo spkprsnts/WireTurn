@@ -37,10 +37,13 @@ data class FreeTurnConfig(
     // call links, VK auth or captcha, and nothing to get past whitelists that block the VPS itself.
     val isDirect: Boolean get() = provider == PROVIDER_DIRECT
 
-    fun isValid(): Boolean = (isDirect || links.isNotBlank()) && (peer.isNotBlank() || sub.isNotBlank())
+    fun isValid(): Boolean =
+        (isDirect || links.isNotBlank()) && (peer.isNotBlank() || sub.isNotBlank())
 
     fun sanitize(): FreeTurnConfig = copy(
-        provider = if ((provider as Any?)?.toString()?.trim() == PROVIDER_DIRECT) PROVIDER_DIRECT else PROVIDER_VK,
+        provider = if ((provider as Any?)?.toString()
+                ?.trim() == PROVIDER_DIRECT
+        ) PROVIDER_DIRECT else PROVIDER_VK,
         peer = (peer as Any?)?.toString()?.trim()?.take(500) ?: "",
         links = (links as Any?)?.toString()?.trim()?.take(4096) ?: "",
         obfKey = (obfKey as Any?)?.toString()?.trim()?.take(64) ?: "",
@@ -85,10 +88,11 @@ data class FreeTurnConfig(
                 addProperty("mode", mode)
                 if (bond) addProperty("bond", true)
                 val default = FreeTurnConfig()
-                val kcpChanged = kcpNodelay != default.kcpNodelay || kcpInterval != default.kcpInterval ||
-                    kcpResend != default.kcpResend || kcpNc != default.kcpNc ||
-                    kcpSndwnd != default.kcpSndwnd || kcpRcvwnd != default.kcpRcvwnd ||
-                    kcpMtu != default.kcpMtu || kcpAcknodelay != default.kcpAcknodelay
+                val kcpChanged =
+                    kcpNodelay != default.kcpNodelay || kcpInterval != default.kcpInterval ||
+                            kcpResend != default.kcpResend || kcpNc != default.kcpNc ||
+                            kcpSndwnd != default.kcpSndwnd || kcpRcvwnd != default.kcpRcvwnd ||
+                            kcpMtu != default.kcpMtu || kcpAcknodelay != default.kcpAcknodelay
                 // The server applies this object atomically (internal/config/raw.go's applyURI) -
                 // any field missing from it becomes Go's zero value, not our default, so all 8
                 // fields must always be sent together, never a partial subset.
@@ -108,7 +112,8 @@ data class FreeTurnConfig(
             if (!profileName.isNullOrBlank()) addProperty("name", profileName)
         }
         val bytes = json.toString().toByteArray()
-        val base64 = Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
+        val base64 =
+            Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
         return "freeturn://$base64"
     }
 
@@ -142,14 +147,19 @@ data class FreeTurnConfig(
             val host = if (colonIdx > 0) peer.substring(0, colonIdx) else peer
             val port = if (colonIdx > 0) peer.substring(colonIdx) else ""
             val octets = host.split(".")
-            val maskedHost = if (octets.size == 4 && octets.all { it.isNotEmpty() && it.all(Char::isDigit) }) {
-                octets.mapIndexed { i, o -> if (i == 0 || i == octets.lastIndex) o else "*".repeat(o.length) }
-                    .joinToString(".")
-            } else if (host.length > 4) {
-                host.take(2) + "*".repeat(host.length - 4) + host.takeLast(2)
-            } else {
-                "*".repeat(host.length)
-            }
+            val maskedHost =
+                if (octets.size == 4 && octets.all { it.isNotEmpty() && it.all(Char::isDigit) }) {
+                    octets.mapIndexed { i, o ->
+                        if (i == 0 || i == octets.lastIndex) o else "*".repeat(
+                            o.length
+                        )
+                    }
+                        .joinToString(".")
+                } else if (host.length > 4) {
+                    host.take(2) + "*".repeat(host.length - 4) + host.takeLast(2)
+                } else {
+                    "*".repeat(host.length)
+                }
             return maskedHost + port
         }
 
@@ -169,7 +179,7 @@ data class FreeTurnConfig(
                     // "vk" is the official turn-proxy-android client's key for this same value -
                     // read as a last-resort fallback so links it shares still import here.
                     links = json.get("links")?.asString ?: json.get("link")?.asString
-                        ?: json.get("vk")?.asString ?: current.links,
+                    ?: json.get("vk")?.asString ?: current.links,
                     sub = json.get("sub")?.asString ?: current.sub,
                     obfProfile = json.get("obf")?.asString ?: current.obfProfile,
                     obfKey = json.get("key")?.asString ?: current.obfKey,
@@ -215,7 +225,10 @@ data class FreeTurnConfig(
             if (!url.startsWith("freeturn://", ignoreCase = true)) return null
             return try {
                 val base64 = url.substringAfter("freeturn://")
-                val json = Gson().fromJson(String(Base64.decode(base64, Base64.URL_SAFE)), JsonObject::class.java)
+                val json = Gson().fromJson(
+                    String(Base64.decode(base64, Base64.URL_SAFE)),
+                    JsonObject::class.java
+                )
                 json.get("wg")?.asString?.takeIf { it.isNotBlank() }
             } catch (_: Exception) {
                 null

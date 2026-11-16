@@ -102,6 +102,7 @@ class AppPreferences(val context: Context) {
         val AUTO_LAUNCH_ENABLED = booleanPreferencesKey("auto_launch_enabled")
         val AUTO_LAUNCH_URL = stringPreferencesKey("auto_launch_url")
         val AUTO_LAUNCH_INTERVAL = intPreferencesKey("auto_launch_interval")
+
         // Legacy, only cleared now - see clearLegacyVlessLinkHistory.
         val VLESS_LINK_HISTORY = stringPreferencesKey("vless_link_history")
         val BATTERY_NOTIFICATION_DISMISSED = booleanPreferencesKey("battery_notification_dismissed")
@@ -128,10 +129,12 @@ class AppPreferences(val context: Context) {
         val CLIENT_SOCKS_AUTH_ENABLED = booleanPreferencesKey("client_socks_auth_enabled")
         val CLIENT_SOCKS_USER = stringPreferencesKey("client_socks_user")
         val CLIENT_SOCKS_PASS = stringPreferencesKey("client_socks_pass")
+
         // Legacy keys — shared by every SOCKS5-native kernel (OLCRTC/WEBDAV/QWDTT), not OLCRTC-only;
         // renamed to CLIENT_SOCKS_* above. Used only for migration on first launch after update.
         private val LEGACY_OLCRTC_SOCKS_ADDR = stringPreferencesKey("olcrtc_socks_addr")
-        private val LEGACY_OLCRTC_SOCKS_AUTH_ENABLED = booleanPreferencesKey("olcrtc_socks_auth_enabled")
+        private val LEGACY_OLCRTC_SOCKS_AUTH_ENABLED =
+            booleanPreferencesKey("olcrtc_socks_auth_enabled")
         private val LEGACY_OLCRTC_SOCKS_USER = stringPreferencesKey("olcrtc_socks_user")
         private val LEGACY_OLCRTC_SOCKS_PASS = stringPreferencesKey("olcrtc_socks_pass")
         val XRAY_SOCKS_BIND = stringPreferencesKey("xray_socks_bind")
@@ -163,7 +166,8 @@ class AppPreferences(val context: Context) {
     private fun <T> Flow<Preferences>.mapPref(key: Preferences.Key<T>, def: T): Flow<T> =
         this.map { it[key] ?: def }.distinctUntilChanged()
 
-    val onboardingDoneFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(ONBOARDING_DONE, false)
+    val onboardingDoneFlow: Flow<Boolean> =
+        appCtx.internalDataStore.data.mapPref(ONBOARDING_DONE, false)
 
     suspend fun hasActiveProfile(): Boolean =
         appCtx.internalDataStore.data.map { it[ACTIVE_KERNEL_JSON] != null }.first()
@@ -189,31 +193,49 @@ class AppPreferences(val context: Context) {
             )
         }.distinctUntilChanged()
 
-    val batteryNotificationDismissedFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(BATTERY_NOTIFICATION_DISMISSED, false)
-    val appsExclusionHintShownFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(APPS_EXCLUSION_HINT_SHOWN, false)
-    val allowUnstableUpdatesFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(ALLOW_UNSTABLE_UPDATES, false)
-    val waitForNetworkFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(WAIT_FOR_NETWORK, true)
-    val restartOnNetworkChangeFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(RESTART_ON_NETWORK_CHANGE, false)
-    val captchaStyleModFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(CAPTCHA_STYLE_MOD, true)
-    val captchaForceTintFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(CAPTCHA_FORCE_TINT, true)
+    val batteryNotificationDismissedFlow: Flow<Boolean> =
+        appCtx.internalDataStore.data.mapPref(BATTERY_NOTIFICATION_DISMISSED, false)
+    val appsExclusionHintShownFlow: Flow<Boolean> =
+        appCtx.internalDataStore.data.mapPref(APPS_EXCLUSION_HINT_SHOWN, false)
+    val allowUnstableUpdatesFlow: Flow<Boolean> =
+        appCtx.internalDataStore.data.mapPref(ALLOW_UNSTABLE_UPDATES, false)
+    val waitForNetworkFlow: Flow<Boolean> =
+        appCtx.internalDataStore.data.mapPref(WAIT_FOR_NETWORK, true)
+    val restartOnNetworkChangeFlow: Flow<Boolean> =
+        appCtx.internalDataStore.data.mapPref(RESTART_ON_NETWORK_CHANGE, false)
+    val captchaStyleModFlow: Flow<Boolean> =
+        appCtx.internalDataStore.data.mapPref(CAPTCHA_STYLE_MOD, true)
+    val captchaForceTintFlow: Flow<Boolean> =
+        appCtx.internalDataStore.data.mapPref(CAPTCHA_FORCE_TINT, true)
+
     // HomeScreen's card and the notification for a partial captcha (CaptchaSession.partial) - a
     // blocking one always shows, since the tunnel can't come up without it.
-    val partialCaptchaAlertsFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(PARTIAL_CAPTCHA_ALERTS, true)
+    val partialCaptchaAlertsFlow: Flow<Boolean> =
+        appCtx.internalDataStore.data.mapPref(PARTIAL_CAPTCHA_ALERTS, true)
+
     // Whether other apps (Tasker and the like) may start/stop the tunnel through CoreReceiver's
     // broadcasts. Off by default: the receiver is exported, so otherwise any app could stop it.
-    val intentApiEnabledFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(INTENT_API_ENABLED, false)
+    val intentApiEnabledFlow: Flow<Boolean> =
+        appCtx.internalDataStore.data.mapPref(INTENT_API_ENABLED, false)
     val privacyModeFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(PRIVACY_MODE, false)
     val logsMinLevelFlow: Flow<LogLevel> = appCtx.internalDataStore.data
-        .map { prefs -> LogLevel.entries.find { it.name == prefs[LOGS_MIN_LEVEL] } ?: LogLevel.INFO }
+        .map { prefs ->
+            LogLevel.entries.find { it.name == prefs[LOGS_MIN_LEVEL] } ?: LogLevel.INFO
+        }
         .distinctUntilChanged()
-    val profilesGestureEnabledFlow: Flow<Boolean> = appCtx.internalDataStore.data.mapPref(PROFILES_GESTURE_ENABLED, true)
-    val appLanguageFlow: Flow<String> = appCtx.internalDataStore.data.mapPref(APP_LANGUAGE, "system")
+    val profilesGestureEnabledFlow: Flow<Boolean> =
+        appCtx.internalDataStore.data.mapPref(PROFILES_GESTURE_ENABLED, true)
+    val appLanguageFlow: Flow<String> =
+        appCtx.internalDataStore.data.mapPref(APP_LANGUAGE, "system")
+
     // Blank = the built-in default (see MainViewModel.DEFAULT_PING_URL) - kept blank here rather
     // than baking the URL into this default, same fallback shape as ClientConfig.dns/hcDestination.
     val pingUrlFlow: Flow<String> = appCtx.internalDataStore.data.mapPref(PING_URL, "")
+
     // "auto" (default), "ipwhois", "ipsb", "ipapico", "ipinfo", or "cloudflare" - a real setting
     // (not hardcoded) so more methods can be added later without a migration.
-    val countryDetectionMethodFlow: Flow<String> = appCtx.internalDataStore.data.mapPref(COUNTRY_DETECTION_METHOD, "auto")
+    val countryDetectionMethodFlow: Flow<String> =
+        appCtx.internalDataStore.data.mapPref(COUNTRY_DETECTION_METHOD, "auto")
 
     // The three JSON lists below are parsed only when their own key changes, and off the main
     // thread: DataStore re-emits every key on any edit, and a profile switch edits several (the
@@ -233,7 +255,8 @@ class AppPreferences(val context: Context) {
         .distinctUntilChanged().flowOn(Dispatchers.Default)
 
     private fun decodeProfiles(json: String): List<Profile> = try {
-        val list = gson.fromJson<List<Any>>(json, object : TypeToken<List<Any>>() {}.type) ?: emptyList()
+        val list =
+            gson.fromJson<List<Any>>(json, object : TypeToken<List<Any>>() {}.type) ?: emptyList()
         val defaultName = appCtx.getString(R.string.profile_default_name)
 
         list.mapNotNull { item ->
@@ -244,8 +267,11 @@ class AppPreferences(val context: Context) {
                     try {
                         val itemJson = gson.toJson(item)
                         gson.fromJson(itemJson, Profile::class.java)?.sanitize(defaultName)
-                    } catch (_: Exception) { null }
+                    } catch (_: Exception) {
+                        null
+                    }
                 }
+
                 else -> null
             }
         }
@@ -276,10 +302,12 @@ class AppPreferences(val context: Context) {
             }
         }.distinctUntilChanged().flowOn(Dispatchers.Default)
 
-    val currentProfileIdFlow: Flow<String> = appCtx.internalDataStore.data.mapPref(CURRENT_PROFILE_ID, "default")
-    val currentProfileNameFlow: Flow<String?> = combine(profilesFlow, currentProfileIdFlow) { profiles, id ->
-        profiles.find { it.id == id }?.name
-    }
+    val currentProfileIdFlow: Flow<String> =
+        appCtx.internalDataStore.data.mapPref(CURRENT_PROFILE_ID, "default")
+    val currentProfileNameFlow: Flow<String?> =
+        combine(profilesFlow, currentProfileIdFlow) { profiles, id ->
+            profiles.find { it.id == id }?.name
+        }
 
 
     val autoLaunchSettingsFlow: Flow<AutoLaunchSettings> = appCtx.internalDataStore.data
@@ -295,7 +323,8 @@ class AppPreferences(val context: Context) {
         .map {
             WatchdogSettings(
                 eternal = it[WATCHDOG_ETERNAL] ?: false,
-                maxIntervalMinutes = it[WATCHDOG_MAX_INTERVAL] ?: WatchdogSettings.DEFAULT_MAX_INTERVAL_MINUTES
+                maxIntervalMinutes = it[WATCHDOG_MAX_INTERVAL]
+                    ?: WatchdogSettings.DEFAULT_MAX_INTERVAL_MINUTES
             )
         }.distinctUntilChanged()
 
@@ -303,22 +332,39 @@ class AppPreferences(val context: Context) {
         .map { p ->
             val kernelConfig = p[ACTIVE_KERNEL_JSON]?.let { json ->
                 val snap = gson.fromJson(json, KernelSnapshot::class.java) ?: KernelSnapshot()
-                val variant = try { KernelVariant.valueOf(snap.variant) } catch (_: Exception) { KernelVariant.TURNABLE }
+                val variant = try {
+                    KernelVariant.valueOf(snap.variant)
+                } catch (_: Exception) {
+                    KernelVariant.TURNABLE
+                }
                 when (variant) {
-                    KernelVariant.TURNABLE -> KernelConfig.Turnable(snap.turnable ?: TurnableConfig())
+                    KernelVariant.TURNABLE -> KernelConfig.Turnable(
+                        snap.turnable ?: TurnableConfig()
+                    )
+
                     KernelVariant.OLCRTC -> KernelConfig.Olcrtc(snap.olcrtc ?: OlcrtcConfig())
                     KernelVariant.WEBDAV -> KernelConfig.Webdav(snap.webdav ?: WebdavConfig())
-                    KernelVariant.FREETURN -> KernelConfig.FreeTurn(snap.freeturn ?: FreeTurnConfig())
+                    KernelVariant.FREETURN -> KernelConfig.FreeTurn(
+                        snap.freeturn ?: FreeTurnConfig()
+                    )
+
                     KernelVariant.QWDTT -> KernelConfig.Qwdtt(snap.qwdtt ?: QwdttConfig())
-                    KernelVariant.OPENFLUX -> KernelConfig.OpenFlux(snap.openflux ?: OpenFluxConfig())
+                    KernelVariant.OPENFLUX -> KernelConfig.OpenFlux(
+                        snap.openflux ?: OpenFluxConfig()
+                    )
+
                     KernelVariant.CSQTT -> KernelConfig.Csqtt(snap.csqtt ?: CsqttConfig())
-                    KernelVariant.XRAY -> KernelConfig.Xray(snap.xray ?: com.wireturn.app.data.kernel.XrayLinkConfig())
+                    KernelVariant.XRAY -> KernelConfig.Xray(
+                        snap.xray ?: com.wireturn.app.data.kernel.XrayLinkConfig()
+                    )
                 }
             } ?: KernelConfig.Turnable()
             ClientConfig(
                 listenAddr = p[CLIENT_LISTEN_ADDR] ?: ClientConfig.DEFAULT_LISTEN_ADDR,
-                socksAddr = p[CLIENT_SOCKS_ADDR] ?: p[LEGACY_OLCRTC_SOCKS_ADDR] ?: ClientConfig.DEFAULT_SOCKS_ADDR,
-                isSocksAuthEnabled = p[CLIENT_SOCKS_AUTH_ENABLED] ?: p[LEGACY_OLCRTC_SOCKS_AUTH_ENABLED] ?: true,
+                socksAddr = p[CLIENT_SOCKS_ADDR] ?: p[LEGACY_OLCRTC_SOCKS_ADDR]
+                ?: ClientConfig.DEFAULT_SOCKS_ADDR,
+                isSocksAuthEnabled = p[CLIENT_SOCKS_AUTH_ENABLED]
+                    ?: p[LEGACY_OLCRTC_SOCKS_AUTH_ENABLED] ?: true,
                 socksUser = p[CLIENT_SOCKS_USER] ?: p[LEGACY_OLCRTC_SOCKS_USER] ?: "",
                 socksPass = p[CLIENT_SOCKS_PASS] ?: p[LEGACY_OLCRTC_SOCKS_PASS] ?: "",
                 dns = p[CLIENT_DNS] ?: "",
@@ -347,7 +393,8 @@ class AppPreferences(val context: Context) {
                 dpiBypassArgs = p[XRAY_DPI_BYPASS_ARGS] ?: com.wireturn.app.ByeDpi.DEFAULT_ARGS,
                 dpiBypassRoute = p[XRAY_DPI_BYPASS_ROUTE] ?: com.wireturn.app.ByeDpi.DEFAULT_ROUTE,
                 dpiBypassPort = p[XRAY_DPI_BYPASS_PORT] ?: "",
-                pingCheckConcurrency = p[XRAY_PING_CHECK_CONCURRENCY] ?: XraySettings.DEFAULT_PING_CHECK_CONCURRENCY,
+                pingCheckConcurrency = p[XRAY_PING_CHECK_CONCURRENCY]
+                    ?: XraySettings.DEFAULT_PING_CHECK_CONCURRENCY,
                 reloadOnNetworkChange = p[XRAY_RELOAD_ON_NETWORK_CHANGE] ?: true
             )
         }.distinctUntilChanged()
@@ -357,7 +404,9 @@ class AppPreferences(val context: Context) {
             XrayConfig(
                 enabled = p[ACTIVE_XRAY_ENABLED] ?: false,
                 protocol = try {
-                    XrayConfiguration.valueOf(p[ACTIVE_XRAY_CONFIG_TYPE] ?: XrayConfiguration.WIREGUARD.name)
+                    XrayConfiguration.valueOf(
+                        p[ACTIVE_XRAY_CONFIG_TYPE] ?: XrayConfiguration.WIREGUARD.name
+                    )
                 } catch (_: Exception) {
                     XrayConfiguration.WIREGUARD
                 }
@@ -370,18 +419,52 @@ class AppPreferences(val context: Context) {
 
     val vlessConfigFlow: Flow<VlessConfig> = appCtx.internalDataStore.data
         // sanitize(): migrates a legacy directAddress (see VlessConfig), as profiles get on load.
-        .map { (gson.fromJson(it[ACTIVE_VLESS_JSON] ?: "{}", VlessConfig::class.java) ?: VlessConfig()).sanitize() }
+        .map {
+            (gson.fromJson(it[ACTIVE_VLESS_JSON] ?: "{}", VlessConfig::class.java)
+                ?: VlessConfig()).sanitize()
+        }
         .distinctUntilChanged()
 
     private fun kernelSnapshotOf(kernelConfig: KernelConfig): KernelSnapshot = when (kernelConfig) {
-        is KernelConfig.Turnable -> KernelSnapshot(variant = KernelVariant.TURNABLE.name, turnable = kernelConfig.config)
-        is KernelConfig.Olcrtc -> KernelSnapshot(variant = KernelVariant.OLCRTC.name, olcrtc = kernelConfig.config)
-        is KernelConfig.Webdav -> KernelSnapshot(variant = KernelVariant.WEBDAV.name, webdav = kernelConfig.config)
-        is KernelConfig.FreeTurn -> KernelSnapshot(variant = KernelVariant.FREETURN.name, freeturn = kernelConfig.config)
-        is KernelConfig.Qwdtt -> KernelSnapshot(variant = KernelVariant.QWDTT.name, qwdtt = kernelConfig.config)
-        is KernelConfig.OpenFlux -> KernelSnapshot(variant = KernelVariant.OPENFLUX.name, openflux = kernelConfig.config)
-        is KernelConfig.Csqtt -> KernelSnapshot(variant = KernelVariant.CSQTT.name, csqtt = kernelConfig.config)
-        is KernelConfig.Xray -> KernelSnapshot(variant = KernelVariant.XRAY.name, xray = kernelConfig.config)
+        is KernelConfig.Turnable -> KernelSnapshot(
+            variant = KernelVariant.TURNABLE.name,
+            turnable = kernelConfig.config
+        )
+
+        is KernelConfig.Olcrtc -> KernelSnapshot(
+            variant = KernelVariant.OLCRTC.name,
+            olcrtc = kernelConfig.config
+        )
+
+        is KernelConfig.Webdav -> KernelSnapshot(
+            variant = KernelVariant.WEBDAV.name,
+            webdav = kernelConfig.config
+        )
+
+        is KernelConfig.FreeTurn -> KernelSnapshot(
+            variant = KernelVariant.FREETURN.name,
+            freeturn = kernelConfig.config
+        )
+
+        is KernelConfig.Qwdtt -> KernelSnapshot(
+            variant = KernelVariant.QWDTT.name,
+            qwdtt = kernelConfig.config
+        )
+
+        is KernelConfig.OpenFlux -> KernelSnapshot(
+            variant = KernelVariant.OPENFLUX.name,
+            openflux = kernelConfig.config
+        )
+
+        is KernelConfig.Csqtt -> KernelSnapshot(
+            variant = KernelVariant.CSQTT.name,
+            csqtt = kernelConfig.config
+        )
+
+        is KernelConfig.Xray -> KernelSnapshot(
+            variant = KernelVariant.XRAY.name,
+            xray = kernelConfig.config
+        )
     }
 
     suspend fun saveFullProfile(id: String, profile: Profile) {
@@ -542,7 +625,8 @@ class AppPreferences(val context: Context) {
         .map { json -> parseProfilePings(json) }
         .distinctUntilChanged().flowOn(Dispatchers.Default)
 
-    suspend fun saveProfilePing(profileId: String, ms: Long) = saveProfilePings(mapOf(profileId to ms))
+    suspend fun saveProfilePing(profileId: String, ms: Long) =
+        saveProfilePings(mapOf(profileId to ms))
 
     /** Several at once - a whole subscription's check is one write, not one per profile. */
     suspend fun saveProfilePings(pings: Map<String, Long>) {
@@ -552,27 +636,33 @@ class AppPreferences(val context: Context) {
         }
     }
 
-    private fun readProfilePings(p: Preferences): Map<String, Long> = parseProfilePings(p[PROFILE_PINGS_JSON] ?: "{}")
+    private fun readProfilePings(p: Preferences): Map<String, Long> =
+        parseProfilePings(p[PROFILE_PINGS_JSON] ?: "{}")
 
     private fun parseProfilePings(json: String): Map<String, Long> = try {
-        gson.fromJson<Map<String, Long>>(json, object : TypeToken<Map<String, Long>>() {}.type) ?: emptyMap()
+        gson.fromJson<Map<String, Long>>(json, object : TypeToken<Map<String, Long>>() {}.type)
+            ?: emptyMap()
     } catch (_: Exception) {
         emptyMap()
     }
 
     /** Geo resource sources the user added themselves, listed after the built-in ones. */
-    val customGeoSourcesFlow: Flow<List<com.wireturn.app.domain.GeoResourceSet>> = appCtx.internalDataStore.data
-        .map { it[CUSTOM_GEO_SOURCES_JSON] ?: "[]" }
-        .distinctUntilChanged()
-        .map { json ->
-            try {
-                gson.fromJson<List<com.wireturn.app.domain.GeoResourceSet>>(
-                    json, object : TypeToken<List<com.wireturn.app.domain.GeoResourceSet>>() {}.type
-                )?.filter { it.isCustom && it.geoipUrl.isNotBlank() && it.geositeUrl.isNotBlank() } ?: emptyList()
-            } catch (_: Exception) {
-                emptyList()
+    val customGeoSourcesFlow: Flow<List<com.wireturn.app.domain.GeoResourceSet>> =
+        appCtx.internalDataStore.data
+            .map { it[CUSTOM_GEO_SOURCES_JSON] ?: "[]" }
+            .distinctUntilChanged()
+            .map { json ->
+                try {
+                    gson.fromJson<List<com.wireturn.app.domain.GeoResourceSet>>(
+                        json,
+                        object : TypeToken<List<com.wireturn.app.domain.GeoResourceSet>>() {}.type
+                    )
+                        ?.filter { it.isCustom && it.geoipUrl.isNotBlank() && it.geositeUrl.isNotBlank() }
+                        ?: emptyList()
+                } catch (_: Exception) {
+                    emptyList()
+                }
             }
-        }
 
     suspend fun saveCustomGeoSources(list: List<com.wireturn.app.domain.GeoResourceSet>) {
         appCtx.internalDataStore.edit { it[CUSTOM_GEO_SOURCES_JSON] = gson.toJson(list) }
@@ -597,16 +687,23 @@ class AppPreferences(val context: Context) {
         appCtx.internalDataStore.edit { p ->
             val stored = p[PROFILES_JSON]
             if (stored != null) {
-                val array = try { com.google.gson.JsonParser.parseString(stored).asJsonArray } catch (_: Exception) { null }
+                val array = try {
+                    com.google.gson.JsonParser.parseString(stored).asJsonArray
+                } catch (_: Exception) {
+                    null
+                }
                 if (array != null) {
                     val kept = com.google.gson.JsonArray()
                     array.forEach { element ->
                         val profile = element.takeIf { it.isJsonObject }?.asJsonObject
-                        val kernel = profile?.get("kernelConfig")?.takeIf { it.isJsonObject }?.asJsonObject
+                        val kernel =
+                            profile?.get("kernelConfig")?.takeIf { it.isJsonObject }?.asJsonObject
                         val type = kernel?.get("type")?.takeIf { it.isJsonPrimitive }?.asString
                         if (type in DISCONTINUED_KERNEL_TYPES) {
                             removedCount++
-                            profile?.get("id")?.takeIf { it.isJsonPrimitive }?.asString?.let(removedIds::add)
+                            profile?.get("id")?.takeIf { it.isJsonPrimitive }?.asString?.let(
+                                removedIds::add
+                            )
                         } else {
                             kept.add(element)
                         }
@@ -615,7 +712,11 @@ class AppPreferences(val context: Context) {
                 }
             }
             val activeVariant = p[ACTIVE_KERNEL_JSON]?.let {
-                try { gson.fromJson(it, KernelSnapshot::class.java)?.variant } catch (_: Exception) { null }
+                try {
+                    gson.fromJson(it, KernelSnapshot::class.java)?.variant
+                } catch (_: Exception) {
+                    null
+                }
             }
             if (activeVariant in DISCONTINUED_KERNEL_VARIANTS) {
                 p.remove(ACTIVE_KERNEL_JSON)

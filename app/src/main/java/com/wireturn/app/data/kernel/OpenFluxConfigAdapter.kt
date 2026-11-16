@@ -28,7 +28,10 @@ class OpenFluxConfigAdapter : TypeAdapterFactory {
                 // before switching the core, so a node-v1.6.0 peer sees the same keys immediately.
                 val migrated = old.copy(
                     sessionContext = old.sessionContext.ifBlank {
-                        if (old.encryptionKey.isNotBlank()) OpenFluxConfig.legacyContext(old.transport, old.url) else ""
+                        if (old.encryptionKey.isNotBlank()) OpenFluxConfig.legacyContext(
+                            old.transport,
+                            old.url
+                        ) else ""
                     },
                     contextVersion = 1
                 )

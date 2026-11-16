@@ -35,12 +35,21 @@ internal class VpnSupervisor(
     // when Xray isn't in the picture. Xray keeps priority when running, since it may itself be
     // wrapping one of those cores as a front proxy (see XraySupervisor).
     // mapDns: false for Xray, which answers the tun's DNS itself (see HevVpnService.buildConfigYaml).
-    private data class VpnTarget(val addr: String, val user: String?, val pass: String?, val mapDns: Boolean)
+    private data class VpnTarget(
+        val addr: String,
+        val user: String?,
+        val pass: String?,
+        val mapDns: Boolean
+    )
 
     // terminalError: the core isn't coming back on its own (watchdog gave up / invalid config),
     // as opposed to a transient gap (mid-retry, switching profiles) that's expected to recover.
     // native: the kernel brings up and holds the tun itself (usesNativeTun) - no hev target.
-    private data class VpnTargetSignal(val target: VpnTarget?, val terminalError: Boolean, val native: Boolean = false)
+    private data class VpnTargetSignal(
+        val target: VpnTarget?,
+        val terminalError: Boolean,
+        val native: Boolean = false
+    )
 
     private data class VpnSupervisorBundle(
         val signal: VpnTargetSignal,
@@ -65,6 +74,7 @@ internal class VpnSupervisor(
             fun stopIntent() = Intent(service, HevVpnService::class.java).apply {
                 action = HevVpnService.ACTION_STOP
             }
+
             fun startIntent(target: VpnTarget) = Intent(service, HevVpnService::class.java).apply {
                 putExtra(HevVpnService.EXTRA_SOCKS5_ADDR, target.addr)
                 if (target.user != null) {
@@ -73,6 +83,7 @@ internal class VpnSupervisor(
                 }
                 putExtra(HevVpnService.EXTRA_MAP_DNS, target.mapDns)
             }
+
             fun retargetIntent(target: VpnTarget) = startIntent(target).apply {
                 action = HevVpnService.ACTION_UPDATE_TARGET
             }
@@ -130,18 +141,32 @@ internal class VpnSupervisor(
                 prefs.vpnSettingsFlow,
                 prefs.xrayConfigFlow
             ) { coreSession, vpnSettings, xrayConfig ->
-                coreSession != null && usesNativeTun(coreSession.clientConfig, vpnSettings.enabled, xrayConfig.enabled)
+                coreSession != null && usesNativeTun(
+                    coreSession.clientConfig,
+                    vpnSettings.enabled,
+                    xrayConfig.enabled
+                )
             }.distinctUntilChanged()
 
             var wasNative = false
 
-            combine(targetFlow, nativeFlow, prefs.vpnSettingsFlow, VpnServiceState.state) { signal, native, vpnSettings, vpnState ->
-                val effective = if (native) VpnTargetSignal(null, signal.terminalError, native = true) else signal
+            combine(
+                targetFlow,
+                nativeFlow,
+                prefs.vpnSettingsFlow,
+                VpnServiceState.state
+            ) { signal, native, vpnSettings, vpnState ->
+                val effective = if (native) VpnTargetSignal(
+                    null,
+                    signal.terminalError,
+                    native = true
+                ) else signal
                 VpnSupervisorBundle(effective, vpnSettings, vpnState)
             }.collect { bundle ->
                 withContext(Dispatchers.Main) {
                     val target = bundle.signal.target
-                    val settingsChanged = lastVpnSettings != null && lastVpnSettings != bundle.vpnSettings
+                    val settingsChanged =
+                        lastVpnSettings != null && lastVpnSettings != bundle.vpnSettings
                     val targetChanged = lastTarget != null && lastTarget != target
                     lastVpnSettings = bundle.vpnSettings
                     lastTarget = target
@@ -227,11 +252,13 @@ internal class VpnSupervisor(
                                 service.startService(startIntent(target))
                             }
                         }
+
                         vpnError && (settingsChanged || targetChanged) -> {
                             AppLogsState.addLog(service.getString(R.string.log_vpn_restarting_config))
                             service.startService(stopIntent())
                             service.startService(startIntent(target))
                         }
+
                         vpnError && pendingVpnRetryJob == null -> {
                             // Nothing about the target/settings changed, so nothing else here
                             // will ever retry this on its own - back off and try again anyway.
@@ -246,6 +273,7 @@ internal class VpnSupervisor(
                                 }
                             }
                         }
+
                         vpnRunning && settingsChanged -> {
                             // Routing config itself changed (filtering/bypass/app list) - that's
                             // baked into the Builder at establish() time, so it must be redone.
@@ -253,6 +281,7 @@ internal class VpnSupervisor(
                             service.startService(stopIntent())
                             service.startService(startIntent(target))
                         }
+
                         vpnRunning && targetChanged -> {
                             // Only the upstream SOCKS5 hop moved (e.g. switched profiles) - hot-
                             // swap the relay's target without a fresh establish(), so the tun

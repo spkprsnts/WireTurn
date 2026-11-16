@@ -136,7 +136,10 @@ fun <T> SelectionDialog(
                             LocalContentColor provides if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                         ) {
                             ProvideTextStyle(value = MaterialTheme.typography.titleMedium) {
-                                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
                                     itemContent(item, selected)
                                 }
                             }

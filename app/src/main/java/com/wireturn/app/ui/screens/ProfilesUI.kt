@@ -118,7 +118,12 @@ internal fun profileSummaryParts(profile: Profile): ProfileSummaryParts {
         if (isValid) {
             xrayTags.add(
                 when (profile.xrayProtocol) {
-                    XrayConfiguration.VLESS -> stringResource(ValidatorUtils.uriProtocolStringRes(profile.vlessConfig.vlessLink))
+                    XrayConfiguration.VLESS -> stringResource(
+                        ValidatorUtils.uriProtocolStringRes(
+                            profile.vlessConfig.vlessLink
+                        )
+                    )
+
                     XrayConfiguration.WIREGUARD -> stringResource(R.string.wg_short)
                 }
             )
@@ -170,7 +175,9 @@ fun ProfileSummary(
                     color = color,
                     maxLines = 1,
                     softWrap = false,
-                    modifier = Modifier.weight(1f, fill = false).basicMarquee()
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .basicMarquee()
                 )
             } else {
                 Text(
@@ -179,7 +186,9 @@ fun ProfileSummary(
                     color = color,
                     maxLines = 1,
                     softWrap = false,
-                    modifier = Modifier.weight(1f, fill = false).basicMarquee()
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .basicMarquee()
                 )
             }
         }
@@ -233,7 +242,11 @@ internal fun ProfileTagChipRow(
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         tags.forEach { label ->
-            ProfileTagChip(text = label, containerColor = containerColor, contentColor = contentColor)
+            ProfileTagChip(
+                text = label,
+                containerColor = containerColor,
+                contentColor = contentColor
+            )
         }
     }
 }
@@ -264,7 +277,12 @@ fun ProfilesBlock(
                     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
                         LargeLeadingIcon {
                             Icon(
-                                painter = painterResource(getProfileIcon(currentProfile, outlined = false)),
+                                painter = painterResource(
+                                    getProfileIcon(
+                                        currentProfile,
+                                        outlined = false
+                                    )
+                                ),
                                 contentDescription = null,
                                 modifier = Modifier.size(32.dp),
                                 tint = MaterialTheme.colorScheme.primary
@@ -299,7 +317,10 @@ fun ProfilesBlock(
                         TappableRowIndicator()
                         FilledTonalIconButton(onClick = {
                             HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                            val intent = Intent(context, configActivityClassFor(currentProfile.kernelVariant))
+                            val intent = Intent(
+                                context,
+                                configActivityClassFor(currentProfile.kernelVariant)
+                            )
                             intent.putExtra("EXTRA_EDIT_MODE", true)
                             intent.putExtra("EXTRA_PROFILE_NAME", currentProfile.name)
                             context.startActivity(intent)
@@ -476,7 +497,8 @@ fun ProfileListItem(
                         // One fixed height for the text and the pending indicator (which is
                         // shorter), so swapping one for the other doesn't move the row.
                         val pingTextStyle = MaterialTheme.typography.labelMedium
-                        val pingSlotHeight = with(LocalDensity.current) { pingTextStyle.lineHeight.toDp() }
+                        val pingSlotHeight =
+                            with(LocalDensity.current) { pingTextStyle.lineHeight.toDp() }
                         Box(
                             modifier = Modifier
                                 .padding(start = 8.dp)
@@ -486,10 +508,11 @@ fun ProfileListItem(
                             if (isPinging) {
                                 PingPendingIndicator()
                             } else if (pingMs != null) {
-                                val pingFailed = pingMs == com.wireturn.app.domain.ProfileManager.PING_FAILED
+                                val pingFailed =
+                                    pingMs == com.wireturn.app.domain.ProfileManager.PING_FAILED
                                 Text(
                                     text = if (pingFailed) stringResource(R.string.ping_failed_short)
-                                        else stringResource(R.string.ping_ms, pingMs),
+                                    else stringResource(R.string.ping_ms, pingMs),
                                     style = pingTextStyle,
                                     // Same threshold as the home screen's live ping.
                                     color = if (!pingFailed && pingMs < 1100) summaryColor else MaterialTheme.colorScheme.error,

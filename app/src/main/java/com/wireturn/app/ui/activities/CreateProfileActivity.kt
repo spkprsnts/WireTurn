@@ -35,14 +35,46 @@ class CreateProfileActivity : ComponentActivity() {
                     onBack = { finish() },
                     onSelectType = { type, configJson, name ->
                         val intent = when (type) {
-                            "Turnable" -> android.content.Intent(this, TurnableConfigActivity::class.java)
-                            "olcRTC" -> android.content.Intent(this, OlcRtcConfigActivity::class.java)
-                            "WebDAV" -> android.content.Intent(this, WebdavConfigActivity::class.java)
-                            "FreeTurn" -> android.content.Intent(this, com.wireturn.app.ui.activities.kernel.FreeTurnConfigActivity::class.java)
-                            "qWDTT" -> android.content.Intent(this, com.wireturn.app.ui.activities.kernel.QwdttConfigActivity::class.java)
-                            "OpenFlux" -> android.content.Intent(this, com.wireturn.app.ui.activities.kernel.OpenFluxConfigActivity::class.java)
-                            "CSQTT" -> android.content.Intent(this, com.wireturn.app.ui.activities.kernel.CsqttConfigActivity::class.java)
-                            "Xray" -> android.content.Intent(this, com.wireturn.app.ui.activities.kernel.XrayLinkConfigActivity::class.java)
+                            "Turnable" -> android.content.Intent(
+                                this,
+                                TurnableConfigActivity::class.java
+                            )
+
+                            "olcRTC" -> android.content.Intent(
+                                this,
+                                OlcRtcConfigActivity::class.java
+                            )
+
+                            "WebDAV" -> android.content.Intent(
+                                this,
+                                WebdavConfigActivity::class.java
+                            )
+
+                            "FreeTurn" -> android.content.Intent(
+                                this,
+                                com.wireturn.app.ui.activities.kernel.FreeTurnConfigActivity::class.java
+                            )
+
+                            "qWDTT" -> android.content.Intent(
+                                this,
+                                com.wireturn.app.ui.activities.kernel.QwdttConfigActivity::class.java
+                            )
+
+                            "OpenFlux" -> android.content.Intent(
+                                this,
+                                com.wireturn.app.ui.activities.kernel.OpenFluxConfigActivity::class.java
+                            )
+
+                            "CSQTT" -> android.content.Intent(
+                                this,
+                                com.wireturn.app.ui.activities.kernel.CsqttConfigActivity::class.java
+                            )
+
+                            "Xray" -> android.content.Intent(
+                                this,
+                                com.wireturn.app.ui.activities.kernel.XrayLinkConfigActivity::class.java
+                            )
+
                             else -> null
                         }
                         intent?.let {

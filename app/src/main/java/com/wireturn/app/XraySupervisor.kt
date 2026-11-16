@@ -59,8 +59,10 @@ internal class XraySupervisor(private val service: Service, private val scope: C
             ) { xray, vless, wg, settings, vpnSettings ->
                 // reloadOnNetworkChange is read by the network callback, not by Xray: toggling it
                 // shouldn't restart Xray.
-                XrayConfigSignals(xray, vless.fillDefaults(), wg.fillDefaults(),
-                    settings.fillDefaults().copy(reloadOnNetworkChange = true), vpnSettings.ipv6)
+                XrayConfigSignals(
+                    xray, vless.fillDefaults(), wg.fillDefaults(),
+                    settings.fillDefaults().copy(reloadOnNetworkChange = true), vpnSettings.ipv6
+                )
             }
             combine(
                 configFlow,
@@ -80,9 +82,14 @@ internal class XraySupervisor(private val service: Service, private val scope: C
                         (status !is CoreStatus.Error || errorsRetried) &&
                         status !is CoreStatus.WaitingForNetwork
 
-                val connectionTarget = if (clientConfig.kernelVariant.isSocks5Native) clientConfig.socksAddr else clientConfig.listenAddr
+                val connectionTarget =
+                    if (clientConfig.kernelVariant.isSocks5Native) clientConfig.socksAddr else clientConfig.listenAddr
                 val connectionAuth = if (clientConfig.kernelVariant.isSocks5Native) {
-                    Triple(clientConfig.isSocksAuthEnabled, clientConfig.socksUser, clientConfig.socksPass)
+                    Triple(
+                        clientConfig.isSocksAuthEnabled,
+                        clientConfig.socksUser,
+                        clientConfig.socksPass
+                    )
                 } else null
 
                 XraySupervisorBundle(
@@ -95,46 +102,51 @@ internal class XraySupervisor(private val service: Service, private val scope: C
                     xrayOnly = xrayOnly
                 )
             }
-            .filterNotNull()
-            .distinctUntilChanged { old, new ->
-                if (old.shouldBeRunning != new.shouldBeRunning) return@distinctUntilChanged false
-                if (!new.shouldBeRunning) return@distinctUntilChanged new.xrayState == XrayState.Idle
-                return@distinctUntilChanged new.xrayState != XrayState.Idle &&
-                    old.signals == new.signals &&
-                    old.kernelVariant == new.kernelVariant &&
-                    old.connectionTarget == new.connectionTarget &&
-                    old.connectionAuth == new.connectionAuth &&
-                    old.xrayOnly == new.xrayOnly
-            }
-            .collectLatest { data: XraySupervisorBundle ->
-                val needsStart = data.shouldBeRunning && data.xrayState == XrayState.Idle
-                val needsStop = !data.shouldBeRunning && data.xrayState != XrayState.Idle
-                val needsRestart = data.shouldBeRunning && data.xrayState != XrayState.Idle
+                .filterNotNull()
+                .distinctUntilChanged { old, new ->
+                    if (old.shouldBeRunning != new.shouldBeRunning) return@distinctUntilChanged false
+                    if (!new.shouldBeRunning) return@distinctUntilChanged new.xrayState == XrayState.Idle
+                    return@distinctUntilChanged new.xrayState != XrayState.Idle &&
+                            old.signals == new.signals &&
+                            old.kernelVariant == new.kernelVariant &&
+                            old.connectionTarget == new.connectionTarget &&
+                            old.connectionAuth == new.connectionAuth &&
+                            old.xrayOnly == new.xrayOnly
+                }
+                .collectLatest { data: XraySupervisorBundle ->
+                    val needsStart = data.shouldBeRunning && data.xrayState == XrayState.Idle
+                    val needsStop = !data.shouldBeRunning && data.xrayState != XrayState.Idle
+                    val needsRestart = data.shouldBeRunning && data.xrayState != XrayState.Idle
 
-                if (needsRestart) {
-                    AppLogsState.addLog(service.getString(R.string.log_xray_config_change_restart))
-                    withContext(Dispatchers.Main) {
-                        service.stopService(Intent(service, XrayService::class.java))
-                        delay(500.milliseconds)
-                        service.startForegroundService(Intent(service, XrayService::class.java))
-                    }
-                } else if (needsStart) {
-                    delay(500.milliseconds) // Debounce during profile switches
-                    withContext(Dispatchers.Main) {
-                        val currentXrayState = XrayServiceState.state.value
-                        val currentStatus = CoreServiceState.status.value
-                        if (currentXrayState == XrayState.Idle && currentStatus !is CoreStatus.Idle &&
-                            (currentStatus !is CoreStatus.Error || CoreServiceState.errorsRetried.value)
-                        ) {
+                    if (needsRestart) {
+                        AppLogsState.addLog(service.getString(R.string.log_xray_config_change_restart))
+                        withContext(Dispatchers.Main) {
+                            service.stopService(Intent(service, XrayService::class.java))
+                            delay(500.milliseconds)
                             service.startForegroundService(Intent(service, XrayService::class.java))
                         }
-                    }
-                } else if (needsStop) {
-                    withContext(Dispatchers.Main) {
-                        service.stopService(Intent(service, XrayService::class.java))
+                    } else if (needsStart) {
+                        delay(500.milliseconds) // Debounce during profile switches
+                        withContext(Dispatchers.Main) {
+                            val currentXrayState = XrayServiceState.state.value
+                            val currentStatus = CoreServiceState.status.value
+                            if (currentXrayState == XrayState.Idle && currentStatus !is CoreStatus.Idle &&
+                                (currentStatus !is CoreStatus.Error || CoreServiceState.errorsRetried.value)
+                            ) {
+                                service.startForegroundService(
+                                    Intent(
+                                        service,
+                                        XrayService::class.java
+                                    )
+                                )
+                            }
+                        }
+                    } else if (needsStop) {
+                        withContext(Dispatchers.Main) {
+                            service.stopService(Intent(service, XrayService::class.java))
+                        }
                     }
                 }
-            }
         }
     }
 

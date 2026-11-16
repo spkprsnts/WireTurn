@@ -93,7 +93,10 @@ internal class ProfilesExport {
 
 /** [ProfilesExport] with its file-save launchers; [profiles] names a single exported profile's file. */
 @Composable
-internal fun rememberProfilesExport(viewModel: MainViewModel, profiles: List<Profile>): ProfilesExport {
+internal fun rememberProfilesExport(
+    viewModel: MainViewModel,
+    profiles: List<Profile>
+): ProfilesExport {
     val context = LocalContext.current
     val export = remember { ProfilesExport() }
 
@@ -141,7 +144,8 @@ internal fun rememberProfilesExport(viewModel: MainViewModel, profiles: List<Pro
                 jsonToExport.value = json
                 val fileName = if (exportTargetIds.size == 1) {
                     val profile = profiles.find { it.id == exportTargetIds[0] }
-                    val safeName = profile?.name?.replace(Regex("[\\\\/:*?\"<>| ]"), "_") ?: "profile"
+                    val safeName =
+                        profile?.name?.replace(Regex("[\\\\/:*?\"<>| ]"), "_") ?: "profile"
                     "wt_$safeName.json"
                 } else "wt_profiles_${exportTargetIds.size}.json"
                 exportLauncher.launch(fileName)
@@ -158,7 +162,8 @@ internal fun rememberProfilesExport(viewModel: MainViewModel, profiles: List<Pro
                 val bytes = viewModel.exportProfilesToZip(exportTargetIds)
                 val fileName = if (exportTargetIds.size == 1) {
                     val profile = profiles.find { it.id == exportTargetIds[0] }
-                    val safeName = profile?.name?.replace(Regex("[\\\\/:*?\"<>| ]"), "_") ?: "profile"
+                    val safeName =
+                        profile?.name?.replace(Regex("[\\\\/:*?\"<>| ]"), "_") ?: "profile"
                     "wt_$safeName.zip"
                 } else "wt_profiles_${exportTargetIds.size}.zip"
                 shareFile(context, bytes, fileName)

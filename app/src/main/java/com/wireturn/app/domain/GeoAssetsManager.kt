@@ -32,7 +32,9 @@ data class GeoResourceSet(
 
     /** The name to show for a custom source: its own, or the host it downloads geosite.dat from. */
     val displayName: String
-        get() = name.ifBlank { runCatching { URL(geositeUrl).host }.getOrNull().orEmpty().ifBlank { geositeUrl } }
+        get() = name.ifBlank {
+            runCatching { URL(geositeUrl).host }.getOrNull().orEmpty().ifBlank { geositeUrl }
+        }
 
     companion object {
         const val CUSTOM_PREFIX = "custom:"
@@ -76,7 +78,11 @@ data class GeoResourceSet(
 
         /** The source with [id], or null - a custom one that was removed since it was installed. */
         fun find(id: String, custom: List<GeoResourceSet>): GeoResourceSet? =
-            (BUILT_IN + custom).find { it.id == id } ?: RUNETFREEDOM.takeIf { !id.startsWith(CUSTOM_PREFIX) }
+            (BUILT_IN + custom).find { it.id == id } ?: RUNETFREEDOM.takeIf {
+                !id.startsWith(
+                    CUSTOM_PREFIX
+                )
+            }
     }
 }
 
@@ -137,9 +143,21 @@ class GeoAssetsManager(private val context: Context) {
                     val tmpGeoip = File(dir, "$GEOIP_FILE.tmp")
                     val tmpGeosite = File(dir, "$GEOSITE_FILE.tmp")
                     try {
-                        downloadFile(variant.geoipUrl, tmpGeoip, proxy, rangeStart = 0, rangeEnd = 50)
+                        downloadFile(
+                            variant.geoipUrl,
+                            tmpGeoip,
+                            proxy,
+                            rangeStart = 0,
+                            rangeEnd = 50
+                        )
                         ensureActive()
-                        downloadFile(variant.geositeUrl, tmpGeosite, proxy, rangeStart = 50, rangeEnd = 100)
+                        downloadFile(
+                            variant.geositeUrl,
+                            tmpGeosite,
+                            proxy,
+                            rangeStart = 50,
+                            rangeEnd = 100
+                        )
                         ensureActive()
 
                         tmpGeoip.copyTo(File(dir, GEOIP_FILE), overwrite = true)
@@ -160,7 +178,13 @@ class GeoAssetsManager(private val context: Context) {
         }
     }
 
-    private suspend fun downloadFile(url: String, dest: File, proxy: Proxy, rangeStart: Int, rangeEnd: Int) {
+    private suspend fun downloadFile(
+        url: String,
+        dest: File,
+        proxy: Proxy,
+        rangeStart: Int,
+        rangeEnd: Int
+    ) {
         val connection = withContext(Dispatchers.IO) {
             URL(url).openConnection(proxy)
         } as HttpURLConnection
@@ -189,8 +213,9 @@ class GeoAssetsManager(private val context: Context) {
                         downloaded += bytesRead
                         if (totalSize > 0) {
                             val fraction = downloaded.toDouble() / totalSize
-                            _downloadProgress.value = (rangeStart + (fraction * (rangeEnd - rangeStart)).toInt())
-                                .coerceIn(0, 100)
+                            _downloadProgress.value =
+                                (rangeStart + (fraction * (rangeEnd - rangeStart)).toInt())
+                                    .coerceIn(0, 100)
                         }
                     }
                 }

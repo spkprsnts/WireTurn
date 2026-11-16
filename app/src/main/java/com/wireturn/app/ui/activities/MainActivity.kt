@@ -89,6 +89,7 @@ class MainActivity : AppCompatActivity() {
                 // guaranteed yet this early in onCreate().
                 CoreTileService.requestUpdate(appContext)
             }
+
             override fun onStop(owner: LifecycleOwner) {
                 AppLifecycleState.isAppInForeground.value = false
             }
@@ -131,7 +132,12 @@ class MainActivity : AppCompatActivity() {
                     if (isInitialized) {
                         if (!onboardingDone && !fromTile) {
                             LaunchedEffect(Unit) {
-                                startActivity(Intent(this@MainActivity, OnboardingActivity::class.java))
+                                startActivity(
+                                    Intent(
+                                        this@MainActivity,
+                                        OnboardingActivity::class.java
+                                    )
+                                )
                                 finish()
                             }
                         } else {
@@ -167,7 +173,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleTileConsentIntent(intent: Intent?) {
-        if (intent?.getBooleanExtra(CoreTileService.EXTRA_REQUEST_VPN_CONSENT, false) != true) return
+        if (intent?.getBooleanExtra(
+                CoreTileService.EXTRA_REQUEST_VPN_CONSENT,
+                false
+            ) != true
+        ) return
         intent.removeExtra(CoreTileService.EXTRA_REQUEST_VPN_CONSENT)
         com.wireturn.app.ui.TileVpnConsentBus.submit()
     }
@@ -180,6 +190,11 @@ class MainActivity : AppCompatActivity() {
         // taps a link that resolves to this intent-filter; only worth showing if it's an actual
         // website and not e.g. "android-app://com.android.chrome" (the browser itself).
         val referrerHost = referrer?.takeIf { it.scheme == "http" || it.scheme == "https" }?.host
-        com.wireturn.app.ui.DeepLinkBus.submit(com.wireturn.app.ui.DeepLinkRequest(uri.toString(), referrerHost))
+        com.wireturn.app.ui.DeepLinkBus.submit(
+            com.wireturn.app.ui.DeepLinkRequest(
+                uri.toString(),
+                referrerHost
+            )
+        )
     }
 }

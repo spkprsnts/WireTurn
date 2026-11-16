@@ -16,9 +16,11 @@ object FreeTurnKernel : Kernel {
     override val variant: KernelVariant = KernelVariant.FREETURN
     override val sensitiveCommandFlags: Set<String> = setOf("-obf-key", "-links", "-sub")
 
-    override fun logLabel(cfg: KernelConfig): String = "FreeTurn (${(cfg as KernelConfig.FreeTurn).config.peer})"
+    override fun logLabel(cfg: KernelConfig): String =
+        "FreeTurn (${(cfg as KernelConfig.FreeTurn).config.peer})"
 
-    override fun localSettingsChanged(old: ClientConfig, new: ClientConfig): Boolean = listenAddrChanged(old, new)
+    override fun localSettingsChanged(old: ClientConfig, new: ClientConfig): Boolean =
+        listenAddrChanged(old, new)
 
     // freeturn:// doesn't carry the VK call links (per its docs they're account/session-specific,
     // left to the user to fill in locally), so a subscription's entry almost always comes back
@@ -28,6 +30,7 @@ object FreeTurnKernel : Kernel {
         val n = (new as KernelConfig.FreeTurn).config
         return if (n.links.isBlank() && o.links.isNotBlank()) KernelConfig.FreeTurn(n.copy(links = o.links)) else new
     }
+
     override val displayNameRes: Int = R.string.kernel_freeturn
     override val configActivityClass = FreeTurnConfigActivity::class.java
 
@@ -41,10 +44,13 @@ object FreeTurnKernel : Kernel {
         val callCount = config.links.split(",").count { it.isNotBlank() }
         return listOfNotNull(
             context.getString(R.string.kernel_tag_direct).takeIf { config.isDirect },
-            config.obfProfile.takeIf { it.isNotBlank() && it != "none" }?.replaceFirstChar(Char::uppercase),
-            context.getString(R.string.kernel_tag_bond).takeIf { config.mode == "tcp" && config.bond },
+            config.obfProfile.takeIf { it.isNotBlank() && it != "none" }
+                ?.replaceFirstChar(Char::uppercase),
+            context.getString(R.string.kernel_tag_bond)
+                .takeIf { config.mode == "tcp" && config.bond },
             // Direct skips VK and its captcha altogether - buildCommand leaves the flag out there too.
-            context.getString(R.string.kernel_tag_manual_captcha).takeIf { config.manualCaptcha && !config.isDirect },
+            context.getString(R.string.kernel_tag_manual_captcha)
+                .takeIf { config.manualCaptcha && !config.isDirect },
             context.getString(R.string.kernel_tag_call_count, callCount).takeIf { callCount > 1 }
         )
     }
@@ -69,31 +75,37 @@ object FreeTurnKernel : Kernel {
         val base64 = uri.substringAfter("freeturn://")
         val jsonStr = String(android.util.Base64.decode(base64, android.util.Base64.URL_SAFE))
         com.google.gson.JsonParser.parseString(jsonStr).asJsonObject.get("name")?.asString
-    } catch (_: Exception) { null }
+    } catch (_: Exception) {
+        null
+    }
 
     override fun buildCommand(ctx: KernelCommandContext, cfg: ClientConfig): List<String> {
         val cmdArgs = mutableListOf<String>()
         val o = (cfg.kernelConfig as KernelConfig.FreeTurn).config
         cmdArgs.add("${ctx.nativeLibraryDir}/libfreeturn.so")
-        cmdArgs.addAll(listOf(
-            "-listen", cfg.listenAddr.ifBlank { ClientConfig.DEFAULT_LISTEN_ADDR },
-            "-provider", o.provider,
-            "-peer", o.peer,
-            "-n", o.n.toString(),
-            "-obf-profile", o.obfProfile,
-            "-dns-mode", o.dnsMode,
-            // internal/logx "[DEBUG]" lines - kept or dropped by the log level setting;
-            // parseLogLine only sees the DTLS session ones (see parsesDebugLine).
-            "-debug"
-        ))
+        cmdArgs.addAll(
+            listOf(
+                "-listen", cfg.listenAddr.ifBlank { ClientConfig.DEFAULT_LISTEN_ADDR },
+                "-provider", o.provider,
+                "-peer", o.peer,
+                "-n", o.n.toString(),
+                "-obf-profile", o.obfProfile,
+                "-dns-mode", o.dnsMode,
+                // internal/logx "[DEBUG]" lines - kept or dropped by the log level setting;
+                // parseLogLine only sees the DTLS session ones (see parsesDebugLine).
+                "-debug"
+            )
+        )
         // The VK relay's own settings - the direct provider ignores all of these upstream, so
         // they're left out rather than shown in the logged command as if they applied.
         if (!o.isDirect) {
-            cmdArgs.addAll(listOf(
-                "-transport", o.transport,
-                "-streams-per-cred", o.streamsPerCred.toString(),
-                "-platform", o.platform
-            ))
+            cmdArgs.addAll(
+                listOf(
+                    "-transport", o.transport,
+                    "-streams-per-cred", o.streamsPerCred.toString(),
+                    "-platform", o.platform
+                )
+            )
             if (o.links.isNotBlank()) {
                 cmdArgs.add("-links")
                 cmdArgs.add(o.links)
@@ -125,14 +137,44 @@ object FreeTurnKernel : Kernel {
             cmdArgs.add("tcp")
             if (o.bond) cmdArgs.add("-bond")
             val default = FreeTurnConfig()
-            if (o.kcpNodelay != default.kcpNodelay) cmdArgs.addAll(listOf("-kcp-nodelay", o.kcpNodelay.toString()))
-            if (o.kcpInterval != default.kcpInterval) cmdArgs.addAll(listOf("-kcp-interval", o.kcpInterval.toString()))
-            if (o.kcpResend != default.kcpResend) cmdArgs.addAll(listOf("-kcp-resend", o.kcpResend.toString()))
+            if (o.kcpNodelay != default.kcpNodelay) cmdArgs.addAll(
+                listOf(
+                    "-kcp-nodelay",
+                    o.kcpNodelay.toString()
+                )
+            )
+            if (o.kcpInterval != default.kcpInterval) cmdArgs.addAll(
+                listOf(
+                    "-kcp-interval",
+                    o.kcpInterval.toString()
+                )
+            )
+            if (o.kcpResend != default.kcpResend) cmdArgs.addAll(
+                listOf(
+                    "-kcp-resend",
+                    o.kcpResend.toString()
+                )
+            )
             if (o.kcpNc != default.kcpNc) cmdArgs.addAll(listOf("-kcp-nc", o.kcpNc.toString()))
-            if (o.kcpSndwnd != default.kcpSndwnd) cmdArgs.addAll(listOf("-kcp-sndwnd", o.kcpSndwnd.toString()))
-            if (o.kcpRcvwnd != default.kcpRcvwnd) cmdArgs.addAll(listOf("-kcp-rcvwnd", o.kcpRcvwnd.toString()))
+            if (o.kcpSndwnd != default.kcpSndwnd) cmdArgs.addAll(
+                listOf(
+                    "-kcp-sndwnd",
+                    o.kcpSndwnd.toString()
+                )
+            )
+            if (o.kcpRcvwnd != default.kcpRcvwnd) cmdArgs.addAll(
+                listOf(
+                    "-kcp-rcvwnd",
+                    o.kcpRcvwnd.toString()
+                )
+            )
             if (o.kcpMtu != default.kcpMtu) cmdArgs.addAll(listOf("-kcp-mtu", o.kcpMtu.toString()))
-            if (o.kcpAcknodelay != default.kcpAcknodelay) cmdArgs.addAll(listOf("-kcp-acknodelay", o.kcpAcknodelay.toString()))
+            if (o.kcpAcknodelay != default.kcpAcknodelay) cmdArgs.addAll(
+                listOf(
+                    "-kcp-acknodelay",
+                    o.kcpAcknodelay.toString()
+                )
+            )
         }
         return cmdArgs
     }
@@ -147,10 +189,17 @@ object FreeTurnKernel : Kernel {
     override fun parsesDebugLine(line: String): Boolean =
         DTLS_ESTABLISHED_REGEX.containsMatchIn(line) || DTLS_CLOSED_REGEX.containsMatchIn(line)
 
-    override suspend fun parseLogLine(line: String, lower: String, state: BinaryOutputState, ctx: KernelLogContext, cfg: ClientConfig): Boolean {
+    override suspend fun parseLogLine(
+        line: String,
+        lower: String,
+        state: BinaryOutputState,
+        ctx: KernelLogContext,
+        cfg: ClientConfig
+    ): Boolean {
         // 1. Hard Errors
         if (lower.startsWith("panic:") || lower.startsWith("fatal error:") ||
-            lower.contains("all vk credentials failed") || lower.contains("fatal_captcha")) {
+            lower.contains("all vk credentials failed") || lower.contains("fatal_captcha")
+        ) {
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                 CoreServiceState.setStatus(CoreStatus.Error(line))
                 ctx.updateNotification(ctx.getString(R.string.error_connecting))
@@ -209,10 +258,12 @@ object FreeTurnKernel : Kernel {
         // on its own and can exceed CoreManager's startup timeout. With other streams already up,
         // one stream's re-auth or backoff says nothing about the tunnel as a whole.
         if (!tunnelAlive(state) && (lower.contains("provider=") ||
-            lower.contains("[vk auth] connecting identity") ||
-            lower.contains("[vk auth] trying credentials") ||
-            lower.contains("backing off for") ||
-            (lower.contains("[session ") && lower.contains("disconnected") && lower.contains("reconnecting")))
+                    lower.contains("[vk auth] connecting identity") ||
+                    lower.contains("[vk auth] trying credentials") ||
+                    lower.contains("backing off for") ||
+                    (lower.contains("[session ") && lower.contains("disconnected") && lower.contains(
+                        "reconnecting"
+                    )))
         ) {
             if (canUpdateConnectingStatus()) {
                 markConnecting()
@@ -232,7 +283,12 @@ object FreeTurnKernel : Kernel {
         return false
     }
 
-    private fun handleCaptchaEvents(line: String, lower: String, state: BinaryOutputState, ctx: KernelLogContext) {
+    private fun handleCaptchaEvents(
+        line: String,
+        lower: String,
+        state: BinaryOutputState,
+        ctx: KernelLogContext
+    ) {
         if (line.contains("Triggering manual captcha fallback")) {
             if (CoreServiceState.status.value !is CoreStatus.CaptchaRequired) {
                 state.startupEmitted = true
@@ -241,7 +297,8 @@ object FreeTurnKernel : Kernel {
 
         val captchaMatcher = CAPTCHA_URL_REGEX.matcher(line)
         val freeTurnMatcher = FREE_TURN_CAPTCHA_REGEX.matcher(line)
-        val finalMatcher = if (freeTurnMatcher.find()) freeTurnMatcher else if (captchaMatcher.find()) captchaMatcher else null
+        val finalMatcher =
+            if (freeTurnMatcher.find()) freeTurnMatcher else if (captchaMatcher.find()) captchaMatcher else null
 
         if (finalMatcher != null) {
             val captchaUrl = finalMatcher.group(1)!!
@@ -250,7 +307,14 @@ object FreeTurnKernel : Kernel {
             state.captchaSessionCounter += 1
             // Each link has its own VK provider, and the binary only gives up (FATAL_CAPTCHA) once
             // no stream is left - see requestCaptcha.
-            requestCaptcha(ctx, CaptchaSession(captchaUrl, state.captchaSessionCounter, partial = tunnelAlive(state)))
+            requestCaptcha(
+                ctx,
+                CaptchaSession(
+                    captchaUrl,
+                    state.captchaSessionCounter,
+                    partial = tunnelAlive(state)
+                )
+            )
             state.captchaActive = true
         }
 
@@ -268,7 +332,8 @@ object FreeTurnKernel : Kernel {
         }
     }
 
-    private fun tunnelAlive(state: BinaryOutputState) = state.freeTurnDtlsOpen > 0 || state.freeTurnTcpActive > 0
+    private fun tunnelAlive(state: BinaryOutputState) =
+        state.freeTurnDtlsOpen > 0 || state.freeTurnTcpActive > 0
 
     private fun markConnected(state: BinaryOutputState, ctx: KernelLogContext) {
         if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
@@ -297,8 +362,11 @@ object FreeTurnKernel : Kernel {
     )
     private val DTLS_ESTABLISHED_REGEX = Regex("""\[STREAM \d+] Established DTLS connection""")
     private val DTLS_CLOSED_REGEX = Regex("""\[STREAM \d+] Closed DTLS connection""")
-    private val TCP_ACTIVE_REGEX = Pattern.compile("""\[session \d+] (?:connected|disconnected) \(active: (\d+)\)""")
-    private val CAPTCHA_URL_REGEX = Pattern.compile("""Open this URL in your browser:\s*(https?://\S+)""")
+    private val TCP_ACTIVE_REGEX =
+        Pattern.compile("""\[session \d+] (?:connected|disconnected) \(active: (\d+)\)""")
+    private val CAPTCHA_URL_REGEX =
+        Pattern.compile("""Open this URL in your browser:\s*(https?://\S+)""")
+
     // 4.x logs the manual-captcha banner through its logger ("[WARN] <prefix>: if the browser did
     // not open, go to http://localhost:<port>") instead of the old stdout "manually open this URL:".
     private val FREE_TURN_CAPTCHA_REGEX = Pattern.compile(

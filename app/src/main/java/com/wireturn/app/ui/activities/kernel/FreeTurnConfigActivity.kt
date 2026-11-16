@@ -46,11 +46,16 @@ class FreeTurnConfigActivity : ComponentActivity() {
 
             val initialConfig = remember(clientConfig, profiles) {
                 if (configJson != null) {
-                    try { Gson().fromJson(configJson, FreeTurnConfig::class.java) } catch (_: Exception) { FreeTurnConfig() }
+                    try {
+                        Gson().fromJson(configJson, FreeTurnConfig::class.java)
+                    } catch (_: Exception) {
+                        FreeTurnConfig()
+                    }
                 } else if (profileId != null) {
                     profiles.find { it.id == profileId }?.freeturnConfig ?: FreeTurnConfig()
                 } else if (isEditMode) {
-                    (clientConfig.kernelConfig as? KernelConfig.FreeTurn)?.config ?: FreeTurnConfig()
+                    (clientConfig.kernelConfig as? KernelConfig.FreeTurn)?.config
+                        ?: FreeTurnConfig()
                 } else {
                     FreeTurnConfig()
                 }
@@ -67,12 +72,30 @@ class FreeTurnConfigActivity : ComponentActivity() {
                     onSave = { config ->
                         if (isEditMode) {
                             if (profileId != null) {
-                                viewModel.updateProfileById(profileId) { it.copy(kernelConfig = KernelConfig.FreeTurn(config)) }
+                                viewModel.updateProfileById(profileId) {
+                                    it.copy(
+                                        kernelConfig = KernelConfig.FreeTurn(
+                                            config
+                                        )
+                                    )
+                                }
                                 if (profileId == viewModel.currentProfileId.value) {
-                                    viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.FreeTurn(config)))
+                                    viewModel.saveClientConfig(
+                                        clientConfig.copy(
+                                            kernelConfig = KernelConfig.FreeTurn(
+                                                config
+                                            )
+                                        )
+                                    )
                                 }
                             } else {
-                                viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.FreeTurn(config)))
+                                viewModel.saveClientConfig(
+                                    clientConfig.copy(
+                                        kernelConfig = KernelConfig.FreeTurn(
+                                            config
+                                        )
+                                    )
+                                )
                             }
                             finish()
                         } else {

@@ -103,7 +103,7 @@ data class WebdavConfig(
 
         // Remove existing protocol and parse as URI to get host/port/path
         val cleanBase = webdav.replaceFirst("https://", "", ignoreCase = true)
-                              .replaceFirst("http://", "", ignoreCase = true)
+            .replaceFirst("http://", "", ignoreCase = true)
 
         val builder = Uri.Builder()
             .scheme(scheme)
@@ -185,7 +185,8 @@ data class WebdavConfig(
                     readMin = uri.getQueryParameter("read-min") ?: current.readMin,
                     readMax = uri.getQueryParameter("read-max") ?: current.readMax,
                     encrypt = uri.getQueryParameter("enc") == "1",
-                    tlsChrome = uri.getQueryParameter("tls-fingerprint")?.let { it != "go" } ?: current.tlsChrome
+                    tlsChrome = uri.getQueryParameter("tls-fingerprint")?.let { it != "go" }
+                        ?: current.tlsChrome
                 )
             } catch (_: Exception) {
                 return null
@@ -193,12 +194,17 @@ data class WebdavConfig(
         }
 
         fun formatHost(webdavUrl: String): String {
-            val uri = try { Uri.parse(webdavUrl) } catch (_: Exception) { return webdavUrl.take(20) }
+            val uri = try {
+                Uri.parse(webdavUrl)
+            } catch (_: Exception) {
+                return webdavUrl.take(20)
+            }
             val host = uri.host ?: return webdavUrl.take(20)
             val port = if (uri.port != -1) ":${uri.port}" else ""
 
             // Simple check for IPv4 or IPv6
-            val isIp = host.all { it.isDigit() || it == '.' || it == ':' || it.lowercaseChar() in 'a'..'f' || it == '[' || it == ']' }
+            val isIp =
+                host.all { it.isDigit() || it == '.' || it == ':' || it.lowercaseChar() in 'a'..'f' || it == '[' || it == ']' }
 
             if (isIp) return "$host$port"
 

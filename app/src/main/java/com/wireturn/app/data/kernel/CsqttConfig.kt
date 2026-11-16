@@ -49,7 +49,8 @@ data class CsqttConfig(
      */
     fun normalizedWorkers(): Int {
         if (workers <= MIN_WORKERS) return MIN_WORKERS
-        val rounded = workers.coerceIn(MIN_WORKERS, MAX_WORKERS) / WORKERS_PER_GROUP * WORKERS_PER_GROUP
+        val rounded =
+            workers.coerceIn(MIN_WORKERS, MAX_WORKERS) / WORKERS_PER_GROUP * WORKERS_PER_GROUP
         return rounded.coerceAtLeast(MIN_WORKERS)
     }
 
@@ -61,7 +62,8 @@ data class CsqttConfig(
         vkHashes = (vkHashes as Any?)?.toString()?.trim()?.take(2000) ?: "",
         workers = workers.coerceIn(MIN_WORKERS, MAX_WORKERS),
         obfsMode = if (obfsMode == "audio") "audio" else "video",
-        goobyStrategy = (goobyStrategy as Any?)?.toString()?.takeIf { it in GOOBY_STRATEGIES } ?: DEFAULT_GOOBY_STRATEGY
+        goobyStrategy = (goobyStrategy as Any?)?.toString()?.takeIf { it in GOOBY_STRATEGIES }
+            ?: DEFAULT_GOOBY_STRATEGY
     )
 
     // The official app's v2 link, in the encrypted form it reads since 2.5.0 (see encryptLink) -
@@ -78,7 +80,11 @@ data class CsqttConfig(
             append("&peer=").append(port)
             append("&password=").append(Uri.encode(password))
             val hashes = hashList()
-            if (hashes.isNotEmpty()) append("&hashes=").append(hashes.joinToString("+") { Uri.encode(it) })
+            if (hashes.isNotEmpty()) append("&hashes=").append(hashes.joinToString("+") {
+                Uri.encode(
+                    it
+                )
+            })
             // The worker count, as the official app's own links carry it since 2.5.3.
             append("&power=").append(normalizedWorkers())
             if (!profileName.isNullOrBlank()) append("&name=").append(Uri.encode(profileName))
@@ -95,9 +101,11 @@ data class CsqttConfig(
         // rust-client/worker.rs and main.rs since 2.5.0 (9 and 126 before, with 3 groups per hash).
         const val WORKERS_PER_GROUP = 10
         const val MIN_WORKERS = 5
+
         // The official app's MAX_VK_HASHES - the client itself takes any number.
         const val MAX_HASHES = 7
         const val MAX_WORKERS = 100
+
         // The official app's own default (18 per profile, normalized the same way).
         const val DEFAULT_WORKERS = 18
         const val DEFAULT_PEER_PORT = 46000
@@ -115,14 +123,17 @@ data class CsqttConfig(
                 if (uri.host.equals("connect", ignoreCase = true)) {
                     if (uri.getQueryParameter("v") != "2") return null
                     val host = uri.getQueryParameter("host")?.trim()
-                    val port = uri.getQueryParameter("peer")?.trim()?.toIntOrNull()?.takeIf { it in 1..65535 }
+                    val port = uri.getQueryParameter("peer")?.trim()?.toIntOrNull()
+                        ?.takeIf { it in 1..65535 }
                     val password = uri.getQueryParameter("password")?.trim()
                     if (host.isNullOrBlank() || port == null || password.isNullOrBlank()) return null
                     // '+'-joined (see toUri) - getQueryParameter already turns those into spaces.
                     val hashes = uri.getQueryParameter("hashes")
                         ?.let { CsqttConfig(vkHashes = it).hashList().joinToString(", ") }
                         ?.takeIf { it.isNotBlank() }
-                    val power = linkPower(uri.getQueryParameter("power") ?: uri.getQueryParameter("workers"))
+                    val power = linkPower(
+                        uri.getQueryParameter("power") ?: uri.getQueryParameter("workers")
+                    )
                     current.copy(
                         peer = "${bracketed(host)}:$port", password = password,
                         vkHashes = hashes ?: current.vkHashes, workers = power ?: current.workers
@@ -147,7 +158,10 @@ data class CsqttConfig(
         private const val GCM_TAG_BITS = 128
 
         private val linkKey: SecretKeySpec by lazy {
-            SecretKeySpec(MessageDigest.getInstance("SHA-256").digest(LINK_KEY_SEED.toByteArray(Charsets.UTF_8)), "AES")
+            SecretKeySpec(
+                MessageDigest.getInstance("SHA-256")
+                    .digest(LINK_KEY_SEED.toByteArray(Charsets.UTF_8)), "AES"
+            )
         }
 
         private fun encryptLink(query: String): String {
@@ -179,13 +193,24 @@ data class CsqttConfig(
                     .getOrElse { Base64.getDecoder().decode(clean) }
                 if (bytes.size < GCM_NONCE_BYTES + GCM_TAG_BITS / 8) return null
                 val query = Cipher.getInstance("AES/GCM/NoPadding").run {
-                    init(Cipher.DECRYPT_MODE, linkKey, GCMParameterSpec(GCM_TAG_BITS, bytes, 0, GCM_NONCE_BYTES))
-                    String(doFinal(bytes, GCM_NONCE_BYTES, bytes.size - GCM_NONCE_BYTES), Charsets.UTF_8)
+                    init(
+                        Cipher.DECRYPT_MODE,
+                        linkKey,
+                        GCMParameterSpec(GCM_TAG_BITS, bytes, 0, GCM_NONCE_BYTES)
+                    )
+                    String(
+                        doFinal(bytes, GCM_NONCE_BYTES, bytes.size - GCM_NONCE_BYTES),
+                        Charsets.UTF_8
+                    )
                 }
                 when {
                     query.startsWith("csqtt://connect?", ignoreCase = true) -> query
                     query.startsWith("connect?", ignoreCase = true) -> "csqtt://$query"
-                    query.startsWith("csqtt://", ignoreCase = true) -> "csqtt://connect?" + query.substring("csqtt://".length)
+                    query.startsWith(
+                        "csqtt://",
+                        ignoreCase = true
+                    ) -> "csqtt://connect?" + query.substring("csqtt://".length)
+
                     else -> "csqtt://connect?$query"
                 }
             } catch (_: Exception) {
@@ -198,12 +223,14 @@ data class CsqttConfig(
          * subscriptions), the official app's normalizeCsqttPower way: 10..100, null when absent.
          */
         fun linkPower(raw: Any?): Int? =
-            raw?.toString()?.trim()?.toIntOrNull()?.takeIf { it > 0 }?.coerceIn(WORKERS_PER_GROUP, MAX_WORKERS)
+            raw?.toString()?.trim()?.toIntOrNull()?.takeIf { it > 0 }
+                ?.coerceIn(WORKERS_PER_GROUP, MAX_WORKERS)
 
         private fun bracketed(host: String): String =
             if (host.contains(':') && !host.startsWith('[')) "[$host]" else host
 
-        private val VK_CALL_PREFIX = Regex("""^(?:https?://)?(?:m\.)?vk\.(?:com|ru)/call/join/""", RegexOption.IGNORE_CASE)
+        private val VK_CALL_PREFIX =
+            Regex("""^(?:https?://)?(?:m\.)?vk\.(?:com|ru)/call/join/""", RegexOption.IGNORE_CASE)
 
         fun stripVkCallUrl(input: String): String =
             input.trim().replace(VK_CALL_PREFIX, "")

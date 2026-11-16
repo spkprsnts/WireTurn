@@ -89,11 +89,12 @@ class AddProfileActivity : ComponentActivity() {
             val scope = rememberCoroutineScope()
             val clipboard = LocalClipboard.current
             val context = androidx.compose.ui.platform.LocalContext.current
-            
+
             var isImporting by remember { mutableStateOf(false) }
             val showQrScanner = remember { mutableStateOf(false) }
-            val detectedKernelConfig = remember { mutableStateOf<ImportStatus.KernelConfigDetected?>(null) }
-            
+            val detectedKernelConfig =
+                remember { mutableStateOf<ImportStatus.KernelConfigDetected?>(null) }
+
             val errorNoLink = stringResource(R.string.import_error_no_link)
             val errorInvalidProfile = stringResource(R.string.import_error_invalid_profile)
             val errorConnection = stringResource(R.string.import_error_connection)
@@ -110,30 +111,40 @@ class AddProfileActivity : ComponentActivity() {
                         status.id?.let { com.wireturn.app.ui.UIEventBus.requestScroll(it) }
                         finish()
                     }
+
                     is ImportStatus.KernelConfigDetected -> {
                         HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.SUCCESS)
                         detectedKernelConfig.value = status
                     }
+
                     is ImportStatus.NetworkError -> {
                         HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
                         this@AddProfileActivity.showExclusiveToast(errorConnection)
                     }
+
                     is ImportStatus.TlsError -> {
                         HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
                         this@AddProfileActivity.showExclusiveToast(errorTls)
                     }
+
                     is ImportStatus.InsecureHttp -> {
                         pendingInsecureUrl = status.url
                     }
+
                     is ImportStatus.ServerError -> {
                         HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
-                        val msg = this@AddProfileActivity.getString(R.string.import_error_server, status.code)
+                        val msg = this@AddProfileActivity.getString(
+                            R.string.import_error_server,
+                            status.code
+                        )
                         this@AddProfileActivity.showExclusiveToast(msg)
                     }
+
                     is ImportStatus.EmptyResponse -> {
                         HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
                         this@AddProfileActivity.showExclusiveToast(errorEmpty)
                     }
+
                     is ImportStatus.InvalidFormat -> {
                         HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
                         this@AddProfileActivity.showExclusiveToast(errorInvalidProfile)
@@ -152,10 +163,10 @@ class AddProfileActivity : ComponentActivity() {
                 if (link != null) {
                     isImporting = true
                     scope.launch {
-                        val status = try { 
-                            viewModel.smartImport(link) 
-                        } catch (_: Exception) { 
-                            ImportStatus.NetworkError 
+                        val status = try {
+                            viewModel.smartImport(link)
+                        } catch (_: Exception) {
+                            ImportStatus.NetworkError
                         }
                         isImporting = false
                         handleImportResult(status)
@@ -205,17 +216,19 @@ class AddProfileActivity : ComponentActivity() {
                 ActivityResultContracts.OpenMultipleDocuments()
             ) { uris ->
                 if (uris.isEmpty()) return@rememberLauncherForActivityResult
-                
+
                 scope.launch(Dispatchers.IO) {
                     var totalImported = 0
                     var filesFailed = 0
                     uris.forEach { uri ->
                         val importedBefore = totalImported
                         try {
-                            val fileName = contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                                val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-                                if (index != -1 && cursor.moveToFirst()) cursor.getString(index) else null
-                            } ?: uri.lastPathSegment
+                            val fileName =
+                                contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                                    val index =
+                                        cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                                    if (index != -1 && cursor.moveToFirst()) cursor.getString(index) else null
+                                } ?: uri.lastPathSegment
 
                             if (fileName?.endsWith(".zip", ignoreCase = true) == true) {
                                 contentResolver.openInputStream(uri)?.use { stream ->
@@ -229,7 +242,8 @@ class AddProfileActivity : ComponentActivity() {
                                     totalImported += viewModel.importProfiles(listOf(fileName to json)).total
                                 }
                             }
-                        } catch (_: Exception) {}
+                        } catch (_: Exception) {
+                        }
                         if (totalImported == importedBefore) filesFailed++
                     }
 
@@ -237,17 +251,28 @@ class AddProfileActivity : ComponentActivity() {
                         when {
                             totalImported > 0 && filesFailed == 0 -> finish()
                             totalImported > 0 -> {
-                                HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
+                                HapticUtil.perform(
+                                    this@AddProfileActivity,
+                                    HapticUtil.Pattern.ERROR
+                                )
                                 @SuppressLint("StringFormatInvalid")
-                                val msg = this@AddProfileActivity.getString(R.string.profile_import_partial_failure, filesFailed, uris.size)
+                                val msg = this@AddProfileActivity.getString(
+                                    R.string.profile_import_partial_failure,
+                                    filesFailed,
+                                    uris.size
+                                )
                                 context.showExclusiveToast(
                                     msg,
                                     Toast.LENGTH_LONG
                                 )
                                 finish()
                             }
+
                             else -> {
-                                HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
+                                HapticUtil.perform(
+                                    this@AddProfileActivity,
+                                    HapticUtil.Pattern.ERROR
+                                )
                                 context.showExclusiveToast(errorInvalidProfile)
                             }
                         }
@@ -336,10 +361,15 @@ class AddProfileActivity : ComponentActivity() {
                                 position = ItemPosition.Bottom,
                                 enabled = !isImporting,
                                 onClick = {
-                                    HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.CLICK)
+                                    HapticUtil.perform(
+                                        this@AddProfileActivity,
+                                        HapticUtil.Pattern.CLICK
+                                    )
                                     scope.launch {
                                         val clipEntry = clipboard.getClipEntry()
-                                        val rawText = clipEntry?.clipData?.getItemAt(0)?.text?.toString() ?: ""
+                                        val rawText =
+                                            clipEntry?.clipData?.getItemAt(0)?.text?.toString()
+                                                ?: ""
                                         performSmartImport(rawText.trim())
                                     }
                                 }
@@ -374,8 +404,16 @@ class AddProfileActivity : ComponentActivity() {
                             SectionItem(
                                 position = ItemPosition.Single,
                                 onClick = {
-                                    HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.CLICK)
-                                    startActivity(Intent(this@AddProfileActivity, CreateProfileActivity::class.java))
+                                    HapticUtil.perform(
+                                        this@AddProfileActivity,
+                                        HapticUtil.Pattern.CLICK
+                                    )
+                                    startActivity(
+                                        Intent(
+                                            this@AddProfileActivity,
+                                            CreateProfileActivity::class.java
+                                        )
+                                    )
                                 }
                             ) {
                                 Row(
@@ -420,7 +458,10 @@ class AddProfileActivity : ComponentActivity() {
                         confirmButton = {
                             TextButton(onClick = {
                                 pendingInsecureUrl = null
-                                HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.CLICK)
+                                HapticUtil.perform(
+                                    this@AddProfileActivity,
+                                    HapticUtil.Pattern.CLICK
+                                )
                                 isImporting = true
                                 scope.launch {
                                     val status = try {
@@ -434,7 +475,11 @@ class AddProfileActivity : ComponentActivity() {
                             }) { Text(stringResource(R.string.btn_add)) }
                         },
                         dismissButton = {
-                            TextButton(onClick = { pendingInsecureUrl = null }) { Text(stringResource(R.string.cancel)) }
+                            TextButton(onClick = { pendingInsecureUrl = null }) {
+                                Text(
+                                    stringResource(R.string.cancel)
+                                )
+                            }
                         }
                     )
                 }
@@ -442,23 +487,38 @@ class AddProfileActivity : ComponentActivity() {
                 detectedKernelConfig.value?.let { status ->
                     // Try to extract name from source if possible
                     val source = status.source
-                    val uriFragment = try { source.toUri().fragment } catch (_: Exception) { null }
+                    val uriFragment = try {
+                        source.toUri().fragment
+                    } catch (_: Exception) {
+                        null
+                    }
                     // The spec grammar's own $MIMO (unencoded) only ever appears with "olcrtc://";
                     // the panel's internal olconnect:// dialect has no $MIMO at all and puts the
                     // name in the URL-encoded fragment instead (see OlcrtcConfig.parseUrlEmbeddedDialect).
                     val olcrtcMimo = if (source.startsWith("olcrtc://") && source.contains("$")) {
                         source.substringAfterLast("$")
                     } else if (source.startsWith("olconnect://")) {
-                        try { source.toUri().encodedFragment?.replace("+", "%20")?.let(android.net.Uri::decode)?.takeIf(String::isNotBlank) } catch (_: Exception) { null }
+                        try {
+                            source.toUri().encodedFragment?.replace("+", "%20")
+                                ?.let(android.net.Uri::decode)?.takeIf(String::isNotBlank)
+                        } catch (_: Exception) {
+                            null
+                        }
                     } else null
-                    val qwdttName = try { source.toUri().getQueryParameter("name") } catch (_: Exception) { null }
-                    val openfluxName = com.wireturn.app.kernel.OpenFluxKernel.displayNameFromUri(source)
+                    val qwdttName = try {
+                        source.toUri().getQueryParameter("name")
+                    } catch (_: Exception) {
+                        null
+                    }
+                    val openfluxName =
+                        com.wireturn.app.kernel.OpenFluxKernel.displayNameFromUri(source)
 
                     val initialNameFromSource = when (status.type) {
                         "WebDAV" -> uriFragment
                         "olcRTC" -> olcrtcMimo
                         "FreeTurn" -> FreeTurnKernel.displayNameFromUri(source)
                             ?: uriFragment
+
                         "qWDTT" -> qwdttName
                         "OpenFlux" -> openfluxName
                         "CSQTT" -> com.wireturn.app.kernel.CsqttKernel.displayNameFromUri(source)
@@ -478,25 +538,66 @@ class AddProfileActivity : ComponentActivity() {
                         onDismiss = { detectedKernelConfig.value = null },
                         onConfirm = { name ->
                             val intent = when (status.type) {
-                                "Turnable" -> Intent(this@AddProfileActivity, TurnableConfigActivity::class.java)
-                                "olcRTC" -> Intent(this@AddProfileActivity, OlcRtcConfigActivity::class.java)
-                                "WebDAV" -> Intent(this@AddProfileActivity, WebdavConfigActivity::class.java)
-                                "FreeTurn" -> Intent(this@AddProfileActivity, FreeTurnConfigActivity::class.java)
-                                "qWDTT" -> Intent(this@AddProfileActivity, QwdttConfigActivity::class.java)
-                                "OpenFlux" -> Intent(this@AddProfileActivity, OpenFluxConfigActivity::class.java)
-                                "CSQTT" -> Intent(this@AddProfileActivity, com.wireturn.app.ui.activities.kernel.CsqttConfigActivity::class.java)
-                                "Xray" -> Intent(this@AddProfileActivity, com.wireturn.app.ui.activities.kernel.XrayLinkConfigActivity::class.java)
+                                "Turnable" -> Intent(
+                                    this@AddProfileActivity,
+                                    TurnableConfigActivity::class.java
+                                )
+
+                                "olcRTC" -> Intent(
+                                    this@AddProfileActivity,
+                                    OlcRtcConfigActivity::class.java
+                                )
+
+                                "WebDAV" -> Intent(
+                                    this@AddProfileActivity,
+                                    WebdavConfigActivity::class.java
+                                )
+
+                                "FreeTurn" -> Intent(
+                                    this@AddProfileActivity,
+                                    FreeTurnConfigActivity::class.java
+                                )
+
+                                "qWDTT" -> Intent(
+                                    this@AddProfileActivity,
+                                    QwdttConfigActivity::class.java
+                                )
+
+                                "OpenFlux" -> Intent(
+                                    this@AddProfileActivity,
+                                    OpenFluxConfigActivity::class.java
+                                )
+
+                                "CSQTT" -> Intent(
+                                    this@AddProfileActivity,
+                                    com.wireturn.app.ui.activities.kernel.CsqttConfigActivity::class.java
+                                )
+
+                                "Xray" -> Intent(
+                                    this@AddProfileActivity,
+                                    com.wireturn.app.ui.activities.kernel.XrayLinkConfigActivity::class.java
+                                )
+
                                 else -> null
                             }
                             intent?.let {
                                 it.putExtra("EXTRA_PROFILE_NAME", name)
                                 it.putExtra("EXTRA_CONFIG_JSON", status.json)
                                 if (status.type == "FreeTurn") {
-                                    com.wireturn.app.data.kernel.FreeTurnConfig.parseWg(source)?.let { wg ->
-                                        it.putExtra("EXTRA_WG_CONFIG_JSON", com.google.gson.Gson().toJson(wg))
-                                    }
-                                    if (com.wireturn.app.data.kernel.FreeTurnConfig.hasAmneziaWg(source)) {
-                                        this@AddProfileActivity.showExclusiveToast(amneziaWgUnsupported)
+                                    com.wireturn.app.data.kernel.FreeTurnConfig.parseWg(source)
+                                        ?.let { wg ->
+                                            it.putExtra(
+                                                "EXTRA_WG_CONFIG_JSON",
+                                                com.google.gson.Gson().toJson(wg)
+                                            )
+                                        }
+                                    if (com.wireturn.app.data.kernel.FreeTurnConfig.hasAmneziaWg(
+                                            source
+                                        )
+                                    ) {
+                                        this@AddProfileActivity.showExclusiveToast(
+                                            amneziaWgUnsupported
+                                        )
                                     }
                                 }
                                 startActivity(it)

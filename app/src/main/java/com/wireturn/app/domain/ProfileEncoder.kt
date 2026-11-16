@@ -23,12 +23,16 @@ object ProfileEncoder {
         }
         deflater.end()
 
-        return Base64.encodeToString(bos.toByteArray(), Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
+        return Base64.encodeToString(
+            bos.toByteArray(),
+            Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING
+        )
     }
 
     fun decode(encoded: String): String? {
         return try {
-            val compressed = Base64.decode(encoded, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
+            val compressed =
+                Base64.decode(encoded, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
             val inflater = Inflater()
             inflater.setInput(compressed)
             val bos = ByteArrayOutputStream(compressed.size)

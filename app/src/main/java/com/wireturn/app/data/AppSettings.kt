@@ -41,7 +41,11 @@ data class WatchdogSettings(
     val eternal: Boolean = false,
     val maxIntervalMinutes: Int = DEFAULT_MAX_INTERVAL_MINUTES
 ) {
-    val maxIntervalMs: Long get() = maxIntervalMinutes.coerceIn(MIN_MAX_INTERVAL_MINUTES, MAX_MAX_INTERVAL_MINUTES) * 60_000L
+    val maxIntervalMs: Long
+        get() = maxIntervalMinutes.coerceIn(
+            MIN_MAX_INTERVAL_MINUTES,
+            MAX_MAX_INTERVAL_MINUTES
+        ) * 60_000L
 
     companion object {
         const val DEFAULT_MAX_INTERVAL_MINUTES = 15
@@ -94,7 +98,10 @@ data class ProfileBundle(
     @SerializedName("updatedAt") val updatedAt: Long? = null,
     @SerializedName("bytesUsed") val bytesUsed: Long? = null,
     @SerializedName("bytesTotal") val bytesTotal: Long? = null,
-    @SerializedName("recommendedProfileId", alternate = ["activeProfileId"]) val recommendedProfileId: String? = null,
+    @SerializedName(
+        "recommendedProfileId",
+        alternate = ["activeProfileId"]
+    ) val recommendedProfileId: String? = null,
     @SerializedName("updateIntervalMinutes") val updateIntervalMinutes: Int? = null,
     @SerializedName("onlyUpdateIfSelected") val onlyUpdateIfSelected: Boolean? = null
 )

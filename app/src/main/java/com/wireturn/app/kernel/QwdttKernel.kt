@@ -18,9 +18,11 @@ import java.util.regex.Pattern
 // is Russian and unrelated to free-turn-proxy's despite the shared VK-TURN idea.
 object QwdttKernel : Kernel {
     override val variant: KernelVariant = KernelVariant.QWDTT
-    override val sensitiveCommandFlags: Set<String> = setOf("-vk", "-password", "-socks-user", "-socks-pass", "-diag-key", "-device-id")
+    override val sensitiveCommandFlags: Set<String> =
+        setOf("-vk", "-password", "-socks-user", "-socks-pass", "-diag-key", "-device-id")
 
-    override fun logLabel(cfg: KernelConfig): String = "qWDTT (${(cfg as KernelConfig.Qwdtt).config.peer})"
+    override fun logLabel(cfg: KernelConfig): String =
+        "qWDTT (${(cfg as KernelConfig.Qwdtt).config.peer})"
 
     // Both: -listen for the WireGuard side, -socks for the SOCKS5 one.
     override fun localSettingsChanged(old: ClientConfig, new: ClientConfig): Boolean =
@@ -31,6 +33,7 @@ object QwdttKernel : Kernel {
     // new device - see QwdttConfig.deviceId.
     override fun mergeSubscriptionUpdate(old: KernelConfig, new: KernelConfig): KernelConfig =
         KernelConfig.Qwdtt((new as KernelConfig.Qwdtt).config.copy(deviceId = (old as KernelConfig.Qwdtt).config.deviceId))
+
     override val displayNameRes: Int = R.string.kernel_qwdtt
     override val configActivityClass = QwdttConfigActivity::class.java
     override val wgNotUsedMessageRes: Int = R.string.wg_not_used_with_qwdtt
@@ -65,9 +68,11 @@ object QwdttKernel : Kernel {
         // "wdtt://..." forms already have "//" and don't start with "qwdtt:", so they pass
         // through unchanged (neither carries a "name" param, same as before this fix).
         val normalized = if (uri.startsWith("qwdtt://", ignoreCase = true)) uri
-            else uri.replaceFirst("qwdtt:", "qwdtt://", ignoreCase = true)
+        else uri.replaceFirst("qwdtt:", "qwdtt://", ignoreCase = true)
         normalized.toUri().getQueryParameter("name")
-    } catch (_: Exception) { null }
+    } catch (_: Exception) {
+        null
+    }
 
     // "-mode rawtun": raw IP packets straight through the tunnel, no WireGuard or SOCKS5 - on the
     // server's separate -listen-raw port, so only when the profile has one (QwdttConfig.rawPort).
@@ -76,7 +81,8 @@ object QwdttKernel : Kernel {
 
     // 1.4.5+: with the screen off, workers keepalive every 20s instead of 5s and are given up after
     // 60s of silence instead of 15s, so the radio can sleep; on screen on all of them are checked at once.
-    override fun screenStateCommand(screenOn: Boolean): String = if (screenOn) "SCREEN_ON" else "SCREEN_OFF"
+    override fun screenStateCommand(screenOn: Boolean): String =
+        if (screenOn) "SCREEN_ON" else "SCREEN_OFF"
 
     override fun buildCommand(ctx: KernelCommandContext, cfg: ClientConfig): List<String> {
         val cmdArgs = mutableListOf<String>()
@@ -88,21 +94,34 @@ object QwdttKernel : Kernel {
         if (tunSocket != null && rawPeer != null) {
             // Gets RAWCONF (address/DNS/MTU) from the server, prints it, then waits on this
             // abstract socket ("@" = abstract namespace for Go's net.ListenUnix) for the TUN.
-            cmdArgs.addAll(listOf("-mode", "rawtun", "-peer", rawPeer, "-tun-fd-sock", "@$tunSocket"))
+            cmdArgs.addAll(
+                listOf(
+                    "-mode",
+                    "rawtun",
+                    "-peer",
+                    rawPeer,
+                    "-tun-fd-sock",
+                    "@$tunSocket"
+                )
+            )
         } else {
-            cmdArgs.addAll(listOf(
-                "-mode", "socks",
-                "-socks", cfg.socksAddr.ifBlank { ClientConfig.DEFAULT_SOCKS_ADDR },
-                "-peer", o.peer
-            ))
+            cmdArgs.addAll(
+                listOf(
+                    "-mode", "socks",
+                    "-socks", cfg.socksAddr.ifBlank { ClientConfig.DEFAULT_SOCKS_ADDR },
+                    "-peer", o.peer
+                )
+            )
         }
-        cmdArgs.addAll(listOf(
-            "-vk", o.vkHashes,
-            "-password", o.password,
-            "-n", o.workers.toString(),
-            "-listen", cfg.listenAddr.ifBlank { ClientConfig.DEFAULT_LISTEN_ADDR },
-            "-obfs", o.obfsMode
-        ))
+        cmdArgs.addAll(
+            listOf(
+                "-vk", o.vkHashes,
+                "-password", o.password,
+                "-n", o.workers.toString(),
+                "-listen", cfg.listenAddr.ifBlank { ClientConfig.DEFAULT_LISTEN_ADDR },
+                "-obfs", o.obfsMode
+            )
+        )
         if (o.turnTcp) cmdArgs.add("-turn-tcp")
         if (o.noTls) cmdArgs.add("-notls")
         if (o.manualCaptcha) cmdArgs.addAll(listOf("-captcha-mode", "wv"))
@@ -128,7 +147,7 @@ object QwdttKernel : Kernel {
     // registration and TURN transport choice.
     override fun isNoise(line: String): Boolean =
         QWDTT_NOISE_MARKERS.any { line.contains(it) } ||
-            (line.contains("[VKCalls] step") && line.contains(" OK,"))
+                (line.contains("[VKCalls] step") && line.contains(" OK,"))
 
     private val QWDTT_NOISE_MARKERS = listOf(
         "[ДЕБАГ]",
@@ -143,7 +162,13 @@ object QwdttKernel : Kernel {
         "] TURN TCP ("
     )
 
-    override suspend fun parseLogLine(line: String, lower: String, state: BinaryOutputState, ctx: KernelLogContext, cfg: ClientConfig): Boolean {
+    override suspend fun parseLogLine(
+        line: String,
+        lower: String,
+        state: BinaryOutputState,
+        ctx: KernelLogContext,
+        cfg: ClientConfig
+    ): Boolean {
         // Benign SOCKS5 IPv6 routing noise (the official qWDTT client filters the same thing) -
         // not an error, don't touch the status.
         if (lower.contains("socks") && (lower.contains("blocked by rules") || lower.contains("ipv6"))) {
@@ -177,7 +202,8 @@ object QwdttKernel : Kernel {
                 val ip = state.rawConfigIp
                 val mtu = state.rawConfigMtu
                 if (ip != null && mtu != null) {
-                    val dns = state.rawConfigDns.orEmpty().split(',').map(String::trim).filter(String::isNotEmpty)
+                    val dns = state.rawConfigDns.orEmpty().split(',').map(String::trim)
+                        .filter(String::isNotEmpty)
                     ctx.onNativeTunConfig(ip, dns, mtu)
                     if (canUpdateConnectingStatus()) markConnecting()
                     state.startupEmitted = true
@@ -200,7 +226,8 @@ object QwdttKernel : Kernel {
         // socket - a restart asks for the same thing again)
         if (lower.startsWith("panic") || lower.contains("fatal_auth") ||
             lower.contains("нужны -peer и -vk") || lower.contains("нужен -password") ||
-            lower.contains("[raw] ошибка") || lower.contains("некорректный rawconf")) {
+            lower.contains("[raw] ошибка") || lower.contains("некорректный rawconf")
+        ) {
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                 CoreServiceState.setStatus(CoreStatus.Error(line))
                 ctx.updateNotification(ctx.getString(R.string.error_connecting))
@@ -219,17 +246,23 @@ object QwdttKernel : Kernel {
         // ignoring "auto" here is safe.
         if (line.startsWith("CAPTCHA_SOLVE|")) {
             val parts = line.removePrefix("CAPTCHA_SOLVE|").split("|", limit = 3)
-            if (parts.size == 3 && (parts[0].equals("manual", ignoreCase = true) || parts[0].equals("selected", ignoreCase = true))) {
+            if (parts.size == 3 && (parts[0].equals("manual", ignoreCase = true) || parts[0].equals(
+                    "selected",
+                    ignoreCase = true
+                ))
+            ) {
                 val redirectUri = parts[1]
                 if (redirectUri.isNotBlank() && CoreServiceState.status.value !is CoreStatus.Suppressed) {
                     state.captchaSessionCounter += 1
                     ctx.setPendingCaptchaSessionId(state.captchaSessionCounter)
                     // Worker groups are spread over every -vk hash (go_client/group.go), so the
                     // others may well be carrying the tunnel meanwhile - see requestCaptcha.
-                    requestCaptcha(ctx, CaptchaSession(
-                        redirectUri, state.captchaSessionCounter,
-                        needsResultToken = true, partial = state.activeWorkers > 0
-                    ))
+                    requestCaptcha(
+                        ctx, CaptchaSession(
+                            redirectUri, state.captchaSessionCounter,
+                            needsResultToken = true, partial = state.activeWorkers > 0
+                        )
+                    )
                 }
             }
             return false
@@ -268,11 +301,13 @@ object QwdttKernel : Kernel {
         // "not already Connected" so a later worker's turn doesn't flap the status back down
         // once "[SOCKS] listening"/active-count already declared the tunnel up.
         if (CoreServiceState.status.value !is CoreStatus.Connected && (
-                lower.contains("креды ok") || lower.contains("[wrap]") ||
-                (lower.contains("[turn]") && !lower.contains("ошибка") && !lower.contains("не удалось") && !lower.contains("неполный ответ")) ||
-                lower.contains("relay:") || lower.contains("[прямой]") ||
-                lower.contains("[dtls] соединение установлено")
-            )
+                    lower.contains("креды ok") || lower.contains("[wrap]") ||
+                            (lower.contains("[turn]") && !lower.contains("ошибка") && !lower.contains(
+                                "не удалось"
+                            ) && !lower.contains("неполный ответ")) ||
+                            lower.contains("relay:") || lower.contains("[прямой]") ||
+                            lower.contains("[dtls] соединение установлено")
+                    )
         ) {
             if (canUpdateConnectingStatus()) {
                 markConnecting()

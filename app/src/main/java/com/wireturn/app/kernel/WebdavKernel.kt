@@ -19,7 +19,9 @@ object WebdavKernel : Kernel {
     override fun logLabel(cfg: KernelConfig): String =
         "WebDAV (${(cfg as KernelConfig.Webdav).config.webdav.take(20)})"
 
-    override fun localSettingsChanged(old: ClientConfig, new: ClientConfig): Boolean = socksListenerChanged(old, new)
+    override fun localSettingsChanged(old: ClientConfig, new: ClientConfig): Boolean =
+        socksListenerChanged(old, new)
+
     override val displayNameRes: Int = R.string.kernel_webdav
     override val configActivityClass = WebdavConfigActivity::class.java
 
@@ -27,8 +29,8 @@ object WebdavKernel : Kernel {
         val config = (cfg as KernelConfig.Webdav).config
         val login = config.login.takeIf { it.isNotBlank() }?.substringBefore('@')
         return context.getString(displayNameRes) + " " + WebdavConfig.formatHost(config.webdav) +
-            (login?.let { " ($it)" } ?: "") +
-            if (config.backends.isNotEmpty()) " +${config.backends.size}" else ""
+                (login?.let { " ($it)" } ?: "") +
+                if (config.backends.isNotEmpty()) " +${config.backends.size}" else ""
     }
 
     override fun profileSummaryExtra(context: Context, cfg: KernelConfig): List<String> {
@@ -47,7 +49,9 @@ object WebdavKernel : Kernel {
 
     override fun displayNameFromUri(uri: String): String? = try {
         uri.toUri().fragment
-    } catch (_: Exception) { null }
+    } catch (_: Exception) {
+        null
+    }
 
     override fun buildCommand(ctx: KernelCommandContext, cfg: ClientConfig): List<String> {
         val cmdArgs = mutableListOf<String>()
@@ -108,7 +112,13 @@ object WebdavKernel : Kernel {
     private val WEBDAV_CONN_LINE =
         Regex("""\[s\d+] (?:SOCKS5 connect |closed$|connecting to |UDP relay (?:opened|closed))""")
 
-    override suspend fun parseLogLine(line: String, lower: String, state: BinaryOutputState, ctx: KernelLogContext, cfg: ClientConfig): Boolean {
+    override suspend fun parseLogLine(
+        line: String,
+        lower: String,
+        state: BinaryOutputState,
+        ctx: KernelLogContext,
+        cfg: ClientConfig
+    ): Boolean {
         // pingBackends() logs one "connection failed" per dead backend before the final "all N
         // unreachable" fatal - swallow those (false, not true: true would break the read loop
         // here and we'd never see that final line).

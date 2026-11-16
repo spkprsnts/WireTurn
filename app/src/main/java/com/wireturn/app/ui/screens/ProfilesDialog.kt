@@ -122,7 +122,11 @@ private const val PROFILES_ABOVE_SELECTED_ON_OPEN = 2
  * never measured - its old ping is about to be replaced, so the fresh results go above it. Its
  * stored ping stays untouched, for a check that gets stopped. Stable - equal ones keep their order.
  */
-private fun sortedByPing(list: List<Profile>, pings: Map<String, Long>, pending: Set<String>): List<Profile> =
+private fun sortedByPing(
+    list: List<Profile>,
+    pings: Map<String, Long>,
+    pending: Set<String>
+): List<Profile> =
     list.sortedBy { profile ->
         when (val ms = pings[profile.id]?.takeIf { profile.id !in pending }) {
             null -> Long.MAX_VALUE - 1
@@ -212,7 +216,8 @@ fun ProfilesDialog(
     }
 
     fun refreshSubscription(sub: Subscription) {
-        val isTunnelActive = com.wireturn.app.domain.activeLocalSocksProxy() != java.net.Proxy.NO_PROXY
+        val isTunnelActive =
+            com.wireturn.app.domain.activeLocalSocksProxy() != java.net.Proxy.NO_PROXY
         if (sub.requireTunnelForUpdate && !isTunnelActive) {
             showManualUpdateTunnelWarning.value = sub
             return
@@ -220,11 +225,11 @@ fun ProfilesDialog(
 
         val url = sub.url
         val needsLocalNetworkPermission = Build.VERSION.SDK_INT >= 37 &&
-            isLocalNetworkHost(url) &&
-            ContextCompat.checkSelfPermission(
-                context,
-                "android.permission.ACCESS_LOCAL_NETWORK"
-            ) != PackageManager.PERMISSION_GRANTED
+                isLocalNetworkHost(url) &&
+                ContextCompat.checkSelfPermission(
+                    context,
+                    "android.permission.ACCESS_LOCAL_NETWORK"
+                ) != PackageManager.PERMISSION_GRANTED
 
         if (needsLocalNetworkPermission) {
             pendingSubUpdateUrl = url
@@ -251,7 +256,11 @@ fun ProfilesDialog(
         derivedStateOf {
             subscriptions.sortedBy { !it.pinned }.map { sub ->
                 val own = profiles.filter { it.subscriptionId == sub.id }
-                sub to if (sub.sortMode == Subscription.SORT_PING) sortedByPing(own, profilePings, pingingProfileIds) else own
+                sub to if (sub.sortMode == Subscription.SORT_PING) sortedByPing(
+                    own,
+                    profilePings,
+                    pingingProfileIds
+                ) else own
             }
         }
     }
@@ -338,7 +347,8 @@ fun ProfilesDialog(
         com.wireturn.app.ui.UIEventBus.scrollRequest.collect { targetId ->
             // Подсвечиваем цель и всё связанное (профили подписки или заголовок профиля)
             val relatedIds = mutableListOf(targetId)
-            profilesSource.filter { it.subscriptionId == targetId }.forEach { relatedIds.add(it.id) }
+            profilesSource.filter { it.subscriptionId == targetId }
+                .forEach { relatedIds.add(it.id) }
             profilesSource.find { it.id == targetId }?.subscriptionId?.let { relatedIds.add(it) }
 
             val uniqueRelated = relatedIds.distinct()
@@ -385,7 +395,7 @@ fun ProfilesDialog(
             if (updatedOrNewIds.isNotEmpty()) {
                 // Если профили принадлежат подписке, подсвечиваем и её заголовок (даже если подписка не новая).
                 val subIdsToHighlight = updatedOrNew.mapNotNull { it.subscriptionId }.distinct()
-                
+
                 val allToHighlight = (updatedOrNewIds + subIdsToHighlight).distinct()
                 highlightedIds.addAll(allToHighlight)
                 scope.launch {
@@ -410,7 +420,9 @@ fun ProfilesDialog(
                     }
                     val currentVisualIdx = visualOrderIds.indexOf(currentId)
                     val anchorId = if (currentVisualIdx >= 0) {
-                        visualOrderIds[(currentVisualIdx - PROFILES_ABOVE_SELECTED_ON_OPEN).coerceAtLeast(0)]
+                        visualOrderIds[(currentVisualIdx - PROFILES_ABOVE_SELECTED_ON_OPEN).coerceAtLeast(
+                            0
+                        )]
                     } else {
                         currentId
                     }
@@ -421,15 +433,15 @@ fun ProfilesDialog(
                 } else if (profilesSource.size > oldSize && oldSize > 0) {
                     val newIds = profilesSource.map { it.id }.toSet() - oldIds
                     val firstNewId = newIds.firstOrNull()
-                    
+
                     if (firstNewId != null) {
                         val newProfile = profilesSource.find { it.id == firstNewId }
                         val subId = newProfile?.subscriptionId
-                        
+
                         // Scroll ONLY if it's a NEW subscription (not previously seen)
                         // or if it's a new standalone profile.
                         val isExistingSub = subId != null && oldSubIds.contains(subId)
-                        
+
                         if (!isExistingSub) {
                             val targetLazyIndex = findLazyIndex(firstNewId)
                             if (targetLazyIndex != -1) {
@@ -457,7 +469,8 @@ fun ProfilesDialog(
 
     fun clampedDragOffset(): Float {
         val currentId = draggedItemId ?: return 0f
-        val draggedItem = lazyListState.layoutInfo.visibleItemsInfo.find { it.key == currentId } ?: return 0f
+        val draggedItem =
+            lazyListState.layoutInfo.visibleItemsInfo.find { it.key == currentId } ?: return 0f
         val absY = clampedAbsoluteY() ?: return 0f
         return absY - draggedItem.offset
     }
@@ -474,7 +487,8 @@ fun ProfilesDialog(
             val slack = with(density) { 32.dp.toPx() }
             val minY = -slack
             val maxY = (viewportHeight - draggedItem.size) + slack
-            val visualTop = if (maxY >= minY) desiredAbsoluteY().coerceIn(minY, maxY) else desiredAbsoluteY()
+            val visualTop =
+                if (maxY >= minY) desiredAbsoluteY().coerceIn(minY, maxY) else desiredAbsoluteY()
             val visualBottom = visualTop + draggedItem.size
 
             autoScrollSpeed = when {
@@ -521,23 +535,24 @@ fun ProfilesDialog(
                 val targetItem = if (goingDown) {
                     visibleItems.find { item ->
                         item.index > virtualIndex &&
-                        (item.offset + item.size / 2) < draggedCenter &&
-                        item.key is String && !(item.key as String).startsWith("sub_header_") &&
-                        item.key != "standalone_top_guard"
+                                (item.offset + item.size / 2) < draggedCenter &&
+                                item.key is String && !(item.key as String).startsWith("sub_header_") &&
+                                item.key != "standalone_top_guard"
                     }
                 } else {
                     visibleItems.findLast { item ->
                         item.index < virtualIndex &&
-                        (item.offset + item.size / 2) > draggedCenter &&
-                        item.key is String && !(item.key as String).startsWith("sub_header_") &&
-                        item.key != "standalone_top_guard"
+                                (item.offset + item.size / 2) > draggedCenter &&
+                                item.key is String && !(item.key as String).startsWith("sub_header_") &&
+                                item.key != "standalone_top_guard"
                     }
                 }
 
                 if (targetItem == null) break
 
                 val targetProfileId = targetItem.key as String
-                val targetProfileIdx = profiles.indexOfFirst { it.id == targetProfileId }.takeIf { it != -1 } ?: break
+                val targetProfileIdx =
+                    profiles.indexOfFirst { it.id == targetProfileId }.takeIf { it != -1 } ?: break
 
                 // Allow reorder ONLY within the same group (standalone or specific subscription)
                 val draggedProfile = profiles[currentDraggedIdx]
@@ -603,7 +618,7 @@ fun ProfilesDialog(
                 if (draggedItemId != null && source == NestedScrollSource.UserInput) {
                     return available
                 }
-                
+
                 return Offset.Zero
             }
 
@@ -626,7 +641,8 @@ fun ProfilesDialog(
                 // рисуем вместо этого нативный stretch через topOverscroll (performScroll
                 // ничего не отдаёт дальше, поэтому весь остаток уходит в растяжку).
                 if (available.y > 0) {
-                    return topOverscroll?.applyToScroll(available, source) { Offset.Zero } ?: available
+                    return topOverscroll?.applyToScroll(available, source) { Offset.Zero }
+                        ?: available
                 }
 
                 return Offset.Zero
@@ -714,7 +730,8 @@ fun ProfilesDialog(
                         if (isSelectionMode) return@pointerInput
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)
-                            val longPress = awaitLongPressOrCancellation(down.id) ?: return@awaitEachGesture
+                            val longPress =
+                                awaitLongPressOrCancellation(down.id) ?: return@awaitEachGesture
 
                             // A stuck header is rendered pinned at the top, covering whatever
                             // item is really scrolled underneath it there - that item's true
@@ -726,14 +743,15 @@ fun ProfilesDialog(
                                 .maxOfOrNull { it.offset + it.size } ?: 0
                             if (longPress.position.y < pinnedHeaderBottom) return@awaitEachGesture
 
-                            val hitItem = lazyListState.layoutInfo.visibleItemsInfo.firstOrNull { item ->
-                                val key = item.key
-                                key is String &&
-                                    !key.startsWith("sub_header_") &&
-                                    key != "standalone_top_guard" &&
-                                    longPress.position.y >= item.offset &&
-                                    longPress.position.y < item.offset + item.size
-                            } ?: return@awaitEachGesture
+                            val hitItem =
+                                lazyListState.layoutInfo.visibleItemsInfo.firstOrNull { item ->
+                                    val key = item.key
+                                    key is String &&
+                                            !key.startsWith("sub_header_") &&
+                                            key != "standalone_top_guard" &&
+                                            longPress.position.y >= item.offset &&
+                                            longPress.position.y < item.offset + item.size
+                                } ?: return@awaitEachGesture
                             val targetId = hitItem.key as String
 
                             // A subscription sorted by ping shows its profiles in an order that
@@ -802,7 +820,13 @@ fun ProfilesDialog(
                                     viewModel.reorderProfiles(profiles.toList())
                                 }
                             },
-                            onExportClick = { targets, showMenu -> export.onExportClick(context, targets, showMenu) },
+                            onExportClick = { targets, showMenu ->
+                                export.onExportClick(
+                                    context,
+                                    targets,
+                                    showMenu
+                                )
+                            },
                             onExportActionSelected = { export.onActionSelected(it) },
                             onClone = { showCloneDialog.value = it },
                             onRename = { showRenameDialog.value = it },
@@ -814,7 +838,8 @@ fun ProfilesDialog(
 
                     // Subscription Groups
                     subscriptionGroups.forEach { (sub, subProfiles) ->
-                        val isAnySelected = subProfiles.any { it.id == (optimisticSelectedId ?: currentId) }
+                        val isAnySelected =
+                            subProfiles.any { it.id == (optimisticSelectedId ?: currentId) }
                         val isUpdating = updatingSubIds.contains(sub.id)
 
                         stickyHeader(key = "sub_header_${sub.id}") {
@@ -835,7 +860,11 @@ fun ProfilesDialog(
                                         headerIdx == -1 -> 0f
                                         lazyListState.firstVisibleItemIndex > headerIdx -> 1f
                                         lazyListState.firstVisibleItemIndex == headerIdx ->
-                                            (lazyListState.firstVisibleItemScrollOffset / headerStuckTransitionPx).coerceIn(0f, 1f)
+                                            (lazyListState.firstVisibleItemScrollOffset / headerStuckTransitionPx).coerceIn(
+                                                0f,
+                                                1f
+                                            )
+
                                         else -> 0f
                                     }
                                 }
@@ -844,21 +873,29 @@ fun ProfilesDialog(
                                 sub = sub,
                                 isAnyChildSelected = isAnySelected,
                                 isSelectionMode = isSelectionMode,
-                                isAllSubSelected = subProfiles.isNotEmpty() && subProfiles.all { selectedIds.contains(it.id) },
+                                isAllSubSelected = subProfiles.isNotEmpty() && subProfiles.all {
+                                    selectedIds.contains(
+                                        it.id
+                                    )
+                                },
                                 isUpdating = isUpdating,
                                 stuckProgress = stuckProgress,
                                 onUpdate = { refreshSubscription(sub) },
                                 onSettings = {
                                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                    val intent = Intent(context, SubscriptionConfigActivity::class.java).apply {
+                                    val intent = Intent(
+                                        context,
+                                        SubscriptionConfigActivity::class.java
+                                    ).apply {
                                         putExtra("EXTRA_SUB_ID", sub.id)
                                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                     }
                                     context.startActivity(intent)
                                 },
                                 onSelect = {
-                                    val targetId = subProfiles.find { it.id == sub.activeProfileId }?.id 
-                                        ?: subProfiles.firstOrNull()?.id
+                                    val targetId =
+                                        subProfiles.find { it.id == sub.activeProfileId }?.id
+                                            ?: subProfiles.firstOrNull()?.id
                                     if (targetId != null) {
                                         optimisticSelectedId = targetId
                                         viewModel.selectProfileAndRestart(targetId)
@@ -866,7 +903,8 @@ fun ProfilesDialog(
                                 },
                                 onToggleSelection = {
                                     val allInSub = subProfiles.map { it.id }
-                                    val isAllInSubSelected = allInSub.all { selectedIds.contains(it) }
+                                    val isAllInSubSelected =
+                                        allInSub.all { selectedIds.contains(it) }
                                     if (isAllInSubSelected) {
                                         selectedIds.removeAll(allInSub)
                                     } else {
@@ -889,7 +927,9 @@ fun ProfilesDialog(
                                 onTestPings = if (subProfiles.none { it.kernelConfig is com.wireturn.app.data.KernelConfig.Xray }) null else {
                                     {
                                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                        if (sub.id in testingSubIds) viewModel.stopSubscriptionPingTest(sub.id)
+                                        if (sub.id in testingSubIds) viewModel.stopSubscriptionPingTest(
+                                            sub.id
+                                        )
                                         else viewModel.testSubscriptionPings(sub.id)
                                     }
                                 },
@@ -910,7 +950,9 @@ fun ProfilesDialog(
                         }
 
                         // A collapsed subscription is its header alone (see findLazyIndex).
-                        if (!sub.collapsed) itemsIndexed(subProfiles, key = { _, it -> it.id }) { index, profile ->
+                        if (!sub.collapsed) itemsIndexed(
+                            subProfiles,
+                            key = { _, it -> it.id }) { index, profile ->
                             ProfileItemRow(
                                 profile = profile,
                                 index = index,
@@ -934,7 +976,13 @@ fun ProfilesDialog(
                                         viewModel.reorderProfiles(profiles.toList())
                                     }
                                 },
-                                onExportClick = { targets, showMenu -> export.onExportClick(context, targets, showMenu) },
+                                onExportClick = { targets, showMenu ->
+                                    export.onExportClick(
+                                        context,
+                                        targets,
+                                        showMenu
+                                    )
+                                },
                                 onExportActionSelected = { export.onActionSelected(it) },
                                 onClone = { showCloneDialog.value = it },
                                 onRename = { showRenameDialog.value = it },
@@ -1052,7 +1100,10 @@ private fun ProfileItemRow(
     DisposableEffect(profile.id) {
         onDispose {
             if (isDraggedState.value) {
-                Log.e("ProfileDrag", "composable disposed mid-drag for profile=${profile.id}, forcing reset")
+                Log.e(
+                    "ProfileDrag",
+                    "composable disposed mid-drag for profile=${profile.id}, forcing reset"
+                )
                 onDragEndState.value(profile.id)
             }
         }
@@ -1068,17 +1119,38 @@ private fun ProfileItemRow(
         isDragged -> MaterialTheme.shapes.medium
         totalInGroup == 1 && !isInsideSubscription -> MaterialTheme.shapes.medium
         isInsideSubscription -> {
-            if (index == totalInGroup - 1) RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
+            if (index == totalInGroup - 1) RoundedCornerShape(
+                topStart = 4.dp,
+                topEnd = 4.dp,
+                bottomStart = 16.dp,
+                bottomEnd = 16.dp
+            )
             else RoundedCornerShape(4.dp)
         }
-        index == 0 -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
-        index == totalInGroup - 1 -> RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
+
+        index == 0 -> RoundedCornerShape(
+            topStart = 16.dp,
+            topEnd = 16.dp,
+            bottomStart = 4.dp,
+            bottomEnd = 4.dp
+        )
+
+        index == totalInGroup - 1 -> RoundedCornerShape(
+            topStart = 4.dp,
+            topEnd = 4.dp,
+            bottomStart = 16.dp,
+            bottomEnd = 16.dp
+        )
+
         else -> RoundedCornerShape(4.dp)
     }
 
     val offsetAnim by animateFloatAsState(
         targetValue = if (isDragged) dragOffset else 0f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = if (isDragged) Spring.StiffnessHigh else Spring.StiffnessMedium),
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = if (isDragged) Spring.StiffnessHigh else Spring.StiffnessMedium
+        ),
         label = "drag_offset"
     )
 
@@ -1134,12 +1206,25 @@ private fun ProfileItemRow(
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         menuExpanded = true
                     }) {
-                        Icon(painterResource(R.drawable.more_vert_24px), contentDescription = stringResource(R.string.profile_actions))
+                        Icon(
+                            painterResource(R.drawable.more_vert_24px),
+                            contentDescription = stringResource(R.string.profile_actions)
+                        )
                     }
-                    AppDropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }, title = stringResource(R.string.profile_actions)) {
+                    AppDropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                        title = stringResource(R.string.profile_actions)
+                    ) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.profile_select)) },
-                            leadingIcon = { Icon(painterResource(R.drawable.check_circle_24px), null, modifier = Modifier.size(20.dp)) },
+                            leadingIcon = {
+                                Icon(
+                                    painterResource(R.drawable.check_circle_24px),
+                                    null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
                             onClick = {
                                 menuExpanded = false
                                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -1148,7 +1233,13 @@ private fun ProfileItemRow(
                         )
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.profile_clone)) },
-                            leadingIcon = { Icon(painterResource(R.drawable.content_copy_24px), null, modifier = Modifier.size(20.dp)) },
+                            leadingIcon = {
+                                Icon(
+                                    painterResource(R.drawable.content_copy_24px),
+                                    null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
                             onClick = {
                                 menuExpanded = false
                                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -1159,7 +1250,13 @@ private fun ProfileItemRow(
                         if (profile.kernelConfig is com.wireturn.app.data.KernelConfig.Xray) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.subscription_test_ping)) },
-                                leadingIcon = { Icon(painterResource(R.drawable.wifi_24px), null, modifier = Modifier.size(20.dp)) },
+                                leadingIcon = {
+                                    Icon(
+                                        painterResource(R.drawable.wifi_24px),
+                                        null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
                                 enabled = profile.id !in pingingProfileIds,
                                 onClick = {
                                     menuExpanded = false
@@ -1170,7 +1267,13 @@ private fun ProfileItemRow(
                         }
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.profile_edit)) },
-                            leadingIcon = { Icon(painterResource(R.drawable.edit_square_24px), null, modifier = Modifier.size(20.dp)) },
+                            leadingIcon = {
+                                Icon(
+                                    painterResource(R.drawable.edit_square_24px),
+                                    null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
                             onClick = {
                                 menuExpanded = false
                                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -1179,7 +1282,13 @@ private fun ProfileItemRow(
                         )
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.profile_rename)) },
-                            leadingIcon = { Icon(painterResource(R.drawable.edit_24px), null, modifier = Modifier.size(20.dp)) },
+                            leadingIcon = {
+                                Icon(
+                                    painterResource(R.drawable.edit_24px),
+                                    null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
                             onClick = {
                                 menuExpanded = false
                                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -1188,7 +1297,13 @@ private fun ProfileItemRow(
                         )
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.profile_export)) },
-                            leadingIcon = { Icon(painterResource(R.drawable.ios_share_24px), null, modifier = Modifier.size(20.dp)) },
+                            leadingIcon = {
+                                Icon(
+                                    painterResource(R.drawable.ios_share_24px),
+                                    null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
                             onClick = {
                                 menuExpanded = false
                                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -1198,7 +1313,13 @@ private fun ProfileItemRow(
                         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.profile_delete)) },
-                            leadingIcon = { Icon(painterResource(R.drawable.delete_24px), null, modifier = Modifier.size(20.dp)) },
+                            leadingIcon = {
+                                Icon(
+                                    painterResource(R.drawable.delete_24px),
+                                    null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
                             onClick = {
                                 menuExpanded = false
                                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
@@ -1227,7 +1348,8 @@ private fun ProfileItemRow(
                             onClick = {
                                 editMenuExpanded = false
                                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                val intent = Intent(context, configActivityClassFor(profile.kernelVariant))
+                                val intent =
+                                    Intent(context, configActivityClassFor(profile.kernelVariant))
                                 intent.putExtra("EXTRA_EDIT_MODE", true)
                                 intent.putExtra("EXTRA_PROFILE_NAME", profile.name)
                                 intent.putExtra("EXTRA_PROFILE_ID", profile.id)
@@ -1246,7 +1368,10 @@ private fun ProfileItemRow(
                             onClick = {
                                 editMenuExpanded = false
                                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                                val intent = Intent(context, com.wireturn.app.ui.activities.XrayEditActivity::class.java)
+                                val intent = Intent(
+                                    context,
+                                    com.wireturn.app.ui.activities.XrayEditActivity::class.java
+                                )
                                 intent.putExtra("EXTRA_PROFILE_ID", profile.id)
                                 context.startActivity(intent)
                             }
@@ -1323,7 +1448,12 @@ private fun SubscriptionHeaderRow(
 
     Surface(
         color = backgroundColor,
-        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = bottomCorner, bottomEnd = bottomCorner),
+        shape = RoundedCornerShape(
+            topStart = 16.dp,
+            topEnd = 16.dp,
+            bottomStart = bottomCorner,
+            bottomEnd = bottomCorner
+        ),
         shadowElevation = shadowElevation,
         onClick = {
             if (isSelectionMode) onToggleSelection()
@@ -1336,7 +1466,12 @@ private fun SubscriptionHeaderRow(
     ) {
         Row(
             // The leading chevron button brings its own padding - less of the row's own before it.
-            modifier = Modifier.padding(start = if (isSelectionMode) 16.dp else 4.dp, top = 16.dp, bottom = 16.dp, end = 8.dp),
+            modifier = Modifier.padding(
+                start = if (isSelectionMode) 16.dp else 4.dp,
+                top = 16.dp,
+                bottom = 16.dp,
+                end = 8.dp
+            ),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (isSelectionMode) {
@@ -1398,8 +1533,8 @@ private fun SubscriptionHeaderRow(
                         android.text.format.DateUtils.formatDateTime(
                             context, sub.updatedAt,
                             android.text.format.DateUtils.FORMAT_SHOW_DATE or
-                                android.text.format.DateUtils.FORMAT_SHOW_TIME or
-                                android.text.format.DateUtils.FORMAT_ABBREV_MONTH
+                                    android.text.format.DateUtils.FORMAT_SHOW_TIME or
+                                    android.text.format.DateUtils.FORMAT_ABBREV_MONTH
                         )
                     }
                     Text(
@@ -1420,14 +1555,15 @@ private fun SubscriptionHeaderRow(
                 }
             }
             if (!isSelectionMode) {
-                val iconTint = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
+                val iconTint =
+                    if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
                 IconButton(onClick = onUpdate, enabled = !isUpdating) {
                     if (isUpdating) {
                         androidx.compose.material3.CircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
                             strokeWidth = 2.dp,
                             color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer
-                                    else MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.primary
                         )
                     } else {
                         Icon(
@@ -1483,17 +1619,33 @@ private fun SubscriptionHeaderRow(
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.subscription_sort_by_ping)) },
                             onClick = { showMenu = false; onToggleSortByPing() },
-                            leadingIcon = { Icon(painterResource(R.drawable.sort_24px), null, modifier = Modifier.size(20.dp)) },
+                            leadingIcon = {
+                                Icon(
+                                    painterResource(R.drawable.sort_24px),
+                                    null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
                             trailingIcon = {
                                 if (sub.sortMode == Subscription.SORT_PING) {
-                                    Icon(painterResource(R.drawable.check_24px), null, modifier = Modifier.size(20.dp))
+                                    Icon(
+                                        painterResource(R.drawable.check_24px),
+                                        null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
                                 }
                             }
                         )
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.subscription_settings)) },
                             onClick = { showMenu = false; onSettings() },
-                            leadingIcon = { Icon(painterResource(R.drawable.settings_24px), null, modifier = Modifier.size(20.dp)) }
+                            leadingIcon = {
+                                Icon(
+                                    painterResource(R.drawable.settings_24px),
+                                    null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         )
                     }
                 }
@@ -1555,9 +1707,11 @@ private fun SubscriptionDescriptionText(
         naturalHeightPx <= 0f -> {
             Text(text = text, style = style, color = color)
         }
+
         stuckProgress <= 0f -> {
             Text(text = text, style = style, color = color)
         }
+
         stuckProgress >= 1f -> {
             Text(
                 text = text,
@@ -1567,6 +1721,7 @@ private fun SubscriptionDescriptionText(
                 overflow = TextOverflow.Ellipsis
             )
         }
+
         else -> {
             val clampedHeightPx = minOf(naturalHeightPx, twoLineHeightPx)
             val heightPx = naturalHeightPx + (clampedHeightPx - naturalHeightPx) * stuckProgress
@@ -1586,7 +1741,12 @@ private fun SubscriptionDescriptionText(
 private fun SubscriptionEmptyRow() {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 16.dp, bottomEnd = 16.dp),
+        shape = RoundedCornerShape(
+            topStart = 4.dp,
+            topEnd = 4.dp,
+            bottomStart = 16.dp,
+            bottomEnd = 16.dp
+        ),
         modifier = Modifier.fillMaxWidth()
     ) {
         Box(
@@ -1685,7 +1845,8 @@ internal fun shareFile(context: Context, bytes: ByteArray, fileName: String) {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         context.startActivity(Intent.createChooser(intent, null))
-    } catch (_: Exception) {}
+    } catch (_: Exception) {
+    }
 }
 
 internal fun shareText(context: Context, text: String, title: String) {
@@ -1733,7 +1894,12 @@ private fun showUpdateToast(context: Context, summary: com.wireturn.app.domain.I
     val message = if (summary.added == 0 && summary.updated == 0 && summary.removed == 0) {
         appContext.getString(R.string.subscription_update_no_changes)
     } else {
-        appContext.getString(R.string.subscription_update_summary, summary.added, summary.removed, summary.total)
+        appContext.getString(
+            R.string.subscription_update_summary,
+            summary.added,
+            summary.removed,
+            summary.total
+        )
     }
     appContext.showExclusiveToast(message)
 }

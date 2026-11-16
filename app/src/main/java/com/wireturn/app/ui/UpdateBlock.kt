@@ -94,6 +94,7 @@ fun UpdateBlock(
                             color = targetContentColor
                         )
                     }
+
                     else -> {
                         Icon(
                             painter = painterResource(
@@ -106,7 +107,7 @@ fun UpdateBlock(
                             contentDescription = null,
                             modifier = Modifier.size(32.dp),
                             tint = if (state is UpdateState.Error) MaterialTheme.colorScheme.error
-                                   else targetContentColor
+                            else targetContentColor
                         )
                     }
                 }
@@ -118,7 +119,7 @@ fun UpdateBlock(
                 SupportingText(
                     text = supportingText,
                     color = if (state is UpdateState.Error) MaterialTheme.colorScheme.error
-                            else MaterialTheme.colorScheme.onSurface
+                    else MaterialTheme.colorScheme.onSurface
                 )
             }
 
@@ -138,6 +139,7 @@ fun UpdateBlock(
                         }
                     }
                 }
+
                 is UpdateState.Downloading -> {
                     Spacer(Modifier.width(12.dp))
                     Text(
@@ -149,6 +151,7 @@ fun UpdateBlock(
                         textAlign = TextAlign.End
                     )
                 }
+
                 is UpdateState.ReadyToInstall -> {
                     if (onInstall != null) {
                         Spacer(Modifier.width(12.dp))
@@ -164,6 +167,7 @@ fun UpdateBlock(
                         }
                     }
                 }
+
                 is UpdateState.Idle, is UpdateState.NoUpdate, is UpdateState.Error -> {
                     if (onCheck != null) {
                         Spacer(Modifier.width(12.dp))
@@ -177,6 +181,7 @@ fun UpdateBlock(
                         }
                     }
                 }
+
                 else -> {}
             }
         }
@@ -184,8 +189,12 @@ fun UpdateBlock(
         // Линейный прогресс-бар при скачивании
         AnimatedVisibility(
             visible = state is UpdateState.Downloading,
-            enter = expandVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
-            exit = shrinkVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec())
+            enter = expandVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeIn(
+                MaterialTheme.motionScheme.defaultEffectsSpec()
+            ),
+            exit = shrinkVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeOut(
+                MaterialTheme.motionScheme.defaultEffectsSpec()
+            )
         ) {
             androidx.compose.material3.LinearWavyProgressIndicator(
                 progress = { progress.div(100f) },
@@ -198,8 +207,12 @@ fun UpdateBlock(
 
         AnimatedVisibility(
             visible = showChangelog && currentChangelog.isNotBlank(),
-            enter = expandVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
-            exit = shrinkVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec())
+            enter = expandVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeIn(
+                MaterialTheme.motionScheme.defaultEffectsSpec()
+            ),
+            exit = shrinkVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeOut(
+                MaterialTheme.motionScheme.defaultEffectsSpec()
+            )
         ) {
             Text(
                 text = MarkdownUtils.parseMarkdown(

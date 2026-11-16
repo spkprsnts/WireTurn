@@ -112,8 +112,10 @@ private object AppExceptionsDefaults {
 // App icons decoded at the size they're drawn (not the drawable's own, up to 432px for an
 // adaptive icon), kept across rows scrolling out and back in - each one used to be decoded again
 // every time its row reappeared. Keyed by package and pixel size; bounded by bytes.
-private val appIconCache = object : android.util.LruCache<String, androidx.compose.ui.graphics.ImageBitmap>(8 * 1024 * 1024) {
-    override fun sizeOf(key: String, value: androidx.compose.ui.graphics.ImageBitmap): Int = value.width * value.height * 4
+private val appIconCache = object :
+    android.util.LruCache<String, androidx.compose.ui.graphics.ImageBitmap>(8 * 1024 * 1024) {
+    override fun sizeOf(key: String, value: androidx.compose.ui.graphics.ImageBitmap): Int =
+        value.width * value.height * 4
 }
 
 data class AppInfo(
@@ -132,7 +134,7 @@ fun AppExceptionsScreen(
     val scope = rememberCoroutineScope()
     val vpnSettings by viewModel.vpnSettings.collectAsStateWithLifecycle()
     val excludedApps = vpnSettings.excludedApps
-    
+
     var isAppsLoading by remember { mutableStateOf(true) }
     var appList by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
     val textFieldState = rememberTextFieldState()
@@ -165,7 +167,7 @@ fun AppExceptionsScreen(
         }
     }
 
-    
+
     var sortedAppList by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
 
     val updateSortedList = {
@@ -186,7 +188,13 @@ fun AppExceptionsScreen(
         )
     }
 
-    LaunchedEffect(appList, sortSnapshot, vpnSettings.hideSystemApps, excludedApps, vpnSettings.groupAppsByLetter) {
+    LaunchedEffect(
+        appList,
+        sortSnapshot,
+        vpnSettings.hideSystemApps,
+        excludedApps,
+        vpnSettings.groupAppsByLetter
+    ) {
         updateSortedList()
     }
 
@@ -232,13 +240,20 @@ fun AppExceptionsScreen(
         loadApps()
     }
 
-    val searchDisplayList = remember(appliedSearchQuery, searchBarState.currentValue, appList, vpnSettings.hideSystemApps, sortSnapshot, excludedApps) {
+    val searchDisplayList = remember(
+        appliedSearchQuery,
+        searchBarState.currentValue,
+        appList,
+        vpnSettings.hideSystemApps,
+        sortSnapshot,
+        excludedApps
+    ) {
         val filtered = if (vpnSettings.hideSystemApps) {
             appList.filter { !it.isSystem || excludedApps.contains(it.packageName) }
         } else {
             appList
         }
-        
+
         val baseList = if (appliedSearchQuery.isBlank()) {
             filtered.filter { excludedApps.contains(it.packageName) }
         } else {
@@ -298,10 +313,10 @@ fun AppExceptionsScreen(
                         viewModel.saveExcludedApps(newExcluded)
                         newlyAddedPackages = newlyAdded
                         sortSnapshot = newExcluded
-                        
+
                         // Принудительно обновляем отсортированный список перед выключением индикатора
                         updateSortedList()
-                        
+
                         listState.animateScrollToItem(0)
                         isAppsLoading = false
                         context.showExclusiveToast(appsImportedFormat.format(newlyAdded.size))
@@ -321,7 +336,8 @@ fun AppExceptionsScreen(
                 val clipData = android.content.ClipData.newPlainText("WireTurn Apps", text)
                 clipboard.setClipEntry(ClipEntry(clipData))
                 context.showExclusiveToast(listCopiedMsg)
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -371,13 +387,17 @@ fun AppExceptionsScreen(
     val appBarHeightDp = with(density) { appBarHeightPx.toDp() }
     val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
-    val searchBarCompressTransitionPx = with(density) { AppExceptionsDefaults.SearchBarCompressTransition.toPx() }
+    val searchBarCompressTransitionPx =
+        with(density) { AppExceptionsDefaults.SearchBarCompressTransition.toPx() }
     val searchBarCompressProgress by remember {
         derivedStateOf {
             if (listState.firstVisibleItemIndex > 0) {
                 1f
             } else {
-                (listState.firstVisibleItemScrollOffset / searchBarCompressTransitionPx).coerceIn(0f, 1f)
+                (listState.firstVisibleItemScrollOffset / searchBarCompressTransitionPx).coerceIn(
+                    0f,
+                    1f
+                )
             }
         }
     }
@@ -570,12 +590,17 @@ fun AppExceptionsScreen(
                                 // the frequently-changing animation progress in the layout phase
                                 // instead of composition, so it doesn't recompose every animation frame.
                                 .layout { measurable, constraints ->
-                                    val topPaddingPx = (statusBarPadding * searchBarState.progress).roundToPx()
+                                    val topPaddingPx =
+                                        (statusBarPadding * searchBarState.progress).roundToPx()
                                     val placeable = measurable.measure(
                                         constraints.copy(
-                                            minHeight = (constraints.minHeight - topPaddingPx).coerceAtLeast(0),
+                                            minHeight = (constraints.minHeight - topPaddingPx).coerceAtLeast(
+                                                0
+                                            ),
                                             maxHeight = if (constraints.maxHeight != Constraints.Infinity) {
-                                                (constraints.maxHeight - topPaddingPx).coerceAtLeast(0)
+                                                (constraints.maxHeight - topPaddingPx).coerceAtLeast(
+                                                    0
+                                                )
                                             } else {
                                                 constraints.maxHeight
                                             }
@@ -885,7 +910,8 @@ private fun AppListItem(
                     withContext(Dispatchers.Main) {
                         iconBitmap = bitmap
                     }
-                } catch (_: Exception) { }
+                } catch (_: Exception) {
+                }
             }
         }
 

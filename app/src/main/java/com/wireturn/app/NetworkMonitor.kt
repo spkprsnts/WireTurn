@@ -30,16 +30,22 @@ class NetworkMonitor(private val context: Context, private val listener: Listene
 
     // Every usable physical network with its latest capabilities - "wait for network" checks it's
     // non-empty, "restart on network change" picks the primary one out of it.
-    private val physicalNetworks = java.util.concurrent.ConcurrentHashMap<Network, NetworkCapabilities>()
+    private val physicalNetworks =
+        java.util.concurrent.ConcurrentHashMap<Network, NetworkCapabilities>()
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
+
     // The physical network traffic goes out through, as picked by onPhysicalNetworksChanged(); -1 = none.
-    @Volatile private var primaryNetworkHandle: Long = -1
+    @Volatile
+    private var primaryNetworkHandle: Long = -1
+
     // Until then the networks already up keep arriving one by one after registering - the pick
     // settles silently instead of reporting each as a change.
-    @Volatile private var primaryNetworkSettledAt = 0L
+    @Volatile
+    private var primaryNetworkSettledAt = 0L
 
     /** The primary network's type (and for mobile, SIM and operator), blank before the first pick. */
-    @Volatile var primaryLabel: String = ""
+    @Volatile
+    var primaryLabel: String = ""
         private set
 
     /** Whether any usable physical network is up. */
@@ -67,7 +73,10 @@ class NetworkMonitor(private val context: Context, private val listener: Listene
                 onPhysicalNetworksChanged()
             }
 
-            override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+            override fun onCapabilitiesChanged(
+                network: Network,
+                networkCapabilities: NetworkCapabilities
+            ) {
                 // Validation comes in here (a Wi-Fi only becomes primary once it has internet).
                 if (physicalNetworks.containsKey(network)) {
                     physicalNetworks[network] = networkCapabilities
@@ -90,7 +99,8 @@ class NetworkMonitor(private val context: Context, private val listener: Listene
         networkCallback?.let { cb ->
             try {
                 cm.unregisterNetworkCallback(cb)
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            }
         }
         networkCallback = null
     }
@@ -115,7 +125,10 @@ class NetworkMonitor(private val context: Context, private val listener: Listene
         val isFirst = primaryNetworkHandle == -1L
         primaryNetworkHandle = best.key.networkHandle
         primaryLabel = networkLabel(best.value)
-        AppLogsState.addLog(context.getString(R.string.log_core_default_network, primaryLabel), LogLevel.DEBUG)
+        AppLogsState.addLog(
+            context.getString(R.string.log_core_default_network, primaryLabel),
+            LogLevel.DEBUG
+        )
         if (isFirst || SystemClock.elapsedRealtime() < primaryNetworkSettledAt) return
 
         listener.onPrimaryNetworkChanged(previousLabel)
@@ -135,12 +148,14 @@ class NetworkMonitor(private val context: Context, private val listener: Listene
                 cm.allNetworks.mapNotNull { n ->
                     val caps = cm.getNetworkCapabilities(n) ?: return@mapNotNull null
                     if (caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN) ||
-                        !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) return@mapNotNull null
+                        !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                    ) return@mapNotNull null
                     n to caps
                 }.maxByOrNull { networkRank(it.second) }?.first
             }.getOrNull()
             ?: return emptyList()
-        val servers = runCatching { cm.getLinkProperties(network)?.dnsServers }.getOrNull().orEmpty()
+        val servers =
+            runCatching { cm.getLinkProperties(network)?.dnsServers }.getOrNull().orEmpty()
         return servers
             .filter { !it.isLoopbackAddress && !it.isAnyLocalAddress && !it.isLinkLocalAddress }
             .sortedBy { if (it is java.net.Inet4Address) 0 else 1 }
@@ -155,7 +170,8 @@ class NetworkMonitor(private val context: Context, private val listener: Listene
             capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> 1
             else -> 0
         }
-        val validated = if (capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) 10 else 0
+        val validated =
+            if (capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) 10 else 0
         return validated + transport
     }
 
@@ -174,14 +190,18 @@ class NetworkMonitor(private val context: Context, private val listener: Listene
         if (capabilities == null || !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
             Build.VERSION.SDK_INT < Build.VERSION_CODES.R
         ) return type
-        val subId = (capabilities.networkSpecifier as? android.net.TelephonyNetworkSpecifier)?.subscriptionId ?: return type
+        val subId =
+            (capabilities.networkSpecifier as? android.net.TelephonyNetworkSpecifier)?.subscriptionId
+                ?: return type
         val details = listOfNotNull(
             android.telephony.SubscriptionManager.getSlotIndex(subId).takeIf { it >= 0 }
                 ?.let { context.getString(R.string.network_sim_slot, it + 1) },
             try {
                 context.getSystemService(android.telephony.TelephonyManager::class.java)
                     ?.createForSubscriptionId(subId)?.networkOperatorName
-            } catch (_: Exception) { null }?.takeIf { it.isNotBlank() }
+            } catch (_: Exception) {
+                null
+            }?.takeIf { it.isNotBlank() }
         )
         return if (details.isEmpty()) type else "$type (${details.joinToString(", ")})"
     }

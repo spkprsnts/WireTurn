@@ -42,7 +42,10 @@ class XrayEditActivity : ComponentActivity() {
             val initialWgConfig = targetProfile?.wgConfig ?: savedWgConfig
             val initialVlessConfig = targetProfile?.vlessConfig ?: savedVlessConfig
             val initialXrayConfig = if (targetProfile != null) {
-                XrayConfig(enabled = targetProfile.xrayEnabled, protocol = targetProfile.xrayProtocol)
+                XrayConfig(
+                    enabled = targetProfile.xrayEnabled,
+                    protocol = targetProfile.xrayProtocol
+                )
             } else savedXrayConfig
 
             WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {

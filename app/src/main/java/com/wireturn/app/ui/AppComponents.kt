@@ -181,8 +181,10 @@ fun VerticalAnimatedText(
             } else {
                 (fadeIn(animationSpec = fadeSpec, initialAlpha = 0.2f) +
                         slideInVertically(initialOffsetY = { h -> h / 2 }))
-                    .togetherWith(fadeOut(animationSpec = fadeSpec) +
-                            slideOutVertically(targetOffsetY = { h -> -h / 2 }))
+                    .togetherWith(
+                        fadeOut(animationSpec = fadeSpec) +
+                            slideOutVertically(targetOffsetY = { h -> -h / 2 })
+                    )
             }
         },
         modifier = modifier,
@@ -292,8 +294,12 @@ fun ExpandableSection(
 
     AnimatedVisibility(
         visibleState = visibleState,
-        enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
-        exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
+        enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(
+            MaterialTheme.motionScheme.defaultSpatialSpec()
+        ),
+        exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(
+            MaterialTheme.motionScheme.defaultSpatialSpec()
+        ),
         modifier = modifier
     ) {
         content()
@@ -368,8 +374,14 @@ fun SectionItem(
     val isTop = position == ItemPosition.Top || position == ItemPosition.Single
     val isBottom = position == ItemPosition.Bottom || position == ItemPosition.Single
 
-    val topRadius by animateDpAsState(targetValue = if (isTop) GroupCardCorners.outer else GroupCardCorners.inner, label = "top_corner")
-    val bottomRadius by animateDpAsState(targetValue = if (isBottom) GroupCardCorners.outer else GroupCardCorners.inner, label = "bottom_corner")
+    val topRadius by animateDpAsState(
+        targetValue = if (isTop) GroupCardCorners.outer else GroupCardCorners.inner,
+        label = "top_corner"
+    )
+    val bottomRadius by animateDpAsState(
+        targetValue = if (isBottom) GroupCardCorners.outer else GroupCardCorners.inner,
+        label = "bottom_corner"
+    )
 
     val shape = RoundedCornerShape(
         topStart = topRadius,
@@ -378,7 +390,8 @@ fun SectionItem(
         bottomEnd = bottomRadius
     )
 
-    val internalInteractionSource = interactionSource ?: LocalSettingsInteractionSource.current ?: remember { MutableInteractionSource() }
+    val internalInteractionSource = interactionSource ?: LocalSettingsInteractionSource.current
+    ?: remember { MutableInteractionSource() }
 
     CompositionLocalProvider(LocalSettingsInteractionSource provides internalInteractionSource) {
         Card(
@@ -469,7 +482,8 @@ fun CompactItem(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit
 ) {
-    val internalInteractionSource = interactionSource ?: LocalSettingsInteractionSource.current ?: remember { MutableInteractionSource() }
+    val internalInteractionSource = interactionSource ?: LocalSettingsInteractionSource.current
+    ?: remember { MutableInteractionSource() }
 
     CompositionLocalProvider(LocalSettingsInteractionSource provides internalInteractionSource) {
         Card(

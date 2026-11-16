@@ -15,7 +15,8 @@ data class XrayLinkConfig(
 
     fun sanitize(): XrayLinkConfig = copy(
         link = (link as Any?)?.toString()?.trim()?.take(4096) ?: "",
-        mux = (mux as Any?)?.toString()?.trim()?.takeIf { it.toIntOrNull() != null }?.take(20) ?: "0"
+        mux = (mux as Any?)?.toString()?.trim()?.takeIf { it.toIntOrNull() != null }?.take(20)
+            ?: "0"
     )
 
     companion object {

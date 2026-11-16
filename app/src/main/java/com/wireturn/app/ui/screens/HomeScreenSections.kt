@@ -386,7 +386,9 @@ internal fun ColumnScope.TunnelStats(
                                                 R.string.ping_ms,
                                                 lastSuccessPing.ms
                                             ),
-                                            modifier = Modifier.graphicsLayer { alpha = pulseAlpha },
+                                            modifier = Modifier.graphicsLayer {
+                                                alpha = pulseAlpha
+                                            },
                                             style = MaterialTheme.typography.labelMedium,
                                             color = if (lastSuccessPing.ms < 1100) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
                                             fontWeight = FontWeight.Bold,
@@ -456,7 +458,10 @@ internal fun ColumnScope.TunnelStats(
  * rather than an empty backdrop behind the confirmation prompt.
  */
 @Composable
-internal fun DeepLinkImportDialogs(viewModel: MainViewModel, onImported: (scrollTargetId: String?) -> Unit) {
+internal fun DeepLinkImportDialogs(
+    viewModel: MainViewModel,
+    onImported: (scrollTargetId: String?) -> Unit
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var pendingDeepLink by remember { mutableStateOf<com.wireturn.app.ui.DeepLinkRequest?>(null) }
@@ -517,11 +522,11 @@ internal fun DeepLinkImportDialogs(viewModel: MainViewModel, onImported: (scroll
 
     fun confirmDeepLinkSubscription(url: String) {
         val needsLocalNetworkPermission = Build.VERSION.SDK_INT >= 37 &&
-            com.wireturn.app.domain.isLocalNetworkHost(url) &&
-            ContextCompat.checkSelfPermission(
-                context,
-                "android.permission.ACCESS_LOCAL_NETWORK"
-            ) != PackageManager.PERMISSION_GRANTED
+                com.wireturn.app.domain.isLocalNetworkHost(url) &&
+                ContextCompat.checkSelfPermission(
+                    context,
+                    "android.permission.ACCESS_LOCAL_NETWORK"
+                ) != PackageManager.PERMISSION_GRANTED
 
         if (needsLocalNetworkPermission) {
             pendingSubscriptionUrl = url
@@ -559,7 +564,11 @@ internal fun DeepLinkImportDialogs(viewModel: MainViewModel, onImported: (scroll
                 deepLinkPreview.count
             )
             val title = if (referrerHost != null) {
-                stringResource(R.string.deep_link_import_profiles_title_with_site, countPhrase, referrerHost)
+                stringResource(
+                    R.string.deep_link_import_profiles_title_with_site,
+                    countPhrase,
+                    referrerHost
+                )
             } else {
                 stringResource(R.string.deep_link_import_profiles_title_no_site, countPhrase)
             }
@@ -581,7 +590,9 @@ internal fun DeepLinkImportDialogs(viewModel: MainViewModel, onImported: (scroll
                             isImportingDeepLink = true
                             deepLinkImportJob = scope.launch {
                                 try {
-                                    val (result, imported) = viewModel.importProfilesWithResult(listOf(null to deepLinkPreview.json))
+                                    val (result, imported) = viewModel.importProfilesWithResult(
+                                        listOf(null to deepLinkPreview.json)
+                                    )
                                     if (result.total > 0) {
                                         context.showExclusiveToast(importProfilesSuccessMsg)
                                         onImported(imported.firstOrNull()?.id)
@@ -610,25 +621,36 @@ internal fun DeepLinkImportDialogs(viewModel: MainViewModel, onImported: (scroll
                 }
             )
         }
+
         is com.wireturn.app.domain.DeepLinkPreview.SubscriptionLink -> {
             val host = remember(deepLinkPreview.url) {
                 try {
-                    deepLinkPreview.url.toUri().host } catch (_: Exception) { null } ?: deepLinkPreview.url
+                    deepLinkPreview.url.toUri().host
+                } catch (_: Exception) {
+                    null
+                } ?: deepLinkPreview.url
             }
             // Confirming this dialog is also the go-ahead for a cleartext http://
             // subscription (ImportStatus.InsecureHttp), so its warning goes right here.
             val insecure = remember(deepLinkPreview.url) {
                 deepLinkPreview.url.startsWith("http://", ignoreCase = true) &&
-                    !com.wireturn.app.domain.isLocalNetworkHost(deepLinkPreview.url)
+                        !com.wireturn.app.domain.isLocalNetworkHost(deepLinkPreview.url)
             }
             AlertDialog(
                 onDismissRequest = { dismissDeepLink() },
-                title = { Text(stringResource(R.string.deep_link_import_subscription_title, host)) },
+                title = {
+                    Text(
+                        stringResource(
+                            R.string.deep_link_import_subscription_title,
+                            host
+                        )
+                    )
+                },
                 text = {
                     Text(
                         if (insecure) {
                             stringResource(R.string.deep_link_import_subscription_desc) + "\n\n" +
-                                stringResource(R.string.import_insecure_http_note)
+                                    stringResource(R.string.import_insecure_http_note)
                         } else {
                             stringResource(R.string.deep_link_import_subscription_desc)
                         }
@@ -654,16 +676,20 @@ internal fun DeepLinkImportDialogs(viewModel: MainViewModel, onImported: (scroll
                 }
             )
         }
+
         com.wireturn.app.domain.DeepLinkPreview.Invalid -> {
             AlertDialog(
                 onDismissRequest = { pendingDeepLink = null },
                 title = { Text(stringResource(R.string.deep_link_import_invalid_title)) },
                 text = { Text(stringResource(R.string.deep_link_import_invalid)) },
                 confirmButton = {
-                    TextButton(onClick = { pendingDeepLink = null }) { Text(stringResource(R.string.btn_close)) }
+                    TextButton(onClick = {
+                        pendingDeepLink = null
+                    }) { Text(stringResource(R.string.btn_close)) }
                 }
             )
         }
+
         null -> {}
     }
 }
@@ -911,7 +937,14 @@ internal fun proxyAddresses(
         else -> false
     }
 
-    return ProxyAddresses(displaySocksAddr, copySocksAddr, displayHttpAddr, copyHttpAddr, isSocksModified, isHttpModified)
+    return ProxyAddresses(
+        displaySocksAddr,
+        copySocksAddr,
+        displayHttpAddr,
+        copyHttpAddr,
+        isSocksModified,
+        isHttpModified
+    )
 }
 
 /**
@@ -952,7 +985,8 @@ internal fun ProxyAddressesSection(
                 onPick = { ip ->
                     scope.launch {
                         clipboard.setClipEntry(
-                            ClipData.newPlainText(pending.clipLabel, pending.withHost(ip)).toClipEntry()
+                            ClipData.newPlainText(pending.clipLabel, pending.withHost(ip))
+                                .toClipEntry()
                         )
                         pending.onCopied()
                     }
@@ -978,7 +1012,8 @@ internal fun ProxyAddressesSection(
                 if (privacyMode) return@SectionItem
                 HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                 if (isWildcardAddress(displaySocksAddr)) {
-                    pendingWildcardCopy = WildcardCopy(socks5Label, copySocksAddr) { socksCopied = true }
+                    pendingWildcardCopy =
+                        WildcardCopy(socks5Label, copySocksAddr) { socksCopied = true }
                     return@SectionItem
                 }
                 scope.launch {
@@ -1026,7 +1061,8 @@ internal fun ProxyAddressesSection(
                     if (privacyMode) return@SectionItem
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     if (isWildcardAddress(displayHttpAddr)) {
-                        pendingWildcardCopy = WildcardCopy(httpLabel, copyHttpAddr) { httpCopied = true }
+                        pendingWildcardCopy =
+                            WildcardCopy(httpLabel, copyHttpAddr) { httpCopied = true }
                         return@SectionItem
                     }
                     scope.launch {

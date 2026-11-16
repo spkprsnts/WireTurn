@@ -40,9 +40,18 @@ object XrayKernel : Kernel {
     // The usual share-link convention: the name rides in the fragment.
     override fun displayNameFromUri(uri: String): String? = try {
         uri.trim().toUri().fragment?.takeIf { it.isNotBlank() }
-    } catch (_: Exception) { null }
+    } catch (_: Exception) {
+        null
+    }
 
-    override fun buildCommand(ctx: KernelCommandContext, cfg: ClientConfig): List<String> = emptyList()
+    override fun buildCommand(ctx: KernelCommandContext, cfg: ClientConfig): List<String> =
+        emptyList()
 
-    override suspend fun parseLogLine(line: String, lower: String, state: BinaryOutputState, ctx: KernelLogContext, cfg: ClientConfig): Boolean = false
+    override suspend fun parseLogLine(
+        line: String,
+        lower: String,
+        state: BinaryOutputState,
+        ctx: KernelLogContext,
+        cfg: ClientConfig
+    ): Boolean = false
 }

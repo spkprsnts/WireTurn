@@ -106,9 +106,9 @@ internal fun CaptchaCard(
     ) {
         val partial = shown?.partial == true
         val containerColor = if (partial) MaterialTheme.colorScheme.tertiaryContainer
-            else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f)
+        else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f)
         val contentColor = if (partial) MaterialTheme.colorScheme.onTertiaryContainer
-            else MaterialTheme.colorScheme.onErrorContainer
+        else MaterialTheme.colorScheme.onErrorContainer
         SectionItem(
             position = ItemPosition.Single,
             containerColor = containerColor,
@@ -248,7 +248,13 @@ internal fun LocalAddressPickerDialog(
     // Read once when the dialog opens, so a hotspot switched on just before shows up.
     val choices = remember {
         listOf(
-            AddressChoice(R.string.local_address_this_device, null, "127.0.0.1", R.drawable.mobile_24px, null)
+            AddressChoice(
+                R.string.local_address_this_device,
+                null,
+                "127.0.0.1",
+                R.drawable.mobile_24px,
+                null
+            )
         ) + LocalAddresses.list().map { address ->
             val (labelRes, iconRes) = when (address.kind) {
                 LocalInterfaceKind.WIFI -> R.string.local_address_wifi to R.drawable.wifi_24px

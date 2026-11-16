@@ -64,6 +64,7 @@ import kotlin.time.Duration.Companion.milliseconds
 class CoreService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private val process = AtomicReference<Process?>()
+
     // Non-null (i.e. != -1) only between a qWDTT "CAPTCHA_SOLVE|manual|..." request and its
     // resolution - see observeQwdttCaptchaResult(). Read/written from multiple serviceScope
     // coroutines (Dispatchers.IO is a thread pool, not single-threaded), hence Atomic rather than
@@ -72,16 +73,19 @@ class CoreService : Service() {
     private val userStopped = AtomicBoolean(false)
     private val isStarted = AtomicBoolean(false)
     private val currentRunningCfg = AtomicReference<ClientConfig?>(null)
+
     // Serializes stopBinaryProcessGracefully() across all its callers - rapid profile switches can
     // otherwise start a new binary before the old one's process is confirmed dead.
     private val stopMutex = Mutex()
 
     private val handler = Handler(Looper.getMainLooper())
+
     // The physical networks and which one traffic goes out through; what a change means for the
     // tunnel is decided here, in onNetworkChanged.
     private val networkMonitor by lazy {
         NetworkMonitor(this, object : NetworkMonitor.Listener {
-            override fun onPrimaryNetworkChanged(previousLabel: String) = onNetworkChanged(previousLabel)
+            override fun onPrimaryNetworkChanged(previousLabel: String) =
+                onNetworkChanged(previousLabel)
 
             override fun onNetworkCapabilitiesChanged(capabilities: NetworkCapabilities) {
                 if (CoreServiceState.status.value is CoreStatus.WaitingForNetwork &&
@@ -95,21 +99,29 @@ class CoreService : Service() {
             }
         })
     }
+
     // The primary network's label before the current debounce window started.
-    @Volatile private var networkChangeFrom: String? = null
-    @Volatile private var caBundlePath: String? = null
+    @Volatile
+    private var networkChangeFrom: String? = null
+    @Volatile
+    private var caBundlePath: String? = null
     private var restartCount = 0
+
     // Specific reason for the current failure, if a handler knows one - shown instead of the
     // generic core_failed message if the watchdog exhausts MAX_RESTARTS.
     private var lastKnownFailureReason: String? = null
     private var minRestartDelayMs = 0L
+
     // A failure no retry fixes (the kernel isn't built for this ABI, the config turned invalid) -
     // ends the session even with the eternal watchdog. Cleared by a valid config change.
-    @Volatile private var nonRetryableFailure = false
+    @Volatile
+    private var nonRetryableFailure = false
+
     // Cuts the watchdog's wait between attempts short - a network change: with the eternal
     // watchdog's waits of up to WatchdogSettings.maxIntervalMinutes, a working network shouldn't
     // sit out the rest of one.
     private val watchdogWake = Channel<Unit>(Channel.CONFLATED)
+
     // Set right before a deliberate stop of the running binary (hot-reload, network change) so the
     // supervisor loop restarts it straight away instead of treating the exit as a crash and
     // showing a watchdog "attempt N/M" for it.
@@ -117,6 +129,7 @@ class CoreService : Service() {
 
     private lateinit var serviceScope: CoroutineScope
     private var coreJob: Job? = null
+
     // XrayService and HevVpnService following the session - see their classes.
     private lateinit var xraySupervisor: XraySupervisor
     private lateinit var vpnSupervisor: VpnSupervisor
@@ -125,13 +138,19 @@ class CoreService : Service() {
     // Adapters handing kernel/*/*.kt implementations only what they need from this Service,
     // instead of each one needing direct access to CoreService itself.
     // Set per run when the kernel takes the VPN's TUN itself (usesNativeTun), null otherwise.
-    @Volatile private var nativeTunSocket: String? = null
+    @Volatile
+    private var nativeTunSocket: String? = null
+
     // Fresh per run, see KernelCommandContext.runSocket.
-    @Volatile private var runSocket: String = ""
+    @Volatile
+    private var runSocket: String = ""
+
     // This run's sidecar binary, if its kernel has one (Kernel.buildSidecarCommand).
     private val sidecar = AtomicReference<Process?>()
+
     // Its output said its listen port was taken - see runBinary's early-death check.
-    @Volatile private var sidecarPortInUse = false
+    @Volatile
+    private var sidecarPortInUse = false
 
     private val commandContext = object : KernelCommandContext {
         override val filesDir get() = this@CoreService.filesDir
@@ -142,19 +161,37 @@ class CoreService : Service() {
         override val androidId: String
             @android.annotation.SuppressLint("HardwareIds")
             get() = runCatching {
-            android.provider.Settings.Secure.getString(contentResolver, android.provider.Settings.Secure.ANDROID_ID)
-        }.getOrNull().orEmpty()
+                android.provider.Settings.Secure.getString(
+                    contentResolver,
+                    android.provider.Settings.Secure.ANDROID_ID
+                )
+            }.getOrNull().orEmpty()
     }
     private val logContext = object : KernelLogContext {
-        override fun getString(resId: Int, vararg args: Any) = this@CoreService.getString(resId, *args)
+        override fun getString(resId: Int, vararg args: Any) =
+            this@CoreService.getString(resId, *args)
+
         override fun updateNotification(text: String) = this@CoreService.updateNotification(text)
         override fun isNetworkAvailable() = networkMonitor.isAvailable
         override suspend fun getNetworkQuality() = this@CoreService.getNetworkQuality()
-        override suspend fun isNetworkMissingAndHandled() = this@CoreService.isNetworkMissingAndHandled()
-        override fun launchCaptchaActivityIfForeground(url: String) = this@CoreService.launchCaptchaActivityIfForeground(url)
-        override fun setPendingCaptchaSessionId(id: Long) { pendingQwdttCaptchaSessionId.set(id) }
-        override fun setLastFailureReason(reason: String) { lastKnownFailureReason = reason }
-        override fun setMinRestartDelay(delayMs: Long) { minRestartDelayMs = delayMs }
+        override suspend fun isNetworkMissingAndHandled() =
+            this@CoreService.isNetworkMissingAndHandled()
+
+        override fun launchCaptchaActivityIfForeground(url: String) =
+            this@CoreService.launchCaptchaActivityIfForeground(url)
+
+        override fun setPendingCaptchaSessionId(id: Long) {
+            pendingQwdttCaptchaSessionId.set(id)
+        }
+
+        override fun setLastFailureReason(reason: String) {
+            lastKnownFailureReason = reason
+        }
+
+        override fun setMinRestartDelay(delayMs: Long) {
+            minRestartDelayMs = delayMs
+        }
+
         override fun onNativeTunConfig(address: String, dns: List<String>, mtu: Int) {
             // Only a kernel started in TUN mode gets here with a socket to hand the tun to.
             val socket = nativeTunSocket ?: return
@@ -172,6 +209,7 @@ class CoreService : Service() {
                 })
             }
         }
+
         override fun writeToSidecar(line: String) {
             try {
                 sidecar.get()?.outputStream?.let {
@@ -181,10 +219,15 @@ class CoreService : Service() {
             } catch (_: Exception) {
             }
         }
+
         override fun onNativeTunTraffic(rxBytes: Long, txBytes: Long) {
             if (nativeTunSocket == null) return
             CoreServiceState.setNativeTunTraffic(
-                CoreServiceState.NativeTunTraffic(rxBytes, txBytes, android.os.SystemClock.elapsedRealtime())
+                CoreServiceState.NativeTunTraffic(
+                    rxBytes,
+                    txBytes,
+                    android.os.SystemClock.elapsedRealtime()
+                )
             )
         }
     }
@@ -205,7 +248,8 @@ class CoreService : Service() {
             }
         }
         xraySupervisor = XraySupervisor(this, serviceScope).also { it.start() }
-        vpnSupervisor = VpnSupervisor(this, serviceScope, ::restartBinaryPlanned).also { it.start() }
+        vpnSupervisor =
+            VpnSupervisor(this, serviceScope, ::restartBinaryPlanned).also { it.start() }
         caBundlePath = CaBundleUtil.ensure(this)
     }
 
@@ -243,7 +287,7 @@ class CoreService : Service() {
 
             // Сразу фиксируем работающий конфиг для UI (с заполненными дефолтами)
             val filledCfg = cfg.fillDefaults()
-            
+
             if (!filledCfg.isValid) {
                 val errorRes = filledCfg.getValidationErrorResId() ?: R.string.error_settings_empty
                 CoreServiceState.setStatus(CoreStatus.Error(getString(errorRes)))
@@ -300,7 +344,7 @@ class CoreService : Service() {
         val isDualRouteStart = xrayConfig.enabled && isXrayVless && vlessConfig.isDualRoute
 
         NotificationHelper.cancelErrorNotification(this)
-        
+
         if (isDualRouteStart) {
             // В режиме Dual-route стартуем в паузе, чтобы не запускать бинарник зря
             AppLogsState.addLog(getString(R.string.log_core_suppressed))
@@ -353,7 +397,12 @@ class CoreService : Service() {
                 startForeground(NotificationHelper.NOTIFICATION_ID, notification)
             }
         } catch (e: Exception) {
-            AppLogsState.addLog(getString(R.string.log_core_foreground_failed, e.message ?: "Unknown"))
+            AppLogsState.addLog(
+                getString(
+                    R.string.log_core_foreground_failed,
+                    e.message ?: "Unknown"
+                )
+            )
         }
     }
 
@@ -372,7 +421,8 @@ class CoreService : Service() {
                 // Используем снапшот работающего конфига Xray для определения режима Dual-route.
                 // Это предотвращает преждевременный запуск бинарника при отключении Dual-route,
                 // пока Xray еще не перезагружен с новыми настройками.
-                val effectiveVless = if (state != XrayState.Idle) (xraySession?.vless ?: vless) else vless
+                val effectiveVless =
+                    if (state != XrayState.Idle) (xraySession?.vless ?: vless) else vless
                 val isDualRoute = xray.enabled && isXrayVless && effectiveVless.isDualRoute
 
                 if (isDualRoute) {
@@ -425,7 +475,8 @@ class CoreService : Service() {
                     val newCfg = sessionCfg.withDefaultVkCalls()
 
                     if (!newCfg.isValid) {
-                        val errorRes = newCfg.getValidationErrorResId() ?: R.string.error_settings_empty
+                        val errorRes =
+                            newCfg.getValidationErrorResId() ?: R.string.error_settings_empty
                         nonRetryableFailure = true
                         CoreServiceState.setStatus(CoreStatus.Error(getString(errorRes)))
                         stopBinaryProcessGracefully()
@@ -439,7 +490,12 @@ class CoreService : Service() {
 
                     val binaryChanged = requiresBinaryRestart(runningCfg, newCfg)
                     currentRunningCfg.set(newCfg)
-                    CoreServiceState.setSession(CoreServiceState.RunningSession(sessionCfg, prefs.currentProfileNameFlow.first().orEmpty()))
+                    CoreServiceState.setSession(
+                        CoreServiceState.RunningSession(
+                            sessionCfg,
+                            prefs.currentProfileNameFlow.first().orEmpty()
+                        )
+                    )
                     if (binaryChanged) {
                         // A config/profile switch is a deliberate new attempt, not the watchdog
                         // retrying a failure - drop any restart counter left over from before.
@@ -451,8 +507,8 @@ class CoreService : Service() {
                         val xrayConfig = prefs.xrayConfigFlow.first()
                         val vlessConfig = prefs.vlessConfigFlow.first()
                         val isDualRoute = xrayConfig.enabled &&
-                            xrayConfig.protocol == com.wireturn.app.data.XrayConfiguration.VLESS &&
-                            vlessConfig.isDualRoute
+                                xrayConfig.protocol == com.wireturn.app.data.XrayConfiguration.VLESS &&
+                                vlessConfig.isDualRoute
                         if (isDualRoute && CoreServiceState.status.value !is CoreStatus.Idle) {
                             AppLogsState.addLog(getString(R.string.log_core_dual_route_config_changed))
                             CoreServiceState.setStatus(CoreStatus.Suppressed)
@@ -473,7 +529,9 @@ class CoreService : Service() {
         // that tun and restarts the kernel, which asks for a new one.
         launch {
             var lastVpnSettings: VpnSettings? = null
-            combine(prefs.vpnSettingsFlow, prefs.xrayConfigFlow.map { it.enabled }) { vpn, xrayOn -> vpn to xrayOn }
+            combine(
+                prefs.vpnSettingsFlow,
+                prefs.xrayConfigFlow.map { it.enabled }) { vpn, xrayOn -> vpn to xrayOn }
                 .distinctUntilChanged()
                 .collect { (vpnSettings, xrayOn) ->
                     val previous = lastVpnSettings
@@ -530,7 +588,12 @@ class CoreService : Service() {
             minRestartDelayMs = 0L
             // Decided per run: VPN mode without Xray lets the kernel take the tun itself (no hev).
             // A fresh name each run - the kernel accepts the tun only once per process.
-            nativeTunSocket = if (usesNativeTun(cfg, prefs.vpnSettingsFlow.first().enabled, prefs.xrayConfigFlow.first().enabled)) {
+            nativeTunSocket = if (usesNativeTun(
+                    cfg,
+                    prefs.vpnSettingsFlow.first().enabled,
+                    prefs.xrayConfigFlow.first().enabled
+                )
+            ) {
                 "wireturn_tun_${android.os.Process.myPid()}_${System.nanoTime()}"
             } else null
             runSocket = "wireturn_run_${android.os.Process.myPid()}_${System.nanoTime()}"
@@ -539,9 +602,10 @@ class CoreService : Service() {
             CoreServiceState.setNativeTunTraffic(
                 if (nativeTunSocket != null) CoreServiceState.NativeTunTraffic(0, 0, 0L) else null
             )
-            val startupSuccessful = if (KernelRegistry.get(cfg.kernelVariant).runsBinary) runBinary(cfg) else followXray()
+            val startupSuccessful =
+                if (KernelRegistry.get(cfg.kernelVariant).runsBinary) runBinary(cfg) else followXray()
             val duration = android.os.SystemClock.elapsedRealtime() - startTime
-            
+
             if (userStopped.get()) break
 
             // ПРОВЕРКА ПАУЗЫ: Если бинарник был убит супервизором для перехода в DirectRoute,
@@ -603,7 +667,11 @@ class CoreService : Service() {
                 // Eternal, past the regular limit: backing off however long each run lasted, so a
                 // server that's down for hours isn't hammered every connecting timeout.
                 restartCount > MAX_RESTARTS ->
-                    WatchdogSettings.eternalDelayMs(restartCount - MAX_RESTARTS, watchdog.maxIntervalMs)
+                    WatchdogSettings.eternalDelayMs(
+                        restartCount - MAX_RESTARTS,
+                        watchdog.maxIntervalMs
+                    )
+
                 duration > 30_000 -> 1000L
                 else -> minOf(1000L * restartCount, 30_000L)
             }
@@ -615,14 +683,25 @@ class CoreService : Service() {
             val delayMs = baseDelay + Random.nextLong(0, 500)
 
             AppLogsState.addLog(
-                if (watchdog.eternal) getString(R.string.log_core_watchdog_restart_eternal, delayMs, restartCount)
-                else getString(R.string.log_core_watchdog_restart, delayMs, restartCount, MAX_RESTARTS)
+                if (watchdog.eternal) getString(
+                    R.string.log_core_watchdog_restart_eternal,
+                    delayMs,
+                    restartCount
+                )
+                else getString(
+                    R.string.log_core_watchdog_restart,
+                    delayMs,
+                    restartCount,
+                    MAX_RESTARTS
+                )
             )
             // Clears any stale text left over from the previous run (e.g. "Active") so the
             // restart-attempt text below isn't shadowed by it in the notification/tile.
             CoreServiceState.setStatusText(null)
             CoreServiceState.setRestartAttempt(
-                CoreServiceState.RestartAttempt(restartCount, MAX_RESTARTS.takeUnless { watchdog.eternal })
+                CoreServiceState.RestartAttempt(
+                    restartCount,
+                    MAX_RESTARTS.takeUnless { watchdog.eternal })
             )
 
             // A network change during the wait starts the next attempt right away (onNetworkChanged).
@@ -642,7 +721,7 @@ class CoreService : Service() {
         combine(XrayServiceState.state, CoreServiceState.status) { xray, status -> xray to status }
             .takeWhile { (_, status) ->
                 !userStopped.get() && status !is CoreStatus.Stopping &&
-                    status !is CoreStatus.Idle && status !is CoreStatus.Error
+                        status !is CoreStatus.Idle && status !is CoreStatus.Error
             }
             .collect { (xray, status) ->
                 if (xray == XrayState.Running && status !is CoreStatus.Connected) {
@@ -652,7 +731,9 @@ class CoreService : Service() {
                     markConnecting()
                 }
             }
-        if (!userStopped.get() && CoreServiceState.status.value is CoreStatus.Stopping) plannedRestart.set(true)
+        if (!userStopped.get() && CoreServiceState.status.value is CoreStatus.Stopping) plannedRestart.set(
+            true
+        )
         return true
     }
 
@@ -678,7 +759,12 @@ class CoreService : Service() {
         try {
             val sidecarArgs = kernel.buildSidecarCommand(commandContext, cfg)
             sidecarArgs?.let { startSidecar(it, cfg) }
-            AppLogsState.addLog(getString(R.string.log_core_command, redactedCommandLog(cmdArgs, cfg)))
+            AppLogsState.addLog(
+                getString(
+                    R.string.log_core_command,
+                    redactedCommandLog(cmdArgs, cfg)
+                )
+            )
 
             val proc = withContext(Dispatchers.IO) {
                 val builder = ProcessBuilder(cmdArgs)
@@ -686,10 +772,10 @@ class CoreService : Service() {
                     .redirectErrorStream(true)
                 val env = builder.environment()
                 val nativeLibDir = applicationInfo.nativeLibraryDir
-                
+
                 // Lets the spawned binary find shared libraries bundled as jniLibs.
                 env["LD_LIBRARY_PATH"] = nativeLibDir
-                
+
                 // Add native libs to PATH just in case
                 val currentPath = env["PATH"] ?: ""
                 if (!currentPath.contains(nativeLibDir)) {
@@ -777,7 +863,10 @@ class CoreService : Service() {
                             if (kernel.isDiscarded(rawLine)) continue
                             val line = AppLogsState.stripAnsi(rawLine)
                             val level = kernel.logLevel(line) ?: LogLevels.detect(line)
-                            AppLogsState.addLog(line, if (kernel.isNoise(line)) LogLevel.DEBUG else level)
+                            AppLogsState.addLog(
+                                line,
+                                if (kernel.isNoise(line)) LogLevel.DEBUG else level
+                            )
                             // Process was intentionally killed (hot-reload/stop) — log but don't update status
                             if (process.get() == null) continue
                             if (stopping) continue
@@ -810,7 +899,14 @@ class CoreService : Service() {
 
             val wasKilledIntentionally = process.get() == null
             if (!state.startupEmitted && !state.startupFailed && !wasKilledIntentionally && isActive) {
-                CoreServiceState.setStatus(CoreStatus.Error(getString(R.string.error_process_no_output, exitCode)))
+                CoreServiceState.setStatus(
+                    CoreStatus.Error(
+                        getString(
+                            R.string.error_process_no_output,
+                            exitCode
+                        )
+                    )
+                )
             }
 
             !state.startupFailed
@@ -834,9 +930,14 @@ class CoreService : Service() {
         }
     }
 
-    private suspend fun processOutputLine(line: String, state: BinaryOutputState, cfg: ClientConfig): Boolean {
+    private suspend fun processOutputLine(
+        line: String,
+        state: BinaryOutputState,
+        cfg: ClientConfig
+    ): Boolean {
         val lower = line.lowercase()
-        return KernelRegistry.get(cfg.kernelVariant).parseLogLine(line, lower, state, logContext, cfg)
+        return KernelRegistry.get(cfg.kernelVariant)
+            .parseLogLine(line, lower, state, logContext, cfg)
     }
 
     // MainActivity's own LaunchedEffect(captchaSession) would eventually pick a new session up
@@ -844,10 +945,11 @@ class CoreService : Service() {
     // the app is foreground. Shared by every kernel's captcha flow (see kernel/*/*.kt).
     private fun launchCaptchaActivityIfForeground(url: String) {
         if (!AppLifecycleState.isAppInForeground.value) return
-        val intent = Intent(this, com.wireturn.app.ui.activities.CaptchaActivity::class.java).apply {
-            putExtra("CAPTCHA_URL", url)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        }
+        val intent =
+            Intent(this, com.wireturn.app.ui.activities.CaptchaActivity::class.java).apply {
+                putExtra("CAPTCHA_URL", url)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
         startActivity(intent)
     }
 
@@ -910,7 +1012,12 @@ class CoreService : Service() {
         stopSidecar()
         sidecarPortInUse = false
         val kernel = KernelRegistry.get(cfg.kernelVariant)
-        AppLogsState.addLog(getString(R.string.log_core_sidecar_command, redactedCommandLog(args, cfg)))
+        AppLogsState.addLog(
+            getString(
+                R.string.log_core_sidecar_command,
+                redactedCommandLog(args, cfg)
+            )
+        )
         // Set inside the IO hop, like runBinary's process: a stop landing during it cancels the
         // coroutine, withContext then throws on return, and a sidecar set only afterwards would be
         // orphaned - still holding its port, with nothing left to stop it.
@@ -929,7 +1036,11 @@ class CoreService : Service() {
                         val line = AppLogsState.stripAnsi(rawLine)
                         AppLogsState.addLog(line, kernel.logLevel(line) ?: LogLevels.detect(line))
                         // Go's bind error text, e.g. socks2tun's "socks5 listen: ... address already in use".
-                        if (line.contains("address already in use", ignoreCase = true)) sidecarPortInUse = true
+                        if (line.contains(
+                                "address already in use",
+                                ignoreCase = true
+                            )
+                        ) sidecarPortInUse = true
                     }
                 }
             } catch (_: Exception) {
@@ -937,7 +1048,11 @@ class CoreService : Service() {
             // Still the current one = nobody stopped it: it died under a running kernel, which
             // is left without what it serves - end the run, the supervisor restarts both.
             if (sidecar.compareAndSet(proc, null)) {
-                val exitCode = try { proc.waitFor(); proc.exitValue() } catch (_: Exception) { -1 }
+                val exitCode = try {
+                    proc.waitFor(); proc.exitValue()
+                } catch (_: Exception) {
+                    -1
+                }
                 AppLogsState.addLog(getString(R.string.log_core_sidecar_exited, exitCode))
                 process.get()?.let { sendSigTerm(it) }
             }
@@ -1001,7 +1116,11 @@ class CoreService : Service() {
                 if (session != null && !isForeground) {
                     delay(1_000.milliseconds)
                     if (CoreServiceState.captchaSession.value != null && !AppLifecycleState.isAppInForeground.value) {
-                        NotificationHelper.notifyCaptcha(this@CoreService, session.url, session.partial)
+                        NotificationHelper.notifyCaptcha(
+                            this@CoreService,
+                            session.url,
+                            session.partial
+                        )
                     }
                 } else {
                     NotificationHelper.cancelCaptchaNotification(this@CoreService)
@@ -1110,7 +1229,12 @@ class CoreService : Service() {
             if (XrayServiceState.state.value != XrayState.Idle &&
                 AppPreferences(applicationContext).xraySettingsFlow.first().reloadOnNetworkChange
             ) {
-                startService(Intent(this@CoreService, XrayService::class.java).setAction(XrayService.ACTION_RELOAD))
+                startService(
+                    Intent(
+                        this@CoreService,
+                        XrayService::class.java
+                    ).setAction(XrayService.ACTION_RELOAD)
+                )
             }
             // Waiting out the watchdog's delay between attempts: the next one goes now, on the new
             // network, its backoff started over.
@@ -1122,8 +1246,8 @@ class CoreService : Service() {
             // paused for the direct route, nor one already down with the old network (the
             // watchdog's next start is on the new one anyway).
             val restart = CoreServiceState.status.value !is CoreStatus.Suppressed &&
-                process.get() != null &&
-                AppPreferences(applicationContext).restartOnNetworkChangeFlow.first()
+                    process.get() != null &&
+                    AppPreferences(applicationContext).restartOnNetworkChangeFlow.first()
             // Same label both ends: Android brought the same network (type, SIM) up anew - say
             // so rather than "X → X".
             val reconnect = from == to
@@ -1168,7 +1292,7 @@ class CoreService : Service() {
                     prefs.updateAutoLaunchSettings(autoLaunch.copy(enabled = false))
                 }
             }
-            
+
             // Explicitly stop Xray and VPN mode when tunnel stops
             withContext(Dispatchers.Main) {
                 stopService(Intent(this@CoreService, XrayService::class.java))
@@ -1207,13 +1331,13 @@ class CoreService : Service() {
         val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
         val network = cm.activeNetwork ?: return@withContext NetworkQuality.OFFLINE
         val caps = cm.getNetworkCapabilities(network) ?: return@withContext NetworkQuality.OFFLINE
-        
+
         // 1. Порог скорости для сотовых сетей снижаем до минимума, так как система часто ошибается
         if (caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
             val speed = caps.linkDownstreamBandwidthKbps
             if (speed in 1..150) return@withContext NetworkQuality.SLOW
         }
-        
+
         // 2. Проверка реальной задержки через TCP-соединение с max.ru (гарантированно доступен в РФ)
         // The name lookup has no timeout of its own (connect's covers only the connection), so a
         // DNS that doesn't answer held every watchdog restart for as long as the system resolver
@@ -1284,6 +1408,7 @@ class CoreService : Service() {
         const val ACTION_STOP = "ACTION_STOP"
         const val ACTION_STOP_BY_USER = "ACTION_STOP_BY_USER"
         const val MAX_RESTARTS = 10
+
         // getNetworkQuality's whole probe, name lookup included.
         private const val NETWORK_PROBE_TIMEOUT_MS = 2_500L
 
@@ -1314,7 +1439,7 @@ class CoreService : Service() {
          */
         suspend fun stopByUser(context: Context) {
             val running = CoreServiceState.status.value !is CoreStatus.Idle ||
-                XrayServiceState.state.value != XrayState.Idle
+                    XrayServiceState.state.value != XrayState.Idle
             if (!running) {
                 val prefs = AppPreferences(context)
                 val autoLaunch = prefs.autoLaunchSettingsFlow.first()

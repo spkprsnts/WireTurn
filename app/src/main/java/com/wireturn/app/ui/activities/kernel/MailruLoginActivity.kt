@@ -122,8 +122,10 @@ class MailruLoginActivity : ComponentActivity() {
                                     settings.allowContentAccess = false
                                     // As CaptchaWebViewDialog does: only the "; wv)" marker goes, so
                                     // the UA still matches the real engine.
-                                    settings.userAgentString = settings.userAgentString.replace("; wv)", ")")
-                                    CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                                    settings.userAgentString =
+                                        settings.userAgentString.replace("; wv)", ")")
+                                    CookieManager.getInstance()
+                                        .setAcceptThirdPartyCookies(this, true)
                                     webViewClient = object : WebViewClient() {
                                         // Sign-in through VK ID, OK and the like crosses domains; only
                                         // app links (intent://, mailru://) are kept out.
@@ -132,7 +134,11 @@ class MailruLoginActivity : ComponentActivity() {
                                             request: WebResourceRequest
                                         ): Boolean = request.url.scheme !in setOf("https", "http")
 
-                                        override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                                        override fun onPageStarted(
+                                            view: WebView?,
+                                            url: String?,
+                                            favicon: Bitmap?
+                                        ) {
                                             isLoading = true
                                         }
 

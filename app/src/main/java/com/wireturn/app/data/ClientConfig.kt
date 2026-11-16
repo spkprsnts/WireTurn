@@ -21,37 +21,48 @@ import com.wireturn.app.data.kernel.XrayLinkConfig
 import com.wireturn.app.ui.ValidatorUtils
 
 class KernelConfigAdapter : JsonDeserializer<KernelConfig>, JsonSerializer<KernelConfig> {
-    override fun serialize(src: KernelConfig, typeOfSrc: java.lang.reflect.Type, context: JsonSerializationContext): JsonElement {
+    override fun serialize(
+        src: KernelConfig,
+        typeOfSrc: java.lang.reflect.Type,
+        context: JsonSerializationContext
+    ): JsonElement {
         val jsonObject = JsonObject()
         when (src) {
             is KernelConfig.Turnable -> {
                 jsonObject.addProperty("type", "turnable")
                 jsonObject.add("config", context.serialize(src.config))
             }
+
             is KernelConfig.Olcrtc -> {
                 jsonObject.addProperty("type", "olcrtc")
                 jsonObject.add("config", context.serialize(src.config))
             }
+
             is KernelConfig.Webdav -> {
                 jsonObject.addProperty("type", "webdav")
                 jsonObject.add("config", context.serialize(src.config))
             }
+
             is KernelConfig.FreeTurn -> {
                 jsonObject.addProperty("type", "freeturn")
                 jsonObject.add("config", context.serialize(src.config))
             }
+
             is KernelConfig.Qwdtt -> {
                 jsonObject.addProperty("type", "qwdtt")
                 jsonObject.add("config", context.serialize(src.config))
             }
+
             is KernelConfig.OpenFlux -> {
                 jsonObject.addProperty("type", "openflux")
                 jsonObject.add("config", context.serialize(src.config))
             }
+
             is KernelConfig.Csqtt -> {
                 jsonObject.addProperty("type", "csqtt")
                 jsonObject.add("config", context.serialize(src.config))
             }
+
             is KernelConfig.Xray -> {
                 jsonObject.addProperty("type", "xray")
                 jsonObject.add("config", context.serialize(src.config))
@@ -60,19 +71,74 @@ class KernelConfigAdapter : JsonDeserializer<KernelConfig>, JsonSerializer<Kerne
         return jsonObject
     }
 
-    override fun deserialize(json: JsonElement, typeOfT: java.lang.reflect.Type, context: JsonDeserializationContext): KernelConfig {
-        val jsonObject = try { json.asJsonObject } catch(_: Exception) { return KernelConfig.Turnable() }
+    override fun deserialize(
+        json: JsonElement,
+        typeOfT: java.lang.reflect.Type,
+        context: JsonDeserializationContext
+    ): KernelConfig {
+        val jsonObject = try {
+            json.asJsonObject
+        } catch (_: Exception) {
+            return KernelConfig.Turnable()
+        }
         val type = jsonObject.get("type")?.asString ?: "turnable"
         val configElement = jsonObject.get("config")
         return when (type) {
-            "turnable" -> KernelConfig.Turnable(context.deserialize(configElement, TurnableConfig::class.java) ?: TurnableConfig())
-            "olcrtc" -> KernelConfig.Olcrtc(context.deserialize(configElement, OlcrtcConfig::class.java) ?: OlcrtcConfig())
-            "webdav" -> KernelConfig.Webdav(context.deserialize(configElement, WebdavConfig::class.java) ?: WebdavConfig())
-            "freeturn" -> KernelConfig.FreeTurn(context.deserialize(configElement, FreeTurnConfig::class.java) ?: FreeTurnConfig())
-            "qwdtt" -> KernelConfig.Qwdtt(context.deserialize(configElement, QwdttConfig::class.java) ?: QwdttConfig())
-            "openflux" -> KernelConfig.OpenFlux(context.deserialize(configElement, OpenFluxConfig::class.java) ?: OpenFluxConfig())
-            "csqtt" -> KernelConfig.Csqtt(context.deserialize(configElement, CsqttConfig::class.java) ?: CsqttConfig())
-            "xray" -> KernelConfig.Xray(context.deserialize(configElement, XrayLinkConfig::class.java) ?: XrayLinkConfig())
+            "turnable" -> KernelConfig.Turnable(
+                context.deserialize(
+                    configElement,
+                    TurnableConfig::class.java
+                ) ?: TurnableConfig()
+            )
+
+            "olcrtc" -> KernelConfig.Olcrtc(
+                context.deserialize(
+                    configElement,
+                    OlcrtcConfig::class.java
+                ) ?: OlcrtcConfig()
+            )
+
+            "webdav" -> KernelConfig.Webdav(
+                context.deserialize(
+                    configElement,
+                    WebdavConfig::class.java
+                ) ?: WebdavConfig()
+            )
+
+            "freeturn" -> KernelConfig.FreeTurn(
+                context.deserialize(
+                    configElement,
+                    FreeTurnConfig::class.java
+                ) ?: FreeTurnConfig()
+            )
+
+            "qwdtt" -> KernelConfig.Qwdtt(
+                context.deserialize(
+                    configElement,
+                    QwdttConfig::class.java
+                ) ?: QwdttConfig()
+            )
+
+            "openflux" -> KernelConfig.OpenFlux(
+                context.deserialize(
+                    configElement,
+                    OpenFluxConfig::class.java
+                ) ?: OpenFluxConfig()
+            )
+
+            "csqtt" -> KernelConfig.Csqtt(
+                context.deserialize(
+                    configElement,
+                    CsqttConfig::class.java
+                ) ?: CsqttConfig()
+            )
+
+            "xray" -> KernelConfig.Xray(
+                context.deserialize(
+                    configElement,
+                    XrayLinkConfig::class.java
+                ) ?: XrayLinkConfig()
+            )
             // A removed kernel's ("paperflux") profiles are dropped on startup by
             // AppPreferences.removeDiscontinuedKernelProfiles before anything reads them here.
             else -> KernelConfig.Turnable()
@@ -82,18 +148,21 @@ class KernelConfigAdapter : JsonDeserializer<KernelConfig>, JsonSerializer<Kerne
 
 enum class KernelVariant {
     TURNABLE, OLCRTC, WEBDAV, FREETURN, QWDTT, OPENFLUX, CSQTT,
+
     // No tunnel kernel at all - Xray connects to the server in the profile's own link (see XrayKernel).
     XRAY;
 
     /** OLCRTC, WEBDAV, QWDTT and OPENFLUX already speak SOCKS5 themselves (CSQTT through
      * socks2tun) - Xray's WireGuard overlay is neither needed nor offered in the UI for them. */
-    val isSocks5Native: Boolean get() =
-        this == OLCRTC || this == WEBDAV || this == QWDTT || this == OPENFLUX || this == CSQTT
+    val isSocks5Native: Boolean
+        get() =
+            this == OLCRTC || this == WEBDAV || this == QWDTT || this == OPENFLUX || this == CSQTT
 
     /** OpenFlux's embedded SOCKS5 server has no auth flags upstream - it never expects
      * credentials, unlike the other SOCKS5-native kernels. See ClientConfig.socksNativeValidationError. */
     val socks5SupportsAuth: Boolean get() = this != OPENFLUX
 }
+
 enum class XrayConfiguration { WIREGUARD, VLESS }
 
 sealed class KernelConfig {
@@ -114,19 +183,35 @@ sealed class KernelConfig {
             return when {
                 trimmed.startsWith("turnable://", ignoreCase = true) ->
                     TurnableConfig.parse(trimmed)?.let { Turnable(it) }
-                trimmed.startsWith("olcrtc://", ignoreCase = true) || trimmed.startsWith("olconnect://", ignoreCase = true) ->
+
+                trimmed.startsWith(
+                    "olcrtc://",
+                    ignoreCase = true
+                ) || trimmed.startsWith("olconnect://", ignoreCase = true) ->
                     OlcrtcConfig.parse(trimmed)?.let { Olcrtc(it) }
-                trimmed.startsWith("webdav://", ignoreCase = true) || trimmed.startsWith("webdavs://", ignoreCase = true) ->
+
+                trimmed.startsWith(
+                    "webdav://",
+                    ignoreCase = true
+                ) || trimmed.startsWith("webdavs://", ignoreCase = true) ->
                     WebdavConfig.parse(trimmed)?.let { Webdav(it) }
+
                 trimmed.startsWith("freeturn://", ignoreCase = true) ->
                     FreeTurnConfig.parse(trimmed)?.let { FreeTurn(it) }
-                trimmed.startsWith("qwdtt://", ignoreCase = true) || trimmed.startsWith("qwdtt:config", ignoreCase = true) ||
-                    trimmed.startsWith("wdtt://", ignoreCase = true) ->
+
+                trimmed.startsWith(
+                    "qwdtt://",
+                    ignoreCase = true
+                ) || trimmed.startsWith("qwdtt:config", ignoreCase = true) ||
+                        trimmed.startsWith("wdtt://", ignoreCase = true) ->
                     QwdttConfig.parse(trimmed)?.let { Qwdtt(it) }
+
                 trimmed.startsWith("openflux://", ignoreCase = true) ->
                     OpenFluxConfig.parse(trimmed)?.let { OpenFlux(it) }
+
                 trimmed.startsWith("csqtt://", ignoreCase = true) ->
                     CsqttConfig.parse(trimmed)?.let { Csqtt(it) }
+
                 else -> XrayLinkConfig.parse(trimmed)?.let { Xray(it) }
             }
         }
@@ -135,16 +220,17 @@ sealed class KernelConfig {
 
 // ClientConfig and Profile both just hold a KernelConfig - kept as extensions here so neither
 // has to duplicate this when() themselves.
-val KernelConfig.variant: KernelVariant get() = when (this) {
-    is KernelConfig.Turnable -> KernelVariant.TURNABLE
-    is KernelConfig.Olcrtc -> KernelVariant.OLCRTC
-    is KernelConfig.Webdav -> KernelVariant.WEBDAV
-    is KernelConfig.FreeTurn -> KernelVariant.FREETURN
-    is KernelConfig.Qwdtt -> KernelVariant.QWDTT
-    is KernelConfig.OpenFlux -> KernelVariant.OPENFLUX
-    is KernelConfig.Csqtt -> KernelVariant.CSQTT
-    is KernelConfig.Xray -> KernelVariant.XRAY
-}
+val KernelConfig.variant: KernelVariant
+    get() = when (this) {
+        is KernelConfig.Turnable -> KernelVariant.TURNABLE
+        is KernelConfig.Olcrtc -> KernelVariant.OLCRTC
+        is KernelConfig.Webdav -> KernelVariant.WEBDAV
+        is KernelConfig.FreeTurn -> KernelVariant.FREETURN
+        is KernelConfig.Qwdtt -> KernelVariant.QWDTT
+        is KernelConfig.OpenFlux -> KernelVariant.OPENFLUX
+        is KernelConfig.Csqtt -> KernelVariant.CSQTT
+        is KernelConfig.Xray -> KernelVariant.XRAY
+    }
 
 // Per-kernel display text (name, icon, config screen, ...) lives on each kernel/*/*.kt's Kernel
 // implementation now - see com.wireturn.app.kernel.KernelRegistry.
@@ -186,8 +272,10 @@ data class ClientConfig(
         val cleanedUser = ValidatorUtils.cleanProxyString(socksUser)
         val cleanedPass = socksPass.trim()
 
-        val validListen = if (ValidatorUtils.isValidHostPort(listenAddr)) listenAddr else DEFAULT_LISTEN_ADDR
-        val validSocks = if (ValidatorUtils.isValidHostPort(socksAddr)) socksAddr else DEFAULT_SOCKS_ADDR
+        val validListen =
+            if (ValidatorUtils.isValidHostPort(listenAddr)) listenAddr else DEFAULT_LISTEN_ADDR
+        val validSocks =
+            if (ValidatorUtils.isValidHostPort(socksAddr)) socksAddr else DEFAULT_SOCKS_ADDR
 
         var currentKc = kernelConfig
         if (uri.isNotBlank()) {
@@ -218,8 +306,12 @@ data class ClientConfig(
         if (current.isSocksAuthEnabled && (current.socksUser.isBlank() || current.socksPass.isBlank())) {
             val allowed = listOf('A'..'Z', 'a'..'z', '0'..'9').flatten()
             current = current.copy(
-                socksUser = current.socksUser.ifBlank { (1..8).map { allowed.random() }.joinToString("") },
-                socksPass = current.socksPass.ifBlank { (1..12).map { allowed.random() }.joinToString("") }
+                socksUser = current.socksUser.ifBlank {
+                    (1..8).map { allowed.random() }.joinToString("")
+                },
+                socksPass = current.socksPass.ifBlank {
+                    (1..12).map { allowed.random() }.joinToString("")
+                }
             )
         }
         return current.copy(
@@ -254,15 +346,23 @@ data class ClientConfig(
         val all = ids.joinToString(",")
         val filled = when (val k = kernelConfig) {
             is KernelConfig.FreeTurn ->
-                if (!k.config.isDirect && k.config.links.isBlank()) KernelConfig.FreeTurn(k.config.copy(links = all)) else k
+                if (!k.config.isDirect && k.config.links.isBlank()) KernelConfig.FreeTurn(
+                    k.config.copy(
+                        links = all
+                    )
+                ) else k
+
             is KernelConfig.Qwdtt ->
                 if (k.config.vkHashes.isBlank()) KernelConfig.Qwdtt(k.config.copy(vkHashes = all)) else k
+
             is KernelConfig.Csqtt ->
                 if (k.config.vkHashes.isBlank()) KernelConfig.Csqtt(k.config.copy(vkHashes = all)) else k
+
             is KernelConfig.Turnable ->
                 if (k.config.platformId == TurnableConfig.PLATFORM_VK && k.config.callId.isBlank()) {
                     KernelConfig.Turnable(k.config.copy(callId = ids.first()))
                 } else k
+
             else -> k
         }
         return if (filled === kernelConfig) this else copy(kernelConfig = filled)
@@ -296,6 +396,7 @@ data class ClientConfig(
     companion object {
         const val DEFAULT_LISTEN_ADDR = "127.0.0.1:9000"
         const val DEFAULT_SOCKS_ADDR = "127.0.0.1:2081"
+
         // Yandex DNS - stays reachable under allow-list-only restrictions where 1.1.1.1/8.8.8.8
         // typically aren't.
         const val DEFAULT_DNS = "77.88.8.8:53"
@@ -338,12 +439,14 @@ data class XraySettings(
         val cleanedUser = ValidatorUtils.cleanProxyString(proxyUser)
         val cleanedPass = proxyPass.trim()
 
-        val validSocks = if (ValidatorUtils.isValidHostPort(socksBindAddress)) socksBindAddress else DEFAULT_SOCKS_BIND_ADDRESS
-        val validHttp = if (httpBindAddress.isBlank() || ValidatorUtils.isValidHostPort(httpBindAddress)) {
-            httpBindAddress
-        } else {
-            ""
-        }
+        val validSocks =
+            if (ValidatorUtils.isValidHostPort(socksBindAddress)) socksBindAddress else DEFAULT_SOCKS_BIND_ADDRESS
+        val validHttp =
+            if (httpBindAddress.isBlank() || ValidatorUtils.isValidHostPort(httpBindAddress)) {
+                httpBindAddress
+            } else {
+                ""
+            }
 
         var current = this.copy(
             socksBindAddress = validSocks,
@@ -353,16 +456,23 @@ data class XraySettings(
             dns = dns.trim().ifBlank { DEFAULT_DNS },
             routeDirect = (routeDirect as Any?)?.toString()?.trim() ?: "",
             routeBlock = (routeBlock as Any?)?.toString()?.trim() ?: "",
-            dpiBypassArgs = (dpiBypassArgs as Any?)?.toString()?.trim()?.ifBlank { null } ?: com.wireturn.app.ByeDpi.DEFAULT_ARGS,
-            dpiBypassRoute = (dpiBypassRoute as Any?)?.toString()?.trim() ?: com.wireturn.app.ByeDpi.DEFAULT_ROUTE,
-            dpiBypassPort = (dpiBypassPort as Any?)?.toString()?.trim()?.takeIf { com.wireturn.app.ByeDpi.isValidPort(it) } ?: ""
+            dpiBypassArgs = (dpiBypassArgs as Any?)?.toString()?.trim()?.ifBlank { null }
+                ?: com.wireturn.app.ByeDpi.DEFAULT_ARGS,
+            dpiBypassRoute = (dpiBypassRoute as Any?)?.toString()?.trim()
+                ?: com.wireturn.app.ByeDpi.DEFAULT_ROUTE,
+            dpiBypassPort = (dpiBypassPort as Any?)?.toString()?.trim()
+                ?.takeIf { com.wireturn.app.ByeDpi.isValidPort(it) } ?: ""
         )
 
         if (current.isProxyAuthEnabled && (current.proxyUser.isBlank() || current.proxyPass.isBlank())) {
             val allowed = listOf('A'..'Z', 'a'..'z', '0'..'9').flatten()
             current = current.copy(
-                proxyUser = current.proxyUser.ifBlank { (1..8).map { allowed.random() }.joinToString("") },
-                proxyPass = current.proxyPass.ifBlank { (1..12).map { allowed.random() }.joinToString("") }
+                proxyUser = current.proxyUser.ifBlank {
+                    (1..8).map { allowed.random() }.joinToString("")
+                },
+                proxyPass = current.proxyPass.ifBlank {
+                    (1..12).map { allowed.random() }.joinToString("")
+                }
             )
         }
         return current
@@ -423,7 +533,8 @@ data class VlessConfig(
         // GSON can leave it null on an old/partial JSON despite the non-null type.
         val direct = (directAddress as String?) ?: return copy(directAddress = "")
         if (direct.isBlank()) return this
-        val link = if (isDualRoute) ValidatorUtils.withLinkAddress(vlessLink, direct) ?: vlessLink else vlessLink
+        val link = if (isDualRoute) ValidatorUtils.withLinkAddress(vlessLink, direct)
+            ?: vlessLink else vlessLink
         return copy(vlessLink = link, directAddress = "")
     }
 }
@@ -436,7 +547,9 @@ data class WgConfig(
     @SerializedName("endpoint") val endpoint: String = "127.0.0.1:9000",
     @SerializedName("persistentKeepalive") val persistentKeepalive: String = "25"
 ) {
-    fun isValid(): Boolean = privateKey.isNotBlank() && address.isNotBlank() && publicKey.isNotBlank()
+    fun isValid(): Boolean =
+        privateKey.isNotBlank() && address.isNotBlank() && publicKey.isNotBlank()
+
     fun fillDefaults(): WgConfig = copy(
         mtu = (mtu as Any?)?.toString()?.ifBlank { "1280" } ?: "1280",
         persistentKeepalive = (persistentKeepalive as Any?)?.toString()?.ifBlank { "25" } ?: "25"
@@ -460,7 +573,8 @@ data class WgConfig(
 
         fun isAmneziaConfig(text: String): Boolean =
             text.lineSequence().any { line ->
-                line.substringBefore('#').substringBefore(';').substringBefore('=').trim().lowercase() in AMNEZIA_KEYS
+                line.substringBefore('#').substringBefore(';').substringBefore('=').trim()
+                    .lowercase() in AMNEZIA_KEYS
             }
 
         fun parse(text: String): WgConfig {
@@ -512,12 +626,15 @@ data class WgConfig(
                     privateKey = privateKey,
                     address = u.getQueryParameter("address") ?: "",
                     mtu = u.getQueryParameter("mtu") ?: "1280",
-                    publicKey = u.getQueryParameter("publickey") ?: u.getQueryParameter("public_key") ?: "",
+                    publicKey = u.getQueryParameter("publickey")
+                        ?: u.getQueryParameter("public_key") ?: "",
                     endpoint = "$host:$port",
                     persistentKeepalive = u.getQueryParameter("keepalive")
                         ?: u.getQueryParameter("persistentkeepalive") ?: "25"
                 )
-            } catch (_: Exception) { null }
+            } catch (_: Exception) {
+                null
+            }
         }
     }
 }
@@ -538,7 +655,10 @@ data class Profile(
     @SerializedName("id") val id: String,
     @SerializedName("name") val name: String,
     @SerializedName("kernelConfig") val kernelConfig: KernelConfig = KernelConfig.Turnable(),
-    @SerializedName("xrayProtocol", alternate = ["protocol", "xrayConfiguration"]) val xrayProtocol: XrayConfiguration = XrayConfiguration.WIREGUARD,
+    @SerializedName(
+        "xrayProtocol",
+        alternate = ["protocol", "xrayConfiguration"]
+    ) val xrayProtocol: XrayConfiguration = XrayConfiguration.WIREGUARD,
     @SerializedName("xrayEnabled", alternate = ["enabled"]) val xrayEnabled: Boolean = false,
     @SerializedName("wgConfig") val wgConfig: WgConfig = WgConfig(),
     @SerializedName("vlessConfig") val vlessConfig: VlessConfig = VlessConfig(),
@@ -551,25 +671,39 @@ data class Profile(
     // --- STABLE INPUT FIELDS (Used for profile generation and deep linking) ---
     // Universal quick-input field: the scheme in the link (turnable://, olcrtc://, webdav(s)://,
     // freeturn://) already identifies the kernel, so this one field replaces the four below.
-    @SerializedName("uri") private val uri: String? = null
+    @SerializedName("uri")
+    private val uri: String? = null
+
     // Legacy per-kernel fields, kept only so older exported/generated profiles still parse.
     // Prefer `uri` above for new integrations.
-    @SerializedName("turnableUrl") private val turnableUrl: String? = null
-    @SerializedName("olcrtcUrl") private val olcrtcUrl: String? = null
-    @SerializedName("webdavUrl") private val webdavUrl: String? = null
-    @SerializedName("freeturnUrl") private val freeturnUrl: String? = null
+    @SerializedName("turnableUrl")
+    private val turnableUrl: String? = null
+    @SerializedName("olcrtcUrl")
+    private val olcrtcUrl: String? = null
+    @SerializedName("webdavUrl")
+    private val webdavUrl: String? = null
+    @SerializedName("freeturnUrl")
+    private val freeturnUrl: String? = null
     // --- END STABLE INPUT FIELDS ---
 
     val kernelVariant: KernelVariant get() = kernelConfig.variant
 
-    val turnableConfig: TurnableConfig get() = (kernelConfig as? KernelConfig.Turnable)?.config ?: TurnableConfig()
-    val olcrtcConfig: OlcrtcConfig get() = (kernelConfig as? KernelConfig.Olcrtc)?.config ?: OlcrtcConfig()
-    val webdavConfig: WebdavConfig get() = (kernelConfig as? KernelConfig.Webdav)?.config ?: WebdavConfig()
-    val freeturnConfig: FreeTurnConfig get() = (kernelConfig as? KernelConfig.FreeTurn)?.config ?: FreeTurnConfig()
-    val qwdttConfig: QwdttConfig get() = (kernelConfig as? KernelConfig.Qwdtt)?.config ?: QwdttConfig()
-    val openFluxConfig: OpenFluxConfig get() = (kernelConfig as? KernelConfig.OpenFlux)?.config ?: OpenFluxConfig()
-    val csqttConfig: CsqttConfig get() = (kernelConfig as? KernelConfig.Csqtt)?.config ?: CsqttConfig()
-    val xrayLinkConfig: XrayLinkConfig get() = (kernelConfig as? KernelConfig.Xray)?.config ?: XrayLinkConfig()
+    val turnableConfig: TurnableConfig
+        get() = (kernelConfig as? KernelConfig.Turnable)?.config ?: TurnableConfig()
+    val olcrtcConfig: OlcrtcConfig
+        get() = (kernelConfig as? KernelConfig.Olcrtc)?.config ?: OlcrtcConfig()
+    val webdavConfig: WebdavConfig
+        get() = (kernelConfig as? KernelConfig.Webdav)?.config ?: WebdavConfig()
+    val freeturnConfig: FreeTurnConfig
+        get() = (kernelConfig as? KernelConfig.FreeTurn)?.config ?: FreeTurnConfig()
+    val qwdttConfig: QwdttConfig
+        get() = (kernelConfig as? KernelConfig.Qwdtt)?.config ?: QwdttConfig()
+    val openFluxConfig: OpenFluxConfig
+        get() = (kernelConfig as? KernelConfig.OpenFlux)?.config ?: OpenFluxConfig()
+    val csqttConfig: CsqttConfig
+        get() = (kernelConfig as? KernelConfig.Csqtt)?.config ?: CsqttConfig()
+    val xrayLinkConfig: XrayLinkConfig
+        get() = (kernelConfig as? KernelConfig.Xray)?.config ?: XrayLinkConfig()
 
     fun isEmpty(): Boolean = when (val k = kernelConfig) {
         is KernelConfig.Turnable -> !k.config.isValid()
@@ -616,6 +750,7 @@ data class Profile(
                 val sc = currentKc.config.sanitize()
                 KernelConfig.Olcrtc(if (sc.mimo.isBlank()) sc.copy(mimo = finalName) else sc)
             }
+
             is KernelConfig.Webdav -> KernelConfig.Webdav(currentKc.config.fillDefaults())
             is KernelConfig.FreeTurn -> KernelConfig.FreeTurn(currentKc.config.sanitize())
             is KernelConfig.Qwdtt -> KernelConfig.Qwdtt(currentKc.config.sanitize())

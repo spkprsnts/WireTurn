@@ -15,16 +15,22 @@ object HapticUtil {
     enum class Pattern {
         /** Мягкий тик — выбор в меню, легкое касание */
         SELECTION,
+
         /** Стандартный клик — нажатие кнопки */
         CLICK,
+
         /** Включение — четкий двойной импульс */
         TOGGLE_ON,
+
         /** Выключение — одиночный мягкий отклик */
         TOGGLE_OFF,
+
         /** Успех — приятная восходящая последовательность */
         SUCCESS,
+
         /** Ошибка — тяжелый отталкивающий дребезг */
         ERROR,
+
         /** Старт приложения — приветственный паттерн */
         LAUNCH,
     }
@@ -96,12 +102,14 @@ object HapticUtil {
                         .addPrimitive(VibrationEffect.Composition.PRIMITIVE_THUD, 0.8f, 120)
                         .compose()
                 }
+
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
                     VibrationEffect.startComposition()
                         .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK)
                         .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.8f, 120)
                         .compose()
                 }
+
                 else -> VibrationEffect.createWaveform(longArrayOf(0, 100, 50, 100), -1)
             }
 

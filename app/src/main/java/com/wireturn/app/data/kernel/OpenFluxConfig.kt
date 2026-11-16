@@ -94,7 +94,7 @@ data class OpenFluxConfig(
             "telemost" -> "telemost"
             else -> "yandex"
         },
-        url =(url as Any?)?.toString()?.trim()?.take(2000) ?: "",
+        url = (url as Any?)?.toString()?.trim()?.take(2000) ?: "",
         maxToken = (maxToken as Any?)?.toString()?.trim()?.take(4096) ?: "",
         maxUid = (maxUid as Any?)?.toString()?.trim()?.filter(Char::isDigit)?.take(32) ?: "",
         encryptionKey = (encryptionKey as Any?)?.toString()?.trim()?.take(4096) ?: "",
@@ -146,7 +146,10 @@ data class OpenFluxConfig(
             deflater.end()
             out.toByteArray()
         }
-        return V1_PREFIX + Base64.encodeToString(packed, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
+        return V1_PREFIX + Base64.encodeToString(
+            packed,
+            Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING
+        )
     }
 
     // This app's own earlier openflux://config?... format - still read by parse().
@@ -190,14 +193,24 @@ data class OpenFluxConfig(
         // share.go's maxPayload: bounds the inflated JSON against a crafted link.
         private const val V1_MAX_PAYLOAD = 16 shl 10
 
-        private val V1_TRANSPORTS = setOf("yandex", "vyandex", "boards", "mailru", "cupsonline", "avito", "telemost")
+        private val V1_TRANSPORTS =
+            setOf("yandex", "vyandex", "boards", "mailru", "cupsonline", "avito", "telemost")
 
         /**
          * Every transport the platform picker offers, in its order. A new profile starts on the
          * first; the class default stays "yandex", the one links and JSON without a transport
          * have always meant (see sanitize/parseNative).
          */
-        val PLATFORMS = listOf("mailru", "telemost", "boards", "avito", "cupsonline", "oneme", "yandex", "vyandex")
+        val PLATFORMS = listOf(
+            "mailru",
+            "telemost",
+            "boards",
+            "avito",
+            "cupsonline",
+            "oneme",
+            "yandex",
+            "vyandex"
+        )
 
         /** A new profile's config: the picker's first platform. */
         fun newProfile() = OpenFluxConfig(transport = PLATFORMS.first())
@@ -210,7 +223,10 @@ data class OpenFluxConfig(
             val trimmed = url.trim()
             if (!trimmed.startsWith("openflux://", ignoreCase = true)) return null
             return try {
-                if (trimmed.startsWith(V1_PREFIX, ignoreCase = true)) return parseV1(trimmed, current)
+                if (trimmed.startsWith(V1_PREFIX, ignoreCase = true)) return parseV1(
+                    trimmed,
+                    current
+                )
                 val uri = Uri.parse(trimmed)
                 // The legacy toUri() always hardcodes the host to "config" (see above); OlConnect's
                 // dialect below uses "yandex"/"mailru" or leaves it blank, so that's a safe way to tell them
@@ -264,12 +280,16 @@ data class OpenFluxConfig(
          * classic), with the channel's key and context, which the link holds for all of them.
          * "direct" (no such platform here), MAX and anything unknown are left out.
          */
-        fun parseV1All(url: String, current: OpenFluxConfig = OpenFluxConfig()): List<OpenFluxConfig> {
+        fun parseV1All(
+            url: String,
+            current: OpenFluxConfig = OpenFluxConfig()
+        ): List<OpenFluxConfig> {
             val json = decodeV1(url) ?: return emptyList()
             val transports = json.getAsJsonArray("transports") ?: return emptyList()
             val carriers = transports.mapNotNull { element ->
                 val t = element.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
-                val type = t.get("type")?.takeIf { it.isJsonPrimitive }?.asString ?: return@mapNotNull null
+                val type =
+                    t.get("type")?.takeIf { it.isJsonPrimitive }?.asString ?: return@mapNotNull null
                 val docUrl = t.get("url")?.takeIf { it.isJsonPrimitive }?.asString.orEmpty()
                 if (type !in V1_TRANSPORTS || docUrl.isBlank()) return@mapNotNull null
                 val priority = t.get("priority")?.takeIf { it.isJsonPrimitive }?.asInt ?: 0
@@ -283,12 +303,17 @@ data class OpenFluxConfig(
                 MODE_STREAM -> {
                     // share.validateStream: exactly one carrier, no session, no secret.
                     val (type, docUrl) = carriers.singleOrNull() ?: return emptyList()
-                    if (type !in STREAM_TRANSPORTS || json.get("secret")?.asString.orEmpty().isNotEmpty()) return emptyList()
-                    return listOf(current.copy(
-                        transport = type, url = docUrl, streamMode = true,
-                        encryptionKey = "", legacyCodec = false, sessionContext = ""
-                    ))
+                    if (type !in STREAM_TRANSPORTS || json.get("secret")?.asString.orEmpty()
+                            .isNotEmpty()
+                    ) return emptyList()
+                    return listOf(
+                        current.copy(
+                            transport = type, url = docUrl, streamMode = true,
+                            encryptionKey = "", legacyCodec = false, sessionContext = ""
+                        )
+                    )
                 }
+
                 else -> return emptyList()
             }
             val legacyCodec = when (json.get("codec")?.asString) {
@@ -345,9 +370,18 @@ data class OpenFluxConfig(
                 val docUrl = uri.getQueryParameter("url") ?: current.url
                 if (docUrl.isBlank()) return null
                 OpenFluxConfig(
-                    transport = transport, url = docUrl, maxToken = current.maxToken, maxUid = current.maxUid,
-                    encryptionKey = encryptionKey, legacyCodec = legacyCodec,
-                    sessionContext = explicitContext.ifBlank { if (encryptionKey.isNotBlank()) legacyContext(transport, docUrl) else "" }
+                    transport = transport,
+                    url = docUrl,
+                    maxToken = current.maxToken,
+                    maxUid = current.maxUid,
+                    encryptionKey = encryptionKey,
+                    legacyCodec = legacyCodec,
+                    sessionContext = explicitContext.ifBlank {
+                        if (encryptionKey.isNotBlank()) legacyContext(
+                            transport,
+                            docUrl
+                        ) else ""
+                    }
                 )
             }
         }
@@ -365,25 +399,33 @@ data class OpenFluxConfig(
         private fun parseOlConnectDialect(uri: Uri, current: OpenFluxConfig): OpenFluxConfig? {
             val docUrl = uri.getQueryParameter("url") ?: uri.getQueryParameter("u") ?: return null
             if (docUrl.isBlank()) return null
-            val transport = when ((uri.getQueryParameter("t") ?: uri.getQueryParameter("transport"))?.trim()?.lowercase()) {
-                "vyandex" -> "vyandex"
-                "yandex" -> "yandex"
-                "mailru" -> "mailru"
-                else -> if (uri.host == "mailru" || docUrl.contains("mail.ru")) "mailru" else "yandex"
-            }
-            val encryptionKey = uri.getQueryParameter("k") ?: uri.getQueryParameter("key") ?: current.encryptionKey
-            val legacyCodec = when ((uri.getQueryParameter("c") ?: uri.getQueryParameter("codec"))?.trim()?.lowercase()) {
-                "legacy" -> true
-                "batched" -> false
-                else -> current.legacyCodec
-            }
+            val transport =
+                when ((uri.getQueryParameter("t") ?: uri.getQueryParameter("transport"))?.trim()
+                    ?.lowercase()) {
+                    "vyandex" -> "vyandex"
+                    "yandex" -> "yandex"
+                    "mailru" -> "mailru"
+                    else -> if (uri.host == "mailru" || docUrl.contains("mail.ru")) "mailru" else "yandex"
+                }
+            val encryptionKey =
+                uri.getQueryParameter("k") ?: uri.getQueryParameter("key") ?: current.encryptionKey
+            val legacyCodec =
+                when ((uri.getQueryParameter("c") ?: uri.getQueryParameter("codec"))?.trim()
+                    ?.lowercase()) {
+                    "legacy" -> true
+                    "batched" -> false
+                    else -> current.legacyCodec
+                }
             return current.copy(
                 transport = transport,
                 url = docUrl,
                 streamMode = false,
                 encryptionKey = encryptionKey,
                 legacyCodec = legacyCodec,
-                sessionContext = if (encryptionKey.isNotBlank()) legacyContext(transport, docUrl) else ""
+                sessionContext = if (encryptionKey.isNotBlank()) legacyContext(
+                    transport,
+                    docUrl
+                ) else ""
             )
         }
     }

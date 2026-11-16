@@ -24,14 +24,19 @@ import java.io.File
 // specific error.
 object OpenFluxKernel : Kernel {
     override val variant: KernelVariant = KernelVariant.OPENFLUX
+
     // --url carries the Yandex.Docs document link, which is effectively the shared secret/
     // rendezvous point for that transport - as sensitive as FreeTurn's -links/-sub.
-    override val sensitiveCommandFlags: Set<String> = setOf("--maxToken", "--url", "--session-context")
+    override val sensitiveCommandFlags: Set<String> =
+        setOf("--maxToken", "--url", "--session-context")
 
-    override fun logLabel(cfg: KernelConfig): String = "OpenFlux (${(cfg as KernelConfig.OpenFlux).config.transport})"
+    override fun logLabel(cfg: KernelConfig): String =
+        "OpenFlux (${(cfg as KernelConfig.OpenFlux).config.transport})"
 
     // No SOCKS5 auth flags exist upstream - only the address matters.
-    override fun localSettingsChanged(old: ClientConfig, new: ClientConfig): Boolean = old.socksAddr != new.socksAddr
+    override fun localSettingsChanged(old: ClientConfig, new: ClientConfig): Boolean =
+        old.socksAddr != new.socksAddr
+
     override val displayNameRes: Int = R.string.kernel_openflux
     override val configActivityClass = OpenFluxConfigActivity::class.java
     override val wgNotUsedMessageRes: Int = R.string.wg_not_used_with_openflux
@@ -52,7 +57,8 @@ object OpenFluxKernel : Kernel {
 
     // Microseconds only appear once EnableDebug has run - earlier lines (deprecated-flag warnings)
     // don't match and fall back to LogLevels.detect.
-    private val STD_LOG_PREFIX = Regex("""^\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}\.\d+ (\S+\.go:\d+: )?""")
+    private val STD_LOG_PREFIX =
+        Regex("""^\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}\.\d+ (\S+\.go:\d+: )?""")
 
     // Routine socket recycles: Yandex.Docs, Mail.ru and Boards servers close a healthy WebSocket
     // with 1005 every ~20-60s, and the transport is back within a second or two - its first
@@ -68,33 +74,45 @@ object OpenFluxKernel : Kernel {
     override fun isDiscarded(line: String): Boolean {
         val tag = line.indexOf('[')
         return tag in 0..40 && (
-            PER_PACKET_TRACES.any { line.startsWith(it, tag) } ||
-                // Boards echoes every object back to its sender, logged per packet as
-                // "[BOARDS] <action>: own echo (...), skip" - the action is a variable, so no prefix.
-                (line.startsWith("[BOARDS] ", tag) && line.contains(": own echo (")) ||
-                // Avito's stats loop logs every room every 5s ("[AVITO-tx-00 <id>] tx=..."); the
-                // "[AVITO-TOTAL]" line after them stays as the one summary, like "[CUPS-TOTAL]".
-                line.startsWith("[AVITO-tx-", tag) || line.startsWith("[AVITO-rx-", tag)
-            )
+                PER_PACKET_TRACES.any { line.startsWith(it, tag) } ||
+                        // Boards echoes every object back to its sender, logged per packet as
+                        // "[BOARDS] <action>: own echo (...), skip" - the action is a variable, so no prefix.
+                        (line.startsWith("[BOARDS] ", tag) && line.contains(": own echo (")) ||
+                        // Avito's stats loop logs every room every 5s ("[AVITO-tx-00 <id>] tx=..."); the
+                        // "[AVITO-TOTAL]" line after them stays as the one summary, like "[CUPS-TOTAL]".
+                        line.startsWith("[AVITO-tx-", tag) || line.startsWith("[AVITO-rx-", tag)
+                )
     }
 
     private val PER_PACKET_TRACES = listOf(
-        "[TUNNEL] -> ", "[TUNNEL] <- ",
+        "[TUNNEL] -> ",
+        "[TUNNEL] <- ",
         // Stream mode's own per-frame line (transport/phpbox/log.go), same level as [TUNNEL].
-        "[STREAM] -> ", "[STREAM] <- ",
+        "[STREAM] -> ",
+        "[STREAM] <- ",
         // Boards (transport/yandex/boards.go): every received packet, and the drop-objects
         // that clears each received batch off the board again.
-        "[BOARDS<-] ", "[BOARDS] dropped ",
+        "[BOARDS<-] ",
+        "[BOARDS] dropped ",
         // Telemost's striped link (transport/striped.go): one line per resent piece.
         "[STRIPE] seq ",
-        "[BATCH] Send: enqueued", "[BATCH] Recv: ", "[BATCH] flushLoop: ",
-        "[CRYPTO] Send #", "[CRYPTO] Recv #", "[CRYPTO] Recv raw ", "[CRYPTO] Recv DECRYPT FAIL", "[CRYPTO] Recv DROP",
-        "[SESSION] send IPv4 #", "[SESSION] recv IPv4 #", "[SESSION] recv from "
+        "[BATCH] Send: enqueued",
+        "[BATCH] Recv: ",
+        "[BATCH] flushLoop: ",
+        "[CRYPTO] Send #",
+        "[CRYPTO] Recv #",
+        "[CRYPTO] Recv raw ",
+        "[CRYPTO] Recv DECRYPT FAIL",
+        "[CRYPTO] Recv DROP",
+        "[SESSION] send IPv4 #",
+        "[SESSION] recv IPv4 #",
+        "[SESSION] recv from "
     )
 
     private val ROUTINE_RECYCLE =
         Regex("""\[(?:YDOCS] Read error|M-DOCS] Read error|BOARDS] ws error): (?:read: )?websocket: close 1005""")
-    private val ROUTINE_RECONNECT = Regex("""\[(?:YDOCS|M-DOCS)] reconnecting in \S+ \(attempt 0\)""")
+    private val ROUTINE_RECONNECT =
+        Regex("""\[(?:YDOCS|M-DOCS)] reconnecting in \S+ \(attempt 0\)""")
 
     // Go's net.DNSError always renders as "... lookup <host>: no such host" - pulls the host back
     // out for error_openflux_dns_lookup_failed (see parseLogLine point 0d) instead of asserting
@@ -105,7 +123,14 @@ object OpenFluxKernel : Kernel {
     // captcha solver, and main.go's fatal for a synchronous Start() failure) - as opposed to the
     // SOCKS5 inbound's per-connection lines, see parseLogLine point 0d.
     private val TRANSPORT_LOG_MARKERS = listOf(
-        "[ydocs]", "[volga]", "[boards]", "[m-docs]", "[telemost]", "[captcha]", "failed to start transport", STREAM_START_FAILED
+        "[ydocs]",
+        "[volga]",
+        "[boards]",
+        "[m-docs]",
+        "[telemost]",
+        "[captcha]",
+        "failed to start transport",
+        STREAM_START_FAILED
     )
 
     // Stream mode's own fatal for a carrier that didn't start (main.go runStreamClient:
@@ -131,10 +156,15 @@ object OpenFluxKernel : Kernel {
     // produces that wording, so a new transport just adds a row here instead of a new if-block.
     // Doesn't cover 0d (DNS failure - needs isNetworkMissingAndHandled() first and a dynamic host
     // in the message) or point 1 (generic panics - message is the raw line, not a resource lookup).
-    private class FastFailRule(val transports: Set<String>, val messageRes: Int, val matcher: (String) -> Boolean)
+    private class FastFailRule(
+        val transports: Set<String>,
+        val messageRes: Int,
+        val matcher: (String) -> Boolean
+    )
 
     // Declared before FAST_FAIL_RULES: object properties initialize in declaration order.
-    private val ALL_TRANSPORTS = setOf("yandex", "vyandex", "boards", "mailru", "cupsonline", "avito", "oneme", "telemost")
+    private val ALL_TRANSPORTS =
+        setOf("yandex", "vyandex", "boards", "mailru", "cupsonline", "avito", "oneme", "telemost")
 
     private val FAST_FAIL_RULES = listOf(
         // 0a. Volga auth failure (transport/yandex/vyandex.go): "action_url missing" means the
@@ -153,8 +183,8 @@ object OpenFluxKernel : Kernel {
         // of a falsely "Connected" status - see point 3 - before it finally gives up).
         FastFailRule(setOf("yandex"), R.string.error_openflux_yandex_wrong_doc) {
             "officeactiondata missing" in it || "editor_config nil" in it ||
-                "officeactiondata.balancer_url missing" in it || "editor_config.document missing" in it ||
-                "editor_config.token missing" in it || "editor_config.document.key missing" in it
+                    "officeactiondata.balancer_url missing" in it || "editor_config.document missing" in it ||
+                    "editor_config.token missing" in it || "editor_config.document.key missing" in it
         },
         // 0c. Doc URL points nowhere valid: yandex.go's fetchDocInfo says "config not found: ...",
         // vyandex.go's says "client-config not found in ...", both cases where the page fetched
@@ -229,7 +259,11 @@ object OpenFluxKernel : Kernel {
     // Common tail for every deterministic, non-retriable failure below: sets CoreStatus.Error (skip
     // if a higher-priority Suppressed state is already active), marks the run failed so
     // CoreService's watchdog does NOT retry it, and tells the log-reading loop to stop.
-    private fun failFast(message: String, state: BinaryOutputState, ctx: KernelLogContext): Boolean {
+    private fun failFast(
+        message: String,
+        state: BinaryOutputState,
+        ctx: KernelLogContext
+    ): Boolean {
         if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
             CoreServiceState.setStatus(CoreStatus.Error(message))
             ctx.updateNotification(ctx.getString(R.string.error_connecting))
@@ -247,21 +281,24 @@ object OpenFluxKernel : Kernel {
         val config = (cfg as KernelConfig.OpenFlux).config
         return listOfNotNull(
             context.getString(R.string.kernel_tag_no_server).takeIf { config.isStream },
-            context.getString(R.string.kernel_tag_encrypted).takeIf { !config.isStream && config.encryptionKey.isNotBlank() },
-            context.getString(R.string.kernel_tag_legacy_codec).takeIf { !config.isStream && config.legacyCodec }
+            context.getString(R.string.kernel_tag_encrypted)
+                .takeIf { !config.isStream && config.encryptionKey.isNotBlank() },
+            context.getString(R.string.kernel_tag_legacy_codec)
+                .takeIf { !config.isStream && config.legacyCodec }
         )
     }
 
-    override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int = when ((cfg as KernelConfig.OpenFlux).config.transport) {
-        "yandex", "vyandex" -> R.drawable.ic_yandex_docs
-        "oneme" -> R.drawable.ic_max
-        "cupsonline" -> R.drawable.ic_cupsonline
-        "avito" -> R.drawable.ic_avito
-        "mailru" -> R.drawable.ic_mailru
-        "boards" -> R.drawable.ic_yandex_boards
-        "telemost" -> R.drawable.ic_telemost
-        else -> R.drawable.route_24px
-    }
+    override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int =
+        when ((cfg as KernelConfig.OpenFlux).config.transport) {
+            "yandex", "vyandex" -> R.drawable.ic_yandex_docs
+            "oneme" -> R.drawable.ic_max
+            "cupsonline" -> R.drawable.ic_cupsonline
+            "avito" -> R.drawable.ic_avito
+            "mailru" -> R.drawable.ic_mailru
+            "boards" -> R.drawable.ic_yandex_boards
+            "telemost" -> R.drawable.ic_telemost
+            else -> R.drawable.route_24px
+        }
 
     override val defaultProfileName: String = "OpenFlux Server"
 
@@ -269,13 +306,17 @@ object OpenFluxKernel : Kernel {
         OpenFluxConfig.parse(uri)?.let { KernelConfig.OpenFlux(it) }
 
     override fun displayNameFromUri(uri: String): String? = try {
-        OpenFluxConfig.decodeV1(uri)?.let { return it.get("name")?.asString?.takeIf(String::isNotBlank) }
+        OpenFluxConfig.decodeV1(uri)
+            ?.let { return it.get("name")?.asString?.takeIf(String::isNotBlank) }
         val u = uri.toUri()
         // The legacy scheme carries the name in a "name" query param; OlConnect's dialect (see
         // OpenFluxConfig.parseOlConnectDialect) puts it in the URL-encoded fragment instead
         // ("+" for spaces, like java.net.URLEncoder), so fall back to that.
-        u.getQueryParameter("name") ?: u.encodedFragment?.replace("+", "%20")?.let(android.net.Uri::decode)?.takeIf(String::isNotBlank)
-    } catch (_: Exception) { null }
+        u.getQueryParameter("name") ?: u.encodedFragment?.replace("+", "%20")
+            ?.let(android.net.Uri::decode)?.takeIf(String::isNotBlank)
+    } catch (_: Exception) {
+        null
+    }
 
     // Since 0.14.5 Avito's dial gate (transport/avito/dialgate.go) keeps the pause after a 429 -
     // doubling from 30 s up to 30 min - in a file every Avito process reads before it dials. Its
@@ -301,7 +342,8 @@ object OpenFluxKernel : Kernel {
      * the schedule starts over at each start; the pause after a 429 stays.
      */
     private fun resetAvitoDialSchedule(file: File) {
-        val fields = runCatching { file.readText().trim().split(Regex("\\s+")) }.getOrNull() ?: return
+        val fields =
+            runCatching { file.readText().trim().split(Regex("\\s+")) }.getOrNull() ?: return
         if (fields.size < 3 || fields.any { it.toLongOrNull() == null }) {
             file.delete()
             return
@@ -315,15 +357,17 @@ object OpenFluxKernel : Kernel {
         val o = (cfg.kernelConfig as KernelConfig.OpenFlux).config
         if (o.transport == "avito") resetAvitoDialSchedule(avitoGateFile(ctx))
         cmdArgs.add("${ctx.nativeLibraryDir}/libopenflux.so")
-        cmdArgs.addAll(listOf(
-            // "--client" still works (kept as a deprecated alias for one release upstream) but is
-            // slated for removal in v2 - "--role client" is the flag that replaces it.
-            "--role", "client",
-            // "--inbound" deliberately left unset: it defaults to socks5 on every non-macOS
-            // platform (Android included), which is what cfg.socksAddr below expects.
-            "--socks5", cfg.socksAddr.ifBlank { ClientConfig.DEFAULT_SOCKS_ADDR },
-            "--transport", o.transport
-        ))
+        cmdArgs.addAll(
+            listOf(
+                // "--client" still works (kept as a deprecated alias for one release upstream) but is
+                // slated for removal in v2 - "--role client" is the flag that replaces it.
+                "--role", "client",
+                // "--inbound" deliberately left unset: it defaults to socks5 on every non-macOS
+                // platform (Android included), which is what cfg.socksAddr below expects.
+                "--socks5", cfg.socksAddr.ifBlank { ClientConfig.DEFAULT_SOCKS_ADDR },
+                "--transport", o.transport
+            )
+        )
         // The mode without a server: the stream mux to a PHP exit, still SOCKS5 without --inbound.
         // It has no codec, key or context of its own, so the classic flags below stay out.
         if (o.isStream) cmdArgs.addAll(listOf("--mode", OpenFluxConfig.MODE_STREAM))
@@ -339,7 +383,12 @@ object OpenFluxKernel : Kernel {
         // stays out of it.
         if (o.transport == "mailru" && !o.isStream) {
             MailruSignIn.prepareCookieStore(ctx.filesDir, o.url)
-            cmdArgs.addAll(listOf("--cookie-store", MailruSignIn.storeFile(ctx.filesDir).absolutePath))
+            cmdArgs.addAll(
+                listOf(
+                    "--cookie-store",
+                    MailruSignIn.storeFile(ctx.filesDir).absolutePath
+                )
+            )
         }
         // The binary's own default codec is "batched" (zstd + coalescing) - both ends of the
         // tunnel must use the same one, it isn't negotiated, so this only gets passed to fall
@@ -375,7 +424,13 @@ object OpenFluxKernel : Kernel {
     // transport/oneme/max_transport.go:35-55), so it is NOT a reliable "tunnel is actually up"
     // signal for either one. It's kept as the Connected signal only for Yandex, which has no
     // better one at all (see below); MAX gets a real one from its own call-signaling log.
-    override suspend fun parseLogLine(line: String, lower: String, state: BinaryOutputState, ctx: KernelLogContext, cfg: ClientConfig): Boolean {
+    override suspend fun parseLogLine(
+        line: String,
+        lower: String,
+        state: BinaryOutputState,
+        ctx: KernelLogContext,
+        cfg: ClientConfig
+    ): Boolean {
         val transport = (cfg.kernelConfig as? KernelConfig.OpenFlux)?.config?.transport ?: "yandex"
 
         // 0a/0b/0c/0e/0f (see FAST_FAIL_RULES above for what each one matches and why). Checked before
@@ -410,7 +465,11 @@ object OpenFluxKernel : Kernel {
                 return true
             }
             val host = DNS_LOOKUP_HOST_REGEX.find(line)?.groupValues?.get(1) ?: line
-            return failFast(ctx.getString(R.string.error_openflux_dns_lookup_failed, host), state, ctx)
+            return failFast(
+                ctx.getString(R.string.error_openflux_dns_lookup_failed, host),
+                state,
+                ctx
+            )
         }
 
         // 6a. cupsonline couldn't enter any room, but not every one is closed (0h) - a network or
@@ -448,7 +507,8 @@ object OpenFluxKernel : Kernel {
         if (lower.startsWith("panic:") ||
             lower.contains("failed to start transport") ||
             lower.contains(STREAM_FATAL) ||
-            lower.contains("unknown transport type")) {
+            lower.contains("unknown transport type")
+        ) {
             return failFast(line, state, ctx)
         }
 
@@ -522,10 +582,10 @@ object OpenFluxKernel : Kernel {
         }
 
         if (transport != "oneme" && (
-                lower.contains("[ydocs] fetchdocinfo failed") ||
-                lower.contains("[ydocs] websocket dial failed") ||
-                lower.contains("[ydocs] read error")
-            )
+                    lower.contains("[ydocs] fetchdocinfo failed") ||
+                            lower.contains("[ydocs] websocket dial failed") ||
+                            lower.contains("[ydocs] read error")
+                    )
         ) {
             // Check real device connectivity before burning through the failure counter above -
             // if the phone has no network at all, this is not "the doc link is dead", it's just
@@ -545,8 +605,8 @@ object OpenFluxKernel : Kernel {
             // than 15s as healthy (attempt reset) - do the same: only a connection that dropped
             // quickly, or a failed fetch/dial, counts as a failure.
             val healthySessionEnded = lower.contains("[ydocs] read error") &&
-                state.yandexConnectedAt != 0L &&
-                android.os.SystemClock.elapsedRealtime() - state.yandexConnectedAt > YANDEX_HEALTHY_SESSION_MS
+                    state.yandexConnectedAt != 0L &&
+                    android.os.SystemClock.elapsedRealtime() - state.yandexConnectedAt > YANDEX_HEALTHY_SESSION_MS
             if (healthySessionEnded) {
                 state.openFluxYandexFailureCounter.reset()
             } else if (state.openFluxYandexFailureCounter.recordAndCheckThreshold()) {
@@ -568,9 +628,9 @@ object OpenFluxKernel : Kernel {
         // reconnect after a minute of unanswered traffic - one line each, far below the
         // counter's threshold, so only a real reconnect loop trips it.
         if (transport == "vyandex" && (
-                lower.contains("[volga] ws disconnected") ||
-                lower.contains("[volga] batch send failed")
-            )
+                    lower.contains("[volga] ws disconnected") ||
+                            lower.contains("[volga] batch send failed")
+                    )
         ) {
             if (ctx.isNetworkMissingAndHandled()) {
                 state.startupFailed = true
@@ -592,9 +652,9 @@ object OpenFluxKernel : Kernel {
         // failed fetch or dial is one "connect failed: <error>" line (the fetchDocInfo/dial ones
         // are gone); a rotated-out carrier closing is "retired carrier closed", not a read error.
         if (transport == "mailru" && (
-                lower.contains("[m-docs] connect failed") ||
-                lower.contains("[m-docs] read error")
-            )
+                    lower.contains("[m-docs] connect failed") ||
+                            lower.contains("[m-docs] read error")
+                    )
         ) {
             if (ctx.isNetworkMissingAndHandled()) {
                 state.startupFailed = true
@@ -730,7 +790,7 @@ object OpenFluxKernel : Kernel {
                     return true
                 }
                 val healthySessionEnded = state.boardsConnectedAt != 0L &&
-                    android.os.SystemClock.elapsedRealtime() - state.boardsConnectedAt > YANDEX_HEALTHY_SESSION_MS
+                        android.os.SystemClock.elapsedRealtime() - state.boardsConnectedAt > YANDEX_HEALTHY_SESSION_MS
                 state.boardsConnectedAt = 0L
                 if (healthySessionEnded) {
                     state.openFluxBoardsFailureCounter.reset()

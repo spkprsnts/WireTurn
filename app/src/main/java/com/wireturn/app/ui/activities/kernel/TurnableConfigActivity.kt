@@ -43,11 +43,16 @@ class TurnableConfigActivity : ComponentActivity() {
 
             val initialConfig = remember(clientConfig, profiles) {
                 if (configJson != null) {
-                    try { Gson().fromJson(configJson, TurnableConfig::class.java) } catch (_: Exception) { TurnableConfig() }
+                    try {
+                        Gson().fromJson(configJson, TurnableConfig::class.java)
+                    } catch (_: Exception) {
+                        TurnableConfig()
+                    }
                 } else if (profileId != null) {
                     profiles.find { it.id == profileId }?.turnableConfig ?: TurnableConfig()
                 } else if (isEditMode) {
-                    (clientConfig.kernelConfig as? KernelConfig.Turnable)?.config ?: TurnableConfig()
+                    (clientConfig.kernelConfig as? KernelConfig.Turnable)?.config
+                        ?: TurnableConfig()
                 } else {
                     TurnableConfig()
                 }
@@ -64,17 +69,37 @@ class TurnableConfigActivity : ComponentActivity() {
                     onSave = { config ->
                         if (isEditMode) {
                             if (profileId != null) {
-                                viewModel.updateProfileById(profileId) { it.copy(kernelConfig = KernelConfig.Turnable(config)) }
+                                viewModel.updateProfileById(profileId) {
+                                    it.copy(
+                                        kernelConfig = KernelConfig.Turnable(
+                                            config
+                                        )
+                                    )
+                                }
                                 if (profileId == viewModel.currentProfileId.value) {
                                     // Also update the live config so CoreService doesn't keep using the stale one.
-                                    viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Turnable(config)))
+                                    viewModel.saveClientConfig(
+                                        clientConfig.copy(
+                                            kernelConfig = KernelConfig.Turnable(
+                                                config
+                                            )
+                                        )
+                                    )
                                 }
                             } else {
-                                viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.Turnable(config)))
+                                viewModel.saveClientConfig(
+                                    clientConfig.copy(
+                                        kernelConfig = KernelConfig.Turnable(
+                                            config
+                                        )
+                                    )
+                                )
                             }
                             finish()
                         } else {
-                            val selectedRoute = config.routes.find { it.routeId == config.selectedRouteId } ?: config.routes.firstOrNull()
+                            val selectedRoute =
+                                config.routes.find { it.routeId == config.selectedRouteId }
+                                    ?: config.routes.firstOrNull()
                             val isTcp = selectedRoute?.socket?.lowercase() == "tcp"
 
                             val intent = Intent(this, XraySetupActivity::class.java).apply {

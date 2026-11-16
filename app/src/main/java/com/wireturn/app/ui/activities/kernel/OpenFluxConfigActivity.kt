@@ -45,11 +45,16 @@ class OpenFluxConfigActivity : ComponentActivity() {
 
             val initialConfig = remember(clientConfig, profiles) {
                 if (configJson != null) {
-                    try { Gson().fromJson(configJson, OpenFluxConfig::class.java) } catch (_: Exception) { OpenFluxConfig() }
+                    try {
+                        Gson().fromJson(configJson, OpenFluxConfig::class.java)
+                    } catch (_: Exception) {
+                        OpenFluxConfig()
+                    }
                 } else if (profileId != null) {
                     profiles.find { it.id == profileId }?.openFluxConfig ?: OpenFluxConfig()
                 } else if (isEditMode) {
-                    (clientConfig.kernelConfig as? KernelConfig.OpenFlux)?.config ?: OpenFluxConfig()
+                    (clientConfig.kernelConfig as? KernelConfig.OpenFlux)?.config
+                        ?: OpenFluxConfig()
                 } else {
                     OpenFluxConfig.newProfile()
                 }
@@ -65,13 +70,31 @@ class OpenFluxConfigActivity : ComponentActivity() {
                     onSave = { config ->
                         if (isEditMode) {
                             if (profileId != null) {
-                                viewModel.updateProfileById(profileId) { it.copy(kernelConfig = KernelConfig.OpenFlux(config)) }
+                                viewModel.updateProfileById(profileId) {
+                                    it.copy(
+                                        kernelConfig = KernelConfig.OpenFlux(
+                                            config
+                                        )
+                                    )
+                                }
                                 if (profileId == viewModel.currentProfileId.value) {
                                     // Also update the live config so CoreService doesn't keep using the stale one.
-                                    viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.OpenFlux(config)))
+                                    viewModel.saveClientConfig(
+                                        clientConfig.copy(
+                                            kernelConfig = KernelConfig.OpenFlux(
+                                                config
+                                            )
+                                        )
+                                    )
                                 }
                             } else {
-                                viewModel.saveClientConfig(clientConfig.copy(kernelConfig = KernelConfig.OpenFlux(config)))
+                                viewModel.saveClientConfig(
+                                    clientConfig.copy(
+                                        kernelConfig = KernelConfig.OpenFlux(
+                                            config
+                                        )
+                                    )
+                                )
                             }
                             finish()
                         } else {

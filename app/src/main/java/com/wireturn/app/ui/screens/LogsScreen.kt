@@ -178,11 +178,12 @@ fun LogsScreen(
                         if (uri != null) {
                             scope.launch(Dispatchers.IO) {
                                 try {
-                                    context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                                        outputStream.write(logsState.value.joinToString("\n") {
-                                            "${it.timeLabel(withMillis = true)} ${it.message}"
-                                        }.toByteArray())
-                                    }
+                                    context.contentResolver.openOutputStream(uri)
+                                        ?.use { outputStream ->
+                                            outputStream.write(logsState.value.joinToString("\n") {
+                                                "${it.timeLabel(withMillis = true)} ${it.message}"
+                                            }.toByteArray())
+                                        }
                                     withContext(Dispatchers.Main) {
                                         HapticUtil.perform(context, HapticUtil.Pattern.SUCCESS)
                                     }
@@ -212,7 +213,10 @@ fun LogsScreen(
                     IconButton(
                         onClick = {
                             HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
-                            val timestamp = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault()).format(Date())
+                            val timestamp =
+                                SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault()).format(
+                                    Date()
+                                )
                             saveLauncher.launch("wireturn_logs_$timestamp.txt")
                         },
                         enabled = hasLogs
@@ -220,7 +224,9 @@ fun LogsScreen(
                         Icon(
                             painterResource(R.drawable.save_24px),
                             contentDescription = stringResource(R.string.save),
-                            tint = if (hasLogs) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.disabled)
+                            tint = if (hasLogs) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface.copy(
+                                alpha = ContentAlpha.disabled
+                            )
                         )
                     }
                 }
@@ -389,14 +395,14 @@ private fun LogLine(entry: AppLogsState.LogEntry) {
 
     val textColor = when {
         entry.level == LogLevel.ERROR -> MaterialTheme.colorScheme.error
-        entry.level == LogLevel.WARN  -> MaterialTheme.extendedColorScheme.warning
+        entry.level == LogLevel.WARN -> MaterialTheme.extendedColorScheme.warning
         entry.level == LogLevel.DEBUG -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = ContentAlpha.secondary)
         isSuccess -> MaterialTheme.extendedColorScheme.success
-        isHeader  -> MaterialTheme.colorScheme.primary
-        else      -> MaterialTheme.colorScheme.onSurfaceVariant
+        isHeader -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     val hasDot = entry.level == LogLevel.ERROR || entry.level == LogLevel.WARN ||
-        (entry.level == LogLevel.INFO && (isSuccess || isHeader))
+            (entry.level == LogLevel.INFO && (isSuccess || isHeader))
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -414,7 +420,8 @@ private fun LogLine(entry: AppLogsState.LogEntry) {
             Spacer(Modifier.width(11.dp))
         }
         // The time is part of the selectable text, so a copied line keeps it; dimmer than any level.
-        val timeColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = ContentAlpha.secondary)
+        val timeColor =
+            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = ContentAlpha.secondary)
         val text = remember(entry.id, line, timeColor) {
             buildAnnotatedString {
                 withStyle(SpanStyle(color = timeColor, fontWeight = FontWeight.Normal)) {

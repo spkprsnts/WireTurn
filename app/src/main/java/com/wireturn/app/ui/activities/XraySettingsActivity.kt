@@ -40,7 +40,8 @@ class XraySettingsActivity : ComponentActivity() {
             // lambda's captures as unchanged and skips re-invoking it, so geoAssetsInstalled()/
             // geoAssetsInstalledAt() never get re-read after a download or delete completes.
             val geoAssetsInstalled = geoAssetsInstalledTick.let { viewModel.geoAssetsInstalled() }
-            val geoAssetsInstalledAt = geoAssetsInstalledTick.let { viewModel.geoAssetsInstalledAt() }
+            val geoAssetsInstalledAt =
+                geoAssetsInstalledTick.let { viewModel.geoAssetsInstalledAt() }
 
             WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
                 XraySettingsScreen(

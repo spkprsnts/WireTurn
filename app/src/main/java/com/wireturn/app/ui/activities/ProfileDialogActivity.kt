@@ -15,7 +15,7 @@ class ProfileDialogActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         // Make activity window transparent
         window.setBackgroundDrawableResource(android.R.color.transparent)
 

@@ -201,19 +201,31 @@ fun XrayLinkConfigScreen(
                         ) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.import_clipboard)) },
-                                leadingIcon = { Icon(painterResource(R.drawable.content_paste_24px), null) },
+                                leadingIcon = {
+                                    Icon(
+                                        painterResource(R.drawable.content_paste_24px),
+                                        null
+                                    )
+                                },
                                 onClick = {
                                     showImportMenu = false
                                     scope.launch {
                                         val clipEntry = clipboard.getClipEntry()
-                                        val text = clipEntry?.clipData?.getItemAt(0)?.text?.toString() ?: ""
+                                        val text =
+                                            clipEntry?.clipData?.getItemAt(0)?.text?.toString()
+                                                ?: ""
                                         importText(text, silentIfBlank = true)
                                     }
                                 }
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.import_file)) },
-                                leadingIcon = { Icon(painterResource(R.drawable.file_open_24px), null) },
+                                leadingIcon = {
+                                    Icon(
+                                        painterResource(R.drawable.file_open_24px),
+                                        null
+                                    )
+                                },
                                 onClick = {
                                     showImportMenu = false
                                     filePickerLauncher.launch("*/*")
@@ -305,7 +317,9 @@ fun XrayLinkConfigScreen(
                     TextFieldRow(
                         label = stringResource(R.string.xray_link_label),
                         value = config.link.redact(isPrivacyActive),
-                        onValueChange = { if (!isPrivacyActive) config = config.copy(link = it.trim()) },
+                        onValueChange = {
+                            if (!isPrivacyActive) config = config.copy(link = it.trim())
+                        },
                         readOnly = isPrivacyActive,
                         isError = config.link.isNotEmpty() && !config.isValid(),
                         isModified = isEditMode && config.link != initialConfig.link,

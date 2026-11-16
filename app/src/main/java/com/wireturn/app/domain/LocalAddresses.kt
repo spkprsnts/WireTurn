@@ -27,7 +27,15 @@ object LocalAddresses {
                 nif.inetAddresses.toList()
                     .filterIsInstance<Inet4Address>()
                     .filterNot { it.isLinkLocalAddress || it.isLoopbackAddress }
-                    .mapNotNull { addr -> addr.hostAddress?.let { LocalAddress(nif.name, kind, it) } }
+                    .mapNotNull { addr ->
+                        addr.hostAddress?.let {
+                            LocalAddress(
+                                nif.name,
+                                kind,
+                                it
+                            )
+                        }
+                    }
             }
             .sortedWith(compareBy({ it.kind.ordinal }, { it.interfaceName }))
     } catch (_: Exception) {
@@ -36,10 +44,12 @@ object LocalAddresses {
 
     private fun kindOf(name: String): LocalInterfaceKind? = when {
         name.startsWith("tun") || name.startsWith("ppp") || name.startsWith("lo") ||
-            name.startsWith("dummy") || name.startsWith("v4-") || name.startsWith("clat") -> null
+                name.startsWith("dummy") || name.startsWith("v4-") || name.startsWith("clat") -> null
+
         name == "wlan0" -> LocalInterfaceKind.WIFI
         name.startsWith("ap") || name.startsWith("swlan") || name.startsWith("softap") ||
-            name.startsWith("wlan") -> LocalInterfaceKind.HOTSPOT
+                name.startsWith("wlan") -> LocalInterfaceKind.HOTSPOT
+
         name.startsWith("rndis") || name.startsWith("usb") || name.startsWith("ncm") -> LocalInterfaceKind.USB
         name.startsWith("bt") -> LocalInterfaceKind.BLUETOOTH
         name.startsWith("eth") -> LocalInterfaceKind.ETHERNET

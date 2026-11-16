@@ -45,7 +45,12 @@ class CaptchaActivity : AppCompatActivity() {
                         // and HomeScreen's captcha card opens it again meanwhile.
                         onDismiss = { finish() },
                         onSuccess = { token ->
-                            captchaSession?.sessionId?.let { viewModel.submitCaptchaResult(it, token) }
+                            captchaSession?.sessionId?.let {
+                                viewModel.submitCaptchaResult(
+                                    it,
+                                    token
+                                )
+                            }
                             // Закрываем окно локально как только WebView обнаружил успех.
                             // MainActivity не откроет его повторно благодаря lastHandledCaptchaSessionId.
                             runOnUiThread { finish() }

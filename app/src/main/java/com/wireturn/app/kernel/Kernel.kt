@@ -19,16 +19,20 @@ enum class NetworkQuality { FAST, SLOW, OFFLINE }
 interface KernelCommandContext {
     val filesDir: File
     val nativeLibraryDir: String
+
     // Abstract Unix socket name this run is to take the VPN's TUN from (see
     // Kernel.supportsNativeTun), or null for the usual SOCKS5/listen mode.
     val nativeTunSocket: String? get() = null
+
     // A fresh abstract Unix socket name for this run, for a kernel and its sidecar to meet on
     // (see Kernel.buildSidecarCommand) - the same in both commands of one run.
     val runSocket: String get() = ""
+
     // DNS servers of the physical network traffic goes out through (mobile operator or Wi-Fi
     // router), IPv4 first; empty if unknown. The app is excluded from its own VPN, so a kernel
     // reaches even an operator-internal resolver directly.
     val networkDnsServers: List<String> get() = emptyList()
+
     // This device's ANDROID_ID (per app signing key), or blank.
     val androidId: String get() = ""
 }
@@ -40,7 +44,8 @@ interface KernelCommandContext {
  * as always.
  */
 fun usesNativeTun(cfg: ClientConfig, vpnEnabled: Boolean, xrayEnabled: Boolean): Boolean =
-    vpnEnabled && !xrayEnabled && KernelRegistry.get(cfg.kernelVariant).supportsNativeTun(cfg.kernelConfig)
+    vpnEnabled && !xrayEnabled && KernelRegistry.get(cfg.kernelVariant)
+        .supportsNativeTun(cfg.kernelConfig)
 
 /** What a kernel's [Kernel.parseLogLine] needs from the running [com.wireturn.app.CoreService]. */
 interface KernelLogContext {
@@ -50,21 +55,27 @@ interface KernelLogContext {
     suspend fun getNetworkQuality(): NetworkQuality
     suspend fun isNetworkMissingAndHandled(): Boolean
     fun launchCaptchaActivityIfForeground(url: String)
+
     // Only qWDTT's captcha flow needs this (see QwdttKernel) - a no-op default keeps every other
     // kernel from having to implement it.
     fun setPendingCaptchaSessionId(id: Long) {}
+
     // Shown instead of the generic core_failed message if the watchdog exhausts MAX_RESTARTS -
     // only WebdavKernel sets this today, a no-op default keeps every other kernel from having to.
     fun setLastFailureReason(reason: String) {}
+
     // Lower bound for the watchdog's next restart delay (this run only) - for failures that a
     // quick restart makes worse, e.g. an upstream rate limit. A no-op default for other kernels.
     fun setMinRestartDelay(delayMs: Long) {}
+
     // Kernel TUN mode (Kernel.supportsNativeTun): the address/DNS/MTU the kernel was assigned,
     // for the VPN to be built with before it's handed the TUN. A no-op default for other kernels.
     fun onNativeTunConfig(address: String, dns: List<String>, mtu: Int) {}
+
     // Kernel TUN mode: cumulative bytes through that TUN (rx = down, tx = up) since the process
     // started, in place of hev's counters. Ignored outside that mode.
     fun onNativeTunTraffic(rxBytes: Long, txBytes: Long) {}
+
     // One line to this run's sidecar's stdin (Kernel.buildSidecarCommand), if it has one running.
     fun writeToSidecar(line: String) {}
 }
@@ -77,20 +88,28 @@ class BinaryOutputState {
     var captchaSessionCounter = 0L
     var peerConnectFailedCount = 0
     var connectingSince = 0L
+
     // When Yandex.Docs' WebSocket last came up - see OpenFluxKernel point 4.
     var yandexConnectedAt = 0L
+
     // When the Yandex Boards WebSocket handshake last completed - see OpenFluxKernel point 7.
     var boardsConnectedAt = 0L
+
     // Avito rooms whose WebSocket is up, by the short room id the transport logs - see OpenFluxKernel point 9.
     val avitoReadyRooms = mutableSetOf<String>()
+
     // FreeTurn UDP mode: DTLS sessions to the server currently up - see FreeTurnKernel point 2.
     var freeTurnDtlsOpen = 0
+
     // FreeTurn TCP mode: the pool's last reported "(active: N)".
     var freeTurnTcpActive = 0
+
     // qWDTT/CSQTT: workers up, from the periodic stats line (CSQTT: its STATS/READY/ACTIVE_ZERO events).
     var activeWorkers = 0
+
     // olcrtc: the local SOCKS5 listener is up, i.e. the first session came up - see OlcrtcKernel.
     var olcrtcSocksReady = false
+
     // qWDTT "-mode rawtun": its "RAW Конфиг" box, gathered line by line - see QwdttKernel.
     var rawConfigOpen = false
     var rawConfigIp: String? = null
@@ -105,20 +124,25 @@ class BinaryOutputState {
     val remoteNotReadyCounter = LogOccurrenceCounter(windowMs = 10_000, threshold = 7)
     val webdavConnRefusedCounter = LogOccurrenceCounter(windowMs = 5_000, threshold = 10)
     val vkCaptchaSolveFailCounter = LogOccurrenceCounter(windowMs = Long.MAX_VALUE, threshold = 5)
+
     // FreeTurn 4.x: Client ID never acknowledged. Certain with a pre-4.0 server, but the same error
     // after 7s of total packet loss right after a DTLS handshake - so one isn't proof. An old server
     // repeats it at once across VK's streams, or on the next 10-30s DTLS retry with direct's one.
     val freeTurnNoIdAckCounter = LogOccurrenceCounter(windowMs = 120_000, threshold = 2)
+
     // Yandex.Docs (transport/yandex/yandex.go): backoff to 30s +50% jitter, plus a 15s fetch
     // timeout on top -> worst case ~60s between failures.
     val openFluxYandexFailureCounter = LogOccurrenceCounter(windowMs = 90_000, threshold = 8)
     val openFluxMaxFailureCounter = LogOccurrenceCounter(windowMs = 5_000, threshold = 8)
+
     // Volga/vyandex (transport/yandex/vyandex.go): backoff to 30s, plus a 30s auth timeout on top
     // -> worst case ~60s between failures.
     val openFluxVolgaFailureCounter = LogOccurrenceCounter(windowMs = 90_000, threshold = 6)
+
     // Mail.ru Docs (transport/mailru/mailru.go): backoff to 15s +50% jitter, plus a 15s
     // fetch/dial timeout on top -> worst case ~37.5s between failures.
     val openFluxMailruFailureCounter = LogOccurrenceCounter(windowMs = 60_000, threshold = 8)
+
     // Yandex Boards (transport/yandex/boards.go): backoff to 8s +50% jitter, plus a 15s dial and
     // up to ~30s of socket.io handshake waits on top -> worst case ~55s between failures.
     val openFluxBoardsFailureCounter = LogOccurrenceCounter(windowMs = 90_000, threshold = 8)
@@ -233,7 +257,13 @@ interface Kernel {
      * and [state]. Returns true to stop reading this run's output (fatal error, or a transient
      * failure the watchdog should retry) - same contract as the original per-kernel handlers.
      */
-    suspend fun parseLogLine(line: String, lower: String, state: BinaryOutputState, ctx: KernelLogContext, cfg: ClientConfig): Boolean
+    suspend fun parseLogLine(
+        line: String,
+        lower: String,
+        state: BinaryOutputState,
+        ctx: KernelLogContext,
+        cfg: ClientConfig
+    ): Boolean
 
     /** Level of one line of this kernel's output, or null to fall back to [LogLevels.detect]. */
     fun logLevel(line: String): LogLevel? = null
@@ -351,18 +381,25 @@ interface Kernel {
 }
 
 /** For [Kernel.localSettingsChanged]: the local UDP/TCP listen address the kernel serves on. */
-fun listenAddrChanged(old: ClientConfig, new: ClientConfig): Boolean = old.listenAddr != new.listenAddr
+fun listenAddrChanged(old: ClientConfig, new: ClientConfig): Boolean =
+    old.listenAddr != new.listenAddr
 
 /** For [Kernel.localSettingsChanged]: the kernel's own SOCKS5 listener - address and auth. */
 fun socksListenerChanged(old: ClientConfig, new: ClientConfig): Boolean =
     old.socksAddr != new.socksAddr ||
-        old.isSocksAuthEnabled != new.isSocksAuthEnabled ||
-        old.socksUser != new.socksUser ||
-        old.socksPass != new.socksPass
+            old.isSocksAuthEnabled != new.isSocksAuthEnabled ||
+            old.socksUser != new.socksUser ||
+            old.socksPass != new.socksPass
 
 object KernelRegistry {
     private val all: List<Kernel> = listOf(
-        TurnableKernel, OlcrtcKernel, WebdavKernel, FreeTurnKernel, QwdttKernel, OpenFluxKernel, CsqttKernel,
+        TurnableKernel,
+        OlcrtcKernel,
+        WebdavKernel,
+        FreeTurnKernel,
+        QwdttKernel,
+        OpenFluxKernel,
+        CsqttKernel,
         // Last: its decodeUri takes any valid vless/trojan/hysteria2 link.
         XrayKernel
     )

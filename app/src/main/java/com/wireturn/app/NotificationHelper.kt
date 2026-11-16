@@ -28,7 +28,7 @@ object NotificationHelper {
 
     fun createChannel(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java)
-        
+
         val channel = NotificationChannel(
             CHANNEL_ID,
             context.getString(R.string.notification_title),
@@ -63,12 +63,13 @@ object NotificationHelper {
     }
 
     fun buildNotification(context: Context): Notification {
-        val openAppIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.let {
-            PendingIntent.getActivity(context, 0, it, PendingIntent.FLAG_IMMUTABLE)
-        }
+        val openAppIntent =
+            context.packageManager.getLaunchIntentForPackage(context.packageName)?.let {
+                PendingIntent.getActivity(context, 0, it, PendingIntent.FLAG_IMMUTABLE)
+            }
 
         val statusParts = mutableListOf<String>()
-        
+
         val coreStatus = CoreServiceState.status.value
         val coreStatusText = CoreServiceState.statusText.value
         val coreSession = CoreServiceState.session.value
@@ -76,7 +77,11 @@ object NotificationHelper {
         val clientConfig = coreSession?.clientConfig
         val xrayState = XrayServiceState.state.value
         val xraySession = XrayServiceState.session.value
-        val vlessProtocolLabel = xraySession?.vless?.vlessLink?.let { context.getString(ValidatorUtils.uriProtocolStringRes(it)) }
+        val vlessProtocolLabel = xraySession?.vless?.vlessLink?.let {
+            context.getString(
+                ValidatorUtils.uriProtocolStringRes(it)
+            )
+        }
             ?: context.getString(R.string.vless)
         val vpnState = VpnServiceState.state.value
         val restartAttempt = CoreServiceState.restartAttempt.value
@@ -86,9 +91,12 @@ object NotificationHelper {
                 coreStatusText != null -> coreStatusText
                 restartAttempt != null -> restartAttempt.label(context)
                 coreStatus is CoreStatus.Suppressed -> {
-                    if (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute) context.getString(R.string.direct_route_active)
+                    if (xrayState == XrayState.Running || xrayState == XrayState.DirectRoute) context.getString(
+                        R.string.direct_route_active
+                    )
                     else context.getString(R.string.connecting)
                 }
+
                 else -> when (coreStatus) {
                     is CoreStatus.Connected -> context.getString(R.string.core_active)
                     is CoreStatus.Starting -> context.getString(R.string.starting)
@@ -101,7 +109,7 @@ object NotificationHelper {
             }
             if (pStatus.isNotEmpty()) statusParts.add(pStatus)
         }
-        
+
         val xrayProtocolLabel = when {
             clientConfig?.kernelVariant?.isSocks5Native == true -> {
                 when (xrayState) {
@@ -111,10 +119,12 @@ object NotificationHelper {
                     else -> null
                 }
             }
+
             xrayState == XrayState.Running || xrayState == XrayState.DirectRoute || xrayState == XrayState.Starting || xrayState == XrayState.Connecting -> {
                 if (xraySession?.vless != null) vlessProtocolLabel
                 else context.getString(R.string.wg_short)
             }
+
             else -> null
         }
 
@@ -132,7 +142,9 @@ object NotificationHelper {
         }
 
         val limitedProfileName = profileNameSnapshot?.take(15)
-        val kernelPart = clientConfig?.let { KernelRegistry.get(it.kernelVariant).description(context, it.kernelConfig) }
+        val kernelPart = clientConfig?.let {
+            KernelRegistry.get(it.kernelVariant).description(context, it.kernelConfig)
+        }
         val subText = listOfNotNull(limitedProfileName, kernelPart).joinToString(" • ")
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
@@ -151,24 +163,24 @@ object NotificationHelper {
                 context, NotificationActionReceiver::class.java, CoreActionReceiver.STOP_CORE
             )
             val stopCorePendingIntent = PendingIntent.getBroadcast(
-                context, 
-                100, 
+                context,
+                100,
                 stopCoreIntent,
                 PendingIntent.FLAG_IMMUTABLE
             )
-            
+
             builder.addAction(
                 android.R.drawable.ic_menu_close_clear_cancel,
                 context.getString(R.string.core_stop),
                 stopCorePendingIntent
             )
-            
+
             val changeProfileIntent = Intent(context, ProfileDialogActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
             val changeProfilePendingIntent = PendingIntent.getActivity(
-                context, 
-                103, 
+                context,
+                103,
                 changeProfileIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
@@ -184,12 +196,12 @@ object NotificationHelper {
                 context, NotificationActionReceiver::class.java, CoreActionReceiver.STOP_VPN
             )
             val stopVpnPendingIntent = PendingIntent.getBroadcast(
-                context, 
-                101, 
+                context,
+                101,
                 stopVpnIntent,
                 PendingIntent.FLAG_IMMUTABLE
             )
-            
+
             builder.addAction(
                 android.R.drawable.ic_menu_close_clear_cancel,
                 context.getString(R.string.vpn_stop),
@@ -218,10 +230,11 @@ object NotificationHelper {
 
     // partial: the tunnel still works on its other streams (see CaptchaSession.partial).
     fun notifyCaptcha(context: Context, url: String, partial: Boolean) {
-        val captchaIntent = Intent(context, com.wireturn.app.ui.activities.CaptchaActivity::class.java).apply {
-            putExtra("CAPTCHA_URL", url)
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-        }
+        val captchaIntent =
+            Intent(context, com.wireturn.app.ui.activities.CaptchaActivity::class.java).apply {
+                putExtra("CAPTCHA_URL", url)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
         val pendingIntent = PendingIntent.getActivity(
             context,
             1,
@@ -230,12 +243,16 @@ object NotificationHelper {
         )
 
         val builder = NotificationCompat.Builder(context, CAPTCHA_CHANNEL_ID)
-            .setContentTitle(context.getString(
-                if (partial) R.string.captcha_partial_title else R.string.captcha_notification_title
-            ))
-            .setContentText(context.getString(
-                if (partial) R.string.captcha_partial_notification_text else R.string.captcha_notification_text
-            ))
+            .setContentTitle(
+                context.getString(
+                    if (partial) R.string.captcha_partial_title else R.string.captcha_notification_title
+                )
+            )
+            .setContentText(
+                context.getString(
+                    if (partial) R.string.captcha_partial_notification_text else R.string.captcha_notification_text
+                )
+            )
             .setSmallIcon(R.drawable.ic_launcher_small)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -252,9 +269,10 @@ object NotificationHelper {
     }
 
     fun notifyError(context: Context, message: String) {
-        val openAppIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.let {
-            PendingIntent.getActivity(context, 2, it, PendingIntent.FLAG_IMMUTABLE)
-        }
+        val openAppIntent =
+            context.packageManager.getLaunchIntentForPackage(context.packageName)?.let {
+                PendingIntent.getActivity(context, 2, it, PendingIntent.FLAG_IMMUTABLE)
+            }
 
         val builder = NotificationCompat.Builder(context, ERROR_CHANNEL_ID)
             .setContentTitle(context.getString(R.string.error_notification_title))
@@ -300,7 +318,8 @@ object NotificationHelper {
         val status = CoreServiceState.status.value
         if (status !is CoreStatus.Idle ||
             XrayServiceState.state.value != XrayState.Idle ||
-            VpnServiceState.state.value != VpnState.Idle) {
+            VpnServiceState.state.value != VpnState.Idle
+        ) {
             nm.notify(NOTIFICATION_ID, buildNotification(context))
         } else {
             nm.cancel(NOTIFICATION_ID)

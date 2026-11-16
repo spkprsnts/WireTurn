@@ -74,7 +74,8 @@ fun IconSwitch(
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource? = null
 ) {
-    val internalInteractionSource = interactionSource ?: LocalSettingsInteractionSource.current ?: remember { MutableInteractionSource() }
+    val internalInteractionSource = interactionSource ?: LocalSettingsInteractionSource.current
+    ?: remember { MutableInteractionSource() }
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
         Switch(
             checked = checked,
@@ -83,7 +84,11 @@ fun IconSwitch(
             modifier = modifier,
             interactionSource = internalInteractionSource,
             thumbContent = {
-                Crossfade(targetState = checked, animationSpec = MaterialTheme.motionScheme.fastEffectsSpec(), label = "switch_icon") { isChecked ->
+                Crossfade(
+                    targetState = checked,
+                    animationSpec = MaterialTheme.motionScheme.fastEffectsSpec(),
+                    label = "switch_icon"
+                ) { isChecked ->
                     if (isChecked) {
                         Icon(
                             painter = painterResource(R.drawable.check_24px),
@@ -291,7 +296,12 @@ fun ButtonGroupScope.selectableButtonItem(
             val interactionSource = remember { MutableInteractionSource() }
 
             val shapes = when {
-                count == 1 -> ToggleButtonShapes(shape = CircleShape, pressedShape = CircleShape, checkedShape = CircleShape)
+                count == 1 -> ToggleButtonShapes(
+                    shape = CircleShape,
+                    pressedShape = CircleShape,
+                    checkedShape = CircleShape
+                )
+
                 index == 0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
                 index == count - 1 -> ButtonGroupDefaults.connectedTrailingButtonShapes()
                 else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
@@ -366,15 +376,17 @@ fun SwitchRow(
     supportingSingleLine: Boolean = false
 ) {
     val parentInteractionSource = LocalSettingsInteractionSource.current
-    val internalInteractionSource = interactionSource ?: parentInteractionSource ?: remember { MutableInteractionSource() }
-    
+    val internalInteractionSource =
+        interactionSource ?: parentInteractionSource ?: remember { MutableInteractionSource() }
+
     // Decouple switch interaction from parent if in split mode to avoid whole block ripple on toggle
-    val switchInteractionSource = if (onRowClick != null || isSplit) remember { MutableInteractionSource() } else internalInteractionSource
+    val switchInteractionSource =
+        if (onRowClick != null || isSplit) remember { MutableInteractionSource() } else internalInteractionSource
 
     // Auto-disable internal clickable if we are inside a SettingsGroupItem that handles the interaction source,
     // or if we have an explicit onRowClick.
     val actualClickable = onRowClick == null && !isSplit &&
-        (parentInteractionSource == null || interactionSource != null) && clickable
+            (parentInteractionSource == null || interactionSource != null) && clickable
 
     Row(
         verticalAlignment = Alignment.CenterVertically,

@@ -35,23 +35,31 @@ import kotlin.time.Duration.Companion.milliseconds
 class XrayService : Service() {
 
     private val process = AtomicReference<Process?>()
+
     // ByeDPI for the current Xray run (see startByeDpi) - started before Xray, stopped with it.
     private val byeDpiProcess = AtomicReference<Process?>()
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var xrayJob: kotlinx.coroutines.Job? = null
     private val userStopped = java.util.concurrent.atomic.AtomicBoolean(false)
+
     // Set by reload() just before it kills the process: startXray's exit then starts it over at
     // once instead of going Idle and through the watchdog.
     private val reloadRequested = java.util.concurrent.atomic.AtomicBoolean(false)
     private var restartCount = 0
+
     // elapsedRealtime the current run's process started at, 0 before it does - a run that lasted
     // starts the watchdog's count over, as in CoreService.
-    @Volatile private var runStartedAt = 0L
-    @Volatile private var watchdogSettings = WatchdogSettings()
+    @Volatile
+    private var runStartedAt = 0L
+    @Volatile
+    private var watchdogSettings = WatchdogSettings()
+
     // The watchdog's restart waiting on [handler], null when none is.
-    @Volatile private var pendingRestart: Runnable? = null
+    @Volatile
+    private var pendingRestart: Runnable? = null
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
-    @Volatile private var caBundlePath: String? = null
+    @Volatile
+    private var caBundlePath: String? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -68,7 +76,8 @@ class XrayService : Service() {
     // Masks credentials/keys for the app's own log, which the user may end up sharing for
     // support - the actual cmdArgs passed to the process are untouched.
     private fun redactedCommandLog(cmdArgs: List<String>): String {
-        val sensitiveFlags = setOf("-proxy-user", "-proxy-pass", "-local-socks5", "-link", "-wg-private-key")
+        val sensitiveFlags =
+            setOf("-proxy-user", "-proxy-pass", "-local-socks5", "-link", "-wg-private-key")
         return CommandLogRedactor.redact(cmdArgs, sensitiveFlags)
     }
 
@@ -96,7 +105,7 @@ class XrayService : Service() {
 
         xrayJob?.cancel()
         process.getAndSet(null)?.destroyForcibly()
-        
+
         XrayServiceState.updateStatus(XrayState.Starting)
 
         try {
@@ -111,7 +120,12 @@ class XrayService : Service() {
                 startForeground(NotificationHelper.NOTIFICATION_ID, notification)
             }
         } catch (e: Exception) {
-            AppLogsState.addLog(getString(R.string.log_xray_foreground_failed, e.message ?: "Unknown"))
+            AppLogsState.addLog(
+                getString(
+                    R.string.log_xray_foreground_failed,
+                    e.message ?: "Unknown"
+                )
+            )
         }
 
         xrayJob = serviceScope.launch {
@@ -119,7 +133,8 @@ class XrayService : Service() {
             val rawWg = prefs.wgConfigFlow.first()
             val rawXray = prefs.xrayConfigFlow.first()
             val rawVless = prefs.vlessConfigFlow.first()
-            val rawClient = CoreServiceState.session.value?.clientConfig ?: prefs.clientConfigFlow.first()
+            val rawClient =
+                CoreServiceState.session.value?.clientConfig ?: prefs.clientConfigFlow.first()
             val rawXraySettings = prefs.xraySettingsFlow.first()
             val vpnIpv6 = prefs.vpnSettingsFlow.first().ipv6
 
@@ -166,7 +181,8 @@ class XrayService : Service() {
             val runningClientConfig = snapshot.client
             // An Xray-only profile (XrayKernel): its own link, straight to the server - no kernel
             // address to reach it through, and none of the overlay's routing (dual route, chain).
-            val xrayOnly = (runningClientConfig.kernelConfig as? com.wireturn.app.data.KernelConfig.Xray)?.config
+            val xrayOnly =
+                (runningClientConfig.kernelConfig as? com.wireturn.app.data.KernelConfig.Xray)?.config
             val xrayOnlyLink = xrayOnly?.link
             val xrayConfig = if (xrayOnly != null) {
                 XrayConfig(enabled = true, protocol = com.wireturn.app.data.XrayConfiguration.VLESS)
@@ -175,7 +191,7 @@ class XrayService : Service() {
                 VlessConfig(vlessLink = xrayOnly.link, mux = xrayOnly.mux).fillDefaults()
             } else snapshot.vless
             val xraySettings = snapshot.settings
-            
+
             val isXrayVless = xrayConfig.protocol == com.wireturn.app.data.XrayConfiguration.VLESS
 
             val isSocks5Native = runningClientConfig.kernelVariant.isSocks5Native
@@ -202,14 +218,17 @@ class XrayService : Service() {
             }
 
             // Фиксируем только тот конфиг, который реально запускаем
-            XrayServiceState.setSession(XrayServiceState.RunningSession(
-                wg = if (isXrayVless) null else wgConfig,
-                xray = xrayConfig,
-                vless = if (isXrayVless) vlessConfig else null,
-                settings = xraySettings
-            ))
+            XrayServiceState.setSession(
+                XrayServiceState.RunningSession(
+                    wg = if (isXrayVless) null else wgConfig,
+                    xray = xrayConfig,
+                    vless = if (isXrayVless) vlessConfig else null,
+                    settings = xraySettings
+                )
+            )
 
-            val socketName = "sys.ipc.${java.util.UUID.randomUUID().toString().replace("-", "").take(12)}"
+            val socketName =
+                "sys.ipc.${java.util.UUID.randomUUID().toString().replace("-", "").take(12)}"
 
             val cmdArgs = mutableListOf(
                 executable,
@@ -278,16 +297,19 @@ class XrayService : Service() {
             if (isSocks5Native) {
                 cmdArgs.add("-local-socks5")
                 // socksAddr may be bound to 0.0.0.0; Xray needs a literal destination.
-                val connectableSocksAddr = runningClientConfig.socksAddr.replace("0.0.0.0:", "127.0.0.1:")
+                val connectableSocksAddr =
+                    runningClientConfig.socksAddr.replace("0.0.0.0:", "127.0.0.1:")
                 // Some kernels' embedded SOCKS5 server has no auth flags upstream (see
                 // Kernel.socks5SupportsAuth) - never offer credentials it doesn't expect,
                 // regardless of isSocksAuthEnabled.
-                val socksAddr = if (KernelRegistry.get(runningClientConfig.kernelVariant).socks5SupportsAuth &&
-                    runningClientConfig.isSocksAuthEnabled && runningClientConfig.socksUser.isNotBlank()) {
-                    "${runningClientConfig.socksUser}:${runningClientConfig.socksPass}@$connectableSocksAddr"
-                } else {
-                    connectableSocksAddr
-                }
+                val socksAddr =
+                    if (KernelRegistry.get(runningClientConfig.kernelVariant).socks5SupportsAuth &&
+                        runningClientConfig.isSocksAuthEnabled && runningClientConfig.socksUser.isNotBlank()
+                    ) {
+                        "${runningClientConfig.socksUser}:${runningClientConfig.socksPass}@$connectableSocksAddr"
+                    } else {
+                        connectableSocksAddr
+                    }
                 cmdArgs.add(socksAddr)
             } else if (xrayOnlyLink == null) {
                 // For other kernels, always use local proxy address
@@ -297,7 +319,7 @@ class XrayService : Service() {
 
             if (isXrayVless) {
                 val shouldAddLink = !isSocks5Native ||
-                    ((vlessConfig.isDualRoute || vlessConfig.isSocks5Chain) && vlessConfig.vlessLink.isNotBlank())
+                        ((vlessConfig.isDualRoute || vlessConfig.isSocks5Chain) && vlessConfig.vlessLink.isNotBlank())
 
                 if (shouldAddLink) {
                     cmdArgs.addAll(listOf("-link", vlessConfig.vlessLink))
@@ -309,7 +331,8 @@ class XrayService : Service() {
                 }
 
                 // The direct route goes to the link's own server address (see VlessConfig.migrateDirectAddress).
-                val directAddress = com.wireturn.app.ui.ValidatorUtils.parseVlessAddress(vlessConfig.vlessLink)
+                val directAddress =
+                    com.wireturn.app.ui.ValidatorUtils.parseVlessAddress(vlessConfig.vlessLink)
                 if (vlessConfig.isDualRoute && directAddress != null) {
                     cmdArgs.add("-direct-address")
                     cmdArgs.add(directAddress)
@@ -328,13 +351,15 @@ class XrayService : Service() {
                     cmdArgs.add("-socks5-chain")
                 }
             } else if (!isSocks5Native) {
-                cmdArgs.addAll(listOf(
-                    "-wg-private-key", wgConfig.privateKey,
-                    "-wg-public-key", wgConfig.publicKey,
-                    "-wg-endpoint", runningClientConfig.connectableAddress,
-                    "-wg-address", wgConfig.address,
-                    "-wg-mtu", wgConfig.mtu,
-                    "-wg-keepalive", wgConfig.persistentKeepalive)
+                cmdArgs.addAll(
+                    listOf(
+                        "-wg-private-key", wgConfig.privateKey,
+                        "-wg-public-key", wgConfig.publicKey,
+                        "-wg-endpoint", runningClientConfig.connectableAddress,
+                        "-wg-address", wgConfig.address,
+                        "-wg-mtu", wgConfig.mtu,
+                        "-wg-keepalive", wgConfig.persistentKeepalive
+                    )
                 )
             }
 
@@ -360,11 +385,12 @@ class XrayService : Service() {
                     AppLogsState.addLog("* [Xray] $cleanLine", xrayLogLevel(cleanLine))
                     linesProcessed++
 
-                    if (!started && (cleanLine.contains("Xray started") || 
-                        cleanLine.contains("proxy on") || 
-                        cleanLine.contains("Listening"))) {
+                    if (!started && (cleanLine.contains("Xray started") ||
+                                cleanLine.contains("proxy on") ||
+                                cleanLine.contains("Listening"))
+                    ) {
                         started = true
-                        
+
                         if (!(isXrayVless && vlessConfig.isDualRoute)) {
                             XrayServiceState.updateStatus(XrayState.Running)
                         } else {
@@ -381,7 +407,12 @@ class XrayService : Service() {
                 proc.waitFor()
             }
             // Killed by reload() - not an exit worth reporting.
-            if (!reloadRequested.get()) AppLogsState.addLog(getString(R.string.log_xray_exited, exitCode))
+            if (!reloadRequested.get()) AppLogsState.addLog(
+                getString(
+                    R.string.log_xray_exited,
+                    exitCode
+                )
+            )
         } catch (_: InterruptedIOException) {
             // pass
         } catch (_: CancellationException) {
@@ -392,7 +423,7 @@ class XrayService : Service() {
             process.set(null)
             stopByeDpi()
             XrayServiceState.updateStatsSocketName(null)
-            
+
             // Only set Idle if we are NOT being cancelled by a new start command
             val isJobActive = try {
                 currentCoroutineContext()[kotlinx.coroutines.Job]?.isActive == true
@@ -429,22 +460,41 @@ class XrayService : Service() {
         // The previous run's ciadpi must be gone before a fixed port is bound again.
         byeDpiProcess.getAndSet(null)?.let { previous ->
             previous.destroyForcibly()
-            withContext(Dispatchers.IO) { previous.waitFor(1, java.util.concurrent.TimeUnit.SECONDS) }
+            withContext(Dispatchers.IO) {
+                previous.waitFor(
+                    1,
+                    java.util.concurrent.TimeUnit.SECONDS
+                )
+            }
         }
         return try {
             // A fixed port already taken makes ciadpi exit at once - reported below like any other failure.
             val port = ByeDpi.listenPort(settings.dpiBypassPort)
-            val args = listOf("${applicationInfo.nativeLibraryDir}/libbyedpi.so", "-i", "127.0.0.1", "-p", port.toString()) +
-                ByeDpi.userArgs(settings.dpiBypassArgs)
-            AppLogsState.addLog(getString(R.string.log_byedpi_starting, args.drop(1).joinToString(" ")))
-            val proc = withContext(Dispatchers.IO) { ProcessBuilder(args).redirectErrorStream(true).start() }
+            val args = listOf(
+                "${applicationInfo.nativeLibraryDir}/libbyedpi.so",
+                "-i",
+                "127.0.0.1",
+                "-p",
+                port.toString()
+            ) +
+                    ByeDpi.userArgs(settings.dpiBypassArgs)
+            AppLogsState.addLog(
+                getString(
+                    R.string.log_byedpi_starting,
+                    args.drop(1).joinToString(" ")
+                )
+            )
+            val proc = withContext(Dispatchers.IO) {
+                ProcessBuilder(args).redirectErrorStream(true).start()
+            }
             byeDpiProcess.set(proc)
             serviceScope.launch {
                 try {
                     proc.inputStream.bufferedReader().forEachLine { line ->
                         AppLogsState.addLog("* [ByeDPI] ${AppLogsState.stripAnsi(line)}")
                     }
-                } catch (_: Exception) { }
+                } catch (_: Exception) {
+                }
                 val code = proc.waitFor()
                 // Not when stopped on purpose (stopByeDpi clears the reference first).
                 if (byeDpiProcess.compareAndSet(proc, null)) {
@@ -453,7 +503,12 @@ class XrayService : Service() {
             }
             delay(300.milliseconds)
             if (!proc.isAlive) {
-                AppLogsState.addLog(getString(R.string.log_byedpi_failed, "exit ${proc.exitValue()}"))
+                AppLogsState.addLog(
+                    getString(
+                        R.string.log_byedpi_failed,
+                        "exit ${proc.exitValue()}"
+                    )
+                )
                 null
             } else {
                 "127.0.0.1:$port"
@@ -495,38 +550,49 @@ class XrayService : Service() {
                     CoreServiceState.setStatus(CoreStatus.Suppressed)
                 }
             }
+
             line.contains("active route: local") -> {
                 XrayServiceState.updateStatus(XrayState.Running)
-                
+
                 val directUnreachable = line.contains("direct unreachable")
                 val bothUnreachable = line.contains("both unreachable")
-                
+
                 if (directUnreachable || bothUnreachable) {
                     if (CoreServiceState.status.value is CoreStatus.Suppressed) {
                         AppLogsState.addLog(getString(R.string.log_dual_route_direct_lost))
                         CoreServiceState.setStatus(CoreStatus.Connecting)
                     }
-                    
+
                     if (!CoreServiceState.isRunning.value) {
                         AppLogsState.addLog(getString(R.string.log_dual_route_unreachable_start_tunnel))
                         serviceScope.launch {
                             val prefs = AppPreferences(applicationContext)
                             val cfg = prefs.clientConfigFlow.first()
                             CoreService.start(this@XrayService, cfg)
-                            
+
                             // Force Xray to check connection after tunnel starts
                             CoreServiceState.isWorking.first { it }
                             delay(500.milliseconds)
                             try {
                                 withContext(Dispatchers.IO) {
                                     val socket = LocalSocket()
-                                    socket.connect(LocalSocketAddress(socketName, LocalSocketAddress.Namespace.ABSTRACT))
+                                    socket.connect(
+                                        LocalSocketAddress(
+                                            socketName,
+                                            LocalSocketAddress.Namespace.ABSTRACT
+                                        )
+                                    )
                                     socket.outputStream.write("check 3\n".toByteArray())
                                     socket.inputStream.bufferedReader().readLine()
                                     socket.close()
                                 }
                             } catch (e: Exception) {
-                                AppLogsState.addLog(getString(R.string.log_dual_route_check_failed, e.message ?: "Unknown"))
+                                AppLogsState.addLog(
+                                    getString(
+                                        R.string.log_dual_route_check_failed,
+                                        e.message ?: "Unknown"
+                                    )
+                                )
                             }
                         }
                     }
@@ -557,7 +623,9 @@ class XrayService : Service() {
             }
             // Not running (starting): its next start is on the new network anyway. Started by
             // this very intent - don't linger as a bare service.
-            if (XrayServiceState.state.value == XrayState.Idle && xrayJob?.isActive != true) stopSelf(startId)
+            if (XrayServiceState.state.value == XrayState.Idle && xrayJob?.isActive != true) stopSelf(
+                startId
+            )
             return
         }
         AppLogsState.addLog(getString(R.string.log_xray_network_reload))
@@ -585,8 +653,17 @@ class XrayService : Service() {
             minOf(1000L * restartCount, 10000L)
         }
         AppLogsState.addLog(
-            if (watchdog.eternal) getString(R.string.log_xray_watchdog_restart_eternal, delay, restartCount)
-            else getString(R.string.log_xray_watchdog_restart, delay.toInt(), restartCount, MAX_RESTARTS)
+            if (watchdog.eternal) getString(
+                R.string.log_xray_watchdog_restart_eternal,
+                delay,
+                restartCount
+            )
+            else getString(
+                R.string.log_xray_watchdog_restart,
+                delay.toInt(),
+                restartCount,
+                MAX_RESTARTS
+            )
         )
 
         val restart = Runnable {

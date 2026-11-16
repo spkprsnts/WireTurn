@@ -15,10 +15,10 @@ enum class UriProtocol { VLESS, TROJAN, HYSTERIA2 }
 object ValidatorUtils {
     fun isValidHost(input: String): Boolean {
         return input.isNotBlank() && (
-            InetAddresses.isInetAddress(input) ||
-                PatternsCompat.DOMAIN_NAME.matcher(input).matches() ||
-                input.equals("localhost", ignoreCase = true)
-            )
+                InetAddresses.isInetAddress(input) ||
+                        PatternsCompat.DOMAIN_NAME.matcher(input).matches() ||
+                        input.equals("localhost", ignoreCase = true)
+                )
     }
 
     fun isValidPort(input: String): Boolean {
@@ -77,7 +77,11 @@ object ValidatorUtils {
      */
     fun detectUriProtocol(input: String): UriProtocol? {
         if (input.isBlank()) return null
-        val scheme = try { input.toUri().scheme } catch (_: Exception) { null } ?: return null
+        val scheme = try {
+            input.toUri().scheme
+        } catch (_: Exception) {
+            null
+        } ?: return null
         return when (scheme.lowercase()) {
             "vless" -> UriProtocol.VLESS
             "trojan" -> UriProtocol.TROJAN
@@ -131,7 +135,10 @@ object ValidatorUtils {
     fun isValidUrl(input: String): Boolean {
         return input.isNotBlank() && try {
             val uri = input.toUri()
-            (uri.scheme.equals("http", ignoreCase = true) || uri.scheme.equals("https", ignoreCase = true)) &&
+            (uri.scheme.equals("http", ignoreCase = true) || uri.scheme.equals(
+                "https",
+                ignoreCase = true
+            )) &&
                     !uri.host.isNullOrBlank()
         } catch (_: Exception) {
             false
@@ -140,7 +147,7 @@ object ValidatorUtils {
 
     fun isValidProxyUser(input: String): Boolean {
         return input.isBlank() ||
-            (input.all { it in 'a'..'z' || it in 'A'..'Z' || it.isDigit() || it == '-' || it == '_' || it == '.' } && input.length >= 3)
+                (input.all { it in 'a'..'z' || it in 'A'..'Z' || it.isDigit() || it == '-' || it == '_' || it == '.' } && input.length >= 3)
     }
 
     fun isValidProxyPass(input: String): Boolean {
@@ -148,11 +155,13 @@ object ValidatorUtils {
     }
 
     fun cleanProxyString(input: String): String {
-        return input.trim().filter { it in 'a'..'z' || it in 'A'..'Z' || it.isDigit() || it == '-' || it == '_' || it == '.' }
+        return input.trim()
+            .filter { it in 'a'..'z' || it in 'A'..'Z' || it.isDigit() || it == '-' || it == '_' || it == '.' }
     }
 
     fun isValidUuid4(input: String): Boolean {
-        val regex = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$")
+        val regex =
+            Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$")
         return input.isNotBlank() && regex.matches(input)
     }
 
@@ -163,8 +172,14 @@ object ValidatorUtils {
      * mode entirely (v3.0.0+) - it's udp-only now, unconditionally. Returns the kernel's required
      * socket ("tcp"/"udp") if it conflicts with what xrayProtocol/vlessLink actually need, else null.
      */
-    fun kernelTransportMismatch(kernelConfig: KernelConfig?, xrayProtocol: XrayConfiguration, vlessLink: String): String? {
-        val kernelRequiredSocket = kernelConfig?.let { KernelRegistry.get(it.variant).requiredTransport(it) } ?: return null
+    fun kernelTransportMismatch(
+        kernelConfig: KernelConfig?,
+        xrayProtocol: XrayConfiguration,
+        vlessLink: String
+    ): String? {
+        val kernelRequiredSocket =
+            kernelConfig?.let { KernelRegistry.get(it.variant).requiredTransport(it) }
+                ?: return null
 
         val xrayNeedsUdp = when (xrayProtocol) {
             XrayConfiguration.WIREGUARD -> true

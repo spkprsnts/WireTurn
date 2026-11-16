@@ -18,7 +18,8 @@ object OlcrtcKernel : Kernel {
     override fun logLabel(cfg: KernelConfig): String =
         "Olcrtc (${(cfg as KernelConfig.Olcrtc).config.provider})"
 
-    override fun localSettingsChanged(old: ClientConfig, new: ClientConfig): Boolean = socksListenerChanged(old, new)
+    override fun localSettingsChanged(old: ClientConfig, new: ClientConfig): Boolean =
+        socksListenerChanged(old, new)
 
     override val connectingOnStart: Boolean = true
     override val displayNameRes: Int = R.string.kernel_olcrtc
@@ -40,16 +41,18 @@ object OlcrtcKernel : Kernel {
                 config.videoCodec == "tile" -> context.getString(R.string.kernel_tag_tile)
                 else -> null
             },
-            context.getString(R.string.kernel_tag_no_auto_restart).takeIf { !config.restartOnConnectionErrors }
+            context.getString(R.string.kernel_tag_no_auto_restart)
+                .takeIf { !config.restartOnConnectionErrors }
         )
     }
 
-    override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int = when ((cfg as KernelConfig.Olcrtc).config.provider) {
-        "wbstream" -> R.drawable.ic_wbstream
-        "telemost" -> R.drawable.ic_telemost
-        "jitsi" -> R.drawable.ic_jitsi
-        else -> if (outlined) R.drawable.mobile_outlined_24px else R.drawable.mobile_24px
-    }
+    override fun iconRes(cfg: KernelConfig, outlined: Boolean): Int =
+        when ((cfg as KernelConfig.Olcrtc).config.provider) {
+            "wbstream" -> R.drawable.ic_wbstream
+            "telemost" -> R.drawable.ic_telemost
+            "jitsi" -> R.drawable.ic_jitsi
+            else -> if (outlined) R.drawable.mobile_outlined_24px else R.drawable.mobile_24px
+        }
 
     override val defaultProfileName: String = "Olcrtc Server"
 
@@ -86,7 +89,11 @@ object OlcrtcKernel : Kernel {
             // Per-profile dns first, then the global ConnectionSettingsScreen default, then the
             // hardcoded fallback - unlike WebDAV's -dns, olcRTC hard-fails startup ("dns server
             // required") if this ends up empty, so this chain must never bottom out blank.
-            appendLine("  dns: \"${o.dns.ifBlank { cfg.dns }.ifBlank { ClientConfig.DEFAULT_DNS }}\"")
+            appendLine(
+                "  dns: \"${
+                    o.dns.ifBlank { cfg.dns }.ifBlank { ClientConfig.DEFAULT_DNS }
+                }\""
+            )
             appendLine("socks:")
             appendLine("  host: \"${cfg.socksAddr.substringBefore(':').ifBlank { "127.0.0.1" }}\"")
             appendLine("  port: ${cfg.socksAddr.substringAfter(':', "9001").ifBlank { "9001" }}")
@@ -100,6 +107,7 @@ object OlcrtcKernel : Kernel {
                     appendLine("  fps: ${o.vp8Fps}")
                     appendLine("  batch_size: ${o.vp8Batch}")
                 }
+
                 "seichannel" -> {
                     appendLine("sei:")
                     appendLine("  fps: ${o.seiFps}")
@@ -107,6 +115,7 @@ object OlcrtcKernel : Kernel {
                     appendLine("  fragment_size: ${o.seiFrag}")
                     appendLine("  ack_timeout_ms: ${o.seiAckMs}")
                 }
+
                 "videochannel" -> {
                     appendLine("video:")
                     appendLine("  codec: ${o.videoCodec}")
@@ -140,7 +149,13 @@ object OlcrtcKernel : Kernel {
 
     private val SOCKS_TUNNEL_LINE = Regex("""\bsid=\d+ tunnel to """)
 
-    override suspend fun parseLogLine(line: String, lower: String, state: BinaryOutputState, ctx: KernelLogContext, cfg: ClientConfig): Boolean {
+    override suspend fun parseLogLine(
+        line: String,
+        lower: String,
+        state: BinaryOutputState,
+        ctx: KernelLogContext,
+        cfg: ClientConfig
+    ): Boolean {
         val olcrtcConfig = (cfg.kernelConfig as? KernelConfig.Olcrtc)?.config ?: OlcrtcConfig()
 
         if (lower.contains("join room failed: status 404") || lower.contains("guests cannot create rooms")) {
@@ -195,7 +210,10 @@ object OlcrtcKernel : Kernel {
             return true
         }
 
-        if (olcrtcConfig.restartOnConnectionErrors && (lower.contains("remote not ready") || lower.contains("openstream failed"))) {
+        if (olcrtcConfig.restartOnConnectionErrors && (lower.contains("remote not ready") || lower.contains(
+                "openstream failed"
+            ))
+        ) {
             if (state.remoteNotReadyCounter.recordAndCheckThreshold()) {
                 com.wireturn.app.AppLogsState.addLog(ctx.getString(R.string.log_core_too_many_remote_not_ready))
                 state.startupEmitted = true // Trigger watchdog

@@ -95,7 +95,18 @@ fun ConnectionSettingsScreen(
 
     val scrollState = rememberScrollState()
 
-    val currentClientConfig = remember(listenAddr, clientSocks, clientSocksAuth, clientSocksUser, clientSocksPass, dns, goDnsGo, useCustomCerts, defaultVkCalls, initialClientConfig) {
+    val currentClientConfig = remember(
+        listenAddr,
+        clientSocks,
+        clientSocksAuth,
+        clientSocksUser,
+        clientSocksPass,
+        dns,
+        goDnsGo,
+        useCustomCerts,
+        defaultVkCalls,
+        initialClientConfig
+    ) {
         initialClientConfig.copy(
             listenAddr = listenAddr,
             socksAddr = clientSocks,
@@ -111,14 +122,14 @@ fun ConnectionSettingsScreen(
 
     val isModified = remember(currentClientConfig, initialClientConfig) {
         currentClientConfig.listenAddr != initialClientConfig.listenAddr ||
-        currentClientConfig.dns != initialClientConfig.dns ||
-        currentClientConfig.defaultVkCalls != initialClientConfig.defaultVkCalls ||
-        currentClientConfig.goDnsGo != initialClientConfig.goDnsGo ||
-        currentClientConfig.useCustomCerts != initialClientConfig.useCustomCerts ||
-        currentClientConfig.socksAddr != initialClientConfig.socksAddr ||
-        currentClientConfig.isSocksAuthEnabled != initialClientConfig.isSocksAuthEnabled ||
-        currentClientConfig.socksUser != initialClientConfig.socksUser ||
-        currentClientConfig.socksPass != initialClientConfig.socksPass
+                currentClientConfig.dns != initialClientConfig.dns ||
+                currentClientConfig.defaultVkCalls != initialClientConfig.defaultVkCalls ||
+                currentClientConfig.goDnsGo != initialClientConfig.goDnsGo ||
+                currentClientConfig.useCustomCerts != initialClientConfig.useCustomCerts ||
+                currentClientConfig.socksAddr != initialClientConfig.socksAddr ||
+                currentClientConfig.isSocksAuthEnabled != initialClientConfig.isSocksAuthEnabled ||
+                currentClientConfig.socksUser != initialClientConfig.socksUser ||
+                currentClientConfig.socksPass != initialClientConfig.socksPass
     }
 
     val showExitDialog = remember { mutableStateOf(false) }
@@ -345,11 +356,14 @@ fun ConnectionSettingsScreen(
             // SOCKS5-native kernels (olcRTC, WebDAV, qWDTT, OpenFlux - see KernelVariant.isSocks5Native)
             val kernelSupportsSocksAuth = initialClientConfig.kernelVariant.socks5SupportsAuth
             val clientSocksIsPublic = clientSocks.isNotEmpty() &&
-                    ValidatorUtils.isValidHostPort(clientSocks) && !ValidatorUtils.isLoopbackHostPort(clientSocks)
+                    ValidatorUtils.isValidHostPort(clientSocks) && !ValidatorUtils.isLoopbackHostPort(
+                clientSocks
+            )
             // Mirrors ClientConfig.socksNativeValidationError: OpenFlux can't authenticate at all,
             // so a public bind is never allowed for it, regardless of the auth toggle below.
             val clientSocksPublicNoAuthSupport = clientSocksIsPublic && !kernelSupportsSocksAuth
-            val clientSocksPublicNeedsAuth = clientSocksIsPublic && kernelSupportsSocksAuth && !clientSocksAuth
+            val clientSocksPublicNeedsAuth =
+                clientSocksIsPublic && kernelSupportsSocksAuth && !clientSocksAuth
             SectionGroup(title = stringResource(R.string.settings_group_kernel_socks5)) {
                 SectionItem(position = ItemPosition.Top) {
                     TextFieldRow(
@@ -357,7 +371,9 @@ fun ConnectionSettingsScreen(
                         value = clientSocks.redact(privacyMode),
                         onValueChange = { if (!privacyMode) clientSocks = it },
                         placeholder = ClientConfig.DEFAULT_SOCKS_ADDR,
-                        isError = (clientSocks.isNotEmpty() && !ValidatorUtils.isValidHostPort(clientSocks)) || clientSocksPublicNeedsAuth || clientSocksPublicNoAuthSupport,
+                        isError = (clientSocks.isNotEmpty() && !ValidatorUtils.isValidHostPort(
+                            clientSocks
+                        )) || clientSocksPublicNeedsAuth || clientSocksPublicNoAuthSupport,
                         supportingText = when {
                             clientSocksPublicNoAuthSupport -> stringResource(R.string.error_socks_public_no_auth_support)
                             clientSocksPublicNeedsAuth -> stringResource(R.string.error_socks_public_requires_auth)

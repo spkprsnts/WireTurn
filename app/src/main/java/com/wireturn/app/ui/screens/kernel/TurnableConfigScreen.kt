@@ -138,7 +138,7 @@ fun TurnableConfigScreen(
     }
 
     BackHandler(enabled = isEditMode && isModified, onBack = handleBack)
-    
+
     val scrollState = rememberScrollState()
     val context = LocalContext.current
     val clipboard = LocalClipboard.current
@@ -228,12 +228,19 @@ fun TurnableConfigScreen(
                         ) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.import_clipboard)) },
-                                leadingIcon = { Icon(painterResource(R.drawable.content_paste_24px), null) },
+                                leadingIcon = {
+                                    Icon(
+                                        painterResource(R.drawable.content_paste_24px),
+                                        null
+                                    )
+                                },
                                 onClick = {
                                     showImportMenu = false
                                     scope.launch {
                                         val clipEntry = clipboard.getClipEntry()
-                                        val text = clipEntry?.clipData?.getItemAt(0)?.text?.toString() ?: ""
+                                        val text =
+                                            clipEntry?.clipData?.getItemAt(0)?.text?.toString()
+                                                ?: ""
                                         val parsed = TurnableConfig.parse(text)
                                         if (parsed != null) {
                                             config = parsed
@@ -246,7 +253,12 @@ fun TurnableConfigScreen(
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.import_file)) },
-                                leadingIcon = { Icon(painterResource(R.drawable.file_open_24px), null) },
+                                leadingIcon = {
+                                    Icon(
+                                        painterResource(R.drawable.file_open_24px),
+                                        null
+                                    )
+                                },
                                 onClick = {
                                     showImportMenu = false
                                     filePickerLauncher.launch("*/*")
@@ -304,7 +316,7 @@ fun TurnableConfigScreen(
                     icon = {
                         Icon(
                             painter = painterResource(
-                                if (isEditMode) R.drawable.save_24px 
+                                if (isEditMode) R.drawable.save_24px
                                 else R.drawable.arrow_forward_ios_24px
                             ),
                             contentDescription = null
@@ -401,7 +413,9 @@ fun TurnableConfigScreen(
                     TextFieldRow(
                         label = stringResource(R.string.gateway_label),
                         value = config.gateway.redact(isPrivacyActive),
-                        onValueChange = { if (!isPrivacyActive) config = config.copy(gateway = it) },
+                        onValueChange = {
+                            if (!isPrivacyActive) config = config.copy(gateway = it)
+                        },
                         readOnly = isPrivacyActive,
                         supportingText = stringResource(R.string.gateway_desc),
                         isModified = isEditMode && config.gateway != initialConfig.gateway,
@@ -428,12 +442,16 @@ fun TurnableConfigScreen(
                 }
                 SectionItem {
                     val isUuidEmpty = config.userUuid.isNullOrBlank()
-                    val invalidUuid = config.userUuid?.let { it.isNotBlank() && !ValidatorUtils.isValidUuid4(it) } ?: false
+                    val invalidUuid =
+                        config.userUuid?.let { it.isNotBlank() && !ValidatorUtils.isValidUuid4(it) }
+                            ?: false
 
                     TextFieldRow(
                         label = stringResource(R.string.user_uuid_label),
                         value = (config.userUuid ?: "").redact(isPrivacyActive),
-                        onValueChange = { if (!isPrivacyActive) config = config.copy(userUuid = it) },
+                        onValueChange = {
+                            if (!isPrivacyActive) config = config.copy(userUuid = it)
+                        },
                         readOnly = isPrivacyActive,
                         supportingText = stringResource(R.string.user_uuid_desc),
                         isModified = isEditMode && config.userUuid != initialConfig.userUuid,
@@ -490,7 +508,8 @@ fun TurnableConfigScreen(
                 }
                 // mpath always encrypts end to end, so the encryption mode doesn't apply to it - its
                 // outer masking does instead (the binary runs only the selected route, see toUri).
-                val activeRoute = config.routes.find { it.routeId == config.selectedRouteId } ?: config.routes.firstOrNull()
+                val activeRoute = config.routes.find { it.routeId == config.selectedRouteId }
+                    ?: config.routes.firstOrNull()
                 if (activeRoute?.transport == "mpath") SectionItem(position = ItemPosition.Bottom) {
                     SwitchRow(
                         label = stringResource(R.string.turnable_mask_label),
@@ -680,7 +699,8 @@ fun RoutesBlock(
     modifier: Modifier = Modifier,
     isModified: Boolean = false
 ) {
-    val selectedRoute = config.routes.find { it.routeId == config.selectedRouteId } ?: config.routes.firstOrNull()
+    val selectedRoute =
+        config.routes.find { it.routeId == config.selectedRouteId } ?: config.routes.firstOrNull()
     if (selectedRoute != null) {
         val iconRes = when (selectedRoute.socket.lowercase()) {
             "tcp" -> R.drawable.compare_arrows_24px
@@ -707,7 +727,9 @@ fun RoutesBlock(
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
-                        modifier = Modifier.basicMarquee().weight(1f, fill = false)
+                        modifier = Modifier
+                            .basicMarquee()
+                            .weight(1f, fill = false)
                     )
                     ModifiedIndicator(isModified)
                 }
@@ -843,7 +865,7 @@ fun RouteEditDialog(
                     isError = id.isBlank(),
                     singleLine = true
                 )
-                
+
                 SectionGroup(title = stringResource(R.string.route_socket_label)) {
                     LabeledButtonGroup {
                         val options = listOf("tcp", "udp")
@@ -880,7 +902,13 @@ fun RouteEditDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    onSave(TurnableRoute(routeId = id, name = name.ifBlank { id }, socket = socket, transport = transport.ifBlank { null }))
+                    onSave(
+                        TurnableRoute(
+                            routeId = id,
+                            name = name.ifBlank { id },
+                            socket = socket,
+                            transport = transport.ifBlank { null })
+                    )
                 },
                 enabled = id.isNotBlank() && socket.isNotBlank()
             ) {

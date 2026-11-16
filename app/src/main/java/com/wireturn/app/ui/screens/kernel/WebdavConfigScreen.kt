@@ -98,7 +98,7 @@ fun WebdavConfigScreen(
     onSave: (WebdavConfig) -> Unit
 ) {
     val isPrivacyActive = privacyMode && isEditMode
-    
+
     var config by remember(initialConfig) { mutableStateOf(initialConfig) }
 
     val isModified = config != initialConfig
@@ -212,12 +212,19 @@ fun WebdavConfigScreen(
                         ) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.import_clipboard)) },
-                                leadingIcon = { Icon(painterResource(R.drawable.content_paste_24px), null) },
+                                leadingIcon = {
+                                    Icon(
+                                        painterResource(R.drawable.content_paste_24px),
+                                        null
+                                    )
+                                },
                                 onClick = {
                                     showImportMenu = false
                                     scope.launch {
                                         val clipEntry = clipboard.getClipEntry()
-                                        val text = clipEntry?.clipData?.getItemAt(0)?.text?.toString() ?: ""
+                                        val text =
+                                            clipEntry?.clipData?.getItemAt(0)?.text?.toString()
+                                                ?: ""
                                         val parsed = WebdavConfig.parse(text)
                                         if (parsed != null) {
                                             config = parsed
@@ -230,7 +237,12 @@ fun WebdavConfigScreen(
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.import_file)) },
-                                leadingIcon = { Icon(painterResource(R.drawable.file_open_24px), null) },
+                                leadingIcon = {
+                                    Icon(
+                                        painterResource(R.drawable.file_open_24px),
+                                        null
+                                    )
+                                },
                                 onClick = {
                                     showImportMenu = false
                                     filePickerLauncher.launch("*/*")
@@ -247,7 +259,7 @@ fun WebdavConfigScreen(
                                     contentDescription = stringResource(R.string.share)
                                 )
                             }
-                            
+
                             ShareDropdownMenu(
                                 expanded = showMenu.value,
                                 onDismissRequest = { showMenu.value = false },
@@ -288,7 +300,7 @@ fun WebdavConfigScreen(
                     icon = {
                         Icon(
                             painter = painterResource(
-                                if (isEditMode) R.drawable.save_24px 
+                                if (isEditMode) R.drawable.save_24px
                                 else R.drawable.arrow_forward_ios_24px
                             ),
                             contentDescription = null
@@ -355,7 +367,9 @@ fun WebdavConfigScreen(
                     TextFieldRow(
                         label = stringResource(R.string.webdav_password_label),
                         value = config.password.redact(isPrivacyActive),
-                        onValueChange = { if (!isPrivacyActive) config = config.copy(password = it) },
+                        onValueChange = {
+                            if (!isPrivacyActive) config = config.copy(password = it)
+                        },
                         readOnly = isPrivacyActive,
                         isModified = isEditMode && config.password != initialConfig.password,
                         privacyMode = isPrivacyActive,
@@ -366,7 +380,10 @@ fun WebdavConfigScreen(
                     position = ItemPosition.Bottom,
                     onClick = {
                         val next = !config.encrypt
-                        HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                        HapticUtil.perform(
+                            context,
+                            if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                        )
                         config = config.copy(encrypt = next)
                     }
                 ) {
@@ -527,7 +544,10 @@ fun WebdavConfigScreen(
                     position = ItemPosition.Bottom,
                     onClick = {
                         val next = !config.tlsChrome
-                        HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                        HapticUtil.perform(
+                            context,
+                            if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                        )
                         config = config.copy(tlsChrome = next)
                     }
                 ) {
@@ -778,14 +798,21 @@ private fun BackendEditDialog(
                         }
                     },
                     visualTransformation = if (passwordVisible || isPrivacyActive) VisualTransformation.None
-                                         else PasswordVisualTransformation()
+                    else PasswordVisualTransformation()
                 )
             }
         },
         confirmButton = {
             TextButton(
                 onClick = {
-                    onSave(WebdavBackend(label = label, url = url, login = login, password = password))
+                    onSave(
+                        WebdavBackend(
+                            label = label,
+                            url = url,
+                            login = login,
+                            password = password
+                        )
+                    )
                 },
                 enabled = url.isNotBlank() && login.isNotBlank() && password.isNotBlank()
             ) {

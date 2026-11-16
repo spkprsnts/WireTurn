@@ -119,7 +119,7 @@ fun FreeTurnConfigScreen(
     }
 
     BackHandler(enabled = isEditMode && isModified, onBack = handleBack)
-    
+
     val scrollState = rememberScrollState()
     val context = LocalContext.current
     val clipboard = LocalClipboard.current
@@ -209,12 +209,19 @@ fun FreeTurnConfigScreen(
                         ) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.import_clipboard)) },
-                                leadingIcon = { Icon(painterResource(R.drawable.content_paste_24px), null) },
+                                leadingIcon = {
+                                    Icon(
+                                        painterResource(R.drawable.content_paste_24px),
+                                        null
+                                    )
+                                },
                                 onClick = {
                                     showImportMenu = false
                                     scope.launch {
                                         val clipEntry = clipboard.getClipEntry()
-                                        val text = clipEntry?.clipData?.getItemAt(0)?.text?.toString() ?: ""
+                                        val text =
+                                            clipEntry?.clipData?.getItemAt(0)?.text?.toString()
+                                                ?: ""
                                         val parsed = FreeTurnConfig.parse(text)
                                         if (parsed != null) {
                                             config = parsed
@@ -227,7 +234,12 @@ fun FreeTurnConfigScreen(
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.import_file)) },
-                                leadingIcon = { Icon(painterResource(R.drawable.file_open_24px), null) },
+                                leadingIcon = {
+                                    Icon(
+                                        painterResource(R.drawable.file_open_24px),
+                                        null
+                                    )
+                                },
                                 onClick = {
                                     showImportMenu = false
                                     filePickerLauncher.launch("*/*")
@@ -285,7 +297,7 @@ fun FreeTurnConfigScreen(
                     icon = {
                         Icon(
                             painter = painterResource(
-                                if (isEditMode) R.drawable.save_24px 
+                                if (isEditMode) R.drawable.save_24px
                                 else R.drawable.arrow_forward_ios_24px
                             ),
                             contentDescription = null
@@ -340,8 +352,10 @@ fun FreeTurnConfigScreen(
                                     // Carry the stream count over to the new provider's own default
                                     // only if it was still on the old one's - a hand-tuned value stays.
                                     val direct = provider == FreeTurnConfig.PROVIDER_DIRECT
-                                    val oldDefault = if (direct) FreeTurnConfig.DEFAULT_N_VK else FreeTurnConfig.DEFAULT_N_DIRECT
-                                    val newDefault = if (direct) FreeTurnConfig.DEFAULT_N_DIRECT else FreeTurnConfig.DEFAULT_N_VK
+                                    val oldDefault =
+                                        if (direct) FreeTurnConfig.DEFAULT_N_VK else FreeTurnConfig.DEFAULT_N_DIRECT
+                                    val newDefault =
+                                        if (direct) FreeTurnConfig.DEFAULT_N_DIRECT else FreeTurnConfig.DEFAULT_N_VK
                                     config = config.copy(
                                         provider = provider,
                                         n = if (config.n == oldDefault) newDefault else config.n
@@ -379,7 +393,9 @@ fun FreeTurnConfigScreen(
                         onValueChange = { if (!isPrivacyActive) config = config.copy(peer = it) },
                         readOnly = isPrivacyActive,
                         isModified = isEditMode && config.peer != initialConfig.peer,
-                        isError = (config.peer.isBlank() && config.sub.isBlank()) || (config.peer.isNotBlank() && !ValidatorUtils.isValidHostPort(config.peer)),
+                        isError = (config.peer.isBlank() && config.sub.isBlank()) || (config.peer.isNotBlank() && !ValidatorUtils.isValidHostPort(
+                            config.peer
+                        )),
                         privacyMode = isPrivacyActive,
                         placeholder = "203.0.113.10:56000"
                     )
@@ -390,7 +406,9 @@ fun FreeTurnConfigScreen(
                             label = stringResource(R.string.freeturn_links_label),
                             supportingText = stringResource(R.string.freeturn_links_desc),
                             value = config.links.redact(isPrivacyActive),
-                            onValueChange = { if (!isPrivacyActive) config = config.copy(links = it) },
+                            onValueChange = {
+                                if (!isPrivacyActive) config = config.copy(links = it)
+                            },
                             readOnly = isPrivacyActive,
                             isModified = isEditMode && config.links != initialConfig.links,
                             isError = config.links.isBlank() && defaultVkCalls.isEmpty(),
@@ -411,7 +429,7 @@ fun FreeTurnConfigScreen(
                         readOnly = isPrivacyActive,
                         isModified = isEditMode && config.sub != initialConfig.sub,
                         isError = (config.peer.isBlank() && config.sub.isBlank()) ||
-                            (config.sub.isNotBlank() && !ValidatorUtils.isValidUrl(config.sub)),
+                                (config.sub.isNotBlank() && !ValidatorUtils.isValidUrl(config.sub)),
                         privacyMode = isPrivacyActive,
                         singleLine = false,
                         minLines = 1,
@@ -439,7 +457,9 @@ fun FreeTurnConfigScreen(
                             label = stringResource(R.string.freeturn_spc_label),
                             supportingText = stringResource(R.string.freeturn_spc_desc),
                             value = config.streamsPerCred.toFloat(),
-                            onValueChange = { config = config.copy(streamsPerCred = it.roundToInt()) },
+                            onValueChange = {
+                                config = config.copy(streamsPerCred = it.roundToInt())
+                            },
                             valueRange = 1f..64f,
                             steps = 62,
                             isModified = isEditMode && config.streamsPerCred != initialConfig.streamsPerCred
@@ -492,7 +512,10 @@ fun FreeTurnConfigScreen(
                         position = ItemPosition.Single,
                         onClick = {
                             val next = !config.bond
-                            HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                            HapticUtil.perform(
+                                context,
+                                if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                            )
                             config = config.copy(bond = next)
                         }
                     ) {
@@ -511,7 +534,10 @@ fun FreeTurnConfigScreen(
                         position = ItemPosition.Top,
                         onClick = {
                             val next = config.kcpNodelay == 0
-                            HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                            HapticUtil.perform(
+                                context,
+                                if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                            )
                             config = config.copy(kcpNodelay = if (next) 1 else 0)
                         }
                     ) {
@@ -519,7 +545,9 @@ fun FreeTurnConfigScreen(
                             label = stringResource(R.string.freeturn_kcp_nodelay_label),
                             supportingText = stringResource(R.string.freeturn_kcp_nodelay_desc),
                             checked = config.kcpNodelay != 0,
-                            onCheckedChange = { config = config.copy(kcpNodelay = if (it) 1 else 0) },
+                            onCheckedChange = {
+                                config = config.copy(kcpNodelay = if (it) 1 else 0)
+                            },
                             isModified = isEditMode && config.kcpNodelay != initialConfig.kcpNodelay
                         )
                     }
@@ -548,7 +576,10 @@ fun FreeTurnConfigScreen(
                     SectionItem(
                         onClick = {
                             val next = config.kcpNc == 0
-                            HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                            HapticUtil.perform(
+                                context,
+                                if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                            )
                             config = config.copy(kcpNc = if (next) 1 else 0)
                         }
                     ) {
@@ -597,7 +628,10 @@ fun FreeTurnConfigScreen(
                         position = ItemPosition.Bottom,
                         onClick = {
                             val next = !config.kcpAcknodelay
-                            HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                            HapticUtil.perform(
+                                context,
+                                if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                            )
                             config = config.copy(kcpAcknodelay = next)
                         }
                     ) {
@@ -659,7 +693,9 @@ fun FreeTurnConfigScreen(
                         label = stringResource(R.string.freeturn_obf_timing_label),
                         supportingText = stringResource(R.string.freeturn_obf_timing_desc),
                         value = config.obfTiming.redact(isPrivacyActive),
-                        onValueChange = { if (!isPrivacyActive) config = config.copy(obfTiming = it) },
+                        onValueChange = {
+                            if (!isPrivacyActive) config = config.copy(obfTiming = it)
+                        },
                         readOnly = isPrivacyActive,
                         isModified = isEditMode && config.obfTiming != initialConfig.obfTiming,
                         privacyMode = isPrivacyActive
@@ -688,7 +724,9 @@ fun FreeTurnConfigScreen(
                         label = stringResource(R.string.freeturn_dns_servers_label),
                         supportingText = stringResource(R.string.freeturn_dns_servers_desc),
                         value = config.dnsServers.redact(isPrivacyActive),
-                        onValueChange = { if (!isPrivacyActive) config = config.copy(dnsServers = it) },
+                        onValueChange = {
+                            if (!isPrivacyActive) config = config.copy(dnsServers = it)
+                        },
                         placeholder = stringResource(R.string.freeturn_dns_servers_placeholder),
                         readOnly = isPrivacyActive,
                         isModified = isEditMode && config.dnsServers != initialConfig.dnsServers,
@@ -703,7 +741,9 @@ fun FreeTurnConfigScreen(
                         label = stringResource(R.string.freeturn_client_id_label),
                         supportingText = stringResource(R.string.freeturn_client_id_desc),
                         value = config.clientId.redact(isPrivacyActive),
-                        onValueChange = { if (!isPrivacyActive) config = config.copy(clientId = it) },
+                        onValueChange = {
+                            if (!isPrivacyActive) config = config.copy(clientId = it)
+                        },
                         readOnly = isPrivacyActive,
                         isModified = isEditMode && config.clientId != initialConfig.clientId,
                         privacyMode = isPrivacyActive
@@ -715,7 +755,10 @@ fun FreeTurnConfigScreen(
                         position = ItemPosition.Bottom,
                         onClick = {
                             val next = !config.manualCaptcha
-                            HapticUtil.perform(context, if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF)
+                            HapticUtil.perform(
+                                context,
+                                if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
+                            )
                             config = config.copy(manualCaptcha = next)
                         }
                     ) {

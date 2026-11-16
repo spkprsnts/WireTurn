@@ -207,12 +207,19 @@ fun QwdttConfigScreen(
                         ) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.import_clipboard)) },
-                                leadingIcon = { Icon(painterResource(R.drawable.content_paste_24px), null) },
+                                leadingIcon = {
+                                    Icon(
+                                        painterResource(R.drawable.content_paste_24px),
+                                        null
+                                    )
+                                },
                                 onClick = {
                                     showImportMenu = false
                                     scope.launch {
                                         val clipEntry = clipboard.getClipEntry()
-                                        val text = clipEntry?.clipData?.getItemAt(0)?.text?.toString() ?: ""
+                                        val text =
+                                            clipEntry?.clipData?.getItemAt(0)?.text?.toString()
+                                                ?: ""
                                         val parsed = QwdttConfig.parse(text)
                                         if (parsed != null) {
                                             config = parsed.copy(deviceId = config.deviceId)
@@ -225,7 +232,12 @@ fun QwdttConfigScreen(
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.import_file)) },
-                                leadingIcon = { Icon(painterResource(R.drawable.file_open_24px), null) },
+                                leadingIcon = {
+                                    Icon(
+                                        painterResource(R.drawable.file_open_24px),
+                                        null
+                                    )
+                                },
                                 onClick = {
                                     showImportMenu = false
                                     filePickerLauncher.launch("*/*")
@@ -337,7 +349,9 @@ fun QwdttConfigScreen(
                     TextFieldRow(
                         label = stringResource(R.string.qwdtt_hashes_label),
                         value = config.vkHashes.redact(isPrivacyActive),
-                        onValueChange = { if (!isPrivacyActive) config = config.copy(vkHashes = it) },
+                        onValueChange = {
+                            if (!isPrivacyActive) config = config.copy(vkHashes = it)
+                        },
                         readOnly = isPrivacyActive,
                         isError = config.vkHashes.isBlank() && defaultVkCalls.isEmpty(),
                         placeholder = defaultVkCalls.joinToString(", ").redact(isPrivacyActive),
@@ -353,7 +367,9 @@ fun QwdttConfigScreen(
                     TextFieldRow(
                         label = stringResource(R.string.qwdtt_password_label),
                         value = config.password.redact(isPrivacyActive),
-                        onValueChange = { if (!isPrivacyActive) config = config.copy(password = it) },
+                        onValueChange = {
+                            if (!isPrivacyActive) config = config.copy(password = it)
+                        },
                         readOnly = isPrivacyActive,
                         isError = config.password.isBlank(),
                         isModified = isEditMode && config.password != initialConfig.password,
@@ -379,7 +395,9 @@ fun QwdttConfigScreen(
                     TextFieldRow(
                         label = stringResource(R.string.qwdtt_raw_port_label),
                         value = config.rawPort,
-                        onValueChange = { config = config.copy(rawPort = it.filter(Char::isDigit).take(5)) },
+                        onValueChange = {
+                            config = config.copy(rawPort = it.filter(Char::isDigit).take(5))
+                        },
                         placeholder = "56003",
                         supportingText = stringResource(R.string.qwdtt_raw_port_desc),
                         isError = config.rawPort.isNotEmpty() && config.rawPortNumber == null,

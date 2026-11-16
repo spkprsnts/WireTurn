@@ -184,11 +184,13 @@ fun SettingsScreen(
                 }
             }
             val themeModeLabels = themeModes.associateWith { mode ->
-                stringResource(when (mode) {
-                    ThemeMode.LIGHT -> R.string.theme_light
-                    ThemeMode.DARK -> R.string.theme_dark
-                    ThemeMode.SYSTEM -> R.string.theme_system
-                })
+                stringResource(
+                    when (mode) {
+                        ThemeMode.LIGHT -> R.string.theme_light
+                        ThemeMode.DARK -> R.string.theme_dark
+                        ThemeMode.SYSTEM -> R.string.theme_system
+                    }
+                )
             }
 
             SectionGroup(title = stringResource(R.string.app_appearance)) {
@@ -213,11 +215,11 @@ fun SettingsScreen(
 
                 if (supportsDynamicColor) {
                     SectionItem(
-                        position = ItemPosition.Bottom, 
+                        position = ItemPosition.Bottom,
                         onClick = {
                             val next = !dynamicTheme
                             HapticUtil.perform(
-                                context, 
+                                context,
                                 if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
                             )
                             viewModel.setDynamicTheme(next)
@@ -239,7 +241,7 @@ fun SettingsScreen(
                     onClick = {
                         val next = !privacyMode
                         HapticUtil.perform(
-                            context, 
+                            context,
                             if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
                         )
                         viewModel.setPrivacyMode(next)
@@ -288,7 +290,7 @@ fun SettingsScreen(
                     onClick = {
                         val next = !waitForNetwork
                         HapticUtil.perform(
-                            context, 
+                            context,
                             if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
                         )
                         viewModel.setWaitForNetwork(next)
@@ -307,7 +309,7 @@ fun SettingsScreen(
                     onClick = {
                         val next = !restartOnNetworkChange
                         HapticUtil.perform(
-                            context, 
+                            context,
                             if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
                         )
                         viewModel.setRestartOnNetworkChange(next)
@@ -358,7 +360,11 @@ fun SettingsScreen(
                             context,
                             if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
                         )
-                        viewModel.updateWatchdogSettings(viewModel.watchdogSettings.value.copy(eternal = next))
+                        viewModel.updateWatchdogSettings(
+                            viewModel.watchdogSettings.value.copy(
+                                eternal = next
+                            )
+                        )
                     }
                 ) {
                     SwitchRow(
@@ -366,7 +372,11 @@ fun SettingsScreen(
                         supportingText = stringResource(R.string.settings_eternal_watchdog_desc),
                         checked = watchdogSettings.eternal,
                         onCheckedChange = {
-                            viewModel.updateWatchdogSettings(viewModel.watchdogSettings.value.copy(eternal = it))
+                            viewModel.updateWatchdogSettings(
+                                viewModel.watchdogSettings.value.copy(
+                                    eternal = it
+                                )
+                            )
                         }
                     )
                 }
@@ -377,7 +387,9 @@ fun SettingsScreen(
                             TextFieldRow(
                                 label = stringResource(R.string.settings_eternal_watchdog_interval),
                                 value = localWatchdogInterval,
-                                onValueChange = { localWatchdogInterval = it.filter(Char::isDigit) },
+                                onValueChange = {
+                                    localWatchdogInterval = it.filter(Char::isDigit)
+                                },
                                 supportingText = stringResource(R.string.settings_eternal_watchdog_interval_desc),
                                 isError = !isWatchdogIntervalValid && localWatchdogInterval.isNotBlank(),
                                 placeholder = WatchdogSettings.DEFAULT_MAX_INTERVAL_MINUTES.toString(),
@@ -396,7 +408,9 @@ fun SettingsScreen(
                 val defaultInterval = 15
 
                 val isUrlValid = remember(localUrl) {
-                    localUrl.isNotBlank() && (localUrl.startsWith("http://") || localUrl.startsWith("https://"))
+                    localUrl.isNotBlank() && (localUrl.startsWith("http://") || localUrl.startsWith(
+                        "https://"
+                    ))
                 }
                 val minutesInt = localInterval.toIntOrNull()
                 val isIntervalValid = minutesInt != null && minutesInt >= 1
@@ -446,7 +460,7 @@ fun SettingsScreen(
                         if (!canEnable) return@SectionItem
                         val next = !autoLaunchSettings.enabled
                         HapticUtil.perform(
-                            context, 
+                            context,
                             if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
                         )
                         viewModel.updateAutoLaunchSettings(autoLaunchSettings.copy(enabled = next))
@@ -457,8 +471,8 @@ fun SettingsScreen(
                         supportingText = stringResource(R.string.settings_auto_launch_desc),
                         checked = autoLaunchSettings.enabled,
                         enabled = canEnable,
-                        onCheckedChange = { 
-                            viewModel.updateAutoLaunchSettings(autoLaunchSettings.copy(enabled = it)) 
+                        onCheckedChange = {
+                            viewModel.updateAutoLaunchSettings(autoLaunchSettings.copy(enabled = it))
                         }
                     )
                 }
@@ -515,7 +529,10 @@ fun SettingsScreen(
 
             // 2.2 Диагностика (пинг и определение страны выхода)
             var localPingUrl by rememberSaveable { mutableStateOf(pingUrl) }
-            val isPingUrlValid = localPingUrl.isBlank() || localPingUrl.startsWith("http://") || localPingUrl.startsWith("https://")
+            val isPingUrlValid =
+                localPingUrl.isBlank() || localPingUrl.startsWith("http://") || localPingUrl.startsWith(
+                    "https://"
+                )
 
             LaunchedEffect(pingUrl) {
                 if (localPingUrl.isEmpty()) localPingUrl = pingUrl
@@ -530,7 +547,8 @@ fun SettingsScreen(
                 }
             }
 
-            val countryMethods = listOf("auto", "ipwhois", "ipsb", "ipapico", "ipinfo", "cloudflare")
+            val countryMethods =
+                listOf("auto", "ipwhois", "ipsb", "ipapico", "ipinfo", "cloudflare")
             val countryMethodLabels = mapOf(
                 "auto" to stringResource(R.string.country_detection_auto),
                 "ipwhois" to stringResource(R.string.country_detection_ipwhois),
@@ -564,7 +582,9 @@ fun SettingsScreen(
                     Column(modifier = Modifier.fillMaxWidth()) {
                         RowLabel(text = stringResource(R.string.settings_country_detection_title))
                         Spacer(Modifier.height(2.dp))
-                        SupportingText(countryMethodLabels[countryDetectionMethod] ?: countryDetectionMethod)
+                        SupportingText(
+                            countryMethodLabels[countryDetectionMethod] ?: countryDetectionMethod
+                        )
                     }
                 }
             }
@@ -617,7 +637,7 @@ fun SettingsScreen(
                     onClick = {
                         val next = !captchaStyleMod
                         HapticUtil.perform(
-                            context, 
+                            context,
                             if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
                         )
                         viewModel.setCaptchaStyleMod(next)
@@ -667,10 +687,10 @@ fun SettingsScreen(
             }
 
             // 3. Обновление
-            val isImportantState = updateState is UpdateState.Available || 
-                    updateState is UpdateState.Downloading || 
+            val isImportantState = updateState is UpdateState.Available ||
+                    updateState is UpdateState.Downloading ||
                     updateState is UpdateState.ReadyToInstall
-            
+
             val updateContainerColor = if (isImportantState) {
                 MaterialTheme.colorScheme.surfaceContainerHigh
             } else {
@@ -704,11 +724,11 @@ fun SettingsScreen(
                 }
 
                 SectionItem(
-                    position = ItemPosition.Bottom, 
+                    position = ItemPosition.Bottom,
                     onClick = {
                         val next = !allowUnstableUpdates
                         HapticUtil.perform(
-                            context, 
+                            context,
                             if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
                         )
                         viewModel.setAllowUnstableUpdates(next)
@@ -727,11 +747,13 @@ fun SettingsScreen(
             val appLanguage by viewModel.appLanguage.collectAsStateWithLifecycle()
             val languages = listOf("system", "en", "ru")
             val languageLabels = languages.associateWith { lang ->
-                stringResource(when (lang) {
-                    "en" -> R.string.lang_en
-                    "ru" -> R.string.lang_ru
-                    else -> R.string.lang_system
-                })
+                stringResource(
+                    when (lang) {
+                        "en" -> R.string.lang_en
+                        "ru" -> R.string.lang_ru
+                        else -> R.string.lang_system
+                    }
+                )
             }
 
             SectionGroup(title = stringResource(R.string.localization_title)) {
@@ -809,13 +831,13 @@ fun SettingsScreen(
                     colors = ButtonDefaults.textButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
                     )
-                ) { 
-                    Text(stringResource(R.string.reset)) 
+                ) {
+                    Text(stringResource(R.string.reset))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showResetDialog.value = false }) { 
-                    Text(stringResource(R.string.cancel)) 
+                TextButton(onClick = { showResetDialog.value = false }) {
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -938,7 +960,7 @@ private fun RepoLinksContent(
             }
 
             override suspend fun onPostFling(
-                consumed: androidx.compose.ui.unit.Velocity, 
+                consumed: androidx.compose.ui.unit.Velocity,
                 available: androidx.compose.ui.unit.Velocity
             ): androidx.compose.ui.unit.Velocity {
                 hasScrolledDownInGesture = false
