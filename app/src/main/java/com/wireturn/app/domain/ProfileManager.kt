@@ -5,7 +5,6 @@ import com.wireturn.app.R
 import com.wireturn.app.data.AppPreferences
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.Profile
-import com.wireturn.app.data.ProfileBundle
 import com.wireturn.app.data.Subscription
 import com.wireturn.app.data.variant
 import com.wireturn.app.kernel.KernelRegistry

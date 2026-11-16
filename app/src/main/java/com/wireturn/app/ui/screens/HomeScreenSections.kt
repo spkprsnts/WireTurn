@@ -94,10 +94,10 @@ import com.wireturn.app.ui.theme.ContentAlpha
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.VpnState
 import com.wireturn.app.viewmodel.XrayState
-import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 // Sections of HomeScreen, top to bottom. Each takes what it shows and reports what the user does;
 // what that does to the rest of the screen (launchers, warnings, the profiles sheet) stays there.

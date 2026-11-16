@@ -9,7 +9,6 @@ import android.content.Context
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,7 +41,6 @@ import com.wireturn.app.R
 import com.wireturn.app.data.Profile
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.viewmodel.MainViewModel
-import kotlinx.coroutines.launch
 
 // Parts of ProfilesDialog that stand on their own: exporting, the sheet's header, the empty list
 // and the confirmations. The list itself (grouping, drag to reorder, sticky subscription headers)

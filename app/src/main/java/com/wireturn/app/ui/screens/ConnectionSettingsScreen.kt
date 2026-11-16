@@ -58,9 +58,9 @@ import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.ValidatorUtils
-import com.wireturn.app.ui.screens.kernel.MailruSignInSection
 import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.redact
+import com.wireturn.app.ui.screens.kernel.MailruSignInSection
 
 @Composable
 fun ConnectionSettingsScreen(
