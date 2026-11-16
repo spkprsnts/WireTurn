@@ -513,7 +513,7 @@ object OpenFluxKernel : Kernel {
         // routine recycle) do we intervene, forcing a real process restart (fresh CoreService
         // backoff, fresh attempt=0 on relaunch).
         if (transport != "oneme" && lower.contains("[ydocs] websocket connected")) {
-            state.yandexConnectedAt = System.currentTimeMillis()
+            state.yandexConnectedAt = android.os.SystemClock.elapsedRealtime()
         }
 
         if (transport != "oneme" && (
@@ -541,7 +541,7 @@ object OpenFluxKernel : Kernel {
             // quickly, or a failed fetch/dial, counts as a failure.
             val healthySessionEnded = lower.contains("[ydocs] read error") &&
                 state.yandexConnectedAt != 0L &&
-                System.currentTimeMillis() - state.yandexConnectedAt > YANDEX_HEALTHY_SESSION_MS
+                android.os.SystemClock.elapsedRealtime() - state.yandexConnectedAt > YANDEX_HEALTHY_SESSION_MS
             if (healthySessionEnded) {
                 state.openFluxYandexFailureCounter.reset()
             } else if (state.openFluxYandexFailureCounter.recordAndCheckThreshold()) {
@@ -713,7 +713,7 @@ object OpenFluxKernel : Kernel {
         // counts towards the failure threshold and shows as Connecting until the next handshake.
         if (transport == "boards") {
             if (lower.contains("[boards] handshake done")) {
-                state.boardsConnectedAt = System.currentTimeMillis()
+                state.boardsConnectedAt = android.os.SystemClock.elapsedRealtime()
                 if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                     CoreServiceState.setStatus(CoreStatus.Connected)
                     ctx.updateNotification(ctx.getString(R.string.core_active))
@@ -725,7 +725,7 @@ object OpenFluxKernel : Kernel {
                     return true
                 }
                 val healthySessionEnded = state.boardsConnectedAt != 0L &&
-                    System.currentTimeMillis() - state.boardsConnectedAt > YANDEX_HEALTHY_SESSION_MS
+                    android.os.SystemClock.elapsedRealtime() - state.boardsConnectedAt > YANDEX_HEALTHY_SESSION_MS
                 state.boardsConnectedAt = 0L
                 if (healthySessionEnded) {
                     state.openFluxBoardsFailureCounter.reset()

@@ -34,6 +34,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
@@ -525,7 +526,7 @@ class CoreService : Service() {
             }
 
             val cfg = currentRunningCfg.get() ?: break
-            val startTime = System.currentTimeMillis()
+            val startTime = android.os.SystemClock.elapsedRealtime()
             // Reset so a stale reason from an earlier, unrelated cycle can't outlive it - only
             // this run's own handler (if any) should set it before the failure check below reads it.
             lastKnownFailureReason = null
@@ -542,7 +543,7 @@ class CoreService : Service() {
                 if (nativeTunSocket != null) CoreServiceState.NativeTunTraffic(0, 0, 0L) else null
             )
             val startupSuccessful = if (KernelRegistry.get(cfg.kernelVariant).runsBinary) runBinary(cfg) else followXray()
-            val duration = System.currentTimeMillis() - startTime
+            val duration = android.os.SystemClock.elapsedRealtime() - startTime
             
             if (userStopped.get()) break
 
@@ -753,8 +754,8 @@ class CoreService : Service() {
                     val status = CoreServiceState.status.value
                     if (status is CoreStatus.Connecting) {
                         if (state.connectingSince == 0L) {
-                            state.connectingSince = System.currentTimeMillis()
-                        } else if (System.currentTimeMillis() - state.connectingSince > connectingTimeoutMs) {
+                            state.connectingSince = android.os.SystemClock.elapsedRealtime()
+                        } else if (android.os.SystemClock.elapsedRealtime() - state.connectingSince > connectingTimeoutMs) {
                             AppLogsState.addLog(getString(R.string.log_core_connection_timeout))
                             state.startupEmitted = true
                             proc.destroy()
@@ -1741,18 +1742,26 @@ class CoreService : Service() {
         }
         
         // 2. Проверка реальной задержки через TCP-соединение с max.ru (гарантированно доступен в РФ)
-        try {
-            val start = System.currentTimeMillis()
-            java.net.Socket().use { socket ->
-                socket.connect(java.net.InetSocketAddress("max.ru", 80), 1500)
+        // The name lookup has no timeout of its own (connect's covers only the connection), so a
+        // DNS that doesn't answer held every watchdog restart for as long as the system resolver
+        // kept trying. The probe runs outside this call - a blocking lookup can't be cancelled -
+        // and is waited on only so long: one that takes longer is a slow network anyway.
+        val probe = serviceScope.async(Dispatchers.IO) {
+            try {
+                val start = android.os.SystemClock.elapsedRealtime()
+                java.net.Socket().use { socket ->
+                    socket.connect(java.net.InetSocketAddress("max.ru", 80), 1500)
+                }
+                val rtt = android.os.SystemClock.elapsedRealtime() - start
+                // Если ответ шел дольше 800мс — считаем сеть медленной для watchdog
+                if (rtt > 800) NetworkQuality.SLOW else NetworkQuality.FAST
+            } catch (_: Exception) {
+                // Если max.ru недоступен совсем, это не "медленная сеть", а отсутствие интернета
+                NetworkQuality.OFFLINE
             }
-            val rtt = System.currentTimeMillis() - start
-            // Если ответ шел дольше 800мс — считаем сеть медленной для watchdog
-            if (rtt > 800) NetworkQuality.SLOW else NetworkQuality.FAST
-        } catch (_: Exception) {
-            // Если max.ru недоступен совсем, это не "медленная сеть", а отсутствие интернета
-            NetworkQuality.OFFLINE
         }
+        withTimeoutOrNull(NETWORK_PROBE_TIMEOUT_MS.milliseconds) { probe.await() }
+            ?: NetworkQuality.SLOW.also { probe.cancel() }
     }
 
     private suspend fun isSlowConnection(): Boolean = getNetworkQuality() == NetworkQuality.SLOW
@@ -1807,6 +1816,8 @@ class CoreService : Service() {
         // After registering the network callback, the networks already up (and their validation)
         // arrive within this - the primary-network pick settles over it without reporting changes.
         private const val NETWORK_SETTLE_MS = 1_500L
+        // getNetworkQuality's whole probe, name lookup included.
+        private const val NETWORK_PROBE_TIMEOUT_MS = 2_500L
 
         fun start(context: Context, cfg: ClientConfig) {
             cfg.getValidationErrorResId()?.let { errorRes ->

@@ -136,7 +136,7 @@ class LogOccurrenceCounter(private val windowMs: Long, private val threshold: In
     private var lastTime = 0L
 
     fun recordAndCheckThreshold(): Boolean {
-        val now = System.currentTimeMillis()
+        val now = android.os.SystemClock.elapsedRealtime()
         count = if (now - lastTime > windowMs) 1 else count + 1
         lastTime = now
         return count >= threshold

@@ -741,7 +741,7 @@ class ProfileManager(
         onAutoSelect: ((Profile) -> Unit)?
     ): ImportStatus = withContext(Dispatchers.IO) {
         subIdToMark?.let { id -> _updatingSubIds.update { it + id } }
-        val startTime = System.currentTimeMillis()
+        val startTime = android.os.SystemClock.elapsedRealtime()
         // Which subscription a log line is about. Never the URL: it usually carries the access token.
         val logLabel = subscriptionLogLabel(subIdToMark, url)
 
@@ -965,7 +965,7 @@ class ProfileManager(
             }
             
             // Ensure minimum visible loading time
-            val elapsed = System.currentTimeMillis() - startTime
+            val elapsed = android.os.SystemClock.elapsedRealtime() - startTime
             if (elapsed < 300) {
                 kotlinx.coroutines.delay((300 - elapsed).milliseconds)
             }

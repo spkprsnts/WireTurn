@@ -471,7 +471,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /** rx/tx are cumulative byte counters; this turns a new sample into a TransferResult with speed. */
     private fun applyTransferSample(rx: Long, tx: Long) {
-        val now = System.currentTimeMillis()
+        // Monotonic: a wall-clock jump (NTP sync after a network change) would skew the speed.
+        val now = android.os.SystemClock.elapsedRealtime()
         var rxSpeed = 0L
         var txSpeed = 0L
         if (lastMetricsTime in 1..<now) {
