@@ -17,6 +17,11 @@ data class FreeTurnConfig(
     @SerializedName("obf_timing") val obfTiming: String = "0",
     @SerializedName("streams_per_cred") val streamsPerCred: Int = 10,
     @SerializedName("manual_captcha") val manualCaptcha: Boolean = false,
+    // -advanced-captcha: the automatic captcha solver's PoW is computed by a real browser - the
+    // core's local captcha page, loaded in a hidden WebView (see FreeTurnKernel). Falls back to
+    // the plain solver if that doesn't come through. Exclusive with manualCaptcha - see captchaMode.
+    // A device setting rather than the server's, so not part of the freeturn:// link.
+    @SerializedName("advanced_captcha") val advancedCaptcha: Boolean = false,
     @SerializedName("platform") val platform: String = "desktop",
     @SerializedName("dns_mode") val dnsMode: String = "auto",
     @SerializedName("dns_servers") val dnsServers: String = "",
@@ -36,6 +41,19 @@ data class FreeTurnConfig(
     // "direct" (4.0+): the same obfuscated DTLS straight to the server, no VK TURN relay - so no
     // call links, VK auth or captcha, and nothing to get past whitelists that block the VPS itself.
     val isDirect: Boolean get() = provider == PROVIDER_DIRECT
+
+    /** How VK's captcha is solved - one of CAPTCHA_*: manual wins, as the core has it. */
+    val captchaMode: String
+        get() = when {
+            manualCaptcha -> CAPTCHA_MANUAL
+            advancedCaptcha -> CAPTCHA_ADVANCED
+            else -> CAPTCHA_AUTO
+        }
+
+    fun withCaptchaMode(mode: String): FreeTurnConfig = copy(
+        manualCaptcha = mode == CAPTCHA_MANUAL,
+        advancedCaptcha = mode == CAPTCHA_ADVANCED
+    )
 
     fun isValid(): Boolean =
         (isDirect || links.isNotBlank()) && (peer.isNotBlank() || sub.isNotBlank())
@@ -120,6 +138,12 @@ data class FreeTurnConfig(
     companion object {
         const val PROVIDER_VK = "vk"
         const val PROVIDER_DIRECT = "direct"
+
+        // captchaMode: the core's automatic solver, the same with the browser's PoW
+        // (-advanced-captcha), or the user solving it (-manual-captcha).
+        const val CAPTCHA_AUTO = "auto"
+        const val CAPTCHA_ADVANCED = "advanced"
+        const val CAPTCHA_MANUAL = "manual"
 
         // Upstream's own -n defaults per provider (docs/flags.md): a direct link has no relay limits
         // to spread across, so extra streams only split the same queue.

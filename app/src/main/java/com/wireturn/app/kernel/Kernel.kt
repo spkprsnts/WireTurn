@@ -78,6 +78,11 @@ interface KernelLogContext {
 
     // One line to this run's sidecar's stdin (Kernel.buildSidecarCommand), if it has one running.
     fun writeToSidecar(line: String) {}
+    // A captcha page the kernel needs a real browser to run without the user - FreeTurn's
+    // -advanced-captcha PoW: loaded in a hidden WebView until hidden, or until the run ends.
+    // No-op defaults for the kernels that have none.
+    fun showBackgroundCaptchaPage(url: String) {}
+    fun hideBackgroundCaptchaPage() {}
 }
 
 /** Per-run mutable state threaded through repeated [Kernel.parseLogLine] calls for one binary run. */
@@ -306,6 +311,12 @@ interface Kernel {
 
     /** Command-line flags whose values should be redacted in the app's own log (see CoreService). */
     val sensitiveCommandFlags: Set<String> get() = emptySet()
+
+    /**
+     * [line] as shown in the app's own log, which the user may share for support: anything secret
+     * in the binary's output masked. Only the log gets this - [parseLogLine] still sees [line].
+     */
+    fun redactLogLine(line: String): String = line
 
     /** "Name (detail)" of [cfg] for the session-start line in the app's log. */
     fun logLabel(cfg: KernelConfig): String

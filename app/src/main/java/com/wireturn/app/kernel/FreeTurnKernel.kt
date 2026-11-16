@@ -19,6 +19,11 @@ object FreeTurnKernel : Kernel {
     override fun logLabel(cfg: KernelConfig): String =
         "FreeTurn (${(cfg as KernelConfig.FreeTurn).config.peer})"
 
+    // -advanced-captcha logs its local captcha page in full, VK's session_token in the query.
+    override fun redactLogLine(line: String): String =
+        if ("localhost:" in line || "127.0.0.1:" in line) LOCAL_CAPTCHA_QUERY_REGEX.replace(line, "$1?<redacted>")
+        else line
+
     override fun localSettingsChanged(old: ClientConfig, new: ClientConfig): Boolean =
         listenAddrChanged(old, new)
 
@@ -111,6 +116,7 @@ object FreeTurnKernel : Kernel {
                 cmdArgs.add(o.links)
             }
             if (o.manualCaptcha) cmdArgs.add("-manual-captcha")
+            else if (o.advancedCaptcha) cmdArgs.add("-advanced-captcha")
         }
         if (o.obfTiming != "0" && o.obfTiming.isNotBlank()) {
             cmdArgs.add("-obf-timing")
@@ -289,6 +295,18 @@ object FreeTurnKernel : Kernel {
         state: BinaryOutputState,
         ctx: KernelLogContext
     ) {
+        // -advanced-captcha: the core waits for a real browser to compute the captcha's PoW on its
+        // local page - loaded in a hidden WebView, nothing shown to the user - and logs when that
+        // wait is over either way (it then solves on its own, or with the plain solver).
+        POW_CAPTURE_URL_REGEX.find(line)?.let { match ->
+            ctx.showBackgroundCaptchaPage(match.groupValues[1])
+            return
+        }
+        if (lower.contains("browser pow received") || lower.contains("browser pow wait ended")) {
+            ctx.hideBackgroundCaptchaPage()
+            return
+        }
+
         if (line.contains("Triggering manual captcha fallback")) {
             if (CoreServiceState.status.value !is CoreStatus.CaptchaRequired) {
                 state.startupEmitted = true
@@ -366,6 +384,12 @@ object FreeTurnKernel : Kernel {
         Pattern.compile("""\[session \d+] (?:connected|disconnected) \(active: (\d+)\)""")
     private val CAPTCHA_URL_REGEX =
         Pattern.compile("""Open this URL in your browser:\s*(https?://\S+)""")
+
+    // -advanced-captcha's wait for the browser PoW, with the core's local page to load for it.
+    private val POW_CAPTURE_URL_REGEX = Regex("""waiting for browser PoW computation at (http://\S+)""")
+
+    // The core's local captcha page with its query - VK's session_token for the captcha in it.
+    private val LOCAL_CAPTCHA_QUERY_REGEX = Regex("""(http://(?:localhost|127\.0\.0\.1):\d+/\S*?)\?\S+""")
 
     // 4.x logs the manual-captcha banner through its logger ("[WARN] <prefix>: if the browser did
     // not open, go to http://localhost:<port>") instead of the old stdout "manually open this URL:".

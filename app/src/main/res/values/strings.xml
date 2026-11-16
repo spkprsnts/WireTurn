@@ -310,8 +310,13 @@
     <string name="freeturn_platform_desc">Device class the VK auth persona pretends to be (UA, TLS fingerprint, client hints). Only affects sign-in, not the tunnel itself</string>
     <string name="freeturn_transport_label">Transport to TURN relay</string>
     <string name="freeturn_transport_desc">TCP/TLS is more compatible; UDP can be faster but is more often blocked by DPI</string>
-    <string name="freeturn_manual_captcha_label">Manual Captcha</string>
-    <string name="freeturn_manual_captcha_desc">Solve VK captcha in app browser</string>
+    <string name="freeturn_captcha_mode_label">Captcha</string>
+    <string name="freeturn_captcha_mode_auto">Auto</string>
+    <string name="freeturn_captcha_mode_advanced">Advanced</string>
+    <string name="freeturn_captcha_mode_manual">Manual</string>
+    <string name="freeturn_captcha_mode_auto_desc">The core solves VK captcha on its own; when it can\'t, it\'s solved in the app browser</string>
+    <string name="freeturn_captcha_mode_advanced_desc">As auto, but with the proof of work from a real browser engine run in the background - VK asks for a manual check less often</string>
+    <string name="freeturn_captcha_mode_manual_desc">Solve VK captcha in the app browser right away</string>
     <string name="freeturn_mode_label">Tunnel mode</string>
     <string name="freeturn_provider_label">Route</string>
     <string name="freeturn_provider_vk" translatable="false">VK</string>

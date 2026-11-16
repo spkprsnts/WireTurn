@@ -262,8 +262,13 @@
     <string name="freeturn_platform_desc">Класс устройства, под который маскируется VK-персона при авторизации (UA, TLS-отпечаток, client hints). На сам туннель не влияет</string>
     <string name="freeturn_transport_label">Транспорт до TURN-relay</string>
     <string name="freeturn_transport_desc">TCP/TLS совместимее; UDP может быть быстрее, но чаще режется DPI</string>
-    <string name="freeturn_manual_captcha_label">Ручная капча</string>
-    <string name="freeturn_manual_captcha_desc">Решать капчу ВК во встроенном браузере</string>
+    <string name="freeturn_captcha_mode_label">Капча</string>
+    <string name="freeturn_captcha_mode_auto">Авто</string>
+    <string name="freeturn_captcha_mode_advanced">Продвинутая</string>
+    <string name="freeturn_captcha_mode_manual">Ручная</string>
+    <string name="freeturn_captcha_mode_auto_desc">Ядро решает капчу ВК само; если не выходит — решаете во встроенном браузере</string>
+    <string name="freeturn_captcha_mode_advanced_desc">Как авто, но доказательство работы (PoW) считает настоящий браузерный движок в фоне — ВК реже просит ручную проверку</string>
+    <string name="freeturn_captcha_mode_manual_desc">Сразу решать капчу ВК во встроенном браузере</string>
     <string name="freeturn_mode_label">Режим туннеля</string>
     <string name="freeturn_provider_label">Маршрут</string>
     <string name="freeturn_provider_direct_desc">Подключение напрямую к серверу</string>

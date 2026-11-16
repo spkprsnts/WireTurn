@@ -82,6 +82,9 @@ class CoreService : Service() {
 
     // The physical networks and which one traffic goes out through; what a change means for the
     // tunnel is decided here, in onNetworkChanged.
+    // FreeTurn's -advanced-captcha page, run off screen - see BackgroundCaptchaPage.
+    private val backgroundCaptchaPage by lazy { BackgroundCaptchaPage(applicationContext) }
+
     private val networkMonitor by lazy {
         NetworkMonitor(this, object : NetworkMonitor.Listener {
             override fun onPrimaryNetworkChanged(previousLabel: String) =
@@ -219,6 +222,8 @@ class CoreService : Service() {
             } catch (_: Exception) {
             }
         }
+        override fun showBackgroundCaptchaPage(url: String) = backgroundCaptchaPage.show(url)
+        override fun hideBackgroundCaptchaPage() = backgroundCaptchaPage.hide()
 
         override fun onNativeTunTraffic(rxBytes: Long, txBytes: Long) {
             if (nativeTunSocket == null) return
@@ -864,7 +869,8 @@ class CoreService : Service() {
                             val line = AppLogsState.stripAnsi(rawLine)
                             val level = kernel.logLevel(line) ?: LogLevels.detect(line)
                             AppLogsState.addLog(
-                                line,
+                                // Secrets masked for the log only - parsing below still gets them.
+                                kernel.redactLogLine(line),
                                 if (kernel.isNoise(line)) LogLevel.DEBUG else level
                             )
                             // Process was intentionally killed (hot-reload/stop) — log but don't update status
@@ -919,6 +925,8 @@ class CoreService : Service() {
             false
         } finally {
             CoreServiceState.setCaptchaSession(null)
+            // A run that ended mid-wait leaves nothing for its page to talk to.
+            backgroundCaptchaPage.hide()
             // NonCancellable: this finally often runs on an already-cancelled coroutine; without
             // it the IO hop below would throw immediately and leak the old binary process.
             withContext(NonCancellable) {
@@ -1379,6 +1387,7 @@ class CoreService : Service() {
         handler.removeCallbacksAndMessages(null)
         networkMonitor.unregister()
         unregisterScreenReceiver()
+        backgroundCaptchaPage.hide()
         AppLogsState.addLog(getString(R.string.log_core_stop_ui))
 
         // Safety net: xraySupervisor/vpnSupervisor normally tear these down reactively, but

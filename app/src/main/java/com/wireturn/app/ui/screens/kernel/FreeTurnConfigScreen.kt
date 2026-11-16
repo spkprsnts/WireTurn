@@ -751,24 +751,38 @@ fun FreeTurnConfigScreen(
                 }
                 // No VK in direct mode, so no captcha either.
                 if (!config.isDirect) {
-                    SectionItem(
-                        position = ItemPosition.Bottom,
-                        onClick = {
-                            val next = !config.manualCaptcha
-                            HapticUtil.perform(
-                                context,
-                                if (next) HapticUtil.Pattern.TOGGLE_ON else HapticUtil.Pattern.TOGGLE_OFF
-                            )
-                            config = config.copy(manualCaptcha = next)
-                        }
-                    ) {
-                        SwitchRow(
-                            label = stringResource(R.string.freeturn_manual_captcha_label),
-                            supportingText = stringResource(R.string.freeturn_manual_captcha_desc),
-                            checked = config.manualCaptcha,
-                            onCheckedChange = { config = config.copy(manualCaptcha = it) },
-                            isModified = isEditMode && config.manualCaptcha != initialConfig.manualCaptcha
+                    // One of three, as the core runs them: its automatic solver, the same with the
+                    // browser's PoW from a hidden WebView, or the user solving it.
+                    SectionItem(position = ItemPosition.Bottom) {
+                        val modes = listOf(
+                            FreeTurnConfig.CAPTCHA_AUTO to stringResource(R.string.freeturn_captcha_mode_auto),
+                            FreeTurnConfig.CAPTCHA_ADVANCED to stringResource(R.string.freeturn_captcha_mode_advanced),
+                            FreeTurnConfig.CAPTCHA_MANUAL to stringResource(R.string.freeturn_captcha_mode_manual)
                         )
+                        LabeledButtonGroup(
+                            label = stringResource(R.string.freeturn_captcha_mode_label),
+                            supportingText = stringResource(
+                                when (config.captchaMode) {
+                                    FreeTurnConfig.CAPTCHA_ADVANCED -> R.string.freeturn_captcha_mode_advanced_desc
+                                    FreeTurnConfig.CAPTCHA_MANUAL -> R.string.freeturn_captcha_mode_manual_desc
+                                    else -> R.string.freeturn_captcha_mode_auto_desc
+                                }
+                            ),
+                            isModified = isEditMode && config.captchaMode != initialConfig.captchaMode
+                        ) {
+                            modes.forEachIndexed { index, (mode, label) ->
+                                selectableButtonItem(
+                                    selected = config.captchaMode == mode,
+                                    onSelect = {
+                                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                        config = config.withCaptchaMode(mode)
+                                    },
+                                    label = label,
+                                    index = index,
+                                    count = modes.size
+                                )
+                            }
+                        }
                     }
                 }
             }
