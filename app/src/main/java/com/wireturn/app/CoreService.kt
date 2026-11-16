@@ -132,6 +132,12 @@ class CoreService : Service() {
         override val nativeLibraryDir get() = applicationInfo.nativeLibraryDir
         override val nativeTunSocket get() = this@CoreService.nativeTunSocket
         override val runSocket get() = this@CoreService.runSocket
+        override val networkDnsServers get() = this@CoreService.physicalNetworkDns()
+        override val androidId: String
+            @android.annotation.SuppressLint("HardwareIds")
+            get() = runCatching {
+            android.provider.Settings.Secure.getString(contentResolver, android.provider.Settings.Secure.ANDROID_ID)
+        }.getOrNull().orEmpty()
     }
     private val logContext = object : KernelLogContext {
         override fun getString(resId: Int, vararg args: Any) = this@CoreService.getString(resId, *args)
@@ -319,6 +325,7 @@ class CoreService : Service() {
         wakeLock?.acquire(TimeUnit.HOURS.toMillis(24))
 
         registerNetworkCallback()
+        registerScreenReceiver()
     }
 
     private fun moveToForeground() {
@@ -695,6 +702,11 @@ class CoreService : Service() {
                     startedProc = it
                     process.set(it)
                 }
+            }
+            // The receiver only reports changes - a run started (or restarted) with the screen
+            // already off is told so here.
+            if (!(getSystemService(POWER_SERVICE) as PowerManager).isInteractive) {
+                kernel.screenStateCommand(false)?.let(::writeQwdttStdin)
             }
 
             // The sidecar can die before there's a kernel for its watcher (startSidecar) to stop,
@@ -1476,6 +1488,70 @@ class CoreService : Service() {
         onNetworkChanged(previousLabel)
     }
 
+    /**
+     * DNS servers of the physical network traffic goes out through - the primary one, or right
+     * after start (before the callback has reported any) the best-ranked non-VPN network the
+     * system has. Loopback/link-local dropped, IPv4 first: the operator's IPv6 resolver may have
+     * no route. Read when a kernel's command is built, so a run after a network change gets the
+     * new network's.
+     */
+    private fun physicalNetworkDns(): List<String> {
+        val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = physicalNetworks.keys.firstOrNull { it.networkHandle == primaryNetworkHandle }
+            ?: runCatching {
+                @Suppress("DEPRECATION")
+                cm.allNetworks.mapNotNull { n ->
+                    val caps = cm.getNetworkCapabilities(n) ?: return@mapNotNull null
+                    if (caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN) ||
+                        !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) return@mapNotNull null
+                    n to caps
+                }.maxByOrNull { networkRank(it.second) }?.first
+            }.getOrNull()
+            ?: return emptyList()
+        val servers = runCatching { cm.getLinkProperties(network)?.dnsServers }.getOrNull().orEmpty()
+        return servers
+            .filter { !it.isLoopbackAddress && !it.isAnyLocalAddress && !it.isLinkLocalAddress }
+            .sortedBy { if (it is java.net.Inet4Address) 0 else 1 }
+            .mapNotNull { it.hostAddress?.substringBefore('%') }
+            .distinct()
+    }
+
+    // Screen on/off for kernels that take it (Kernel.screenStateCommand), registered while running.
+    private var screenReceiver: android.content.BroadcastReceiver? = null
+
+    private fun registerScreenReceiver() {
+        if (screenReceiver != null) return
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                val on = when (intent.action) {
+                    Intent.ACTION_SCREEN_ON -> true
+                    Intent.ACTION_SCREEN_OFF -> false
+                    else -> return
+                }
+                sendScreenState(on)
+            }
+        }
+        val filter = android.content.IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_SCREEN_OFF)
+        }
+        // System broadcasts: no export flag needed, but API 33+ wants one stated for a runtime receiver.
+        androidx.core.content.ContextCompat.registerReceiver(
+            this, receiver, filter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        screenReceiver = receiver
+    }
+
+    private fun unregisterScreenReceiver() {
+        screenReceiver?.let { runCatching { unregisterReceiver(it) } }
+        screenReceiver = null
+    }
+
+    private fun sendScreenState(screenOn: Boolean) {
+        val cfg = currentRunningCfg.get() ?: return
+        KernelRegistry.get(cfg.kernelVariant).screenStateCommand(screenOn)?.let(::writeQwdttStdin)
+    }
+
     private fun onNetworkChanged(previousLabel: String) {
         // Several switches within the debounce window are reported as one, from where it began.
         if (networkDebounceJob?.isActive != true) networkChangeFrom = previousLabel
@@ -1682,6 +1758,7 @@ class CoreService : Service() {
 
         handler.removeCallbacksAndMessages(null)
         unregisterNetworkCallback()
+        unregisterScreenReceiver()
         AppLogsState.addLog(getString(R.string.log_core_stop_ui))
 
         // Safety net: xraySupervisorJob/vpnSupervisorJob normally tear these down reactively, but

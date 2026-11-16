@@ -18,7 +18,7 @@ import java.util.regex.Pattern
 // is Russian and unrelated to free-turn-proxy's despite the shared VK-TURN idea.
 object QwdttKernel : Kernel {
     override val variant: KernelVariant = KernelVariant.QWDTT
-    override val sensitiveCommandFlags: Set<String> = setOf("-vk", "-password", "-socks-user", "-socks-pass", "-diag-key")
+    override val sensitiveCommandFlags: Set<String> = setOf("-vk", "-password", "-socks-user", "-socks-pass", "-diag-key", "-device-id")
     override val displayNameRes: Int = R.string.kernel_qwdtt
     override val configActivityClass = QwdttConfigActivity::class.java
     override val wgNotUsedMessageRes: Int = R.string.wg_not_used_with_qwdtt
@@ -62,6 +62,10 @@ object QwdttKernel : Kernel {
     override fun supportsNativeTun(cfg: KernelConfig): Boolean =
         (cfg as? KernelConfig.Qwdtt)?.config?.rawPeer() != null
 
+    // 1.4.5+: with the screen off, workers keepalive every 20s instead of 5s and are given up after
+    // 60s of silence instead of 15s, so the radio can sleep; on screen on all of them are checked at once.
+    override fun screenStateCommand(screenOn: Boolean): String = if (screenOn) "SCREEN_ON" else "SCREEN_OFF"
+
     override fun buildCommand(ctx: KernelCommandContext, cfg: ClientConfig): List<String> {
         val cmdArgs = mutableListOf<String>()
         val o = (cfg.kernelConfig as KernelConfig.Qwdtt).config
@@ -92,6 +96,12 @@ object QwdttKernel : Kernel {
         if (o.manualCaptcha) cmdArgs.addAll(listOf("-captcha-mode", "wv"))
         if (o.goDns.isNotBlank() && o.goDns != "yandex") cmdArgs.addAll(listOf("-go-dns", o.goDns))
         if (o.diagKey.isNotBlank()) cmdArgs.addAll(listOf("-diag-key", o.diagKey))
+        cmdArgs.addAll(listOf("-device-id", o.resolvedDeviceId(ctx.androidId)))
+        // The current network's DNS: the fallback when -go-dns doesn't answer, and the main one
+        // for -go-dns operator (1.4.5+).
+        if (ctx.networkDnsServers.isNotEmpty()) {
+            cmdArgs.addAll(listOf("-dns-fallback", ctx.networkDnsServers.joinToString(",")))
+        }
         if (!rawMode && cfg.isSocksAuthEnabled) {
             cmdArgs.add("-socks-auth")
             cmdArgs.addAll(listOf("-socks-user", cfg.socksUser))

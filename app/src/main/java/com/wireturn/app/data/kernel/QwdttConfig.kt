@@ -33,7 +33,13 @@ data class QwdttConfig(
     @SerializedName("raw_port") val rawPort: String = "",
     // The link's `dk` (qWDTT 1.4.5+): the server's diagnostics key, passed as -diag-key so the
     // binary's connection check can also query the server side. Blank = client-side checks only.
-    @SerializedName("diag_key") val diagKey: String = ""
+    @SerializedName("diag_key") val diagKey: String = "",
+    // -device-id: the server binds a password to device ids (one device by default). Null = a
+    // profile from before this field, kept on the binary's own "unknown" that WireTurn always sent
+    // so far - a password already bound to it would be refused under any other id. Blank = this
+    // device's ANDROID_ID, as the official client sends (THIS_DEVICE, what new profiles get).
+    // Anything else is sent as is. Gson leaves null out, so it stays null through a save.
+    @SerializedName("device_id") val deviceId: String? = null
 ) {
     fun isValid(): Boolean = peer.isNotBlank() && vkHashes.isNotBlank() && password.isNotBlank()
 
@@ -57,8 +63,16 @@ data class QwdttConfig(
         obfsMode = if (obfsMode == "video") "video" else "audio",
         goDns = ((goDns as Any?)?.toString()?.trim()?.take(100)).let { if (it.isNullOrBlank()) "yandex" else it },
         rawPort = (rawPort as Any?)?.toString()?.filter(Char::isDigit)?.take(5) ?: "",
-        diagKey = (diagKey as Any?)?.toString()?.trim()?.take(512) ?: ""
+        diagKey = (diagKey as Any?)?.toString()?.trim()?.take(512) ?: "",
+        deviceId = deviceId?.trim()?.take(128)
     )
+
+    /** What goes to -device-id, given this device's ANDROID_ID - see [deviceId]. */
+    fun resolvedDeviceId(androidId: String): String = when {
+        deviceId == null -> LEGACY_DEVICE_ID
+        deviceId.isBlank() -> androidId.ifBlank { LEGACY_DEVICE_ID }
+        else -> deviceId
+    }
 
     // Deliberately only the official scheme's own fields (name/peer/hashes/workers/pass) - `port`
     // is read on import (below) but never re-emitted, and obfs/turnTcp/goDns/noTls aren't part of
@@ -80,6 +94,10 @@ data class QwdttConfig(
 
         // The binary's own cap since 1.4.5 (27 per hash with all six hashes); it clamps -n to it.
         const val MAX_WORKERS = 162
+
+        // deviceId values - see the field.
+        const val THIS_DEVICE = ""
+        const val LEGACY_DEVICE_ID = "unknown"
 
         /**
          * [peerRaw] as "host:port": some generators send a bare host, with the port as a separate
@@ -124,7 +142,8 @@ data class QwdttConfig(
                     noTls = current.noTls,
                     manualCaptcha = current.manualCaptcha,
                     rawPort = current.rawPort,
-                    diagKey = current.diagKey
+                    diagKey = current.diagKey,
+                    deviceId = current.deviceId ?: THIS_DEVICE
                 )
             }
 
@@ -154,7 +173,8 @@ data class QwdttConfig(
                     noTls = current.noTls,
                     manualCaptcha = current.manualCaptcha,
                     rawPort = current.rawPort,
-                    diagKey = current.diagKey
+                    diagKey = current.diagKey,
+                    deviceId = current.deviceId ?: THIS_DEVICE
                 )
             }
 
@@ -182,7 +202,9 @@ data class QwdttConfig(
                     noTls = current.noTls,
                     manualCaptcha = current.manualCaptcha,
                     rawPort = current.rawPort,
-                    diagKey = uri.getQueryParameter("dk")?.trim() ?: current.diagKey
+                    diagKey = uri.getQueryParameter("dk")?.trim() ?: current.diagKey,
+                    // A link is a new profile's config: this device's id, not the legacy "unknown".
+                    deviceId = current.deviceId ?: THIS_DEVICE
                 )
             } catch (_: Exception) {
                 null

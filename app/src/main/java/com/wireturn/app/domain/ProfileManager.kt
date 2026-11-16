@@ -611,6 +611,12 @@ class ProfileManager(
                                 ))
                         }
 
+                        // The device id a qWDTT password is bound to is local, never the
+                        // subscription's: a refresh must not move a profile off "unknown" (or
+                        // whatever the user set), or the server would refuse it as a new device.
+                        is KernelConfig.Qwdtt if oldKc is KernelConfig.Qwdtt ->
+                            KernelConfig.Qwdtt(newKc.config.copy(deviceId = oldKc.config.deviceId))
+
                         else -> newKc
                     }
                 }
@@ -1119,7 +1125,8 @@ class ProfileManager(
                 vkHashes = hashes,
                 password = password,
                 workers = number(obj, "workers", "workersPerHash")?.toInt() ?: QwdttConfig().workers,
-                diagKey = string(obj, "diagKey", "dk").orEmpty()
+                diagKey = string(obj, "diagKey", "dk").orEmpty(),
+                deviceId = QwdttConfig.THIS_DEVICE
             ).sanitize()
             Profile(
                 id = stableTextSubEntryId("qwdtt-sub:$peer:$hashes"),

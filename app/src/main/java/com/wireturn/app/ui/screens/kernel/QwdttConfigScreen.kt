@@ -141,7 +141,7 @@ fun QwdttConfigScreen(
                         val text = input.bufferedReader().use { r -> r.readText() }.trim()
                         val parsed = QwdttConfig.parse(text)
                         if (parsed != null) {
-                            config = parsed
+                            config = parsed.copy(deviceId = config.deviceId)
                             context.showExclusiveToast(importSuccessMessage)
                         } else {
                             context.showExclusiveToast(importErrorMessage)
@@ -215,7 +215,7 @@ fun QwdttConfigScreen(
                                         val text = clipEntry?.clipData?.getItemAt(0)?.text?.toString() ?: ""
                                         val parsed = QwdttConfig.parse(text)
                                         if (parsed != null) {
-                                            config = parsed
+                                            config = parsed.copy(deviceId = config.deviceId)
                                             context.showExclusiveToast(importSuccessMessage)
                                         } else if (text.isNotBlank()) {
                                             context.showExclusiveToast(importErrorMessage)
@@ -446,13 +446,25 @@ fun QwdttConfigScreen(
                         isModified = isEditMode && config.manualCaptcha != initialConfig.manualCaptcha
                     )
                 }
-                SectionItem(position = ItemPosition.Bottom) {
+                SectionItem {
                     TextFieldRow(
                         label = stringResource(R.string.qwdtt_go_dns_label),
                         value = config.goDns,
                         onValueChange = { config = config.copy(goDns = it) },
                         isModified = isEditMode && config.goDns != initialConfig.goDns,
                         supportingText = stringResource(R.string.qwdtt_go_dns_desc)
+                    )
+                }
+                SectionItem(position = ItemPosition.Bottom) {
+                    // Null (a profile from before the field) shows as the "unknown" it sends; cleared,
+                    // the field means this device's own id - see QwdttConfig.deviceId.
+                    TextFieldRow(
+                        label = stringResource(R.string.qwdtt_device_id_label),
+                        value = config.deviceId ?: QwdttConfig.LEGACY_DEVICE_ID,
+                        onValueChange = { config = config.copy(deviceId = it.trim()) },
+                        placeholder = stringResource(R.string.qwdtt_device_id_placeholder),
+                        isModified = isEditMode && config.deviceId != initialConfig.deviceId,
+                        supportingText = stringResource(R.string.qwdtt_device_id_desc)
                     )
                 }
             }
@@ -485,7 +497,7 @@ fun QwdttConfigScreen(
             onResult = { result: String ->
                 val parsed = QwdttConfig.parse(result)
                 if (parsed != null) {
-                    config = parsed
+                    config = parsed.copy(deviceId = config.deviceId)
                     context.showExclusiveToast(importSuccessMessage)
                 } else {
                     context.showExclusiveToast(importErrorMessage)

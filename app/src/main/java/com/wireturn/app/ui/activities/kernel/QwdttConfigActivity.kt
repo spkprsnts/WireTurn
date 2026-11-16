@@ -51,7 +51,8 @@ class QwdttConfigActivity : ComponentActivity() {
                 } else if (isEditMode) {
                     (clientConfig.kernelConfig as? KernelConfig.Qwdtt)?.config ?: QwdttConfig()
                 } else {
-                    QwdttConfig()
+                    // A new profile: this device's id (QwdttConfig.deviceId), not the legacy "unknown".
+                    QwdttConfig(deviceId = QwdttConfig.THIS_DEVICE)
                 }
             }
 

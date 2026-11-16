@@ -364,7 +364,10 @@
     <string name="qwdtt_manual_captcha_label">Manual Captcha</string>
     <string name="qwdtt_manual_captcha_desc">Always solve VK captcha in app browser instead of letting the core try to solve it automatically first</string>
     <string name="qwdtt_go_dns_label">DNS resolver</string>
-    <string name="qwdtt_go_dns_desc">Resolver for VK requests before the tunnel is up: yandex, cloudflare, google, doh-yandex, doh-cloudflare, doh-google, custom:IP or doh:URL</string>
+    <string name="qwdtt_go_dns_desc">Resolver for VK requests before the tunnel is up: yandex, cloudflare, google, doh-yandex, doh-cloudflare, doh-google, operator (the current network\'s DNS), custom:IP or doh:URL. If it doesn\'t answer, the current network\'s DNS is tried</string>
+    <string name="qwdtt_device_id_label">Device ID</string>
+    <string name="qwdtt_device_id_placeholder">This device\'s ID</string>
+    <string name="qwdtt_device_id_desc">The server binds the password to device IDs. Leave empty for this device\'s ID</string>
     <string name="local_listen_address">Local listen address</string>
     <string name="local_port_help_text">Turnable and FreeTurn don\'t produce a standard proxy - they open a raw tunnel endpoint at this address.</string>
     <string name="local_port_help_secondary">The app\'s own Xray connects here automatically to turn it into an Xray link or a VPN. Change this only if you want to point a separate VPN app (WireGuard, v2RayTun, etc.) at the tunnel directly, bypassing Xray.</string>

@@ -25,6 +25,12 @@ interface KernelCommandContext {
     // A fresh abstract Unix socket name for this run, for a kernel and its sidecar to meet on
     // (see Kernel.buildSidecarCommand) - the same in both commands of one run.
     val runSocket: String get() = ""
+    // DNS servers of the physical network traffic goes out through (mobile operator or Wi-Fi
+    // router), IPv4 first; empty if unknown. The app is excluded from its own VPN, so a kernel
+    // reaches even an operator-internal resolver directly.
+    val networkDnsServers: List<String> get() = emptyList()
+    // This device's ANDROID_ID (per app signing key), or blank.
+    val androidId: String get() = ""
 }
 
 /**
@@ -215,6 +221,12 @@ interface Kernel {
      * to the log as is; [KernelLogContext.writeToSidecar] feeds its stdin.
      */
     fun buildSidecarCommand(ctx: KernelCommandContext, cfg: ClientConfig): List<String>? = null
+
+    /**
+     * A line for the binary's stdin when the screen turns on or off (also sent right after start
+     * with the screen off), or null if it doesn't take one - qWDTT's SCREEN_ON/SCREEN_OFF.
+     */
+    fun screenStateCommand(screenOn: Boolean): String? = null
 
     /**
      * Handles one line of the binary's stdout, updating [CoreServiceState] as needed via [ctx]
