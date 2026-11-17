@@ -191,9 +191,11 @@ object FreeTurnKernel : Kernel {
     override fun isNoise(line: String): Boolean = line.contains("] [turnc] ")
 
     // UDP mode's per-stream DTLS session to the server (internal/proxy/udprelay/loop.go) - the
-    // only proof the tunnel reaches our server, see point 2 of parseLogLine.
+    // only proof the tunnel reaches our server, see point 2 of parseLogLine. And -advanced-captcha's
+    // page URL, which the core logs in full only at debug level (its session_token is in the query).
     override fun parsesDebugLine(line: String): Boolean =
-        DTLS_ESTABLISHED_REGEX.containsMatchIn(line) || DTLS_CLOSED_REGEX.containsMatchIn(line)
+        DTLS_ESTABLISHED_REGEX.containsMatchIn(line) || DTLS_CLOSED_REGEX.containsMatchIn(line) ||
+            POW_CAPTURE_URL_REGEX.containsMatchIn(line)
 
     override suspend fun parseLogLine(
         line: String,
@@ -385,8 +387,10 @@ object FreeTurnKernel : Kernel {
     private val CAPTCHA_URL_REGEX =
         Pattern.compile("""Open this URL in your browser:\s*(https?://\S+)""")
 
-    // -advanced-captcha's wait for the browser PoW, with the core's local page to load for it.
-    private val POW_CAPTURE_URL_REGEX = Regex("""waiting for browser PoW computation at (http://\S+)""")
+    // -advanced-captcha's wait for the browser PoW: the core's local page to load for it, in full
+    // only on its own debug line (the regular "waiting for browser PoW computation" one shows it
+    // without query values).
+    private val POW_CAPTURE_URL_REGEX = Regex("""browser PoW page (http://\S+)""")
 
     // The core's local captcha page with its query - VK's session_token for the captcha in it.
     private val LOCAL_CAPTCHA_QUERY_REGEX = Regex("""(http://(?:localhost|127\.0\.0\.1):\d+/\S*?)\?\S+""")

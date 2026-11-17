@@ -13,13 +13,18 @@ class FreeTurnKernelTest {
 
     @Test
     fun redactLogLine_masksTheCaptchaPageQuery() {
-        val line = "[INFO] captcha PoW capture server error: waiting for browser PoW computation at " +
+        // The core's debug line with the full page URL - the one the WebView loads.
+        val line = "[DEBUG] captcha PoW capture server error: browser PoW page " +
             "http://localhost:8765/not_robot_captcha?domain=vk.com&session_token=eyJ.secret&variant=popup"
         assertEquals(
-            "[INFO] captcha PoW capture server error: waiting for browser PoW computation at " +
+            "[DEBUG] captcha PoW capture server error: browser PoW page " +
                 "http://localhost:8765/not_robot_captcha?<redacted>",
             FreeTurnKernel.redactLogLine(line)
         )
+        // The regular line already comes without values (captcha.SafeURL) - nothing to mask.
+        val safe = "[INFO] captcha PoW capture server error: waiting for browser PoW computation at " +
+            "localhost:8765/not_robot_captcha?blank,domain,expired_at,session_token,variant"
+        assertEquals(safe, FreeTurnKernel.redactLogLine(safe))
     }
 
     @Test
