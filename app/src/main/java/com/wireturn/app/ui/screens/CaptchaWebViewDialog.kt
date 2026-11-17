@@ -186,6 +186,27 @@ fun CaptchaWebViewDialog(
                 [class*="Checkbox__Checkbox--"] {
                     transform: scale(1.2) !important;
                 }
+                /* Новая вёрстка виджета (библиотека iui вместо VKUI): у общих компонентов
+                   классы вида "card__ma85s" - имя и хэш через "__", без "--". Короткие имена
+                   вроде card__/overlay__ слишком общие, поэтому привязаны к структуре диалога. */
+                [class*="appRootStyleContainer__"] [class*="overlay__"],
+                [role="dialog"][class*="modalCard__"] > [class*="card__"] {
+                    background: transparent !important;
+                    background-color: transparent !important;
+                    box-shadow: none !important;
+                }
+                [role="dialog"][class*="modalCard__"] > [class*="card__"] {
+                    padding: 0 !important;
+                    ${if (captchaForceTint) "filter: $tintFilter !important;" else ""}
+                }
+                [role="dialog"][class*="modalCard__"] {
+                    animation: none !important;
+                    transition: none !important;
+                    transform: none !important;
+                }
+                [role="dialog"][class*="modalCard__"] > [class*="dismissButton__"] {
+                    display: none !important;
+                }
                 /* free-turn-proxy's own captcha proxy (когда активное ядро - FreeTurn) инжектит
                    поверх страницы баннер "free turn proxy - captcha" без класса/id - только через
                    style.cssText (internal/provider/vk/internal/captcha/manual/inject.js,
@@ -342,8 +363,27 @@ fun CaptchaWebViewDialog(
                                             (function() {
                                                 window.__wireturnCaptcha = { isDark: $isDarkTheme, styleModEnabled: $captchaStyleMod, success: false, height: 0, visible: false };
 
+                                                // Новая вёрстка (iui): тема - класс iui--<набор>--dark/light на
+                                                // <html> и контейнере appRootStyleContainer__, по умолчанию по
+                                                // prefers-color-scheme. Меняем только у элементов, где такой
+                                                // класс уже есть.
+                                                const IUI_THEMES = ['vkid', 'vkidIOS', 'lego', 'legoIOS']
+                                                    .flatMap(function(n) { return ['iui--' + n + '--dark', 'iui--' + n + '--light']; });
+                                                const applyIuiTheme = function(isDark) {
+                                                    const target = isDark ? 'iui--vkid--dark' : 'iui--vkid--light';
+                                                    const els = [document.documentElement]
+                                                        .concat(Array.from(document.querySelectorAll('[class*="appRootStyleContainer__"]')));
+                                                    els.forEach(function(el) {
+                                                        const has = IUI_THEMES.filter(function(c) { return el.classList.contains(c); });
+                                                        if (has.length === 0 || (has.length === 1 && has[0] === target)) return;
+                                                        has.forEach(function(c) { el.classList.remove(c); });
+                                                        el.classList.add(target);
+                                                    });
+                                                };
+
                                                 const applyTheme = function() {
                                                     if (!window.__wireturnCaptcha.styleModEnabled) return;
+                                                    applyIuiTheme(window.__wireturnCaptcha.isDark);
                                                     const appRoot = document.querySelector('[class*="AppRoot__host--"]');
                                                     if (!appRoot) return;
 
