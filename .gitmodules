@@ -6,7 +6,7 @@
 	url = https://github.com/TheAirBlow/Turnable.git
 [submodule "external/hev-socks5-tunnel"]
 	path = external/hev-socks5-tunnel
-	url = https://github.com/heiher/hev-socks5-tunnel.git
+	url = https://github.com/spkprsnts/hev-socks5-tunnel.git
 [submodule "external/olcrtc"]
 	path = external/olcrtc
 	url = https://github.com/openlibrecommunity/olcrtc
