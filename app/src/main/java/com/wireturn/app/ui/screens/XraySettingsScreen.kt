@@ -37,7 +37,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,6 +45,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SmallExtendedFloatingActionButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -295,7 +295,7 @@ fun XraySettingsScreen(
                     )
                 ) + fadeOut(animationSpec = MaterialTheme.motionScheme.fastEffectsSpec())
             ) {
-                ExtendedFloatingActionButton(
+                SmallExtendedFloatingActionButton(
                     modifier = Modifier.navigationBarsPadding(),
                     onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
