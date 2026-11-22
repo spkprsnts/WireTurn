@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -35,8 +36,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
@@ -393,6 +396,9 @@ fun SectionItem(
     val isTop = position == ItemPosition.Top || position == ItemPosition.Single
     val isBottom = position == ItemPosition.Bottom || position == ItemPosition.Single
 
+    // The segmented list's corners (ListItemDefaults.segmentedShapes: outer on the ends of a
+    // group, the item's own between them), animated so a row appearing or leaving re-rounds its
+    // neighbours instead of snapping. The pressed/focused morph comes from the item's shapes.
     val topRadius by animateDpAsState(
         targetValue = if (isTop) GroupCardCorners.outer else GroupCardCorners.inner,
         label = "top_corner"
@@ -401,30 +407,35 @@ fun SectionItem(
         targetValue = if (isBottom) GroupCardCorners.outer else GroupCardCorners.inner,
         label = "bottom_corner"
     )
-
-    val shape = RoundedCornerShape(
-        topStart = topRadius,
-        topEnd = topRadius,
-        bottomStart = bottomRadius,
-        bottomEnd = bottomRadius
+    val shapes = ListItemDefaults.shapes(
+        shape = RoundedCornerShape(
+            topStart = topRadius,
+            topEnd = topRadius,
+            bottomStart = bottomRadius,
+            bottomEnd = bottomRadius
+        )
+    )
+    val colors = ListItemDefaults.segmentedColors(
+        containerColor = containerColor,
+        disabledContainerColor = containerColor.copy(alpha = 0.5f)
     )
 
     val internalInteractionSource = interactionSource ?: LocalSettingsInteractionSource.current
     ?: remember { MutableInteractionSource() }
 
+    // Rows are whole layouts (fields, sliders, button groups), not a headline - they go in the
+    // content slot as is, filling the item.
     val body: @Composable () -> Unit = {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 72.dp)
-                .padding(horizontal = 16.dp, vertical = 14.dp)
                 .let { if (!enabled) it.alpha(ContentAlpha.disabled) else it },
             contentAlignment = Alignment.CenterStart
         ) {
             content()
         }
     }
-    val cardModifier = modifier
+    val itemModifier = modifier
         .fillMaxWidth()
         .heightIn(min = 72.dp)
 
@@ -433,35 +444,33 @@ fun SectionItem(
             var switchChecked by remember { mutableStateOf<Boolean?>(null) }
             val reportSwitch = remember { { checked: Boolean? -> switchChecked = checked } }
             CompositionLocalProvider(LocalSectionToggle provides reportSwitch) {
-                Card(
-                    modifier = cardModifier.switchSemantics(switchChecked),
-                    shape = shape,
+                SegmentedListItem(
                     onClick = onClick,
+                    shapes = shapes,
+                    modifier = itemModifier.switchSemantics(switchChecked),
                     enabled = enabled,
+                    colors = colors,
+                    contentPadding = SectionItemPadding,
                     interactionSource = internalInteractionSource,
-                    colors = CardDefaults.cardColors(
-                        containerColor = containerColor,
-                        disabledContainerColor = containerColor.copy(alpha = 0.5f)
-                    ),
-                    content = { body() }
+                    content = body
                 )
             }
         } else {
-            // Not clickable: a plain card, not a disabled clickable one - that one told
-            // accessibility services every such row was disabled, and dimmed its content color.
             CompositionLocalProvider(LocalSectionToggle provides null) {
-                Card(
-                    modifier = cardModifier,
-                    shape = shape,
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (enabled) containerColor else containerColor.copy(alpha = 0.5f)
-                    ),
-                    content = { body() }
+                SegmentedListItem(
+                    shapes = shapes,
+                    modifier = itemModifier,
+                    enabled = enabled,
+                    colors = colors,
+                    contentPadding = SectionItemPadding,
+                    content = body
                 )
             }
         }
     }
 }
+
+private val SectionItemPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)
 
 @Composable
 fun MainSwitchItem(
