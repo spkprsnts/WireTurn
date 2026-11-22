@@ -82,6 +82,8 @@ import com.wireturn.app.ui.redact
 import com.wireturn.app.ui.screens.QrScannerDialog
 import com.wireturn.app.ui.selectableButtonItem
 import com.wireturn.app.ui.showExclusiveToast
+import com.wireturn.app.ui.PortInput
+import com.wireturn.app.ui.TrimmedInput
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -395,6 +397,7 @@ fun QwdttConfigScreen(
                     TextFieldRow(
                         label = stringResource(R.string.qwdtt_raw_port_label),
                         value = config.rawPort,
+                        inputTransformation = PortInput,
                         onValueChange = {
                             config = config.copy(rawPort = it.filter(Char::isDigit).take(5))
                         },
@@ -479,6 +482,7 @@ fun QwdttConfigScreen(
                     TextFieldRow(
                         label = stringResource(R.string.qwdtt_device_id_label),
                         value = config.deviceId ?: QwdttConfig.LEGACY_DEVICE_ID,
+                        inputTransformation = TrimmedInput,
                         onValueChange = { config = config.copy(deviceId = it.trim()) },
                         placeholder = stringResource(R.string.qwdtt_device_id_placeholder),
                         isModified = isEditMode && config.deviceId != initialConfig.deviceId,

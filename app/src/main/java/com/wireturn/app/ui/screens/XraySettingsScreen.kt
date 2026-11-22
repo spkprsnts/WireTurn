@@ -30,6 +30,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularWavyProgressIndicator
@@ -85,6 +87,7 @@ import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.redact
+import com.wireturn.app.ui.PortInput
 import com.wireturn.app.viewmodel.GeoAssetsState
 import java.text.DateFormat
 import java.util.Date
@@ -617,6 +620,7 @@ fun XraySettingsScreen(
                             TextFieldRow(
                                 label = stringResource(R.string.xray_settings_byedpi_port_label),
                                 value = dpiBypassPort,
+                                inputTransformation = PortInput,
                                 onValueChange = { value ->
                                     dpiBypassPort = value.filter(Char::isDigit).take(5)
                                 },
@@ -1118,9 +1122,12 @@ private fun GeoSourceEditDialog(
     onSave: (GeoResourceSet) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var name by remember { mutableStateOf(source?.name ?: "") }
-    var geoipUrl by remember { mutableStateOf(source?.geoipUrl ?: "") }
-    var geositeUrl by remember { mutableStateOf(source?.geositeUrl ?: "") }
+    val nameState = rememberTextFieldState(source?.name ?: "")
+    val geoipState = rememberTextFieldState(source?.geoipUrl ?: "")
+    val geositeState = rememberTextFieldState(source?.geositeUrl ?: "")
+    val name = nameState.text.toString()
+    val geoipUrl = geoipState.text.toString()
+    val geositeUrl = geositeState.text.toString()
     val geoipValid = ValidatorUtils.isValidUrl(geoipUrl.trim())
     val geositeValid = ValidatorUtils.isValidUrl(geositeUrl.trim())
 
@@ -1130,32 +1137,29 @@ private fun GeoSourceEditDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
+                    state = nameState,
                     label = { Text(stringResource(R.string.geo_source_name_label)) },
                     supportingText = { Text(stringResource(R.string.geo_source_name_desc)) },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    lineLimits = TextFieldLineLimits.SingleLine
                 )
                 OutlinedTextField(
-                    value = geoipUrl,
-                    onValueChange = { geoipUrl = it },
+                    state = geoipState,
                     label = { Text(stringResource(R.string.geo_source_geoip_label)) },
                     supportingText = { Text(stringResource(R.string.geo_source_url_desc)) },
                     isError = geoipUrl.isNotBlank() && !geoipValid,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    lineLimits = TextFieldLineLimits.SingleLine
                 )
                 OutlinedTextField(
-                    value = geositeUrl,
-                    onValueChange = { geositeUrl = it },
+                    state = geositeState,
                     label = { Text(stringResource(R.string.geo_source_geosite_label)) },
                     supportingText = { Text(stringResource(R.string.geo_source_url_desc)) },
                     isError = geositeUrl.isNotBlank() && !geositeValid,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    lineLimits = TextFieldLineLimits.SingleLine
                 )
             }
         },

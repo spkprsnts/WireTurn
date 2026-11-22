@@ -78,6 +78,7 @@ import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.UpdateBlock
 import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.selectableButtonItem
+import com.wireturn.app.ui.DigitsInput
 import com.wireturn.app.viewmodel.MainViewModel
 import com.wireturn.app.viewmodel.UpdateState
 import kotlinx.coroutines.delay
@@ -387,6 +388,7 @@ fun SettingsScreen(
                             TextFieldRow(
                                 label = stringResource(R.string.settings_eternal_watchdog_interval),
                                 value = localWatchdogInterval,
+                                inputTransformation = DigitsInput,
                                 onValueChange = {
                                     localWatchdogInterval = it.filter(Char::isDigit)
                                 },

@@ -32,6 +32,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -840,8 +842,10 @@ fun RouteEditDialog(
     onSave: (TurnableRoute) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var id by remember { mutableStateOf(route?.routeId ?: "") }
-    var name by remember { mutableStateOf(route?.name ?: "") }
+    val idState = rememberTextFieldState(route?.routeId ?: "")
+    val nameState = rememberTextFieldState(route?.name ?: "")
+    val id = idState.text.toString()
+    val name = nameState.text.toString()
     var socket by remember { mutableStateOf(route?.socket ?: "udp") }
     var transport by remember { mutableStateOf(route?.transport ?: "") }
 
@@ -851,19 +855,17 @@ fun RouteEditDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
+                    state = nameState,
                     label = { Text(stringResource(R.string.route_name_label)) },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    lineLimits = TextFieldLineLimits.SingleLine
                 )
                 OutlinedTextField(
-                    value = id,
-                    onValueChange = { id = it },
+                    state = idState,
                     label = { Text(stringResource(R.string.route_id_label)) },
                     modifier = Modifier.fillMaxWidth(),
                     isError = id.isBlank(),
-                    singleLine = true
+                    lineLimits = TextFieldLineLimits.SingleLine
                 )
 
                 SectionGroup(title = stringResource(R.string.route_socket_label)) {

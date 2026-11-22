@@ -72,6 +72,7 @@ import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.redact
 import com.wireturn.app.ui.screens.QrScannerDialog
 import com.wireturn.app.ui.showExclusiveToast
+import com.wireturn.app.ui.TrimmedInput
 import kotlinx.coroutines.launch
 
 // The Xray-only profile (XrayKernel): just the link, which vless-client parses itself.
@@ -317,6 +318,7 @@ fun XrayLinkConfigScreen(
                     TextFieldRow(
                         label = stringResource(R.string.xray_link_label),
                         value = config.link.redact(isPrivacyActive),
+                        inputTransformation = TrimmedInput,
                         onValueChange = {
                             if (!isPrivacyActive) config = config.copy(link = it.trim())
                         },

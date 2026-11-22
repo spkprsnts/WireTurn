@@ -87,6 +87,7 @@ import com.wireturn.app.ui.noFlingExpandConnection
 import com.wireturn.app.ui.redact
 import com.wireturn.app.ui.screens.QrScannerDialog
 import com.wireturn.app.ui.showExclusiveToast
+import com.wireturn.app.ui.DigitsInput
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -601,6 +602,7 @@ fun OlcRtcConfigScreen(
                                 TextFieldRow(
                                     label = stringResource(R.string.olcrtc_video_width),
                                     value = if (config.videoW == 0) "" else config.videoW.toString(),
+                                    inputTransformation = DigitsInput,
                                     onValueChange = {
                                         config = config.copy(videoW = it.toIntOrNull() ?: 0)
                                     },
@@ -613,6 +615,7 @@ fun OlcRtcConfigScreen(
                                 TextFieldRow(
                                     label = stringResource(R.string.olcrtc_video_height),
                                     value = if (config.videoH == 0) "" else config.videoH.toString(),
+                                    inputTransformation = DigitsInput,
                                     onValueChange = {
                                         config = config.copy(videoH = it.toIntOrNull() ?: 0)
                                     },

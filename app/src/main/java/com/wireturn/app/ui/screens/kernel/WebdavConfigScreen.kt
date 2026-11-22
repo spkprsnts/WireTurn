@@ -30,6 +30,9 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextObfuscationMode
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -39,6 +42,7 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedSecureTextField
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -61,8 +65,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.wireturn.app.R
 import com.wireturn.app.data.kernel.WebdavBackend
@@ -73,6 +75,7 @@ import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.QrCodeDialog
+import com.wireturn.app.ui.RedactedOutput
 import com.wireturn.app.ui.ScreenSubtitle
 import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
@@ -734,11 +737,18 @@ private fun BackendEditDialog(
     onSave: (WebdavBackend) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var label by remember { mutableStateOf(backend?.label ?: "") }
-    var url by remember { mutableStateOf(backend?.url ?: "") }
-    var login by remember { mutableStateOf(backend?.login ?: "") }
-    var password by remember { mutableStateOf(backend?.password ?: "") }
+    val labelState = rememberTextFieldState(backend?.label ?: "")
+    val urlState = rememberTextFieldState(backend?.url ?: "")
+    val loginState = rememberTextFieldState(backend?.login ?: "")
+    val passwordState = rememberTextFieldState(backend?.password ?: "")
+    val label = labelState.text.toString()
+    val url = urlState.text.toString()
+    val login = loginState.text.toString()
+    val password = passwordState.text.toString()
     var passwordVisible by remember { mutableStateOf(false) }
+    // Privacy mode: the real text stays in the state and is shown as blanks (like redact()),
+    // with the field disabled so it can't be selected and copied.
+    val privacyOutput = if (isPrivacyActive) RedactedOutput else null
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -751,41 +761,48 @@ private fun BackendEditDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 OutlinedTextField(
-                    value = label,
-                    onValueChange = { label = it },
+                    state = labelState,
                     label = { Text(stringResource(R.string.webdav_backend_label_label)) },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    lineLimits = TextFieldLineLimits.SingleLine
                 )
                 OutlinedTextField(
-                    value = url.redact(isPrivacyActive),
-                    onValueChange = { if (!isPrivacyActive) url = it },
-                    readOnly = isPrivacyActive,
+                    state = urlState,
+                    enabled = !isPrivacyActive,
+                    outputTransformation = privacyOutput,
                     label = { Text(stringResource(R.string.webdav_backend_url_label)) },
                     modifier = Modifier.fillMaxWidth(),
                     isError = url.isBlank(),
-                    singleLine = true,
+                    lineLimits = TextFieldLineLimits.SingleLine,
                     placeholder = { Text("https://dav.example.com") }
                 )
                 OutlinedTextField(
-                    value = login.redact(isPrivacyActive),
-                    onValueChange = { if (!isPrivacyActive) login = it },
-                    readOnly = isPrivacyActive,
+                    state = loginState,
+                    enabled = !isPrivacyActive,
+                    outputTransformation = privacyOutput,
                     label = { Text(stringResource(R.string.webdav_login_label)) },
                     modifier = Modifier.fillMaxWidth(),
                     isError = login.isBlank(),
-                    singleLine = true
+                    lineLimits = TextFieldLineLimits.SingleLine
                 )
-                OutlinedTextField(
-                    value = password.redact(isPrivacyActive),
-                    onValueChange = { if (!isPrivacyActive) password = it },
-                    readOnly = isPrivacyActive,
-                    label = { Text(stringResource(R.string.webdav_password_label)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    isError = password.isBlank(),
-                    singleLine = true,
-                    trailingIcon = {
-                        if (!isPrivacyActive) {
+                if (isPrivacyActive) {
+                    OutlinedTextField(
+                        state = passwordState,
+                        enabled = false,
+                        outputTransformation = RedactedOutput,
+                        label = { Text(stringResource(R.string.webdav_password_label)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        isError = password.isBlank(),
+                        lineLimits = TextFieldLineLimits.SingleLine
+                    )
+                } else {
+                    OutlinedSecureTextField(
+                        state = passwordState,
+                        label = { Text(stringResource(R.string.webdav_password_label)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        isError = password.isBlank(),
+                        textObfuscationMode = if (passwordVisible) TextObfuscationMode.Visible else TextObfuscationMode.Hidden,
+                        trailingIcon = {
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                 Icon(
                                     painter = painterResource(
@@ -796,10 +813,8 @@ private fun BackendEditDialog(
                                 )
                             }
                         }
-                    },
-                    visualTransformation = if (passwordVisible || isPrivacyActive) VisualTransformation.None
-                    else PasswordVisualTransformation()
-                )
+                    )
+                }
             }
         },
         confirmButton = {

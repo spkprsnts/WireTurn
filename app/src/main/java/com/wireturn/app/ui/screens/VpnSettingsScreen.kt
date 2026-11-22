@@ -58,6 +58,7 @@ import com.wireturn.app.ui.StandardLeadingIcon
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.noFlingExpandConnection
+import com.wireturn.app.ui.Digits4Input
 
 @Composable
 fun VpnSettingsScreen(
@@ -190,6 +191,7 @@ fun VpnSettingsScreen(
                     TextFieldRow(
                         label = stringResource(R.string.vpn_settings_mtu_label),
                         value = mtu,
+                        inputTransformation = Digits4Input,
                         onValueChange = { mtu = it.filter(Char::isDigit).take(4) },
                         placeholder = VpnSettings.DEFAULT_MTU.toString(),
                         supportingText = stringResource(

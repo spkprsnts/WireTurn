@@ -53,6 +53,7 @@ import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.ValidatorUtils
+import com.wireturn.app.ui.DigitsInput
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
 
@@ -268,6 +269,7 @@ class SubscriptionConfigActivity : ComponentActivity() {
                                     TextFieldRow(
                                         label = stringResource(R.string.update_interval_min),
                                         value = if (updateIntervalMinutes == 0) "" else updateIntervalMinutes.toString(),
+                                        inputTransformation = DigitsInput,
                                         onValueChange = {
                                             updateIntervalMinutes = it.toIntOrNull() ?: 0
                                         },
