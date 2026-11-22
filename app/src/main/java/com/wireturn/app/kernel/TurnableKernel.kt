@@ -44,7 +44,8 @@ object TurnableKernel : Kernel {
                             ?: config.routes.firstOrNull())?.transport != "mpath"
             },
             config.cloak?.takeIf { it.isNotBlank() && it != "none" }
-                ?.replaceFirstChar(Char::uppercase)
+                ?.replaceFirstChar(Char::uppercase),
+            context.getString(R.string.kernel_tag_manual_captcha).takeIf { config.manualCaptcha }
         )
     }
 
@@ -101,8 +102,14 @@ object TurnableKernel : Kernel {
 
     // The manual captcha's local server on a random port instead of a fixed 1984 (taken by
     // another instance, or anything else) - the call link then carries it (#port=).
-    override fun environment(ctx: KernelCommandContext, cfg: ClientConfig): Map<String, String> =
-        mapOf("VK_MANUAL_MANAGED" to "1")
+    // VK_FORCE_MANUAL: the manual captcha right away, no auto-solve attempts first.
+    override fun environment(ctx: KernelCommandContext, cfg: ClientConfig): Map<String, String> {
+        val manual = (cfg.kernelConfig as? KernelConfig.Turnable)?.config?.manualCaptcha == true
+        return buildMap {
+            put("VK_MANUAL_MANAGED", "1")
+            if (manual) put("VK_FORCE_MANUAL", "1")
+        }
+    }
 
     // Per-peer dial retries run to hundreds of lines per session on a bad network, and a TURN
     // failure that matters is summed up separately ("peer connection failed with TURN error,

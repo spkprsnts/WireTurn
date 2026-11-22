@@ -30,7 +30,10 @@ data class TurnableConfig(
     @SerializedName("cloak") val cloak: String? = "none",
     @SerializedName("mask") val mask: String? = null,
     @SerializedName("routes") val routes: List<TurnableRoute> = emptyList(),
-    @SerializedName("selected_route_id") val selectedRouteId: String = ""
+    @SerializedName("selected_route_id") val selectedRouteId: String = "",
+    // The app's own setting, not part of the link: straight to the manual VK captcha
+    // (TurnableCaptchaDialog), without Turnable's auto-solver trying first.
+    @SerializedName("manual_captcha") val manualCaptcha: Boolean = false
 ) {
     fun sanitize(): TurnableConfig = copy(
         userUuid = (userUuid as Any?)?.toString()?.trim()?.take(200),

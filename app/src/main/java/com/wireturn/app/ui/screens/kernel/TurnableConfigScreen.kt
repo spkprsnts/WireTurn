@@ -164,7 +164,7 @@ fun TurnableConfigScreen(
                         val text = input.bufferedReader().use { r -> r.readText() }.trim()
                         val parsed = TurnableConfig.parse(text)
                         if (parsed != null) {
-                            config = parsed
+                            config = parsed.copy(manualCaptcha = config.manualCaptcha)
                             context.showExclusiveToast(importSuccessMessage)
                         } else {
                             context.showExclusiveToast(importErrorMessage)
@@ -245,7 +245,7 @@ fun TurnableConfigScreen(
                                                 ?: ""
                                         val parsed = TurnableConfig.parse(text)
                                         if (parsed != null) {
-                                            config = parsed
+                                            config = parsed.copy(manualCaptcha = config.manualCaptcha)
                                             context.showExclusiveToast(importSuccessMessage)
                                         } else if (text.isNotBlank()) {
                                             context.showExclusiveToast(importErrorMessage)
@@ -555,7 +555,7 @@ fun TurnableConfigScreen(
                         isModified = isEditMode && config.peers != initialConfig.peers
                     )
                 }
-                SectionItem(position = ItemPosition.Bottom) {
+                SectionItem(position = ItemPosition.Middle) {
                     LabeledButtonGroup(
                         label = stringResource(R.string.proto_label),
                         supportingText = stringResource(R.string.proto_desc),
@@ -573,6 +573,18 @@ fun TurnableConfigScreen(
                             )
                         }
                     }
+                }
+                SectionItem(
+                    position = ItemPosition.Bottom,
+                    onClick = { config = config.copy(manualCaptcha = !config.manualCaptcha) }
+                ) {
+                    SwitchRow(
+                        label = stringResource(R.string.qwdtt_manual_captcha_label),
+                        checked = config.manualCaptcha,
+                        onCheckedChange = { config = config.copy(manualCaptcha = it) },
+                        supportingText = stringResource(R.string.qwdtt_manual_captcha_desc),
+                        isModified = isEditMode && config.manualCaptcha != initialConfig.manualCaptcha
+                    )
                 }
             }
         }
@@ -665,7 +677,7 @@ fun TurnableConfigScreen(
             onResult = { result: String ->
                 val parsed = TurnableConfig.parse(result)
                 if (parsed != null) {
-                    config = parsed
+                    config = parsed.copy(manualCaptcha = config.manualCaptcha)
                     context.showExclusiveToast(importSuccessMessage)
                 } else {
                     context.showExclusiveToast(importErrorMessage)
