@@ -373,6 +373,11 @@ internal class SubscriptionParser(private val gson: Gson) {
         var subInterval: Int? = null
         var subBytesUsed: Long? = null
         var subBytesTotal: Long? = null
+        var subExpiresAt: Long? = null
+        var subRefillAt: Long? = null
+        var subAnnounce: String? = null
+        var subSupportUrl: String? = null
+        var subWebPageUrl: String? = null
 
         val profiles = mutableListOf<Profile>()
         var currentProfile: Profile? = null
@@ -614,6 +619,22 @@ internal class SubscriptionParser(private val gson: Gson) {
                             // given yet) + what's left, regardless of which field comes first in the file.
                             parseByteSize(value)?.let { subBytesTotal = (subBytesUsed ?: 0L) + it }
                         }
+
+                        // The panels' response headers as body lines (Happ, INCY: "#announce: ..."),
+                        // for providers that put them in the body - read the way the headers are.
+                        "profile-title" -> decodeProfileTitle(value)?.let { subName = it }
+                        "profile-description" -> decodeProfileTitle(value)?.let { subDescription = it }
+                        "announce" -> decodeProfileTitle(value)?.let { subAnnounce = it }
+                        "support-url" -> parseLinkHeader(value)?.let { subSupportUrl = it }
+                        "profile-web-page-url" -> parseLinkHeader(value)?.let { subWebPageUrl = it }
+                        "profile-update-interval" -> parseUpdateIntervalHeader(value)?.let { subInterval = it }
+                        "subscription-userinfo" -> {
+                            val (used, total) = parseSubscriptionUserinfo(value)
+                            used?.let { subBytesUsed = it }
+                            total?.let { subBytesTotal = it }
+                            parseSubscriptionExpire(value)?.let { subExpiresAt = it }
+                        }
+                        "subscription-refill-date" -> parseRefillDate(value)?.let { subRefillAt = it }
                     }
                 }
             }
@@ -627,7 +648,12 @@ internal class SubscriptionParser(private val gson: Gson) {
             profiles = profiles,
             updateIntervalMinutes = subInterval,
             bytesUsed = subBytesUsed,
-            bytesTotal = subBytesTotal
+            bytesTotal = subBytesTotal,
+            expiresAt = subExpiresAt,
+            refillAt = subRefillAt,
+            announce = subAnnounce,
+            supportUrl = subSupportUrl,
+            webPageUrl = subWebPageUrl
         )
     }
 
@@ -672,6 +698,13 @@ internal class SubscriptionParser(private val gson: Gson) {
     }
 
     /**
+     * The "Profile-Update-Interval" header: hours (fractions allowed) as minutes - null when
+     * missing or not a positive number.
+     */
+    fun parseUpdateIntervalHeader(header: String?): Int? =
+        header?.trim()?.toDoubleOrNull()?.takeIf { it > 0 }?.let { hours -> (hours * 60).toInt() }
+
+    /**
      * The "Subscription-Refill-Date" header (Remnawave and alike): when the traffic quota resets,
      * Unix seconds, as epoch millis - null when missing or not a positive number.
      */
@@ -690,7 +723,8 @@ internal class SubscriptionParser(private val gson: Gson) {
 
     /**
      * The "expire" of the same "Subscription-Userinfo" header - Unix seconds - as epoch millis, or
-     * null when it's missing or 0 (the panels' "never").
+     * null when it's missing or 0 (the panels' "never"). A value too big for seconds (past the
+     * year 2984) is taken as already millis, as INCY does - some panels send those.
      */
     fun parseSubscriptionExpire(header: String?): Long? {
         if (header == null) return null
@@ -700,7 +734,7 @@ internal class SubscriptionParser(private val gson: Gson) {
                 kv[1].trim().toLongOrNull()
             } else null
         }
-        return expire?.takeIf { it > 0 }?.let { it * 1000 }
+        return expire?.takeIf { it > 0 }?.let { if (it > 32_000_000_000L) it else it * 1000 }
     }
 
     private companion object {

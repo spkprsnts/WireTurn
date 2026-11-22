@@ -165,6 +165,38 @@ class SubscriptionParserTest {
         assertEquals("h:1", qwdtt(bundle.profiles.single()).peer)
     }
 
+    // A Happ/INCY-style body: the panel's headers as "#key: value" lines before the links.
+    private val panelStyleBody = listOf(
+        "#profile-title: base64:" + base64("Мой VPN"),
+        "#profile-description: Описание",
+        "#announce: base64:" + base64("Строка 1\nСтрока 2"),
+        "#support-url: https://t.me/support",
+        "#profile-web-page-url: javascript:alert(1)",
+        "#profile-update-interval: 12",
+        "#subscription-userinfo: upload=10; download=20; total=100; expire=1767225600",
+        "#subscription-refill-date: 1795392300",
+        "vless://00000000-0000-4000-8000-000000000001@example.com:443?encryption=none&security=tls&type=tcp#Server"
+    ).joinToString("\n")
+
+    @Test
+    fun panelStyleBodyLines_fillTheBundle() {
+        for (content in listOf(panelStyleBody, base64(panelStyleBody))) {
+            val bundle = parsed(content)
+            assertEquals("Мой VPN", bundle.name)
+            assertEquals("Описание", bundle.description)
+            assertEquals("Строка 1\nСтрока 2", bundle.announce)
+            assertEquals("https://t.me/support", bundle.supportUrl)
+            // Not a link the app opens - dropped, like the header.
+            assertNull(bundle.webPageUrl)
+            assertEquals(12 * 60, bundle.updateIntervalMinutes)
+            assertEquals(30L, bundle.bytesUsed)
+            assertEquals(100L, bundle.bytesTotal)
+            assertEquals(1_767_225_600_000L, bundle.expiresAt)
+            assertEquals(1_795_392_300_000L, bundle.refillAt)
+            assertEquals("Server", bundle.profiles.single().name)
+        }
+    }
+
     @Test
     fun garbage_isUnrecognized() {
         assertEquals(SubscriptionParser.Result.Unrecognized, parser.parse("hello, this is not a subscription"))
@@ -203,6 +235,17 @@ class SubscriptionParserTest {
         assertEquals(null, parser.parseSubscriptionExpire("upload=10; download=20; total=100; expire=0"))
         assertEquals(null, parser.parseSubscriptionExpire("total=100"))
         assertEquals(null, parser.parseSubscriptionExpire(null))
+        // Already millis (some panels send them).
+        assertEquals(1_767_225_600_000L, parser.parseSubscriptionExpire("expire=1767225600000"))
+    }
+
+    @Test
+    fun updateIntervalHeader_isHoursAsMinutes() {
+        assertEquals(60, parser.parseUpdateIntervalHeader("1"))
+        assertEquals(30, parser.parseUpdateIntervalHeader(" 0.5 "))
+        assertNull(parser.parseUpdateIntervalHeader("0"))
+        assertNull(parser.parseUpdateIntervalHeader("daily"))
+        assertNull(parser.parseUpdateIntervalHeader(null))
     }
 
     @Test

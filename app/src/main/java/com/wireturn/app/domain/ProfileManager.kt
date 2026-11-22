@@ -935,12 +935,17 @@ class ProfileManager(
                             val subId =
                                 subIdToMark ?: existingSubscriptionId(url) ?: UUID.randomUUID()
                                     .toString()
-                            val subName = bundle.name ?: subscriptionParser.decodeProfileTitle(
+                            // The response headers come first and the body's own fields (sub.md lines,
+                            // a panel's JSON, Happ/INCY-style "#announce:" lines) fill in what they
+                            // leave out - the order INCY documents for the same headers and lines.
+                            val subName = subscriptionParser.decodeProfileTitle(
                                 connection.getHeaderField("Profile-Title")
-                            ) ?: URL(url).host ?: "Subscription"
+                            ) ?: bundle.name ?: URL(url).host ?: "Subscription"
+                            // INCY sends the subscription's description in a header of its own.
+                            val headerDescription = subscriptionParser.decodeProfileTitle(
+                                connection.getHeaderField("Profile-Description")
+                            )
 
-                            // Fallbacks for panels (e.g. 3x-ui) that convey quota/refresh via response headers
-                            // instead of the subscription body - only consulted when the body itself has nothing.
                             val userinfo = connection.getHeaderField("Subscription-Userinfo")
                             val (headerBytesUsed, headerBytesTotal) =
                                 subscriptionParser.parseSubscriptionUserinfo(userinfo)
@@ -958,9 +963,9 @@ class ProfileManager(
                             val headerWebPageUrl = subscriptionParser.parseLinkHeader(
                                 connection.getHeaderField("Profile-Web-Page-Url")
                             )
-                            val headerUpdateIntervalMinutes =
+                            val headerUpdateIntervalMinutes = subscriptionParser.parseUpdateIntervalHeader(
                                 connection.getHeaderField("Profile-Update-Interval")
-                                    ?.toDoubleOrNull()?.let { hours -> (hours * 60).toInt() }
+                            )
 
                             kotlinx.coroutines.yield()
 
@@ -982,24 +987,24 @@ class ProfileManager(
                                     id = subId,
                                     name = subName,
                                     url = url,
-                                    description = bundle.description,
+                                    description = headerDescription ?: bundle.description,
                                     updatedAt = System.currentTimeMillis(),
-                                    bytesUsed = bundle.bytesUsed ?: headerBytesUsed ?: 0,
-                                    bytesTotal = bundle.bytesTotal ?: headerBytesTotal ?: 0,
-                                    expiresAt = bundle.expiresAt ?: headerExpiresAt ?: 0,
-                                    refillAt = bundle.refillAt ?: headerRefillAt ?: 0,
-                                    announce = bundle.announce?.trim()?.ifBlank { null } ?: headerAnnounce,
-                                    supportUrl = subscriptionParser.parseLinkHeader(bundle.supportUrl)
-                                        ?: headerSupportUrl,
-                                    webPageUrl = subscriptionParser.parseLinkHeader(bundle.webPageUrl)
-                                        ?: headerWebPageUrl,
+                                    bytesUsed = headerBytesUsed ?: bundle.bytesUsed ?: 0,
+                                    bytesTotal = headerBytesTotal ?: bundle.bytesTotal ?: 0,
+                                    expiresAt = headerExpiresAt ?: bundle.expiresAt ?: 0,
+                                    refillAt = headerRefillAt ?: bundle.refillAt ?: 0,
+                                    announce = headerAnnounce ?: bundle.announce?.trim()?.ifBlank { null },
+                                    supportUrl = headerSupportUrl
+                                        ?: subscriptionParser.parseLinkHeader(bundle.supportUrl),
+                                    webPageUrl = headerWebPageUrl
+                                        ?: subscriptionParser.parseLinkHeader(bundle.webPageUrl),
                                     activeProfileId = bestActiveId,
                                     autoUpdate = existingSub?.autoUpdate
-                                        ?: ((bundle.updateIntervalMinutes
-                                            ?: headerUpdateIntervalMinutes) != null),
+                                        ?: ((headerUpdateIntervalMinutes
+                                            ?: bundle.updateIntervalMinutes) != null),
                                     updateIntervalMinutes = existingSub?.updateIntervalMinutes
-                                        ?: (bundle.updateIntervalMinutes
-                                            ?: headerUpdateIntervalMinutes)?.coerceAtLeast(20)
+                                        ?: (headerUpdateIntervalMinutes
+                                            ?: bundle.updateIntervalMinutes)?.coerceAtLeast(20)
                                         ?: 1440,
                                     onlyUpdateIfSelected = existingSub?.onlyUpdateIfSelected
                                         ?: false,
