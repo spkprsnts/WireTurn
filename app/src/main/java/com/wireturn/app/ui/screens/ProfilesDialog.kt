@@ -1569,6 +1569,10 @@ private fun SubscriptionHeaderRow(
     val stuckInset = lerp(0.dp, 4.dp, stuckProgress)
 
     val quota = sub.quotaOrNull()
+    val hasDescription = !sub.description.isNullOrBlank()
+    val hasAnnounce = !sub.announce.isNullOrBlank()
+    // Anything under the title row: it brings the spacing below the row's text.
+    val hasBelow = hasDescription || hasAnnounce || quota != null
     // Where the title starts: the row's own start padding plus the leading control - a 48dp
     // chevron button, or a 48dp checkbox with its 16dp gap. The quota line starts there too.
     val rowStart = if (isSelectionMode) 16.dp else 4.dp
@@ -1594,14 +1598,26 @@ private fun SubscriptionHeaderRow(
             .padding(horizontal = stuckInset)
     ) {
         Box {
-            Column(modifier = Modifier.padding(bottom = 16.dp)) {
+            // Bottom spacing: the text keeps 12dp under it inside the row (with the row's 4dp,
+            // the 16dp the header has on top), unless more follows under the row - then 16dp under
+            // that.
+            Column(modifier = Modifier.padding(bottom = if (hasBelow) 16.dp else 4.dp)) {
                 Row(
                     // The leading chevron button brings its own padding - less of the row's own before it.
-                    modifier = Modifier.padding(
-                        start = rowStart,
-                        top = 16.dp,
-                        end = 8.dp
-                    ),
+                    // Only the title and its update line are in the row (the rest goes under it), so
+                    // the 48dp controls center on both lines - the text keeps 12dp above and below
+                    // for that. With more under the row, the 12dp below is left out of the row's
+                    // height: the next block starts right at the text (the controls' lower edge
+                    // just reaches over the gap there).
+                    modifier = Modifier
+                        .layout { measurable, constraints ->
+                            val placeable = measurable.measure(constraints)
+                            val trim = if (hasBelow) 12.dp.roundToPx() else 0
+                            layout(placeable.width, (placeable.height - trim).coerceAtLeast(0)) {
+                                placeable.placeRelative(0, 0)
+                            }
+                        }
+                        .padding(start = rowStart, top = 4.dp, end = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (isSelectionMode) {
@@ -1628,7 +1644,11 @@ private fun SubscriptionHeaderRow(
                             )
                         }
                     }
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(vertical = 12.dp)
+                    ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (sub.pinned) {
                                 Icon(
@@ -1672,26 +1692,6 @@ private fun SubscriptionHeaderRow(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.outline,
                                 maxLines = 1
-                            )
-                        }
-                        if (!sub.description.isNullOrBlank()) {
-                            // Keeps the description from running into the update time line above.
-                            if (sub.updatedAt > 0) Spacer(Modifier.height(4.dp))
-                            SubscriptionDescriptionText(
-                                text = sub.description,
-                                color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.outline,
-                                stuckProgress = stuckProgress
-                            )
-                        }
-                        if (!sub.announce.isNullOrBlank()) {
-                            if (sub.updatedAt > 0 || !sub.description.isNullOrBlank()) {
-                                Spacer(Modifier.height(4.dp))
-                            }
-                            SubscriptionAnnounce(
-                                subscriptionId = sub.id,
-                                text = sub.announce,
-                                color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.primary,
-                                stuckProgress = stuckProgress
                             )
                         }
                     }
@@ -1836,8 +1836,33 @@ private fun SubscriptionHeaderRow(
 
                     }
                 }
-                // Under the whole row - buttons included - instead of squeezed into the text column
-                // beside them; the buttons stay centered on the title block above.
+                // The description and the provider's notice under the whole row, buttons included -
+                // only the title and its update line sit beside the buttons, so longer text takes
+                // the full width instead of leaving the space under the buttons empty.
+                if (hasDescription || hasAnnounce) {
+                    Column(modifier = Modifier.padding(start = titleStart, end = 20.dp)) {
+                        // Keeps the text from running into the update time line above.
+                        if (sub.updatedAt > 0) Spacer(Modifier.height(4.dp))
+                        if (hasDescription) {
+                            SubscriptionDescriptionText(
+                                text = sub.description.orEmpty(),
+                                color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.outline,
+                                stuckProgress = stuckProgress
+                            )
+                        }
+                        if (hasAnnounce) {
+                            if (hasDescription) Spacer(Modifier.height(4.dp))
+                            SubscriptionAnnounce(
+                                subscriptionId = sub.id,
+                                text = sub.announce.orEmpty(),
+                                color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.primary,
+                                stuckProgress = stuckProgress
+                            )
+                        }
+                    }
+                }
+                // Under the whole row too - instead of squeezed into the text column beside the
+                // buttons.
                 if (quota != null && quotaColors != null) {
                     SubscriptionQuotaRow(
                         quota = quota,
