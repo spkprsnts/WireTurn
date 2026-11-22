@@ -1733,7 +1733,9 @@ private fun SubscriptionHeaderRow(
                                     sub.supportUrl?.let { Triple(R.string.subscription_support, R.drawable.support_agent_24px, it) },
                                     sub.webPageUrl?.let { Triple(R.string.subscription_web_page, R.drawable.language_24px, it) }
                                 )
-                                val itemCount = (if (onTestPings != null) 4 else 3) + providerLinks.size
+                                // The subscription's own actions, then - past a divider - the provider's
+                                // links; each part shapes its items on its own (MenuDefaults.itemShape).
+                                val itemCount = if (onTestPings != null) 4 else 3
                                 var itemIndex = 0
                                 DropdownMenuItem(
                                     onClick = { showMenu = false; onTogglePinned() },
@@ -1787,26 +1789,6 @@ private fun SubscriptionHeaderRow(
                                         )
                                     }
                                 )
-                                // The provider's support chat and website, when its panel sends them.
-                                val uriHandler = LocalUriHandler.current
-                                providerLinks.forEach { (labelRes, iconRes, link) ->
-                                    DropdownMenuItem(
-                                        onClick = {
-                                            showMenu = false
-                                            // No app for the link (e.g. tg:// without Telegram) - nothing to open.
-                                            runCatching { uriHandler.openUri(link) }
-                                        },
-                                        text = { Text(stringResource(labelRes)) },
-                                        shape = MenuDefaults.itemShape(itemIndex++, itemCount).shape,
-                                        leadingIcon = {
-                                            Icon(
-                                                painterResource(iconRes),
-                                                null,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                        }
-                                    )
-                                }
                                 DropdownMenuItem(
                                     onClick = { showMenu = false; onSettings() },
                                     text = { Text(stringResource(R.string.subscription_settings)) },
@@ -1819,6 +1801,32 @@ private fun SubscriptionHeaderRow(
                                         )
                                     }
                                 )
+                                // The provider's support chat and website, when its panel sends them -
+                                // set apart: they leave the app instead of acting on the subscription.
+                                if (providerLinks.isNotEmpty()) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(MenuDefaults.HorizontalDividerPadding)
+                                    )
+                                    val uriHandler = LocalUriHandler.current
+                                    providerLinks.forEachIndexed { linkIndex, (labelRes, iconRes, link) ->
+                                        DropdownMenuItem(
+                                            onClick = {
+                                                showMenu = false
+                                                // No app for the link (e.g. tg:// without Telegram) - nothing to open.
+                                                runCatching { uriHandler.openUri(link) }
+                                            },
+                                            text = { Text(stringResource(labelRes)) },
+                                            shape = MenuDefaults.itemShape(linkIndex, providerLinks.size).shape,
+                                            leadingIcon = {
+                                                Icon(
+                                                    painterResource(iconRes),
+                                                    null,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        )
+                                    }
+                                }
                             }
                         }
 
