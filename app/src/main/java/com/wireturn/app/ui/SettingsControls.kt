@@ -19,6 +19,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextObfuscationMode
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonGroup
 import androidx.compose.material3.ButtonGroupDefaults
@@ -30,6 +34,7 @@ import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderState
+import androidx.compose.material3.SecureTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -53,8 +58,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -131,22 +134,18 @@ fun SliderRow(
     val context = LocalContext.current
 
     if (showDialog.value) {
-        var textValue by remember { mutableStateOf(value.roundToInt().toString()) }
+        val textState = rememberTextFieldState(value.roundToInt().toString())
         AlertDialog(
             onDismissRequest = { showDialog.value = false },
             title = { Text(label) },
             text = {
                 TextField(
-                    value = textValue,
-                    onValueChange = { newValue ->
-                        if (newValue.isEmpty() || newValue.all { it.isDigit() }) {
-                            textValue = newValue
-                        }
-                    },
+                    state = textState,
+                    inputTransformation = DigitsInput,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number
                     ),
-                    singleLine = true,
+                    lineLimits = TextFieldLineLimits.SingleLine,
                     modifier = Modifier.fillMaxWidth(),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
@@ -156,7 +155,7 @@ fun SliderRow(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    val parsed = textValue.toFloatOrNull()
+                    val parsed = textState.text.toString().toFloatOrNull()
                     if (parsed != null) {
                         onValueChange(parsed.coerceIn(valueRange))
                     }
@@ -472,17 +471,20 @@ fun TextFieldRow(
     leadingIconSize: Dp = 24.dp,
     useLargeIcon: Boolean = false,
     trailingIcon: @Composable (() -> Unit)? = null,
-    visualTransformation: VisualTransformation = VisualTransformation.None,
     isModified: Boolean = false,
     onHelpClick: (() -> Unit)? = null,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    // Filters or rewrites input (digits only, max length, trim). It has to live here rather than
+    // in onValueChange: the field keeps its own text, see rememberSyncedTextFieldState.
+    inputTransformation: InputTransformation? = null,
     privacyMode: Boolean = false,
-    // Owns its own reveal/hide toggle (eye icon + PasswordVisualTransformation) instead of the
-    // caller wiring trailingIcon/visualTransformation by hand for the same thing - mutually
-    // exclusive with passing a custom trailingIcon/visualTransformation, which this ignores.
+    // Owns its own reveal/hide toggle (eye icon + SecureTextField's obfuscation) instead of the
+    // caller wiring trailingIcon by hand for the same thing - a custom trailingIcon is ignored.
+    // Always single-line, like SecureTextField.
     isSecret: Boolean = false
 ) {
     val context = LocalContext.current
+    val state = rememberSyncedTextFieldState(value, onValueChange)
     var secretRevealed by rememberSaveable { mutableStateOf(false) }
     val effectiveTrailingIcon: (@Composable () -> Unit)? = if (isSecret) {
         {
@@ -501,11 +503,6 @@ fun TextFieldRow(
             }
         }
     } else trailingIcon
-    val effectiveVisualTransformation = if (isSecret && !secretRevealed) {
-        PasswordVisualTransformation()
-    } else {
-        visualTransformation
-    }
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -535,45 +532,78 @@ fun TextFieldRow(
                 }
             }
         }
-        TextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp)
-                .privacySpoiler(privacyMode),
-            readOnly = readOnly,
-            isError = isError,
-            singleLine = singleLine,
-            minLines = minLines,
-            maxLines = maxLines,
-            placeholder = { Text(placeholder) },
-            leadingIcon = leadingIcon?.let {
-                {
-                    if (useLargeIcon) {
-                        LargeLeadingIcon(content = it)
-                    } else {
-                        StandardLeadingIcon(size = leadingIconSize, content = it)
-                    }
+        val fieldModifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .privacySpoiler(privacyMode)
+        val fieldPlaceholder: @Composable () -> Unit = { Text(placeholder) }
+        val fieldLeadingIcon: (@Composable () -> Unit)? = leadingIcon?.let {
+            {
+                if (useLargeIcon) {
+                    LargeLeadingIcon(content = it)
+                } else {
+                    StandardLeadingIcon(size = leadingIconSize, content = it)
                 }
-            },
-            trailingIcon = effectiveTrailingIcon,
-            visualTransformation = if (privacyMode) PasswordVisualTransformation() else effectiveVisualTransformation,
-            keyboardOptions = keyboardOptions,
-            shape = MaterialTheme.shapes.small,
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent,
-                disabledContainerColor = Color.Transparent,
-                errorContainerColor = Color.Transparent,
-                focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
-                disabledIndicatorColor = Color.Transparent,
-                errorIndicatorColor = MaterialTheme.colorScheme.error,
-                unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = ContentAlpha.secondary),
-                focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = ContentAlpha.secondary)
-            )
+            }
+        }
+        val fieldColors = TextFieldDefaults.colors(
+            focusedContainerColor = Color.Transparent,
+            unfocusedContainerColor = Color.Transparent,
+            disabledContainerColor = Color.Transparent,
+            errorContainerColor = Color.Transparent,
+            focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+            unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+            disabledIndicatorColor = Color.Transparent,
+            errorIndicatorColor = MaterialTheme.colorScheme.error,
+            unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = ContentAlpha.secondary),
+            focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = ContentAlpha.secondary)
         )
+        if (isSecret && !privacyMode) {
+            SecureTextField(
+                state = state,
+                modifier = fieldModifier,
+                isError = isError,
+                placeholder = fieldPlaceholder,
+                leadingIcon = fieldLeadingIcon,
+                trailingIcon = effectiveTrailingIcon,
+                inputTransformation = inputTransformation,
+                // Hidden, not System: no peek at the last typed character, as the old
+                // PasswordVisualTransformation had it.
+                textObfuscationMode = if (secretRevealed) TextObfuscationMode.Visible else TextObfuscationMode.Hidden,
+                keyboardOptions = if (keyboardOptions == KeyboardOptions.Default) {
+                    KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false)
+                } else keyboardOptions,
+                shape = MaterialTheme.shapes.small,
+                colors = fieldColors
+            )
+        } else {
+            TextField(
+                state = state,
+                modifier = fieldModifier,
+                // Privacy mode: disabled rather than readOnly, so the hidden text can't be
+                // selected and copied from under the spoiler (the old PasswordVisualTransformation
+                // blocked copy the same way).
+                enabled = !privacyMode,
+                readOnly = readOnly,
+                isError = isError,
+                placeholder = fieldPlaceholder,
+                leadingIcon = fieldLeadingIcon,
+                trailingIcon = effectiveTrailingIcon,
+                inputTransformation = inputTransformation,
+                outputTransformation = if (privacyMode) MaskedOutput else null,
+                keyboardOptions = keyboardOptions,
+                lineLimits = if (singleLine || isSecret) {
+                    TextFieldLineLimits.SingleLine
+                } else {
+                    TextFieldLineLimits.MultiLine(
+                        minHeightInLines = minLines,
+                        maxHeightInLines = maxOf(minLines, maxLines)
+                    )
+                },
+                shape = MaterialTheme.shapes.small,
+                colors = fieldColors
+            )
+        }
         if (supportingText?.isNotEmpty() ?: false) {
             Spacer(Modifier.height(2.dp))
             SupportingText(text = supportingText)
