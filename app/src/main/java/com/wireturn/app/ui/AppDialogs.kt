@@ -9,22 +9,25 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.BasicAlertDialog
-import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.ProvideTextStyle
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -43,25 +46,26 @@ fun AppDropdownMenu(
     title: String? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    DropdownMenu(
+    // The Expressive menu: a popup holding one group (the container), the title as its label.
+    DropdownMenuPopup(
         expanded = expanded,
         onDismissRequest = onDismissRequest,
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        shadowElevation = 4.dp,
-        tonalElevation = 4.dp,
-        shape = MaterialTheme.shapes.medium,
-        properties = androidx.compose.ui.window.PopupProperties(focusable = true),
         modifier = modifier
     ) {
-        if (!title.isNullOrBlank()) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-            )
+        DropdownMenuGroup(
+            shapes = MenuDefaults.groupShape(0, 1),
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            shadowElevation = 4.dp
+        ) {
+            if (!title.isNullOrBlank()) {
+                // 12dp both sides: the default leaves 4 at the end, and the title is often the
+                // menu's widest line.
+                MenuDefaults.DropdownMenuGroupLabel(padding = PaddingValues(horizontal = 12.dp)) {
+                    Text(text = title, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+            content()
         }
-        content()
     }
 }
 
@@ -115,33 +119,45 @@ fun <T> SelectionDialog(
                             .padding(horizontal = 12.dp)
                     )
                 }
+                // One pill shape in every state - the options are standalone, not a segmented run.
+                val shape = MaterialTheme.shapes.extraLarge
+                val shapes = ListItemDefaults.shapes(
+                    shape = shape,
+                    selectedShape = shape,
+                    pressedShape = shape,
+                    focusedShape = shape,
+                    hoveredShape = shape
+                )
+                val colors = ListItemDefaults.segmentedColors(
+                    containerColor = Color.Transparent,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    selectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
                 items.forEach { item ->
                     val selected = isSelected(item)
-                    val shape = MaterialTheme.shapes.extraLarge
-
-                    Surface(
+                    // A selectable item: announced as one of a set, with its selected state.
+                    SegmentedListItem(
+                        selected = selected,
                         onClick = {
                             HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                             onSelect(item)
                             if (dismissOnSelect) onDismiss()
                         },
-                        shape = shape,
-                        color = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                        contentColor = MaterialTheme.colorScheme.onSurface,
+                        shapes = shapes,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 64.dp)
+                            .heightIn(min = 64.dp),
+                        colors = colors,
+                        // The item content brings its own padding.
+                        contentPadding = PaddingValues(0.dp)
                     ) {
-                        CompositionLocalProvider(
-                            LocalContentColor provides if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                        ) {
-                            ProvideTextStyle(value = MaterialTheme.typography.titleMedium) {
-                                Box(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    contentAlignment = Alignment.CenterStart
-                                ) {
-                                    itemContent(item, selected)
-                                }
+                        ProvideTextStyle(value = MaterialTheme.typography.titleMedium) {
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                itemContent(item, selected)
                             }
                         }
                     }

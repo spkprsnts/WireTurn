@@ -32,9 +32,9 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.ExpandedFullScreenSearchBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -63,7 +63,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -747,72 +746,59 @@ fun AppExceptionsScreen(
                                     contentDescription = stringResource(R.string.more_options)
                                 )
                             }
-                            DropdownMenu(
+                            DropdownMenuPopup(
                                 expanded = showMenu,
-                                onDismissRequest = { showMenu = false },
-                                offset = androidx.compose.ui.unit.DpOffset(12.dp, (-16).dp),
-                                containerColor = Color.Transparent,
-                                shadowElevation = 0.dp,
-                                tonalElevation = 0.dp,
-                                shape = RectangleShape,
-                                properties = androidx.compose.ui.window.PopupProperties(
-                                    focusable = true
-                                )
+                                onDismissRequest = { showMenu = false }
                             ) {
-                                Column(
-                                    modifier = Modifier
-                                        .padding(16.dp)
-                                        .widthIn(min = 240.dp)
+                                DropdownMenuGroup(
+                                    shapes = MenuDefaults.groupShape(0, 1),
+                                    modifier = Modifier.widthIn(min = 240.dp),
+                                    shadowElevation = 4.dp,
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainer
                                 ) {
-                                    DropdownMenuGroup(
-                                        shapes = MenuDefaults.groupShape(0, 1),
-                                        shadowElevation = 4.dp,
-                                        containerColor = MaterialTheme.colorScheme.surfaceContainer
-                                    ) {
-                                        DropdownMenuItem(
-                                            text = { Text(stringResource(R.string.clear_list)) },
-                                            leadingIcon = {
-                                                Icon(
-                                                    painterResource(R.drawable.indeterminate_check_box_24px),
-                                                    contentDescription = null
-                                                )
-                                            },
-                                            onClick = {
-                                                showMenu = false
-                                                viewModel.saveExcludedApps(emptySet())
-                                                sortSnapshot = emptySet()
-                                            },
-                                            shape = MenuDefaults.itemShape(0, 3).shape
-                                        )
-                                        DropdownMenuItem(
-                                            text = { Text(stringResource(R.string.copy_list)) },
-                                            leadingIcon = {
-                                                Icon(
-                                                    painterResource(R.drawable.content_copy_24px),
-                                                    contentDescription = null
-                                                )
-                                            },
-                                            onClick = {
-                                                showMenu = false
-                                                onExportToClipboard()
-                                            },
-                                            shape = MenuDefaults.itemShape(1, 3).shape
-                                        )
-                                        DropdownMenuItem(
-                                            text = { Text(stringResource(R.string.import_from_clipboard)) },
-                                            leadingIcon = {
-                                                Icon(
-                                                    painterResource(R.drawable.content_paste_24px),
-                                                    contentDescription = null
-                                                )
-                                            },
-                                            onClick = {
-                                                showMenu = false
-                                                onImportFromClipboard()
-                                            },
-                                            shape = MenuDefaults.itemShape(2, 3).shape
-                                        )
-                                    }
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.clear_list)) },
+                                        leadingIcon = {
+                                            Icon(
+                                                painterResource(R.drawable.indeterminate_check_box_24px),
+                                                contentDescription = null
+                                            )
+                                        },
+                                        onClick = {
+                                            showMenu = false
+                                            viewModel.saveExcludedApps(emptySet())
+                                            sortSnapshot = emptySet()
+                                        },
+                                        shape = MenuDefaults.itemShape(0, 3).shape
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.copy_list)) },
+                                        leadingIcon = {
+                                            Icon(
+                                                painterResource(R.drawable.content_copy_24px),
+                                                contentDescription = null
+                                            )
+                                        },
+                                        onClick = {
+                                            showMenu = false
+                                            onExportToClipboard()
+                                        },
+                                        shape = MenuDefaults.itemShape(1, 3).shape
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.import_from_clipboard)) },
+                                        leadingIcon = {
+                                            Icon(
+                                                painterResource(R.drawable.content_paste_24px),
+                                                contentDescription = null
+                                            )
+                                        },
+                                        onClick = {
+                                            showMenu = false
+                                            onImportFromClipboard()
+                                        },
+                                        shape = MenuDefaults.itemShape(2, 3).shape
+                                    )
                                 }
                             }
                         }

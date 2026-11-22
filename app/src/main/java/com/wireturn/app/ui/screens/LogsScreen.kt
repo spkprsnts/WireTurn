@@ -53,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -367,6 +368,8 @@ private fun LogLevelFilterButton(
                     },
                     text = { Text(stringResource(labelRes)) },
                     shapes = MenuDefaults.itemShape(index, LOG_LEVEL_OPTIONS.size),
+                    // Only the selected level stands out, as in the app's other menus.
+                    colors = MenuDefaults.selectableItemColors(containerColor = Color.Transparent),
                     selectedLeadingIcon = {
                         Icon(painterResource(R.drawable.check_24px), contentDescription = null)
                     }

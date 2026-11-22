@@ -47,6 +47,7 @@ import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.maxLengthReject
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CheckableDropdownMenuItem
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -1594,9 +1595,14 @@ private fun SubscriptionHeaderRow(
                         onDismissRequest = { showMenu = false },
                         title = stringResource(R.string.subscription_actions)
                     ) {
+                        // Expressive items, each shaped by its place in the group; the ping test
+                        // is only there with a handler for it.
+                        val itemCount = if (onTestPings != null) 4 else 3
+                        var itemIndex = 0
                         DropdownMenuItem(
-                            text = { Text(stringResource(if (sub.pinned) R.string.subscription_unpin else R.string.subscription_pin)) },
                             onClick = { showMenu = false; onTogglePinned() },
+                            text = { Text(stringResource(if (sub.pinned) R.string.subscription_unpin else R.string.subscription_pin)) },
+                            shape = MenuDefaults.itemShape(itemIndex++, itemCount).shape,
                             leadingIcon = {
                                 Icon(
                                     painterResource(if (sub.pinned) R.drawable.keep_off_24px else R.drawable.keep_24px),
@@ -1607,10 +1613,11 @@ private fun SubscriptionHeaderRow(
                         )
                         if (onTestPings != null) {
                             DropdownMenuItem(
+                                onClick = { showMenu = false; onTestPings() },
                                 text = {
                                     Text(stringResource(if (isTestingPings) R.string.subscription_test_ping_stop else R.string.subscription_test_ping))
                                 },
-                                onClick = { showMenu = false; onTestPings() },
+                                shape = MenuDefaults.itemShape(itemIndex++, itemCount).shape,
                                 leadingIcon = {
                                     Icon(
                                         painterResource(if (isTestingPings) R.drawable.stop_24px else R.drawable.wifi_24px),
@@ -1620,9 +1627,15 @@ private fun SubscriptionHeaderRow(
                                 }
                             )
                         }
-                        DropdownMenuItem(
+                        // An on/off setting: announced as a checkbox with its state, the check
+                        // standing in for the sort icon while it's on.
+                        CheckableDropdownMenuItem(
+                            checked = sub.sortMode == Subscription.SORT_PING,
+                            onCheckedChange = { showMenu = false; onToggleSortByPing() },
                             text = { Text(stringResource(R.string.subscription_sort_by_ping)) },
-                            onClick = { showMenu = false; onToggleSortByPing() },
+                            shapes = MenuDefaults.itemShape(itemIndex++, itemCount),
+                            // Only the checked state stands out, like the plain items around it.
+                            colors = MenuDefaults.selectableItemColors(containerColor = Color.Transparent),
                             leadingIcon = {
                                 Icon(
                                     painterResource(R.drawable.sort_24px),
@@ -1630,19 +1643,18 @@ private fun SubscriptionHeaderRow(
                                     modifier = Modifier.size(20.dp)
                                 )
                             },
-                            trailingIcon = {
-                                if (sub.sortMode == Subscription.SORT_PING) {
-                                    Icon(
-                                        painterResource(R.drawable.check_24px),
-                                        null,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
+                            checkedLeadingIcon = {
+                                Icon(
+                                    painterResource(R.drawable.check_24px),
+                                    null,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text(stringResource(R.string.subscription_settings)) },
                             onClick = { showMenu = false; onSettings() },
+                            text = { Text(stringResource(R.string.subscription_settings)) },
+                            shape = MenuDefaults.itemShape(itemIndex, itemCount).shape,
                             leadingIcon = {
                                 Icon(
                                     painterResource(R.drawable.settings_24px),
