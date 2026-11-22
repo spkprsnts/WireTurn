@@ -50,7 +50,6 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
-import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -89,9 +88,6 @@ private fun Modifier.switchSemantics(checked: Boolean?): Modifier =
         role = Role.Switch
         toggleableState = ToggleableState(checked)
     }
-
-// Card's DisabledAlpha (internal in material3) - the content color a disabled card gives.
-private const val DISABLED_CARD_CONTENT_ALPHA = 0.38f
 
 @Composable
 fun ModifiedIndicator(isModified: Boolean, modifier: Modifier = Modifier) {
@@ -452,15 +448,13 @@ fun SectionItem(
             }
         } else {
             // Not clickable: a plain card, not a disabled clickable one - that one told
-            // accessibility services every such row was disabled. The colors stay what the
-            // disabled card drew, content color included.
+            // accessibility services every such row was disabled, and dimmed its content color.
             CompositionLocalProvider(LocalSectionToggle provides null) {
                 Card(
                     modifier = cardModifier,
                     shape = shape,
                     colors = CardDefaults.cardColors(
-                        containerColor = if (enabled) containerColor else containerColor.copy(alpha = 0.5f),
-                        contentColor = contentColorFor(containerColor).copy(alpha = DISABLED_CARD_CONTENT_ALPHA)
+                        containerColor = if (enabled) containerColor else containerColor.copy(alpha = 0.5f)
                     ),
                     content = { body() }
                 )
@@ -566,8 +560,7 @@ fun CompactItem(
                 modifier = modifier,
                 shape = CircleShape,
                 colors = CardDefaults.cardColors(
-                    containerColor = if (enabled) containerColor else containerColor.copy(alpha = 0.5f),
-                    contentColor = contentColorFor(containerColor).copy(alpha = DISABLED_CARD_CONTENT_ALPHA)
+                    containerColor = if (enabled) containerColor else containerColor.copy(alpha = 0.5f)
                 ),
                 content = { body() }
             )
