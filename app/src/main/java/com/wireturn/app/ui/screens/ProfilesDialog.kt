@@ -100,6 +100,7 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -1677,6 +1678,18 @@ private fun SubscriptionHeaderRow(
                                 stuckProgress = stuckProgress
                             )
                         }
+                        if (!sub.announce.isNullOrBlank()) {
+                            // The provider's notice: its own color to stand apart from the
+                            // description, folding the same way when the header pins.
+                            if (sub.updatedAt > 0 || !sub.description.isNullOrBlank()) {
+                                Spacer(Modifier.height(4.dp))
+                            }
+                            SubscriptionDescriptionText(
+                                text = sub.announce,
+                                color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.primary,
+                                stuckProgress = stuckProgress
+                            )
+                        }
                     }
                     if (!isSelectionMode) {
                         val iconTint =
@@ -1716,7 +1729,11 @@ private fun SubscriptionHeaderRow(
                             ) {
                                 // Expressive items, each shaped by its place in the group; the ping test
                                 // is only there with a handler for it.
-                                val itemCount = if (onTestPings != null) 4 else 3
+                                val providerLinks = listOfNotNull(
+                                    sub.supportUrl?.let { Triple(R.string.subscription_support, R.drawable.support_agent_24px, it) },
+                                    sub.webPageUrl?.let { Triple(R.string.subscription_web_page, R.drawable.language_24px, it) }
+                                )
+                                val itemCount = (if (onTestPings != null) 4 else 3) + providerLinks.size
                                 var itemIndex = 0
                                 DropdownMenuItem(
                                     onClick = { showMenu = false; onTogglePinned() },
@@ -1770,6 +1787,26 @@ private fun SubscriptionHeaderRow(
                                         )
                                     }
                                 )
+                                // The provider's support chat and website, when its panel sends them.
+                                val uriHandler = LocalUriHandler.current
+                                providerLinks.forEach { (labelRes, iconRes, link) ->
+                                    DropdownMenuItem(
+                                        onClick = {
+                                            showMenu = false
+                                            // No app for the link (e.g. tg:// without Telegram) - nothing to open.
+                                            runCatching { uriHandler.openUri(link) }
+                                        },
+                                        text = { Text(stringResource(labelRes)) },
+                                        shape = MenuDefaults.itemShape(itemIndex++, itemCount).shape,
+                                        leadingIcon = {
+                                            Icon(
+                                                painterResource(iconRes),
+                                                null,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    )
+                                }
                                 DropdownMenuItem(
                                     onClick = { showMenu = false; onSettings() },
                                     text = { Text(stringResource(R.string.subscription_settings)) },

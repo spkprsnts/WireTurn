@@ -295,10 +295,13 @@ class ProfileManager(
     // page to unknown clients. Keep the normal WireTurn request first, then retry only such
     // responses with identifiers used by the official clients of the kernels WireTurn supports.
     // qWDTT and CSQTT identify their official Android clients. FreeTurn fetches subscriptions
-    // from Go without setting one, so net/http sends its default "Go-http-client/1.1".
+    // from Go without setting one, so net/http sends its default "Go-http-client/1.1". Turnable's
+    // panels hand turnable:// links only to Turnable's own apps ("Turnable-Android/<version>",
+    // the core's subscription fetch and Turnable App alike).
     private val subscriptionFallbackUserAgents = listOf(
         "qWDTT-Subscription/1.0",
         "csqtt-client",
+        "Turnable-Android/1.0",
         "Go-http-client/1.1"
     )
 
@@ -942,6 +945,16 @@ class ProfileManager(
                             val (headerBytesUsed, headerBytesTotal) =
                                 subscriptionParser.parseSubscriptionUserinfo(userinfo)
                             val headerExpiresAt = subscriptionParser.parseSubscriptionExpire(userinfo)
+                            // Plain or "base64:" like Profile-Title.
+                            val headerAnnounce = subscriptionParser.decodeProfileTitle(
+                                connection.getHeaderField("Announce")
+                            )
+                            val headerSupportUrl = subscriptionParser.parseLinkHeader(
+                                connection.getHeaderField("Support-Url")
+                            )
+                            val headerWebPageUrl = subscriptionParser.parseLinkHeader(
+                                connection.getHeaderField("Profile-Web-Page-Url")
+                            )
                             val headerUpdateIntervalMinutes =
                                 connection.getHeaderField("Profile-Update-Interval")
                                     ?.toDoubleOrNull()?.let { hours -> (hours * 60).toInt() }
@@ -971,6 +984,11 @@ class ProfileManager(
                                     bytesUsed = bundle.bytesUsed ?: headerBytesUsed ?: 0,
                                     bytesTotal = bundle.bytesTotal ?: headerBytesTotal ?: 0,
                                     expiresAt = bundle.expiresAt ?: headerExpiresAt ?: 0,
+                                    announce = bundle.announce?.trim()?.ifBlank { null } ?: headerAnnounce,
+                                    supportUrl = subscriptionParser.parseLinkHeader(bundle.supportUrl)
+                                        ?: headerSupportUrl,
+                                    webPageUrl = subscriptionParser.parseLinkHeader(bundle.webPageUrl)
+                                        ?: headerWebPageUrl,
                                     activeProfileId = bestActiveId,
                                     autoUpdate = existingSub?.autoUpdate
                                         ?: ((bundle.updateIntervalMinutes

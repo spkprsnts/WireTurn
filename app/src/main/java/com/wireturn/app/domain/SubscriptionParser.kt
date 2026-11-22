@@ -672,6 +672,16 @@ internal class SubscriptionParser(private val gson: Gson) {
     }
 
     /**
+     * A provider link header ("Support-Url", "Profile-Web-Page-Url") - a web page or a Telegram
+     * link, the kinds panels send; anything else (blank, another scheme) is dropped.
+     */
+    fun parseLinkHeader(header: String?): String? {
+        val link = header?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        val scheme = link.substringBefore("://", "").lowercase()
+        return link.takeIf { scheme == "https" || scheme == "http" || scheme == "tg" }
+    }
+
+    /**
      * The "expire" of the same "Subscription-Userinfo" header - Unix seconds - as epoch millis, or
      * null when it's missing or 0 (the panels' "never").
      */

@@ -68,6 +68,10 @@ data class Subscription(
     @SerializedName("bytesTotal") val bytesTotal: Long = 0,
     // When the subscription runs out, epoch millis; 0 = not given.
     @SerializedName("expiresAt") val expiresAt: Long = 0,
+    // The provider's notice and links (the panels' Announce / Support-Url / Profile-Web-Page-Url).
+    @SerializedName("announce") val announce: String? = null,
+    @SerializedName("supportUrl") val supportUrl: String? = null,
+    @SerializedName("webPageUrl") val webPageUrl: String? = null,
     @SerializedName("autoUpdate") val autoUpdate: Boolean = false,
     @SerializedName("updateIntervalMinutes") val updateIntervalMinutes: Int = 1440, // Default 24h
     @SerializedName("activeProfileId") val activeProfileId: String? = null,
@@ -102,6 +106,9 @@ data class ProfileBundle(
     @SerializedName("bytesTotal") val bytesTotal: Long? = null,
     // Epoch millis, like updatedAt.
     @SerializedName("expiresAt") val expiresAt: Long? = null,
+    @SerializedName("announce") val announce: String? = null,
+    @SerializedName("supportUrl") val supportUrl: String? = null,
+    @SerializedName("webPageUrl") val webPageUrl: String? = null,
     @SerializedName(
         "recommendedProfileId",
         alternate = ["activeProfileId"]

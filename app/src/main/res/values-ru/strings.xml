@@ -800,6 +800,8 @@
     <string name="subscription_traffic_a11y">Использовано %1$s из %2$s</string>
     <string name="subscription_expires">до %1$s</string>
     <string name="subscription_expired">истекла %1$s</string>
+    <string name="subscription_support">Поддержка</string>
+    <string name="subscription_web_page">Сайт провайдера</string>
     <string name="subscription_test_ping">Проверить доступность</string>
     <string name="subscription_test_ping_stop">Остановить проверку</string>
     <string name="subscription_testing_ping">Проверка доступности…</string>

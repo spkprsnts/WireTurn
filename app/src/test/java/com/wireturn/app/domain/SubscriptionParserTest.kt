@@ -180,6 +180,16 @@ class SubscriptionParserTest {
     }
 
     @Test
+    fun linkHeader_keepsWebAndTelegramLinksOnly() {
+        assertEquals("https://t.me/support", parser.parseLinkHeader(" https://t.me/support "))
+        assertEquals("tg://resolve?domain=support", parser.parseLinkHeader("tg://resolve?domain=support"))
+        assertEquals(null, parser.parseLinkHeader("javascript:alert(1)"))
+        assertEquals(null, parser.parseLinkHeader("intent://x#Intent;end"))
+        assertEquals(null, parser.parseLinkHeader(""))
+        assertEquals(null, parser.parseLinkHeader(null))
+    }
+
+    @Test
     fun subscriptionUserinfoExpire_isMillisAndZeroMeansNever() {
         assertEquals(1_767_225_600_000L, parser.parseSubscriptionExpire("upload=1; total=2; expire=1767225600"))
         assertEquals(null, parser.parseSubscriptionExpire("upload=10; download=20; total=100; expire=0"))
