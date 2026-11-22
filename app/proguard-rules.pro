@@ -49,6 +49,8 @@
 # Сохраняем класс и нативные методы для hev-socks5-tunnel
 -keep class com.wireturn.app.HevSocks5Tunnel {
     native <methods>;
+    # Looked up by name from JNI_OnLoad (SplitTunnelGuard).
+    static boolean checkConnection(int, byte[], int, byte[], int);
 }
 -keepclasseswithmembernames class * {
     native <methods>;

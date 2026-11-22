@@ -35,6 +35,16 @@ internal class HevSocks5Tunnel {
         init {
             System.loadLibrary("hevsocks5")
         }
+
+        // Called by hev (looked up in JNI_OnLoad) for every new TCP connection and UDP flow
+        // from the tun - false drops it. See SplitTunnelGuard.
+        @JvmStatic
+        fun checkConnection(proto: Int, src: ByteArray, srcPort: Int, dst: ByteArray, dstPort: Int): Boolean =
+            try {
+                SplitTunnelGuard.allows(proto, src, srcPort, dst, dstPort)
+            } catch (_: Throwable) {
+                false
+            }
     }
 }
 
@@ -368,16 +378,22 @@ misc:
             builder.setMetered(false)
         }
 
+        // What hev lets through from the tun, mirroring what's set up here (see SplitTunnelGuard):
+        // UIDs are matched, the package lists only resolved to them.
         if (!vpnSettings.filteringEnabled) {
             addTunRoutes(builder, vpnSettings)
             builder.addDisallowedApplication(packageName)
             AppLogsState.addLog(getString(R.string.log_vpn_filtering_disabled))
+            // Every app but this one is in the VPN - nobody to keep out.
+            SplitTunnelGuard.update(this, null)
         } else if (vpnSettings.bypassMode) {
             addTunRoutes(builder, vpnSettings)
             builder.addDisallowedApplication(packageName)
+            val denied = mutableSetOf<Int>()
             vpnSettings.excludedApps.forEach { pkg ->
                 try {
                     builder.addDisallowedApplication(pkg)
+                    SplitTunnelGuard.uidOf(this, pkg)?.let(denied::add)
                 } catch (e: Exception) {
                     AppLogsState.addLog(
                         getString(
@@ -388,12 +404,15 @@ misc:
                     )
                 }
             }
+            SplitTunnelGuard.update(this, SplitTunnelGuard.Policy(allowed = null, denied = denied))
         } else {
             if (vpnSettings.excludedApps.isNotEmpty()) {
                 addTunRoutes(builder, vpnSettings)
+                val allowed = mutableSetOf<Int>()
                 vpnSettings.excludedApps.forEach { pkg ->
                     try {
                         builder.addAllowedApplication(pkg)
+                        SplitTunnelGuard.uidOf(this, pkg)?.let(allowed::add)
                     } catch (e: Exception) {
                         AppLogsState.addLog(
                             getString(
@@ -404,8 +423,16 @@ misc:
                         )
                     }
                 }
+                // None of them added leaves the VPN on every app - so is the guard.
+                SplitTunnelGuard.update(
+                    this,
+                    if (allowed.isEmpty()) SplitTunnelGuard.Policy(allowed = null, denied = emptySet())
+                    else SplitTunnelGuard.Policy(allowed = allowed, denied = emptySet())
+                )
             } else {
                 AppLogsState.addLog(getString(R.string.log_vpn_include_empty))
+                // No routes at all - nothing is meant to go through the tun.
+                SplitTunnelGuard.update(this, SplitTunnelGuard.Policy(allowed = emptySet(), denied = emptySet()))
             }
         }
     }
