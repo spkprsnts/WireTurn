@@ -28,11 +28,12 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -1121,39 +1122,25 @@ private fun RepoLinkItem(
     onHaptic: () -> Unit,
     onOpen: (String) -> Unit
 ) {
-    Surface(
-        color = containerColor,
+    // A plain list item: headline/supporting typography, padding and the press morph from the
+    // list tokens; one accessibility node reading the name, the repo and "open".
+    ListItem(
         onClick = {
             onHaptic()
             onOpen(url)
         },
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+        modifier = Modifier.fillMaxWidth(),
+        supportingContent = { Text(subtitle) },
+        trailingContent = {
             Icon(
                 painter = painterResource(R.drawable.open_in_new_24px),
                 contentDescription = stringResource(R.string.btn_open),
                 modifier = Modifier.size(18.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
-        }
+        },
+        colors = ListItemDefaults.colors(containerColor = containerColor)
+    ) {
+        Text(title)
     }
 }
