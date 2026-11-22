@@ -43,6 +43,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
+import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,6 +73,25 @@ import com.wireturn.app.ui.theme.GroupCardCorners
  * Local provider for interaction source to coordinate ripples between parent blocks and children.
  */
 val LocalSettingsInteractionSource = compositionLocalOf<MutableInteractionSource?> { null }
+
+/**
+ * Provided by a clickable [SectionItem]: a [SwitchRow] inside, whose taps the item handles, reports
+ * its state through it. The item is that row's one accessibility node (its clickable merges the
+ * label), and a merged child's role is dropped - so the item itself announces "switch, on/off".
+ * null outside of a clickable item.
+ */
+val LocalSectionToggle = compositionLocalOf<((Boolean?) -> Unit)?> { null }
+
+// The role and state a clickable item announces for the switch row it holds, if any.
+private fun Modifier.switchSemantics(checked: Boolean?): Modifier =
+    if (checked == null) this
+    else semantics {
+        role = Role.Switch
+        toggleableState = ToggleableState(checked)
+    }
+
+// Card's DisabledAlpha (internal in material3) - the content color a disabled card gives.
+private const val DISABLED_CARD_CONTENT_ALPHA = 0.38f
 
 @Composable
 fun ModifiedIndicator(isModified: Boolean, modifier: Modifier = Modifier) {
@@ -389,29 +416,54 @@ fun SectionItem(
     val internalInteractionSource = interactionSource ?: LocalSettingsInteractionSource.current
     ?: remember { MutableInteractionSource() }
 
-    CompositionLocalProvider(LocalSettingsInteractionSource provides internalInteractionSource) {
-        Card(
-            modifier = modifier
+    val body: @Composable () -> Unit = {
+        Box(
+            modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 72.dp),
-            shape = shape,
-            onClick = onClick ?: {},
-            enabled = onClick != null && enabled,
-            interactionSource = internalInteractionSource,
-            colors = CardDefaults.cardColors(
-                containerColor = containerColor,
-                disabledContainerColor = if (enabled) containerColor else containerColor.copy(alpha = 0.5f)
-            )
+                .heightIn(min = 72.dp)
+                .padding(horizontal = 16.dp, vertical = 14.dp)
+                .let { if (!enabled) it.alpha(ContentAlpha.disabled) else it },
+            contentAlignment = Alignment.CenterStart
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 72.dp)
-                    .padding(horizontal = 16.dp, vertical = 14.dp)
-                    .let { if (!enabled) it.alpha(ContentAlpha.disabled) else it },
-                contentAlignment = Alignment.CenterStart
-            ) {
-                content()
+            content()
+        }
+    }
+    val cardModifier = modifier
+        .fillMaxWidth()
+        .heightIn(min = 72.dp)
+
+    CompositionLocalProvider(LocalSettingsInteractionSource provides internalInteractionSource) {
+        if (onClick != null) {
+            var switchChecked by remember { mutableStateOf<Boolean?>(null) }
+            val reportSwitch = remember { { checked: Boolean? -> switchChecked = checked } }
+            CompositionLocalProvider(LocalSectionToggle provides reportSwitch) {
+                Card(
+                    modifier = cardModifier.switchSemantics(switchChecked),
+                    shape = shape,
+                    onClick = onClick,
+                    enabled = enabled,
+                    interactionSource = internalInteractionSource,
+                    colors = CardDefaults.cardColors(
+                        containerColor = containerColor,
+                        disabledContainerColor = containerColor.copy(alpha = 0.5f)
+                    ),
+                    content = { body() }
+                )
+            }
+        } else {
+            // Not clickable: a plain card, not a disabled clickable one - that one told
+            // accessibility services every such row was disabled. The colors stay what the
+            // disabled card drew, content color included.
+            CompositionLocalProvider(LocalSectionToggle provides null) {
+                Card(
+                    modifier = cardModifier,
+                    shape = shape,
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (enabled) containerColor else containerColor.copy(alpha = 0.5f),
+                        contentColor = contentColorFor(containerColor).copy(alpha = DISABLED_CARD_CONTENT_ALPHA)
+                    ),
+                    content = { body() }
+                )
             }
         }
     }
@@ -433,7 +485,8 @@ fun MainSwitchItem(
 
     CompositionLocalProvider(LocalSettingsInteractionSource provides interactionSource) {
         Card(
-            modifier = modifier.fillMaxWidth(),
+            // The card is the switch - the one below takes no input of its own.
+            modifier = modifier.fillMaxWidth().switchSemantics(checked),
             shape = CircleShape,
             onClick = { onCheckedChange(!checked) },
             enabled = enabled,
@@ -481,27 +534,43 @@ fun CompactItem(
     val internalInteractionSource = interactionSource ?: LocalSettingsInteractionSource.current
     ?: remember { MutableInteractionSource() }
 
-    CompositionLocalProvider(LocalSettingsInteractionSource provides internalInteractionSource) {
-        Card(
-            modifier = modifier,
-            shape = CircleShape,
-            onClick = onClick ?: {},
-            enabled = onClick != null && enabled,
-            interactionSource = internalInteractionSource,
-            colors = CardDefaults.cardColors(
-                containerColor = containerColor,
-                disabledContainerColor = if (enabled) containerColor else containerColor.copy(alpha = 0.5f)
-            )
+    val body: @Composable () -> Unit = {
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .padding(horizontal = 14.dp, vertical = 8.dp)
+                .let { if (!enabled) it.alpha(ContentAlpha.disabled) else it },
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
-                    .let { if (!enabled) it.alpha(ContentAlpha.disabled) else it },
-                contentAlignment = Alignment.Center
-            ) {
-                content()
-            }
+            content()
+        }
+    }
+
+    CompositionLocalProvider(LocalSettingsInteractionSource provides internalInteractionSource) {
+        if (onClick != null) {
+            Card(
+                modifier = modifier,
+                shape = CircleShape,
+                onClick = onClick,
+                enabled = enabled,
+                interactionSource = internalInteractionSource,
+                colors = CardDefaults.cardColors(
+                    containerColor = containerColor,
+                    disabledContainerColor = containerColor.copy(alpha = 0.5f)
+                ),
+                content = { body() }
+            )
+        } else {
+            // A plain card, as in SectionItem.
+            Card(
+                modifier = modifier,
+                shape = CircleShape,
+                colors = CardDefaults.cardColors(
+                    containerColor = if (enabled) containerColor else containerColor.copy(alpha = 0.5f),
+                    contentColor = contentColorFor(containerColor).copy(alpha = DISABLED_CARD_CONTENT_ALPHA)
+                ),
+                content = { body() }
+            )
         }
     }
 }

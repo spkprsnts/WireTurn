@@ -6,8 +6,10 @@ package com.wireturn.app.ui
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -46,11 +48,17 @@ import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonShapes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -387,6 +395,23 @@ fun SwitchRow(
     val actualClickable = onRowClick == null && !isSplit &&
             (parentInteractionSource == null || interactionSource != null) && clickable
 
+    // Accessibility: one node per row that says what it is, "label, switch, on".
+    // - actualClickable: the label part toggles, so it carries the switch's role and state;
+    // - a clickable SectionItem toggling for us: the item is the node (it merges the label) and
+    //   announces the state reported to it here;
+    // - otherwise the switch is a control of its own (split rows, or nothing else toggles) and
+    //   gets the label as its description.
+    // The switch keeps handling its taps in every case, it's only hidden from accessibility
+    // where something else already speaks for it.
+    val sectionToggle = LocalSectionToggle.current
+    val itemToggles = onRowClick == null && !isSplit && clickable && !actualClickable &&
+            sectionToggle != null
+    if (itemToggles) {
+        SideEffect { sectionToggle(checked) }
+        DisposableEffect(sectionToggle) { onDispose { sectionToggle(null) } }
+    }
+    val switchSpeaksForItself = !actualClickable && !itemToggles
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier.fillMaxWidth()
@@ -400,11 +425,13 @@ fun SwitchRow(
                         onClick = onRowClick
                     )
                 } else if (actualClickable) {
-                    m.clickable(
+                    m.toggleable(
+                        value = checked,
                         interactionSource = internalInteractionSource,
                         indication = null,
                         enabled = enabled,
-                        onClick = { onCheckedChange(!checked) }
+                        role = Role.Switch,
+                        onValueChange = onCheckedChange
                     )
                 } else m
             }
@@ -445,12 +472,24 @@ fun SwitchRow(
             Spacer(Modifier.width(16.dp))
         }
 
-        IconSwitch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            enabled = enabled,
-            interactionSource = switchInteractionSource
-        )
+        if (switchSpeaksForItself) {
+            IconSwitch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                enabled = enabled,
+                interactionSource = switchInteractionSource,
+                modifier = Modifier.semantics { contentDescription = label }
+            )
+        } else {
+            Box(Modifier.clearAndSetSemantics {}) {
+                IconSwitch(
+                    checked = checked,
+                    onCheckedChange = onCheckedChange,
+                    enabled = enabled,
+                    interactionSource = switchInteractionSource
+                )
+            }
+        }
     }
 }
 
