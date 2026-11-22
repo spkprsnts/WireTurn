@@ -4,27 +4,34 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Shapes
 import androidx.compose.ui.unit.dp
 
+// Corner radii the shape scale is built from - shared with GroupCardCorners below, which needs
+// them as Dp (SectionItem animates its corners between the two).
+private val CornerExtraSmall = 4.dp
+private val CornerLargeIncreased = 20.dp
+
 /**
- * M3 Shape Scale — 5 sizes from extra-small to extra-large. Declared explicitly (rather than
- * left to MaterialExpressiveTheme's implicit default) so it's the single source of truth other
- * shape values in the app can be defined against.
+ * M3E Shape Scale - the 5 baseline sizes plus the 3 Expressive added (largeIncreased,
+ * extraLargeIncreased, extraExtraLarge). Declared explicitly (rather than left to
+ * MaterialExpressiveTheme's implicit default) so it's the single source of truth other shape
+ * values in the app are defined against. extraLarge stays 24dp, below the 28dp token.
  */
 val AppShapes = Shapes(
-    extraSmall = RoundedCornerShape(4.dp),
+    extraSmall = RoundedCornerShape(CornerExtraSmall),
     small = RoundedCornerShape(8.dp),
     medium = RoundedCornerShape(12.dp),
     large = RoundedCornerShape(16.dp),
-    extraLarge = RoundedCornerShape(24.dp)
+    largeIncreased = RoundedCornerShape(CornerLargeIncreased),
+    extraLarge = RoundedCornerShape(24.dp),
+    extraLargeIncreased = RoundedCornerShape(32.dp),
+    extraExtraLarge = RoundedCornerShape(48.dp)
 )
 
 /**
  * Corner radii for grouped [com.wireturn.app.ui.SectionItem] cards: the outer radius on the
- * first/last item of a group, and the tight inner radius on the joints between them. Sits
- * between [AppShapes.large] (16dp) and [AppShapes.extraLarge] (24dp) - kept as its own named
- * token, since [Shapes] only holds one shape per size and both large/extraLarge are already
- * used elsewhere for their own baseline meaning.
+ * first/last item of a group ([Shapes.largeIncreased]), and the tight inner radius on the joints
+ * between them ([Shapes.extraSmall]).
  */
 object GroupCardCorners {
-    val outer = 20.dp
-    val inner = 4.dp // matches AppShapes.extraSmall
+    val outer = CornerLargeIncreased
+    val inner = CornerExtraSmall
 }
