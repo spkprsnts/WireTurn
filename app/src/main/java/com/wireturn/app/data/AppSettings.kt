@@ -68,6 +68,8 @@ data class Subscription(
     @SerializedName("bytesTotal") val bytesTotal: Long = 0,
     // When the subscription runs out, epoch millis; 0 = not given.
     @SerializedName("expiresAt") val expiresAt: Long = 0,
+    // When the traffic quota resets (a daily/monthly limit), epoch millis; 0 = not given.
+    @SerializedName("refillAt") val refillAt: Long = 0,
     // The provider's notice and links (the panels' Announce / Support-Url / Profile-Web-Page-Url).
     @SerializedName("announce") val announce: String? = null,
     @SerializedName("supportUrl") val supportUrl: String? = null,
@@ -106,6 +108,7 @@ data class ProfileBundle(
     @SerializedName("bytesTotal") val bytesTotal: Long? = null,
     // Epoch millis, like updatedAt.
     @SerializedName("expiresAt") val expiresAt: Long? = null,
+    @SerializedName("refillAt") val refillAt: Long? = null,
     @SerializedName("announce") val announce: String? = null,
     @SerializedName("supportUrl") val supportUrl: String? = null,
     @SerializedName("webPageUrl") val webPageUrl: String? = null,

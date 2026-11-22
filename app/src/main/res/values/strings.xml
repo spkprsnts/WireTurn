@@ -878,6 +878,9 @@
     <string name="subscription_traffic_a11y">Used %1$s of %2$s</string>
     <string name="subscription_expires">until %1$s</string>
     <string name="subscription_expired">expired %1$s</string>
+    <string name="subscription_traffic_refill">Traffic resets %1$s</string>
+    <string name="subscription_announce_more">More</string>
+    <string name="subscription_announce_less">Less</string>
     <string name="subscription_support">Support</string>
     <string name="subscription_web_page">Provider website</string>
     <string name="subscription_test_ping">Check availability</string>

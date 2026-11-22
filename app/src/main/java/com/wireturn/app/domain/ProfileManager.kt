@@ -945,6 +945,9 @@ class ProfileManager(
                             val (headerBytesUsed, headerBytesTotal) =
                                 subscriptionParser.parseSubscriptionUserinfo(userinfo)
                             val headerExpiresAt = subscriptionParser.parseSubscriptionExpire(userinfo)
+                            val headerRefillAt = subscriptionParser.parseRefillDate(
+                                connection.getHeaderField("Subscription-Refill-Date")
+                            )
                             // Plain or "base64:" like Profile-Title.
                             val headerAnnounce = subscriptionParser.decodeProfileTitle(
                                 connection.getHeaderField("Announce")
@@ -984,6 +987,7 @@ class ProfileManager(
                                     bytesUsed = bundle.bytesUsed ?: headerBytesUsed ?: 0,
                                     bytesTotal = bundle.bytesTotal ?: headerBytesTotal ?: 0,
                                     expiresAt = bundle.expiresAt ?: headerExpiresAt ?: 0,
+                                    refillAt = bundle.refillAt ?: headerRefillAt ?: 0,
                                     announce = bundle.announce?.trim()?.ifBlank { null } ?: headerAnnounce,
                                     supportUrl = subscriptionParser.parseLinkHeader(bundle.supportUrl)
                                         ?: headerSupportUrl,

@@ -672,6 +672,13 @@ internal class SubscriptionParser(private val gson: Gson) {
     }
 
     /**
+     * The "Subscription-Refill-Date" header (Remnawave and alike): when the traffic quota resets,
+     * Unix seconds, as epoch millis - null when missing or not a positive number.
+     */
+    fun parseRefillDate(header: String?): Long? =
+        header?.trim()?.toLongOrNull()?.takeIf { it > 0 }?.let { it * 1000 }
+
+    /**
      * A provider link header ("Support-Url", "Profile-Web-Page-Url") - a web page or a Telegram
      * link, the kinds panels send; anything else (blank, another scheme) is dropped.
      */

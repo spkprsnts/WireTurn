@@ -13,12 +13,14 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
@@ -82,12 +84,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -104,6 +108,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
@@ -1679,12 +1684,11 @@ private fun SubscriptionHeaderRow(
                             )
                         }
                         if (!sub.announce.isNullOrBlank()) {
-                            // The provider's notice: its own color to stand apart from the
-                            // description, folding the same way when the header pins.
                             if (sub.updatedAt > 0 || !sub.description.isNullOrBlank()) {
                                 Spacer(Modifier.height(4.dp))
                             }
-                            SubscriptionDescriptionText(
+                            SubscriptionAnnounce(
+                                subscriptionId = sub.id,
                                 text = sub.announce,
                                 color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.primary,
                                 stuckProgress = stuckProgress
@@ -1868,8 +1872,84 @@ private fun SubscriptionHeaderRow(
     }
 }
 
+/**
+ * The provider's notice in the subscription header: its own color to stand apart from the
+ * description, and two lines at most - panels send whole paragraphs (blank lines dropped here),
+ * which would make the header taller than the profiles under it. When it doesn't fit, a small
+ * "More"/"Less" toggle under it opens it in place - a tap of its own, since a tap on the header
+ * selects the subscription. Open, it folds back to two lines as the header pins, like the
+ * description does.
+ */
+@Composable
+private fun SubscriptionAnnounce(
+    subscriptionId: String,
+    text: String,
+    color: Color,
+    stuckProgress: Float
+) {
+    val compact = remember(text) {
+        text.lines().map { it.trimEnd() }.filter { it.isNotBlank() }.joinToString("\n")
+    }
+    var expanded by rememberSaveable(subscriptionId) { mutableStateOf(false) }
+    var overflows by remember(compact) { mutableStateOf(false) }
+    val style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp)
+
+    Column(modifier = Modifier.animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())) {
+        if (expanded) {
+            SubscriptionDescriptionText(text = compact, color = color, stuckProgress = stuckProgress)
+        } else {
+            Text(
+                text = compact,
+                style = style,
+                color = color,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                onTextLayout = { result -> if (result.hasVisualOverflow) overflows = true }
+            )
+        }
+
+        val shown = 1f - stuckProgress
+        if ((overflows || expanded) && shown > 0f) {
+            Text(
+                text = stringResource(
+                    if (expanded) R.string.subscription_announce_less else R.string.subscription_announce_more
+                ),
+                style = MaterialTheme.typography.labelMedium,
+                color = color,
+                modifier = Modifier
+                    // Folds away with the pin, like the quota line.
+                    .layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints)
+                        layout(placeable.width, (placeable.height * shown).roundToInt()) {
+                            placeable.placeRelative(0, 0)
+                        }
+                    }
+                    .graphicsLayer {
+                        alpha = shown
+                        clip = true
+                    }
+                    .padding(top = 2.dp)
+                    .clip(MaterialTheme.shapes.small)
+                    .clickable(role = Role.Button) { expanded = !expanded }
+                    .padding(vertical = 4.dp)
+            )
+        }
+    }
+}
+
+// The year only for a date in another one - "Dec 6", not "Dec 6, 2026".
+private fun noYearIfThisYear(millis: Long): Int {
+    val year = { t: Long -> java.util.Calendar.getInstance().apply { timeInMillis = t }.get(java.util.Calendar.YEAR) }
+    return if (year(millis) == year(System.currentTimeMillis())) android.text.format.DateUtils.FORMAT_NO_YEAR else 0
+}
+
 /** What a subscription says about its traffic and term; null when it says nothing of either. */
-private data class SubscriptionQuota(val used: Long, val total: Long, val expiresAt: Long) {
+private data class SubscriptionQuota(
+    val used: Long,
+    val total: Long,
+    val expiresAt: Long,
+    val refillAt: Long = 0
+) {
     val hasLimit: Boolean get() = total > 0
     val fraction: Float get() = if (total > 0) (used.toFloat() / total).coerceIn(0f, 1f) else 0f
     // The last 10% (or past the limit) - the bar and its line turn to the error color.
@@ -1878,7 +1958,7 @@ private data class SubscriptionQuota(val used: Long, val total: Long, val expire
 
 private fun Subscription.quotaOrNull(): SubscriptionQuota? =
     if (bytesTotal > 0 || bytesUsed > 0 || expiresAt > 0) {
-        SubscriptionQuota(used = bytesUsed, total = bytesTotal, expiresAt = expiresAt)
+        SubscriptionQuota(used = bytesUsed, total = bytesTotal, expiresAt = expiresAt, refillAt = refillAt)
     } else null
 
 private data class QuotaColors(val bar: Color, val track: Color)
@@ -1921,7 +2001,8 @@ private fun SubscriptionQuotaRow(
             android.text.format.DateUtils.formatDateTime(
                 context, quota.expiresAt,
                 android.text.format.DateUtils.FORMAT_SHOW_DATE or
-                        android.text.format.DateUtils.FORMAT_ABBREV_MONTH
+                        android.text.format.DateUtils.FORMAT_ABBREV_MONTH or
+                        noYearIfThisYear(quota.expiresAt)
             )
         }
         stringResource(
@@ -2000,6 +2081,26 @@ private fun SubscriptionQuotaRow(
                     .semantics { contentDescription = barDescription },
                 color = colors.bar,
                 trackColor = colors.track
+            )
+        }
+        // A limit that resets (e.g. daily): when, so "X / 50 GiB" isn't read as the whole term's.
+        // A date already past is stale until the next refresh - left out.
+        if (quota.hasLimit && quota.refillAt > System.currentTimeMillis()) {
+            val refill = remember(quota.refillAt) {
+                android.text.format.DateUtils.formatDateTime(
+                    context, quota.refillAt,
+                    android.text.format.DateUtils.FORMAT_SHOW_DATE or
+                            android.text.format.DateUtils.FORMAT_SHOW_TIME or
+                            android.text.format.DateUtils.FORMAT_ABBREV_MONTH or
+                            noYearIfThisYear(quota.refillAt)
+                )
+            }
+            Text(
+                text = stringResource(R.string.subscription_traffic_refill, refill),
+                style = MaterialTheme.typography.labelSmall,
+                color = textColor,
+                maxLines = 1,
+                modifier = Modifier.padding(top = 4.dp)
             )
         }
     }

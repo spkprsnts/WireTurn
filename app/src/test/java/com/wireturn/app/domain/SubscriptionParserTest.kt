@@ -180,6 +180,14 @@ class SubscriptionParserTest {
     }
 
     @Test
+    fun refillDate_isMillisOrNothing() {
+        assertEquals(1_795_392_300_000L, parser.parseRefillDate("1795392300"))
+        assertEquals(null, parser.parseRefillDate("0"))
+        assertEquals(null, parser.parseRefillDate("soon"))
+        assertEquals(null, parser.parseRefillDate(null))
+    }
+
+    @Test
     fun linkHeader_keepsWebAndTelegramLinksOnly() {
         assertEquals("https://t.me/support", parser.parseLinkHeader(" https://t.me/support "))
         assertEquals("tg://resolve?domain=support", parser.parseLinkHeader("tg://resolve?domain=support"))
