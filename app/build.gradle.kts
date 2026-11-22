@@ -146,6 +146,8 @@ dependencies {
     implementation(libs.androidx.camera.view)
     implementation(libs.guava)
     implementation(libs.coil.compose)
+    // Document-start scripts for Turnable's manual VK captcha (TurnableCaptchaDialog).
+    implementation(libs.androidx.webkit)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     // The ComponentActivity createComposeRule() hosts content in (Robolectric unit tests).

@@ -577,6 +577,9 @@
     <string name="error_turnable_failed">Turnable error: %1$s</string>
     <string name="error_room_not_found">Room not found</string>
     <string name="error_turnable_vk_captcha_failed">VK captcha failed</string>
+    <string name="turnable_captcha_title">VK captcha</string>
+    <string name="turnable_captcha_hint">Pass the VK check - Turnable will continue on its own</string>
+    <string name="turnable_captcha_script_failed">Could not get the captcha script from Turnable. Restart the connection and try again.</string>
     <string name="error_turnable_vk_flood">VK flood limit</string>
     <string name="error_turnable_auth_rejected">Server rejected authorization</string>
     <string name="error_freeturn_server_outdated">Update the FreeTurn server</string>

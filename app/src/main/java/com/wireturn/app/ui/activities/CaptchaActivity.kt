@@ -38,25 +38,36 @@ class CaptchaActivity : AppCompatActivity() {
 
             WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
                 androidx.compose.runtime.key(captchaSession?.sessionId) {
-                    CaptchaWebViewDialog(
-                        viewModel = viewModel,
-                        captchaUrl = captchaSession?.url ?: currentUrl.value,
-                        // Only the window closes - the core keeps waiting until its own timeout,
-                        // and HomeScreen's captcha card opens it again meanwhile.
-                        onDismiss = { finish() },
-                        onSuccess = { token ->
-                            captchaSession?.sessionId?.let {
-                                viewModel.submitCaptchaResult(
-                                    it,
-                                    token
-                                )
-                            }
-                            // Закрываем окно локально как только WebView обнаружил успех.
-                            // MainActivity не откроет его повторно благодаря lastHandledCaptchaSessionId.
-                            runOnUiThread { finish() }
-                        },
-                        useNativeBridge = captchaSession?.needsResultToken == true
-                    )
+                    val session = captchaSession
+                    val userScriptUrl = session?.userScriptUrl
+                    if (session != null && userScriptUrl != null) {
+                        // Turnable's manual captcha: the VK call page with its userscript.
+                        com.wireturn.app.ui.screens.TurnableCaptchaDialog(
+                            callUrl = session.url,
+                            userScriptUrl = userScriptUrl,
+                            onDismiss = { finish() }
+                        )
+                    } else {
+                        CaptchaWebViewDialog(
+                            viewModel = viewModel,
+                            captchaUrl = captchaSession?.url ?: currentUrl.value,
+                            // Only the window closes - the core keeps waiting until its own timeout,
+                            // and HomeScreen's captcha card opens it again meanwhile.
+                            onDismiss = { finish() },
+                            onSuccess = { token ->
+                                captchaSession?.sessionId?.let {
+                                    viewModel.submitCaptchaResult(
+                                        it,
+                                        token
+                                    )
+                                }
+                                // Закрываем окно локально как только WebView обнаружил успех.
+                                // MainActivity не откроет его повторно благодаря lastHandledCaptchaSessionId.
+                                runOnUiThread { finish() }
+                            },
+                            useNativeBridge = captchaSession?.needsResultToken == true
+                        )
+                    }
                 }
             }
         }

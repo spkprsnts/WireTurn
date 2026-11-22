@@ -146,13 +146,23 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     if (captchaUrl != null) {
-                        CaptchaWebViewDialog(
-                            viewModel = viewModel,
-                            captchaUrl = captchaUrl,
-                            onDismiss = {
-                                intent?.removeExtra("CAPTCHA_URL")
-                            }
-                        )
+                        val userScriptUrl =
+                            captchaSession?.takeIf { it.url == captchaUrl }?.userScriptUrl
+                        if (userScriptUrl != null) {
+                            com.wireturn.app.ui.screens.TurnableCaptchaDialog(
+                                callUrl = captchaUrl,
+                                userScriptUrl = userScriptUrl,
+                                onDismiss = { intent?.removeExtra("CAPTCHA_URL") }
+                            )
+                        } else {
+                            CaptchaWebViewDialog(
+                                viewModel = viewModel,
+                                captchaUrl = captchaUrl,
+                                onDismiss = {
+                                    intent?.removeExtra("CAPTCHA_URL")
+                                }
+                            )
+                        }
                     }
                 }
             }

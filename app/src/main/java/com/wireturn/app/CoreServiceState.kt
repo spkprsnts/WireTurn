@@ -28,7 +28,10 @@ data class CaptchaSession(
     val url: String,
     val sessionId: Long,
     val needsResultToken: Boolean = false,
-    val partial: Boolean = false
+    val partial: Boolean = false,
+    // Turnable's manual captcha: [url] is the VK call page, and this its userscript (served by
+    // the core on localhost) - shown in TurnableCaptchaDialog, not CaptchaWebViewDialog.
+    val userScriptUrl: String? = null
 )
 
 sealed class CoreStatus {

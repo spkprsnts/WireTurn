@@ -526,6 +526,9 @@
     <string name="error_turnable_failed">Ошибка Turnable: %1$s</string>
     <string name="error_room_not_found">Комната не найдена</string>
     <string name="error_turnable_vk_captcha_failed">Не удалось пройти капчу</string>
+    <string name="turnable_captcha_title">Капча VK</string>
+    <string name="turnable_captcha_hint">Пройдите проверку VK - дальше Turnable продолжит сама</string>
+    <string name="turnable_captcha_script_failed">Не удалось получить скрипт капчи от Turnable. Перезапустите подключение и попробуйте снова.</string>
     <string name="error_turnable_vk_flood">VK флуд-лимит</string>
     <string name="error_turnable_auth_rejected">Сервер отклонил авторизацию</string>
     <string name="error_freeturn_server_outdated">Обновите сервер FreeTurn</string>

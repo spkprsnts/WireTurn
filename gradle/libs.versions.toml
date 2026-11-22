@@ -20,6 +20,7 @@ zxing = "3.5.4"
 desugar_jdk_libs = "2.1.5"
 coil = "2.7.0"
 junit = "4.13.2"
+webkit = "1.18.0"
 robolectric = "4.18.1"
 
 
@@ -52,6 +53,7 @@ zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" 
 desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugar_jdk_libs" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+androidx-webkit = { group = "androidx.webkit", name = "webkit", version.ref = "webkit" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 
 

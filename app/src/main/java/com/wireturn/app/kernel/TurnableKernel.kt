@@ -2,6 +2,7 @@ package com.wireturn.app.kernel
 
 import android.content.Context
 import androidx.core.net.toUri
+import com.wireturn.app.CaptchaSession
 import com.wireturn.app.CoreServiceState
 import com.wireturn.app.CoreStatus
 import com.wireturn.app.R
@@ -85,14 +86,23 @@ object TurnableKernel : Kernel {
             listOf(
                 "client",
                 "-l", cfg.listenAddr.ifBlank { ClientConfig.DEFAULT_LISTEN_ADDR },
-                "-c", configFile.absolutePath,
+                // No prompts, and no browser of its own for the manual captcha (on Android it
+                // would "am start" the VK link) - the app shows that one (TurnableCaptchaDialog).
+                "--no-interactive",
                 // slog DEBUG level - kept or dropped by the log level setting; parseLogLine only
                 // sees the few of these it uses (see parsesDebugLine).
-                "--verbose"
+                "--verbose",
+                // Positional since 0.8 (-c is gone): a .json file read as is, the link in it.
+                configFile.absolutePath
             )
         )
         return cmdArgs
     }
+
+    // The manual captcha's local server on a random port instead of a fixed 1984 (taken by
+    // another instance, or anything else) - the call link then carries it (#port=).
+    override fun environment(ctx: KernelCommandContext, cfg: ClientConfig): Map<String, String> =
+        mapOf("VK_MANUAL_MANAGED" to "1")
 
     // Per-peer dial retries run to hundreds of lines per session on a bad network, and a TURN
     // failure that matters is summed up separately ("peer connection failed with TURN error,
@@ -139,6 +149,8 @@ object TurnableKernel : Kernel {
 
         if (lower.contains("vk signaling connect rejected: not authorized") ||
             lower.contains("failed to validate connection url") ||
+            // 0.8+: the link in the config file doesn't parse - a restart reads the same one.
+            lower.contains("failed to parse config") ||
             lower.contains("second shutdown signal received") ||
             ((lower.contains("panic") || lower.contains("fatal")) && !lower.contains("[info]") && !lower.contains(
                 "[warn]"
@@ -152,19 +164,42 @@ object TurnableKernel : Kernel {
             return true
         }
 
-        // Once its auto-solver gives up, Turnable falls back to a manual captcha that needs a
-        // userscript installed in a desktop browser (served on localhost:1984) - nothing the app
-        // can drive. Waiting only runs into its 10-minute timeout, and a restart just asks VK for
-        // another captcha, so stop with a readable reason instead.
-        if (lower.contains("all auto captcha attempts exhausted") ||
-            lower.contains("manual captcha solve required")
-        ) {
+        // Once its auto-solver gives up, Turnable falls back to a manual captcha: a local server
+        // for its userscript, and the VK call page to run it in - the app shows that page with the
+        // script (TurnableCaptchaDialog). Turnable waits up to 10 minutes for the tokens it sends.
+        if (lower.contains("manual captcha solve required")) {
+            val manual = manualCaptchaOf(line)
+            if (manual != null) {
+                state.captchaSessionCounter += 1
+                requestCaptcha(
+                    ctx,
+                    CaptchaSession(
+                        url = manual.callUrl,
+                        sessionId = state.captchaSessionCounter,
+                        userScriptUrl = manual.userScriptUrl
+                    )
+                )
+                state.captchaActive = true
+                state.startupEmitted = true
+                return true
+            }
+            // Without its port and link there is nothing to show - waiting only runs into the
+            // timeout, so stop with a readable reason.
             if (CoreServiceState.status.value !is CoreStatus.Suppressed) {
                 CoreServiceState.setStatus(CoreStatus.Error(ctx.getString(R.string.error_turnable_vk_captcha_failed)))
                 ctx.updateNotification(ctx.getString(R.string.error_connecting))
             }
             state.startupFailed = true
             return true
+        }
+
+        // The manual captcha's outcome: the tokens came and VK auth went on, or the flow failed
+        // (timed out, cancelled) - the window has nothing left to wait for either way.
+        if (state.captchaActive &&
+            (lower.contains("vk authorize completed") || lower.contains("vk authorize anonymous flow failed"))
+        ) {
+            CoreServiceState.setCaptchaSession(null)
+            state.captchaActive = false
         }
 
         // The Turnable server turned the client down (e.g. an unknown user UUID) - since 0.6.4 the
@@ -314,6 +349,19 @@ object TurnableKernel : Kernel {
     }
 
     private const val VK_FLOOD_RESTART_DELAY_MS = 20_000L
+
+    /** Turnable's manual captcha, from its "manual captcha solve required" line. */
+    data class ManualCaptcha(val callUrl: String, val userScriptUrl: String)
+
+    // "manual captcha solve required port=40123 userscript=... url=https://vk.com/call/join/...#port=40123"
+    internal fun manualCaptchaOf(line: String): ManualCaptcha? {
+        val port = MANUAL_CAPTCHA_PORT_REGEX.find(line)?.groupValues?.get(1) ?: return null
+        val callUrl = MANUAL_CAPTCHA_URL_REGEX.find(line)?.groupValues?.get(1) ?: return null
+        return ManualCaptcha(callUrl, "http://127.0.0.1:$port/captcha_manual.user.js")
+    }
+
+    private val MANUAL_CAPTCHA_PORT_REGEX = Regex("\\bport=(\\d+)")
+    private val MANUAL_CAPTCHA_URL_REGEX = Regex("\\burl=(https://\\S+)")
 
     private val ONLINE_COUNT_REGEX = Pattern.compile("""online=(\d+)""")
 }
