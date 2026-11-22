@@ -12,6 +12,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.MarqueeSpacing
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -386,7 +387,6 @@ fun ProfileListItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     shape: Shape = MaterialTheme.shapes.medium,
-    isDragged: Boolean = false,
     isHighlighted: Boolean = false,
     countryCode: String? = null,
     // The last ping measured through this profile, shown at the end of the summary row.
@@ -396,12 +396,14 @@ fun ProfileListItem(
     // Selection mode: whether this row is checked - the row is a checkbox then, not a pick of
     // the active profile.
     checked: Boolean? = null,
+    // Drives the item's interaction states - a DragInteraction in it is the reorder drag: the
+    // item then takes the dragged shape and elevation and rises above its neighbours.
+    interactionSource: MutableInteractionSource? = null,
     trailingContent: @Composable (() -> Unit)? = null,
     leadingContent: @Composable (() -> Unit)? = null
 ) {
     val backgroundColor by animateColorAsState(
         targetValue = when {
-            isDragged -> MaterialTheme.colorScheme.surfaceContainerHighest
             isSelected -> MaterialTheme.colorScheme.secondaryContainer
             isHighlighted -> MaterialTheme.colorScheme.surfaceVariant
             else -> MaterialTheme.colorScheme.surfaceContainerHigh
@@ -417,11 +419,16 @@ fun ProfileListItem(
     // The row's own colors and shape in every state: the active profile's highlight is drawn
     // above as before, the item only adds its pressed/focused morph and the semantics.
     val contentColor = contentColorFor(backgroundColor)
+    // Dragged: the app's raised surface rather than the token's tertiary container - the row's
+    // texts set their own colors, picked for these surfaces.
+    val draggedColor = MaterialTheme.colorScheme.surfaceContainerHighest
     val colors = ListItemDefaults.segmentedColors(
         containerColor = backgroundColor,
         contentColor = contentColor,
         selectedContainerColor = backgroundColor,
-        selectedContentColor = contentColor
+        selectedContentColor = contentColor,
+        draggedContainerColor = draggedColor,
+        draggedContentColor = contentColorFor(draggedColor)
     )
     val shapes = ListItemDefaults.shapes(shape = shape, selectedShape = shape)
     val itemModifier = modifier
@@ -542,6 +549,7 @@ fun ProfileListItem(
             modifier = itemModifier,
             colors = colors,
             contentPadding = ProfileItemPadding,
+            interactionSource = interactionSource,
             content = body
         )
     } else {
@@ -553,6 +561,7 @@ fun ProfileListItem(
             modifier = itemModifier,
             colors = colors,
             contentPadding = ProfileItemPadding,
+            interactionSource = interactionSource,
             content = body
         )
     }

@@ -823,6 +823,8 @@
     <!-- Profile Management -->
     <string name="profiles_title">Profiles</string>
     <string name="profile_actions">Profile actions</string>
+    <string name="profile_move_up">Move up</string>
+    <string name="profile_move_down">Move down</string>
     <string name="notification_btn_change_profile">Profile</string>
     <string name="share_profile">Share</string>
     <string name="show_qr_code">Show QR Code</string>

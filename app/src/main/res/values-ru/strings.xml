@@ -745,6 +745,8 @@
     <!-- Управление профилями -->
     <string name="profiles_title">Профили</string>
     <string name="profile_actions">Действия с профилем</string>
+    <string name="profile_move_up">Переместить вверх</string>
+    <string name="profile_move_down">Переместить вниз</string>
     <string name="notification_btn_change_profile">Профиль</string>
     <string name="share_profile">Поделиться</string>
     <string name="show_qr_code">Показать QR-код</string>

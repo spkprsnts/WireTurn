@@ -13,6 +13,7 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -23,6 +24,9 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.interaction.DragInteraction
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -74,6 +78,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -92,7 +97,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -114,6 +122,8 @@ import com.wireturn.app.ui.activities.SubscriptionConfigActivity
 import com.wireturn.app.ui.showExclusiveToast
 import com.wireturn.app.ui.trackGestureStartedAtBoundary
 import com.wireturn.app.viewmodel.MainViewModel
+import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
@@ -313,6 +323,13 @@ fun ProfilesDialog(
     } else {
         spring(stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntOffset(1, 1))
     }
+    // The dragged row itself never animates to its new slot: its drag offset is measured from
+    // the slot it's laid out in, so a placement spring after each swap would fling it a
+    // neighbour's height away from the finger and back - a jump at every profile it passes.
+    // Its neighbours still slide out of its way.
+    fun profilePlacementSpec(id: String) =
+        if (id == draggedItemId) null else profileItemPlacementSpec
+
     var autoScrollSpeed by remember { mutableFloatStateOf(0f) }
     var fingerAbsoluteY by remember { mutableFloatStateOf(0f) }
     var dragAnchorOffset by remember { mutableFloatStateOf(0f) }
@@ -582,6 +599,22 @@ fun ProfilesDialog(
         fingerAbsoluteY += delta
     }
 
+    // Read by the dragged row in its graphicsLayer only - so a finger move redraws that one row
+    // instead of recomposing every visible one with a new offset.
+    val dragOffsetProvider: () -> Float = remember { { clampedDragOffset() } }
+
+    // TalkBack's way to reorder (the row's custom actions): the step a drag across one neighbour
+    // makes, within the profile's own group, saved the same way a drop is.
+    fun moveProfile(id: String, step: Int) {
+        val from = profiles.indexOfFirst { it.id == id }.takeIf { it != -1 } ?: return
+        val group = profiles[from].subscriptionId
+        var to = from + step
+        while (to in profiles.indices && profiles[to].subscriptionId != group) to += step
+        if (to !in profiles.indices) return
+        profiles.add(to, profiles.removeAt(from))
+        viewModel.reorderProfiles(profiles.toList())
+    }
+
     LaunchedEffect(draggedItemId) {
         if (draggedItemId != null) {
             while (true) {
@@ -609,6 +642,9 @@ fun ProfilesDialog(
                             updateAutoScrollSpeed()
                         }
                     }
+                } catch (e: CancellationException) {
+                    // The drag ended (the effect is restarting) - not a failed tick.
+                    throw e
                 } catch (e: Exception) {
                     Log.e("ProfileDrag", "autoscroll tick failed, draggedItemId=$draggedItemId", e)
                 }
@@ -813,7 +849,9 @@ fun ProfilesDialog(
                             selectedIds = selectedIds,
                             highlightedIds = highlightedIds,
                             draggedItemId = draggedItemId,
-                            dragOffset = clampedDragOffset(),
+                            dragOffset = dragOffsetProvider,
+                            onMove = if (isSelectionMode || draggedItemId != null) null
+                            else { step -> moveProfile(profile.id, step) },
                             isSelectionMode = isSelectionMode,
                             onDismiss = onDismiss,
                             sheetState = sheetState,
@@ -837,7 +875,9 @@ fun ProfilesDialog(
                             onRename = { showRenameDialog.value = it },
                             onDelete = { showDeleteConfirm.value = it },
                             onOptimisticSelect = { optimisticSelectedId = it },
-                            modifier = Modifier.animateItem(placementSpec = profileItemPlacementSpec)
+                            modifier = Modifier.animateItem(
+                                placementSpec = profilePlacementSpec(profile.id)
+                            )
                         )
                     }
 
@@ -969,7 +1009,12 @@ fun ProfilesDialog(
                                 selectedIds = selectedIds,
                                 highlightedIds = highlightedIds,
                                 draggedItemId = draggedItemId,
-                                dragOffset = clampedDragOffset(),
+                                dragOffset = dragOffsetProvider,
+                                // A subscription sorted by ping isn't in the stored order a move
+                                // rearranges - same as the drag, no manual reorder there.
+                                onMove = if (isSelectionMode || draggedItemId != null ||
+                                    sub.sortMode == Subscription.SORT_PING
+                                ) null else { step -> moveProfile(profile.id, step) },
                                 isSelectionMode = isSelectionMode,
                                 onDismiss = onDismiss,
                                 sheetState = sheetState,
@@ -993,7 +1038,9 @@ fun ProfilesDialog(
                                 onRename = { showRenameDialog.value = it },
                                 onDelete = { showDeleteConfirm.value = it },
                                 onOptimisticSelect = { optimisticSelectedId = it },
-                                modifier = Modifier.animateItem(placementSpec = profileItemPlacementSpec)
+                                modifier = Modifier.animateItem(
+                                    placementSpec = profilePlacementSpec(profile.id)
+                                )
                             )
                         }
 
@@ -1079,7 +1126,11 @@ private fun ProfileItemRow(
     selectedIds: SnapshotStateList<String>,
     highlightedIds: List<String>,
     draggedItemId: String?,
-    dragOffset: Float,
+    // The dragged row's offset from its slot - a provider, read only while drawing.
+    dragOffset: () -> Float,
+    // Moves this profile a step (-1 up, +1 down) within its group; null where it can't be
+    // reordered. Exposed as accessibility actions.
+    onMove: ((Int) -> Unit)?,
     isSelectionMode: Boolean,
     onDismiss: () -> Unit,
     sheetState: androidx.compose.material3.SheetState,
@@ -1121,7 +1172,6 @@ private fun ProfileItemRow(
     var itemExportActionMenuExpanded by remember { mutableStateOf(false) }
 
     val itemShape = when {
-        isDragged -> MaterialTheme.shapes.medium
         totalInGroup == 1 && !isInsideSubscription -> MaterialTheme.shapes.medium
         isInsideSubscription -> {
             if (index == totalInGroup - 1) RoundedCornerShape(
@@ -1150,13 +1200,65 @@ private fun ProfileItemRow(
         else -> RoundedCornerShape(4.dp)
     }
 
-    val offsetAnim by animateFloatAsState(
-        targetValue = if (isDragged) dragOffset else 0f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = if (isDragged) Spring.StiffnessHigh else Spring.StiffnessMedium
-        ),
-        label = "drag_offset"
+    // Follows the dragged offset while dragging (outside composition), so on release it springs
+    // back into the row's slot from exactly where the row was drawn.
+    val releaseOffset = remember { Animatable(0f) }
+    LaunchedEffect(isDragged) {
+        if (isDragged) {
+            snapshotFlow { dragOffset() }.collect { releaseOffset.snapTo(it) }
+        } else {
+            releaseOffset.animateTo(
+                0f,
+                spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium)
+            )
+        }
+    }
+
+    // The drag as an interaction of the item: it draws the dragged state itself.
+    val interactionSource = remember { MutableInteractionSource() }
+    // The long press that starts a drag stays a press of the item until the finger moves (only
+    // then does the list's drag consume it) - its ripple stacked on the dragged state layer, and
+    // the pressed shape outranked the dragged one, so the row flashed bright on pickup and only
+    // settled once moved. Tracked here to end it the moment the drag starts.
+    val activePress = remember { arrayOfNulls<PressInteraction.Press>(1) }
+    LaunchedEffect(interactionSource) {
+        interactionSource.interactions.collect { interaction ->
+            when (interaction) {
+                is PressInteraction.Press -> activePress[0] = interaction
+                is PressInteraction.Release ->
+                    if (activePress[0] == interaction.press) activePress[0] = null
+                is PressInteraction.Cancel ->
+                    if (activePress[0] == interaction.press) activePress[0] = null
+            }
+        }
+    }
+    LaunchedEffect(isDragged) {
+        if (isDragged) {
+            activePress[0]?.let { interactionSource.emit(PressInteraction.Cancel(it)) }
+            val start = DragInteraction.Start()
+            interactionSource.emit(start)
+            try {
+                awaitCancellation()
+            } finally {
+                interactionSource.tryEmit(DragInteraction.Stop(start))
+            }
+        }
+    }
+
+    // A slight lift on top of the dragged state's shadow and shape - the app's own touch, not a
+    // token. Read in graphicsLayer only, like the offset.
+    val dragScale by animateFloatAsState(
+        targetValue = if (isDragged) 1.02f else 1f,
+        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+        label = "drag_scale"
+    )
+
+    val moveUpLabel = stringResource(R.string.profile_move_up)
+    val moveDownLabel = stringResource(R.string.profile_move_down)
+    val moveActions = if (onMove == null) emptyList() else listOfNotNull(
+        CustomAccessibilityAction(moveUpLabel) { onMove(-1); true }.takeIf { index > 0 },
+        CustomAccessibilityAction(moveDownLabel) { onMove(1); true }
+            .takeIf { index < totalInGroup - 1 }
     )
 
     ProfileListItem(
@@ -1168,7 +1270,7 @@ private fun ProfileItemRow(
         isPinging = profile.id in pingingProfileIds,
         checked = if (isSelectionMode) isSelectedInMode else null,
         shape = itemShape,
-        isDragged = isDragged,
+        interactionSource = interactionSource,
         onClick = {
             if (isSelectionMode) {
                 if (isSelectedInMode) selectedIds.remove(profile.id)
@@ -1194,14 +1296,15 @@ private fun ProfileItemRow(
         },
         modifier = modifier
             .fillMaxWidth()
+            .then(
+                if (moveActions.isEmpty()) Modifier
+                else Modifier.semantics { customActions = moveActions }
+            )
             .zIndex(if (isDragged) 10f else 0f)
             .graphicsLayer {
-                translationY = if (isDragged) dragOffset else offsetAnim
-                scaleX = if (isDragged) 1.02f else 1f
-                scaleY = if (isDragged) 1.02f else 1f
-                shadowElevation = if (isDragged) 8.dp.toPx() else 0f
-                shape = itemShape
-                clip = isDragged
+                translationY = if (isDragged) dragOffset() else releaseOffset.value
+                scaleX = dragScale
+                scaleY = dragScale
             },
         trailingContent = {
             if (isSelectionMode) {
