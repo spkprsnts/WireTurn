@@ -148,9 +148,13 @@ dependencies {
     implementation(libs.coil.compose)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
+    // The ComponentActivity createComposeRule() hosts content in (Robolectric unit tests).
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
 }
 
 val androidComponents = project.extensions.findByType<com.android.build.api.variant.ApplicationAndroidComponentsExtension>()
