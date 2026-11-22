@@ -11,6 +11,7 @@ plugins {
 android {
     namespace = "com.wireturn.app"
     compileSdk = project.property("project.compileSdk").toString().toInt()
+    compileSdkMinor = project.property("project.compileSdkMinor").toString().toInt()
     ndkVersion = "29.0.14206865"
 
     defaultConfig {
