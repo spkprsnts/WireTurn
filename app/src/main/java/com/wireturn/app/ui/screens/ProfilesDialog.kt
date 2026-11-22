@@ -1166,6 +1166,7 @@ private fun ProfileItemRow(
         countryCode = profileCountries[profile.id],
         pingMs = profilePings[profile.id],
         isPinging = profile.id in pingingProfileIds,
+        checked = if (isSelectionMode) isSelectedInMode else null,
         shape = itemShape,
         isDragged = isDragged,
         onClick = {

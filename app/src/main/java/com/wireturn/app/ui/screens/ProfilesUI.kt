@@ -15,6 +15,7 @@ import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,10 +28,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -389,6 +393,9 @@ fun ProfileListItem(
     pingMs: Long? = null,
     // In a running ping check, waiting for its result - shown instead of the last one.
     isPinging: Boolean = false,
+    // Selection mode: whether this row is checked - the row is a checkbox then, not a pick of
+    // the active profile.
+    checked: Boolean? = null,
     trailingContent: @Composable (() -> Unit)? = null,
     leadingContent: @Composable (() -> Unit)? = null
 ) {
@@ -407,17 +414,22 @@ fun ProfileListItem(
     val summaryColor = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer
     else MaterialTheme.colorScheme.outline
 
-    Surface(
-        onClick = onClick,
-        shape = shape,
-        color = backgroundColor,
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(min = 74.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-        ) {
+    // The row's own colors and shape in every state: the active profile's highlight is drawn
+    // above as before, the item only adds its pressed/focused morph and the semantics.
+    val contentColor = contentColorFor(backgroundColor)
+    val colors = ListItemDefaults.segmentedColors(
+        containerColor = backgroundColor,
+        contentColor = contentColor,
+        selectedContainerColor = backgroundColor,
+        selectedContentColor = contentColor
+    )
+    val shapes = ListItemDefaults.shapes(shape = shape, selectedShape = shape)
+    val itemModifier = modifier
+        .fillMaxWidth()
+        .heightIn(min = 74.dp)
+
+    val body: @Composable () -> Unit = {
+        Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (leadingContent != null) {
                     LargeLeadingIcon(content = leadingContent)
@@ -520,7 +532,33 @@ fun ProfileListItem(
             }
         }
     }
+
+    if (checked != null) {
+        // A checkbox: announced with its checked state.
+        SegmentedListItem(
+            checked = checked,
+            onCheckedChange = { onClick() },
+            shapes = shapes,
+            modifier = itemModifier,
+            colors = colors,
+            contentPadding = ProfileItemPadding,
+            content = body
+        )
+    } else {
+        // One of a set: announced as selected when it's the active profile.
+        SegmentedListItem(
+            selected = isSelected,
+            onClick = onClick,
+            shapes = shapes,
+            modifier = itemModifier,
+            colors = colors,
+            contentPadding = ProfileItemPadding,
+            content = body
+        )
+    }
 }
+
+private val ProfileItemPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
 
 /** A pulsing pill where the ping will be, like the home screen's while it waits for an answer. */
 @Composable
