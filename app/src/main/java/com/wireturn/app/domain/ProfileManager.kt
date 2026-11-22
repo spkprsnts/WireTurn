@@ -938,9 +938,10 @@ class ProfileManager(
 
                             // Fallbacks for panels (e.g. 3x-ui) that convey quota/refresh via response headers
                             // instead of the subscription body - only consulted when the body itself has nothing.
-                            val (headerBytesUsed, headerBytesTotal) = subscriptionParser.parseSubscriptionUserinfo(
-                                connection.getHeaderField("Subscription-Userinfo")
-                            )
+                            val userinfo = connection.getHeaderField("Subscription-Userinfo")
+                            val (headerBytesUsed, headerBytesTotal) =
+                                subscriptionParser.parseSubscriptionUserinfo(userinfo)
+                            val headerExpiresAt = subscriptionParser.parseSubscriptionExpire(userinfo)
                             val headerUpdateIntervalMinutes =
                                 connection.getHeaderField("Profile-Update-Interval")
                                     ?.toDoubleOrNull()?.let { hours -> (hours * 60).toInt() }
@@ -969,6 +970,7 @@ class ProfileManager(
                                     updatedAt = System.currentTimeMillis(),
                                     bytesUsed = bundle.bytesUsed ?: headerBytesUsed ?: 0,
                                     bytesTotal = bundle.bytesTotal ?: headerBytesTotal ?: 0,
+                                    expiresAt = bundle.expiresAt ?: headerExpiresAt ?: 0,
                                     activeProfileId = bestActiveId,
                                     autoUpdate = existingSub?.autoUpdate
                                         ?: ((bundle.updateIntervalMinutes

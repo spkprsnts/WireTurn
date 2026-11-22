@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -57,11 +58,14 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ProgressIndicatorDefaults
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -100,6 +104,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -124,6 +129,7 @@ import com.wireturn.app.ui.showExclusiveToast
 import com.wireturn.app.ui.trackGestureStartedAtBoundary
 import com.wireturn.app.viewmodel.MainViewModel
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.math.roundToInt
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -1556,6 +1562,13 @@ private fun SubscriptionHeaderRow(
     // smaller than the list around it - rather than wider.
     val stuckInset = lerp(0.dp, 4.dp, stuckProgress)
 
+    val quota = sub.quotaOrNull()
+    // Where the title starts: the row's own start padding plus the leading control - a 48dp
+    // chevron button, or a 48dp checkbox with its 16dp gap. The quota line starts there too.
+    val rowStart = if (isSelectionMode) 16.dp else 4.dp
+    val titleStart = rowStart + if (isSelectionMode) 64.dp else 48.dp
+    val quotaColors = quota?.let { quotaColors(it, isAnyChildSelected) }
+
     Surface(
         color = backgroundColor,
         shape = RoundedCornerShape(
@@ -1574,204 +1587,375 @@ private fun SubscriptionHeaderRow(
             .padding(top = 8.dp)
             .padding(horizontal = stuckInset)
     ) {
-        Row(
-            // The leading chevron button brings its own padding - less of the row's own before it.
-            modifier = Modifier.padding(
-                start = if (isSelectionMode) 16.dp else 4.dp,
-                top = 16.dp,
-                bottom = 16.dp,
-                end = 8.dp
-            ),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (isSelectionMode) {
-                Checkbox(
-                    checked = isAllSubSelected,
-                    onCheckedChange = { onToggleSelection() },
-                    modifier = Modifier.padding(end = 16.dp)
-                )
-            } else {
-                // A leading disclosure chevron: pointing right while collapsed, down while open.
-                val chevronRotation by animateFloatAsState(
-                    targetValue = if (sub.collapsed) -90f else 0f,
-                    animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-                    label = "sub_chevron"
-                )
-                IconButton(onClick = onToggleCollapsed) {
-                    Icon(
-                        painter = painterResource(R.drawable.expand_more_24px),
-                        contentDescription = stringResource(if (sub.collapsed) R.string.subscription_expand else R.string.subscription_collapse),
-                        tint = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier
-                            .size(20.dp)
-                            .graphicsLayer { rotationZ = chevronRotation }
-                    )
-                }
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (sub.pinned) {
-                        Icon(
-                            painter = painterResource(R.drawable.keep_24px),
-                            contentDescription = stringResource(R.string.subscription_pinned),
-                            tint = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.primary,
-                            modifier = Modifier
-                                .padding(end = 4.dp)
-                                .size(16.dp)
-                        )
-                    }
-                    Text(
-                        text = sub.name,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium,
-                        color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        modifier = Modifier.basicMarquee()
-                    )
-                }
-                if (isTestingPings) {
-                    Text(
-                        text = stringResource(R.string.subscription_testing_ping),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.primary,
-                        maxLines = 1
-                    )
-                } else if (sub.updatedAt > 0) {
-                    // When the last successful refresh landed (0 = never refreshed yet).
-                    val context = LocalContext.current
-                    val updatedAt = remember(sub.updatedAt) {
-                        android.text.format.DateUtils.formatDateTime(
-                            context, sub.updatedAt,
-                            android.text.format.DateUtils.FORMAT_SHOW_DATE or
-                                    android.text.format.DateUtils.FORMAT_SHOW_TIME or
-                                    android.text.format.DateUtils.FORMAT_ABBREV_MONTH
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.subscription_updated_at, updatedAt),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.outline,
-                        maxLines = 1
-                    )
-                }
-                if (!sub.description.isNullOrBlank()) {
-                    // Keeps the description from running into the update time line above.
-                    if (sub.updatedAt > 0) Spacer(Modifier.height(4.dp))
-                    SubscriptionDescriptionText(
-                        text = sub.description,
-                        color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.outline,
-                        stuckProgress = stuckProgress
-                    )
-                }
-            }
-            if (!isSelectionMode) {
-                val iconTint =
-                    if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
-                IconButton(onClick = onUpdate, enabled = !isUpdating) {
-                    if (isUpdating) {
-                        androidx.compose.material3.CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                            color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer
-                            else MaterialTheme.colorScheme.primary
+        Box {
+            Column(modifier = Modifier.padding(bottom = 16.dp)) {
+                Row(
+                    // The leading chevron button brings its own padding - less of the row's own before it.
+                    modifier = Modifier.padding(
+                        start = rowStart,
+                        top = 16.dp,
+                        end = 8.dp
+                    ),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (isSelectionMode) {
+                        Checkbox(
+                            checked = isAllSubSelected,
+                            onCheckedChange = { onToggleSelection() },
+                            modifier = Modifier.padding(end = 16.dp)
                         )
                     } else {
-                        Icon(
-                            painter = painterResource(R.drawable.refresh_24px),
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp),
-                            tint = iconTint
+                        // A leading disclosure chevron: pointing right while collapsed, down while open.
+                        val chevronRotation by animateFloatAsState(
+                            targetValue = if (sub.collapsed) -90f else 0f,
+                            animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                            label = "sub_chevron"
                         )
-                    }
-                }
-
-                var showMenu by remember { mutableStateOf(false) }
-                Box {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(
-                            painter = painterResource(R.drawable.more_vert_24px),
-                            contentDescription = stringResource(R.string.subscription_actions),
-                            tint = iconTint,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    AppDropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false },
-                        title = stringResource(R.string.subscription_actions)
-                    ) {
-                        // Expressive items, each shaped by its place in the group; the ping test
-                        // is only there with a handler for it.
-                        val itemCount = if (onTestPings != null) 4 else 3
-                        var itemIndex = 0
-                        DropdownMenuItem(
-                            onClick = { showMenu = false; onTogglePinned() },
-                            text = { Text(stringResource(if (sub.pinned) R.string.subscription_unpin else R.string.subscription_pin)) },
-                            shape = MenuDefaults.itemShape(itemIndex++, itemCount).shape,
-                            leadingIcon = {
-                                Icon(
-                                    painterResource(if (sub.pinned) R.drawable.keep_off_24px else R.drawable.keep_24px),
-                                    null,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        )
-                        if (onTestPings != null) {
-                            DropdownMenuItem(
-                                onClick = { showMenu = false; onTestPings() },
-                                text = {
-                                    Text(stringResource(if (isTestingPings) R.string.subscription_test_ping_stop else R.string.subscription_test_ping))
-                                },
-                                shape = MenuDefaults.itemShape(itemIndex++, itemCount).shape,
-                                leadingIcon = {
-                                    Icon(
-                                        painterResource(if (isTestingPings) R.drawable.stop_24px else R.drawable.wifi_24px),
-                                        null,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
+                        IconButton(onClick = onToggleCollapsed) {
+                            Icon(
+                                painter = painterResource(R.drawable.expand_more_24px),
+                                contentDescription = stringResource(if (sub.collapsed) R.string.subscription_expand else R.string.subscription_collapse),
+                                tint = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .graphicsLayer { rotationZ = chevronRotation }
                             )
                         }
-                        // An on/off setting: announced as a checkbox with its state, the check
-                        // standing in for the sort icon while it's on.
-                        CheckableDropdownMenuItem(
-                            checked = sub.sortMode == Subscription.SORT_PING,
-                            onCheckedChange = { showMenu = false; onToggleSortByPing() },
-                            text = { Text(stringResource(R.string.subscription_sort_by_ping)) },
-                            shapes = MenuDefaults.itemShape(itemIndex++, itemCount),
-                            // Only the checked state stands out, like the plain items around it.
-                            colors = MenuDefaults.selectableItemColors(containerColor = Color.Transparent),
-                            leadingIcon = {
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (sub.pinned) {
                                 Icon(
-                                    painterResource(R.drawable.sort_24px),
-                                    null,
-                                    modifier = Modifier.size(20.dp)
+                                    painter = painterResource(R.drawable.keep_24px),
+                                    contentDescription = stringResource(R.string.subscription_pinned),
+                                    tint = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier
+                                        .padding(end = 4.dp)
+                                        .size(16.dp)
                                 )
-                            },
-                            checkedLeadingIcon = {
+                            }
+                            Text(
+                                text = sub.name,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Medium,
+                                color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                modifier = Modifier.basicMarquee()
+                            )
+                        }
+                        if (isTestingPings) {
+                            Text(
+                                text = stringResource(R.string.subscription_testing_ping),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.primary,
+                                maxLines = 1
+                            )
+                        } else if (sub.updatedAt > 0) {
+                            // When the last successful refresh landed (0 = never refreshed yet).
+                            val context = LocalContext.current
+                            val updatedAt = remember(sub.updatedAt) {
+                                android.text.format.DateUtils.formatDateTime(
+                                    context, sub.updatedAt,
+                                    android.text.format.DateUtils.FORMAT_SHOW_DATE or
+                                            android.text.format.DateUtils.FORMAT_SHOW_TIME or
+                                            android.text.format.DateUtils.FORMAT_ABBREV_MONTH
+                                )
+                            }
+                            Text(
+                                text = stringResource(R.string.subscription_updated_at, updatedAt),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.outline,
+                                maxLines = 1
+                            )
+                        }
+                        if (!sub.description.isNullOrBlank()) {
+                            // Keeps the description from running into the update time line above.
+                            if (sub.updatedAt > 0) Spacer(Modifier.height(4.dp))
+                            SubscriptionDescriptionText(
+                                text = sub.description,
+                                color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.outline,
+                                stuckProgress = stuckProgress
+                            )
+                        }
+                    }
+                    if (!isSelectionMode) {
+                        val iconTint =
+                            if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
+                        IconButton(onClick = onUpdate, enabled = !isUpdating) {
+                            if (isUpdating) {
+                                androidx.compose.material3.CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer
+                                    else MaterialTheme.colorScheme.primary
+                                )
+                            } else {
                                 Icon(
-                                    painterResource(R.drawable.check_24px),
-                                    null,
+                                    painter = painterResource(R.drawable.refresh_24px),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = iconTint
+                                )
+                            }
+                        }
+
+                        var showMenu by remember { mutableStateOf(false) }
+                        Box {
+                            IconButton(onClick = { showMenu = true }) {
+                                Icon(
+                                    painter = painterResource(R.drawable.more_vert_24px),
+                                    contentDescription = stringResource(R.string.subscription_actions),
+                                    tint = iconTint,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
-                        )
-                        DropdownMenuItem(
-                            onClick = { showMenu = false; onSettings() },
-                            text = { Text(stringResource(R.string.subscription_settings)) },
-                            shape = MenuDefaults.itemShape(itemIndex, itemCount).shape,
-                            leadingIcon = {
-                                Icon(
-                                    painterResource(R.drawable.settings_24px),
-                                    null,
-                                    modifier = Modifier.size(20.dp)
+                            AppDropdownMenu(
+                                expanded = showMenu,
+                                onDismissRequest = { showMenu = false },
+                                title = stringResource(R.string.subscription_actions)
+                            ) {
+                                // Expressive items, each shaped by its place in the group; the ping test
+                                // is only there with a handler for it.
+                                val itemCount = if (onTestPings != null) 4 else 3
+                                var itemIndex = 0
+                                DropdownMenuItem(
+                                    onClick = { showMenu = false; onTogglePinned() },
+                                    text = { Text(stringResource(if (sub.pinned) R.string.subscription_unpin else R.string.subscription_pin)) },
+                                    shape = MenuDefaults.itemShape(itemIndex++, itemCount).shape,
+                                    leadingIcon = {
+                                        Icon(
+                                            painterResource(if (sub.pinned) R.drawable.keep_off_24px else R.drawable.keep_24px),
+                                            null,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                )
+                                if (onTestPings != null) {
+                                    DropdownMenuItem(
+                                        onClick = { showMenu = false; onTestPings() },
+                                        text = {
+                                            Text(stringResource(if (isTestingPings) R.string.subscription_test_ping_stop else R.string.subscription_test_ping))
+                                        },
+                                        shape = MenuDefaults.itemShape(itemIndex++, itemCount).shape,
+                                        leadingIcon = {
+                                            Icon(
+                                                painterResource(if (isTestingPings) R.drawable.stop_24px else R.drawable.wifi_24px),
+                                                null,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    )
+                                }
+                                // An on/off setting: announced as a checkbox with its state, the check
+                                // standing in for the sort icon while it's on.
+                                CheckableDropdownMenuItem(
+                                    checked = sub.sortMode == Subscription.SORT_PING,
+                                    onCheckedChange = { showMenu = false; onToggleSortByPing() },
+                                    text = { Text(stringResource(R.string.subscription_sort_by_ping)) },
+                                    shapes = MenuDefaults.itemShape(itemIndex++, itemCount),
+                                    // Only the checked state stands out, like the plain items around it.
+                                    colors = MenuDefaults.selectableItemColors(containerColor = Color.Transparent),
+                                    leadingIcon = {
+                                        Icon(
+                                            painterResource(R.drawable.sort_24px),
+                                            null,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    },
+                                    checkedLeadingIcon = {
+                                        Icon(
+                                            painterResource(R.drawable.check_24px),
+                                            null,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    onClick = { showMenu = false; onSettings() },
+                                    text = { Text(stringResource(R.string.subscription_settings)) },
+                                    shape = MenuDefaults.itemShape(itemIndex, itemCount).shape,
+                                    leadingIcon = {
+                                        Icon(
+                                            painterResource(R.drawable.settings_24px),
+                                            null,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
                                 )
                             }
-                        )
+                        }
+
                     }
                 }
-
+                // Under the whole row - buttons included - instead of squeezed into the text column
+                // beside them; the buttons stay centered on the title block above.
+                if (quota != null && quotaColors != null) {
+                    SubscriptionQuotaRow(
+                        quota = quota,
+                        colors = quotaColors,
+                        textColor = if (isAnyChildSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.outline,
+                        isAnyChildSelected = isAnyChildSelected,
+                        stuckProgress = stuckProgress,
+                        modifier = Modifier.padding(start = titleStart, end = 20.dp)
+                    )
+                }
             }
+            // Pinned, the quota line above folds away - its bar lives on as a thin strip along the
+            // chip's bottom edge, inside the row's bottom padding, so the remaining traffic stays
+            // in sight without making the pinned header taller.
+            if (quota != null && quota.hasLimit && quotaColors != null && stuckProgress > 0f) {
+                LinearProgressIndicator(
+                    progress = { quota.fraction },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 6.dp)
+                        .height(3.dp)
+                        .graphicsLayer { alpha = stuckProgress }
+                        .clearAndSetSemantics {},
+                    color = quotaColors.bar,
+                    trackColor = quotaColors.track,
+                    gapSize = 0.dp,
+                    drawStopIndicator = {}
+                )
+            }
+        }
+    }
+}
+
+/** What a subscription says about its traffic and term; null when it says nothing of either. */
+private data class SubscriptionQuota(val used: Long, val total: Long, val expiresAt: Long) {
+    val hasLimit: Boolean get() = total > 0
+    val fraction: Float get() = if (total > 0) (used.toFloat() / total).coerceIn(0f, 1f) else 0f
+    // The last 10% (or past the limit) - the bar and its line turn to the error color.
+    val nearlyOut: Boolean get() = hasLimit && used >= total * 0.9
+}
+
+private fun Subscription.quotaOrNull(): SubscriptionQuota? =
+    if (bytesTotal > 0 || bytesUsed > 0 || expiresAt > 0) {
+        SubscriptionQuota(used = bytesUsed, total = bytesTotal, expiresAt = expiresAt)
+    } else null
+
+private data class QuotaColors(val bar: Color, val track: Color)
+
+@Composable
+private fun quotaColors(quota: SubscriptionQuota, isAnyChildSelected: Boolean): QuotaColors {
+    val scheme = MaterialTheme.colorScheme
+    return when {
+        // On the selected header's secondaryContainer the default track would vanish.
+        isAnyChildSelected -> QuotaColors(
+            scheme.onSecondaryContainer,
+            scheme.onSecondaryContainer.copy(alpha = 0.24f)
+        )
+        quota.nearlyOut -> QuotaColors(scheme.error, scheme.errorContainer)
+        else -> QuotaColors(scheme.primary, ProgressIndicatorDefaults.linearTrackColor)
+    }
+}
+
+/**
+ * The header's quota line: a bar of the used share (with a limit) and "used / total", plus when
+ * the subscription runs out. Folds away in step with [stuckProgress] - pinned, a thin strip along
+ * the header's bottom edge stands in for it (see SubscriptionHeaderRow).
+ */
+@Composable
+private fun SubscriptionQuotaRow(
+    quota: SubscriptionQuota,
+    colors: QuotaColors,
+    textColor: Color,
+    isAnyChildSelected: Boolean,
+    stuckProgress: Float,
+    modifier: Modifier = Modifier
+) {
+    val shown = 1f - stuckProgress
+    if (shown <= 0f) return
+
+    val context = LocalContext.current
+    val expired = quota.expiresAt > 0 && quota.expiresAt <= System.currentTimeMillis()
+    val expiresText = if (quota.expiresAt > 0) {
+        val date = remember(quota.expiresAt) {
+            android.text.format.DateUtils.formatDateTime(
+                context, quota.expiresAt,
+                android.text.format.DateUtils.FORMAT_SHOW_DATE or
+                        android.text.format.DateUtils.FORMAT_ABBREV_MONTH
+            )
+        }
+        stringResource(
+            if (expired) R.string.subscription_expired else R.string.subscription_expires,
+            date
+        )
+    } else null
+    val trafficText = when {
+        quota.hasLimit -> stringResource(
+            R.string.subscription_traffic_of,
+            formatBytes(quota.used),
+            formatBytes(quota.total)
+        )
+        quota.used > 0 -> stringResource(R.string.subscription_traffic_used, formatBytes(quota.used))
+        else -> null
+    }
+    val trafficColor =
+        if (!isAnyChildSelected && quota.nearlyOut) MaterialTheme.colorScheme.error else textColor
+    val expiresColor =
+        if (!isAnyChildSelected && expired) MaterialTheme.colorScheme.error else textColor
+    val barDescription = if (quota.hasLimit) stringResource(
+        R.string.subscription_traffic_a11y,
+        formatBytes(quota.used),
+        formatBytes(quota.total)
+    ) else null
+
+    // Two lines, so neither squeezes the other: the numbers (traffic at the start, the term at the
+    // end), then the bar across the whole width.
+    Column(
+        modifier = modifier
+            // Scrubbed with the pin like the description: the height shrinks to nothing as the
+            // header sticks, clipped, fading out - not a timed animation.
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints)
+                layout(placeable.width, (placeable.height * shown).roundToInt()) {
+                    placeable.placeRelative(0, 0)
+                }
+            }
+            .graphicsLayer {
+                alpha = shown
+                clip = true
+            }
+            .padding(top = 8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (trafficText != null) {
+                Text(
+                    text = trafficText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = trafficColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+            }
+            if (expiresText != null) {
+                Text(
+                    text = expiresText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = expiresColor,
+                    maxLines = 1,
+                    modifier = Modifier.padding(start = if (trafficText != null) 8.dp else 0.dp)
+                )
+            }
+        }
+        if (quota.hasLimit && barDescription != null) {
+            LinearProgressIndicator(
+                progress = { quota.fraction },
+                modifier = Modifier
+                    .padding(top = 6.dp)
+                    .fillMaxWidth()
+                    .semantics { contentDescription = barDescription },
+                color = colors.bar,
+                trackColor = colors.track
+            )
         }
     }
 }
@@ -1860,18 +2044,17 @@ private fun SubscriptionDescriptionText(
 
 @Composable
 private fun SubscriptionEmptyRow() {
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(
-            topStart = 4.dp,
-            topEnd = 4.dp,
-            bottomStart = 16.dp,
-            bottomEnd = 16.dp
+    // The last segment under the subscription header, like the profile rows it stands in for.
+    SegmentedListItem(
+        shapes = ListItemDefaults.segmentedShapes(index = 1, count = 2),
+        modifier = Modifier.fillMaxWidth(),
+        colors = ListItemDefaults.segmentedColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         ),
-        modifier = Modifier.fillMaxWidth()
+        contentPadding = PaddingValues(16.dp)
     ) {
         Box(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
             Text(

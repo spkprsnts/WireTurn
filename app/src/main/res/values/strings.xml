@@ -870,6 +870,11 @@
     <string name="subscriptions_collapse_all">Collapse all subscriptions</string>
     <string name="subscriptions_expand_all">Expand all subscriptions</string>
     <string name="subscription_updated_at">Updated %1$s</string>
+    <string name="subscription_traffic_of">%1$s / %2$s</string>
+    <string name="subscription_traffic_used">Used %1$s</string>
+    <string name="subscription_traffic_a11y">Used %1$s of %2$s</string>
+    <string name="subscription_expires">until %1$s</string>
+    <string name="subscription_expired">expired %1$s</string>
     <string name="subscription_test_ping">Check availability</string>
     <string name="subscription_test_ping_stop">Stop the check</string>
     <string name="subscription_testing_ping">Checking availability…</string>

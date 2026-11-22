@@ -66,6 +66,8 @@ data class Subscription(
     @SerializedName("updatedAt") val updatedAt: Long = 0,
     @SerializedName("bytesUsed") val bytesUsed: Long = 0,
     @SerializedName("bytesTotal") val bytesTotal: Long = 0,
+    // When the subscription runs out, epoch millis; 0 = not given.
+    @SerializedName("expiresAt") val expiresAt: Long = 0,
     @SerializedName("autoUpdate") val autoUpdate: Boolean = false,
     @SerializedName("updateIntervalMinutes") val updateIntervalMinutes: Int = 1440, // Default 24h
     @SerializedName("activeProfileId") val activeProfileId: String? = null,
@@ -98,6 +100,8 @@ data class ProfileBundle(
     @SerializedName("updatedAt") val updatedAt: Long? = null,
     @SerializedName("bytesUsed") val bytesUsed: Long? = null,
     @SerializedName("bytesTotal") val bytesTotal: Long? = null,
+    // Epoch millis, like updatedAt.
+    @SerializedName("expiresAt") val expiresAt: Long? = null,
     @SerializedName(
         "recommendedProfileId",
         alternate = ["activeProfileId"]

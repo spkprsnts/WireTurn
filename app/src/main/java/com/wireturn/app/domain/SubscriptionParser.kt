@@ -671,6 +671,21 @@ internal class SubscriptionParser(private val gson: Gson) {
         return used to fields["total"]
     }
 
+    /**
+     * The "expire" of the same "Subscription-Userinfo" header - Unix seconds - as epoch millis, or
+     * null when it's missing or 0 (the panels' "never").
+     */
+    fun parseSubscriptionExpire(header: String?): Long? {
+        if (header == null) return null
+        val expire = header.split(";").firstNotNullOfOrNull { part ->
+            val kv = part.trim().split("=", limit = 2)
+            if (kv.size == 2 && kv[0].trim().equals("expire", ignoreCase = true)) {
+                kv[1].trim().toLongOrNull()
+            } else null
+        }
+        return expire?.takeIf { it > 0 }?.let { it * 1000 }
+    }
+
     private companion object {
         // ".../<uuid>/sub" or ".../<uuid>/sub-group" at the end of a URL - see csqttPanelJsonUrl.
         val CSQTT_PANEL_SUB_PATH = Regex(

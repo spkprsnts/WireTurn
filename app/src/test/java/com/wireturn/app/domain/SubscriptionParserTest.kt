@@ -180,6 +180,14 @@ class SubscriptionParserTest {
     }
 
     @Test
+    fun subscriptionUserinfoExpire_isMillisAndZeroMeansNever() {
+        assertEquals(1_767_225_600_000L, parser.parseSubscriptionExpire("upload=1; total=2; expire=1767225600"))
+        assertEquals(null, parser.parseSubscriptionExpire("upload=10; download=20; total=100; expire=0"))
+        assertEquals(null, parser.parseSubscriptionExpire("total=100"))
+        assertEquals(null, parser.parseSubscriptionExpire(null))
+    }
+
+    @Test
     fun profileTitle_plainAndBase64() {
         assertEquals("Name", parser.decodeProfileTitle("Name"))
         assertEquals("Подписка", parser.decodeProfileTitle("base64:" + base64("Подписка")))

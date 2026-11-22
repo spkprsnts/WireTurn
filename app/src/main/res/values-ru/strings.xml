@@ -792,6 +792,11 @@
     <string name="subscriptions_collapse_all">Свернуть все подписки</string>
     <string name="subscriptions_expand_all">Развернуть все подписки</string>
     <string name="subscription_updated_at">Обновлено %1$s</string>
+    <string name="subscription_traffic_of">%1$s / %2$s</string>
+    <string name="subscription_traffic_used">Использовано %1$s</string>
+    <string name="subscription_traffic_a11y">Использовано %1$s из %2$s</string>
+    <string name="subscription_expires">до %1$s</string>
+    <string name="subscription_expired">истекла %1$s</string>
     <string name="subscription_test_ping">Проверить доступность</string>
     <string name="subscription_test_ping_stop">Остановить проверку</string>
     <string name="subscription_testing_ping">Проверка доступности…</string>
