@@ -66,6 +66,7 @@ import com.wireturn.app.data.WatchdogSettings
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.ExpandableSection
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.IconTextButton
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LabeledButtonGroup
 import com.wireturn.app.ui.RowLabel
@@ -778,32 +779,17 @@ fun SettingsScreen(
             }
 
             // 4. Сброс настроек
-            Surface(
+            IconTextButton(
+                text = stringResource(R.string.reset_settings),
+                icon = R.drawable.delete_24px,
                 onClick = {
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     showResetDialog.value = true
                 },
-                shape = MaterialTheme.shapes.medium,
-                color = Color.Transparent
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Icon(
-                        painterResource(R.drawable.delete_24px),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        stringResource(R.string.reset_settings),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            )
 
             // Версия
             Text(

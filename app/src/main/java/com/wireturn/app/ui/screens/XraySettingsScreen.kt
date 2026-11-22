@@ -47,7 +47,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallExtendedFloatingActionButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -75,6 +74,7 @@ import com.wireturn.app.domain.GeoResourceSet
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.ExpandableSection
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.IconTextButton
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LabelGroup
 import com.wireturn.app.ui.SectionGroup
@@ -916,34 +916,17 @@ private fun GeoResourcesDialog(
         onDismiss = onDismiss,
         dismissOnSelect = false,
         footer = {
-            Surface(
+            // Start-aligned with the options' icons above it.
+            IconTextButton(
+                text = stringResource(R.string.geo_source_add),
+                icon = R.drawable.add_24px,
                 onClick = {
                     HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                     onAddSource()
                 },
                 enabled = !isDownloading,
-                shape = MaterialTheme.shapes.extraLarge,
-                color = Color.Transparent,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    StandardLeadingIcon {
-                        Icon(
-                            painter = painterResource(R.drawable.add_24px),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.geo_source_add),
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
-            }
+                modifier = Modifier.padding(start = 4.dp)
+            )
 
             Column(modifier = Modifier.padding(top = 8.dp, start = 4.dp, end = 4.dp)) {
                 val statusText = when {

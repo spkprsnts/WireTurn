@@ -153,8 +153,13 @@ fun <T> SelectionDialog(
                         contentPadding = PaddingValues(0.dp)
                     ) {
                         ProvideTextStyle(value = MaterialTheme.typography.titleMedium) {
+                            // The item measures its content unconstrained in height - the min
+                            // height goes here, so a short option is centered in the pill
+                            // instead of sitting at its top.
                             Box(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 64.dp),
                                 contentAlignment = Alignment.CenterStart
                             ) {
                                 itemContent(item, selected)

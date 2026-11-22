@@ -46,7 +46,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallExtendedFloatingActionButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -75,6 +74,7 @@ import com.wireturn.app.data.kernel.TurnableRoute
 import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.IconTextButton
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LabeledButtonGroup
 import com.wireturn.app.ui.LargeLeadingIcon
@@ -758,30 +758,13 @@ fun RoutesDialog(
         onDismiss = onDismiss,
         dismissOnSelect = false,
         footer = {
-            Surface(
+            // Start-aligned with the options' icons above it.
+            IconTextButton(
+                text = stringResource(R.string.route_add),
+                icon = R.drawable.add_24px,
                 onClick = onAdd,
-                shape = MaterialTheme.shapes.extraLarge,
-                color = Color.Transparent,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    StandardLeadingIcon {
-                        Icon(
-                            painter = painterResource(R.drawable.add_24px),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.route_add),
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
-            }
+                modifier = Modifier.padding(start = 4.dp)
+            )
         }
     ) { route, _ ->
         val iconRes = when (route.socket.lowercase()) {

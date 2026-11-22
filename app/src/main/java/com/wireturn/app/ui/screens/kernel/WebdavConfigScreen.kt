@@ -45,7 +45,6 @@ import androidx.compose.material3.OutlinedSecureTextField
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallExtendedFloatingActionButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -58,7 +57,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
@@ -72,6 +70,7 @@ import com.wireturn.app.data.kernel.WebdavConfig
 import com.wireturn.app.ui.AppDropdownMenu
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.HapticUtil
+import com.wireturn.app.ui.IconTextButton
 import com.wireturn.app.ui.ItemPosition
 import com.wireturn.app.ui.LargeLeadingIcon
 import com.wireturn.app.ui.QrCodeDialog
@@ -649,30 +648,13 @@ private fun BackendsDialog(
         onDismiss = onDismiss,
         dismissOnSelect = false,
         footer = {
-            Surface(
+            // Start-aligned with the options' icons above it.
+            IconTextButton(
+                text = stringResource(R.string.webdav_backend_add),
+                icon = R.drawable.add_24px,
                 onClick = onAdd,
-                shape = MaterialTheme.shapes.extraLarge,
-                color = Color.Transparent,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    StandardLeadingIcon {
-                        Icon(
-                            painter = painterResource(R.drawable.add_24px),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.webdav_backend_add),
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
-            }
+                modifier = Modifier.padding(start = 4.dp)
+            )
         }
     ) { backend, _ ->
         Row(
