@@ -32,6 +32,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularWavyProgressIndicator
@@ -56,11 +57,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -71,6 +74,7 @@ import com.wireturn.app.ByeDpi
 import com.wireturn.app.R
 import com.wireturn.app.data.XraySettings
 import com.wireturn.app.domain.GeoResourceSet
+import com.wireturn.app.domain.RoutingProfile
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.ExpandableSection
 import com.wireturn.app.ui.HapticUtil
@@ -93,6 +97,7 @@ import com.wireturn.app.viewmodel.GeoAssetsState
 import java.text.DateFormat
 import java.util.Date
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 @Composable
 fun XraySettingsScreen(
@@ -141,6 +146,7 @@ fun XraySettingsScreen(
 
     val showGeoDialog = remember { mutableStateOf(false) }
     val showRoutingPresets = remember { mutableStateOf(false) }
+    val showRoutingImport = remember { mutableStateOf(false) }
     val showGeoSourceEditor = remember { mutableStateOf(false) }
     // Null while adding a new source.
     val editedGeoSource = remember { mutableStateOf<GeoResourceSet?>(null) }
@@ -517,6 +523,30 @@ fun XraySettingsScreen(
                     }
                 }
 
+                SectionItem(
+                    position = ItemPosition.Middle,
+                    onClick = {
+                        if (privacyMode) return@SectionItem
+                        HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                        showRoutingImport.value = true
+                    }
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        StandardLeadingIcon {
+                            Icon(
+                                painter = painterResource(R.drawable.content_paste_24px),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        LabelGroup(
+                            label = stringResource(R.string.routing_import_title),
+                            supportingText = stringResource(R.string.routing_import_desc),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
                 SectionItem(position = ItemPosition.Middle) {
                     TextFieldRow(
                         label = stringResource(R.string.xray_settings_route_direct_label),
@@ -738,6 +768,30 @@ fun XraySettingsScreen(
                 )
             }
         }
+    }
+
+    if (showRoutingImport.value) {
+        RoutingProfileImportDialog(
+            installedGeoId = initialXraySettings.geoVariant.takeIf { geoAssetsInstalled },
+            customGeoSources = customGeoSources,
+            onApply = { profile ->
+                HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                routeDirect = profile.routeDirect
+                routeBlock = profile.routeBlock
+                profile.remoteDnsIp?.let { dns = it }
+                profile.fakeDns?.let { fakeDns = it }
+                // The profile's geo files: a known source is reused, others are added to the list.
+                // Downloaded right away, like from the geo dialog - the routes above need them.
+                geoSourceFor(profile, customGeoSources)?.let { (source, isNew) ->
+                    if (isNew) onSaveCustomGeoSource(source)
+                    if (!geoAssetsInstalled || initialXraySettings.geoVariant != source.id) {
+                        onDownloadGeoAssets(source)
+                    }
+                }
+                showRoutingImport.value = false
+            },
+            onDismiss = { showRoutingImport.value = false }
+        )
     }
 
     if (showGeoSourceEditor.value) {
@@ -1099,6 +1153,155 @@ private fun geoVariantDescription(variant: GeoResourceSet): String =
             else -> R.string.geo_variant_runetfreedom_desc
         }
     )
+
+/**
+ * The geo source for a routing profile's geoip/geosite URLs: a built-in or already added one with
+ * the same files, or a new custom one named after the profile (true: not in the list yet). Null
+ * when the profile doesn't name its geo files.
+ */
+private fun geoSourceFor(
+    profile: RoutingProfile,
+    custom: List<GeoResourceSet>
+): Pair<GeoResourceSet, Boolean>? {
+    val geoip = profile.geoipUrl ?: return null
+    val geosite = profile.geositeUrl ?: return null
+    fun same(a: String, b: String) = a.trim().trimEnd('/').equals(b.trim().trimEnd('/'), ignoreCase = true)
+    (GeoResourceSet.BUILT_IN + custom)
+        .find { same(it.geoipUrl, geoip) && same(it.geositeUrl, geosite) }
+        ?.let { return it to false }
+    return GeoResourceSet.custom(profile.name.orEmpty(), geoip, geosite) to true
+}
+
+/**
+ * Imports a Happ/INCY routing profile (see [RoutingProfile]) into the screen's fields: pasted
+ * as a link, base64 or JSON, with what it will change listed before applying. Like the presets,
+ * nothing is kept until the screen is saved - only the geo files download right away.
+ */
+@Composable
+private fun RoutingProfileImportDialog(
+    installedGeoId: String?,
+    customGeoSources: List<GeoResourceSet>,
+    onApply: (RoutingProfile) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    val textState = rememberTextFieldState()
+    val text = textState.text.toString()
+    val profile = remember(text) { RoutingProfile.parse(text) }
+    // Remembered: a new custom source gets a fresh id each time it's made.
+    val geo = remember(profile, customGeoSources) {
+        profile?.let { geoSourceFor(it, customGeoSources) }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.routing_import_title)) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
+                    state = textState,
+                    label = { Text(stringResource(R.string.routing_import_field_label)) },
+                    supportingText = {
+                        Text(
+                            stringResource(
+                                if (text.isNotBlank() && profile == null) R.string.routing_import_invalid
+                                else R.string.routing_import_hint
+                            )
+                        )
+                    },
+                    isError = text.isNotBlank() && profile == null,
+                    trailingIcon = {
+                        IconButton(onClick = {
+                            scope.launch {
+                                val clip = runCatching {
+                                    clipboard.getClipEntry()?.clipData
+                                        ?.takeIf { it.itemCount > 0 }
+                                        ?.getItemAt(0)?.text?.toString()
+                                }.getOrNull()
+                                if (!clip.isNullOrBlank()) textState.setTextAndPlaceCursorAtEnd(clip.trim())
+                            }
+                        }) {
+                            Icon(
+                                painter = painterResource(R.drawable.content_paste_24px),
+                                contentDescription = stringResource(R.string.routing_import_paste)
+                            )
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                    lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 1, maxHeightInLines = 4),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                if (profile != null) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        val lines = buildList {
+                            profile.name?.let { add(stringResource(R.string.routing_import_name, it)) }
+                            add(
+                                stringResource(
+                                    R.string.routing_import_direct,
+                                    profile.directSites.size + profile.directIp.size
+                                )
+                            )
+                            add(
+                                stringResource(
+                                    R.string.routing_import_block,
+                                    profile.blockSites.size + profile.blockIp.size
+                                )
+                            )
+                            profile.remoteDnsIp?.let { add(stringResource(R.string.routing_import_dns, it)) }
+                            profile.fakeDns?.let {
+                                add(
+                                    stringResource(
+                                        if (it) R.string.routing_import_fakedns_on
+                                        else R.string.routing_import_fakedns_off
+                                    )
+                                )
+                            }
+                            geo?.let { (source, _) ->
+                                add(
+                                    stringResource(
+                                        if (source.id == installedGeoId) R.string.routing_import_geo_installed
+                                        else R.string.routing_import_geo_download,
+                                        geoVariantLabel(source)
+                                    )
+                                )
+                            }
+                        }
+                        lines.forEach { line ->
+                            Text(text = line, style = MaterialTheme.typography.bodyMedium)
+                        }
+                        if (profile.unsupported.isNotEmpty()) {
+                            SupportingText(
+                                text = stringResource(
+                                    R.string.routing_import_unsupported,
+                                    profile.unsupported.joinToString(", ")
+                                ),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { profile?.let(onApply) },
+                enabled = profile != null
+            ) {
+                Text(stringResource(R.string.routing_import_apply))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
+}
 
 @Composable
 private fun GeoSourceEditDialog(
