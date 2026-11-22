@@ -32,12 +32,13 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SelectableDropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
@@ -354,23 +355,21 @@ private fun LogLevelFilterButton(
             onDismissRequest = { expanded = false },
             title = stringResource(R.string.logs_filter)
         ) {
-            LOG_LEVEL_OPTIONS.forEach { (level, labelRes) ->
-                DropdownMenuItem(
-                    text = { Text(stringResource(labelRes)) },
+            LOG_LEVEL_OPTIONS.forEachIndexed { index, (level, labelRes) ->
+                // One of a set, like a radio button - the role and the selected styling come
+                // with it, the check only marks it.
+                SelectableDropdownMenuItem(
+                    selected = level == selected,
                     onClick = {
                         HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         onSelect(level)
                         expanded = false
                     },
-                    trailingIcon = if (level == selected) {
-                        {
-                            Icon(
-                                painterResource(R.drawable.check_24px),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    } else null
+                    text = { Text(stringResource(labelRes)) },
+                    shapes = MenuDefaults.itemShape(index, LOG_LEVEL_OPTIONS.size),
+                    selectedLeadingIcon = {
+                        Icon(painterResource(R.drawable.check_24px), contentDescription = null)
+                    }
                 )
             }
         }
