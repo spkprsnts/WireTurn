@@ -57,6 +57,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -312,7 +313,7 @@ private fun PermissionsPage() {
         title = stringResource(R.string.permissions_title),
         description = stringResource(R.string.onboarding_permissions_desc)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
             if (asksNotifications) {
                 PermissionItem(
                     icon = R.drawable.notifications_24px,
@@ -488,7 +489,7 @@ private data class Feature(
 
 @Composable
 private fun FeatureGroup(items: List<Feature>) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
         items.forEachIndexed { i, feature ->
             SectionItem(
                 position = when {

@@ -341,7 +341,7 @@ fun SectionGroup(
                 SectionHeader(title = title, isModified = isModified)
             }
         }
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
             content()
         }
     }
