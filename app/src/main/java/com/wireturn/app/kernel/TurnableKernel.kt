@@ -188,7 +188,8 @@ object TurnableKernel : Kernel {
                 )
                 state.captchaActive = true
                 state.startupEmitted = true
-                return true
+                // Keep reading: Turnable stays up waiting for the tokens - true would stop it.
+                return false
             }
             // Without its port and link there is nothing to show - waiting only runs into the
             // timeout, so stop with a readable reason.
