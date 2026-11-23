@@ -116,6 +116,7 @@ class XraySetupActivity : ComponentActivity() {
 
             val savedXrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
             val profiles by viewModel.profiles.collectAsStateWithLifecycle()
+            val subscriptions by viewModel.subscriptions.collectAsStateWithLifecycle()
 
             WireturnTheme(themeMode = themeMode, dynamicColor = dynamicTheme) {
                 XraySetupScreen(
@@ -126,6 +127,7 @@ class XraySetupActivity : ComponentActivity() {
                     kernelVariant = clientConfigFromIntent.kernelVariant,
                     kernelConfig = clientConfigFromIntent.kernelConfig,
                     xrayProfiles = profiles.filter { it.kernelConfig is KernelConfig.Xray },
+                    subscriptions = subscriptions,
                     onBack = { finish() },
                     onSave = { type, wg, vless ->
                         viewModel.addFullProfile(

@@ -35,6 +35,7 @@ class XrayEditActivity : ComponentActivity() {
             val savedXrayConfig by viewModel.xrayConfig.collectAsStateWithLifecycle()
             val clientConfig by viewModel.clientConfig.collectAsStateWithLifecycle()
             val profiles by viewModel.profiles.collectAsStateWithLifecycle()
+            val subscriptions by viewModel.subscriptions.collectAsStateWithLifecycle()
 
             val targetProfile = remember(profiles) {
                 if (profileId != null) profiles.find { it.id == profileId } else null
@@ -59,6 +60,7 @@ class XrayEditActivity : ComponentActivity() {
                     kernelConfig = targetProfile?.kernelConfig ?: clientConfig.kernelConfig,
                     profileName = targetProfile?.name,
                     xrayProfiles = profiles.filter { it.kernelConfig is com.wireturn.app.data.KernelConfig.Xray },
+                    subscriptions = subscriptions,
                     onBack = { finish() },
                     onSave = { type, wg, vless ->
                         if (profileId != null) {

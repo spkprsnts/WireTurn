@@ -17,6 +17,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -35,9 +36,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallExtendedFloatingActionButton
 import androidx.compose.material3.Text
@@ -65,6 +68,7 @@ import com.wireturn.app.R
 import com.wireturn.app.data.KernelConfig
 import com.wireturn.app.data.KernelVariant
 import com.wireturn.app.data.Profile
+import com.wireturn.app.data.Subscription
 import com.wireturn.app.data.VlessConfig
 import com.wireturn.app.data.WgConfig
 import com.wireturn.app.data.XrayConfig
@@ -106,8 +110,10 @@ fun XraySetupScreen(
     kernelVariant: KernelVariant = KernelVariant.TURNABLE,
     kernelConfig: KernelConfig? = null,
     profileName: String? = null,
-    // Xray-only profiles (XrayKernel) whose link (and mux) can be taken over here.
+    // Xray-only profiles (XrayKernel) whose link (and mux) can be taken over here, and the
+    // subscriptions they're grouped under in that list.
     xrayProfiles: List<Profile> = emptyList(),
+    subscriptions: List<Subscription> = emptyList(),
     onBack: () -> Unit,
     onSave: (XrayConfiguration, WgConfig, VlessConfig) -> Unit
 ) {
@@ -562,6 +568,7 @@ fun XraySetupScreen(
                         vlessIsSocks5Chain = vlessIsSocks5Chain,
                         onVlessIsSocks5ChainChange = { vlessIsSocks5Chain = it },
                         xrayProfiles = xrayProfiles,
+                        subscriptions = subscriptions,
                         initialVlessConfig = initialVlessConfig,
                         isPrivacyActive = isPrivacyActive,
                         kernelVariant = kernelVariant,
@@ -726,14 +733,26 @@ private fun WireGuardSettingsBlock(
 }
 
 // Takes an Xray-only profile's link (and mux) over into this overlay - shown only if there are any.
+// The user's own profiles come first, then each subscription's under its name - in the profile
+// sheet's order (pinned subscriptions first).
 @Composable
 private fun XrayProfilePicker(
     profiles: List<Profile>,
+    subscriptions: List<Subscription>,
     onSelect: (XrayLinkConfig) -> Unit
 ) {
     if (profiles.isEmpty()) return
     val context = LocalContext.current
     var expanded by remember { mutableStateOf(false) }
+    val (ownProfiles, subscriptionGroups) = remember(profiles, subscriptions) {
+        val known = subscriptions.mapTo(HashSet()) { it.id }
+        // A profile left over from a deleted subscription counts as the user's own.
+        val own = profiles.filter { it.subscriptionId == null || it.subscriptionId !in known }
+        val groups = subscriptions.sortedBy { !it.pinned }.mapNotNull { sub ->
+            profiles.filter { it.subscriptionId == sub.id }.takeIf { it.isNotEmpty() }?.let { sub to it }
+        }
+        own to groups
+    }
 
     Box {
         IconButton(onClick = { expanded = true }) {
@@ -747,7 +766,8 @@ private fun XrayProfilePicker(
             onDismissRequest = { expanded = false },
             title = stringResource(R.string.xray_from_profile)
         ) {
-            profiles.forEach { profile ->
+            @Composable
+            fun ProfileItem(profile: Profile) {
                 val config = profile.xrayLinkConfig
                 DropdownMenuItem(
                     text = {
@@ -767,6 +787,23 @@ private fun XrayProfilePicker(
                     }
                 )
             }
+
+            ownProfiles.forEach { ProfileItem(it) }
+            subscriptionGroups.forEachIndexed { index, (sub, subProfiles) ->
+                if (index > 0 || ownProfiles.isNotEmpty()) {
+                    HorizontalDivider(modifier = Modifier.padding(MenuDefaults.HorizontalDividerPadding))
+                }
+                MenuDefaults.DropdownMenuGroupLabel(padding = PaddingValues(horizontal = 12.dp)) {
+                    // Quieter than the items under it, and than the menu's own title.
+                    Text(
+                        sub.name,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                subProfiles.forEach { ProfileItem(it) }
+            }
         }
     }
 }
@@ -780,6 +817,7 @@ private fun VlessSettingsBlock(
     vlessMux: String, onVlessMuxChange: (String) -> Unit,
     vlessIsSocks5Chain: Boolean, onVlessIsSocks5ChainChange: (Boolean) -> Unit,
     xrayProfiles: List<Profile>,
+    subscriptions: List<Subscription>,
     initialVlessConfig: VlessConfig,
     isPrivacyActive: Boolean,
     kernelVariant: KernelVariant,
@@ -836,6 +874,7 @@ private fun VlessSettingsBlock(
                     trailingIcon = {
                         XrayProfilePicker(
                             profiles = xrayProfiles,
+                            subscriptions = subscriptions,
                             onSelect = { config ->
                                 onVlessLinkChange(config.link)
                                 onVlessMuxChange(config.mux)
