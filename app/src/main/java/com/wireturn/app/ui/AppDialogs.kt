@@ -54,6 +54,9 @@ fun AppDropdownMenu(
     ) {
         DropdownMenuGroup(
             shapes = MenuDefaults.groupShape(0, 1),
+            // The popup itself doesn't scroll (unlike the baseline DropdownMenu), so a menu taller
+            // than the screen - a long one, or landscape - scrolls here, inside its container.
+            modifier = Modifier.verticalScroll(rememberScrollState()),
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
             shadowElevation = 4.dp
         ) {

@@ -30,8 +30,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
@@ -752,7 +754,10 @@ fun AppExceptionsScreen(
                             ) {
                                 DropdownMenuGroup(
                                     shapes = MenuDefaults.groupShape(0, 1),
-                                    modifier = Modifier.widthIn(min = 240.dp),
+                                    // The popup doesn't scroll by itself - see AppDropdownMenu.
+                                    modifier = Modifier
+                                        .widthIn(min = 240.dp)
+                                        .verticalScroll(rememberScrollState()),
                                     shadowElevation = 4.dp,
                                     containerColor = MaterialTheme.colorScheme.surfaceContainer
                                 ) {
