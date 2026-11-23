@@ -1432,7 +1432,8 @@ private fun ProfileItemRow(
                                 itemExportActionMenuExpanded = true
                             }
                         )
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                        // Inset, as every divider inside an Expressive menu group.
+                        HorizontalDivider(modifier = Modifier.padding(MenuDefaults.HorizontalDividerPadding))
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.profile_delete)) },
                             leadingIcon = {
