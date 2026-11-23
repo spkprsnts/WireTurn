@@ -47,13 +47,16 @@ import com.wireturn.app.R
 import com.wireturn.app.ui.AppTopAppBar
 import com.wireturn.app.ui.HapticUtil
 import com.wireturn.app.ui.ItemPosition
+import com.wireturn.app.ui.LabelGroup
 import com.wireturn.app.ui.ScreenSubtitle
 import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
+import com.wireturn.app.ui.SubscriptionUserAgentDialog
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.TextFieldRow
 import com.wireturn.app.ui.ValidatorUtils
 import com.wireturn.app.ui.DigitsInput
+import com.wireturn.app.ui.subscriptionUserAgentLabel
 import com.wireturn.app.ui.theme.WireturnTheme
 import com.wireturn.app.viewmodel.MainViewModel
 
@@ -101,6 +104,8 @@ class SubscriptionConfigActivity : ComponentActivity() {
             var onlyUpdateIfSelected by remember(sub) { mutableStateOf(sub.onlyUpdateIfSelected) }
             var requireTunnelForUpdate by remember(sub) { mutableStateOf(sub.requireTunnelForUpdate) }
             var updateIntervalMinutes by remember(sub) { mutableIntStateOf(sub.updateIntervalMinutes) }
+            var userAgent by remember(sub) { mutableStateOf(sub.userAgent) }
+            val showUserAgentDialog = remember { mutableStateOf(false) }
 
             val isUrlValid = url.isNotBlank() && ValidatorUtils.isValidUrl(url)
             val isIntervalValid = !autoUpdate || updateIntervalMinutes >= 20
@@ -108,7 +113,8 @@ class SubscriptionConfigActivity : ComponentActivity() {
                     autoUpdate != sub.autoUpdate ||
                     onlyUpdateIfSelected != sub.onlyUpdateIfSelected ||
                     requireTunnelForUpdate != sub.requireTunnelForUpdate ||
-                    updateIntervalMinutes != sub.updateIntervalMinutes
+                    updateIntervalMinutes != sub.updateIntervalMinutes ||
+                    userAgent != sub.userAgent
 
             val showExitDialog = remember { mutableStateOf(false) }
             val showDeleteConfirm = remember { mutableStateOf(false) }
@@ -162,7 +168,8 @@ class SubscriptionConfigActivity : ComponentActivity() {
                                             autoUpdate = autoUpdate,
                                             onlyUpdateIfSelected = onlyUpdateIfSelected,
                                             requireTunnelForUpdate = requireTunnelForUpdate,
-                                            updateIntervalMinutes = updateIntervalMinutes
+                                            updateIntervalMinutes = updateIntervalMinutes,
+                                            userAgent = userAgent
                                         )
                                     }
                                     finish()
@@ -191,7 +198,7 @@ class SubscriptionConfigActivity : ComponentActivity() {
                         ScreenSubtitle(sub.name)
 
                         SectionGroup(title = stringResource(R.string.subscription_info)) {
-                            SectionItem(position = ItemPosition.Single) {
+                            SectionItem(position = ItemPosition.Top) {
                                 TextFieldRow(
                                     label = stringResource(R.string.freeturn_sub_label),
                                     value = url,
@@ -203,6 +210,30 @@ class SubscriptionConfigActivity : ComponentActivity() {
                                     maxLines = 5
                                 )
                             }
+                            SectionItem(
+                                position = ItemPosition.Bottom,
+                                onClick = {
+                                    HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                                    showUserAgentDialog.value = true
+                                }
+                            ) {
+                                LabelGroup(
+                                    label = stringResource(R.string.subscription_user_agent),
+                                    supportingText = subscriptionUserAgentLabel(userAgent),
+                                    isModified = userAgent != sub.userAgent
+                                )
+                            }
+                        }
+
+                        if (showUserAgentDialog.value) {
+                            SubscriptionUserAgentDialog(
+                                current = userAgent,
+                                onSelect = {
+                                    userAgent = it
+                                    showUserAgentDialog.value = false
+                                },
+                                onDismiss = { showUserAgentDialog.value = false }
+                            )
                         }
 
                         SectionGroup(title = stringResource(R.string.auto_update)) {

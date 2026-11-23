@@ -86,6 +86,7 @@ import com.wireturn.app.ui.RowLabel
 import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.StandardLeadingIcon
+import com.wireturn.app.ui.SubscriptionUserAgentDialog
 import com.wireturn.app.ui.SupportingText
 import com.wireturn.app.ui.SwitchRow
 import com.wireturn.app.ui.VerticalAnimatedText
@@ -491,6 +492,9 @@ internal fun DeepLinkImportDialogs(
     }
 
     var pendingSubscriptionUrl by remember { mutableStateOf<String?>(null) }
+    // The deep-linked subscription waiting for its User-Agent (after "Add"), and the one chosen.
+    var deepLinkUserAgentUrl by remember { mutableStateOf<String?>(null) }
+    var deepLinkUserAgent by remember { mutableStateOf<String?>(null) }
     val deepLinkLocalNetworkPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -500,7 +504,11 @@ internal fun DeepLinkImportDialogs(
             isImportingDeepLink = true
             deepLinkImportJob = scope.launch {
                 try {
-                    val status = viewModel.smartImport(url, allowInsecureHttp = true)
+                    val status = viewModel.smartImport(
+                        url,
+                        allowInsecureHttp = true,
+                        userAgent = deepLinkUserAgent
+                    )
                     if (status is com.wireturn.app.domain.ImportStatus.Success) {
                         context.showExclusiveToast(importSubscriptionSuccessMsg)
                         onImported(status.id)
@@ -520,7 +528,8 @@ internal fun DeepLinkImportDialogs(
         }
     }
 
-    fun confirmDeepLinkSubscription(url: String) {
+    fun confirmDeepLinkSubscription(url: String, userAgent: String?) {
+        deepLinkUserAgent = userAgent
         val needsLocalNetworkPermission = Build.VERSION.SDK_INT >= 37 &&
                 com.wireturn.app.domain.isLocalNetworkHost(url) &&
                 ContextCompat.checkSelfPermission(
@@ -538,7 +547,11 @@ internal fun DeepLinkImportDialogs(
         deepLinkImportJob = scope.launch {
             try {
                 // The dialog's "Add" is also the go-ahead for a cleartext http:// link.
-                val status = viewModel.smartImport(url, allowInsecureHttp = true)
+                val status = viewModel.smartImport(
+                    url,
+                    allowInsecureHttp = true,
+                    userAgent = userAgent
+                )
                 if (status is com.wireturn.app.domain.ImportStatus.Success) {
                     context.showExclusiveToast(importSubscriptionSuccessMsg)
                     onImported(status.id)
@@ -623,58 +636,81 @@ internal fun DeepLinkImportDialogs(
         }
 
         is com.wireturn.app.domain.DeepLinkPreview.SubscriptionLink -> {
-            val host = remember(deepLinkPreview.url) {
-                try {
-                    deepLinkPreview.url.toUri().host
-                } catch (_: Exception) {
-                    null
-                } ?: deepLinkPreview.url
-            }
-            // Confirming this dialog is also the go-ahead for a cleartext http://
-            // subscription (ImportStatus.InsecureHttp), so its warning goes right here.
-            val insecure = remember(deepLinkPreview.url) {
-                deepLinkPreview.url.startsWith("http://", ignoreCase = true) &&
-                        !com.wireturn.app.domain.isLocalNetworkHost(deepLinkPreview.url)
-            }
-            AlertDialog(
-                onDismissRequest = { dismissDeepLink() },
-                title = {
-                    Text(
-                        stringResource(
-                            R.string.deep_link_import_subscription_title,
-                            host
-                        )
-                    )
-                },
-                text = {
-                    Text(
-                        if (insecure) {
-                            stringResource(R.string.deep_link_import_subscription_desc) + "\n\n" +
-                                    stringResource(R.string.import_insecure_http_note)
-                        } else {
-                            stringResource(R.string.deep_link_import_subscription_desc)
-                        }
-                    )
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = { confirmDeepLinkSubscription(deepLinkPreview.url) },
-                        enabled = !isImportingDeepLink
-                    ) {
-                        if (isImportingDeepLink) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(Modifier.width(8.dp))
-                        }
-                        Text(stringResource(R.string.btn_add))
+            val userAgentUrl = deepLinkUserAgentUrl
+            if (userAgentUrl != null) {
+                // After "Add" on a subscription not added yet: which User-Agent to fetch it with.
+                SubscriptionUserAgentDialog(
+                    current = null,
+                    description = stringResource(R.string.subscription_ua_add_desc),
+                    onSelect = { userAgent ->
+                        deepLinkUserAgentUrl = null
+                        confirmDeepLinkSubscription(userAgentUrl, userAgent)
+                    },
+                    onDismiss = {
+                        deepLinkUserAgentUrl = null
+                        dismissDeepLink()
                     }
-                },
-                dismissButton = {
-                    TextButton(onClick = { dismissDeepLink() }) { Text(stringResource(R.string.cancel)) }
+                )
+            } else {
+                val host = remember(deepLinkPreview.url) {
+                    try {
+                        deepLinkPreview.url.toUri().host
+                    } catch (_: Exception) {
+                        null
+                    } ?: deepLinkPreview.url
                 }
-            )
+                // Confirming this dialog is also the go-ahead for a cleartext http://
+                // subscription (ImportStatus.InsecureHttp), so its warning goes right here.
+                val insecure = remember(deepLinkPreview.url) {
+                    deepLinkPreview.url.startsWith("http://", ignoreCase = true) &&
+                            !com.wireturn.app.domain.isLocalNetworkHost(deepLinkPreview.url)
+                }
+                AlertDialog(
+                    onDismissRequest = { dismissDeepLink() },
+                    title = {
+                        Text(
+                            stringResource(
+                                R.string.deep_link_import_subscription_title,
+                                host
+                            )
+                        )
+                    },
+                    text = {
+                        Text(
+                            if (insecure) {
+                                stringResource(R.string.deep_link_import_subscription_desc) + "\n\n" +
+                                        stringResource(R.string.import_insecure_http_note)
+                            } else {
+                                stringResource(R.string.deep_link_import_subscription_desc)
+                            }
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                if (viewModel.isNewSubscriptionLink(deepLinkPreview.url)) {
+                                    deepLinkUserAgentUrl = deepLinkPreview.url
+                                } else {
+                                    confirmDeepLinkSubscription(deepLinkPreview.url, null)
+                                }
+                            },
+                            enabled = !isImportingDeepLink
+                        ) {
+                            if (isImportingDeepLink) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(Modifier.width(8.dp))
+                            }
+                            Text(stringResource(R.string.btn_add))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { dismissDeepLink() }) { Text(stringResource(R.string.cancel)) }
+                    }
+                )
+            }
         }
 
         com.wireturn.app.domain.DeepLinkPreview.Invalid -> {

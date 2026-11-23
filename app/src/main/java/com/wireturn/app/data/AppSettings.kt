@@ -81,7 +81,9 @@ data class Subscription(
     @SerializedName("requireTunnelForUpdate") val requireTunnelForUpdate: Boolean = false,
     @SerializedName("pinned") val pinned: Boolean = false,
     @SerializedName("collapsed") val collapsed: Boolean = false,
-    @SerializedName("sortMode") val sortMode: String = SORT_SERVER
+    @SerializedName("sortMode") val sortMode: String = SORT_SERVER,
+    // The User-Agent it's fetched with: null - automatic, see SubscriptionUserAgents.
+    @SerializedName("userAgent") val userAgent: String? = null
 ) {
     /**
      * Gson builds this without its constructor, so a field missing from JSON saved by an older

@@ -60,6 +60,7 @@ import com.wireturn.app.ui.LabelGroup
 import com.wireturn.app.ui.SectionGroup
 import com.wireturn.app.ui.SectionItem
 import com.wireturn.app.ui.StandardLeadingIcon
+import com.wireturn.app.ui.SubscriptionUserAgentDialog
 import com.wireturn.app.ui.activities.kernel.FreeTurnConfigActivity
 import com.wireturn.app.ui.activities.kernel.OlcRtcConfigActivity
 import com.wireturn.app.ui.activities.kernel.OpenFluxConfigActivity
@@ -155,6 +156,10 @@ class AddProfileActivity : ComponentActivity() {
             }
 
             var pendingLinkImport by remember { mutableStateOf<String?>(null) }
+            // A new subscription waiting for its User-Agent, and the one chosen for the import
+            // under way - every retry below (permission, cleartext go-ahead) carries it on.
+            var pendingUserAgentLink by remember { mutableStateOf<String?>(null) }
+            var importUserAgent by remember { mutableStateOf<String?>(null) }
             val localNetworkPermissionLauncher = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestPermission()
             ) { _ ->
@@ -164,7 +169,7 @@ class AddProfileActivity : ComponentActivity() {
                     isImporting = true
                     scope.launch {
                         val status = try {
-                            viewModel.smartImport(link)
+                            viewModel.smartImport(link, userAgent = importUserAgent)
                         } catch (_: Exception) {
                             ImportStatus.NetworkError
                         }
@@ -174,11 +179,20 @@ class AddProfileActivity : ComponentActivity() {
                 }
             }
 
-            fun performSmartImport(text: String) {
+            // userAgentChosen: the User-Agent dialog already answered for this text.
+            fun performSmartImport(text: String, userAgentChosen: Boolean = false) {
                 if (text.isBlank()) {
                     HapticUtil.perform(this@AddProfileActivity, HapticUtil.Pattern.ERROR)
                     context.showExclusiveToast(errorNoLink)
                     return
+                }
+                if (!userAgentChosen) {
+                    importUserAgent = null
+                    // A subscription not added yet: which User-Agent to fetch it with, first.
+                    if (viewModel.isNewSubscriptionLink(text)) {
+                        pendingUserAgentLink = text
+                        return
+                    }
                 }
 
                 val needsLocalNetworkPermission = Build.VERSION.SDK_INT >= 37 &&
@@ -197,7 +211,7 @@ class AddProfileActivity : ComponentActivity() {
                 isImporting = true
                 scope.launch {
                     val status = try {
-                        viewModel.smartImport(text)
+                        viewModel.smartImport(text, userAgent = importUserAgent)
                     } catch (_: Exception) {
                         ImportStatus.NetworkError
                     }
@@ -450,6 +464,19 @@ class AddProfileActivity : ComponentActivity() {
                     )
                 }
 
+                pendingUserAgentLink?.let { link ->
+                    SubscriptionUserAgentDialog(
+                        current = null,
+                        description = stringResource(R.string.subscription_ua_add_desc),
+                        onSelect = { userAgent ->
+                            pendingUserAgentLink = null
+                            importUserAgent = userAgent
+                            performSmartImport(link, userAgentChosen = true)
+                        },
+                        onDismiss = { pendingUserAgentLink = null }
+                    )
+                }
+
                 pendingInsecureUrl?.let { url ->
                     AlertDialog(
                         onDismissRequest = { pendingInsecureUrl = null },
@@ -465,7 +492,11 @@ class AddProfileActivity : ComponentActivity() {
                                 isImporting = true
                                 scope.launch {
                                     val status = try {
-                                        viewModel.smartImport(url, allowInsecureHttp = true)
+                                        viewModel.smartImport(
+                                            url,
+                                            allowInsecureHttp = true,
+                                            userAgent = importUserAgent
+                                        )
                                     } catch (_: Exception) {
                                         ImportStatus.NetworkError
                                     }

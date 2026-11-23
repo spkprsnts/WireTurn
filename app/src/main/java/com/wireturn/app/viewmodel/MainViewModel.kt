@@ -1112,9 +1112,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // allowInsecureHttp: the user already confirmed a cleartext http:// subscription (see
     // ImportStatus.InsecureHttp).
+    // userAgent: what a new subscription is fetched with, from the choice before adding it
+    // (null - automatic, see SubscriptionUserAgents).
     suspend fun smartImport(
         text: String,
-        allowInsecureHttp: Boolean = false
+        allowInsecureHttp: Boolean = false,
+        userAgent: String? = null
     ): com.wireturn.app.domain.ImportStatus {
         val trimmed = text.trim()
 
@@ -1122,7 +1125,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (trimmed.startsWith("https://") || trimmed.startsWith("http://")) {
             return profileManager.fetchSubscription(
                 trimmed,
-                allowInsecureHttp = allowInsecureHttp
+                allowInsecureHttp = allowInsecureHttp,
+                userAgent = userAgent
             ) {
                 selectProfileAndRestart(it.id, it)
             }
@@ -1138,7 +1142,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (decodedTrimmed.startsWith("https://") || decodedTrimmed.startsWith("http://")) {
                     return profileManager.fetchSubscription(
                         decodedTrimmed,
-                        allowInsecureHttp = allowInsecureHttp
+                        allowInsecureHttp = allowInsecureHttp,
+                        userAgent = userAgent
                     ) {
                         selectProfileAndRestart(it.id, it)
                     }
@@ -1246,6 +1251,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
 
         return com.wireturn.app.domain.ImportStatus.InvalidFormat
+    }
+
+    /**
+     * Whether [text] would add a subscription not added yet - a bare http(s) URL, or one wrapped in
+     * a wireturn:// container - the case the User-Agent is asked for before importing.
+     */
+    fun isNewSubscriptionLink(text: String): Boolean {
+        var url = text.trim()
+        if (url.startsWith("wireturn://") || url.startsWith("wt://")) {
+            url = com.wireturn.app.domain.ProfileEncoder.decode(url.substringAfter("://"))?.trim()
+                ?: return false
+        }
+        if (!url.startsWith("https://") && !url.startsWith("http://")) return false
+        return subscriptions.value.none { it.url == url }
     }
 
     suspend fun importProfileFromLink(link: String): com.wireturn.app.domain.ImportStatus {

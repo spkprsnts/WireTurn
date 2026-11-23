@@ -899,6 +899,16 @@
     <string name="subscription_announce_less">Less</string>
     <string name="subscription_support">Support</string>
     <string name="subscription_web_page">Provider website</string>
+    <string name="subscription_user_agent">User-Agent</string>
+    <string name="subscription_ua_desc">Panels choose what to serve by the client\'s User-Agent</string>
+    <string name="subscription_ua_add_desc">Panels choose what to serve by the client\'s User-Agent. Not sure - leave it on Auto, it can be changed in the subscription settings later</string>
+    <string name="subscription_ua_auto">Auto</string>
+    <string name="subscription_ua_auto_desc">WireTurn; if the panel answers with a web page, the kernels\' clients in turn</string>
+    <string name="subscription_ua_wireturn">WireTurn</string>
+    <string name="subscription_ua_wireturn_desc">WireTurn only, nothing tried after it</string>
+    <string name="subscription_ua_custom">Custom</string>
+    <string name="subscription_ua_custom_desc">Type it in</string>
+    <string name="subscription_ua_custom_title">Custom User-Agent</string>
     <string name="subscription_test_ping">Check availability</string>
     <string name="subscription_test_ping_stop">Stop the check</string>
     <string name="subscription_testing_ping">Checking availability…</string>

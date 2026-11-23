@@ -292,18 +292,10 @@ class ProfileManager(
     }
 
     // Some subscription providers content-negotiate by User-Agent and return an HTML landing
-    // page to unknown clients. Keep the normal WireTurn request first, then retry only such
-    // responses with identifiers used by the official clients of the kernels WireTurn supports.
-    // qWDTT and CSQTT identify their official Android clients. FreeTurn fetches subscriptions
-    // from Go without setting one, so net/http sends its default "Go-http-client/1.1". Turnable's
-    // panels hand turnable:// links only to Turnable's own apps ("Turnable-Android/<version>",
-    // the core's subscription fetch and Turnable App alike).
-    private val subscriptionFallbackUserAgents = listOf(
-        "qWDTT-Subscription/1.0",
-        "csqtt-client",
-        "Turnable-Android/1.0",
-        "Go-http-client/1.1"
-    )
+    // page to unknown clients. With the automatic choice the normal WireTurn request goes first,
+    // then only such responses are retried with the official clients' identifiers - see
+    // SubscriptionUserAgents. A subscription pinned to one User-Agent is fetched with it alone.
+    private val subscriptionFallbackUserAgents = SubscriptionUserAgents.autoFallbacks
 
     init {
         startAutoUpdateLoop()
@@ -759,23 +751,26 @@ class ProfileManager(
     private suspend fun existingSubscriptionId(url: String): String? =
         prefs.subscriptionsFlow.first().find { it.url == url && it.id !in deletedSubIds }?.id
 
+    // userAgent: the one a new subscription is added with (null - automatic); one already added
+    // keeps its own, see Subscription.userAgent.
     suspend fun fetchSubscription(
         url: String,
         forceId: String? = null,
         allowInsecureHttp: Boolean = false,
+        userAgent: String? = null,
         onAutoSelect: ((Profile) -> Unit)? = null
     ): ImportStatus {
         // From the store, not subscriptions.value: that one trails it, and right after a deletion
         // would still hand back the deleted subscription's id - the same URL added again would then
         // come back Cancelled, with nothing imported and nothing said.
         val subId = forceId ?: existingSubscriptionId(url)
-        ?: return downloadSubscription(url, null, allowInsecureHttp, onAutoSelect)
+        ?: return downloadSubscription(url, null, allowInsecureHttp, userAgent, onAutoSelect)
         if (subId in deletedSubIds) return ImportStatus.Cancelled
         // Its own job, so a deletion cancels this download and not the caller's coroutine - the
         // auto-update loop, or a screen refreshing several subscriptions in one.
         return kotlinx.coroutines.coroutineScope {
             val download =
-                async { downloadSubscription(url, subId, allowInsecureHttp, onAutoSelect) }
+                async { downloadSubscription(url, subId, allowInsecureHttp, userAgent, onAutoSelect) }
             subscriptionFetches[subId] = download
             try {
                 download.await()
@@ -802,6 +797,7 @@ class ProfileManager(
         url: String,
         subIdToMark: String?,
         allowInsecureHttp: Boolean,
+        requestedUserAgent: String?,
         onAutoSelect: ((Profile) -> Unit)?
     ): ImportStatus = withContext(Dispatchers.IO) {
         subIdToMark?.let { id -> _updatingSubIds.update { it + id } }
@@ -825,7 +821,15 @@ class ProfileManager(
 
         val proxy = activeLocalSocksProxy()
 
-        fun open(target: String, requestUserAgent: String = userAgent): HttpURLConnection = try {
+        // The subscription's own choice, or - while adding one - the one it's added with.
+        val chosenUserAgent = SubscriptionUserAgents.normalize(
+            requestedUserAgent ?: subIdToMark?.let { id ->
+                prefs.subscriptionsFlow.first().find { it.id == id }?.userAgent
+            }
+        )
+        val primaryUserAgent = SubscriptionUserAgents.resolve(chosenUserAgent, userAgent)
+
+        fun open(target: String, requestUserAgent: String = primaryUserAgent): HttpURLConnection = try {
             // First attempt with the calculated proxy
             val conn = (URL(target).openConnection(proxy) as HttpURLConnection).apply {
                 requestMethod = "GET"
@@ -890,7 +894,9 @@ class ProfileManager(
                     // return a machine-readable subscription for known app UAs. Retry only HTML
                     // responses so ordinary subscriptions do not incur extra requests and
                     // non-HTML parse failures keep their existing behavior.
-                    if (isHtmlSubscriptionResponse(connection, content)) {
+                    if (chosenUserAgent == SubscriptionUserAgents.AUTO &&
+                        isHtmlSubscriptionResponse(connection, content)
+                    ) {
                         val originalConnection = connection
                         originalConnection.disconnect()
                         for (fallbackUserAgent in subscriptionFallbackUserAgents) {
@@ -1012,7 +1018,8 @@ class ProfileManager(
                                         ?: false,
                                     pinned = existingSub?.pinned ?: false,
                                     collapsed = existingSub?.collapsed ?: false,
-                                    sortMode = existingSub?.sortMode ?: Subscription.SORT_SERVER
+                                    sortMode = existingSub?.sortMode ?: Subscription.SORT_SERVER,
+                                    userAgent = existingSub?.userAgent ?: chosenUserAgent
                                 )
                             }
 
