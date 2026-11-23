@@ -2,6 +2,8 @@ package com.wireturn.app.ui.screens
 
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
+import android.webkit.CookieManager
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -124,13 +126,31 @@ fun TurnableCaptchaDialog(
                         readyScript != null -> AndroidView(
                             modifier = Modifier.fillMaxSize(),
                             factory = { ctx ->
+                                // chrome://inspect over USB, to see what the page does - debug
+                                // builds only.
+                                if ((ctx.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+                                    WebView.setWebContentsDebuggingEnabled(true)
+                                }
                                 WebView(ctx).apply {
+                                    // An anonymous join every time: logged in, the script only
+                                    // warns and stops.
+                                    clearVkCookies()
+                                    // The call page on vk.ru talks to VK's other hosts (vk.com) -
+                                    // with third-party cookies off, as WebView has them by default,
+                                    // the anonymous join doesn't go through, and the page stays on
+                                    // the call's preview. As Turnable's own app has it.
+                                    CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                                     settings.javaScriptEnabled = true
                                     settings.domStorageEnabled = true
-                                    // The real UA without WebView's "; wv)" marker, as for the
-                                    // other captcha pages.
-                                    settings.userAgentString =
-                                        settings.userAgentString.replace("; wv)", ")")
+                                    // A desktop browser: phones get the call page's mobile layout,
+                                    // which has no anonymous join for the script to go through -
+                                    // just the call. Laid out as on a desktop, zoomable.
+                                    settings.userAgentString = DESKTOP_USER_AGENT
+                                    settings.useWideViewPort = true
+                                    settings.loadWithOverviewMode = true
+                                    settings.setSupportZoom(true)
+                                    settings.builtInZoomControls = true
+                                    settings.displayZoomControls = false
 
                                     // At document start, as the script expects (it wraps fetch/XHR
                                     // before the page's own code holds on to them); otherwise
@@ -143,6 +163,11 @@ fun TurnableCaptchaDialog(
                                         )
                                     }
 
+                                    webChromeClient = object : WebChromeClient() {
+                                        override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                                            loading = newProgress < 100
+                                        }
+                                    }
                                     webViewClient = object : WebViewClient() {
                                         override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                                             super.onPageStarted(view, url, favicon)
@@ -188,7 +213,8 @@ fun TurnableCaptchaDialog(
  */
 private fun wrapUserScript(userScript: String): String = buildString {
     append("(function () {\n")
-    append("  if (window.__wireturnTurnableCaptcha) return;\n")
+    // The call page itself only - not the frames in it.
+    append("  if (window.top !== window || window.__wireturnTurnableCaptcha) return;\n")
     append("  window.__wireturnTurnableCaptcha = true;\n")
     append("  var unsafeWindow = window;\n")
     append("  var GM_xmlhttpRequest = function (opts) {\n")
@@ -196,6 +222,34 @@ private fun wrapUserScript(userScript: String): String = buildString {
     append("  };\n")
     append(userScript)
     append("\n})();\n")
+}
+
+// What Turnable's own app passes for, for the same reason (see the WebView's settings).
+private const val DESKTOP_USER_AGENT =
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
+
+// VK's sign-in hosts, as host cookies and the domain-wide ones.
+private val VK_COOKIE_URLS = listOf(
+    "https://vk.com/" to ".vk.com", "https://vk.ru/" to ".vk.ru",
+    "https://login.vk.com/" to ".vk.com", "https://login.vk.ru/" to ".vk.ru",
+    "https://id.vk.com/" to ".vk.com", "https://id.vk.ru/" to ".vk.ru"
+)
+
+/**
+ * Signs the WebView out of VK. The CookieManager is the whole app's - Mail.ru's sign-in lives
+ * there too (MailruLoginActivity) - so only VK's cookies go, expired one by one.
+ */
+private fun clearVkCookies() {
+    val cookies = CookieManager.getInstance()
+    for ((url, domain) in VK_COOKIE_URLS) {
+        val names = cookies.getCookie(url).orEmpty().split(';')
+            .map { it.substringBefore('=').trim() }.filter { it.isNotEmpty() }
+        for (name in names) {
+            cookies.setCookie(url, "$name=; Max-Age=0; Path=/")
+            cookies.setCookie(url, "$name=; Max-Age=0; Path=/; Domain=$domain")
+        }
+    }
+    cookies.flush()
 }
 
 private fun isVkPage(url: String): Boolean {
